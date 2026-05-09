@@ -88,28 +88,28 @@ Do not implement:
 
 ### Frontend
 
-- [ ] Add refunds and voids to order detail view.
-- [ ] Add refund modal: select items, quantities, reason.
-- [ ] Add void modal: confirm, enter reason.
-- [ ] Display refunds in order item list (struck-through or separate section).
-- [ ] Display void status banner if order is voided.
-- [ ] Extend receipt display with refund section.
-- [ ] Extend receipt display with void status section.
-- [ ] Add loading/error states for refund/void operations.
-- [ ] Add permission-based UI gating (only show refund/void if user has permission).
-- [ ] Add success toast notifications.
+- [x] Add refunds and voids to order detail view.
+- [x] Add refund modal: select items, quantities, reason.
+- [x] Add void modal: confirm, enter reason.
+- [x] Display refunds in order item list (struck-through or separate section).
+- [x] Display void status banner if order is voided.
+- [x] Extend receipt display with refund section.
+- [x] Extend receipt display with void status section.
+- [x] Add loading/error states for refund/void operations.
+- [x] Add permission-based UI gating (only show refund/void if user has permission).
+- [x] Add success toast notifications.
 
 ### Tests
 
-- [ ] Add refund BDD scenarios (happy path, permission denied, tenant isolation, idempotency).
-- [ ] Add void BDD scenarios (happy path, permission denied, tenant isolation, idempotency).
-- [ ] Add refund money golden tests.
+- [x] Add refund BDD scenarios (happy path, permission denied, tenant isolation, idempotency).
+- [x] Add void BDD scenarios (happy path, permission denied, tenant isolation, idempotency).
+- [x] Add refund money golden tests.
 - [ ] Add void inventory reversal tests.
 - [ ] Add refund + void interaction tests (cannot coexist).
-- [ ] Add receipt display tests for refunds and voids.
+- [x] Add receipt display tests for refunds and voids.
 - [ ] Add backend refund integration tests.
 - [ ] Add backend void integration tests.
-- [ ] Add frontend refund/void modal E2E tests.
+- [x] Add frontend refund/void modal E2E tests.
 
 ## Definition of Done
 
