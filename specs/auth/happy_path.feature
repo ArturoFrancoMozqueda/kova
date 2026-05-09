@@ -1,7 +1,8 @@
 Feature: Auth happy path
-  The platform must prove the spec-driven BDD harness before POS features begin.
+  A tenant owner can sign up, verify their email, log in, and read their
+  tenant-scoped session data.
 
-  @p0 @auth @bdd
+  @p0 @auth
   Scenario: Tenant owner signs up, verifies email, logs in, and sees tenant data
     Given a prospective tenant owner
     When the owner signs up
