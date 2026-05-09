@@ -16,6 +16,7 @@ import app.audit.models  # noqa: F401
 import app.auth.models  # noqa: F401
 import app.catalog.models  # noqa: F401
 import app.idempotency.models  # noqa: F401
+import app.orders.models  # noqa: F401
 import app.rbac.models  # noqa: F401
 import app.tenants.models  # noqa: F401
 from app.config import settings
