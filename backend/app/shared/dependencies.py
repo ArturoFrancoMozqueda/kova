@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import Depends, Request
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth import repository as auth_repo
@@ -41,6 +42,10 @@ def get_current_session(
         raise forbidden("No active membership for this tenant")
 
     set_request_context(tenant_id=membership.tenant_id, user_id=user.id)
+    db.execute(
+        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+        {"tenant_id": str(membership.tenant_id)},
+    )
     return user, membership, session
 
 
