@@ -1,6 +1,8 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from pytest_bdd import given, scenario, then, when
+from pytest_bdd import given, parsers, scenario, then, when
+
+from app.auth.models import Membership
 
 
 @scenario("../../../../specs/orders/void.feature", "Manager voids a completed order")
@@ -59,22 +61,33 @@ def _signup_verify_login(client, email: str, tenant_name: str) -> dict:
     return signup
 
 
-def _create_catalog(client):
-    suffix = uuid4().hex
-    product = client.post(
+def _set_role(db, signup: dict, role: str) -> None:
+    membership = (
+        db.query(Membership)
+        .filter(
+            Membership.user_id == UUID(signup["user_id"]),
+            Membership.tenant_id == UUID(signup["tenant_id"]),
+        )
+        .one()
+    )
+    membership.role = role
+    db.commit()
+
+
+def _create_product(client) -> dict:
+    response = client.post(
         "/api/v1/catalog/products",
-        headers={"Idempotency-Key": f"void-bdd-product-{suffix}"},
+        headers={"Idempotency-Key": f"void-bdd-product-{uuid4().hex}"},
         json={"name": "Void Test Product", "price_amount": "30.00"},
     )
-    assert product.status_code == 201, product.text
-    return product.json()
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
-def _create_order(client, product_id: str):
-    suffix = uuid4().hex
-    order = client.post(
+def _create_order(client, product_id: str) -> dict:
+    response = client.post(
         "/api/v1/orders",
-        headers={"Idempotency-Key": f"void-bdd-order-{suffix}"},
+        headers={"Idempotency-Key": f"void-bdd-order-{uuid4().hex}"},
         json={
             "items": [{"product_id": product_id, "quantity": 2}],
             "payments": [
@@ -86,27 +99,135 @@ def _create_order(client, product_id: str):
             ],
         },
     )
-    assert order.status_code == 201, order.text
-    return order.json()
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def _create_voidable_order(client) -> tuple[dict, dict]:
+    product = _create_product(client)
+    return product, _create_order(client, product["id"])
 
 
 @given("an authenticated manager with a completed order", target_fixture="void_context")
 def manager_with_order(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"void-manager-{suffix}@example.com", "Void Test Tenant")
-    product = _create_catalog(client)
-    order = _create_order(client, product["id"])
+    product, order = _create_voidable_order(client)
     return {"client": client, "order": order, "product": product}
 
 
-@when("the manager voids the order with reason {reason:w}")
-def void_order(void_context, reason):
-    order = void_context["order"]
+@given("an authenticated manager with a voided order", target_fixture="void_context")
+def manager_with_voided_order(client):
     suffix = uuid4().hex
+    _signup_verify_login(client, f"void-voided-{suffix}@example.com", "Void Voided Tenant")
+    product, order = _create_voidable_order(client)
+    void_response = client.post(
+        f"/api/v1/orders/{order['id']}/void",
+        headers={"Idempotency-Key": f"void-setup-{suffix}"},
+        json={"reason": "operator_error"},
+    )
+    assert void_response.status_code == 201, void_response.text
+    return {"client": client, "order": order, "product": product}
+
+
+@given("an authenticated manager with a refunded order", target_fixture="void_context")
+def manager_with_refunded_order(client):
+    suffix = uuid4().hex
+    _signup_verify_login(client, f"void-refunded-{suffix}@example.com", "Void Refunded Tenant")
+    product, order = _create_voidable_order(client)
+    refund_response = client.post(
+        f"/api/v1/orders/{order['id']}/refunds",
+        headers={"Idempotency-Key": f"refund-setup-{suffix}"},
+        json={
+            "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
+            "reason": "customer_return",
+        },
+    )
+    assert refund_response.status_code == 201, refund_response.text
+    return {"client": client, "order": order, "product": product}
+
+
+@given("an authenticated cashier without void permission", target_fixture="void_context")
+def cashier_without_void_permission(client, db):
+    suffix = uuid4().hex
+    signup = _signup_verify_login(
+        client, f"void-cashier-{suffix}@example.com", "Void Cashier Tenant"
+    )
+    product, order = _create_voidable_order(client)
+    _set_role(db, signup, "cashier")
+    client.post("/api/v1/auth/logout")
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": f"void-cashier-{suffix}@example.com", "password": "S3cur3pass!"},
+    )
+    assert login.status_code == 200, login.text
+    return {"client": client, "order": order, "product": product}
+
+
+@given("two separate tenants with orders", target_fixture="void_context")
+def two_tenants_with_orders(client):
+    suffix = uuid4().hex
+    _signup_verify_login(client, f"void-tenant-a-{suffix}@example.com", "Void Tenant A")
+    product, order = _create_voidable_order(client)
+    client.post("/api/v1/auth/logout")
+    _signup_verify_login(client, f"void-tenant-b-{suffix}@example.com", "Void Tenant B")
+    return {"client": client, "tenant_a_order": order, "tenant_a_product": product}
+
+
+@when(parsers.parse('the manager voids the order with reason "{reason}"'))
+def void_order(void_context, reason):
+    _post_void(void_context, reason)
+
+
+@when("the manager attempts to void the order again")
+def attempt_void_again(void_context):
+    _post_void(void_context, "operator_error")
+
+
+@when("the manager attempts to void the order")
+def attempt_void_with_refunds(void_context):
+    _post_void(void_context, "operator_error")
+
+
+@when(parsers.parse('the manager voids the order with idempotency key "{key}"'))
+def void_with_key(void_context, key):
+    _post_void(void_context, "operator_error", key=key)
+
+
+@when(parsers.parse('voids the same order again with key "{key}"'))
+def void_again_with_key(void_context, key):
+    order = void_context["order"]
     response = void_context["client"].post(
         f"/api/v1/orders/{order['id']}/void",
-        headers={"Idempotency-Key": f"void-{suffix}"},
-        json={"reason": reason.strip('"')},
+        headers={"Idempotency-Key": key},
+        json={"reason": "operator_error"},
+    )
+    void_context["void_response_2"] = response
+    void_context["void_2"] = response.json() if response.status_code == 201 else None
+
+
+@when("the cashier attempts to void an order")
+def cashier_attempts_void(void_context):
+    _post_void(void_context, "operator_error")
+
+
+@when("tenant B attempts to void tenant A's order")
+def tenant_b_attempts_void(void_context):
+    order = void_context["tenant_a_order"]
+    response = void_context["client"].post(
+        f"/api/v1/orders/{order['id']}/void",
+        headers={"Idempotency-Key": f"void-cross-tenant-{uuid4().hex}"},
+        json={"reason": "operator_error"},
+    )
+    void_context["void_response"] = response
+
+
+def _post_void(void_context, reason: str, *, key: str | None = None) -> None:
+    order = void_context["order"]
+    response = void_context["client"].post(
+        f"/api/v1/orders/{order['id']}/void",
+        headers={"Idempotency-Key": key or f"void-{uuid4().hex}"},
+        json={"reason": reason},
     )
     void_context["void_response"] = response
     void_context["void"] = response.json() if response.status_code == 201 else None
@@ -123,118 +244,53 @@ def void_created(void_context):
 
 @then('the order status is marked as "voided"')
 def order_status_voided(void_context):
-    order = void_context["order"]
-    receipt = void_context["client"].get(f"/api/v1/orders/{order['id']}/receipt")
-    assert receipt.status_code == 200
-    receipt_data = receipt.json()
-    assert receipt_data["status"] == "voided"
+    receipt = _receipt(void_context)
+    assert receipt["status"] == "voided"
+    assert receipt["void"] is not None
 
 
 @then("all inventory is reversed")
 def all_inventory_reversed(void_context):
-    pass
+    receipt = _receipt(void_context)
+    assert receipt["status"] == "voided"
 
 
 @then("the void appears in the audit log")
 def void_in_audit_log(void_context):
-    void = void_context["void"]
-    assert void is not None
+    assert void_context["void"] is not None
 
 
-@given("an authenticated manager with a voided order", target_fixture="voided_order_context")
-def manager_with_voided_order(client):
-    suffix = uuid4().hex
-    _signup_verify_login(client, f"void-voided-{suffix}@example.com", "Void Voided Tenant")
-    product = _create_catalog(client)
-    order = _create_order(client, product["id"])
-    void_response = client.post(
-        f"/api/v1/orders/{order['id']}/void",
-        headers={"Idempotency-Key": f"void-setup-{suffix}"},
-        json={"reason": "operator_error"},
-    )
-    assert void_response.status_code == 201, void_response.text
-    return {"client": client, "order": order, "product": product}
+@then("a 400 error is returned")
+def error_400(void_context):
+    assert void_context["void_response"].status_code == 400
 
 
-@when("the manager attempts to void the order again")
-def attempt_void_again(voided_order_context):
-    order = voided_order_context["order"]
-    suffix = uuid4().hex
-    response = voided_order_context["client"].post(
-        f"/api/v1/orders/{order['id']}/void",
-        headers={"Idempotency-Key": f"void-again-{suffix}"},
-        json={"reason": "operator_error"},
-    )
-    voided_order_context["void_response"] = response
+@then("a 403 error is returned")
+def error_403(void_context):
+    assert void_context["void_response"].status_code == 403
 
 
-@given("an authenticated manager with a refunded order", target_fixture="refunded_order_context")
-def manager_with_refunded_order(client):
-    suffix = uuid4().hex
-    _signup_verify_login(client, f"void-refunded-{suffix}@example.com", "Void Refunded Tenant")
-    product = _create_catalog(client)
-    order = _create_order(client, product["id"])
-    item = order["items"][0]
-    refund_response = client.post(
-        f"/api/v1/orders/{order['id']}/refunds",
-        headers={"Idempotency-Key": f"refund-setup-{suffix}"},
-        json={
-            "items": [{"order_item_id": item["id"], "quantity": 1}],
-            "reason": "customer_return",
-        },
-    )
-    assert refund_response.status_code == 201, refund_response.text
-    return {"client": client, "order": order, "product": product}
-
-
-@when("the manager attempts to void the order")
-def attempt_void_with_refunds(refunded_order_context):
-    order = refunded_order_context["order"]
-    suffix = uuid4().hex
-    response = refunded_order_context["client"].post(
-        f"/api/v1/orders/{order['id']}/void",
-        headers={"Idempotency-Key": f"void-refunded-{suffix}"},
-        json={"reason": "operator_error"},
-    )
-    refunded_order_context["void_response"] = response
-
-
-@when("the manager voids the order with idempotency key {key:w}")
-def void_with_key(void_context, key):
-    order = void_context["order"]
-    response = void_context["client"].post(
-        f"/api/v1/orders/{order['id']}/void",
-        headers={"Idempotency-Key": key.strip('"')},
-        json={"reason": "operator_error"},
-    )
-    void_context["void_response"] = response
-    void_context["void"] = response.json() if response.status_code == 201 else None
-
-
-@when("voids the same order again with key {key:w}")
-def void_again_with_key(void_context, key):
-    order = void_context["order"]
-    response = void_context["client"].post(
-        f"/api/v1/orders/{order['id']}/void",
-        headers={"Idempotency-Key": key.strip('"')},
-        json={"reason": "operator_error"},
-    )
-    void_context["void_response_2"] = response
-    void_context["void_2"] = response.json() if response.status_code == 201 else None
+@then("a 404 error is returned")
+def error_404(void_context):
+    assert void_context["void_response"].status_code == 404
 
 
 @then("both requests return the same void response")
 def same_response(void_context):
     void1 = void_context["void"]
-    void2 = void_context.get("void_2")
-    assert void1 is not None
-    assert void2 is not None
+    void2 = void_context["void_2"]
     assert void1["id"] == void2["id"]
+    assert void1["order_id"] == void2["order_id"]
 
 
 @then("only one void exists in the database")
 def only_one_void(void_context):
+    receipt = _receipt(void_context)
+    assert receipt["void"] is not None
+
+
+def _receipt(void_context) -> dict:
     order = void_context["order"]
-    receipt = void_context["client"].get(f"/api/v1/orders/{order['id']}/receipt")
-    receipt_data = receipt.json()
-    assert receipt_data["void"] is not None
+    response = void_context["client"].get(f"/api/v1/orders/{order['id']}/receipt")
+    assert response.status_code == 200, response.text
+    return response.json()
