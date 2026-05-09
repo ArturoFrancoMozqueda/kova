@@ -14,6 +14,7 @@ import app.audit.models  # noqa: F401
 
 # Import all models so Base.metadata is fully populated before migrations check
 import app.auth.models  # noqa: F401
+import app.catalog.models  # noqa: F401
 import app.idempotency.models  # noqa: F401
 import app.rbac.models  # noqa: F401
 import app.tenants.models  # noqa: F401

@@ -44,4 +44,10 @@ markers = [
     "p0: P0 product-critical scenario",
     "auth: auth and session scenario",
     "bdd: pytest-bdd scenario",
+    "catalog: catalog scenario",
+    "permission: permission boundary scenario",
+    "tenant-isolation: tenant isolation scenario",
+    "audit: audit log scenario",
+    "idempotency: idempotency scenario",
+    "money: decimal money scenario",
 ]
