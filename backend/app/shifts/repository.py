@@ -46,12 +46,15 @@ def close_shift(
     reconciliation_status: str,
     variance_amount: Decimal,
 ) -> Shift:
+    from datetime import UTC, datetime
+
     shift.closed_by_user_id = user_id
     shift.status = "closed"
     shift.actual_cash_amount = actual_cash_amount
     shift.expected_cash_amount = expected_cash_amount
     shift.reconciliation_status = reconciliation_status
     shift.variance_amount = variance_amount
+    shift.closed_at = datetime.now(UTC)
     db.add(shift)
     db.flush()
     return shift

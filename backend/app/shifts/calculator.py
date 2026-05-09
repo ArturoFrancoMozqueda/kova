@@ -8,13 +8,11 @@ from app.shifts import repository as repo
 
 def calculate_expected_cash(
     db: Session, *, shift_id: str
-) -> tuple[Decimal, str, Decimal]:
+) -> Decimal:
     """
-    Calculate expected cash, reconciliation status, and variance.
+    Calculate expected cash amount based on shift movements.
 
-    Expected = opening_cash + sum(cash_in) - sum(cash_out)
-
-    Returns: (expected_cash_amount, reconciliation_status, variance_amount)
+    Expected = sum(opening_balance) + sum(cash_in) - sum(cash_out)
     """
     from uuid import UUID
 

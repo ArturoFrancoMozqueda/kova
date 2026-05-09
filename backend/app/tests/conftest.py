@@ -18,6 +18,7 @@ import app.catalog.models  # noqa: F401
 import app.idempotency.models  # noqa: F401
 import app.orders.models  # noqa: F401
 import app.rbac.models  # noqa: F401
+import app.shifts.models  # noqa: F401
 import app.tenants.models  # noqa: F401
 from app.config import settings
 from app.db import get_db
@@ -29,7 +30,7 @@ _TestSession = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
 
 @pytest.fixture(scope="session", autouse=True)
 def apply_migrations():
-    subprocess.run(["uv", "run", "alembic", "upgrade", "head"], check=True, cwd=".")
+    subprocess.run(["alembic", "upgrade", "head"], check=True, cwd=".")
 
 
 @pytest.fixture
