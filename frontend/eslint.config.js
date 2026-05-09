@@ -19,7 +19,11 @@ export default [
         console: "readonly",
         crypto: "readonly",
         fetch: "readonly",
+        Intl: "readonly",
         process: "readonly",
+        RequestInit: "readonly",
+        Response: "readonly",
+        URLSearchParams: "readonly",
       },
     },
     plugins: {

@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import OrderDetail from "./orders/OrderDetail";
 import Home from "./routes/Home";
 
 export default function App() {
@@ -6,6 +7,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/orders/:orderId" element={<OrderDetail />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,0 +1,126 @@
+import { expect, test } from "@playwright/test";
+
+const order = {
+  id: "demo",
+  tenant_id: "tenant-1",
+  status: "completed",
+  subtotal_amount: "50.00",
+  total_amount: "50.00",
+  items: [
+    {
+      id: "item-1",
+      product_id: "product-1",
+      product_name: "Concha",
+      quantity: 1,
+      unit_price_amount: "25.00",
+      line_total_amount: "25.00",
+    },
+    {
+      id: "item-2",
+      product_id: "product-2",
+      product_name: "Roll",
+      quantity: 1,
+      unit_price_amount: "25.00",
+      line_total_amount: "25.00",
+    },
+  ],
+  payments: [],
+};
+
+const receipt = {
+  order_id: "demo",
+  receipt_number: "DEMO123",
+  tenant_name: "Bakery",
+  created_at: "2026-05-08T00:00:00Z",
+  status: "completed",
+  items: [],
+  subtotal_amount: "50.00",
+  total_amount: "50.00",
+  payments: [
+    {
+      method: "cash",
+      amount_amount: "50.00",
+      amount_tendered_amount: "50.00",
+      change_due_amount: "0.00",
+      reference: null,
+    },
+  ],
+  total_tendered: "50.00",
+  total_change: "0.00",
+  refunds: [],
+  void: null,
+};
+
+test("refund and void modals post to the order APIs", async ({ page }) => {
+  let refundCreated = false;
+
+  await page.route("**/api/v1/orders/demo", async (route) => {
+    await route.fulfill({ json: order });
+  });
+  await page.route("**/api/v1/orders/demo/receipt", async (route) => {
+    await route.fulfill({
+      json: refundCreated
+        ? {
+            ...receipt,
+            refunds: [
+              {
+                id: "refund-1",
+                reason: "customer_return",
+                refunded_amount: "25.00",
+                created_at: "2026-05-08T01:00:00Z",
+                items: [
+                  {
+                    order_item_id: "item-1",
+                    quantity: 1,
+                    unit_price_amount: "25.00",
+                    line_total_amount: "25.00",
+                  },
+                ],
+              },
+            ],
+          }
+        : receipt,
+    });
+  });
+  await page.route("**/api/v1/orders/demo/refunds", async (route) => {
+    refundCreated = true;
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: "refund-1",
+        order_id: "demo",
+        reason: "customer_return",
+        refunded_amount: "25.00",
+        items: [],
+        created_at: "2026-05-08T01:00:00Z",
+      },
+    });
+  });
+  await page.route("**/api/v1/orders/demo/void", async (route) => {
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: "void-1",
+        order_id: "demo",
+        reason: "operator_error",
+        created_at: "2026-05-08T01:00:00Z",
+      },
+    });
+  });
+
+  await page.goto("/orders/demo?permissions=orders.refund,orders.void");
+  await expect(page.getByRole("heading", { name: "Order detail" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Refund" }).click();
+  await page.getByLabel("Concha Quantity").fill("1");
+  await page.getByRole("button", { name: "Record refund" }).click();
+  await expect(page.getByText("Refund recorded.")).toBeVisible();
+  await expect(page.getByText(/customer return/i)).toBeVisible();
+
+  refundCreated = false;
+  await page.goto("/orders/demo?permissions=orders.void");
+  await page.getByRole("button", { name: "Void" }).click();
+  await page.getByLabel(/reverses the order inventory/i).check();
+  await page.getByRole("button", { name: "Void order" }).click();
+  await expect(page.getByText("Order voided.")).toBeVisible();
+});

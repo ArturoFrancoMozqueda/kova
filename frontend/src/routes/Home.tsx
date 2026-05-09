@@ -1,9 +1,11 @@
+import { copy } from "../i18n/messages";
+
 export default function Home() {
   return (
     <main>
-      <h1>POS</h1>
-      <p>Sprint 4 offline queue shell.</p>
-      <p aria-label="offline queue status">Offline sales queue ready.</p>
+      <h1>{copy.app.homeTitle}</h1>
+      <p>{copy.app.offlineShell}</p>
+      <p aria-label="offline queue status">{copy.app.offlineReady}</p>
     </main>
   );
 }
