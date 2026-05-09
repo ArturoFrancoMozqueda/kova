@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     access_token_ttl_seconds: int = 900        # 15 minutes
     refresh_token_ttl_seconds: int = 2_592_000  # 30 days
     token_ttl_seconds: int = 86_400             # 24 h for verify/reset tokens
+    sentry_dsn: str | None = None
+    sentry_traces_sample_rate: float = 0.0
 
     @property
     def cookie_secure(self) -> bool:

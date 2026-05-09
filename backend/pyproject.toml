@@ -14,11 +14,13 @@ dependencies = [
     "bcrypt>=4.2",
     "PyJWT>=2.10",
     "email-validator>=2.2",
+    "sentry-sdk[fastapi]>=2.19",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
+    "pytest-bdd>=8.0",
     "httpx>=0.28",
     "ruff>=0.8",
 ]
@@ -28,7 +30,7 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
+select = ["E", "F", "I", "B", "UP", "T20"]
 ignore = ["B008"]  # FastAPI Depends() in function defaults is intentional
 
 [tool.ruff.lint.per-file-ignores]
@@ -38,3 +40,8 @@ ignore = ["B008"]  # FastAPI Depends() in function defaults is intentional
 [tool.pytest.ini_options]
 testpaths = ["app/tests"]
 addopts = "-q"
+markers = [
+    "p0: P0 product-critical scenario",
+    "auth: auth and session scenario",
+    "bdd: pytest-bdd scenario",
+]

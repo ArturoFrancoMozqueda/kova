@@ -7,6 +7,7 @@ from app.auth import repository as auth_repo
 from app.auth.models import Membership, User, UserSession
 from app.auth.service import decode_access_token
 from app.db import get_db
+from app.observability.logging import set_request_context
 from app.rbac.permissions import Permission, has_permission
 from app.shared.exceptions import forbidden, unauthorized
 
@@ -39,6 +40,7 @@ def get_current_session(
     if not membership:
         raise forbidden("No active membership for this tenant")
 
+    set_request_context(tenant_id=membership.tenant_id, user_id=user.id)
     return user, membership, session
 
 
