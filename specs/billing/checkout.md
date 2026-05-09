@@ -1,0 +1,70 @@
+# Stripe Checkout Spec
+
+## Problem
+
+Tenant owners need a safe way to subscribe to the Standard Plan without the app handling card details directly.
+
+## Target Users
+
+- Tenant owner
+
+## Business Value
+
+Stripe Checkout gives the beta a sellable billing path while keeping payment collection outside the POS application.
+
+## Functional Requirements
+
+- A tenant owner with `billing.manage` can start checkout from the billing settings page.
+- Checkout uses the configured Stripe Price for Standard Plan.
+- Checkout mode is `subscription`.
+- Checkout currency and amount must correspond to $199 MXN/month.
+- The checkout session is associated with the tenant through metadata.
+- The checkout session is associated with the authenticated user where useful for audit/support.
+- Success and cancel URLs return the tenant owner to billing UI states.
+- The app does not mark a subscription active from the frontend return alone; verified webhooks are source of truth.
+
+## Non-Functional Requirements
+
+- Stripe secret keys never reach the frontend.
+- Checkout session creation is tenant-scoped.
+- Checkout session creation logs `tenant_id`, `user_id`, and `request_id`.
+
+## Permissions
+
+- Requires `billing.manage`.
+
+## Idempotency
+
+- Retrying the same checkout start request should not create inconsistent local billing state.
+- Stripe idempotency keys should include tenant and request identity where practical.
+
+## Audit Log Behavior
+
+- Successful checkout session creation writes `billing.checkout_started`.
+
+## Offline Impact
+
+- Online only.
+
+## Error States
+
+- Missing auth returns `401`.
+- Missing permission returns `403`.
+- Tenant with `active` subscription receives current subscription response instead of a duplicate checkout flow.
+- Missing Stripe price configuration returns `503`.
+- Stripe API failure returns `502` or `503` with retry guidance.
+
+## Data Model Impact
+
+- May store last checkout session id on the tenant subscription record if useful for reconciliation.
+
+## API Impact
+
+- `POST /api/v1/billing/checkout`
+
+## Acceptance Criteria
+
+- Tenant owner receives a Stripe Checkout URL for the Standard Plan.
+- Non-owner without billing permission cannot start checkout.
+- Tenant B cannot create or view checkout state for Tenant A.
+- Frontend success state tells the user billing is being confirmed if the webhook has not arrived yet.
