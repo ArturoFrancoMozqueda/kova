@@ -244,7 +244,9 @@ def shift_close_in_audit_log(close_context, db):
     from app.audit.models import AuditLog
 
     shift_id = UUID(close_context["closed_shift"]["id"])
-    audit = db.query(AuditLog).filter(AuditLog.resource_id == shift_id).one()
+    audit = db.query(AuditLog).filter(
+        AuditLog.resource_id == shift_id, AuditLog.action == "shifts.close"
+    ).one()
     assert audit.action == "shifts.close"
 
 
