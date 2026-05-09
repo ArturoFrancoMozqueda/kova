@@ -69,7 +69,7 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
   await expect(page.getByText("Stock take recorded.")).toBeVisible();
 
   await page.getByRole("button", { name: "Set threshold" }).click();
-  await page.getByLabel("Threshold").fill("2");
+  await page.getByRole("spinbutton", { name: "Threshold" }).fill("2");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Low-stock threshold updated.")).toBeVisible();
 });
