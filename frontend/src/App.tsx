@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import OrderDetail from "./orders/OrderDetail";
+import ShiftView from "./shifts/ShiftView";
 import Home from "./routes/Home";
 
 export default function App() {
@@ -8,6 +9,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/orders/:orderId" element={<OrderDetail />} />
+        <Route path="/shifts" element={<ShiftView />} />
       </Routes>
     </BrowserRouter>
   );
