@@ -2,83 +2,92 @@
 
 ## Active Sprint
 
-Sprint: 1 - Catalog Foundation
+Sprint: 2 - Register + Online Sale
 
 ## Sprint Goal
 
-Allow a tenant owner to create the basic catalog needed to sell, without introducing deferred restaurant, modifier, or multi-location complexity.
+Allow a cashier to complete an online sale with cash, bank transfer, or manual card payment while preserving tenant isolation, Decimal money handling, audit logs, and idempotency.
 
 ## Required Specs
 
-- `specs/catalog/categories.md`
-- `specs/catalog/products.md`
-- `specs/catalog/variants.md`
+- `specs/orders/cash_sale.md`
+- `specs/orders/manual_payment.md`
+- `specs/inventory/decrement.md`
+- `specs/pricing/money_rules.md`
 
 ## Required BDD / Test Scenarios
 
-- Tenant owner creates and lists a category and product.
-- Cashier cannot create catalog products.
-- Tenants cannot see each other's catalog products.
+- Cashier completes a cash sale.
+- Cashier records a bank transfer sale.
+- Tenants cannot read each other's orders.
 
 ## Allowed Work
 
 Only work on:
 
-- Category data model, migration, repository, service, schemas, router, and tests
-- Product data model, migration, repository, service, schemas, router, and tests
-- Catalog permission checks using existing RBAC constants
-- Catalog idempotency for write endpoints
-- Catalog audit logs for important mutations
-- Catalog tenant isolation tests
-- Basic backend BDD for catalog foundation
+- Orders, order items, payments, and inventory movement data model
+- Online order creation endpoint
+- Single payment recording for cash, bank transfer, and manual card
+- Decimal pricing calculator
+- Sale-driven inventory movement rows
+- Order idempotency
+- Order audit logs
+- Tenant isolation, permission, money, and inventory tests
 
 ## Explicitly Not Allowed This Sprint
 
 Do not implement:
 
-- Register / cart
-- Orders / payments
-- Billing / Stripe
+- Split payment
+- Refunds or voids
 - Offline sync
-- Refunds / shifts / inventory / reporting
+- Receipt rendering beyond response data
+- Shift enforcement
+- Tax engine
+- Discounts
+- Integrated card processing or Stripe Terminal
 - Multi-location
-- Product modifiers
-- Restaurant-specific behavior
-- Variant tables unless explicitly justified by beta setup needs
 - Deferred scope from `docs/deferred-scope.md`
 
-## Sprint 1 Tasks
+## Sprint 2 Tasks
 
 ### Backend
 
-- [x] Create `categories` table.
-- [x] Create `products` table.
+- [x] Create `orders` table.
+- [x] Create `order_items` table.
+- [x] Create `payments` table.
+- [x] Create `inventory_movements` table.
 - [x] Add RLS policies.
-- [x] Add catalog models.
-- [x] Add catalog schemas.
-- [x] Add catalog repository.
-- [x] Add catalog service.
-- [x] Add catalog router.
-- [x] Add category create/list/update/deactivate endpoints.
-- [x] Add product create/list/update/deactivate endpoints.
-- [x] Add audit logging for writes.
-- [x] Add idempotency for writes.
+- [x] Add order models.
+- [x] Add order schemas.
+- [x] Add order repository.
+- [x] Add pricing calculator.
+- [x] Add order service.
+- [x] Add order router.
+- [x] Add `POST /api/v1/orders`.
+- [x] Add `GET /api/v1/orders/{order_id}`.
+- [x] Add idempotency for order creation.
+- [x] Add audit logging for order creation.
+- [x] Add sale inventory movements for tracked products.
 
 ### Tests
 
-- [x] Add catalog BDD scenarios.
-- [x] Add owner happy-path tests.
-- [x] Add tenant isolation tests.
+- [x] Add online sale BDD scenarios.
+- [x] Add money golden tests.
+- [x] Add order creation tests.
+- [x] Add manual payment tests.
 - [x] Add permission denied tests.
+- [x] Add tenant isolation tests.
 - [x] Add idempotency replay tests.
-- [x] Add decimal money tests.
+- [x] Add inventory movement tests.
 
 ## Definition of Done
 
 - Linked specs exist.
 - Linked BDD scenarios pass.
 - Test matrix exists.
-- Category and product write endpoints have tenant scoping, permission checks, idempotency, audit logs, and tests.
+- Order write endpoint has tenant scoping, permission check, idempotency, audit log, and automated tests.
+- Money calculations use Decimal and golden tests pass.
 - Migrations are Alembic-managed and reversible.
-- API docs include catalog endpoints.
-- Unit/integration/e2e quality gates pass.
+- API docs include order endpoints.
+- Quality gates pass.
