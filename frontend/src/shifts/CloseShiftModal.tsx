@@ -29,51 +29,61 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
   const variancePercentage = expectedCash > 0 ? ((variance / expectedCash) * 100).toFixed(2) : "0.00";
 
   return (
-    <dialog open>
-      <article>
+    <div className="modal">
+      <form onSubmit={handleSubmit}>
         <h2>{copy.closeShiftModal.title}</h2>
-        <div style={{ marginBottom: "1rem" }}>
-          <p>
-            <strong>{copy.closeShiftModal.openingCash}:</strong> ${openingCash.toFixed(2)}
-          </p>
-          <p>
-            <strong>{copy.closeShiftModal.expectedCash}:</strong> ${expectedCash.toFixed(2)}
-          </p>
+        <div style={{ marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "1px solid #d8d0c2" }}>
+          <div style={{ marginBottom: "0.75rem" }}>
+            <p className="eyebrow">{copy.closeShiftModal.openingCash}</p>
+            <p style={{ margin: "0.25rem 0 0", fontSize: "1.1rem" }}>
+              <strong>${openingCash.toFixed(2)}</strong>
+            </p>
+          </div>
+          <div style={{ marginBottom: "0.75rem" }}>
+            <p className="eyebrow">{copy.closeShiftModal.expectedCash}</p>
+            <p style={{ margin: "0.25rem 0 0", fontSize: "1.1rem" }}>
+              <strong>${expectedCash.toFixed(2)}</strong>
+            </p>
+          </div>
           {actualCash && (
             <>
-              <p>
-                <strong>{copy.closeShiftModal.actualCash}:</strong> ${actualAmount.toFixed(2)}
-              </p>
-              <p>
-                <strong>{copy.closeShiftModal.variance}:</strong> ${variance.toFixed(2)} ({variancePercentage}%)
-              </p>
+              <div style={{ marginBottom: "0.75rem" }}>
+                <p className="eyebrow">{copy.closeShiftModal.actualCash}</p>
+                <p style={{ margin: "0.25rem 0 0", fontSize: "1.1rem" }}>
+                  <strong>${actualAmount.toFixed(2)}</strong>
+                </p>
+              </div>
+              <div className={variance === 0 ? "notice" : "status-warn"} style={{ marginTop: "0.75rem" }}>
+                <p className="eyebrow" style={{ margin: 0 }}>{copy.closeShiftModal.variance}</p>
+                <p style={{ margin: "0.25rem 0 0", fontSize: "1rem" }}>
+                  <strong>${variance.toFixed(2)}</strong> ({variancePercentage}%)
+                </p>
+              </div>
             </>
           )}
         </div>
-        <form onSubmit={handleSubmit}>
-          <label>
-            <span>{copy.closeShiftModal.enterActualCash}</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={actualCash}
-              onChange={(e) => setActualCash(e.target.value)}
-              placeholder="0.00"
-              disabled={pending}
-              required
-            />
-          </label>
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
-            <button type="button" onClick={onCancel} disabled={pending}>
-              {copy.closeShiftModal.cancel}
-            </button>
-            <button type="submit" disabled={pending || !actualCash} aria-busy={pending}>
-              {copy.closeShiftModal.submit}
-            </button>
-          </div>
-        </form>
-      </article>
-    </dialog>
+        <label>
+          <span>{copy.closeShiftModal.enterActualCash}</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={actualCash}
+            onChange={(e) => setActualCash(e.target.value)}
+            placeholder="0.00"
+            disabled={pending}
+            required
+          />
+        </label>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "1.5rem" }}>
+          <button type="button" onClick={onCancel} disabled={pending}>
+            {copy.closeShiftModal.cancel}
+          </button>
+          <button type="submit" disabled={pending || !actualCash} aria-busy={pending}>
+            {copy.closeShiftModal.submit}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

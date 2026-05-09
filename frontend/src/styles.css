@@ -26,11 +26,28 @@ button {
   color: #ffffff;
   cursor: pointer;
   padding: 0.65rem 0.9rem;
+  transition: background 150ms, border-color 150ms;
+}
+
+button:hover:not(:disabled) {
+  background: #2f7f68;
+  border-color: #2f7f68;
 }
 
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+button[type="button"] {
+  background: #ffffff;
+  color: #17201b;
+  border-color: #d8d0c2;
+}
+
+button[type="button"]:hover:not(:disabled) {
+  background: #f0ebe3;
+  border-color: #c9c3b7;
 }
 
 input,
@@ -173,6 +190,33 @@ label {
   border-radius: 8px;
   background: #fffdf8;
   padding: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+table thead {
+  background: #f0ebe3;
+  border-bottom: 2px solid #d8d0c2;
+}
+
+table th {
+  text-align: left;
+  padding: 0.75rem;
+  font-weight: 600;
+  color: #17201b;
+}
+
+table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e8e1d6;
+}
+
+table tbody tr:hover {
+  background: #fffdf8;
 }
 
 @media (max-width: 680px) {

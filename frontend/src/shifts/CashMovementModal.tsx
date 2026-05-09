@@ -34,51 +34,49 @@ export function CashMovementModal({
   const isValid = amount && reason;
 
   return (
-    <dialog open>
-      <article>
+    <div className="modal">
+      <form onSubmit={handleSubmit}>
         <h2>{copy.cashMovementModal.title}</h2>
-        <form onSubmit={handleSubmit}>
-          <label>
-            <span>{copy.cashMovementModal.type}</span>
-            <select value={type} onChange={(e) => setType(e.target.value as "cash_in" | "cash_out")} disabled={pending}>
-              <option value="cash_in">{copy.cashMovementModal.cashIn}</option>
-              <option value="cash_out">{copy.cashMovementModal.cashOut}</option>
-            </select>
-          </label>
-          <label>
-            <span>{copy.cashMovementModal.amount}</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              disabled={pending}
-              required
-            />
-          </label>
-          <label>
-            <span>{copy.cashMovementModal.reason}</span>
-            <input
-              type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder={copy.cashMovementModal.reasonPlaceholder}
-              disabled={pending}
-              required
-            />
-          </label>
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
-            <button type="button" onClick={onCancel} disabled={pending}>
-              {copy.cashMovementModal.cancel}
-            </button>
-            <button type="submit" disabled={pending || !isValid} aria-busy={pending}>
-              {copy.cashMovementModal.submit}
-            </button>
-          </div>
-        </form>
-      </article>
-    </dialog>
+        <label>
+          <span>{copy.cashMovementModal.type}</span>
+          <select value={type} onChange={(e) => setType(e.target.value as "cash_in" | "cash_out")} disabled={pending}>
+            <option value="cash_in">{copy.cashMovementModal.cashIn}</option>
+            <option value="cash_out">{copy.cashMovementModal.cashOut}</option>
+          </select>
+        </label>
+        <label>
+          <span>{copy.cashMovementModal.amount}</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            disabled={pending}
+            required
+          />
+        </label>
+        <label>
+          <span>{copy.cashMovementModal.reason}</span>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={copy.cashMovementModal.reasonPlaceholder}
+            disabled={pending}
+            required
+          />
+        </label>
+        <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "1.5rem" }}>
+          <button type="button" onClick={onCancel} disabled={pending}>
+            {copy.cashMovementModal.cancel}
+          </button>
+          <button type="submit" disabled={pending || !isValid} aria-busy={pending}>
+            {copy.cashMovementModal.submit}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
