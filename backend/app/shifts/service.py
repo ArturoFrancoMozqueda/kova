@@ -1,6 +1,5 @@
 import hashlib
 import json
-from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -10,7 +9,8 @@ from app.audit import service as audit_service
 from app.idempotency import service as idempotency_service
 from app.pricing import calculator as money_calc
 from app.shared.exceptions import bad_request, not_found
-from app.shifts import calculator, repository as repo
+from app.shifts import calculator
+from app.shifts import repository as repo
 from app.shifts.models import Shift
 from app.shifts.schemas import CashMovementCreate, ShiftCloseCreate, ShiftOpenCreate
 
@@ -56,11 +56,19 @@ def _shift_body(db: Session, *, shift: Shift) -> dict[str, Any]:
         "id": str(shift.id),
         "tenant_id": str(shift.tenant_id),
         "status": shift.status,
-        "opening_cash_amount": str(shift.opening_cash_amount) if shift.opening_cash_amount is not None else None,
-        "actual_cash_amount": str(shift.actual_cash_amount) if shift.actual_cash_amount is not None else None,
-        "expected_cash_amount": str(shift.expected_cash_amount) if shift.expected_cash_amount is not None else None,
+        "opening_cash_amount": (
+            str(shift.opening_cash_amount) if shift.opening_cash_amount is not None else None
+        ),
+        "actual_cash_amount": (
+            str(shift.actual_cash_amount) if shift.actual_cash_amount is not None else None
+        ),
+        "expected_cash_amount": (
+            str(shift.expected_cash_amount) if shift.expected_cash_amount is not None else None
+        ),
         "reconciliation_status": shift.reconciliation_status,
-        "variance_amount": str(shift.variance_amount) if shift.variance_amount is not None else None,
+        "variance_amount": (
+            str(shift.variance_amount) if shift.variance_amount is not None else None
+        ),
         "opened_at": shift.opened_at.isoformat(),
         "closed_at": shift.closed_at.isoformat() if shift.closed_at else None,
         "movements": [

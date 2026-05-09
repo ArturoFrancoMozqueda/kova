@@ -225,6 +225,7 @@ def no_opening_balance_recorded(shift_context):
 @then("the shift appears in the audit log")
 def shift_in_audit_log(shift_context, db):
     from uuid import UUID
+
     from app.audit.models import AuditLog
 
     shift_id = UUID(shift_context["shift"]["id"])
@@ -251,6 +252,7 @@ def both_requests_same_response(shift_context):
 @then("only one shift exists")
 def only_one_shift_exists(shift_context, db):
     from uuid import UUID
+
     from app.shifts.models import Shift
 
     shifts = db.query(Shift).filter(Shift.id == UUID(shift_context["shift"]["id"])).all()

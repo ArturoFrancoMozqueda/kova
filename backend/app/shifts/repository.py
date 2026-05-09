@@ -1,6 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.shifts.models import CashMovement, Shift
@@ -105,9 +106,6 @@ def list_closed_shifts(db: Session, *, tenant_id: UUID, limit: int = 50) -> list
 def get_cash_movement_sum(
     db: Session, *, shift_id: UUID, type: str
 ) -> Decimal:
-    from decimal import Decimal
-    from sqlalchemy import func
-
     result = (
         db.query(func.sum(CashMovement.amount))
         .filter(CashMovement.shift_id == shift_id, CashMovement.type == type)
