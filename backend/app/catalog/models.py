@@ -40,6 +40,7 @@ class Product(Base):
     sku: Mapped[str | None] = mapped_column(String(100), nullable=True)
     price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     track_inventory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    low_stock_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(

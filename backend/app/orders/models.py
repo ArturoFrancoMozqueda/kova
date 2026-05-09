@@ -64,6 +64,8 @@ class InventoryMovement(Base):
     order_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
     movement_type: Mapped[str] = mapped_column(String(30), nullable=False)
     quantity_delta: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
