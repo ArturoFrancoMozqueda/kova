@@ -2,94 +2,89 @@
 
 ## Active Sprint
 
-Sprint: 7 - Inventory Basics
+Sprint: 8 - Reporting v1
 
 ## Sprint Goal
 
-Allow owners and managers to see stock on hand, correct inventory with manual adjustments, reconcile physical counts through stock takes, and spot low-stock products.
+Give owners and managers a basic, tenant-scoped view of sales performance: range summary, payment method totals, and top products.
 
 ## Required Specs
 
-- `specs/inventory/stock_take.md`
-- `specs/inventory/adjustment.md`
-- `specs/inventory/low_stock.md`
+- `specs/reports/range.md`
+- `specs/reports/payment_breakdown.md`
+- `specs/reports/top_products.md`
 
 ## Required BDD / Test Scenarios
 
-- Manager manually adjusts stock and the stock view updates.
-- Manager performs a stock take and the delta is calculated correctly.
-- Low-stock threshold flags products at or below threshold.
-- Cashier without `inventory.adjust` cannot adjust stock.
-- Tenant B cannot see Tenant A's stock.
+- Manager views a sales range summary.
+- Manager views payment method totals.
+- Manager views top products.
+- Cashier without `reports.view_all` cannot view reports.
+- Tenant B cannot see Tenant A's reports.
 
 ## Allowed Work
 
 Only work on:
 
-- Inventory stock view API and UI
-- Manual adjustment endpoint and modal
-- Stock take endpoint and modal
-- Low-stock threshold endpoint and low-stock view
-- Inventory movement metadata needed for adjustments and stock takes
-- Permission gate for `inventory.adjust`
-- Audit logging for inventory adjustments, stock takes, and threshold updates
-- Idempotency for inventory write endpoints
+- Sales summary report endpoint and UI
+- Payment breakdown endpoint and UI
+- Top products endpoint and UI
+- Date range filters
+- Tenant-scoped reporting queries
+- Permission gate for `reports.view_all`
 - Backend and frontend tests
-- General app shell UI polish that supports inventory navigation
+- Basic report UI loading/error/empty states
 
 ## Explicitly Not Allowed This Sprint
 
 Do not implement:
 
-- Purchase orders
-- Supplier management
-- Multi-location inventory
-- Expiration or lot tracking
-- Barcode scanner workflows
-- Forecasting or advanced replenishment
-- Inventory valuation/accounting
-- Offline inventory adjustment
+- Advanced report builder
+- CSV/export workflows unless needed later
+- Tax reports
+- Inventory valuation
+- Multi-location reporting
+- Employee commission reporting
+- Forecasting
+- Offline report generation
 - Deferred scope from `docs/deferred-scope.md`
 
-## Sprint 7 Tasks
+## Sprint 8 Tasks
 
 ### Backend
 
-- [x] Add stock view endpoint.
-- [x] Add stock take endpoint.
-- [x] Add manual adjustment endpoint.
-- [x] Add low-stock threshold field.
-- [x] Add low-stock endpoint.
-- [x] Add inventory audit logging.
-- [x] Add idempotency support for inventory write endpoints.
-- [x] Add permission checks for `inventory.adjust`.
-- [x] Add tenant scoping for all inventory queries.
+- [x] Add sales summary endpoint.
+- [x] Add payment breakdown endpoint.
+- [x] Add top products endpoint.
+- [x] Add date range filtering.
+- [x] Exclude voided orders from sales reports.
+- [x] Include refunds in net sales calculation.
+- [x] Add permission checks for `reports.view_all`.
+- [x] Add tenant scoping for all report queries.
 
 ### Frontend
 
-- [x] Add inventory page.
-- [x] Add stock view.
-- [x] Add stock adjustment modal.
-- [x] Add stock take modal.
-- [x] Add low-stock dashboard widget.
-- [x] Add loading/error states.
+- [x] Add reports page.
+- [x] Add date range controls.
+- [x] Add sales summary cards.
+- [x] Add payment breakdown list.
+- [x] Add top products list.
+- [x] Add loading/error/empty states.
 - [x] Add permission-based UI gating.
-- [x] Improve app shell UI/navigation.
 
 ### Tests
 
-- [x] Add inventory BDD scenarios.
-- [x] Add backend inventory integration coverage.
-- [x] Add frontend inventory UI E2E tests.
+- [x] Add reports BDD scenarios.
+- [x] Add backend report integration coverage.
+- [x] Add frontend report UI E2E tests.
 
 ## Definition of Done
 
 - Linked specs exist and are up-to-date.
 - Linked BDD scenarios pass.
 - Test matrix exists.
-- Inventory write endpoints have tenant scoping, permission checks, idempotency, audit logs, and tests.
-- Stock on hand is computed from inventory movements.
-- Stock take delta is correct.
-- Low-stock products are returned correctly.
-- Inventory UI has loading/error/empty states and permission gating.
+- Report endpoints are tenant-scoped and permission-gated.
+- Gross sales, refunds, net sales, payment breakdown, and top products are calculated with Decimal values.
+- Voided orders are excluded.
+- Reports UI has loading/error/empty states and permission gating.
 - Quality gates pass.
