@@ -50,4 +50,7 @@ markers = [
     "audit: audit log scenario",
     "idempotency: idempotency scenario",
     "money: decimal money scenario",
+    "orders: order creation scenario",
+    "payment: payment recording scenario",
+    "inventory: inventory movement scenario",
 ]
