@@ -54,7 +54,7 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
 
   await page.goto("/inventory?permissions=inventory.adjust");
   await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
-  await expect(page.getByText("Concha")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Concha" })).toBeVisible();
 
   await page.getByRole("button", { name: "Adjust" }).click();
   await page.getByLabel("Quantity change").fill("4");
