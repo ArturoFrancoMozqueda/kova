@@ -7,6 +7,7 @@ from app.health.router import router as health_router
 from app.observability.logging import configure_logging, request_context_middleware
 from app.observability.sentry import init_sentry
 from app.orders.router import router as orders_router
+from app.shifts.router import router as shifts_router
 from app.sync.router import router as sync_router
 
 
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(catalog_router)
     app.include_router(orders_router)
+    app.include_router(shifts_router)
     app.include_router(sync_router)
 
     @app.get("/")
