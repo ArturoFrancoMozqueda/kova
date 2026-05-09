@@ -22,6 +22,10 @@ export default function Home() {
           <h2>{copy.app.orders}</h2>
           <p>{copy.app.ordersSummary}</p>
         </Link>
+        <Link className="data-card link-card" to="/reports?permissions=reports.view_all">
+          <h2>{copy.app.reports}</h2>
+          <p>{copy.app.reportsSummary}</p>
+        </Link>
       </section>
     </main>
   );

@@ -147,10 +147,15 @@ label {
 }
 
 .compact-list,
-.button-row {
+.button-row,
+.date-filter {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.date-filter {
+  align-items: end;
 }
 
 .compact-list span,

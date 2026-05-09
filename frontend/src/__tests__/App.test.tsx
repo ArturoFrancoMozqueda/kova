@@ -8,5 +8,6 @@ describe("App shell", () => {
     expect(screen.getByRole("heading", { name: /pos/i })).toBeInTheDocument();
     expect(screen.getByText(/operations workspace/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /inventory/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /reports/i })).toBeInTheDocument();
   });
 });
