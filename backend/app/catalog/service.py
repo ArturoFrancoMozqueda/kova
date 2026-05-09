@@ -69,6 +69,7 @@ def _product_body(product: Product) -> dict[str, Any]:
         "sku": product.sku,
         "price_amount": str(product.price_amount),
         "track_inventory": product.track_inventory,
+        "low_stock_threshold": product.low_stock_threshold,
         "is_active": product.is_active,
     }
 
@@ -251,6 +252,7 @@ def create_product(
         sku=body.sku,
         price_amount=body.price_amount,
         track_inventory=body.track_inventory,
+        low_stock_threshold=body.low_stock_threshold,
     )
     response_body = _product_body(product)
     audit_service.log(
@@ -300,7 +302,14 @@ def update_product(
         if duplicate:
             raise bad_request("Product SKU already exists")
         product.sku = body.sku
-    for field in ("name", "description", "price_amount", "track_inventory", "is_active"):
+    for field in (
+        "name",
+        "description",
+        "price_amount",
+        "track_inventory",
+        "low_stock_threshold",
+        "is_active",
+    ):
         if field in body.model_fields_set:
             setattr(product, field, getattr(body, field))
     db.flush()

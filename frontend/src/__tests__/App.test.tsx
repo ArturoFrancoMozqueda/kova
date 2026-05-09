@@ -6,6 +6,7 @@ describe("App shell", () => {
   it("renders the home placeholder", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: /pos/i })).toBeInTheDocument();
-    expect(screen.getByText(/offline queue shell/i)).toBeInTheDocument();
+    expect(screen.getByText(/operations workspace/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /inventory/i })).toBeInTheDocument();
   });
 });

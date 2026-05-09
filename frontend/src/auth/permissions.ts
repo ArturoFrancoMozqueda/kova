@@ -1,5 +1,6 @@
 export const ORDER_REFUND_PERMISSION = "orders.refund";
 export const ORDER_VOID_PERMISSION = "orders.void";
+export const INVENTORY_ADJUST_PERMISSION = "inventory.adjust";
 export const SHIFT_OPEN_PERMISSION = "shifts.open";
 export const SHIFT_CLOSE_PERMISSION = "shifts.close";
 

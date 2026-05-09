@@ -99,13 +99,18 @@ def create_inventory_movement(
     product_id: UUID,
     order_id: UUID,
     quantity_delta: int,
+    movement_type: str = "sale",
+    reason: str | None = None,
+    user_id: UUID | None = None,
 ) -> InventoryMovement:
     movement = InventoryMovement(
         tenant_id=tenant_id,
         product_id=product_id,
         order_id=order_id,
-        movement_type="sale",
+        movement_type=movement_type,
         quantity_delta=quantity_delta,
+        reason=reason,
+        created_by_user_id=user_id,
     )
     db.add(movement)
     db.flush()

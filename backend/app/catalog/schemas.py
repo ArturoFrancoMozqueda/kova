@@ -35,6 +35,7 @@ class ProductCreate(BaseModel):
     price_amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
     track_inventory: bool = False
+    low_stock_threshold: int | None = Field(default=None, ge=0)
 
 
 class ProductUpdate(BaseModel):
@@ -44,6 +45,7 @@ class ProductUpdate(BaseModel):
     price_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
     track_inventory: bool | None = None
+    low_stock_threshold: int | None = Field(default=None, ge=0)
     is_active: bool | None = None
 
 
@@ -58,4 +60,5 @@ class ProductResponse(BaseModel):
     sku: str | None
     price_amount: Decimal
     track_inventory: bool
+    low_stock_threshold: int | None
     is_active: bool
