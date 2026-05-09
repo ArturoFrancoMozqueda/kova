@@ -2,140 +2,127 @@
 
 ## Active Sprint
 
-Sprint: 0A — Platform Skeleton
+Sprint: 0B — Security + Multi-Tenant Foundation
 
 ## Sprint Goal
 
-Create the minimum deployable application skeleton.
+Establish tenant isolation, auth foundation, sessions, RBAC skeleton, audit logs,
+and idempotency infrastructure. No product features yet.
 
 ## Allowed Work
 
 Only work on:
 
-- Repository structure
-- Backend skeleton
-- Frontend skeleton
-- Docker/local dev
-- PostgreSQL local dev setup
-- Alembic setup
-- Initial health endpoint
-- Basic CI
-- Basic staging deployment path or documented deployment path
-- `.env.example`
-- No-secrets baseline
+- `tenants`, `users`, `memberships` tables and models
+- `roles`, `permissions`, `role_permissions` tables and seed data
+- `sessions`, `verification_tokens` tables
+- `audit_logs`, `idempotency_keys` tables
+- Row-Level Security policies on tenant-scoped tables
+- Tenant context middleware / dependency
+- Auth endpoints: signup, email verify, login, refresh, logout, logout-all, password-reset
+- RBAC skeleton: permission constants, role-permission mapping, `require_permission` dependency
+- Audit log service (write only, append-only)
+- Idempotency service
+- Tenant isolation tests
+- Auth/session tests
+- Permission denied tests
+- Related Alembic migrations (0002–0005)
 
 ## Explicitly Not Allowed This Sprint
 
 Do not implement:
 
-- Auth
-- RBAC
-- Tenant isolation
 - Catalog
-- Register
-- Orders
-- Payments
-- Billing
+- Register / cart
+- Orders / payments
+- Billing / Stripe
 - Offline sync
-- Refunds
-- Shifts
-- Inventory
-- Reporting
-- Stripe
-- Sentry, unless trivial placeholder setup is needed
-- Product UI beyond app shell
-- Any vertical-specific feature
+- Refunds / shifts / inventory / reporting
+- Frontend auth UI (deferred to Sprint 0C or later)
+- Email service integration (stub with dev token in response when APP_ENV=local)
+- Multi-location
+- Any deferred scope from docs/deferred-scope.md
 
 ## Required Specs
 
-- `specs/shared/project_skeleton.md`
-- `specs/shared/local_dev.md`
+- `specs/auth/sessions.md`
+- `specs/shared/tenant_isolation.md`
+- `specs/shared/authz.md`
+- `specs/shared/audit_log.md`
+- `specs/shared/idempotency.md`
 
-If these specs do not exist, create them before implementation.
+These must exist before implementation begins.
 
 ## Required BDD / Test Scenarios
 
-- App health check responds successfully.
-- Frontend loads app shell.
-- Backend connects to database.
-- Alembic migration applies cleanly.
-- CI runs backend tests.
-- CI runs frontend checks.
+- Signup creates tenant + user + membership.
+- Duplicate signup email returns 400.
+- Email verification marks user verified.
+- Login sets httpOnly cookies.
+- Authenticated request to `/api/v1/me` returns correct tenant-scoped user.
+- Unauthenticated request returns 401.
+- Refresh rotates refresh token.
+- Logout revokes session; subsequent request returns 401.
+- Logout-all revokes all sessions.
+- Revoked session returns 401.
+- Tenant A cannot access Tenant B's data.
+- Request without required permission returns 403.
+- Password reset flow works end-to-end.
+- Idempotency-Key deduplicates concurrent writes.
+- Audit log row is written for signup and login.
 
-## Sprint 0A Tasks
+## Sprint 0B Tasks
 
-### Project Structure
+### Database
 
-- [ ] Create backend app folder.
-- [ ] Create frontend app folder.
-- [ ] Create docs folder.
-- [ ] Create specs folder.
-- [ ] Create ADR folder.
-- [ ] Add README with local development instructions.
+- [x] Create `tenants` table (Alembic 0002).
+- [x] Create `users` table (Alembic 0002).
+- [x] Create `memberships` table (Alembic 0002).
+- [x] Create `roles` table (Alembic 0003).
+- [x] Create `permissions` table (Alembic 0003).
+- [x] Create `role_permissions` table (Alembic 0003).
+- [x] Seed roles and permissions (Alembic 0003).
+- [x] Create `sessions` table (Alembic 0004).
+- [x] Create `verification_tokens` table (Alembic 0004).
+- [x] Create `audit_logs` table (Alembic 0005).
+- [x] Create `idempotency_keys` table (Alembic 0005).
+- [x] Add RLS policies on tenant-scoped tables.
 
-### Backend Skeleton
+### Backend
 
-- [ ] Add FastAPI app skeleton.
-- [ ] Add `/health` endpoint.
-- [ ] Add app settings/config module.
-- [ ] Add basic dependency structure.
-- [ ] Add backend test framework.
+- [x] Add auth settings to config (secret_key, token TTLs, cookie_secure).
+- [x] Add SQLAlchemy Base and get_db dependency.
+- [x] Add shared exceptions and dependencies.
+- [x] Add tenants module (model, schema, repository).
+- [x] Add auth module (models, schemas, service, router).
+- [x] Add RBAC module (permission constants, role mapping, require_permission).
+- [x] Add audit log module (model, service).
+- [x] Add idempotency module (model, service).
+- [x] Wire all routers into main.py.
+- [x] Add POST /api/v1/auth/signup.
+- [x] Add POST /api/v1/auth/verify.
+- [x] Add POST /api/v1/auth/login.
+- [x] Add POST /api/v1/auth/refresh.
+- [x] Add POST /api/v1/auth/logout.
+- [x] Add POST /api/v1/auth/logout-all.
+- [x] Add POST /api/v1/auth/password-reset/request.
+- [x] Add POST /api/v1/auth/password-reset/confirm.
+- [x] Add GET /api/v1/me.
 
-### Frontend Skeleton
+### Tests
 
-- [ ] Add React/TypeScript app skeleton.
-- [ ] Add app shell.
-- [ ] Add basic routing placeholder.
-- [ ] Add frontend test framework.
-- [ ] Add basic error boundary placeholder.
-
-### Database / Migrations
-
-- [ ] Add PostgreSQL local dev.
-- [ ] Add Docker Compose.
-- [ ] Add Alembic.
-- [ ] Add initial migration.
-- [ ] Add migration apply command.
-
-### CI
-
-- [ ] Add backend lint/test job.
-- [ ] Add frontend lint/test/typecheck job.
-- [ ] Add migration check job if feasible.
-- [ ] Add no-secrets check if feasible.
-
-### Environment
-
-- [ ] Add `.env.example`.
-- [ ] Ensure `.env` is ignored.
-- [ ] Document required env vars.
-
-### Deployment
-
-- [ ] Add documented staging deployment path.
-- [ ] Add health check verification in staging if environment exists.
-
-## Definition of Ready
-
-- Repo exists.
-- Stack direction confirmed.
-- Local development target confirmed.
-- Hosting direction documented.
-- No unresolved decision blocking the skeleton.
+- [x] Auth flow tests (signup → verify → login → refresh → logout).
+- [x] Session revocation tests.
+- [x] Tenant isolation tests (cross-tenant access denied).
+- [x] Permission denied tests.
 
 ## Definition of Done
 
-- App runs locally.
-- Backend tests pass.
-- Frontend checks pass.
-- Migration applies locally.
-- CI runs on PR.
-- `.env.example` exists.
-- No secrets are committed.
-- Staging path exists or is documented.
-
-## Notes
-
-Do not skip Sprint 0A quality work to jump into product features.
-
-The goal is to make future work safe and repeatable.
+- All auth endpoints work end-to-end.
+- Tenant isolation tests pass.
+- Session revocation works.
+- A write endpoint demonstrates all four invariants: tenant scope, permission check,
+  audit log, idempotency.
+- CI green.
+- No secrets committed.
+- Migrations chain from 0001_baseline and are reversible.

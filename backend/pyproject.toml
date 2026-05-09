@@ -11,6 +11,9 @@ dependencies = [
     "alembic>=1.14",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
+    "bcrypt>=4.2",
+    "PyJWT>=2.10",
+    "email-validator>=2.2",
 ]
 
 [dependency-groups]
@@ -26,6 +29,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # FastAPI Depends() in function defaults is intentional
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/**" = ["E501"]
+"app/tests/**" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["app/tests"]

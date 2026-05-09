@@ -7,5 +7,15 @@ class Settings(BaseSettings):
     app_env: str = "local"
     database_url: str = "postgresql+psycopg://pos:pos@localhost:5432/pos"
 
+    # Auth
+    secret_key: str = "change-me-in-production-use-a-long-random-string"
+    access_token_ttl_seconds: int = 900        # 15 minutes
+    refresh_token_ttl_seconds: int = 2_592_000  # 30 days
+    token_ttl_seconds: int = 86_400             # 24 h for verify/reset tokens
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.app_env != "local"
+
 
 settings = Settings()
