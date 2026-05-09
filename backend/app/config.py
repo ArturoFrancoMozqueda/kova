@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     sentry_dsn: str | None = None
     sentry_traces_sample_rate: float = 0.0
     stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
     stripe_standard_price_id: str | None = None
     stripe_checkout_success_url: str | None = None
     stripe_checkout_cancel_url: str | None = None

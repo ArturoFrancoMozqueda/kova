@@ -69,9 +69,9 @@ Do not implement:
 - [x] Create `webhook_events` table.
 - [x] Add billing subscription read endpoint.
 - [x] Add Stripe Checkout integration.
-- [ ] Add Stripe Billing integration.
-- [ ] Add webhook signature verification.
-- [ ] Add webhook idempotency.
+- [x] Add Stripe Billing integration.
+- [x] Add webhook signature verification.
+- [x] Add webhook idempotency.
 - [x] Add subscription status model.
 - [ ] Add grace period logic.
 - [ ] Add cancellation flow.
@@ -81,7 +81,7 @@ Do not implement:
 - [x] Add tenant scoping for billing subscription read query.
 - [ ] Add permission checks for billing management.
 - [x] Add permission checks for billing subscription read.
-- [x] Add audit log for checkout start.
+- [x] Add audit logs for checkout and webhook billing mutations.
 
 ### Frontend
 
@@ -99,9 +99,9 @@ Do not implement:
 - [ ] Add billing BDD scenarios.
 - [x] Add backend billing checkout integration coverage.
 - [x] Add backend billing subscription read coverage.
-- [ ] Add webhook signature and idempotency tests.
-- [ ] Add tenant isolation tests for billing.
-- [ ] Add permission tests for billing management.
+- [x] Add webhook signature and idempotency tests.
+- [x] Add tenant isolation tests for billing.
+- [x] Add permission tests for billing management.
 - [ ] Add frontend billing UI E2E tests.
 
 ## Definition of Done

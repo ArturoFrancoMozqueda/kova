@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+import json
+import time
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -6,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.audit.models import AuditLog
 from app.auth.models import Membership
 from app.billing import service as billing_service
-from app.billing.models import Subscription
+from app.billing.models import Subscription, WebhookEvent
 from app.config import settings
 
 
@@ -118,6 +122,7 @@ class FakeStripeCheckoutClient:
 
 def _configure_stripe(monkeypatch) -> None:
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
+    monkeypatch.setattr(settings, "stripe_webhook_secret", "whsec_test_123")
     monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_199_mxn")
     monkeypatch.setattr(
         settings,
@@ -234,3 +239,191 @@ def test_checkout_requires_idempotency_key(client: TestClient, monkeypatch) -> N
     response = client.post("/api/v1/billing/checkout")
 
     assert response.status_code == 400
+
+
+def _stripe_signature(payload: bytes, secret: str = "whsec_test_123") -> str:
+    timestamp = int(time.time())
+    signed_payload = f"{timestamp}.{payload.decode()}".encode()
+    digest = hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
+    return f"t={timestamp},v1={digest}"
+
+
+def _stripe_event(event_type: str, stripe_object: dict) -> bytes:
+    return json.dumps(
+        {
+            "id": f"evt_{uuid4().hex}",
+            "type": event_type,
+            "data": {"object": stripe_object},
+        },
+        separators=(",", ":"),
+    ).encode()
+
+
+def test_stripe_webhook_rejects_invalid_signature(client: TestClient, monkeypatch) -> None:
+    _configure_stripe(monkeypatch)
+    payload = _stripe_event("checkout.session.completed", {"metadata": {}})
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": "t=1,v1=bad"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_checkout_completed_webhook_activates_subscription_idempotently(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"webhook-checkout-{uuid4().hex}@example.com", "Webhook Checkout"
+    )
+    payload = _stripe_event(
+        "checkout.session.completed",
+        {
+            "id": "cs_test_completed",
+            "object": "checkout.session",
+            "customer": "cus_test_completed",
+            "subscription": "sub_test_completed",
+            "metadata": {"tenant_id": tenant["tenant_id"]},
+        },
+    )
+    headers = {"Stripe-Signature": _stripe_signature(payload)}
+
+    first = client.post("/api/v1/billing/webhooks/stripe", content=payload, headers=headers)
+    second = client.post("/api/v1/billing/webhooks/stripe", content=payload, headers=headers)
+
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == UUID(tenant["tenant_id"]))
+        .one()
+    )
+    assert subscription.status == "active"
+    assert subscription.stripe_subscription_id == "sub_test_completed"
+    assert subscription.latest_checkout_session_id == "cs_test_completed"
+    webhook_events = (
+        db.query(WebhookEvent)
+        .filter(WebhookEvent.stripe_event_id == json.loads(payload)["id"])
+        .all()
+    )
+    assert len(webhook_events) == 1
+    audit_count = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.tenant_id == UUID(tenant["tenant_id"]),
+            AuditLog.action == "billing.subscription_activated",
+        )
+        .count()
+    )
+    assert audit_count == 1
+
+
+def test_subscription_updated_webhook_updates_status(client: TestClient, db: Session, monkeypatch) -> None:
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"webhook-subscription-{uuid4().hex}@example.com", "Webhook Subscription"
+    )
+    payload = _stripe_event(
+        "customer.subscription.updated",
+        {
+            "id": "sub_test_updated",
+            "object": "subscription",
+            "customer": "cus_test_updated",
+            "status": "trialing",
+            "current_period_start": 1_700_000_000,
+            "current_period_end": 1_702_592_000,
+            "trial_end": 1_700_086_400,
+            "cancel_at_period_end": False,
+            "metadata": {"tenant_id": tenant["tenant_id"]},
+            "items": {
+                "data": [
+                    {
+                        "price": {
+                            "id": "price_standard_199_mxn",
+                            "unit_amount": 19900,
+                            "currency": "mxn",
+                        }
+                    }
+                ]
+            },
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == UUID(tenant["tenant_id"]))
+        .one()
+    )
+    assert subscription.status == "trialing"
+    assert subscription.stripe_price_id == "price_standard_199_mxn"
+    assert subscription.currency == "MXN"
+    assert subscription.amount_minor_units == 19900
+
+
+def test_invoice_payment_failed_marks_subscription_past_due(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"webhook-invoice-{uuid4().hex}@example.com", "Webhook Invoice"
+    )
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_subscription_id="sub_test_invoice",
+        status="active",
+    )
+    db.add(subscription)
+    db.commit()
+    payload = _stripe_event(
+        "invoice.payment_failed",
+        {
+            "id": "in_test_failed",
+            "object": "invoice",
+            "subscription": "sub_test_invoice",
+            "metadata": {},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    db.refresh(subscription)
+    assert subscription.status == "past_due"
+    assert subscription.past_due_at is not None
+
+
+def test_webhook_without_tenant_is_ignored(client: TestClient, db: Session, monkeypatch) -> None:
+    _configure_stripe(monkeypatch)
+    payload = _stripe_event(
+        "checkout.session.completed",
+        {
+            "id": "cs_no_tenant",
+            "object": "checkout.session",
+            "subscription": "sub_no_tenant",
+            "metadata": {},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    event = db.query(WebhookEvent).filter(WebhookEvent.stripe_event_id == json.loads(payload)["id"]).one()
+    assert event.processing_status == "ignored"

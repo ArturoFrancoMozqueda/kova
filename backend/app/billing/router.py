@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, Depends, Header, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
@@ -47,3 +47,17 @@ def create_checkout_session(
     )
     response.status_code = status_code
     return response_body
+
+
+@router.post("/webhooks/stripe")
+async def stripe_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+    stripe_signature: str | None = Header(default=None, alias="Stripe-Signature"),
+):
+    payload = await request.body()
+    return service.process_stripe_webhook(
+        db,
+        payload=payload,
+        signature_header=stripe_signature,
+    )
