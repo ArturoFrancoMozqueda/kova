@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { CashMovementPayload } from "./types";
 
@@ -19,7 +19,7 @@ export function CashMovementModal({
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!amount || !reason) {
       return;

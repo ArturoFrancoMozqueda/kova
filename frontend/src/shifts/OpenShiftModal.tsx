@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { ShiftOpenPayload } from "./types";
 
@@ -11,7 +11,7 @@ interface OpenShiftModalProps {
 export function OpenShiftModal({ pending, onSubmit, onCancel }: OpenShiftModalProps) {
   const [amount, setAmount] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     onSubmit({
       opening_cash_amount: amount || undefined,

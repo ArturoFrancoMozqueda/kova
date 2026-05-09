@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { Shift, ShiftClosePayload } from "./types";
 
@@ -12,7 +12,7 @@ interface CloseShiftModalProps {
 export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShiftModalProps) {
   const [actualCash, setActualCash] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!actualCash) {
       return;
