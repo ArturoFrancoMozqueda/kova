@@ -2,88 +2,83 @@
 
 ## Active Sprint
 
-Sprint: 0C - Quality + BDD Foundation
+Sprint: 1 - Catalog Foundation
 
 ## Sprint Goal
 
-Lock in the spec-driven delivery system before implementing core POS product features.
+Allow a tenant owner to create the basic catalog needed to sell, without introducing deferred restaurant, modifier, or multi-location complexity.
+
+## Required Specs
+
+- `specs/catalog/categories.md`
+- `specs/catalog/products.md`
+- `specs/catalog/variants.md`
+
+## Required BDD / Test Scenarios
+
+- Tenant owner creates and lists a category and product.
+- Cashier cannot create catalog products.
+- Tenants cannot see each other's catalog products.
 
 ## Allowed Work
 
 Only work on:
 
-- Structured JSON logging with `request_id`, `tenant_id`, and `user_id` fields
-- Backend BDD tooling and the first auth happy-path feature file
-- Frontend Playwright E2E scaffold and app-shell smoke test
-- PR template enforcing spec, BDD, and test-matrix links
-- Sentry placeholders for backend and frontend, no-op when DSNs are unset
-- Pre-commit hooks for ruff and no-secrets scanning
-- OpenAPI export in CI
-- `docs/test-matrixes` structure and reusable test matrix template
-- CI quality gates for the above
+- Category data model, migration, repository, service, schemas, router, and tests
+- Product data model, migration, repository, service, schemas, router, and tests
+- Catalog permission checks using existing RBAC constants
+- Catalog idempotency for write endpoints
+- Catalog audit logs for important mutations
+- Catalog tenant isolation tests
+- Basic backend BDD for catalog foundation
 
 ## Explicitly Not Allowed This Sprint
 
 Do not implement:
 
-- Catalog
 - Register / cart
 - Orders / payments
 - Billing / Stripe
 - Offline sync
 - Refunds / shifts / inventory / reporting
 - Multi-location
+- Product modifiers
+- Restaurant-specific behavior
+- Variant tables unless explicitly justified by beta setup needs
 - Deferred scope from `docs/deferred-scope.md`
 
-## Required Specs
+## Sprint 1 Tasks
 
-- `specs/auth/happy_path.feature`
-- `docs/test-matrixes/template.md`
+### Backend
 
-## Required BDD / Test Scenarios
+- [x] Create `categories` table.
+- [x] Create `products` table.
+- [x] Add RLS policies.
+- [x] Add catalog models.
+- [x] Add catalog schemas.
+- [x] Add catalog repository.
+- [x] Add catalog service.
+- [x] Add catalog router.
+- [x] Add category create/list/update/deactivate endpoints.
+- [x] Add product create/list/update/deactivate endpoints.
+- [x] Add audit logging for writes.
+- [x] Add idempotency for writes.
 
-- Tenant owner signs up, verifies email, logs in, and sees tenant-scoped session data.
-- Frontend app shell loads in Playwright.
-- Logs include `request_id`, `tenant_id`, and `user_id` fields.
+### Tests
 
-## Sprint 0C Tasks
-
-### Backend Quality
-
-- [x] Add structured JSON logging.
-- [x] Add request ID middleware and `x-request-id` response header.
-- [x] Include stable `request_id`, `tenant_id`, and `user_id` log fields.
-- [x] Add backend Sentry initialization placeholder.
-- [x] Add OpenAPI export script.
-
-### BDD
-
-- [x] Add pytest-bdd dependency.
-- [x] Add backend BDD runner.
-- [x] Add first auth happy-path feature file.
-- [x] Add passing step definitions.
-
-### Frontend Quality
-
-- [x] Add frontend Sentry initialization placeholder.
-- [x] Add Playwright scaffold.
-- [x] Add app-shell smoke test.
-- [x] Add no raw `console.log` lint rule.
-
-### Delivery System
-
-- [x] Add PR template.
-- [x] Add `docs/test-matrixes` structure.
-- [x] Add test matrix template.
-- [x] Add pre-commit hooks.
-- [x] Add CI quality gates for BDD, E2E, OpenAPI export, and no-secrets scan.
+- [x] Add catalog BDD scenarios.
+- [x] Add owner happy-path tests.
+- [x] Add tenant isolation tests.
+- [x] Add permission denied tests.
+- [x] Add idempotency replay tests.
+- [x] Add decimal money tests.
 
 ## Definition of Done
 
-- Backend BDD works.
-- Frontend E2E works.
-- PR template exists.
-- Test matrix template exists.
-- CI runs quality gates.
-- Logs include `request_id`.
-- Sentry initializes only when configured.
+- Linked specs exist.
+- Linked BDD scenarios pass.
+- Test matrix exists.
+- Category and product write endpoints have tenant scoping, permission checks, idempotency, audit logs, and tests.
+- Migrations are Alembic-managed and reversible.
+- API docs include catalog endpoints.
+- Unit/integration/e2e quality gates pass.
