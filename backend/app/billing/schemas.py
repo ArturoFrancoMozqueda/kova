@@ -34,3 +34,8 @@ class SubscriptionResponse(BaseModel):
 class BillingSubscriptionResponse(BaseModel):
     plan: StandardPlanResponse
     subscription: SubscriptionResponse | None
+
+
+class CheckoutSessionResponse(BaseModel):
+    checkout_url: str
+    checkout_session_id: str

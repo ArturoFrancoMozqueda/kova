@@ -3,8 +3,11 @@ from uuid import UUID, uuid4
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.audit.models import AuditLog
 from app.auth.models import Membership
+from app.billing import service as billing_service
 from app.billing.models import Subscription
+from app.config import settings
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
@@ -99,3 +102,135 @@ def test_billing_subscription_is_tenant_scoped(client: TestClient, db: Session) 
     body = tenant_a_response.json()
     assert body["subscription"]["status"] == "active"
     assert body["subscription"]["tenant_id"] == tenant_a["tenant_id"]
+
+
+class FakeStripeCheckoutClient:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def create_checkout_session(self, **kwargs) -> dict:
+        self.calls.append(kwargs)
+        return {
+            "id": "cs_test_123",
+            "url": "https://checkout.stripe.test/session/cs_test_123",
+        }
+
+
+def _configure_stripe(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
+    monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_199_mxn")
+    monkeypatch.setattr(
+        settings,
+        "stripe_checkout_success_url",
+        "http://localhost:5173/billing/success",
+    )
+    monkeypatch.setattr(
+        settings,
+        "stripe_checkout_cancel_url",
+        "http://localhost:5173/billing/cancel",
+    )
+
+
+def test_owner_starts_checkout_session(client: TestClient, db: Session, monkeypatch) -> None:
+    fake_client = FakeStripeCheckoutClient()
+    monkeypatch.setattr(billing_service, "checkout_client", fake_client)
+    _configure_stripe(monkeypatch)
+    signup = _signup_verify_login(client, f"checkout-owner-{uuid4().hex}@example.com", "Checkout")
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-start-1"},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json() == {
+        "checkout_url": "https://checkout.stripe.test/session/cs_test_123",
+        "checkout_session_id": "cs_test_123",
+    }
+    assert fake_client.calls[0]["tenant_id"] == signup["tenant_id"]
+    assert fake_client.calls[0]["price_id"] == "price_standard_199_mxn"
+
+    audit = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.tenant_id == UUID(signup["tenant_id"]),
+            AuditLog.action == "billing.checkout_started",
+        )
+        .one()
+    )
+    assert audit.changes["checkout_session_id"] == "cs_test_123"
+
+
+def test_checkout_replays_idempotent_response_without_duplicate_audit(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    fake_client = FakeStripeCheckoutClient()
+    monkeypatch.setattr(billing_service, "checkout_client", fake_client)
+    _configure_stripe(monkeypatch)
+    signup = _signup_verify_login(
+        client, f"checkout-replay-{uuid4().hex}@example.com", "Checkout Replay"
+    )
+
+    first = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-replay"},
+    )
+    second = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-replay"},
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json() == first.json()
+    assert len(fake_client.calls) == 1
+    audit_count = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.tenant_id == UUID(signup["tenant_id"]),
+            AuditLog.action == "billing.checkout_started",
+        )
+        .count()
+    )
+    assert audit_count == 1
+
+
+def test_checkout_requires_stripe_configuration(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "stripe_secret_key", None)
+    monkeypatch.setattr(settings, "stripe_standard_price_id", None)
+    monkeypatch.setattr(settings, "stripe_checkout_success_url", None)
+    monkeypatch.setattr(settings, "stripe_checkout_cancel_url", None)
+    _signup_verify_login(client, f"checkout-config-{uuid4().hex}@example.com", "Checkout Config")
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-missing-config"},
+    )
+
+    assert response.status_code == 503
+
+
+def test_cashier_cannot_start_checkout(client: TestClient, db: Session, monkeypatch) -> None:
+    _configure_stripe(monkeypatch)
+    email = f"checkout-cashier-{uuid4().hex}@example.com"
+    signup = _signup_verify_login(client, email, "Checkout Cashier")
+    _set_role(db, signup, "cashier")
+    client.post("/api/v1/auth/logout")
+    login = client.post("/api/v1/auth/login", json={"email": email, "password": "S3cur3pass!"})
+    assert login.status_code == 200, login.text
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-cashier"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_checkout_requires_idempotency_key(client: TestClient, monkeypatch) -> None:
+    _configure_stripe(monkeypatch)
+    _signup_verify_login(client, f"checkout-key-{uuid4().hex}@example.com", "Checkout Key")
+
+    response = client.post("/api/v1/billing/checkout")
+
+    assert response.status_code == 400
