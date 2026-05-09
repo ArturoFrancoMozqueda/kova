@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.idempotency import service as idempotency_service
 from app.orders import repository as repo
-from app.orders.models import Order, Payment, OrderItem
+from app.orders.models import Order, Payment
 from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
 from app.pricing import calculator
 from app.shared.exceptions import bad_request, not_found
@@ -96,9 +96,7 @@ def _validate_payments(
     """Validate split payment entries and return (amount, tendered, change_due) per entry."""
     payment_sum = calculator.money(sum(p.amount for p in payments))
     if payment_sum != total:
-        raise bad_request(
-            f"Payment total {payment_sum} does not equal order total {total}"
-        )
+        raise bad_request(f"Payment total {payment_sum} does not equal order total {total}")
 
     result = []
     for p in payments:
@@ -134,9 +132,7 @@ def create_order(
         return stored
 
     if client_uuid:
-        existing = repo.get_order_by_client_uuid(
-            db, tenant_id=tenant_id, client_uuid=client_uuid
-        )
+        existing = repo.get_order_by_client_uuid(db, tenant_id=tenant_id, client_uuid=client_uuid)
         if existing:
             return 200, _order_body(db, tenant_id=tenant_id, order=existing)
 
@@ -285,7 +281,9 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
             "id": str(void.id),
             "reason": void.reason,
             "created_at": void.created_at.isoformat(),
-        } if void else None,
+        }
+        if void
+        else None,
     }
 
 

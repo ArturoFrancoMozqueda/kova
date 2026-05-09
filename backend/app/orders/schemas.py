@@ -69,6 +69,27 @@ class ReceiptPaymentLine(BaseModel):
     reference: str | None
 
 
+class ReceiptRefundItemLine(BaseModel):
+    order_item_id: UUID
+    quantity: int
+    unit_price_amount: Decimal
+    line_total_amount: Decimal
+
+
+class ReceiptRefundLine(BaseModel):
+    id: UUID
+    reason: str
+    refunded_amount: Decimal
+    created_at: datetime
+    items: list[ReceiptRefundItemLine]
+
+
+class ReceiptVoidLine(BaseModel):
+    id: UUID
+    reason: str
+    created_at: datetime
+
+
 class ReceiptResponse(BaseModel):
     order_id: UUID
     receipt_number: str
@@ -81,6 +102,8 @@ class ReceiptResponse(BaseModel):
     payments: list[ReceiptPaymentLine]
     total_tendered: Decimal
     total_change: Decimal
+    refunds: list[ReceiptRefundLine] = Field(default_factory=list)
+    void: ReceiptVoidLine | None = None
 
 
 class RefundItemCreate(BaseModel):
