@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, sessionmaker
 # Import all models so Base.metadata is fully populated before migrations check
 import app.audit.models  # noqa: F401
 import app.auth.models  # noqa: F401
+import app.billing.models  # noqa: F401
 import app.catalog.models  # noqa: F401
 import app.idempotency.models  # noqa: F401
 import app.inventory  # noqa: F401

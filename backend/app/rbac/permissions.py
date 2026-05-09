@@ -13,6 +13,7 @@ class Permission(StrEnum):
     INVENTORY_ADJUST = "inventory.adjust"
     REPORTS_VIEW_ALL = "reports.view_all"
     USERS_MANAGE = "users.manage"
+    BILLING_VIEW = "billing.view"
     BILLING_MANAGE = "billing.manage"
     SETTINGS_MANAGE = "settings.manage"
 

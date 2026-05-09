@@ -65,13 +65,13 @@ Do not implement:
 
 ### Backend
 
-- [ ] Create `subscriptions` table.
-- [ ] Create `webhook_events` table.
+- [x] Create `subscriptions` table.
+- [x] Create `webhook_events` table.
 - [ ] Add Stripe Checkout integration.
 - [ ] Add Stripe Billing integration.
 - [ ] Add webhook signature verification.
 - [ ] Add webhook idempotency.
-- [ ] Add subscription status model.
+- [x] Add subscription status model.
 - [ ] Add grace period logic.
 - [ ] Add cancellation flow.
 - [ ] Add internal/admin subscription visibility.

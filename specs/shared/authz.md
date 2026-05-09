@@ -29,6 +29,7 @@ shifts.open       shifts.close
 inventory.adjust
 reports.view_all
 users.manage
+billing.view
 billing.manage
 settings.manage
 ```
@@ -48,6 +49,7 @@ settings.manage
 | inventory.adjust | ✓ | ✓ | | |
 | reports.view_all | ✓ | ✓ | | |
 | users.manage | ✓ | | | |
+| billing.view | ✓ | | | |
 | billing.manage | ✓ | | | |
 | settings.manage | ✓ | ✓ | | |
 
