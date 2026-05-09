@@ -2,31 +2,25 @@
 
 ## Active Sprint
 
-Sprint: 0B — Security + Multi-Tenant Foundation
+Sprint: 0C - Quality + BDD Foundation
 
 ## Sprint Goal
 
-Establish tenant isolation, auth foundation, sessions, RBAC skeleton, audit logs,
-and idempotency infrastructure. No product features yet.
+Lock in the spec-driven delivery system before implementing core POS product features.
 
 ## Allowed Work
 
 Only work on:
 
-- `tenants`, `users`, `memberships` tables and models
-- `roles`, `permissions`, `role_permissions` tables and seed data
-- `sessions`, `verification_tokens` tables
-- `audit_logs`, `idempotency_keys` tables
-- Row-Level Security policies on tenant-scoped tables
-- Tenant context middleware / dependency
-- Auth endpoints: signup, email verify, login, refresh, logout, logout-all, password-reset
-- RBAC skeleton: permission constants, role-permission mapping, `require_permission` dependency
-- Audit log service (write only, append-only)
-- Idempotency service
-- Tenant isolation tests
-- Auth/session tests
-- Permission denied tests
-- Related Alembic migrations (0002–0005)
+- Structured JSON logging with `request_id`, `tenant_id`, and `user_id` fields
+- Backend BDD tooling and the first auth happy-path feature file
+- Frontend Playwright E2E scaffold and app-shell smoke test
+- PR template enforcing spec, BDD, and test-matrix links
+- Sentry placeholders for backend and frontend, no-op when DSNs are unset
+- Pre-commit hooks for ruff and no-secrets scanning
+- OpenAPI export in CI
+- `docs/test-matrixes` structure and reusable test matrix template
+- CI quality gates for the above
 
 ## Explicitly Not Allowed This Sprint
 
@@ -38,91 +32,58 @@ Do not implement:
 - Billing / Stripe
 - Offline sync
 - Refunds / shifts / inventory / reporting
-- Frontend auth UI (deferred to Sprint 0C or later)
-- Email service integration (stub with dev token in response when APP_ENV=local)
 - Multi-location
-- Any deferred scope from docs/deferred-scope.md
+- Deferred scope from `docs/deferred-scope.md`
 
 ## Required Specs
 
-- `specs/auth/sessions.md`
-- `specs/shared/tenant_isolation.md`
-- `specs/shared/authz.md`
-- `specs/shared/audit_log.md`
-- `specs/shared/idempotency.md`
-
-These must exist before implementation begins.
+- `specs/auth/happy_path.feature`
+- `docs/test-matrixes/template.md`
 
 ## Required BDD / Test Scenarios
 
-- Signup creates tenant + user + membership.
-- Duplicate signup email returns 400.
-- Email verification marks user verified.
-- Login sets httpOnly cookies.
-- Authenticated request to `/api/v1/me` returns correct tenant-scoped user.
-- Unauthenticated request returns 401.
-- Refresh rotates refresh token.
-- Logout revokes session; subsequent request returns 401.
-- Logout-all revokes all sessions.
-- Revoked session returns 401.
-- Tenant A cannot access Tenant B's data.
-- Request without required permission returns 403.
-- Password reset flow works end-to-end.
-- Idempotency-Key deduplicates concurrent writes.
-- Audit log row is written for signup and login.
+- Tenant owner signs up, verifies email, logs in, and sees tenant-scoped session data.
+- Frontend app shell loads in Playwright.
+- Logs include `request_id`, `tenant_id`, and `user_id` fields.
 
-## Sprint 0B Tasks
+## Sprint 0C Tasks
 
-### Database
+### Backend Quality
 
-- [x] Create `tenants` table (Alembic 0002).
-- [x] Create `users` table (Alembic 0002).
-- [x] Create `memberships` table (Alembic 0002).
-- [x] Create `roles` table (Alembic 0003).
-- [x] Create `permissions` table (Alembic 0003).
-- [x] Create `role_permissions` table (Alembic 0003).
-- [x] Seed roles and permissions (Alembic 0003).
-- [x] Create `sessions` table (Alembic 0004).
-- [x] Create `verification_tokens` table (Alembic 0004).
-- [x] Create `audit_logs` table (Alembic 0005).
-- [x] Create `idempotency_keys` table (Alembic 0005).
-- [x] Add RLS policies on tenant-scoped tables.
+- [x] Add structured JSON logging.
+- [x] Add request ID middleware and `x-request-id` response header.
+- [x] Include stable `request_id`, `tenant_id`, and `user_id` log fields.
+- [x] Add backend Sentry initialization placeholder.
+- [x] Add OpenAPI export script.
 
-### Backend
+### BDD
 
-- [x] Add auth settings to config (secret_key, token TTLs, cookie_secure).
-- [x] Add SQLAlchemy Base and get_db dependency.
-- [x] Add shared exceptions and dependencies.
-- [x] Add tenants module (model, schema, repository).
-- [x] Add auth module (models, schemas, service, router).
-- [x] Add RBAC module (permission constants, role mapping, require_permission).
-- [x] Add audit log module (model, service).
-- [x] Add idempotency module (model, service).
-- [x] Wire all routers into main.py.
-- [x] Add POST /api/v1/auth/signup.
-- [x] Add POST /api/v1/auth/verify.
-- [x] Add POST /api/v1/auth/login.
-- [x] Add POST /api/v1/auth/refresh.
-- [x] Add POST /api/v1/auth/logout.
-- [x] Add POST /api/v1/auth/logout-all.
-- [x] Add POST /api/v1/auth/password-reset/request.
-- [x] Add POST /api/v1/auth/password-reset/confirm.
-- [x] Add GET /api/v1/me.
+- [x] Add pytest-bdd dependency.
+- [x] Add backend BDD runner.
+- [x] Add first auth happy-path feature file.
+- [x] Add passing step definitions.
 
-### Tests
+### Frontend Quality
 
-- [x] Auth flow tests (signup → verify → login → refresh → logout).
-- [x] Session revocation tests.
-- [x] Tenant isolation tests (cross-tenant access denied).
-- [x] Permission denied tests.
+- [x] Add frontend Sentry initialization placeholder.
+- [x] Add Playwright scaffold.
+- [x] Add app-shell smoke test.
+- [x] Add no raw `console.log` lint rule.
+
+### Delivery System
+
+- [x] Add PR template.
+- [x] Add `docs/test-matrixes` structure.
+- [x] Add test matrix template.
+- [x] Add pre-commit hooks.
+- [x] Add CI quality gates for BDD, E2E, OpenAPI export, and no-secrets scan.
 
 ## Definition of Done
 
-- All auth endpoints work end-to-end.
-- Tenant isolation tests pass.
-- Session revocation works.
-- A write endpoint demonstrates all four invariants: tenant scope, permission check,
-  audit log, idempotency.
-- CI green.
-- No secrets committed.
-- Migrations chain from 0001_baseline and are reversible.
+- Backend BDD works.
+- Frontend E2E works.
+- PR template exists.
+- Test matrix template exists.
+- CI runs quality gates.
+- Logs include `request_id`.
+- Sentry initializes only when configured.
