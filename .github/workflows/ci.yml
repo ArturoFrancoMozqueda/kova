@@ -42,6 +42,13 @@ jobs:
         run: uv run alembic upgrade head
       - name: Test
         run: uv run pytest
+      - name: Export OpenAPI
+        run: uv run python scripts/export_openapi.py
+      - name: Upload OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-json
+          path: backend/openapi.json
 
   frontend:
     runs-on: ubuntu-latest
@@ -63,6 +70,10 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test -- --run
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: E2E smoke
+        run: npm run test:e2e
       - name: Build
         run: npm run build
 
