@@ -1,3 +1,8 @@
+import os
+
+# Force dev mode before any app module is imported so Settings() picks it up.
+os.environ["APP_ENV"] = "local"
+
 import subprocess
 
 import pytest
