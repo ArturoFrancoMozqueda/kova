@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.billing import repository
 from app.billing.models import Subscription, WebhookEvent
-from app.billing.stripe_client import StripeCheckoutClient, StripeCheckoutError
+from app.billing.stripe_client import (
+    StripeCheckoutClient,
+    StripeCheckoutError,
+    StripeSubscriptionClient,
+    StripeSubscriptionError,
+)
 from app.config import settings
 from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request
@@ -22,6 +27,7 @@ STANDARD_PLAN_CURRENCY = "MXN"
 STANDARD_PLAN_INTERVAL = "month"
 
 checkout_client = StripeCheckoutClient()
+subscription_client = StripeSubscriptionClient()
 WEBHOOK_TOLERANCE_SECONDS = 300
 
 
@@ -49,6 +55,12 @@ def _checkout_config() -> tuple[str, str, str, str]:
         settings.stripe_checkout_success_url,
         settings.stripe_checkout_cancel_url,
     )
+
+
+def _stripe_secret_key() -> str:
+    if not settings.stripe_secret_key:
+        raise HTTPException(status_code=503, detail="Stripe billing is not configured")
+    return settings.stripe_secret_key
 
 
 def _webhook_secret() -> str:
@@ -170,6 +182,55 @@ def create_checkout_session(
     )
     db.commit()
     return 201, response_body
+
+
+def cancel_subscription(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+) -> dict:
+    subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
+    if not subscription:
+        return get_subscription_status(db, tenant_id=tenant_id)
+    if subscription.cancel_at_period_end or subscription.status == "canceled":
+        return get_subscription_status(db, tenant_id=tenant_id)
+    if not subscription.stripe_subscription_id:
+        raise bad_request("Subscription is missing Stripe subscription id")
+
+    secret_key = _stripe_secret_key()
+    try:
+        stripe_subscription = subscription_client.update_cancel_at_period_end(
+            secret_key=secret_key,
+            stripe_subscription_id=subscription.stripe_subscription_id,
+            idempotency_key=f"cancel:{tenant_id}:{subscription.stripe_subscription_id}",
+        )
+    except StripeSubscriptionError as exc:
+        raise HTTPException(status_code=502, detail="Stripe cancellation failed") from exc
+
+    subscription.cancel_at_period_end = bool(
+        stripe_subscription.get("cancel_at_period_end", True)
+    )
+    subscription.status = _subscription_status(stripe_subscription.get("status"))
+    subscription.current_period_start = _timestamp(
+        stripe_subscription.get("current_period_start")
+    )
+    subscription.current_period_end = _timestamp(stripe_subscription.get("current_period_end"))
+    subscription.canceled_at = _timestamp(stripe_subscription.get("canceled_at"))
+    audit_service.log(
+        db,
+        action="billing.subscription_cancel_requested",
+        tenant_id=tenant_id,
+        user_id=user_id,
+        resource_type="subscription",
+        resource_id=subscription.id,
+        changes={
+            "stripe_subscription_id": subscription.stripe_subscription_id,
+            "cancel_at_period_end": subscription.cancel_at_period_end,
+        },
+    )
+    db.commit()
+    return get_subscription_status(db, tenant_id=tenant_id)
 
 
 def _timestamp(value: Any) -> Any:

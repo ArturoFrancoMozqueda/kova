@@ -11,6 +11,7 @@ from app.audit.models import AuditLog
 from app.auth.models import Membership
 from app.billing import service as billing_service
 from app.billing.models import Subscription, WebhookEvent
+from app.billing.stripe_client import StripeSubscriptionError
 from app.config import settings
 
 
@@ -117,6 +118,25 @@ class FakeStripeCheckoutClient:
         return {
             "id": "cs_test_123",
             "url": "https://checkout.stripe.test/session/cs_test_123",
+        }
+
+
+class FakeStripeSubscriptionClient:
+    def __init__(self, *, error: bool = False) -> None:
+        self.error = error
+        self.calls: list[dict] = []
+
+    def update_cancel_at_period_end(self, **kwargs) -> dict:
+        self.calls.append(kwargs)
+        if self.error:
+            raise StripeSubscriptionError("stripe down")
+        return {
+            "id": kwargs["stripe_subscription_id"],
+            "status": "active",
+            "cancel_at_period_end": True,
+            "current_period_start": 1_700_000_000,
+            "current_period_end": 1_702_592_000,
+            "canceled_at": None,
         }
 
 
@@ -427,3 +447,104 @@ def test_webhook_without_tenant_is_ignored(client: TestClient, db: Session, monk
     assert response.status_code == 200, response.text
     event = db.query(WebhookEvent).filter(WebhookEvent.stripe_event_id == json.loads(payload)["id"]).one()
     assert event.processing_status == "ignored"
+
+
+def test_owner_cancels_subscription_at_period_end(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    fake_client = FakeStripeSubscriptionClient()
+    monkeypatch.setattr(billing_service, "subscription_client", fake_client)
+    tenant = _signup_verify_login(client, f"cancel-owner-{uuid4().hex}@example.com", "Cancel")
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_subscription_id="sub_cancel_1",
+        status="active",
+    )
+    db.add(subscription)
+    db.commit()
+
+    response = client.post("/api/v1/billing/cancel")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["subscription"]["cancel_at_period_end"] is True
+    assert body["subscription"]["status"] == "active"
+    assert fake_client.calls[0]["stripe_subscription_id"] == "sub_cancel_1"
+    audit = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.tenant_id == UUID(tenant["tenant_id"]),
+            AuditLog.action == "billing.subscription_cancel_requested",
+        )
+        .one()
+    )
+    assert audit.resource_id == subscription.id
+
+
+def test_cancel_subscription_is_idempotent_after_cancel_at_period_end(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    fake_client = FakeStripeSubscriptionClient()
+    monkeypatch.setattr(billing_service, "subscription_client", fake_client)
+    tenant = _signup_verify_login(client, f"cancel-replay-{uuid4().hex}@example.com", "Cancel Replay")
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_subscription_id="sub_cancel_replay",
+        status="active",
+        cancel_at_period_end=True,
+    )
+    db.add(subscription)
+    db.commit()
+
+    response = client.post("/api/v1/billing/cancel")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["subscription"]["cancel_at_period_end"] is True
+    assert fake_client.calls == []
+
+
+def test_cancel_without_subscription_returns_current_state(client: TestClient, monkeypatch) -> None:
+    _configure_stripe(monkeypatch)
+    _signup_verify_login(client, f"cancel-none-{uuid4().hex}@example.com", "Cancel None")
+
+    response = client.post("/api/v1/billing/cancel")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["subscription"] is None
+
+
+def test_cashier_cannot_cancel_subscription(client: TestClient, db: Session, monkeypatch) -> None:
+    _configure_stripe(monkeypatch)
+    email = f"cancel-cashier-{uuid4().hex}@example.com"
+    signup = _signup_verify_login(client, email, "Cancel Cashier")
+    _set_role(db, signup, "cashier")
+    client.post("/api/v1/auth/logout")
+    login = client.post("/api/v1/auth/login", json={"email": email, "password": "S3cur3pass!"})
+    assert login.status_code == 200, login.text
+
+    response = client.post("/api/v1/billing/cancel")
+
+    assert response.status_code == 403
+
+
+def test_cancel_subscription_surfaces_stripe_failure(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    fake_client = FakeStripeSubscriptionClient(error=True)
+    monkeypatch.setattr(billing_service, "subscription_client", fake_client)
+    tenant = _signup_verify_login(client, f"cancel-error-{uuid4().hex}@example.com", "Cancel Error")
+    db.add(
+        Subscription(
+            tenant_id=UUID(tenant["tenant_id"]),
+            stripe_subscription_id="sub_cancel_error",
+            status="active",
+        )
+    )
+    db.commit()
+
+    response = client.post("/api/v1/billing/cancel")
+
+    assert response.status_code == 502

@@ -49,6 +49,21 @@ def create_checkout_session(
     return response_body
 
 
+@router.post("/cancel", response_model=BillingSubscriptionResponse)
+def cancel_subscription(
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.BILLING_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    return service.cancel_subscription(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+    )
+
+
 @router.post("/webhooks/stripe")
 async def stripe_webhook(
     request: Request,
