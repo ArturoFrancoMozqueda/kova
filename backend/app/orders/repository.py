@@ -129,3 +129,12 @@ def get_payment(db: Session, *, tenant_id: UUID, order_id: UUID) -> Payment | No
         .filter(Payment.tenant_id == tenant_id, Payment.order_id == order_id)
         .first()
     )
+
+
+def list_payments(db: Session, *, tenant_id: UUID, order_id: UUID) -> list[Payment]:
+    return (
+        db.query(Payment)
+        .filter(Payment.tenant_id == tenant_id, Payment.order_id == order_id)
+        .order_by(Payment.id)
+        .all()
+    )

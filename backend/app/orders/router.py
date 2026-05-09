@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import Membership, User, UserSession
 from app.db import get_db
 from app.orders import service
-from app.orders.schemas import OrderCreate, OrderResponse
+from app.orders.schemas import OrderCreate, OrderResponse, ReceiptResponse
 from app.rbac.permissions import Permission
 from app.shared.dependencies import get_current_session, require_permission
 from app.shared.exceptions import bad_request
@@ -50,3 +50,13 @@ def get_order(
 ):
     _, membership, _ = ctx
     return service.get_order(db, tenant_id=membership.tenant_id, order_id=order_id)
+
+
+@router.get("/{order_id}/receipt", response_model=ReceiptResponse)
+def get_receipt(
+    order_id: UUID,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+):
+    _, membership, _ = ctx
+    return service.get_receipt(db, tenant_id=membership.tenant_id, order_id=order_id)

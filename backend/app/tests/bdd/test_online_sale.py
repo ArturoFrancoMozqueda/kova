@@ -67,7 +67,7 @@ def cashier_creates_cash_sale(sale_context, quantity, tendered):
         headers={"Idempotency-Key": "bdd-cash-sale"},
         json={
             "items": [{"product_id": sale_context["product"]["id"], "quantity": quantity}],
-            "payment": {"method": "cash", "amount": total, "amount_tendered": tendered},
+            "payments": [{"method": "cash", "amount": total, "amount_tendered": tendered}],
         },
     )
     assert response.status_code == 201, response.text
@@ -82,7 +82,7 @@ def sale_completed_with_total(sale_context, total):
 
 @then(parsers.parse('the cash change due is "{change_due}"'))
 def cash_change_due(sale_context, change_due):
-    assert sale_context["order"]["payment"]["change_due_amount"] == change_due
+    assert sale_context["order"]["payments"][0]["change_due_amount"] == change_due
 
 
 @when("the cashier creates a bank transfer sale for 1 unit")
@@ -92,7 +92,7 @@ def cashier_creates_bank_transfer_sale(sale_context):
         headers={"Idempotency-Key": "bdd-transfer-sale"},
         json={
             "items": [{"product_id": sale_context["product"]["id"], "quantity": 1}],
-            "payment": {"method": "bank_transfer", "amount": sale_context["product"]["price_amount"]},
+            "payments": [{"method": "bank_transfer", "amount": sale_context["product"]["price_amount"]}],
         },
     )
     assert response.status_code == 201, response.text
@@ -117,7 +117,7 @@ def two_tenants_with_completed_online_sales():
         headers={"Idempotency-Key": "bdd-isolation-sale"},
         json={
             "items": [{"product_id": product.json()["id"], "quantity": 1}],
-            "payment": {"method": "cash", "amount": "18.50", "amount_tendered": "20.00"},
+            "payments": [{"method": "cash", "amount": "18.50", "amount_tendered": "20.00"}],
         },
     )
     assert order.status_code == 201, order.text

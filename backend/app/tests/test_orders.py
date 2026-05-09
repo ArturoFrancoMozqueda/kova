@@ -45,7 +45,7 @@ def _create_cash_order(client: TestClient, product_id: str, key: str = "order-ca
         headers={"Idempotency-Key": key},
         json={
             "items": [{"product_id": product_id, "quantity": 2}],
-            "payment": {"method": "cash", "amount": "37.00", "amount_tendered": "40.00"},
+            "payments": [{"method": "cash", "amount": "37.00", "amount_tendered": "40.00"}],
         },
     )
 
@@ -59,7 +59,7 @@ def test_cash_order_uses_server_prices_and_writes_audit(client, db):
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["total_amount"] == "37.00"
-    assert body["payment"]["change_due_amount"] == "3.00"
+    assert body["payments"][0]["change_due_amount"] == "3.00"
     assert body["items"][0]["unit_price_amount"] == "18.50"
 
     audit = (
@@ -79,17 +79,13 @@ def test_bank_transfer_order_records_manual_payment(client):
         headers={"Idempotency-Key": "order-transfer"},
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "payment": {
-                "method": "bank_transfer",
-                "amount": "30.00",
-                "reference": "SPEI-123",
-            },
+            "payments": [{"method": "bank_transfer", "amount": "30.00", "reference": "SPEI-123"}],
         },
     )
 
     assert response.status_code == 201, response.text
-    assert response.json()["payment"]["method"] == "bank_transfer"
-    assert response.json()["payment"]["reference"] == "SPEI-123"
+    assert response.json()["payments"][0]["method"] == "bank_transfer"
+    assert response.json()["payments"][0]["reference"] == "SPEI-123"
 
 
 def test_manual_card_order_records_payment(client):
@@ -101,12 +97,12 @@ def test_manual_card_order_records_payment(client):
         headers={"Idempotency-Key": "order-card"},
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "payment": {"method": "manual_card", "amount": "25.00", "reference": "terminal-42"},
+            "payments": [{"method": "manual_card", "amount": "25.00", "reference": "terminal-42"}],
         },
     )
 
     assert response.status_code == 201, response.text
-    assert response.json()["payment"]["method"] == "manual_card"
+    assert response.json()["payments"][0]["method"] == "manual_card"
 
 
 def test_order_create_idempotency_replays_same_response(client):
@@ -131,7 +127,7 @@ def test_order_idempotency_reuse_with_different_body_returns_400(client):
         headers={"Idempotency-Key": "order-replay-bad"},
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "payment": {"method": "cash", "amount": "18.50", "amount_tendered": "20.00"},
+            "payments": [{"method": "cash", "amount": "18.50", "amount_tendered": "20.00"}],
         },
     )
 
@@ -185,7 +181,7 @@ def test_payment_mismatch_returns_400(client):
         headers={"Idempotency-Key": "order-mismatch"},
         json={
             "items": [{"product_id": product["id"], "quantity": 1}],
-            "payment": {"method": "bank_transfer", "amount": "29.99"},
+            "payments": [{"method": "bank_transfer", "amount": "29.99"}],
         },
     )
 

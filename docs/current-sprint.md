@@ -2,7 +2,7 @@
 
 ## Active Sprint
 
-Sprint: 2 - Register + Online Sale
+Sprint: 3 — Split Payment + Receipt Stub Polish
 
 ## Sprint Goal
 

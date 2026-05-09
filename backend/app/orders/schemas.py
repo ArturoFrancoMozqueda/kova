@@ -1,7 +1,8 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrderItemCreate(BaseModel):
@@ -18,13 +19,7 @@ class PaymentCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(min_length=1)
-    payment: PaymentCreate
-
-    @model_validator(mode="after")
-    def validate_single_payment(self) -> "OrderCreate":
-        if self.payment.method == "cash" and self.payment.amount_tendered is None:
-            raise ValueError("Cash payment requires amount_tendered")
-        return self
+    payments: list[PaymentCreate] = Field(min_length=1)
 
 
 class OrderItemResponse(BaseModel):
@@ -56,4 +51,33 @@ class OrderResponse(BaseModel):
     subtotal_amount: Decimal
     total_amount: Decimal
     items: list[OrderItemResponse]
-    payment: PaymentResponse
+    payments: list[PaymentResponse]
+
+
+class ReceiptItemLine(BaseModel):
+    product_name: str
+    quantity: int
+    unit_price_amount: Decimal
+    line_total_amount: Decimal
+
+
+class ReceiptPaymentLine(BaseModel):
+    method: str
+    amount_amount: Decimal
+    amount_tendered_amount: Decimal | None
+    change_due_amount: Decimal
+    reference: str | None
+
+
+class ReceiptResponse(BaseModel):
+    order_id: UUID
+    receipt_number: str
+    tenant_name: str
+    created_at: datetime
+    status: str
+    items: list[ReceiptItemLine]
+    subtotal_amount: Decimal
+    total_amount: Decimal
+    payments: list[ReceiptPaymentLine]
+    total_tendered: Decimal
+    total_change: Decimal
