@@ -2,7 +2,8 @@ export default function Home() {
   return (
     <main>
       <h1>POS</h1>
-      <p>Sprint 0A skeleton — app shell.</p>
+      <p>Sprint 4 offline queue shell.</p>
+      <p aria-label="offline queue status">Offline sales queue ready.</p>
     </main>
   );
 }

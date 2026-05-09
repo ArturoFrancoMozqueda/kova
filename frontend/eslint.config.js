@@ -17,6 +17,8 @@ export default [
         window: "readonly",
         document: "readonly",
         console: "readonly",
+        crypto: "readonly",
+        fetch: "readonly",
         process: "readonly",
       },
     },

@@ -54,4 +54,6 @@ markers = [
     "orders: order creation scenario",
     "payment: payment recording scenario",
     "inventory: inventory movement scenario",
+    "offline: offline sync scenario",
+    "dead-letter: dead-letter recovery scenario",
 ]
