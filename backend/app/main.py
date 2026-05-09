@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.auth.router import router as auth_router
+from app.billing.router import router as billing_router
 from app.catalog.router import router as catalog_router
 from app.config import settings
 from app.health.router import router as health_router
@@ -21,6 +22,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(billing_router)
     app.include_router(catalog_router)
     app.include_router(inventory_router)
     app.include_router(orders_router)

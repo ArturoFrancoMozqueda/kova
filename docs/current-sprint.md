@@ -67,6 +67,7 @@ Do not implement:
 
 - [x] Create `subscriptions` table.
 - [x] Create `webhook_events` table.
+- [x] Add billing subscription read endpoint.
 - [ ] Add Stripe Checkout integration.
 - [ ] Add Stripe Billing integration.
 - [ ] Add webhook signature verification.
@@ -77,8 +78,9 @@ Do not implement:
 - [ ] Add internal/admin subscription visibility.
 - [ ] Ensure Standard Plan price is $199 MXN/month.
 - [ ] Remove/defer plan-based feature gates.
-- [ ] Add tenant scoping for all billing queries.
+- [x] Add tenant scoping for billing subscription read query.
 - [ ] Add permission checks for billing management.
+- [x] Add permission checks for billing subscription read.
 - [ ] Add audit logs for billing mutations.
 
 ### Frontend
@@ -96,6 +98,7 @@ Do not implement:
 
 - [ ] Add billing BDD scenarios.
 - [ ] Add backend billing integration coverage.
+- [x] Add backend billing subscription read coverage.
 - [ ] Add webhook signature and idempotency tests.
 - [ ] Add tenant isolation tests for billing.
 - [ ] Add permission tests for billing management.
