@@ -1,0 +1,4 @@
+title = "point_of_sale gitleaks config"
+
+[extend]
+useDefault = true
