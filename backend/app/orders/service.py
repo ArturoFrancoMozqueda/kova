@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.idempotency import service as idempotency_service
 from app.orders import repository as repo
-from app.orders.models import Order, Payment
-from app.orders.schemas import OrderCreate, PaymentCreate
+from app.orders.models import Order, Payment, OrderItem
+from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
 from app.pricing import calculator
 from app.shared.exceptions import bad_request, not_found
 from app.tenants import repository as tenant_repo
@@ -122,13 +122,23 @@ def create_order(
     user_id: UUID,
     body: OrderCreate,
     idempotency_key: str,
+    client_uuid: UUID | None = None,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
+    if client_uuid:
+        payload["client_uuid"] = str(client_uuid)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
     )
     if stored:
         return stored
+
+    if client_uuid:
+        existing = repo.get_order_by_client_uuid(
+            db, tenant_id=tenant_id, client_uuid=client_uuid
+        )
+        if existing:
+            return 200, _order_body(db, tenant_id=tenant_id, order=existing)
 
     priced_items = []
     for item in body.items:
@@ -150,6 +160,7 @@ def create_order(
         user_id=user_id,
         subtotal_amount=subtotal,
         total_amount=total,
+        client_uuid=client_uuid,
     )
     for product, quantity, line_total in priced_items:
         repo.create_order_item(
@@ -219,12 +230,18 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
 
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
     payments = repo.list_payments(db, tenant_id=tenant_id, order_id=order_id)
+    refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
+    void = repo.get_void(db, tenant_id=tenant_id, order_id=order_id)
     tenant = tenant_repo.get_by_id(db, tenant_id)
 
     total_tendered = calculator.money(
         sum(p.amount_tendered_amount for p in payments if p.amount_tendered_amount is not None)
     )
     total_change = calculator.money(sum(p.change_due_amount for p in payments))
+
+    refund_items = []
+    for refund in refunds:
+        refund_items.extend(repo.list_refund_items(db, refund_id=refund.id))
 
     return {
         "order_id": str(order.id),
@@ -246,4 +263,282 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
         "payments": [_payment_body(p) for p in payments],
         "total_tendered": str(total_tendered),
         "total_change": str(total_change),
+        "refunds": [
+            {
+                "id": str(r.id),
+                "reason": r.reason,
+                "refunded_amount": str(r.refunded_amount),
+                "created_at": r.created_at.isoformat(),
+                "items": [
+                    {
+                        "order_item_id": str(ri.order_item_id),
+                        "quantity": ri.quantity,
+                        "unit_price_amount": str(ri.unit_price_amount),
+                        "line_total_amount": str(ri.line_total_amount),
+                    }
+                    for ri in repo.list_refund_items(db, refund_id=r.id)
+                ],
+            }
+            for r in refunds
+        ],
+        "void": {
+            "id": str(void.id),
+            "reason": void.reason,
+            "created_at": void.created_at.isoformat(),
+        } if void else None,
     }
+
+
+def create_refund(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    order_id: UUID,
+    body: RefundCreate,
+    idempotency_key: str,
+) -> tuple[int, dict[str, Any]]:
+    payload = body.model_dump(mode="json")
+    payload["order_id"] = str(order_id)
+    stored = _stored_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+    )
+    if stored:
+        return stored
+
+    order = repo.get_order(db, tenant_id=tenant_id, order_id=order_id)
+    if not order:
+        raise not_found("Order not found")
+
+    if order.status == "voided":
+        raise bad_request("Cannot refund a voided order")
+
+    existing_void = repo.get_void(db, tenant_id=tenant_id, order_id=order_id)
+    if existing_void:
+        raise bad_request("Cannot refund a voided order")
+
+    all_items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
+    items_by_id = {item.id: item for item in all_items}
+
+    refund_lines = []
+    total_refunded = Decimal("0.00")
+
+    for refund_item in body.items:
+        order_item = items_by_id.get(refund_item.order_item_id)
+        if not order_item:
+            raise bad_request(f"Order item {refund_item.order_item_id} not found")
+
+        existing_refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
+        refunded_qty = sum(
+            ri.quantity
+            for r in existing_refunds
+            for ri in repo.list_refund_items(db, refund_id=r.id)
+            if ri.order_item_id == refund_item.order_item_id
+        )
+
+        if refunded_qty + refund_item.quantity > order_item.quantity:
+            raise bad_request(
+                f"Cannot refund {refund_item.quantity} units; "
+                f"{order_item.quantity - refunded_qty} remaining"
+            )
+
+        line_total = calculator.line_total(order_item.unit_price_amount, refund_item.quantity)
+        refund_lines.append((order_item, refund_item.quantity, line_total))
+        total_refunded = calculator.money(total_refunded + line_total)
+
+    refund = repo.create_refund(
+        db,
+        tenant_id=tenant_id,
+        order_id=order_id,
+        user_id=user_id,
+        reason=body.reason,
+        refunded_amount=total_refunded,
+    )
+
+    for order_item, quantity, line_total in refund_lines:
+        repo.create_refund_item(
+            db,
+            refund_id=refund.id,
+            order_item_id=order_item.id,
+            quantity=quantity,
+            unit_price_amount=order_item.unit_price_amount,
+            line_total_amount=line_total,
+        )
+
+        if order_item.product_id:
+            repo.create_inventory_movement(
+                db,
+                tenant_id=tenant_id,
+                product_id=order_item.product_id,
+                order_id=order_id,
+                quantity_delta=quantity,
+            )
+
+    refund_items = repo.list_refund_items(db, refund_id=refund.id)
+    response_body = {
+        "id": str(refund.id),
+        "order_id": str(refund.order_id),
+        "reason": refund.reason,
+        "refunded_amount": str(refund.refunded_amount),
+        "items": [
+            {
+                "id": str(ri.id),
+                "order_item_id": str(ri.order_item_id),
+                "quantity": ri.quantity,
+                "unit_price_amount": str(ri.unit_price_amount),
+                "line_total_amount": str(ri.line_total_amount),
+            }
+            for ri in refund_items
+        ],
+        "created_at": refund.created_at.isoformat(),
+    }
+
+    audit_service.log(
+        db,
+        action="orders.refund",
+        tenant_id=tenant_id,
+        user_id=user_id,
+        resource_type="refund",
+        resource_id=refund.id,
+        changes=response_body,
+    )
+    _store_response(
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        status_code=201,
+        response_body=response_body,
+    )
+    db.commit()
+    return 201, response_body
+
+
+def list_refunds(db: Session, *, tenant_id: UUID, order_id: UUID) -> list[dict[str, Any]]:
+    refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
+    return [
+        {
+            "id": str(r.id),
+            "order_id": str(r.order_id),
+            "reason": r.reason,
+            "refunded_amount": str(r.refunded_amount),
+            "items": [
+                {
+                    "id": str(ri.id),
+                    "order_item_id": str(ri.order_item_id),
+                    "quantity": ri.quantity,
+                    "unit_price_amount": str(ri.unit_price_amount),
+                    "line_total_amount": str(ri.line_total_amount),
+                }
+                for ri in repo.list_refund_items(db, refund_id=r.id)
+            ],
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in refunds
+    ]
+
+
+def get_refund(db: Session, *, tenant_id: UUID, refund_id: UUID) -> dict[str, Any]:
+    refund = repo.get_refund(db, tenant_id=tenant_id, refund_id=refund_id)
+    if not refund:
+        raise not_found("Refund not found")
+
+    items = repo.list_refund_items(db, refund_id=refund.id)
+    return {
+        "id": str(refund.id),
+        "order_id": str(refund.order_id),
+        "reason": refund.reason,
+        "refunded_amount": str(refund.refunded_amount),
+        "items": [
+            {
+                "id": str(ri.id),
+                "order_item_id": str(ri.order_item_id),
+                "quantity": ri.quantity,
+                "unit_price_amount": str(ri.unit_price_amount),
+                "line_total_amount": str(ri.line_total_amount),
+            }
+            for ri in items
+        ],
+        "created_at": refund.created_at.isoformat(),
+    }
+
+
+def create_void(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    order_id: UUID,
+    reason: str,
+    idempotency_key: str,
+) -> tuple[int, dict[str, Any]]:
+    payload = {"order_id": str(order_id), "reason": reason}
+    stored = _stored_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+    )
+    if stored:
+        return stored
+
+    order = repo.get_order(db, tenant_id=tenant_id, order_id=order_id)
+    if not order:
+        raise not_found("Order not found")
+
+    if order.status == "voided":
+        raise bad_request("Order is already voided")
+
+    existing_refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
+    if existing_refunds:
+        raise bad_request("Cannot void an order with existing refunds")
+
+    existing_void = repo.get_void(db, tenant_id=tenant_id, order_id=order_id)
+    if existing_void:
+        raise bad_request("Order is already voided")
+
+    void = repo.create_void(
+        db,
+        tenant_id=tenant_id,
+        order_id=order_id,
+        user_id=user_id,
+        reason=reason,
+    )
+
+    order.status = "voided"
+    db.add(order)
+
+    items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
+    for item in items:
+        if item.product_id:
+            repo.create_inventory_movement(
+                db,
+                tenant_id=tenant_id,
+                product_id=item.product_id,
+                order_id=order_id,
+                quantity_delta=item.quantity,
+            )
+
+    response_body = {
+        "id": str(void.id),
+        "order_id": str(void.order_id),
+        "reason": void.reason,
+        "created_at": void.created_at.isoformat(),
+    }
+
+    audit_service.log(
+        db,
+        action="orders.void",
+        tenant_id=tenant_id,
+        user_id=user_id,
+        resource_type="void",
+        resource_id=void.id,
+        changes=response_body,
+    )
+    _store_response(
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        status_code=201,
+        response_body=response_body,
+    )
+    db.commit()
+    return 201, response_body

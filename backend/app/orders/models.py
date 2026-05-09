@@ -17,6 +17,7 @@ class Order(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    client_uuid: Mapped[UUID | None] = mapped_column(nullable=True)
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="completed")
     subtotal_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
@@ -63,4 +64,38 @@ class InventoryMovement(Base):
     order_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
     movement_type: Mapped[str] = mapped_column(String(30), nullable=False)
     quantity_delta: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Refund(Base):
+    __tablename__ = "refunds"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    reason: Mapped[str] = mapped_column(String(30), nullable=False)
+    refunded_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class RefundItem(Base):
+    __tablename__ = "refund_items"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    refund_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    order_item_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    unit_price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    line_total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+
+
+class Void(Base):
+    __tablename__ = "voids"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    reason: Mapped[str] = mapped_column(String(30), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

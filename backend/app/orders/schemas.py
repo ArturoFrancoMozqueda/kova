@@ -81,3 +81,45 @@ class ReceiptResponse(BaseModel):
     payments: list[ReceiptPaymentLine]
     total_tendered: Decimal
     total_change: Decimal
+
+
+class RefundItemCreate(BaseModel):
+    order_item_id: UUID
+    quantity: int = Field(gt=0)
+
+
+class RefundCreate(BaseModel):
+    items: list[RefundItemCreate] = Field(min_length=1)
+    reason: str = Field(pattern="^(customer_return|defective|wrong_item|other)$")
+
+
+class RefundItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    order_item_id: UUID
+    quantity: int
+    unit_price_amount: Decimal
+    line_total_amount: Decimal
+
+
+class RefundResponse(BaseModel):
+    id: UUID
+    order_id: UUID
+    reason: str
+    refunded_amount: Decimal
+    items: list[RefundItemResponse]
+    created_at: datetime
+
+
+class VoidCreate(BaseModel):
+    reason: str = Field(pattern="^(operator_error|wrong_product|system_issue|other)$")
+
+
+class VoidResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    order_id: UUID
+    reason: str
+    created_at: datetime
