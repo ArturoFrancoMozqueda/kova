@@ -13,7 +13,12 @@ export default [
       parser: tsparser,
       ecmaVersion: 2022,
       sourceType: "module",
-      globals: { window: "readonly", document: "readonly", console: "readonly" },
+      globals: {
+        window: "readonly",
+        document: "readonly",
+        console: "readonly",
+        process: "readonly",
+      },
     },
     plugins: {
       "@typescript-eslint": tseslint,
@@ -23,6 +28,7 @@ export default [
     rules: {
       ...tseslint.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      "no-console": ["error", { allow: ["warn", "error"] }],
     },
   },
 ];
