@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
 from app.billing.router import router as billing_router
@@ -13,11 +14,28 @@ from app.reports.router import router as reports_router
 from app.shifts.router import router as shifts_router
 from app.sync.router import router as sync_router
 
+_DEFAULT_SECRET_KEY = "change-me-in-production-use-a-long-random-string"
+
+
+def _validate_config() -> None:
+    if settings.app_env != "local" and settings.secret_key == _DEFAULT_SECRET_KEY:
+        raise RuntimeError(
+            "SECRET_KEY must be changed from the default value in non-local environments"
+        )
+
 
 def create_app() -> FastAPI:
     configure_logging()
     init_sentry()
+    _validate_config()
     app = FastAPI(title="POS API", version="0.0.1")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[settings.frontend_url],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allow_headers=["Content-Type", "Idempotency-Key", "X-Internal-Key"],
+    )
     app.middleware("http")(request_context_middleware)
 
     app.include_router(health_router)

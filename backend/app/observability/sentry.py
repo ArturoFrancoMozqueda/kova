@@ -10,4 +10,5 @@ def init_sentry() -> None:
         dsn=settings.sentry_dsn,
         environment=settings.app_env,
         traces_sample_rate=settings.sentry_traces_sample_rate,
+        send_default_pii=False,
     )

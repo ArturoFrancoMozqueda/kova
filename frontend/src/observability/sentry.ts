@@ -7,5 +7,6 @@ if (dsn) {
     dsn,
     environment: import.meta.env.MODE,
     tracesSampleRate: 0,
+    sendDefaultPii: false,
   });
 }
