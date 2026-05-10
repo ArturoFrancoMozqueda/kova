@@ -1,13 +1,18 @@
-from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
-from app.billing import service
-from app.billing.schemas import BillingSubscriptionResponse, CheckoutSessionResponse
+from app.billing import repository, service
+from app.billing.schemas import (
+    BillingSubscriptionResponse,
+    CheckoutSessionResponse,
+    InternalSubscriptionListResponse,
+)
+from app.config import settings
 from app.db import get_db
 from app.rbac.permissions import Permission
 from app.shared.dependencies import require_permission
-from app.shared.exceptions import bad_request
+from app.shared.exceptions import bad_request, forbidden
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 
@@ -76,3 +81,16 @@ async def stripe_webhook(
         payload=payload,
         signature_header=stripe_signature,
     )
+
+
+@router.get("/internal/subscriptions", response_model=InternalSubscriptionListResponse, tags=["internal"])
+def internal_list_subscriptions(
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
+    x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
+    db: Session = Depends(get_db),
+):
+    if not settings.internal_api_key or x_internal_key != settings.internal_api_key:
+        raise forbidden("Invalid or missing internal API key")
+    items = repository.list_all_subscriptions(db, offset=offset, limit=limit)
+    return InternalSubscriptionListResponse(items=items, total=len(items))

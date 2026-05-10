@@ -19,6 +19,18 @@ def get_subscription_by_stripe_id(
     )
 
 
+def list_all_subscriptions(
+    db: Session, *, offset: int = 0, limit: int = 100
+) -> list[Subscription]:
+    return (
+        db.query(Subscription)
+        .order_by(Subscription.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
 def get_webhook_event(db: Session, *, stripe_event_id: str) -> WebhookEvent | None:
     return (
         db.query(WebhookEvent)

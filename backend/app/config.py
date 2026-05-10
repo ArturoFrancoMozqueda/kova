@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     stripe_checkout_success_url: str | None = None
     stripe_checkout_cancel_url: str | None = None
     billing_grace_period_days: int = 7
+    internal_api_key: str | None = None
 
     @property
     def cookie_secure(self) -> bool:
