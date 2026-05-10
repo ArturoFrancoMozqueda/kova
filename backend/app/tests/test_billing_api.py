@@ -11,7 +11,7 @@ from app.audit.models import AuditLog
 from app.auth.models import Membership
 from app.billing import service as billing_service
 from app.billing.models import Subscription, WebhookEvent
-from app.billing.stripe_client import StripeSubscriptionError
+from app.billing.stripe_client import StripePriceError, StripeSubscriptionError
 from app.config import settings
 
 
@@ -121,6 +121,25 @@ class FakeStripeCheckoutClient:
         }
 
 
+class FakeStripePriceClient:
+    def __init__(self, *, error: bool = False, price: dict | None = None) -> None:
+        self.error = error
+        self.calls: list[dict] = []
+        self.price = price or {
+            "id": "price_standard_199_mxn",
+            "active": True,
+            "unit_amount": 19900,
+            "currency": "mxn",
+            "recurring": {"interval": "month"},
+        }
+
+    def retrieve_price(self, **kwargs) -> dict:
+        self.calls.append(kwargs)
+        if self.error:
+            raise StripePriceError("stripe down")
+        return self.price
+
+
 class FakeStripeSubscriptionClient:
     def __init__(self, *, error: bool = False) -> None:
         self.error = error
@@ -141,6 +160,7 @@ class FakeStripeSubscriptionClient:
 
 
 def _configure_stripe(monkeypatch) -> None:
+    monkeypatch.setattr(billing_service, "price_client", FakeStripePriceClient())
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
     monkeypatch.setattr(settings, "stripe_webhook_secret", "whsec_test_123")
     monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_199_mxn")
@@ -233,6 +253,34 @@ def test_checkout_requires_stripe_configuration(client: TestClient, monkeypatch)
     )
 
     assert response.status_code == 503
+
+
+def test_checkout_blocks_misconfigured_standard_plan_price(
+    client: TestClient, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    monkeypatch.setattr(
+        billing_service,
+        "price_client",
+        FakeStripePriceClient(
+            price={
+                "id": "price_standard_199_mxn",
+                "active": True,
+                "unit_amount": 29900,
+                "currency": "mxn",
+                "recurring": {"interval": "month"},
+            }
+        ),
+    )
+    _signup_verify_login(client, f"checkout-price-{uuid4().hex}@example.com", "Checkout Price")
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-wrong-price"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Stripe Standard Plan price is misconfigured"
 
 
 def test_cashier_cannot_start_checkout(client: TestClient, db: Session, monkeypatch) -> None:

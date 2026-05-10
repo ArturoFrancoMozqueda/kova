@@ -15,6 +15,8 @@ from app.billing.models import Subscription, WebhookEvent
 from app.billing.stripe_client import (
     StripeCheckoutClient,
     StripeCheckoutError,
+    StripePriceClient,
+    StripePriceError,
     StripeSubscriptionClient,
     StripeSubscriptionError,
 )
@@ -28,6 +30,7 @@ STANDARD_PLAN_CURRENCY = "MXN"
 STANDARD_PLAN_INTERVAL = "month"
 
 checkout_client = StripeCheckoutClient()
+price_client = StripePriceClient()
 subscription_client = StripeSubscriptionClient()
 WEBHOOK_TOLERANCE_SECONDS = 300
 
@@ -62,6 +65,26 @@ def _stripe_secret_key() -> str:
     if not settings.stripe_secret_key:
         raise HTTPException(status_code=503, detail="Stripe billing is not configured")
     return settings.stripe_secret_key
+
+
+def _validate_standard_price_configuration(*, secret_key: str, price_id: str) -> None:
+    try:
+        price = price_client.retrieve_price(secret_key=secret_key, price_id=price_id)
+    except StripePriceError as exc:
+        raise HTTPException(status_code=502, detail="Stripe price validation failed") from exc
+
+    recurring = price.get("recurring") or {}
+    currency = str(price.get("currency") or "").upper()
+    if (
+        price.get("active") is not True
+        or price.get("unit_amount") != STANDARD_PLAN_AMOUNT_MINOR_UNITS
+        or currency != STANDARD_PLAN_CURRENCY
+        or recurring.get("interval") != STANDARD_PLAN_INTERVAL
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="Stripe Standard Plan price is misconfigured",
+        )
 
 
 def _webhook_secret() -> str:
@@ -138,6 +161,8 @@ def create_checkout_session(
         if existing.request_hash != request_hash:
             raise bad_request("Idempotency key reused with different request body")
         return existing.response_status or 200, existing.response_body or {}
+
+    _validate_standard_price_configuration(secret_key=secret_key, price_id=price_id)
 
     try:
         stripe_session = checkout_client.create_checkout_session(

@@ -9,8 +9,35 @@ class StripeCheckoutError(Exception):
     pass
 
 
+class StripePriceError(Exception):
+    pass
+
+
 class StripeSubscriptionError(Exception):
     pass
+
+
+class StripePriceClient:
+    def retrieve_price(self, *, secret_key: str, price_id: str) -> dict[str, Any]:
+        encoded_price_id = quote(str(price_id), safe="")
+        request = Request(
+            f"https://api.stripe.com/v1/prices/{encoded_price_id}",
+            headers={"Authorization": f"Bearer {secret_key}"},
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=10) as response:
+                body = response.read().decode()
+        except HTTPError as exc:
+            detail = exc.read().decode(errors="replace")
+            raise StripePriceError(detail) from exc
+        except URLError as exc:
+            raise StripePriceError(str(exc.reason)) from exc
+
+        parsed = json.loads(body)
+        if not isinstance(parsed, dict):
+            raise StripePriceError("Unexpected Stripe response")
+        return parsed
 
 
 class StripeCheckoutClient:

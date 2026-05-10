@@ -76,8 +76,8 @@ Do not implement:
 - [x] Add grace period logic.
 - [x] Add cancellation flow.
 - [ ] Add internal/admin subscription visibility.
-- [ ] Ensure Standard Plan price is $199 MXN/month.
-- [ ] Remove/defer plan-based feature gates.
+- [x] Ensure Standard Plan price is $199 MXN/month.
+- [x] Remove/defer plan-based feature gates.
 - [x] Add tenant scoping for billing subscription read query.
 - [x] Add permission checks for billing management.
 - [x] Add permission checks for billing subscription read.
