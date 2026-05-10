@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import AuthView from "./auth/AuthView";
 import BillingView from "./billing/BillingView";
 import InventoryView from "./inventory/InventoryView";
 import OrderDetail from "./orders/OrderDetail";
@@ -11,6 +12,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/login" element={<AuthView mode="login" />} />
+        <Route path="/signup" element={<AuthView mode="signup" />} />
         <Route path="/billing" element={<BillingView />} />
         <Route path="/billing/:returnState" element={<BillingView />} />
         <Route path="/inventory" element={<InventoryView />} />

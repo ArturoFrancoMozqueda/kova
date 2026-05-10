@@ -5,9 +5,19 @@ export default function Home() {
   return (
     <main className="page">
       <header className="hero">
-        <p className="eyebrow">{copy.app.offlineShell}</p>
-        <h1>{copy.app.homeTitle}</h1>
-        <p aria-label="offline queue status">{copy.app.offlineReady}</p>
+        <div>
+          <p className="eyebrow">{copy.app.offlineShell}</p>
+          <h1>{copy.app.homeTitle}</h1>
+          <p aria-label="offline queue status">{copy.app.offlineReady}</p>
+        </div>
+        <nav className="button-row" aria-label={copy.auth.accountNavigation}>
+          <Link className="text-link" to="/login">
+            {copy.auth.login}
+          </Link>
+          <Link className="text-link" to="/signup">
+            {copy.auth.signup}
+          </Link>
+        </nav>
       </header>
       <section className="data-grid" aria-label={copy.app.dashboard}>
         <Link className="data-card link-card" to="/inventory?permissions=inventory.adjust">

@@ -133,6 +133,32 @@ label {
   border-color: #2f7f68;
 }
 
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid #d8d0c2;
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #17201b;
+  padding: 0.55rem 0.75rem;
+  text-decoration: none;
+}
+
+.text-link:hover {
+  border-color: #2f7f68;
+}
+
+.auth-page {
+  width: min(720px, calc(100% - 32px));
+}
+
+.auth-panel,
+.notice-stack {
+  display: grid;
+  gap: 12px;
+}
+
 .metric-strip {
   min-width: 128px;
   border-radius: 8px;
