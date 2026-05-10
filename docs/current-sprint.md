@@ -73,7 +73,7 @@ Do not implement:
 - [x] Add webhook signature verification.
 - [x] Add webhook idempotency.
 - [x] Add subscription status model.
-- [ ] Add grace period logic.
+- [x] Add grace period logic.
 - [x] Add cancellation flow.
 - [ ] Add internal/admin subscription visibility.
 - [ ] Ensure Standard Plan price is $199 MXN/month.

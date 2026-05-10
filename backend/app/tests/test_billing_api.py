@@ -394,6 +394,7 @@ def test_invoice_payment_failed_marks_subscription_past_due(
     client: TestClient, db: Session, monkeypatch
 ) -> None:
     _configure_stripe(monkeypatch)
+    monkeypatch.setattr(settings, "billing_grace_period_days", 3)
     tenant = _signup_verify_login(
         client, f"webhook-invoice-{uuid4().hex}@example.com", "Webhook Invoice"
     )
@@ -424,6 +425,87 @@ def test_invoice_payment_failed_marks_subscription_past_due(
     db.refresh(subscription)
     assert subscription.status == "past_due"
     assert subscription.past_due_at is not None
+    assert subscription.grace_period_ends_at is not None
+    grace_delta = subscription.grace_period_ends_at - subscription.past_due_at
+    assert grace_delta.days == 3
+
+
+def test_subscription_past_due_webhook_sets_grace_period(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    monkeypatch.setattr(settings, "billing_grace_period_days", 5)
+    tenant = _signup_verify_login(
+        client, f"webhook-past-due-{uuid4().hex}@example.com", "Webhook Past Due"
+    )
+    payload = _stripe_event(
+        "customer.subscription.updated",
+        {
+            "id": "sub_test_past_due",
+            "object": "subscription",
+            "customer": "cus_test_past_due",
+            "status": "past_due",
+            "metadata": {"tenant_id": tenant["tenant_id"]},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == UUID(tenant["tenant_id"]))
+        .one()
+    )
+    assert subscription.status == "past_due"
+    assert subscription.past_due_at is not None
+    assert subscription.grace_period_ends_at is not None
+    assert (subscription.grace_period_ends_at - subscription.past_due_at).days == 5
+
+
+def test_invoice_payment_succeeded_clears_past_due_grace(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"webhook-invoice-paid-{uuid4().hex}@example.com", "Webhook Invoice Paid"
+    )
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_subscription_id="sub_test_invoice_paid",
+        status="past_due",
+    )
+    from datetime import UTC, datetime, timedelta
+
+    subscription.past_due_at = datetime.now(UTC)
+    subscription.grace_period_ends_at = subscription.past_due_at + timedelta(days=7)
+    db.add(subscription)
+    db.commit()
+    payload = _stripe_event(
+        "invoice.payment_succeeded",
+        {
+            "id": "in_test_paid",
+            "object": "invoice",
+            "subscription": "sub_test_invoice_paid",
+            "metadata": {},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    db.refresh(subscription)
+    assert subscription.status == "active"
+    assert subscription.past_due_at is None
+    assert subscription.grace_period_ends_at is None
 
 
 def test_webhook_without_tenant_is_ignored(client: TestClient, db: Session, monkeypatch) -> None:

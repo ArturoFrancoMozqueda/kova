@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     stripe_standard_price_id: str | None = None
     stripe_checkout_success_url: str | None = None
     stripe_checkout_cancel_url: str | None = None
+    billing_grace_period_days: int = 7
 
     @property
     def cookie_secure(self) -> bool:

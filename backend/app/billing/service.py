@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -236,7 +237,6 @@ def cancel_subscription(
 def _timestamp(value: Any) -> Any:
     if value is None:
         return None
-    from datetime import UTC, datetime
 
     return datetime.fromtimestamp(int(value), tz=UTC)
 
@@ -245,6 +245,20 @@ def _subscription_status(stripe_status: str | None) -> str:
     if stripe_status in {"trialing", "active", "past_due", "canceled", "unpaid"}:
         return stripe_status
     return "incomplete"
+
+
+def _mark_subscription_past_due(subscription: Subscription) -> None:
+    now = datetime.now(UTC)
+    subscription.status = "past_due"
+    subscription.past_due_at = subscription.past_due_at or now
+    subscription.grace_period_ends_at = subscription.grace_period_ends_at or (
+        now + timedelta(days=settings.billing_grace_period_days)
+    )
+
+
+def _clear_subscription_past_due(subscription: Subscription) -> None:
+    subscription.past_due_at = None
+    subscription.grace_period_ends_at = None
 
 
 def _upsert_subscription_from_stripe_object(
@@ -277,12 +291,10 @@ def _upsert_subscription_from_stripe_object(
     subscription.trial_ends_at = _timestamp(stripe_object.get("trial_end"))
     subscription.cancel_at_period_end = bool(stripe_object.get("cancel_at_period_end", False))
     subscription.canceled_at = _timestamp(stripe_object.get("canceled_at"))
-    if subscription.status == "past_due" and subscription.past_due_at is None:
-        from datetime import UTC, datetime
-
-        subscription.past_due_at = datetime.now(UTC)
+    if subscription.status == "past_due":
+        _mark_subscription_past_due(subscription)
     if subscription.status in {"active", "trialing"}:
-        subscription.past_due_at = None
+        _clear_subscription_past_due(subscription)
     items = stripe_object.get("items", {}).get("data", [])
     if items:
         price = items[0].get("price", {})
@@ -395,13 +407,10 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
                     db, stripe_subscription_id=str(stripe_object["subscription"])
                 )
             if subscription and event_type == "invoice.payment_failed":
-                from datetime import UTC, datetime
-
-                subscription.status = "past_due"
-                subscription.past_due_at = subscription.past_due_at or datetime.now(UTC)
+                _mark_subscription_past_due(subscription)
             elif subscription and event_type == "invoice.payment_succeeded":
                 subscription.status = "active"
-                subscription.past_due_at = None
+                _clear_subscription_past_due(subscription)
             action = (
                 "billing.payment_failed"
                 if event_type == "invoice.payment_failed"
