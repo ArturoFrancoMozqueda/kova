@@ -1,0 +1,20 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - paragraph [ref=e5]: Secure tenant access
+    - heading "Create tenant account" [level=1] [ref=e6]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - text: Business name
+        - textbox "Business name" [ref=e10]: Codex E2E Bakery
+      - generic [ref=e11]:
+        - text: Email
+        - textbox "Email" [ref=e12]: codex-e2e-1778428769000@example.com
+      - generic [ref=e13]:
+        - text: Password
+        - textbox "Password" [ref=e14]: S3cur3pass!
+      - generic [ref=e15]:
+        - button "Sign up" [ref=e16] [cursor=pointer]
+        - link "Use existing account" [ref=e17] [cursor=pointer]:
+          - /url: /login
+    - status [ref=e23]: Email verified. You can log in now.

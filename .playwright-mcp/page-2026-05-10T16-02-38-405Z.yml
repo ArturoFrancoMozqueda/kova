@@ -1,0 +1,14 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Dashboard
+      - heading "Reports" [level=1] [ref=e7]
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - text: Start date
+        - textbox "Start date" [ref=e10]: 2026-05-10
+      - generic [ref=e11]:
+        - text: End date
+        - textbox "End date" [ref=e12]: 2026-05-10
+      - button "Apply" [ref=e13] [cursor=pointer]
+  - paragraph [ref=e14]: Loading reports

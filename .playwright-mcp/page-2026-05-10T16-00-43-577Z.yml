@@ -1,0 +1,32 @@
+- main [ref=e27]:
+  - generic [ref=e28]:
+    - generic [ref=e29]:
+      - paragraph [ref=e30]: Operations workspace
+      - heading "POS" [level=1] [ref=e31]
+      - paragraph [ref=e32]: Offline sales queue ready.
+    - navigation "Account navigation" [ref=e33]:
+      - link "Log in" [ref=e34] [cursor=pointer]:
+        - /url: /login
+      - link "Sign up" [ref=e35] [cursor=pointer]:
+        - /url: /signup
+  - region "Dashboard" [ref=e36]:
+    - link "Inventory Track stock, low-stock alerts, stock takes, and adjustments." [ref=e37] [cursor=pointer]:
+      - /url: /inventory?permissions=inventory.adjust
+      - heading "Inventory" [level=2] [ref=e38]
+      - paragraph [ref=e39]: Track stock, low-stock alerts, stock takes, and adjustments.
+    - link "Shifts Open shifts, record cash movements, and close reconciliation." [ref=e40] [cursor=pointer]:
+      - /url: /shifts?permissions=shifts.open,shifts.close
+      - heading "Shifts" [level=2] [ref=e41]
+      - paragraph [ref=e42]: Open shifts, record cash movements, and close reconciliation.
+    - link "Orders Review receipts, refunds, and voids." [ref=e43] [cursor=pointer]:
+      - /url: /orders/demo?permissions=orders.refund,orders.void
+      - heading "Orders" [level=2] [ref=e44]
+      - paragraph [ref=e45]: Review receipts, refunds, and voids.
+    - link "Reports Review sales, payment mix, and best-selling products." [ref=e46] [cursor=pointer]:
+      - /url: /reports?permissions=reports.view_all
+      - heading "Reports" [level=2] [ref=e47]
+      - paragraph [ref=e48]: Review sales, payment mix, and best-selling products.
+    - link "Billing Manage the Standard Plan subscription and billing recovery." [ref=e49] [cursor=pointer]:
+      - /url: /billing?permissions=billing.view,billing.manage
+      - heading "Billing" [level=2] [ref=e50]
+      - paragraph [ref=e51]: Manage the Standard Plan subscription and billing recovery.
