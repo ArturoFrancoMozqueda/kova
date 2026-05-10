@@ -83,7 +83,11 @@ async def stripe_webhook(
     )
 
 
-@router.get("/internal/subscriptions", response_model=InternalSubscriptionListResponse, tags=["internal"])
+@router.get(
+    "/internal/subscriptions",
+    response_model=InternalSubscriptionListResponse,
+    tags=["internal"],
+)
 def internal_list_subscriptions(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
