@@ -1,3 +1,9 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "https://pos-project-backend.fly.dev/api/v1/$1"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
