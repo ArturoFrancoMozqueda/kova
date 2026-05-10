@@ -14,7 +14,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   const [verificationToken, setVerificationToken] = useState("");
   const [state, setState] = useState<ActionState>("idle");
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     setState("submitting");
     try {
