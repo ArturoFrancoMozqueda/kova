@@ -4,6 +4,8 @@ export const INVENTORY_ADJUST_PERMISSION = "inventory.adjust";
 export const REPORTS_VIEW_ALL_PERMISSION = "reports.view_all";
 export const SHIFT_OPEN_PERMISSION = "shifts.open";
 export const SHIFT_CLOSE_PERMISSION = "shifts.close";
+export const BILLING_VIEW_PERMISSION = "billing.view";
+export const BILLING_MANAGE_PERMISSION = "billing.manage";
 
 export function permissionsFromSearch(search: string): Set<string> {
   const params = new URLSearchParams(search);

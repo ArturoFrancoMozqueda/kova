@@ -79,30 +79,30 @@ Do not implement:
 - [ ] Ensure Standard Plan price is $199 MXN/month.
 - [ ] Remove/defer plan-based feature gates.
 - [x] Add tenant scoping for billing subscription read query.
-- [ ] Add permission checks for billing management.
+- [x] Add permission checks for billing management.
 - [x] Add permission checks for billing subscription read.
 - [x] Add audit logs for checkout and webhook billing mutations.
 
 ### Frontend
 
-- [ ] Add billing settings page.
-- [ ] Add checkout start UI.
-- [ ] Add checkout success/cancel return states.
-- [ ] Add current subscription status UI.
-- [ ] Add past_due banner.
-- [ ] Add cancellation flow UI.
-- [ ] Add loading/error/empty states.
-- [ ] Add permission-based UI gating.
+- [x] Add billing settings page.
+- [x] Add checkout start UI.
+- [x] Add checkout success/cancel return states.
+- [x] Add current subscription status UI.
+- [x] Add past_due banner.
+- [x] Add cancellation flow UI.
+- [x] Add loading/error/empty states.
+- [x] Add permission-based UI gating.
 
 ### Tests
 
-- [ ] Add billing BDD scenarios.
+- [x] Add billing BDD scenarios.
 - [x] Add backend billing checkout integration coverage.
 - [x] Add backend billing subscription read coverage.
 - [x] Add webhook signature and idempotency tests.
 - [x] Add tenant isolation tests for billing.
 - [x] Add permission tests for billing management.
-- [ ] Add frontend billing UI E2E tests.
+- [x] Add frontend billing UI E2E tests.
 
 ## Definition of Done
 

@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import BillingView from "./billing/BillingView";
 import InventoryView from "./inventory/InventoryView";
 import OrderDetail from "./orders/OrderDetail";
 import ReportsView from "./reports/ReportsView";
@@ -10,6 +11,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/billing" element={<BillingView />} />
+        <Route path="/billing/:returnState" element={<BillingView />} />
         <Route path="/inventory" element={<InventoryView />} />
         <Route path="/orders/:orderId" element={<OrderDetail />} />
         <Route path="/reports" element={<ReportsView />} />
