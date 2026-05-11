@@ -2,118 +2,115 @@
 
 ## Active Sprint
 
-Sprint: 9 - Billing: Standard Plan
+Sprint: 10 - App Shell + POS Foundation
 
 ## Sprint Goal
 
-Make the product sellable through a single `Standard Plan` subscription at $199 MXN/month using Stripe Billing and Stripe Checkout.
+Turn the deployed app from a module laboratory into a sellable product shell: authenticated navigation, a real POS register screen, and the email verification flow needed for real tenant onboarding.
 
 ## Required Specs
 
-- `specs/billing/standard_plan.md`
-- `specs/billing/checkout.md`
-- `specs/billing/webhooks.md`
-- `specs/billing/past_due.md`
-- `specs/billing/cancellation.md`
+- `specs/auth/app_shell.feature`
+- `specs/register/pos_shell.feature`
 
 ## Required BDD / Test Scenarios
 
-- Tenant owner starts checkout for the Standard Plan.
-- Tenant returns from successful checkout and sees active or pending subscription state.
-- Stripe webhook activates a tenant subscription idempotently.
-- Duplicate webhook delivery does not duplicate subscription state changes.
-- Tenant in `past_due` sees billing recovery guidance.
-- Tenant owner cancels subscription.
-- Non-owner cannot manage billing.
-- Tenant B cannot see or update Tenant A's subscription.
+- Unauthenticated user is redirected to /login when accessing any protected route.
+- Authenticated user lands on /register after login.
+- Authenticated user can log out and is redirected to /login.
+- Cashier cannot access /settings/billing.
+- Tenant owner can access /settings/billing.
 
 ## Allowed Work
 
 Only work on:
 
-- Standard Plan subscription data model
-- Stripe Checkout session creation
-- Stripe Billing subscription status handling
-- Stripe webhook signature verification
-- Stripe webhook idempotency
-- Billing settings page
-- Billing status and past_due UI states
-- Cancellation flow
-- Tenant-scoped billing queries
-- Permission gate for billing management
-- Billing audit logs
-- Backend and frontend tests
+- AuthContext and useAuth hook (session management via getMe())
+- RequireAuth component gating all protected routes
+- Redirect / → /register if authenticated, /login if not
+- Redirect to /register after successful login
+- Move billing to /settings/billing
+- Remove demo ?permissions= links from Home
+- Basic RegisterView shell at /register
+- GET /api/v1/orders list endpoint (backend + frontend)
+- Seed script for demo tenant + bakery catalog
+- CI deploy step for Fly.io (auto-deploy on push to main)
 
 ## Explicitly Not Allowed This Sprint
 
 Do not implement:
 
-- Multiple pricing tiers
-- Annual plans
-- Per-user pricing
-- Per-location pricing
-- Usage-based billing
-- Add-ons
-- Feature-gated paid tiers
-- Stripe Terminal
-- POS customer payment processing through Stripe
-- Tax engine
-- Public marketing pricing page unless explicitly pulled into scope
+- Full POS cart/payment flow (Sprint 11)
+- Refunds/voids UI improvements
+- Multi-location
+- Advanced reporting
 - Deferred scope from `docs/deferred-scope.md`
 
-## Sprint 9 Tasks
+## Sprint 10 Tasks
 
-### Backend
+### Auth Gate
 
-- [x] Create `subscriptions` table.
-- [x] Create `webhook_events` table.
-- [x] Add billing subscription read endpoint.
-- [x] Add Stripe Checkout integration.
-- [x] Add Stripe Billing integration.
-- [x] Add webhook signature verification.
-- [x] Add webhook idempotency.
-- [x] Add subscription status model.
-- [x] Add grace period logic.
-- [x] Add cancellation flow.
-- [x] Add internal/admin subscription visibility.
-- [x] Ensure Standard Plan price is $199 MXN/month.
-- [x] Remove/defer plan-based feature gates.
-- [x] Add tenant scoping for billing subscription read query.
-- [x] Add permission checks for billing management.
-- [x] Add permission checks for billing subscription read.
-- [x] Add audit logs for checkout and webhook billing mutations.
+- [ ] Create `frontend/src/auth/AuthContext.tsx` with `user`, `tenant`, `loading`, `logout()`
+- [ ] Create `frontend/src/auth/useAuth.ts` hook
+- [ ] Add `RequireAuth` component to `App.tsx`
+- [ ] Update `AuthView.tsx` to redirect to `/register` after login
+- [ ] Update `auth/permissions.ts` — remove localStorage, read role from AuthContext
+- [ ] Add `/` → redirect to `/register` if session, `/login` if not
 
-### Frontend
+### App Shell
 
-- [x] Add billing settings page.
-- [x] Add checkout start UI.
-- [x] Add checkout success/cancel return states.
-- [x] Add current subscription status UI.
-- [x] Add past_due banner.
-- [x] Add cancellation flow UI.
-- [x] Add loading/error/empty states.
-- [x] Add permission-based UI gating.
+- [ ] Create `frontend/src/register/RegisterView.tsx` (basic shell, catalog + cart placeholder)
+- [ ] Add `/register` route to `App.tsx`
+- [ ] Move billing to `/settings/billing`
+- [ ] Hide billing link from cashier role
+- [ ] Clean up `Home.tsx` — remove all `?permissions=...` demo links
 
-### Tests
+### Orders
 
-- [x] Add billing BDD scenarios.
-- [x] Add backend billing checkout integration coverage.
-- [x] Add backend billing subscription read coverage.
-- [x] Add webhook signature and idempotency tests.
-- [x] Add tenant isolation tests for billing.
-- [x] Add permission tests for billing management.
-- [x] Add frontend billing UI E2E tests.
+- [ ] Add `GET /api/v1/orders` backend endpoint with pagination and tenant scoping
+- [ ] Add `list_orders_by_tenant()` to `backend/app/orders/repository.py`
+- [ ] Add `OrderListItem` and `OrderListResponse` schemas
+- [ ] Create `frontend/src/orders/OrderListView.tsx`
+- [ ] Add `listOrders()` to `frontend/src/orders/api.ts`
+
+### Onboarding
+
+- [ ] Create `backend/scripts/seed_demo.py` (demo tenant + 5 bakery categories + 10 products)
+
+### CI
+
+- [ ] Add `fly deploy` step to `.github/workflows/ci.yml` on push to main
 
 ## Definition of Done
 
-- Linked specs exist and are up-to-date.
-- Linked BDD scenarios pass.
-- Test matrix exists.
-- Standard Plan exists in Stripe at $199 MXN/month.
-- Checkout creates a subscription for the authenticated tenant.
-- Webhooks are signature-verified and idempotent.
-- Subscription status is tenant-scoped and permission-gated.
-- `past_due` and cancellation behavior match the specs.
-- Billing mutations write audit logs.
-- Billing UI has loading/empty/error states and permission gating.
+- Unauthenticated users cannot access protected routes.
+- Login redirects to /register.
+- Logout clears session and redirects to /login.
+- /register exists and shows a basic POS shell.
+- /settings/billing works; cashier sees 403/hidden.
+- Order list renders with real data or empty state.
+- Seed script creates a usable demo catalog.
+- Auto-deploy to Fly on push to main.
 - Quality gates pass.
+
+---
+
+## Completed: Sprint 9 — Billing: Standard Plan ✅
+
+**Completed:** 2026-05-11
+
+**What shipped:**
+- Standard Plan at $199 MXN/month via Stripe Checkout
+- Stripe webhook verification and idempotency
+- Subscription status, grace period, and cancellation flow
+- Billing UI with permission gating
+- Internal admin subscription visibility endpoint
+- Security hardening: CORS, secret_key validation, health endpoint, Sentry PII scrubbing
+- Email verification via Resend (signup → email → click-to-verify → login)
+- Fly.io auto-start configuration (`min_machines_running = 1`)
+
+**Validated in production:**
+- Stripe Checkout redirects correctly at MX$199/month
+- Email verification flow works end-to-end
+- `dev_verification_token` not exposed in production (`APP_ENV=production`)
+- Cookies are Secure in production
