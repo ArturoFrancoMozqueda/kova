@@ -13,6 +13,7 @@ from app.auth import repository as repo
 from app.auth.models import Membership, User, UserSession
 from app.auth.schemas import MeResponse, UserResponse
 from app.config import settings
+from app.email import service as email_service
 from app.shared.exceptions import bad_request, forbidden, unauthorized
 from app.tenants import repository as tenant_repo
 
@@ -114,6 +115,7 @@ def signup(
     )
 
     db.commit()
+    email_service.send_verification_email(to=user.email, token=plain_token)
     return user, tenant.id, plain_token
 
 
@@ -251,6 +253,8 @@ def request_password_reset(db: Session, *, email: str) -> str | None:
         expires_at=datetime.now(UTC) + timedelta(hours=1),
     )
     db.commit()
+    if plain:
+        email_service.send_password_reset_email(to=email, token=plain)
     return plain
 
 

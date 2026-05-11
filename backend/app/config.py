@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     stripe_checkout_cancel_url: str | None = None
     billing_grace_period_days: int = 7
     internal_api_key: str | None = None
+    resend_api_key: str | None = None
+    email_from: str = "onboarding@resend.dev"
 
     @property
     def cookie_secure(self) -> bool:
