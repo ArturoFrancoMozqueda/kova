@@ -5,6 +5,7 @@ import AuthView from "./auth/AuthView";
 import VerifyEmailView from "./auth/VerifyEmailView";
 import { useAuth } from "./auth/useAuth";
 import BillingView from "./billing/BillingView";
+import CatalogView from "./catalog/CatalogView";
 import InventoryView from "./inventory/InventoryView";
 import OrderDetail from "./orders/OrderDetail";
 import OrderListView from "./orders/OrderListView";
@@ -38,6 +39,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <RegisterView />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/catalog"
+            element={
+              <RequireAuth>
+                <CatalogView />
               </RequireAuth>
             }
           />
