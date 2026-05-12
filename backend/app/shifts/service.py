@@ -150,10 +150,10 @@ def open_shift(
     return 201, response_body
 
 
-def get_open_shift(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
+def get_open_shift(db: Session, *, tenant_id: UUID) -> dict[str, Any] | None:
     shift = repo.get_open_shift(db, tenant_id=tenant_id)
     if not shift:
-        raise not_found("No open shift for this tenant")
+        return None
     return _shift_body(db, shift=shift)
 
 

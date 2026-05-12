@@ -35,16 +35,7 @@ export default function ShiftView() {
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
     try {
-      let openShiftData: Shift | null = null;
-      try {
-        openShiftData = await getOpenShift();
-      } catch (e) {
-        if (e instanceof Error && "status" in e && e.status === 404) {
-          openShiftData = null;
-        } else {
-          throw e;
-        }
-      }
+      const openShiftData = await getOpenShift();
       const closedShifts = await listClosedShifts();
       setLoadState({ status: "loaded", openShift: openShiftData, closedShifts });
     } catch {

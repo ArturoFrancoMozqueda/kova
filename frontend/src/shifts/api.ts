@@ -23,8 +23,8 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function getOpenShift(): Promise<Shift> {
-  return requestJson<Shift>("/api/v1/shifts/current");
+export function getOpenShift(): Promise<Shift | null> {
+  return requestJson<Shift | null>("/api/v1/shifts/current");
 }
 
 export function getShift(shiftId: string): Promise<Shift> {
