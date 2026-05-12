@@ -117,6 +117,27 @@ def create_inventory_movement(
     return movement
 
 
+def list_orders_by_tenant(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[Order]:
+    return (
+        db.query(Order)
+        .filter(Order.tenant_id == tenant_id)
+        .order_by(Order.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+
+
+def count_orders_by_tenant(db: Session, *, tenant_id: UUID) -> int:
+    return db.query(Order).filter(Order.tenant_id == tenant_id).count()
+
+
 def get_order(db: Session, *, tenant_id: UUID, order_id: UUID) -> Order | None:
     return db.query(Order).filter(Order.tenant_id == tenant_id, Order.id == order_id).first()
 

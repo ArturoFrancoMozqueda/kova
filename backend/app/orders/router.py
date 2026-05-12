@@ -1,13 +1,14 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
 from app.db import get_db
-from app.orders import service
+from app.orders import repository, service
 from app.orders.schemas import (
     OrderCreate,
+    OrderListResponse,
     OrderResponse,
     ReceiptResponse,
     RefundCreate,
@@ -26,6 +27,21 @@ def _idempotency_key(value: str | None = Header(default=None, alias="Idempotency
     if not value:
         raise bad_request("Idempotency-Key header is required")
     return value
+
+
+@router.get("", response_model=OrderListResponse)
+def list_orders(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+):
+    _, membership, _ = ctx
+    items = repository.list_orders_by_tenant(
+        db, tenant_id=membership.tenant_id, limit=limit, offset=offset
+    )
+    total = repository.count_orders_by_tenant(db, tenant_id=membership.tenant_id)
+    return OrderListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.post("", response_model=OrderResponse, status_code=201)

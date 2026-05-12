@@ -106,6 +106,23 @@ class ReceiptResponse(BaseModel):
     void: ReceiptVoidLine | None = None
 
 
+class OrderListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    status: str
+    subtotal_amount: Decimal
+    total_amount: Decimal
+    created_at: datetime
+
+
+class OrderListResponse(BaseModel):
+    items: list[OrderListItem]
+    total: int
+    limit: int
+    offset: int
+
+
 class RefundItemCreate(BaseModel):
     order_item_id: UUID
     quantity: int = Field(gt=0)

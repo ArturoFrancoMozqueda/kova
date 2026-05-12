@@ -72,3 +72,18 @@ export type RefundPayload = {
   reason: string;
   items: Array<{ order_item_id: string; quantity: number }>;
 };
+
+export type OrderListItem = {
+  id: string;
+  status: string;
+  subtotal_amount: string;
+  total_amount: string;
+  created_at: string;
+};
+
+export type OrderListResponse = {
+  items: OrderListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};

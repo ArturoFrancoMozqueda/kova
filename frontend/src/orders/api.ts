@@ -1,4 +1,4 @@
-import type { Order, Receipt, RefundPayload, ReceiptRefund, ReceiptVoid } from "./types";
+import type { Order, OrderListResponse, Receipt, RefundPayload, ReceiptRefund, ReceiptVoid } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -21,6 +21,10 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     throw new ApiError(await response.text(), response.status);
   }
   return (await response.json()) as T;
+}
+
+export function listOrders(limit = 50, offset = 0): Promise<OrderListResponse> {
+  return requestJson<OrderListResponse>(`/api/v1/orders?limit=${limit}&offset=${offset}`);
 }
 
 export function getOrder(orderId: string): Promise<Order> {
