@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { getMe, logout as apiLogout } from "./api";
 
 export type AuthUser = {
@@ -22,6 +23,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const [state, setState] = useState<AuthState>({ status: "loading" });
 
   const refresh = useCallback(async () => {
@@ -39,8 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (state.status === "authenticated") {
+      return;
+    }
+    const publicAuthRoutes = new Set(["/login", "/signup", "/verify-email"]);
+    if (publicAuthRoutes.has(location.pathname)) {
+      setState({ status: "unauthenticated" });
+      return;
+    }
     void refresh();
-  }, [refresh]);
+  }, [location.pathname, refresh, state.status]);
 
   const logout = useCallback(async () => {
     await apiLogout();

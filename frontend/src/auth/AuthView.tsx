@@ -2,12 +2,14 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { login, signup, verifyEmail } from "./api";
+import { useAuth } from "./useAuth";
 
 type AuthMode = "login" | "signup";
 type ActionState = "idle" | "submitting" | "error" | "created" | "verified";
 
 export default function AuthView({ mode }: { mode: AuthMode }) {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
@@ -20,6 +22,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     try {
       if (mode === "login") {
         await login({ email, password });
+        await refresh();
         navigate("/register");
         return;
       }
