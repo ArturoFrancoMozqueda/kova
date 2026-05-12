@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 import {
   SHIFT_CLOSE_PERMISSION,
   SHIFT_OPEN_PERMISSION,
-  permissionsFromSearch,
+  usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import {
@@ -26,15 +25,12 @@ type LoadState =
 type ActiveModal = null | "open" | "close" | "movement";
 
 export default function ShiftView() {
-  const location = useLocation();
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [operationPending, setOperationPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const permissions = useMemo(() => permissionsFromSearch(location.search), [location.search]);
-
-  const canOpen = permissions.has(SHIFT_OPEN_PERMISSION);
-  const canClose = permissions.has(SHIFT_CLOSE_PERMISSION);
+  const canOpen = usePermission(SHIFT_OPEN_PERMISSION);
+  const canClose = usePermission(SHIFT_CLOSE_PERMISSION);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });

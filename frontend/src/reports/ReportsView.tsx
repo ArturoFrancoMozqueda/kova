@@ -1,8 +1,7 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   REPORTS_VIEW_ALL_PERMISSION,
-  permissionsFromSearch,
+  usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { formatMoney, reasonLabel } from "../orders/format";
@@ -24,9 +23,7 @@ function today(): string {
 }
 
 export default function ReportsView() {
-  const location = useLocation();
-  const permissions = useMemo(() => permissionsFromSearch(location.search), [location.search]);
-  const canViewReports = permissions.has(REPORTS_VIEW_ALL_PERMISSION);
+  const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const [startDate, setStartDate] = useState(today());
   const [endDate, setEndDate] = useState(today());
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });

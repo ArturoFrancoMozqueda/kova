@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
   BILLING_MANAGE_PERMISSION,
   BILLING_VIEW_PERMISSION,
-  permissionsFromSearch,
+  usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { getBillingSubscription, startCheckout, cancelSubscription } from "./api";
@@ -44,14 +44,13 @@ function formatDate(value: string | null): string {
 
 export default function BillingView() {
   const location = useLocation();
-  const permissions = useMemo(() => permissionsFromSearch(location.search), [location.search]);
   const checkoutReturnState = location.pathname.endsWith("/success")
     ? "success"
     : location.pathname.endsWith("/cancel")
       ? "cancel"
       : null;
-  const canViewBilling = permissions.has(BILLING_VIEW_PERMISSION);
-  const canManageBilling = permissions.has(BILLING_MANAGE_PERMISSION);
+  const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
+  const canManageBilling = usePermission(BILLING_MANAGE_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [actionState, setActionState] = useState<ActionState>("idle");
 

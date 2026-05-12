@@ -1,8 +1,7 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   INVENTORY_ADJUST_PERMISSION,
-  permissionsFromSearch,
+  usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import {
@@ -26,9 +25,7 @@ type ModalState =
   | null;
 
 export default function InventoryView() {
-  const location = useLocation();
-  const permissions = useMemo(() => permissionsFromSearch(location.search), [location.search]);
-  const canAdjust = permissions.has(INVENTORY_ADJUST_PERMISSION);
+  const canAdjust = usePermission(INVENTORY_ADJUST_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);
   const [pending, setPending] = useState(false);

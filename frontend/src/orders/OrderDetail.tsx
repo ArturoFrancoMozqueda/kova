@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   ORDER_REFUND_PERMISSION,
   ORDER_VOID_PERMISSION,
-  permissionsFromSearch,
+  usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { createRefund, createVoid, getOrder, getReceipt } from "./api";
@@ -20,15 +20,12 @@ type LoadState =
 
 export default function OrderDetail() {
   const { orderId } = useParams();
-  const location = useLocation();
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<"refund" | "void" | null>(null);
   const [operationPending, setOperationPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const permissions = useMemo(() => permissionsFromSearch(location.search), [location.search]);
-
-  const canRefund = permissions.has(ORDER_REFUND_PERMISSION);
-  const canVoid = permissions.has(ORDER_VOID_PERMISSION);
+  const canRefund = usePermission(ORDER_REFUND_PERMISSION);
+  const canVoid = usePermission(ORDER_VOID_PERMISSION);
 
   const load = useCallback(async () => {
     if (!orderId) {
