@@ -58,7 +58,7 @@ export default function CatalogView() {
 
   const showNotice = (msg: string) => {
     setNotice(msg);
-    setTimeout(() => setNotice(null), 3000);
+    window.setTimeout(() => setNotice(null), 3000);
   };
 
   const visibleProducts =
