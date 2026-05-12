@@ -2,7 +2,7 @@
 
 ## Status
 
-Active execution — Sprint 11 in progress.
+Active execution - Sprint 12 in progress.
 
 This document defines the roadmap and task structure.
 
@@ -59,8 +59,8 @@ tenant signup → business setup → catalog setup → open shift → create sal
 
 | Sprint | Focus | Status |
 |---|---|---|
-| 11 | Catalog Management — categories + products CRUD, BDD, RLS | 🔄 Active |
-| 12 | Register Core — product grid, cart, cash/manual payment, order creation | — |
+| 11 | Catalog Management — categories + products CRUD, BDD, RLS | ✅ Done |
+| 12 | Register Core — product grid, cart, cash/manual payment, order creation | 🔄 Active |
 | 13 | Offline Sync + Dead Letter | — |
 
 ## BDD Coverage Matrix
@@ -573,7 +573,7 @@ A bakery/small food retail tenant can self-onboard and start selling faster.
 - [ ] Add preset BDD tests.
 - [ ] Add settings audit tests.
 
-## Sprint 11 — Beta Hardening
+## Sprint 14 — Beta Hardening
 
 ### Goal
 
@@ -640,7 +640,7 @@ Run the product with 3 friendly tenants.
 
 Only start after the beta core flow survives real usage.
 
-### Sprint 12 — Modifiers
+### Sprint 15 — Modifiers
 
 Tasks:
 
@@ -657,7 +657,7 @@ Tasks:
 - [ ] Add BDD scenarios.
 - [ ] Add money golden tests.
 
-### Sprint 13 — Tax + Discounts
+### Sprint 16 — Tax + Discounts
 
 Tasks:
 
@@ -673,7 +673,7 @@ Tasks:
 - [ ] Extend receipts.
 - [ ] Add golden tests.
 
-### Sprint 14 — Retail + Restaurant Presets
+### Sprint 17 — Retail + Restaurant Presets
 
 Tasks:
 
@@ -684,7 +684,7 @@ Tasks:
 - [ ] Verify no hardcoded vertical logic.
 - [ ] Add preset BDD tests.
 
-### Sprint 15 — GA Hardening
+### Sprint 18 — GA Hardening
 
 Tasks:
 
