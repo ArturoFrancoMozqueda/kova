@@ -15,7 +15,6 @@ from app.billing.models import Subscription, WebhookEvent
 from app.config import settings
 from app.main import app
 
-
 # ─── Scenario declarations ───────────────────────────────────────────────────
 
 @scenario("../../../../specs/billing/billing.feature", "Tenant owner starts checkout for the Standard Plan")
