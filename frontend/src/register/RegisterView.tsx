@@ -97,8 +97,9 @@ export default function RegisterView() {
   const updateQuantity = (productId: string, quantity: number) => {
     setCart((current) => {
       if (quantity <= 0) {
-        const { [productId]: _removed, ...rest } = current;
-        return rest;
+        const next = { ...current };
+        delete next[productId];
+        return next;
       }
       const item = current[productId];
       if (!item) return current;
@@ -108,8 +109,9 @@ export default function RegisterView() {
 
   const removeItem = (productId: string) => {
     setCart((current) => {
-      const { [productId]: _removed, ...rest } = current;
-      return rest;
+      const next = { ...current };
+      delete next[productId];
+      return next;
     });
   };
 
@@ -122,7 +124,7 @@ export default function RegisterView() {
     setCompletedOrder(null);
   };
 
-  const submitSale = async (event: FormEvent<HTMLFormElement>) => {
+  const submitSale = async (event: FormEvent) => {
     event.preventDefault();
     if (!canCreateOrders || cartItems.length === 0 || !cashIsValid) {
       return;
