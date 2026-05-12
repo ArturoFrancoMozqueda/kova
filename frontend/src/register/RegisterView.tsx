@@ -25,6 +25,27 @@ type CartItem = {
 
 type PaymentMethod = "cash" | "bank_transfer" | "manual_card";
 
+type PaymentDraft = {
+  id: string;
+  method: PaymentMethod;
+  amount: string;
+  amountTendered: string;
+  reference: string;
+};
+
+let nextPaymentDraftId = 0;
+
+function createPaymentDraft(method: PaymentMethod, amount = ""): PaymentDraft {
+  nextPaymentDraftId += 1;
+  return {
+    id: `payment-${nextPaymentDraftId}`,
+    method,
+    amount,
+    amountTendered: "",
+    reference: "",
+  };
+}
+
 function moneyToCents(value: string): number {
   const normalized = value.trim() || "0";
   const [whole = "0", fraction = ""] = normalized.split(".");
@@ -46,6 +67,10 @@ export default function RegisterView() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashTendered, setCashTendered] = useState("");
   const [reference, setReference] = useState("");
+  const [splitPaymentsEnabled, setSplitPaymentsEnabled] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<PaymentDraft[]>([
+    createPaymentDraft("cash"),
+  ]);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
@@ -78,6 +103,25 @@ export default function RegisterView() {
   const changeDueCents =
     paymentMethod === "cash" && tenderedCents >= totalCents ? tenderedCents - totalCents : 0;
   const cashIsValid = paymentMethod !== "cash" || tenderedCents >= totalCents;
+  const splitPaymentTotalCents = useMemo(
+    () => splitPayments.reduce((sum, payment) => sum + moneyToCents(payment.amount), 0),
+    [splitPayments],
+  );
+  const splitRemainingCents = totalCents - splitPaymentTotalCents;
+  const splitCashIsValid = splitPayments.every(
+    (payment) =>
+      payment.method !== "cash" ||
+      moneyToCents(payment.amountTendered) >= moneyToCents(payment.amount),
+  );
+  const splitHasPayment = splitPayments.some((payment) => moneyToCents(payment.amount) > 0);
+  const splitTotalMatches = splitPaymentTotalCents === totalCents;
+  const splitIsValid =
+    !splitPaymentsEnabled || (splitHasPayment && splitTotalMatches && splitCashIsValid);
+  const canSubmitSale =
+    canCreateOrders &&
+    cartItems.length > 0 &&
+    (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
+    !submitting;
 
   const addProduct = (product: Product) => {
     setCart((current) => {
@@ -115,18 +159,55 @@ export default function RegisterView() {
     });
   };
 
+  const toggleSplitPayments = (enabled: boolean) => {
+    setSplitPaymentsEnabled(enabled);
+    if (enabled) {
+      setSplitPayments([
+        {
+          ...createPaymentDraft(paymentMethod, totalAmount),
+          amountTendered: paymentMethod === "cash" ? cashTendered || totalAmount : "",
+          reference: paymentMethod === "cash" ? "" : reference,
+        },
+      ]);
+    }
+  };
+
+  const updateSplitPayment = (
+    paymentId: string,
+    patch: Partial<Omit<PaymentDraft, "id">>,
+  ) => {
+    setSplitPayments((current) =>
+      current.map((payment) => (payment.id === paymentId ? { ...payment, ...patch } : payment)),
+    );
+  };
+
+  const addSplitPayment = () => {
+    setSplitPayments((current) => [
+      ...current,
+      createPaymentDraft("bank_transfer", centsToMoney(Math.max(splitRemainingCents, 0))),
+    ]);
+  };
+
+  const removeSplitPayment = (paymentId: string) => {
+    setSplitPayments((current) =>
+      current.length === 1 ? current : current.filter((payment) => payment.id !== paymentId),
+    );
+  };
+
   const resetSale = () => {
     setCart({});
     setPaymentMethod("cash");
     setCashTendered("");
     setReference("");
+    setSplitPaymentsEnabled(false);
+    setSplitPayments([createPaymentDraft("cash")]);
     setNotice(null);
     setCompletedOrder(null);
   };
 
   const submitSale = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canCreateOrders || cartItems.length === 0 || !cashIsValid) {
+    if (!canSubmitSale) {
       return;
     }
     setSubmitting(true);
@@ -137,20 +218,34 @@ export default function RegisterView() {
           product_id: item.product.id,
           quantity: item.quantity,
         })),
-        payments: [
-          {
-            method: paymentMethod,
-            amount: totalAmount,
-            amount_tendered: paymentMethod === "cash" ? centsToMoney(tenderedCents) : null,
-            reference: paymentMethod === "cash" ? null : reference.trim() || null,
-          },
-        ],
+        payments: splitPaymentsEnabled
+          ? splitPayments
+              .filter((payment) => moneyToCents(payment.amount) > 0)
+              .map((payment) => ({
+                method: payment.method,
+                amount: centsToMoney(moneyToCents(payment.amount)),
+                amount_tendered:
+                  payment.method === "cash"
+                    ? centsToMoney(moneyToCents(payment.amountTendered))
+                    : null,
+                reference: payment.method === "cash" ? null : payment.reference.trim() || null,
+              }))
+          : [
+              {
+                method: paymentMethod,
+                amount: totalAmount,
+                amount_tendered: paymentMethod === "cash" ? centsToMoney(tenderedCents) : null,
+                reference: paymentMethod === "cash" ? null : reference.trim() || null,
+              },
+            ],
       });
       setCompletedOrder(order);
       setNotice(copy.register.saleComplete);
       setCart({});
       setCashTendered("");
       setReference("");
+      setSplitPaymentsEnabled(false);
+      setSplitPayments([createPaymentDraft("cash")]);
     } catch {
       setNotice(copy.register.saleError);
     } finally {
@@ -259,7 +354,7 @@ export default function RegisterView() {
                 <span className="muted">{copy.register.total}</span>
                 <strong>{formatMoney(totalAmount)}</strong>
               </p>
-              <button type="submit" disabled={!canCreateOrders || cartItems.length === 0 || !cashIsValid || submitting}>
+              <button type="submit" disabled={!canSubmitSale}>
                 {submitting ? copy.register.salePending : copy.register.completeSale}
               </button>
             </div>
@@ -267,6 +362,105 @@ export default function RegisterView() {
             {!canCreateOrders ? <p className="status-warn">{copy.register.permissionHidden}</p> : null}
 
             <div className="payment-grid">
+              <label className="inline-toggle">
+                <input
+                  checked={splitPaymentsEnabled}
+                  type="checkbox"
+                  onChange={(event) => toggleSplitPayments(event.target.checked)}
+                />
+                {copy.register.splitPayment}
+              </label>
+
+              {splitPaymentsEnabled ? (
+                <div className="split-payment-list">
+                  {splitPayments.map((payment, index) => (
+                    <fieldset className="split-payment-row" key={payment.id}>
+                      <legend>{`${copy.register.payment} ${index + 1}`}</legend>
+                      <label>
+                        {copy.register.method}
+                        <select
+                          value={payment.method}
+                          onChange={(event) =>
+                            updateSplitPayment(payment.id, {
+                              method: event.target.value as PaymentMethod,
+                              amountTendered: "",
+                              reference: "",
+                            })
+                          }
+                        >
+                          <option value="cash">{copy.register.cash}</option>
+                          <option value="bank_transfer">{copy.register.bankTransfer}</option>
+                          <option value="manual_card">{copy.register.manualCard}</option>
+                        </select>
+                      </label>
+                      <label>
+                        {copy.register.amount}
+                        <input
+                          min="0"
+                          step="0.01"
+                          type="number"
+                          value={payment.amount}
+                          onChange={(event) =>
+                            updateSplitPayment(payment.id, { amount: event.target.value })
+                          }
+                        />
+                      </label>
+                      {payment.method === "cash" ? (
+                        <label>
+                          {copy.register.amountTendered}
+                          <input
+                            min="0"
+                            step="0.01"
+                            type="number"
+                            value={payment.amountTendered}
+                            onChange={(event) =>
+                              updateSplitPayment(payment.id, {
+                                amountTendered: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                      ) : (
+                        <label>
+                          {copy.register.paymentReference}
+                          <input
+                            placeholder={copy.register.optionalReference}
+                            value={payment.reference}
+                            onChange={(event) =>
+                              updateSplitPayment(payment.id, { reference: event.target.value })
+                            }
+                          />
+                        </label>
+                      )}
+                      <button
+                        disabled={splitPayments.length === 1}
+                        type="button"
+                        onClick={() => removeSplitPayment(payment.id)}
+                      >
+                        {copy.register.removePayment}
+                      </button>
+                    </fieldset>
+                  ))}
+
+                  <button type="button" onClick={addSplitPayment}>
+                    {copy.register.addPayment}
+                  </button>
+
+                  <div className="payment-summary">
+                    <span className="muted">{copy.register.paymentTotal}</span>
+                    <strong>{formatMoney(centsToMoney(splitPaymentTotalCents))}</strong>
+                    <span className="muted">{copy.register.remaining}</span>
+                    <strong>{formatMoney(centsToMoney(Math.abs(splitRemainingCents)))}</strong>
+                  </div>
+                  {!splitTotalMatches && cartItems.length > 0 ? (
+                    <p className="status-warn">{copy.register.splitTotalMismatch}</p>
+                  ) : null}
+                  {!splitCashIsValid && cartItems.length > 0 ? (
+                    <p className="status-warn">{copy.register.cashTooLow}</p>
+                  ) : null}
+                </div>
+              ) : (
+                <>
               <label>
                 {copy.register.paymentMethod}
                 <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
@@ -302,9 +496,11 @@ export default function RegisterView() {
                   <input
                     placeholder={copy.register.optionalReference}
                     value={reference}
-                    onChange={(event) => setReference(event.target.value)}
-                  />
-                </label>
+                  onChange={(event) => setReference(event.target.value)}
+                />
+              </label>
+              )}
+                </>
               )}
             </div>
           </form>
