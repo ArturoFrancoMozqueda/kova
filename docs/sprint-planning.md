@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft execution plan.
+Active execution — Sprint 11 in progress.
 
 This document defines the roadmap and task structure.
 
@@ -45,17 +45,23 @@ tenant signup → business setup → catalog setup → open shift → create sal
 
 ## Phase Plan
 
-| Phase | Sprints | Outcome |
-|---|---:|---|
-| Foundation | 0A–0C | Repo, app skeleton, auth, tenant isolation, BDD harness |
-| Core POS | 1–3 | Catalog, register, cash/manual sale, order creation |
-| Offline + Recovery | 4 | Offline queue, sync, dead letter |
-| Operations | 5–6 | Refunds, voids, receipts, shifts |
-| Inventory + Reporting | 7–8 | Inventory basics, daily/range reports |
-| Billing + Onboarding | 9–10 | $199 MXN plan, Stripe Billing, bakery preset |
-| Beta Hardening | 11 | Security, monitoring, backup drill, beta support |
-| Closed Beta | — | 3 friendly tenants |
-| Post-Beta / GA Prep | 12+ | Modifiers, taxes, discounts, retail/restaurant presets, legal, marketing |
+| Phase | Sprints | Status | Outcome |
+|---|---:|---|---|
+| Foundation | 0A–0C | ✅ Done | Repo, app skeleton, auth, tenant isolation, BDD harness |
+| Operations | 5–8 | ✅ Done | Refunds, voids, receipts, shifts, inventory, reporting |
+| Billing + App Shell | 9–10 | ✅ Done | $199 MXN plan, Stripe Billing, auth-protected routing, register shell |
+| Core POS | 11–13 | 🔄 Active | Catalog, register, cash/manual sale, order creation, offline sync |
+| Beta Hardening | 14 | — | Security, monitoring, backup drill, beta support |
+| Closed Beta | — | — | 3 friendly tenants |
+| Post-Beta / GA Prep | 15+ | — | Modifiers, taxes, discounts, retail/restaurant presets, legal, marketing |
+
+### Core POS Sprint Breakdown
+
+| Sprint | Focus | Status |
+|---|---|---|
+| 11 | Catalog Management — categories + products CRUD, BDD, RLS | 🔄 Active |
+| 12 | Register Core — product grid, cart, cash/manual payment, order creation | — |
+| 13 | Offline Sync + Dead Letter | — |
 
 ## BDD Coverage Matrix
 
