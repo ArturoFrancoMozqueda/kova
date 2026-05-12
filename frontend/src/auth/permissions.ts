@@ -3,6 +3,7 @@ import { useAuthContext } from "./AuthContext";
 export const CATALOG_CREATE_PERMISSION = "catalog.create";
 export const CATALOG_UPDATE_PERMISSION = "catalog.update";
 export const CATALOG_DELETE_PERMISSION = "catalog.delete";
+export const ORDER_CREATE_PERMISSION = "orders.create";
 export const ORDER_REFUND_PERMISSION = "orders.refund";
 export const ORDER_VOID_PERMISSION = "orders.void";
 export const INVENTORY_ADJUST_PERMISSION = "inventory.adjust";
@@ -17,6 +18,7 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     CATALOG_CREATE_PERMISSION,
     CATALOG_UPDATE_PERMISSION,
     CATALOG_DELETE_PERMISSION,
+    ORDER_CREATE_PERMISSION,
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     INVENTORY_ADJUST_PERMISSION,
@@ -30,6 +32,7 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     CATALOG_CREATE_PERMISSION,
     CATALOG_UPDATE_PERMISSION,
     CATALOG_DELETE_PERMISSION,
+    ORDER_CREATE_PERMISSION,
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     INVENTORY_ADJUST_PERMISSION,
@@ -37,8 +40,8 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     SHIFT_OPEN_PERMISSION,
     SHIFT_CLOSE_PERMISSION,
   ],
-  cashier: [SHIFT_OPEN_PERMISSION, SHIFT_CLOSE_PERMISSION],
-  staff: [],
+  cashier: [ORDER_CREATE_PERMISSION, SHIFT_OPEN_PERMISSION, SHIFT_CLOSE_PERMISSION],
+  staff: [ORDER_CREATE_PERMISSION],
 };
 
 export function permissionsForRole(role: string): Set<string> {
