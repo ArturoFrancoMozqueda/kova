@@ -204,4 +204,60 @@ describe("App shell", () => {
       }),
     );
   });
+
+  it("creates a split cash and bank transfer sale", async () => {
+    window.history.pushState(null, "", "/register");
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(sellableProducts), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(completedOrder("order-split")), { status: 201 }),
+      );
+
+    render(<App />);
+    expect(await screen.findByText("Concha")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.click(screen.getByLabelText(/split payment/i));
+    fireEvent.change(screen.getAllByLabelText(/^amount$/i)[0], {
+      target: { value: "10.00" },
+    });
+    fireEvent.change(screen.getByLabelText(/cash tendered/i), {
+      target: { value: "10.00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /add payment/i }));
+    fireEvent.change(screen.getByLabelText(/^reference$/i), {
+      target: { value: "SPEI-001" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringContaining("/api/v1/orders"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          items: [{ product_id: "product-1", quantity: 1 }],
+          payments: [
+            {
+              method: "cash",
+              amount: "10.00",
+              amount_tendered: "10.00",
+              reference: null,
+            },
+            {
+              method: "bank_transfer",
+              amount: "8.50",
+              amount_tendered: null,
+              reference: "SPEI-001",
+            },
+          ],
+        }),
+      }),
+    );
+  });
 });
