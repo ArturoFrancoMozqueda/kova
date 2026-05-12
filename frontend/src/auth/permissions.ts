@@ -1,5 +1,8 @@
 import { useAuthContext } from "./AuthContext";
 
+export const CATALOG_CREATE_PERMISSION = "catalog.create";
+export const CATALOG_UPDATE_PERMISSION = "catalog.update";
+export const CATALOG_DELETE_PERMISSION = "catalog.delete";
 export const ORDER_REFUND_PERMISSION = "orders.refund";
 export const ORDER_VOID_PERMISSION = "orders.void";
 export const INVENTORY_ADJUST_PERMISSION = "inventory.adjust";
@@ -11,6 +14,9 @@ export const BILLING_MANAGE_PERMISSION = "billing.manage";
 
 const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
   owner: [
+    CATALOG_CREATE_PERMISSION,
+    CATALOG_UPDATE_PERMISSION,
+    CATALOG_DELETE_PERMISSION,
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     INVENTORY_ADJUST_PERMISSION,
@@ -21,6 +27,9 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     BILLING_MANAGE_PERMISSION,
   ],
   manager: [
+    CATALOG_CREATE_PERMISSION,
+    CATALOG_UPDATE_PERMISSION,
+    CATALOG_DELETE_PERMISSION,
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     INVENTORY_ADJUST_PERMISSION,
