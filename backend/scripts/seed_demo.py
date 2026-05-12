@@ -44,11 +44,11 @@ PRODUCTS = [
     ("Pastel de chocolate 1 kg", 1, Decimal("380.00"), "PAS-001", "Pastel húmedo con ganache"),
     ("Pastel de vainilla 1 kg", 1, Decimal("350.00"), "PAS-002", "Pastel esponjoso con betún"),
     ("Galleta de avena con pasas", 2, Decimal("18.00"), "GAL-001", "Galleta grande con avena"),
-    ("Galleta decorada", 2, Decimal("25.00"), "GAL-002", "Galleta de mantequilla con decorado artesanal"),
-    ("Café americano", 3, Decimal("35.00"), "BEB-001", "Café de grano tostado artesanalmente"),
+    ("Galleta decorada", 2, Decimal("25.00"), "GAL-002", "Galleta de mantequilla artesanal"),
+    ("Café americano", 3, Decimal("35.00"), "BEB-001", "Café de grano tostado artesanal"),
     ("Atole de guayaba", 3, Decimal("28.00"), "BEB-002", "Atole tradicional 355 ml"),
-    ("Pan de muerto", 4, Decimal("55.00"), "ESP-001", "Pan de muerto con azúcar y anís — temporada"),
-    ("Rosca de reyes (porción)", 4, Decimal("45.00"), "ESP-002", "Porción individual de rosca de reyes"),
+    ("Pan de muerto", 4, Decimal("55.00"), "ESP-001", "Pan de muerto con anís — temporada"),
+    ("Rosca de reyes (porción)", 4, Decimal("45.00"), "ESP-002", "Porción individual de rosca"),
 ]
 
 
