@@ -2,6 +2,44 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 
+const authenticatedCashier = {
+  user: {
+    id: "user-1",
+    email: "cashier@example.com",
+    tenant_id: "tenant-1",
+    role: "cashier",
+  },
+  tenant_id: "tenant-1",
+  tenant_name: "Testing",
+};
+
+const sellableProducts = [
+  {
+    id: "product-1",
+    tenant_id: "tenant-1",
+    category_id: null,
+    name: "Concha",
+    description: null,
+    sku: "CON-001",
+    price_amount: "18.50",
+    track_inventory: false,
+    low_stock_threshold: null,
+    is_active: true,
+  },
+];
+
+function completedOrder(id: string) {
+  return {
+    id,
+    tenant_id: "tenant-1",
+    status: "completed",
+    subtotal_amount: "18.50",
+    total_amount: "18.50",
+    items: [],
+    payments: [],
+  };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   window.history.pushState(null, "", "/");
@@ -55,52 +93,13 @@ describe("App shell", () => {
     window.history.pushState(null, "", "/register");
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            user: {
-              id: "user-1",
-              email: "cashier@example.com",
-              tenant_id: "tenant-1",
-              role: "cashier",
-            },
-            tenant_id: "tenant-1",
-            tenant_name: "Testing",
-          }),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify([
-            {
-              id: "product-1",
-              tenant_id: "tenant-1",
-              category_id: null,
-              name: "Concha",
-              description: null,
-              sku: "CON-001",
-              price_amount: "18.50",
-              track_inventory: false,
-              low_stock_threshold: null,
-              is_active: true,
-            },
-          ]),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id: "order-1",
-            tenant_id: "tenant-1",
-            status: "completed",
-            subtotal_amount: "18.50",
-            total_amount: "18.50",
-            items: [],
-            payments: [],
-          }),
-          { status: 201 },
-        ),
+        new Response(JSON.stringify(completedOrder("order-1")), { status: 201 }),
       );
 
     render(<App />);
@@ -116,6 +115,93 @@ describe("App shell", () => {
     expect(screen.getByRole("link", { name: /open order/i })).toHaveAttribute(
       "href",
       "/orders/order-1",
+    );
+  });
+
+  it("creates a bank transfer sale with a reference", async () => {
+    window.history.pushState(null, "", "/register");
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(sellableProducts), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(completedOrder("order-transfer")), { status: 201 }),
+      );
+
+    render(<App />);
+    expect(await screen.findByText("Concha")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.change(screen.getByLabelText(/payment method/i), {
+      target: { value: "bank_transfer" },
+    });
+    fireEvent.change(screen.getByLabelText(/^reference$/i), {
+      target: { value: "TRANSFER-001" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringContaining("/api/v1/orders"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          items: [{ product_id: "product-1", quantity: 1 }],
+          payments: [
+            {
+              method: "bank_transfer",
+              amount: "18.50",
+              amount_tendered: null,
+              reference: "TRANSFER-001",
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("creates a manual card sale with an optional reference", async () => {
+    window.history.pushState(null, "", "/register");
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(sellableProducts), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(completedOrder("order-card")), { status: 201 }),
+      );
+
+    render(<App />);
+    expect(await screen.findByText("Concha")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.change(screen.getByLabelText(/payment method/i), {
+      target: { value: "manual_card" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringContaining("/api/v1/orders"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          items: [{ product_id: "product-1", quantity: 1 }],
+          payments: [
+            {
+              method: "manual_card",
+              amount: "18.50",
+              amount_tendered: null,
+              reference: null,
+            },
+          ],
+        }),
+      }),
     );
   });
 });
