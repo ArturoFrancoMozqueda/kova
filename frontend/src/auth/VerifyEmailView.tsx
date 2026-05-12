@@ -19,10 +19,10 @@ export default function VerifyEmailView() {
     verifyEmail(token)
       .then(() => {
         setState("success");
-        setTimeout(() => navigate("/login"), 2500);
+        window.setTimeout(() => navigate("/login"), 2500);
       })
       .catch(() => setState("error"));
-  }, []);
+  }, [navigate, params]);
 
   return (
     <main className="page auth-page">

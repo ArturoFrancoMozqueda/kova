@@ -1,3 +1,5 @@
+import { useAuthContext } from "./AuthContext";
+
 export const ORDER_REFUND_PERMISSION = "orders.refund";
 export const ORDER_VOID_PERMISSION = "orders.void";
 export const INVENTORY_ADJUST_PERMISSION = "inventory.adjust";
@@ -7,13 +9,35 @@ export const SHIFT_CLOSE_PERMISSION = "shifts.close";
 export const BILLING_VIEW_PERMISSION = "billing.view";
 export const BILLING_MANAGE_PERMISSION = "billing.manage";
 
-export function permissionsFromSearch(search: string): Set<string> {
-  const params = new URLSearchParams(search);
-  const raw = params.get("permissions") ?? window.localStorage.getItem("pos.permissions") ?? "";
-  return new Set(
-    raw
-      .split(",")
-      .map((permission) => permission.trim())
-      .filter(Boolean),
-  );
+const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
+  owner: [
+    ORDER_REFUND_PERMISSION,
+    ORDER_VOID_PERMISSION,
+    INVENTORY_ADJUST_PERMISSION,
+    REPORTS_VIEW_ALL_PERMISSION,
+    SHIFT_OPEN_PERMISSION,
+    SHIFT_CLOSE_PERMISSION,
+    BILLING_VIEW_PERMISSION,
+    BILLING_MANAGE_PERMISSION,
+  ],
+  manager: [
+    ORDER_REFUND_PERMISSION,
+    ORDER_VOID_PERMISSION,
+    INVENTORY_ADJUST_PERMISSION,
+    REPORTS_VIEW_ALL_PERMISSION,
+    SHIFT_OPEN_PERMISSION,
+    SHIFT_CLOSE_PERMISSION,
+  ],
+  cashier: [SHIFT_OPEN_PERMISSION, SHIFT_CLOSE_PERMISSION],
+  staff: [],
+};
+
+export function permissionsForRole(role: string): Set<string> {
+  return new Set(ROLE_PERMISSIONS[role] ?? []);
+}
+
+export function usePermission(permission: string): boolean {
+  const { state } = useAuthContext();
+  if (state.status !== "authenticated") return false;
+  return permissionsForRole(state.user.role).has(permission);
 }
