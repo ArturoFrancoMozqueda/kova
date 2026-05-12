@@ -26,6 +26,19 @@ export type Order = {
   payments: Payment[];
 };
 
+export type OrderCreatePayload = {
+  items: Array<{
+    product_id: string;
+    quantity: number;
+  }>;
+  payments: Array<{
+    method: "cash" | "bank_transfer" | "manual_card";
+    amount: string;
+    amount_tendered?: string | null;
+    reference?: string | null;
+  }>;
+};
+
 export type ReceiptRefundItem = {
   order_item_id: string;
   quantity: number;

@@ -1,4 +1,12 @@
-import type { Order, OrderListResponse, Receipt, RefundPayload, ReceiptRefund, ReceiptVoid } from "./types";
+import type {
+  Order,
+  OrderCreatePayload,
+  OrderListResponse,
+  Receipt,
+  RefundPayload,
+  ReceiptRefund,
+  ReceiptVoid,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -33,6 +41,14 @@ export function getOrder(orderId: string): Promise<Order> {
 
 export function getReceipt(orderId: string): Promise<Receipt> {
   return requestJson<Receipt>(`/api/v1/orders/${orderId}/receipt`);
+}
+
+export function createOrder(payload: OrderCreatePayload): Promise<Order> {
+  return requestJson<Order>("/api/v1/orders", {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify(payload),
+  });
 }
 
 export function createRefund(orderId: string, payload: RefundPayload): Promise<ReceiptRefund> {
