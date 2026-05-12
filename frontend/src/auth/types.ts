@@ -31,3 +31,12 @@ export type MeResponse = {
   tenant_id: string;
   tenant_name: string;
 };
+
+export type SessionProbeResponse =
+  | { authenticated: false; user?: null; tenant_id?: null; tenant_name?: null }
+  | {
+      authenticated: true;
+      user: MeResponse["user"];
+      tenant_id: string;
+      tenant_name: string;
+    };

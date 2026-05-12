@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 
 const authenticatedCashier = {
+  authenticated: true,
   user: {
     id: "user-1",
     email: "cashier@example.com",
@@ -48,7 +49,7 @@ afterEach(() => {
 describe("App shell", () => {
   it("redirects unauthenticated users to login", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response("Unauthorized", { status: 401 }),
+      new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
     );
     render(<App />);
     expect(await screen.findByRole("heading", { name: /log in/i })).toBeInTheDocument();
@@ -61,6 +62,7 @@ describe("App shell", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
+            authenticated: true,
             user: {
               id: "user-1",
               email: "owner@example.com",

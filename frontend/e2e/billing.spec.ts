@@ -26,9 +26,10 @@ const activeSubscription = {
 };
 
 async function mockAuthAs(page: Page, role: string) {
-  await page.route("**/api/v1/auth/me", async (route) => {
+  await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({
       json: {
+        authenticated: true,
         user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
         tenant_id: "tenant-1",
         tenant_name: "Bakery",

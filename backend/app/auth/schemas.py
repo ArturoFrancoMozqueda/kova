@@ -40,6 +40,13 @@ class MeResponse(BaseModel):
     tenant_name: str
 
 
+class SessionProbeResponse(BaseModel):
+    authenticated: bool
+    user: UserResponse | None = None
+    tenant_id: UUID | None = None
+    tenant_name: str | None = None
+
+
 class RefreshResponse(BaseModel):
     message: str
 

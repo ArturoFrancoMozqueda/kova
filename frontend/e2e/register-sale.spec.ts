@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 test("cashier completes a cash sale from the register", async ({ page }) => {
-  await page.route("**/api/v1/auth/me", async (route) => {
+  await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({
       json: {
+        authenticated: true,
         user: {
           id: "user-1",
           email: "cashier@bakery.com",
@@ -80,9 +81,10 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
 });
 
 test("cashier completes a split cash and bank transfer sale", async ({ page }) => {
-  await page.route("**/api/v1/auth/me", async (route) => {
+  await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({
       json: {
+        authenticated: true,
         user: {
           id: "user-1",
           email: "cashier@bakery.com",

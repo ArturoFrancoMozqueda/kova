@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auth import service
@@ -8,6 +8,7 @@ from app.auth.schemas import (
     MessageResponse,
     PasswordResetConfirmBody,
     PasswordResetRequestBody,
+    SessionProbeResponse,
     SignupRequest,
     SignupResponse,
     VerifyEmailRequest,
@@ -134,3 +135,21 @@ def password_reset_confirm(body: PasswordResetConfirmBody, db: Session = Depends
 def me(db: Session = Depends(get_db), ctx=Depends(get_current_session)):
     user, membership, _ = ctx
     return service.get_me(db, user=user, membership=membership)
+
+
+@router.get("/session", response_model=SessionProbeResponse)
+def session_probe(request: Request, db: Session = Depends(get_db)):
+    try:
+        user, membership, _ = get_current_session(request, db)
+    except HTTPException as exc:
+        if exc.status_code in {401, 403}:
+            return SessionProbeResponse(authenticated=False)
+        raise
+
+    me_response = service.get_me(db, user=user, membership=membership)
+    return SessionProbeResponse(
+        authenticated=True,
+        user=me_response.user,
+        tenant_id=me_response.tenant_id,
+        tenant_name=me_response.tenant_name,
+    )

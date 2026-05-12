@@ -99,6 +99,27 @@ def test_me_unauthenticated_returns_401(client):
     assert r.status_code == 401
 
 
+def test_session_probe_returns_false_without_cookie(client):
+    r = client.get("/api/v1/auth/session")
+    assert r.status_code == 200
+    assert r.json() == {
+        "authenticated": False,
+        "user": None,
+        "tenant_id": None,
+        "tenant_name": None,
+    }
+
+
+def test_session_probe_returns_user_and_tenant_when_authenticated(client):
+    signup_and_login(client)
+    r = client.get("/api/v1/auth/session")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["authenticated"] is True
+    assert body["user"]["email"] == "owner@example.com"
+    assert body["tenant_name"] == "Acme Bakery"
+
+
 # ── Refresh ───────────────────────────────────────────────────────────────────
 
 def test_refresh_issues_new_access_token(client):

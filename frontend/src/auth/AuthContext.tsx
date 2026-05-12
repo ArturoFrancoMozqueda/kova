@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { getMe, logout as apiLogout } from "./api";
+import { getSession, logout as apiLogout } from "./api";
 
 export type AuthUser = {
   id: string;
@@ -28,12 +28,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const me = await getMe();
+      const session = await getSession();
+      if (!session.authenticated) {
+        setState({ status: "unauthenticated" });
+        return;
+      }
       setState({
         status: "authenticated",
-        user: me.user,
-        tenantId: me.tenant_id,
-        tenantName: me.tenant_name,
+        user: session.user,
+        tenantId: session.tenant_id,
+        tenantName: session.tenant_name,
       });
     } catch {
       setState({ status: "unauthenticated" });

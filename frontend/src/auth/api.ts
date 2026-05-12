@@ -1,4 +1,11 @@
-import type { LoginRequest, MeResponse, MessageResponse, SignupRequest, SignupResponse } from "./types";
+import type {
+  LoginRequest,
+  MeResponse,
+  MessageResponse,
+  SessionProbeResponse,
+  SignupRequest,
+  SignupResponse,
+} from "./types";
 
 class ApiError extends Error {
   constructor(
@@ -53,4 +60,8 @@ export async function logout(): Promise<void> {
 
 export function getMe(): Promise<MeResponse> {
   return requestJson<MeResponse>("/api/v1/auth/me");
+}
+
+export function getSession(): Promise<SessionProbeResponse> {
+  return requestJson<SessionProbeResponse>("/api/v1/auth/session");
 }

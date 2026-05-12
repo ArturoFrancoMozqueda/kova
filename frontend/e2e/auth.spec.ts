@@ -33,14 +33,18 @@ test("login posts credentials and navigates to the register", async ({ page }) =
   await page.route("**/api/v1/auth/login", async (route) => {
     await route.fulfill({ json: { message: "Logged in." } });
   });
-  await page.route("**/api/v1/auth/me", async (route) => {
+  await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({
       json: {
+        authenticated: true,
         user: { id: "user-1", email: "owner@example.com", tenant_id: "tenant-1", role: "owner" },
         tenant_id: "tenant-1",
         tenant_name: "Bakery Demo",
       },
     });
+  });
+  await page.route("**/api/v1/catalog/products", async (route) => {
+    await route.fulfill({ json: [] });
   });
 
   await page.goto("/login");
