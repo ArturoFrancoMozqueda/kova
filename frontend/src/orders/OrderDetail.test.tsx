@@ -62,6 +62,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function meResponse(role: string) {
   return {
+    authenticated: true,
     user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
     tenant_id: "tenant-1",
     tenant_name: "Bakery",

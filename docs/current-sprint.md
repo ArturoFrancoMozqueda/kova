@@ -41,7 +41,7 @@ Turn the authenticated register shell into the first complete sale flow: show se
 - [x] Playwright E2E coverage for cash and split register sale
 - [ ] Offline queue and dead-letter handoff to Sprint 13
 - [ ] Tablet/mobile register polish
-- [ ] Production deployment validation for Sprint 12
+- [x] Production deployment validation for Sprint 12
 
 **Validation evidence:**
 - `npm run lint`
@@ -50,6 +50,13 @@ Turn the authenticated register shell into the first complete sale flow: show se
 - `npm run test:e2e -- --grep "cashier completes.*register|cashier completes a split"` - 2 tests passed
 - Local Docker-backed UI validation completed for signup, email verification, login redirect, catalog product creation, cash sale, order detail, and receipt values
 - Backend split payment test execution attempted with `uv run pytest app/tests/test_split_payment.py app/tests/bdd/test_split_payment.py`; blocked locally by Windows virtualenv/dependency setup (`resend` missing in `.venv-win`)
+- Production Vercel deployment validated on 2026-05-12: `dpl_B6d9zrkPZ2gpTYTp53ubsGwrfzw6`, commit `3144974a2c7527216e8664cf39f843afb495b9ca`
+- Production UI validation completed for login, catalog product creation, cash sale, split cash + bank transfer sale, order detail, and receipt rendering
+- Production cash order `c36820ad-325d-4b58-a251-4530f26c4f03`: total `18.50`, payment `cash:18.50`, receipt tendered `20.00`, change `1.50`
+- Production split order `bb8927de-ec47-4512-9656-6c6d6478efe3`: total `18.50`, payments `cash:10.00` and `bank_transfer:8.50`
+- Supabase production audit logs confirmed `orders.create` for both production validation orders
+- Auth bootstrap cleanup validated in production on 2026-05-12: frontend deployment `dpl_6M7B6q9afRzpmmkBUkZRK7ZpcYbw`, commit `d2ef4dfa3594ffe91e4ae08ffd273b32de59bbb9`
+- `/api/v1/auth/session` now returns `200` for anonymous probes, login still lands on `/register`, and browser console stayed at `0 errors / 0 warnings`
 
 ---
 
