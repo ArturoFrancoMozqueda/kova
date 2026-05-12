@@ -17,6 +17,40 @@ Turn the authenticated register shell into the first complete sale flow: show se
 - Register loading, empty, error, and permission states
 - UI validation against the beta north star flow
 
+## Sprint 12 Progress
+
+**Implemented so far:**
+- `/register` loads active catalog products
+- Cashier can add products to a cart
+- Cart quantity editing, removal, total, tendered cash, and change due are visible
+- Cash, bank transfer, manual card, and split payment methods are supported
+- Register creates orders through `POST /api/v1/orders`
+- Sale success links to the created order detail
+- Local Vite proxy points `/api` to the Docker backend for real local validation
+
+**Checklist:**
+- [x] Product grid connected to catalog API
+- [x] Cart state and quantity editing
+- [x] Cash sale UI
+- [x] Bank transfer payment recording
+- [x] Manual card payment recording
+- [x] Split payment UI for multiple payment entries
+- [x] Order create API integration
+- [x] Sale success / open order handoff
+- [x] Register unit coverage for cash, bank transfer, manual card, and split payment flows
+- [x] Playwright E2E coverage for cash and split register sale
+- [ ] Offline queue and dead-letter handoff to Sprint 13
+- [ ] Tablet/mobile register polish
+- [ ] Production deployment validation for Sprint 12
+
+**Validation evidence:**
+- `npm run lint`
+- `npm test -- --run src/__tests__/App.test.tsx` - 6 tests passed
+- `npm run build`
+- `npm run test:e2e -- --grep "cashier completes.*register|cashier completes a split"` - 2 tests passed
+- Local Docker-backed UI validation completed for signup, email verification, login redirect, catalog product creation, cash sale, order detail, and receipt values
+- Backend split payment test execution attempted with `uv run pytest app/tests/test_split_payment.py app/tests/bdd/test_split_payment.py`; blocked locally by Windows virtualenv/dependency setup (`resend` missing in `.venv-win`)
+
 ---
 
 ## Completed: Sprint 11 - Catalog Management

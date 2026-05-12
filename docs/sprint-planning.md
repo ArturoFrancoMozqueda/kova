@@ -60,7 +60,7 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Sprint | Focus | Status |
 |---|---|---|
 | 11 | Catalog Management — categories + products CRUD, BDD, RLS | ✅ Done |
-| 12 | Register Core — product grid, cart, cash/manual payment, order creation | 🔄 Active |
+| 12 | Register Core — product grid, cart, cash/manual/split payment, order creation | 🔄 Active - first sale and split payment flows implemented and locally validated |
 | 13 | Offline Sync + Dead Letter | — |
 
 ## BDD Coverage Matrix
