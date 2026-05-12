@@ -24,6 +24,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://pos:pos@localhost:5432/pos
       APP_ENV: ci
+      SECRET_KEY: ci-only-not-a-real-secret-key-do-not-use-in-production
     defaults:
       run:
         working-directory: backend
@@ -132,6 +133,18 @@ jobs:
         run: npm run test:e2e
         env:
           PLAYWRIGHT_BASE_URL: ${{ secrets.VERCEL_URL }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [smoke]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy backend to Fly.io
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   no-secrets:
     runs-on: ubuntu-latest
