@@ -1,4 +1,16 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
+
+async function mockAuthAs(page: Page, role: string) {
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await route.fulfill({
+      json: {
+        user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
+        tenant_id: "tenant-1",
+        tenant_name: "Bakery",
+      },
+    });
+  });
+}
 
 const stockItem = {
   product_id: "product-1",
@@ -11,6 +23,7 @@ const stockItem = {
 };
 
 test("inventory page supports adjustment, stock take, and threshold UI", async ({ page }) => {
+  await mockAuthAs(page, "owner");
   let stock = [stockItem];
 
   await page.route("**/api/v1/inventory/stock", async (route) => {
@@ -52,7 +65,7 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
     await route.fulfill({ status: 200, json: stock[0] });
   });
 
-  await page.goto("/inventory?permissions=inventory.adjust");
+  await page.goto("/inventory");
   await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Concha" })).toBeVisible();
 

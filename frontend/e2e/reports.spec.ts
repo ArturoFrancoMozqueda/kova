@@ -1,6 +1,19 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
+
+async function mockAuthAs(page: Page, role: string) {
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await route.fulfill({
+      json: {
+        user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
+        tenant_id: "tenant-1",
+        tenant_name: "Bakery",
+      },
+    });
+  });
+}
 
 test("reports page displays summary, payments, and top products", async ({ page }) => {
+  await mockAuthAs(page, "owner");
   await page.route("**/api/v1/reports/sales-summary**", async (route) => {
     await route.fulfill({
       json: {
@@ -44,7 +57,7 @@ test("reports page displays summary, payments, and top products", async ({ page 
     });
   });
 
-  await page.goto("/reports?permissions=reports.view_all");
+  await page.goto("/reports");
 
   await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
   await expect(page.locator(".data-card").filter({ hasText: "Gross sales" }).getByText("MX$150.00")).toBeVisible();

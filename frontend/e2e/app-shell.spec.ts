@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test("app shell loads", async ({ page }) => {
+test("app shell redirects unauthenticated users to login", async ({ page }) => {
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await route.fulfill({ status: 401, body: "Unauthorized" });
+  });
+
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "POS" })).toBeVisible();
-  await expect(page.getByText(/operations workspace/i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /inventory/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /reports/i })).toBeVisible();
+  await expect(page).toHaveURL("/login");
+  await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
 });

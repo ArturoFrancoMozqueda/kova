@@ -1,4 +1,16 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
+
+async function mockAuthAs(page: Page, role: string) {
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await route.fulfill({
+      json: {
+        user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
+        tenant_id: "tenant-1",
+        tenant_name: "Bakery",
+      },
+    });
+  });
+}
 
 const order = {
   id: "demo",
@@ -52,6 +64,7 @@ const receipt = {
 };
 
 test("refund and void modals post to the order APIs", async ({ page }) => {
+  await mockAuthAs(page, "owner");
   let refundCreated = false;
 
   await page.route("**/api/v1/orders/demo", async (route) => {
@@ -108,7 +121,7 @@ test("refund and void modals post to the order APIs", async ({ page }) => {
     });
   });
 
-  await page.goto("/orders/demo?permissions=orders.refund,orders.void");
+  await page.goto("/orders/demo");
   await expect(page.getByRole("heading", { name: "Order detail" })).toBeVisible();
 
   await page.getByRole("button", { name: "Refund" }).click();
@@ -118,7 +131,7 @@ test("refund and void modals post to the order APIs", async ({ page }) => {
   await expect(page.getByText(/customer return/i)).toBeVisible();
 
   refundCreated = false;
-  await page.goto("/orders/demo?permissions=orders.void");
+  await page.goto("/orders/demo");
   await page.getByRole("button", { name: "Void" }).click();
   await page.getByLabel(/reverses the order inventory/i).check();
   await page.getByRole("button", { name: "Void order" }).click();

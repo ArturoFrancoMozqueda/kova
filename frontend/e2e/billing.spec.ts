@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 const plan = {
   name: "Standard Plan",
@@ -25,12 +25,25 @@ const activeSubscription = {
   updated_at: "2026-05-01T00:00:00Z",
 };
 
+async function mockAuthAs(page: Page, role: string) {
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await route.fulfill({
+      json: {
+        user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
+        tenant_id: "tenant-1",
+        tenant_name: "Bakery",
+      },
+    });
+  });
+}
+
 test("billing page displays the Standard Plan and active subscription", async ({ page }) => {
+  await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
     await route.fulfill({ json: { plan, subscription: activeSubscription } });
   });
 
-  await page.goto("/billing?permissions=billing.view,billing.manage");
+  await page.goto("/settings/billing");
 
   await expect(page.getByRole("heading", { name: "Billing" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Standard Plan" })).toBeVisible();
@@ -39,6 +52,7 @@ test("billing page displays the Standard Plan and active subscription", async ({
 });
 
 test("billing page redirects to checkout and handles cancellation", async ({ page }) => {
+  await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
     await route.fulfill({ json: { plan, subscription: activeSubscription } });
   });
@@ -55,12 +69,13 @@ test("billing page redirects to checkout and handles cancellation", async ({ pag
     await route.fulfill({ body: "Stripe Checkout" });
   });
 
-  await page.goto("/billing?permissions=billing.view,billing.manage");
+  await page.goto("/settings/billing");
   await page.getByRole("button", { name: "Start checkout" }).click();
   await expect(page).toHaveURL("https://checkout.stripe.test/session/cs_test_123");
 });
 
 test("billing page shows past due recovery and return states", async ({ page }) => {
+  await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
     await route.fulfill({
       json: {
@@ -75,7 +90,7 @@ test("billing page shows past due recovery and return states", async ({ page }) 
     });
   });
 
-  await page.goto("/billing/success?permissions=billing.view,billing.manage");
+  await page.goto("/settings/billing/success");
 
   await expect(page.getByText("Checkout completed. Subscription status is refreshing.")).toBeVisible();
   await expect(page.getByText("Payment is past due. Recover billing to keep uninterrupted access.")).toBeVisible();
@@ -83,6 +98,7 @@ test("billing page shows past due recovery and return states", async ({ page }) 
 });
 
 test("billing page lets owners request subscription cancellation", async ({ page }) => {
+  await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
     await route.fulfill({ json: { plan, subscription: activeSubscription } });
   });
@@ -98,7 +114,7 @@ test("billing page lets owners request subscription cancellation", async ({ page
     });
   });
 
-  await page.goto("/billing?permissions=billing.view,billing.manage");
+  await page.goto("/settings/billing");
   await page.getByRole("button", { name: "Cancel subscription" }).click();
 
   await expect(page.getByText("Cancels at period end")).toBeVisible();
@@ -106,7 +122,9 @@ test("billing page lets owners request subscription cancellation", async ({ page
 });
 
 test("billing page hides data without billing permission", async ({ page }) => {
-  await page.goto("/billing");
+  await mockAuthAs(page, "cashier");
+
+  await page.goto("/settings/billing");
 
   await expect(page.getByText("Billing unavailable for your role.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Standard Plan" })).toHaveCount(0);

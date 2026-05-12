@@ -29,9 +29,18 @@ test("signup can verify a local dev token", async ({ page }) => {
   await expect(page.getByText("Email verified. You can log in now.")).toBeVisible();
 });
 
-test("login posts credentials and returns to the dashboard", async ({ page }) => {
+test("login posts credentials and navigates to the register", async ({ page }) => {
   await page.route("**/api/v1/auth/login", async (route) => {
     await route.fulfill({ json: { message: "Logged in." } });
+  });
+  await page.route("**/api/v1/auth/me", async (route) => {
+    await route.fulfill({
+      json: {
+        user: { id: "user-1", email: "owner@example.com", tenant_id: "tenant-1", role: "owner" },
+        tenant_id: "tenant-1",
+        tenant_name: "Bakery Demo",
+      },
+    });
   });
 
   await page.goto("/login");
@@ -39,6 +48,6 @@ test("login posts credentials and returns to the dashboard", async ({ page }) =>
   await page.getByLabel("Password").fill("S3cur3pass!");
   await page.getByRole("button", { name: "Log in" }).click();
 
-  await expect(page).toHaveURL("/");
-  await expect(page.getByRole("heading", { name: "POS" })).toBeVisible();
+  await expect(page).toHaveURL("/register");
+  await expect(page.getByRole("heading", { name: "Register" })).toBeVisible();
 });
