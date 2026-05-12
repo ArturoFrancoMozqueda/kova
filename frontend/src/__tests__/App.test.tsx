@@ -1,13 +1,18 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.history.pushState(null, "", "/");
+});
+
 describe("App shell", () => {
-  it("renders the home placeholder", () => {
+  it("redirects unauthenticated users to login", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response("Unauthorized", { status: 401 }),
+    );
     render(<App />);
-    expect(screen.getByRole("heading", { name: /pos/i })).toBeInTheDocument();
-    expect(screen.getByText(/operations workspace/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /inventory/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /reports/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /log in/i })).toBeInTheDocument();
   });
 });

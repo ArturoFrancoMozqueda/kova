@@ -40,10 +40,10 @@ CATEGORIES = [
 PRODUCTS = [
     # (name, category_index, price, sku, description)
     ("Pan de caja integral", 0, Decimal("35.00"), "PAN-001", "Pan integral rebanado 680 g"),
-    ("Baguette artesanal", 0, Decimal("42.00"), "PAN-002", "Baguette crujiente horneada al momento"),
-    ("Pastel de chocolate 1 kg", 1, Decimal("380.00"), "PAS-001", "Pastel húmedo de chocolate con ganache"),
-    ("Pastel de vainilla 1 kg", 1, Decimal("350.00"), "PAS-002", "Pastel esponjoso de vainilla con betún"),
-    ("Galleta de avena con pasas", 2, Decimal("18.00"), "GAL-001", "Galleta grande con avena y pasas"),
+    ("Baguette artesanal", 0, Decimal("42.00"), "PAN-002", "Baguette crujiente horneada"),
+    ("Pastel de chocolate 1 kg", 1, Decimal("380.00"), "PAS-001", "Pastel húmedo con ganache"),
+    ("Pastel de vainilla 1 kg", 1, Decimal("350.00"), "PAS-002", "Pastel esponjoso con betún"),
+    ("Galleta de avena con pasas", 2, Decimal("18.00"), "GAL-001", "Galleta grande con avena"),
     ("Galleta decorada", 2, Decimal("25.00"), "GAL-002", "Galleta de mantequilla con decorado artesanal"),
     ("Café americano", 3, Decimal("35.00"), "BEB-001", "Café de grano tostado artesanalmente"),
     ("Atole de guayaba", 3, Decimal("28.00"), "BEB-002", "Atole tradicional 355 ml"),
@@ -136,7 +136,7 @@ def main() -> None:
     print(f"  Tenant:  Panadería Demo  (slug: {TENANT_SLUG})")
     print(f"  Login:   {DEMO_EMAIL}")
     print(f"  Password:{DEMO_PASSWORD}")
-    print(f"  Role:    owner")
+    print("  Role:    owner")
     print(f"  Categories: {len(CATEGORIES)}")
     print(f"  Products:   {len(PRODUCTS)}")
 

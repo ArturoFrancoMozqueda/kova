@@ -60,8 +60,17 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function mockInitialLoad(currentReceipt: unknown = receipt) {
+function meResponse(role: string) {
+  return {
+    user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
+    tenant_id: "tenant-1",
+    tenant_name: "Bakery",
+  };
+}
+
+function mockInitialLoad(currentReceipt: unknown = receipt, role = "cashier") {
   vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(jsonResponse(meResponse(role)))
     .mockResolvedValueOnce(jsonResponse(order))
     .mockResolvedValueOnce(jsonResponse(currentReceipt));
 }
@@ -106,6 +115,7 @@ describe("OrderDetail", () => {
   it("submits a refund and reloads the receipt", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(meResponse("owner")))
       .mockResolvedValueOnce(jsonResponse(order))
       .mockResolvedValueOnce(jsonResponse(receipt))
       .mockResolvedValueOnce(
@@ -133,7 +143,7 @@ describe("OrderDetail", () => {
           ],
         }),
       );
-    window.history.pushState(null, "", "/orders/order-1?permissions=orders.refund");
+    window.history.pushState(null, "", "/orders/order-1");
 
     render(<App />);
 
@@ -151,6 +161,7 @@ describe("OrderDetail", () => {
   it("submits a void after confirmation", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse(meResponse("owner")))
       .mockResolvedValueOnce(jsonResponse(order))
       .mockResolvedValueOnce(jsonResponse(receipt))
       .mockResolvedValueOnce(
@@ -173,7 +184,7 @@ describe("OrderDetail", () => {
           },
         }),
       );
-    window.history.pushState(null, "", "/orders/order-1?permissions=orders.void");
+    window.history.pushState(null, "", "/orders/order-1");
 
     render(<App />);
 
