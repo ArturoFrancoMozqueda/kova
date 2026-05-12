@@ -110,6 +110,86 @@ label {
   gap: 12px;
 }
 
+.register-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+  gap: 24px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.sellable-product {
+  align-content: space-between;
+  min-height: 168px;
+}
+
+.cart-list {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cart-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) 110px auto auto;
+  align-items: end;
+  gap: 12px;
+  border-bottom: 1px solid #e8e1d6;
+  padding-bottom: 12px;
+}
+
+.cart-line label {
+  margin: 0;
+}
+
+.cart-footer,
+.payment-summary,
+.sale-result {
+  display: grid;
+  gap: 8px;
+}
+
+.cart-footer {
+  align-items: center;
+  grid-template-columns: 1fr auto;
+  margin-top: 18px;
+}
+
+.cart-footer p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.cart-footer strong,
+.payment-summary strong {
+  font-size: 1.35rem;
+}
+
+.checkout-panel,
+.payment-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.payment-grid {
+  margin-top: 12px;
+}
+
+.payment-summary,
+.sale-result {
+  border: 1px solid #d8d0c2;
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 14px;
+}
+
 .data-card {
   display: grid;
   gap: 10px;
@@ -258,5 +338,11 @@ table tbody tr:hover {
 
   .page-header {
     flex-direction: column;
+  }
+
+  .register-shell,
+  .cart-line,
+  .cart-footer {
+    grid-template-columns: 1fr;
   }
 }
