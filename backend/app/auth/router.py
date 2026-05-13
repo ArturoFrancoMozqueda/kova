@@ -15,6 +15,7 @@ from app.auth.schemas import (
 )
 from app.config import settings
 from app.db import get_db
+from app.middleware.rate_limit import rate_limit
 from app.shared.dependencies import get_current_session
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -39,7 +40,10 @@ def _clear_auth_cookies(response: Response) -> None:
     response.delete_cookie("refresh_token", path="/api/v1/auth")
 
 
-@router.post("/signup", status_code=201, response_model=SignupResponse)
+@router.post(
+    "/signup", status_code=201, response_model=SignupResponse,
+    dependencies=[Depends(rate_limit(10))],
+)
 def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db)):
     user, tenant_id, token = service.signup(
         db,
@@ -63,7 +67,7 @@ def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)):
     return MessageResponse(message="Email verified.")
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit(20))])
 def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     access_token, refresh_token, _ = service.login(
         db,
@@ -117,7 +121,10 @@ def logout_all(
     _clear_auth_cookies(response)
 
 
-@router.post("/password-reset/request", response_model=MessageResponse)
+@router.post(
+    "/password-reset/request", response_model=MessageResponse,
+    dependencies=[Depends(rate_limit(5))],
+)
 def password_reset_request(body: PasswordResetRequestBody, db: Session = Depends(get_db)):
     plain = service.request_password_reset(db, email=body.email)
     dev_token = plain if settings.app_env == "local" else None
