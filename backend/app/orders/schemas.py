@@ -67,6 +67,7 @@ class ReceiptItemLine(BaseModel):
     quantity: int
     unit_price_amount: Decimal
     line_total_amount: Decimal
+    modifiers: list[OrderItemModifierResponse] = Field(default_factory=list)
 
 
 class ReceiptPaymentLine(BaseModel):

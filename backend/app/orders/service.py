@@ -288,6 +288,11 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
                 "quantity": item.quantity,
                 "unit_price_amount": str(item.unit_price_amount),
                 "line_total_amount": str(item.line_total_amount),
+                "modifiers": _item_modifiers(
+                    db,
+                    tenant_id=tenant_id,
+                    order_item_id=item.id,
+                ),
             }
             for item in items
         ],
