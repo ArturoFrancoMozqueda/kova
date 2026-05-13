@@ -239,3 +239,4 @@ Thumbs.db
 # Playwright test artifacts
 frontend/test-results/
 frontend/playwright-report/
+.vercel
