@@ -19,23 +19,32 @@ Add modifier groups to products so restaurants and bakeries can configure option
 
 ## Sprint 15 Checklist
 
-- [ ] Feature spec: `specs/catalog/modifiers.md`
-- [ ] BDD scenarios: `specs/catalog/modifiers.feature`
-- [ ] `modifier_groups` table (name, required, min_selections, max_selections)
-- [ ] `modifier_options` table (name, price_delta)
-- [ ] `product_modifier_groups` join table
-- [ ] `order_item_modifiers` table (records selected options per order item)
-- [ ] Alembic migration
-- [ ] RLS policies for modifier tables
-- [ ] CRUD endpoints for modifier groups + options
-- [ ] Product create/edit UI: assign modifier groups
-- [ ] Register cart: show modifier selection modal on add-to-cart
-- [ ] Pricing calculator: sum option price_deltas onto base price
-- [ ] Order creation: persist selected modifiers
-- [ ] Receipt: render selected modifiers per line item
-- [ ] Backend BDD scenarios pass
-- [ ] Frontend E2E scenarios pass
-- [ ] Production deployment validation
+- [x] Feature spec: `specs/catalog/modifiers.md`
+- [x] BDD scenarios: `specs/catalog/modifiers.feature`
+- [x] `modifier_groups` table (name, required, min_selections, max_selections)
+- [x] `modifier_options` table (name, price_delta)
+- [x] `product_modifier_groups` join table
+- [x] `order_item_modifiers` table (records selected options per order item)
+- [x] Alembic migration
+- [x] RLS policies for modifier tables
+- [x] CRUD endpoints for modifier groups + options
+- [x] Product create/edit UI: assign modifier groups
+- [x] Register cart: show modifier selection modal on add-to-cart
+- [x] Pricing calculator: sum option price_deltas onto base price
+- [x] Order creation: persist selected modifiers
+- [x] Receipt: render selected modifiers per line item
+- [x] Backend BDD scenarios pass
+- [x] Frontend E2E scenarios pass
+- [x] Production deployment validation
+
+## Sprint 15 Validation Notes
+
+- Production repair completed on 2026-05-13 after the deployed frontend reached modifier endpoints before the production database had the Sprint 15 modifier tables.
+- Supabase production was brought forward to `0015_modifier_price_precision`, including the missing modifier tables, tenant-scoped RLS policies, and aligned decimal precision.
+- Production frontend validation completed on `https://point-of-sale-ochre.vercel.app/` for authenticated `/register`, `/catalog`, and `/orders`.
+- Latest validated Vercel production deployment: `dpl_CF1MMnu8UbdjfNgJTNWAvGQVJmgK`.
+- Deployment housekeeping note: an extra temporary Vercel project named `frontend` was created during an initial CLI deploy attempt before the repo was relinked to the real `point-of-sale` project. Review and delete that stray project from Vercel admin when convenient.
+- Test hygiene note: the `modifiers` pytest marker was registered on 2026-05-13, and the backend modifier BDD suite now passes without that warning.
 
 ---
 
@@ -47,9 +56,9 @@ These tasks require production/external tool access. Complete them before onboar
 - [ ] **Backups drill:** Confirm Supabase daily backups active. Restore to temp project, run migrations, smoke test. Document result. Guide: `specs/ops/backups.md`
 - [ ] **Uptime monitor:** Add UptimeRobot free monitor on `https://pos-project-backend.fly.dev/health`. Set email alert. 10 min.
 - [ ] **Support channel:** Create `beta@yourdomain.com` (or WhatsApp group). Test that messages reach you. Guide: `specs/support/beta_support.md`
-- [ ] **Beta agreement template:** Create `docs/beta-agreement-template.md`. Guide: `specs/support/beta_support.md`
-- [ ] **Production deployment Sprint 14:** Deploy backend + frontend, verify security headers with `curl -I`.
-- [ ] **Verify secure cookies in production:** Confirm `Secure; HttpOnly; SameSite=Lax` on auth cookies after deploy.
+- [x] **Beta agreement template:** Create `docs/beta-agreement-template.md`. Guide: `specs/support/beta_support.md`
+- [x] **Production deployment Sprint 14:** Deploy backend + frontend, verify security headers in live production response headers.
+- [x] **Verify secure cookies in production:** Confirm `Secure; HttpOnly; SameSite=Lax` on auth cookies after deploy.
 
 ---
 

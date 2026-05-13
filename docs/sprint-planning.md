@@ -2,7 +2,7 @@
 
 ## Status
 
-Active execution - Sprint 15 in progress. Sprint 14 code complete; ops checklist pending before first beta tenant.
+Active execution - Sprint 15 complete. Sprint 14 code complete; pre-beta ops checklist remains before first beta tenant.
 
 This document defines the roadmap and task structure.
 
@@ -50,10 +50,10 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Foundation | 0A–0C | ✅ Done | Repo, app skeleton, auth, tenant isolation, BDD harness |
 | Operations | 5–8 | ✅ Done | Refunds, voids, receipts, shifts, inventory, reporting |
 | Billing + App Shell | 9–10 | ✅ Done | $199 MXN plan, Stripe Billing, auth-protected routing, register shell |
-| Core POS | 11–13 | 🔄 Active | Catalog, register, cash/manual sale, order creation, offline sync |
+| Core POS | 11–13 | ✅ Done | Catalog, register, cash/manual sale, order creation, offline sync |
 | Beta Hardening | 14 | ✅ Code done — ops pending | Security, monitoring, backup drill, beta support |
 | Closed Beta | — | — | 3 friendly tenants |
-| Post-Beta / GA Prep | 15+ | — | Modifiers, taxes, discounts, retail/restaurant presets, legal, marketing |
+| Post-Beta / GA Prep | 15+ | 🔄 Active | Sprint 15 modifiers complete; taxes, discounts, presets, legal, and marketing remain later work |
 
 ### Core POS Sprint Breakdown
 
@@ -62,6 +62,12 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | 11 | Catalog Management — categories + products CRUD, BDD, RLS | ✅ Done |
 | 12 | Register Core — product grid, cart, cash/manual/split payment, order creation | ✅ Done |
 | 13 | Offline Sync + Dead Letter | ✅ Done |
+
+### Sprint 15 Update
+
+- Modifiers are implemented, tested, production-deployed, and documented as of 2026-05-13.
+- Production mismatch found during validation was repaired in Supabase and redeployed through Vercel.
+- The immediate remaining execution path is the pre-beta ops checklist in `docs/current-sprint.md`, not more modifier feature work.
 
 ## BDD Coverage Matrix
 
