@@ -52,6 +52,7 @@ def create_order_item(
     product: Product,
     quantity: int,
     line_total_amount: Decimal,
+    unit_price_amount: Decimal | None = None,
 ) -> OrderItem:
     item = OrderItem(
         tenant_id=tenant_id,
@@ -59,7 +60,9 @@ def create_order_item(
         product_id=product.id,
         product_name=product.name,
         quantity=quantity,
-        unit_price_amount=product.price_amount,
+        unit_price_amount=(
+            unit_price_amount if unit_price_amount is not None else product.price_amount
+        ),
         line_total_amount=line_total_amount,
     )
     db.add(item)

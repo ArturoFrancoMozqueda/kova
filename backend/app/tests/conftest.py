@@ -17,6 +17,7 @@ import app.billing.models  # noqa: F401
 import app.catalog.models  # noqa: F401
 import app.idempotency.models  # noqa: F401
 import app.inventory  # noqa: F401
+import app.modifiers.models  # noqa: F401
 import app.orders.models  # noqa: F401
 import app.rbac.models  # noqa: F401
 import app.reports  # noqa: F401

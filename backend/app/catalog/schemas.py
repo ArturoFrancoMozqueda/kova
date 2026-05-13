@@ -1,7 +1,11 @@
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    pass
 
 
 class CategoryCreate(BaseModel):
@@ -62,3 +66,4 @@ class ProductResponse(BaseModel):
     track_inventory: bool
     low_stock_threshold: int | None
     is_active: bool
+    modifier_groups: list = Field(default_factory=list)

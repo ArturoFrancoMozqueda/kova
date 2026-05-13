@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class OrderItemCreate(BaseModel):
     product_id: UUID
     quantity: int = Field(gt=0)
+    modifier_option_ids: list[UUID] = Field(default_factory=list)
 
 
 class PaymentCreate(BaseModel):
@@ -22,6 +23,12 @@ class OrderCreate(BaseModel):
     payments: list[PaymentCreate] = Field(min_length=1)
 
 
+class OrderItemModifierResponse(BaseModel):
+    modifier_group_name: str
+    modifier_option_name: str
+    price_delta_amount: Decimal
+
+
 class OrderItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -31,6 +38,7 @@ class OrderItemResponse(BaseModel):
     quantity: int
     unit_price_amount: Decimal
     line_total_amount: Decimal
+    modifiers: list[OrderItemModifierResponse] = Field(default_factory=list)
 
 
 class PaymentResponse(BaseModel):

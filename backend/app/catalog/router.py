@@ -14,6 +14,7 @@ from app.catalog.schemas import (
     ProductUpdate,
 )
 from app.db import get_db
+from app.modifiers import service as modifier_service
 from app.rbac.permissions import Permission
 from app.shared.dependencies import get_current_session, require_permission
 from app.shared.exceptions import bad_request
@@ -108,9 +109,17 @@ def deactivate_category(
 def list_products(
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
-):
+) -> list[ProductResponse]:
     _, membership, _ = ctx
-    return service.list_products(db, tenant_id=membership.tenant_id)
+    products = service.list_products(db, tenant_id=membership.tenant_id)
+    result = []
+    for product in products:
+        p = ProductResponse.model_validate(product)
+        p.modifier_groups = modifier_service.get_product_modifier_groups(
+            db, tenant_id=membership.tenant_id, product_id=product.id
+        )
+        result.append(p)
+    return result
 
 
 @router.post("/products", response_model=ProductResponse, status_code=201)

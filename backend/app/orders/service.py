@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.idempotency import service as idempotency_service
+from app.modifiers import service as modifier_service
+from app.modifiers.models import OrderItemModifier
 from app.orders import repository as repo
 from app.orders.models import Order, Payment
 from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
@@ -66,6 +68,26 @@ def _payment_body(payment: Payment) -> dict[str, Any]:
     }
 
 
+def _item_modifiers(db: Session, *, tenant_id: UUID, order_item_id: UUID) -> list[dict]:
+    from app.modifiers.models import OrderItemModifier
+    mods = (
+        db.query(OrderItemModifier)
+        .filter(
+            OrderItemModifier.tenant_id == tenant_id,
+            OrderItemModifier.order_item_id == order_item_id,
+        )
+        .all()
+    )
+    return [
+        {
+            "modifier_group_name": m.modifier_group_name,
+            "modifier_option_name": m.modifier_option_name,
+            "price_delta_amount": str(m.price_delta_amount),
+        }
+        for m in mods
+    ]
+
+
 def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]:
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order.id)
     payments = repo.list_payments(db, tenant_id=tenant_id, order_id=order.id)
@@ -83,6 +105,7 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
                 "quantity": item.quantity,
                 "unit_price_amount": str(item.unit_price_amount),
                 "line_total_amount": str(item.line_total_amount),
+                "modifiers": _item_modifiers(db, tenant_id=tenant_id, order_item_id=item.id),
             }
             for item in items
         ],
@@ -143,10 +166,17 @@ def create_order(
         )
         if not product:
             raise not_found("Product not found")
-        line_total = calculator.line_total(product.price_amount, item.quantity)
-        priced_items.append((product, item.quantity, line_total))
+        price_delta, modifier_snapshots = modifier_service.validate_and_price_modifiers(
+            db, tenant_id=tenant_id, product_id=product.id,
+            modifier_option_ids=item.modifier_option_ids,
+        )
+        effective_price = calculator.money(product.price_amount + price_delta)
+        line_total = calculator.line_total(effective_price, item.quantity)
+        priced_items.append(
+            (product, item.quantity, effective_price, line_total, modifier_snapshots)
+        )
 
-    subtotal = calculator.order_total([lt for _, _, lt in priced_items])
+    subtotal = calculator.order_total([lt for _, _, _, lt, _ in priced_items])
     total = subtotal
     validated_payments = _validate_payments(body.payments, total)
 
@@ -158,15 +188,22 @@ def create_order(
         total_amount=total,
         client_uuid=client_uuid,
     )
-    for product, quantity, line_total in priced_items:
-        repo.create_order_item(
+    for product, quantity, effective_price, line_total, modifier_snapshots in priced_items:
+        order_item = repo.create_order_item(
             db,
             tenant_id=tenant_id,
             order_id=order.id,
             product=product,
             quantity=quantity,
+            unit_price_amount=effective_price,
             line_total_amount=line_total,
         )
+        for snap in modifier_snapshots:
+            db.add(OrderItemModifier(
+                tenant_id=tenant_id,
+                order_item_id=order_item.id,
+                **snap,
+            ))
         if product.track_inventory:
             repo.create_inventory_movement(
                 db,
