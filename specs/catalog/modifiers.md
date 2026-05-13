@@ -30,7 +30,7 @@ Enables bakeries (pan de tamaño chico/grande) and cafés (type of milk, syrup a
 
 - All modifier tables are tenant-scoped (`tenant_id` on modifier groups and options).
 - RLS applied to modifier tables.
-- Modifier option price_delta uses `Decimal(12, 4)` to allow fractional pricing.
+- Modifier option price_delta uses `Decimal(12, 2)` to match the current POS sale-money precision.
 - No floats in pricing path.
 - Selected modifier snapshots are immutable after order creation (order_item_modifiers stores name + price_delta at time of order).
 
@@ -108,7 +108,7 @@ order_item_modifiers
 
 ## Money / Rounding
 
-- `price_delta` stored as `Decimal(12, 4)`.
+- `price_delta` stored as `Decimal(12, 2)`.
 - Effective unit price = `money(product.price_amount + sum(price_delta))` — rounded to 2dp using `ROUND_HALF_UP`.
 - Line total = `money(effective_unit_price * quantity)`.
 
