@@ -58,4 +58,5 @@ markers = [
     "inventory: inventory movement scenario",
     "offline: offline sync scenario",
     "dead-letter: dead-letter recovery scenario",
+    "modifiers: product modifier scenario",
 ]
