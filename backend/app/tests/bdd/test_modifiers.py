@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -98,13 +99,13 @@ def _assign_groups(client: TestClient, product_id: str, *group_ids: str) -> None
     assert r.status_code == 200, r.text
 
 
-def _create_order(client: TestClient, product_id: str, option_ids: list[str]) -> dict:
+def _create_order(client: TestClient, product_id: str, option_ids: list[str], total: str) -> dict:
     r = client.post(
         "/api/v1/orders",
-        headers={"Idempotency-Key": f"mod-order-{product_id}"},
+        headers={"Idempotency-Key": str(uuid4())},
         json={
             "items": [{"product_id": product_id, "quantity": 1, "modifier_option_ids": option_ids}],
-            "payments": [{"method": "cash", "amount": "999.00", "amount_tendered": "999.00"}],
+            "payments": [{"method": "cash", "amount": total, "amount_tendered": total}],
         },
     )
     return r
@@ -139,14 +140,19 @@ def owner_creates_group_with_options(mod_context, group_name, opt1, opt2):
 
 @given(parsers.parse('the owner assigns "{group_name}" to "{product_name}"'))
 def owner_assigns_group_to_product(mod_context, group_name, product_name):
+    # Accumulate so that multiple sequential calls build up the full assignment list
     group = mod_context["groups"][group_name]
-    _assign_groups(mod_context["client"], mod_context["product"]["id"], group["id"])
+    assigned = mod_context.setdefault("assigned_group_ids", [])
+    if group["id"] not in assigned:
+        assigned.append(group["id"])
+    _assign_groups(mod_context["client"], mod_context["product"]["id"], *assigned)
 
 
 @when(parsers.parse('the cashier creates an order with "{product_name}" selecting modifier "{option_name}"'))
 def cashier_orders_with_modifier(mod_context, product_name, option_name):
     option = mod_context["options"][option_name]
-    r = _create_order(mod_context["client"], mod_context["product"]["id"], [option["id"]])
+    total = str(Decimal(mod_context["product"]["price_amount"]) + Decimal(option["price_delta"]))
+    r = _create_order(mod_context["client"], mod_context["product"]["id"], [option["id"]], total)
     assert r.status_code == 201, r.text
     mod_context["order"] = r.json()
 
@@ -182,9 +188,15 @@ def owner_creates_second_group(mod_context, g2, g2_opt1, g2_opt2):
 def cashier_orders_with_two_modifiers(mod_context, product_name, opt1, opt2):
     option1 = mod_context["options"][opt1]
     option2 = mod_context["options"][opt2]
+    total = str(
+        Decimal(mod_context["product"]["price_amount"])
+        + Decimal(option1["price_delta"])
+        + Decimal(option2["price_delta"])
+    )
     r = _create_order(
         mod_context["client"], mod_context["product"]["id"],
         [option1["id"], option2["id"]],
+        total,
     )
     assert r.status_code == 201, r.text
     mod_context["order"] = r.json()
@@ -207,7 +219,9 @@ def owner_creates_required_group(mod_context, group_name, opt1, opt2):
 
 @when(parsers.parse('the cashier creates an order with "{product_name}" without selecting any modifiers'))
 def cashier_orders_without_modifiers(mod_context, product_name):
-    r = _create_order(mod_context["client"], mod_context["product"]["id"], [])
+    # Total doesn't matter — validation fails before payment check
+    total = mod_context["product"]["price_amount"]
+    r = _create_order(mod_context["client"], mod_context["product"]["id"], [], total)
     mod_context["error_response"] = r
 
 
