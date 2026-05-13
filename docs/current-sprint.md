@@ -2,53 +2,76 @@
 
 ## Active Sprint
 
-Sprint: 14 - Beta Hardening
+Sprint: 15 - Modifiers
 
 ## Sprint Goal
 
-Harden the product for 3 friendly beta tenants: rate limit sensitive endpoints, add security headers across all surfaces, audit dependencies, document ops processes, and confirm the beta-ready checklist.
+Add modifier groups to products so restaurants and bakeries can configure options (size, extras, toppings). Extend the pricing calculator, register UI, and receipts to support required/optional modifiers with min/max selection.
 
 ## Immediate Focus
 
-- Rate limiting on auth endpoints (login, signup, password reset)
-- Security headers middleware (backend API + frontend via vercel.json)
-- HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Permissions-Policy
-- Dependency audit (npm audit + pip audit)
-- Ops documentation (backups, monitoring, support process)
-- Beta-ready checklist review
+- `modifier_groups` and `modifier_options` tables with RLS and tenant scoping
+- Product ↔ modifier group association
+- Modifier selection in the register cart
+- Pricing calculator extended for modifier pricing
+- Order items store selected modifiers
+- Receipt shows selected modifiers per line
 
-## Sprint 14 Checklist
+## Sprint 15 Checklist
 
-- [x] Rate limiting on auth endpoints (login 20/min, signup 10/min, password-reset 5/min)
-- [x] Security headers middleware for backend API
-- [x] `vercel.json` security headers for frontend (CSP, HSTS, X-Frame-Options, Permissions-Policy)
-- [ ] Verify secure cookies in production (already confirmed Sprint 9 — re-validate)
-- [x] CORS already locked to `settings.frontend_url` (verified)
-- [x] `npm audit` — 5 moderate in vite/vitest devDependencies only (not production); no critical/high
-- [x] Backend dependency audit — no known vulnerabilities in production deps
-- [ ] Configure Sentry alerts (error rate spike, new issues)
-- [ ] Backups drill — verify Supabase daily backups + test restore path
-- [ ] Status page / uptime monitor configured
-- [ ] Support email/channel ready for beta tenants
-- [ ] Feedback process documented
-- [ ] Beta agreement template ready
-- [ ] Complete beta-ready checklist in sprint-planning.md
-- [ ] Production deployment validation for Sprint 14
+- [ ] Feature spec: `specs/catalog/modifiers.md`
+- [ ] BDD scenarios: `specs/catalog/modifiers.feature`
+- [ ] `modifier_groups` table (name, required, min_selections, max_selections)
+- [ ] `modifier_options` table (name, price_delta)
+- [ ] `product_modifier_groups` join table
+- [ ] `order_item_modifiers` table (records selected options per order item)
+- [ ] Alembic migration
+- [ ] RLS policies for modifier tables
+- [ ] CRUD endpoints for modifier groups + options
+- [ ] Product create/edit UI: assign modifier groups
+- [ ] Register cart: show modifier selection modal on add-to-cart
+- [ ] Pricing calculator: sum option price_deltas onto base price
+- [ ] Order creation: persist selected modifiers
+- [ ] Receipt: render selected modifiers per line item
+- [ ] Backend BDD scenarios pass
+- [ ] Frontend E2E scenarios pass
+- [ ] Production deployment validation
 
-**Validation evidence (2026-05-13):**
-- `ruff check .` — clean
-- `npm run lint` — clean
-- `npm test -- --run` — 10/10 frontend unit tests
-- Backend security tests (`test_security.py`): 6 tests written; require PostgreSQL — validated logic, will confirm in CI
-- `npm audit`: 5 moderate in devDependencies only (vite/vitest), no prod vulnerabilities
+---
 
-## Required Specs
+## Pre-Beta Ops Checklist (required before first beta tenant — not blocking Sprint 15)
 
-- `specs/security/rate_limit.md`
-- `specs/security/headers.md`
-- `specs/ops/backups.md`
-- `specs/ops/monitoring.md`
-- `specs/support/beta_support.md`
+These tasks require production/external tool access. Complete them before onboarding Tenant 1.
+
+- [ ] **Sentry:** Set `SENTRY_DSN` in Fly.io secrets + `VITE_SENTRY_DSN` in Vercel. Create alert rules (new issue → email, error spike > 10/5min → email). Guide: `specs/ops/monitoring.md`
+- [ ] **Backups drill:** Confirm Supabase daily backups active. Restore to temp project, run migrations, smoke test. Document result. Guide: `specs/ops/backups.md`
+- [ ] **Uptime monitor:** Add UptimeRobot free monitor on `https://pos-project-backend.fly.dev/health`. Set email alert. 10 min.
+- [ ] **Support channel:** Create `beta@yourdomain.com` (or WhatsApp group). Test that messages reach you. Guide: `specs/support/beta_support.md`
+- [ ] **Beta agreement template:** Create `docs/beta-agreement-template.md`. Guide: `specs/support/beta_support.md`
+- [ ] **Production deployment Sprint 14:** Deploy backend + frontend, verify security headers with `curl -I`.
+- [ ] **Verify secure cookies in production:** Confirm `Secure; HttpOnly; SameSite=Lax` on auth cookies after deploy.
+
+---
+
+## Completed: Sprint 14 - Beta Hardening (code)
+
+**Completed:** 2026-05-13 (code); ops checklist above pending manual steps
+
+**What shipped:**
+- `app/middleware/security_headers.py` — `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `HSTS` (production only)
+- `app/middleware/rate_limit.py` — `_FixedWindowLimiter` thread-safe, `rate_limit(n)` dependency factory
+- Auth router: login 20/min, signup 10/min, password-reset 5/min (per IP via `X-Forwarded-For`)
+- `vercel.json` — full CSP, HSTS, X-Frame-Options, Permissions-Policy for frontend
+- `app/tests/test_security.py` — 6 tests: headers, HSTS absent in local, 429 per endpoint, rate limit per IP
+- 5 spec files: `specs/security/rate_limit.md`, `specs/security/headers.md`, `specs/ops/backups.md`, `specs/ops/monitoring.md`, `specs/support/beta_support.md`
+- `npm audit`: 5 moderate in devDependencies only, no production vulnerabilities
+
+**Required Specs:**
+- `specs/security/rate_limit.md` ✅
+- `specs/security/headers.md` ✅
+- `specs/ops/backups.md` ✅
+- `specs/ops/monitoring.md` ✅
+- `specs/support/beta_support.md` ✅
 
 ---
 
