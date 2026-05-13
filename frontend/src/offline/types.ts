@@ -18,6 +18,7 @@ export type OfflineSaleQueueItem = {
   sale: OfflineSaleDraft;
   attempt_count: number;
   last_error?: string;
+  synced_order_id?: string;
   created_at: string;
   updated_at: string;
 };

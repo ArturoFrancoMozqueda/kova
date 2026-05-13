@@ -37,16 +37,22 @@ export async function markOfflineSaleStatus(
     ...existing,
     status,
     last_error: lastError,
-    attempt_count:
-      status === "syncing" || status === "failed"
-        ? existing.attempt_count + 1
-        : existing.attempt_count,
+    // Count each sync attempt (syncing transition), not failure transitions
+    attempt_count: status === "syncing" ? existing.attempt_count + 1 : existing.attempt_count,
     updated_at: nowIso(),
   });
 }
 
-export async function markOfflineSaleSynced(clientUuid: string) {
-  await markOfflineSaleStatus(clientUuid, "synced");
+export async function markOfflineSaleSynced(clientUuid: string, orderId?: string) {
+  const existing = await offlineDb.offline_sales.get(clientUuid);
+  if (!existing) return;
+  await offlineDb.offline_sales.put({
+    ...existing,
+    status: "synced",
+    last_error: undefined,
+    synced_order_id: orderId,
+    updated_at: nowIso(),
+  });
 }
 
 export async function markOfflineSaleFailed(clientUuid: string, error: string) {

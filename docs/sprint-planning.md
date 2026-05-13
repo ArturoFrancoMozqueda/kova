@@ -2,7 +2,7 @@
 
 ## Status
 
-Active execution - Sprint 12 in progress.
+Active execution - Sprint 13 in progress.
 
 This document defines the roadmap and task structure.
 
@@ -60,8 +60,8 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Sprint | Focus | Status |
 |---|---|---|
 | 11 | Catalog Management — categories + products CRUD, BDD, RLS | ✅ Done |
-| 12 | Register Core — product grid, cart, cash/manual/split payment, order creation | 🔄 Active - first sale and split payment flows implemented and locally validated |
-| 13 | Offline Sync + Dead Letter | — |
+| 12 | Register Core — product grid, cart, cash/manual/split payment, order creation | ✅ Done |
+| 13 | Offline Sync + Dead Letter | 🔄 Active |
 
 ## BDD Coverage Matrix
 

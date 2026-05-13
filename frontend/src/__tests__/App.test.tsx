@@ -2,14 +2,46 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 
+// ─── Offline module mocks (no IndexedDB in jsdom) ────────────────────────────
+
+vi.mock("../offline/queue", () => ({
+  queueOfflineSale: vi.fn(async (sale: unknown) => ({
+    client_uuid: "00000000-0000-4000-8000-000000000001",
+    status: "pending",
+    sale,
+    attempt_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  })),
+  retryDeadLetter: vi.fn(),
+}));
+
+vi.mock("../offline/sync", () => ({
+  syncOfflineSales: vi.fn(async (items: Array<{ client_uuid: string; sale: unknown }>) => {
+    const response = await fetch("/api/v1/sync/offline-sales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sales: items.map((item) => ({ client_uuid: item.client_uuid, order: item.sale })),
+      }),
+    });
+    const body = (await response.json()) as { results: unknown[] };
+    return body.results;
+  }),
+}));
+
+vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn() }));
+
+vi.mock("../offline/useSyncQueue", () => ({
+  useSyncQueue: () => ({ pendingCount: 0, failedEntries: [], syncNow: vi.fn(), retryDeadLetter: vi.fn() }),
+  useIsOnline: () => true,
+}));
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 const authenticatedCashier = {
   authenticated: true,
-  user: {
-    id: "user-1",
-    email: "cashier@example.com",
-    tenant_id: "tenant-1",
-    role: "cashier",
-  },
+  user: { id: "user-1", email: "cashier@example.com", tenant_id: "tenant-1", role: "cashier" },
   tenant_id: "tenant-1",
   tenant_name: "Testing",
 };
@@ -41,10 +73,26 @@ function completedOrder(id: string) {
   };
 }
 
+function syncResponse(orderId: string) {
+  return {
+    results: [
+      {
+        client_uuid: "00000000-0000-4000-8000-000000000001",
+        status: "synced",
+        order_id: orderId,
+        order: completedOrder(orderId),
+        error: null,
+      },
+    ],
+  };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   window.history.pushState(null, "", "/");
 });
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("App shell", () => {
   it("redirects unauthenticated users to login", async () => {
@@ -60,20 +108,7 @@ describe("App shell", () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ message: "Logged in." }), { status: 200 }))
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            authenticated: true,
-            user: {
-              id: "user-1",
-              email: "owner@example.com",
-              tenant_id: "tenant-1",
-              role: "owner",
-            },
-            tenant_id: "tenant-1",
-            tenant_name: "Testing",
-          }),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify([]), { status: 200 }),
@@ -101,7 +136,7 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(completedOrder("order-1")), { status: 201 }),
+        new Response(JSON.stringify(syncResponse("order-1")), { status: 200 }),
       );
 
     render(<App />);
@@ -122,7 +157,8 @@ describe("App shell", () => {
 
   it("creates a bank transfer sale with a reference", async () => {
     window.history.pushState(null, "", "/register");
-    const fetchMock = vi.spyOn(globalThis, "fetch")
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
       )
@@ -130,7 +166,7 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(completedOrder("order-transfer")), { status: 201 }),
+        new Response(JSON.stringify(syncResponse("order-transfer")), { status: 200 }),
       );
 
     render(<App />);
@@ -147,17 +183,17 @@ describe("App shell", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
     expect(fetchMock).toHaveBeenLastCalledWith(
-      expect.stringContaining("/api/v1/orders"),
+      expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          items: [{ product_id: "product-1", quantity: 1 }],
-          payments: [
+          sales: [
             {
-              method: "bank_transfer",
-              amount: "18.50",
-              amount_tendered: null,
-              reference: "TRANSFER-001",
+              client_uuid: "00000000-0000-4000-8000-000000000001",
+              order: {
+                items: [{ product_id: "product-1", quantity: 1 }],
+                payments: [{ method: "bank_transfer", amount: "18.50", reference: "TRANSFER-001" }],
+              },
             },
           ],
         }),
@@ -167,7 +203,8 @@ describe("App shell", () => {
 
   it("creates a manual card sale with an optional reference", async () => {
     window.history.pushState(null, "", "/register");
-    const fetchMock = vi.spyOn(globalThis, "fetch")
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
       )
@@ -175,7 +212,7 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(completedOrder("order-card")), { status: 201 }),
+        new Response(JSON.stringify(syncResponse("order-card")), { status: 200 }),
       );
 
     render(<App />);
@@ -189,17 +226,17 @@ describe("App shell", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
     expect(fetchMock).toHaveBeenLastCalledWith(
-      expect.stringContaining("/api/v1/orders"),
+      expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          items: [{ product_id: "product-1", quantity: 1 }],
-          payments: [
+          sales: [
             {
-              method: "manual_card",
-              amount: "18.50",
-              amount_tendered: null,
-              reference: null,
+              client_uuid: "00000000-0000-4000-8000-000000000001",
+              order: {
+                items: [{ product_id: "product-1", quantity: 1 }],
+                payments: [{ method: "manual_card", amount: "18.50" }],
+              },
             },
           ],
         }),
@@ -209,7 +246,8 @@ describe("App shell", () => {
 
   it("creates a split cash and bank transfer sale", async () => {
     window.history.pushState(null, "", "/register");
-    const fetchMock = vi.spyOn(globalThis, "fetch")
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
       )
@@ -217,7 +255,7 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(completedOrder("order-split")), { status: 201 }),
+        new Response(JSON.stringify(syncResponse("order-split")), { status: 200 }),
       );
 
     render(<App />);
@@ -239,23 +277,20 @@ describe("App shell", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
     expect(fetchMock).toHaveBeenLastCalledWith(
-      expect.stringContaining("/api/v1/orders"),
+      expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          items: [{ product_id: "product-1", quantity: 1 }],
-          payments: [
+          sales: [
             {
-              method: "cash",
-              amount: "10.00",
-              amount_tendered: "10.00",
-              reference: null,
-            },
-            {
-              method: "bank_transfer",
-              amount: "8.50",
-              amount_tendered: null,
-              reference: "SPEI-001",
+              client_uuid: "00000000-0000-4000-8000-000000000001",
+              order: {
+                items: [{ product_id: "product-1", quantity: 1 }],
+                payments: [
+                  { method: "cash", amount: "10.00", amount_tendered: "10.00" },
+                  { method: "bank_transfer", amount: "8.50", reference: "SPEI-001" },
+                ],
+              },
             },
           ],
         }),

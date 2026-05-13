@@ -9,6 +9,7 @@ import CatalogView from "./catalog/CatalogView";
 import InventoryView from "./inventory/InventoryView";
 import OrderDetail from "./orders/OrderDetail";
 import OrderListView from "./orders/OrderListView";
+import SyncQueueView from "./offline/SyncQueueView";
 import RegisterView from "./register/RegisterView";
 import ReportsView from "./reports/ReportsView";
 import ShiftView from "./shifts/ShiftView";
@@ -103,6 +104,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <BillingView />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/sync-queue"
+            element={
+              <RequireAuth>
+                <SyncQueueView />
               </RequireAuth>
             }
           />

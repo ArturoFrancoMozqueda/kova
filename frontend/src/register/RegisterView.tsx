@@ -9,9 +9,12 @@ import { useAuth } from "../auth/useAuth";
 import { listProducts } from "../catalog/api";
 import type { Product } from "../catalog/types";
 import { copy } from "../i18n/messages";
-import { createOrder } from "../orders/api";
 import { formatMoney } from "../orders/format";
 import type { Order } from "../orders/types";
+import { OfflineIndicator } from "../offline/OfflineIndicator";
+import { queueOfflineSale } from "../offline/queue";
+import { syncOfflineSales } from "../offline/sync";
+import { triggerSync } from "../offline/syncWorker";
 
 type LoadState =
   | { status: "loading" }
@@ -87,6 +90,7 @@ export default function RegisterView() {
 
   useEffect(() => {
     void load();
+    void triggerSync(); // flush any pending offline sales on mount
   }, [load]);
 
   const cartItems = useMemo(() => Object.values(cart), [cart]);
@@ -207,47 +211,59 @@ export default function RegisterView() {
 
   const submitSale = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canSubmitSale) {
-      return;
-    }
+    if (!canSubmitSale) return;
+
     setSubmitting(true);
     setNotice(null);
+
+    const sale = {
+      items: cartItems.map((item) => ({
+        product_id: item.product.id,
+        quantity: item.quantity,
+      })),
+      payments: splitPaymentsEnabled
+        ? splitPayments
+            .filter((payment) => moneyToCents(payment.amount) > 0)
+            .map((payment) => ({
+              method: payment.method,
+              amount: centsToMoney(moneyToCents(payment.amount)),
+              ...(payment.method === "cash"
+                ? { amount_tendered: centsToMoney(moneyToCents(payment.amountTendered)) }
+                : { reference: payment.reference.trim() || undefined }),
+            }))
+        : [
+            {
+              method: paymentMethod,
+              amount: totalAmount,
+              ...(paymentMethod === "cash"
+                ? { amount_tendered: centsToMoney(tenderedCents) }
+                : { reference: reference.trim() || undefined }),
+            },
+          ],
+    };
+
+    // Persist locally first — the sale is safe regardless of network
+    const queueItem = await queueOfflineSale(sale);
+
+    // Clear cart immediately
+    setCart({});
+    setCashTendered("");
+    setReference("");
+    setSplitPaymentsEnabled(false);
+    setSplitPayments([createPaymentDraft("cash")]);
+
     try {
-      const order = await createOrder({
-        items: cartItems.map((item) => ({
-          product_id: item.product.id,
-          quantity: item.quantity,
-        })),
-        payments: splitPaymentsEnabled
-          ? splitPayments
-              .filter((payment) => moneyToCents(payment.amount) > 0)
-              .map((payment) => ({
-                method: payment.method,
-                amount: centsToMoney(moneyToCents(payment.amount)),
-                amount_tendered:
-                  payment.method === "cash"
-                    ? centsToMoney(moneyToCents(payment.amountTendered))
-                    : null,
-                reference: payment.method === "cash" ? null : payment.reference.trim() || null,
-              }))
-          : [
-              {
-                method: paymentMethod,
-                amount: totalAmount,
-                amount_tendered: paymentMethod === "cash" ? centsToMoney(tenderedCents) : null,
-                reference: paymentMethod === "cash" ? null : reference.trim() || null,
-              },
-            ],
-      });
-      setCompletedOrder(order);
-      setNotice(copy.register.saleComplete);
-      setCart({});
-      setCashTendered("");
-      setReference("");
-      setSplitPaymentsEnabled(false);
-      setSplitPayments([createPaymentDraft("cash")]);
+      const results = await syncOfflineSales([queueItem]);
+      const result = results[0];
+      if (result.status === "synced" && result.order) {
+        setCompletedOrder(result.order as Order);
+        setNotice(copy.register.saleComplete);
+      } else {
+        setNotice(copy.register.saleQueued);
+      }
     } catch {
-      setNotice(copy.register.saleError);
+      // Network error — sale is safe in Dexie; sync worker retries on next mount or online event
+      setNotice(copy.register.saleQueued);
     } finally {
       setSubmitting(false);
     }
@@ -276,6 +292,7 @@ export default function RegisterView() {
           <h1>{copy.register.title}</h1>
         </div>
         <nav className="button-row" aria-label={copy.auth.accountNavigation}>
+          <OfflineIndicator />
           {canManageCatalog && (
             <Link className="text-link" to="/catalog">
               {copy.register.manageCatalog}

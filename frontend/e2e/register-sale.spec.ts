@@ -1,66 +1,68 @@
 import { expect, test } from "@playwright/test";
 
+const CASHIER_SESSION = {
+  authenticated: true,
+  user: { id: "user-1", email: "cashier@bakery.com", tenant_id: "tenant-1", role: "cashier" },
+  tenant_id: "tenant-1",
+  tenant_name: "Bakery",
+};
+
+const CATALOG = [
+  {
+    id: "product-1",
+    tenant_id: "tenant-1",
+    category_id: null,
+    name: "Concha",
+    description: null,
+    sku: "CON-001",
+    price_amount: "18.50",
+    track_inventory: false,
+    low_stock_threshold: null,
+    is_active: true,
+  },
+];
+
+function makeSyncResponse(orderId: string, total: string) {
+  return {
+    results: [
+      {
+        client_uuid: "00000000-0000-4000-8000-000000000001",
+        status: "synced",
+        order_id: orderId,
+        order: {
+          id: orderId,
+          tenant_id: "tenant-1",
+          status: "completed",
+          subtotal_amount: total,
+          total_amount: total,
+          items: [],
+          payments: [],
+        },
+        error: null,
+      },
+    ],
+  };
+}
+
 test("cashier completes a cash sale from the register", async ({ page }) => {
-  await page.route("**/api/v1/auth/session", async (route) => {
-    await route.fulfill({
-      json: {
-        authenticated: true,
-        user: {
-          id: "user-1",
-          email: "cashier@bakery.com",
-          tenant_id: "tenant-1",
-          role: "cashier",
-        },
-        tenant_id: "tenant-1",
-        tenant_name: "Bakery",
-      },
-    });
-  });
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: CASHIER_SESSION }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) =>
+    route.fulfill({ json: CATALOG }),
+  );
 
-  await page.route("**/api/v1/catalog/products", async (route) => {
-    await route.fulfill({
-      json: [
-        {
-          id: "product-1",
-          tenant_id: "tenant-1",
-          category_id: null,
-          name: "Concha",
-          description: null,
-          sku: "CON-001",
-          price_amount: "18.50",
-          track_inventory: false,
-          low_stock_threshold: null,
-          is_active: true,
-        },
-      ],
-    });
-  });
-
-  await page.route("**/api/v1/orders", async (route) => {
+  await page.route("**/api/v1/sync/offline-sales", async (route) => {
     expect(route.request().method()).toBe("POST");
-    expect(route.request().postDataJSON()).toEqual({
+    const body = route.request().postDataJSON() as {
+      sales: Array<{ client_uuid: string; order: unknown }>;
+    };
+    expect(body.sales).toHaveLength(1);
+    expect(body.sales[0].order).toMatchObject({
       items: [{ product_id: "product-1", quantity: 1 }],
-      payments: [
-        {
-          method: "cash",
-          amount: "18.50",
-          amount_tendered: "20.00",
-          reference: null,
-        },
-      ],
+      payments: [{ method: "cash", amount: "18.50", amount_tendered: "20.00" }],
     });
-    await route.fulfill({
-      status: 201,
-      json: {
-        id: "order-1",
-        tenant_id: "tenant-1",
-        status: "completed",
-        subtotal_amount: "18.50",
-        total_amount: "18.50",
-        items: [],
-        payments: [],
-      },
-    });
+    await route.fulfill({ json: makeSyncResponse("order-1", "18.50") });
   });
 
   await page.goto("/register");
@@ -81,72 +83,26 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
 });
 
 test("cashier completes a split cash and bank transfer sale", async ({ page }) => {
-  await page.route("**/api/v1/auth/session", async (route) => {
-    await route.fulfill({
-      json: {
-        authenticated: true,
-        user: {
-          id: "user-1",
-          email: "cashier@bakery.com",
-          tenant_id: "tenant-1",
-          role: "cashier",
-        },
-        tenant_id: "tenant-1",
-        tenant_name: "Bakery",
-      },
-    });
-  });
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: CASHIER_SESSION }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) =>
+    route.fulfill({ json: CATALOG }),
+  );
 
-  await page.route("**/api/v1/catalog/products", async (route) => {
-    await route.fulfill({
-      json: [
-        {
-          id: "product-1",
-          tenant_id: "tenant-1",
-          category_id: null,
-          name: "Concha",
-          description: null,
-          sku: "CON-001",
-          price_amount: "18.50",
-          track_inventory: false,
-          low_stock_threshold: null,
-          is_active: true,
-        },
-      ],
-    });
-  });
-
-  await page.route("**/api/v1/orders", async (route) => {
+  await page.route("**/api/v1/sync/offline-sales", async (route) => {
     expect(route.request().method()).toBe("POST");
-    expect(route.request().postDataJSON()).toEqual({
+    const body = route.request().postDataJSON() as {
+      sales: Array<{ client_uuid: string; order: unknown }>;
+    };
+    expect(body.sales[0].order).toMatchObject({
       items: [{ product_id: "product-1", quantity: 1 }],
       payments: [
-        {
-          method: "cash",
-          amount: "10.00",
-          amount_tendered: "10.00",
-          reference: null,
-        },
-        {
-          method: "bank_transfer",
-          amount: "8.50",
-          amount_tendered: null,
-          reference: "SPEI-001",
-        },
+        { method: "cash", amount: "10.00", amount_tendered: "10.00" },
+        { method: "bank_transfer", amount: "8.50", reference: "SPEI-001" },
       ],
     });
-    await route.fulfill({
-      status: 201,
-      json: {
-        id: "order-split",
-        tenant_id: "tenant-1",
-        status: "completed",
-        subtotal_amount: "18.50",
-        total_amount: "18.50",
-        items: [],
-        payments: [],
-      },
-    });
+    await route.fulfill({ json: makeSyncResponse("order-split", "18.50") });
   });
 
   await page.goto("/register");
@@ -166,4 +122,21 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
     "href",
     "/orders/order-split",
   );
+});
+
+test("sale is queued when sync endpoint is unavailable (offline)", async ({ page }) => {
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: CASHIER_SESSION }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) =>
+    route.fulfill({ json: CATALOG }),
+  );
+  await page.route("**/api/v1/sync/offline-sales", (route) => route.abort());
+
+  await page.goto("/register");
+  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByLabel("Cash tendered").fill("20.00");
+  await page.getByRole("button", { name: "Complete sale" }).click();
+
+  await expect(page.getByRole("status")).toContainText("queued");
 });
