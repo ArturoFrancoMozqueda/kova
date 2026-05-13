@@ -2,20 +2,80 @@
 
 ## Active Sprint
 
-Sprint: 13 - Offline Sync + Dead Letter
+Sprint: 14 - Beta Hardening
 
 ## Sprint Goal
 
-Make the register work offline. Queued sales must survive connectivity loss, sync safely when the network returns, and surface unrecoverable failures in a dead-letter UI that the cashier can manually retry.
+Harden the product for 3 friendly beta tenants: rate limit sensitive endpoints, add security headers across all surfaces, audit dependencies, document ops processes, and confirm the beta-ready checklist.
 
 ## Immediate Focus
 
-- Dexie local sale queue with statuses: `pending`, `syncing`, `synced`, `failed`
-- Sync worker with exponential backoff
-- Offline indicator and pending-sale count badge
-- Manual sync button
-- Dead-letter UI (list failed entries, retry action)
-- PWA service worker / app shell caching
+- Rate limiting on auth endpoints (login, signup, password reset)
+- Security headers middleware (backend API + frontend via vercel.json)
+- HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Permissions-Policy
+- Dependency audit (npm audit + pip audit)
+- Ops documentation (backups, monitoring, support process)
+- Beta-ready checklist review
+
+## Sprint 14 Checklist
+
+- [x] Rate limiting on auth endpoints (login 20/min, signup 10/min, password-reset 5/min)
+- [x] Security headers middleware for backend API
+- [x] `vercel.json` security headers for frontend (CSP, HSTS, X-Frame-Options, Permissions-Policy)
+- [ ] Verify secure cookies in production (already confirmed Sprint 9 — re-validate)
+- [x] CORS already locked to `settings.frontend_url` (verified)
+- [x] `npm audit` — 5 moderate in vite/vitest devDependencies only (not production); no critical/high
+- [x] Backend dependency audit — no known vulnerabilities in production deps
+- [ ] Configure Sentry alerts (error rate spike, new issues)
+- [ ] Backups drill — verify Supabase daily backups + test restore path
+- [ ] Status page / uptime monitor configured
+- [ ] Support email/channel ready for beta tenants
+- [ ] Feedback process documented
+- [ ] Beta agreement template ready
+- [ ] Complete beta-ready checklist in sprint-planning.md
+- [ ] Production deployment validation for Sprint 14
+
+**Validation evidence (2026-05-13):**
+- `ruff check .` — clean
+- `npm run lint` — clean
+- `npm test -- --run` — 10/10 frontend unit tests
+- Backend security tests (`test_security.py`): 6 tests written; require PostgreSQL — validated logic, will confirm in CI
+- `npm audit`: 5 moderate in devDependencies only (vite/vitest), no prod vulnerabilities
+
+## Required Specs
+
+- `specs/security/rate_limit.md`
+- `specs/security/headers.md`
+- `specs/ops/backups.md`
+- `specs/ops/monitoring.md`
+- `specs/support/beta_support.md`
+
+---
+
+## Completed: Sprint 13 - Offline Sync + Dead Letter
+
+**Completed:** 2026-05-13
+
+**What shipped:**
+- Dexie `offline_sales` queue with statuses `pending`, `syncing`, `synced`, `failed`
+- Sync worker (`offline/syncWorker.ts`) with exponential backoff (2s → 120s), MAX_ATTEMPTS=5, `online` event auto-retry
+- Register uses `queueOfflineSale` + `syncOfflineSales`; cart clears as soon as sale is persisted locally
+- `syncOfflineSales` returns `SyncItemResult[]` with the order object; re-throws on network errors
+- `OfflineIndicator` in register header: "Offline" badge / "N queued" badge with link to `/sync-queue`
+- `SyncQueueView` at `/sync-queue`: pending section + failed (dead letter) section with retry + "Sync now" button
+- `vite-plugin-pwa` Workbox generateSW: precaches app shell assets; API routes are `NetworkOnly`
+- `registerSW({ immediate: true })` in `main.tsx` for auto-update
+- SVG placeholder icons in `public/icons/` (replace with real PNGs before beta GA)
+
+**Checklist:**
+- [x] All items complete except production deployment validation
+
+**Validation evidence (2026-05-13):**
+- `npm run build` — `dist/sw.js` + `dist/workbox-*.js` + `dist/manifest.webmanifest` generated
+- `npx tsc --noEmit` — clean
+- `npm run lint` — clean
+- `npm test -- --run` — 10/10 unit tests
+- `npx playwright test` — 26/26 E2E (4 offline-sync, 3 register-sale, 5 shifts, others)
 
 ## Sprint 13 Checklist
 

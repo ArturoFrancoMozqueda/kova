@@ -2,7 +2,7 @@
 
 ## Status
 
-Active execution - Sprint 13 in progress.
+Active execution - Sprint 14 in progress.
 
 This document defines the roadmap and task structure.
 
@@ -51,7 +51,7 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Operations | 5–8 | ✅ Done | Refunds, voids, receipts, shifts, inventory, reporting |
 | Billing + App Shell | 9–10 | ✅ Done | $199 MXN plan, Stripe Billing, auth-protected routing, register shell |
 | Core POS | 11–13 | 🔄 Active | Catalog, register, cash/manual sale, order creation, offline sync |
-| Beta Hardening | 14 | — | Security, monitoring, backup drill, beta support |
+| Beta Hardening | 14 | 🔄 Active | Security, monitoring, backup drill, beta support |
 | Closed Beta | — | — | 3 friendly tenants |
 | Post-Beta / GA Prep | 15+ | — | Modifiers, taxes, discounts, retail/restaurant presets, legal, marketing |
 
@@ -61,7 +61,7 @@ tenant signup → business setup → catalog setup → open shift → create sal
 |---|---|---|
 | 11 | Catalog Management — categories + products CRUD, BDD, RLS | ✅ Done |
 | 12 | Register Core — product grid, cart, cash/manual/split payment, order creation | ✅ Done |
-| 13 | Offline Sync + Dead Letter | 🔄 Active |
+| 13 | Offline Sync + Dead Letter | ✅ Done |
 
 ## BDD Coverage Matrix
 
