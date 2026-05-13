@@ -41,7 +41,7 @@ class ModifierOption(Base):
     group_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     price_delta: Mapped[Decimal] = mapped_column(
-        Numeric(12, 4), nullable=False, default=Decimal("0")
+        Numeric(12, 2), nullable=False, default=Decimal("0")
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -77,4 +77,4 @@ class OrderItemModifier(Base):
     modifier_group_name: Mapped[str] = mapped_column(String(120), nullable=False)
     modifier_option_id: Mapped[UUID] = mapped_column(nullable=False)
     modifier_option_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    price_delta_amount: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
+    price_delta_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)

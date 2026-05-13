@@ -6,13 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ModifierOptionCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    price_delta: Decimal = Field(ge=0, max_digits=12, decimal_places=4)
+    price_delta: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
     sort_order: int = 0
 
 
 class ModifierOptionUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
-    price_delta: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=4)
+    price_delta: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     sort_order: int | None = None
     is_active: bool | None = None
 
