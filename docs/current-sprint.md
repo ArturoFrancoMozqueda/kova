@@ -19,24 +19,31 @@ Make the register work offline. Queued sales must survive connectivity loss, syn
 
 ## Sprint 13 Checklist
 
-- [ ] Dexie schema for local sale queue
-- [ ] Queue entry statuses: `pending`, `syncing`, `synced`, `failed`
-- [ ] Register enqueues sale locally when offline (or as primary path with background sync)
-- [ ] Sync worker picks up `pending` entries and calls `POST /api/v1/sync/offline-sales`
-- [ ] Exponential backoff on transient failures
-- [ ] `client_uuid` sent with every queued sale (idempotency key)
-- [ ] Conflict / duplicate response handled: mark as `synced` without creating duplicate
-- [ ] Offline indicator in app shell (badge / banner)
-- [ ] Pending sync count visible to cashier
-- [ ] Manual sync button triggers immediate retry of `pending` and `failed` entries
-- [ ] Dead-letter UI: list `failed` entries with last error and attempt count
-- [ ] Dead-letter retry: moves entry back to `pending`
-- [ ] Service worker / app shell caching for offline load
-- [ ] Playwright offline tests (network intercept: sale queued, then synced)
-- [ ] Playwright duplicate sync test (same `client_uuid` replayed)
-- [ ] Playwright dead-letter test (server returns error → entry appears in dead-letter UI)
-- [ ] BDD scenarios from `specs/orders/offline_sync.feature` passing (already pass at backend layer)
+- [x] Dexie schema for local sale queue (`offline/db.ts`, `offline_sales` table)
+- [x] Queue entry statuses: `pending`, `syncing`, `synced`, `failed`
+- [x] Register enqueues sale locally then syncs immediately; clears cart regardless of result
+- [x] Sync worker picks up `pending` entries and calls `POST /api/v1/sync/offline-sales`
+- [x] Exponential backoff: 2s → 8s → 30s → 60s → 120s, MAX_ATTEMPTS=5
+- [x] `client_uuid` sent with every queued sale (idempotency key)
+- [x] Conflict / duplicate response handled: mark as `synced` without creating duplicate
+- [x] Offline indicator in register header (badge: "Offline" / "N queued", link to `/sync-queue`)
+- [x] Pending sync count visible to cashier via `useSyncQueue` live query
+- [x] Manual sync button in `/sync-queue` view
+- [x] Dead-letter UI at `/sync-queue`: lists `failed` entries with last error and attempt count
+- [x] Dead-letter retry: moves entry back to `pending` and triggers immediate sync
+- [x] Service worker + app shell caching via `vite-plugin-pwa` (Workbox generateSW)
+- [x] Playwright offline tests: network abort → queued notice + pending section
+- [x] Playwright duplicate sync test: same `client_uuid` returns same order
+- [x] Playwright dead-letter test: server failure → Failed section → retry succeeds
+- [x] BDD scenarios from `specs/orders/offline_sync.feature` passing (backend layer)
 - [ ] Production deployment validation for Sprint 13
+
+**Validation evidence (2026-05-13):**
+- `npm run build` — clean, generates `dist/sw.js` + `dist/workbox-*.js` + `dist/manifest.webmanifest`
+- `npx tsc --noEmit` — no errors
+- `npm run lint` — no errors
+- `npm test -- --run` — 10/10 unit tests pass
+- `npx playwright test` — 26/26 E2E pass (includes 4 offline-sync + 3 register-sale offline)
 
 ## Required Specs
 
