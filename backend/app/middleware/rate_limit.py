@@ -4,6 +4,8 @@ from threading import Lock
 
 from fastapi import HTTPException, Request
 
+from app.config import settings
+
 
 def _get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for")
@@ -43,6 +45,9 @@ def rate_limit(max_requests: int, window_seconds: int = 60):
     limiter = _FixedWindowLimiter(max_requests, window_seconds)
 
     def dependency(request: Request) -> None:
+        # Never rate-limit in local/test environments — all test clients share the same IP
+        if settings.app_env == "local":
+            return
         ip = _get_client_ip(request)
         if not limiter.is_allowed(ip):
             raise HTTPException(
