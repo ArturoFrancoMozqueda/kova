@@ -15,6 +15,8 @@ import { OfflineIndicator } from "../offline/OfflineIndicator";
 import { queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
 import { triggerSync } from "../offline/syncWorker";
+import { ModifierSelectionModal } from "./ModifierSelectionModal";
+import type { SelectedModifier } from "./ModifierSelectionModal";
 
 type LoadState =
   | { status: "loading" }
@@ -24,6 +26,8 @@ type LoadState =
 type CartItem = {
   product: Product;
   quantity: number;
+  selectedModifiers: SelectedModifier[];
+  effectiveUnitPrice: string;
 };
 
 type PaymentMethod = "cash" | "bank_transfer" | "manual_card";
@@ -77,6 +81,7 @@ export default function RegisterView() {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -97,7 +102,7 @@ export default function RegisterView() {
   const totalCents = useMemo(
     () =>
       cartItems.reduce(
-        (sum, item) => sum + moneyToCents(item.product.price_amount) * item.quantity,
+        (sum, item) => sum + moneyToCents(item.effectiveUnitPrice) * item.quantity,
         0,
       ),
     [cartItems],
@@ -128,13 +133,26 @@ export default function RegisterView() {
     !submitting;
 
   const addProduct = (product: Product) => {
+    if ((product.modifier_groups ?? []).length > 0) {
+      setModifierTarget(product);
+      return;
+    }
+    commitAddProduct(product, []);
+  };
+
+  const commitAddProduct = (product: Product, selectedModifiers: SelectedModifier[]) => {
+    const deltaSum = selectedModifiers.reduce((s, m) => s + moneyToCents(m.priceDelta), 0);
+    const effectiveUnitPrice = centsToMoney(moneyToCents(product.price_amount) + deltaSum);
+    const cartKey = [product.id, ...selectedModifiers.map((m) => m.optionId).sort()].join(":");
     setCart((current) => {
-      const existing = current[product.id];
+      const existing = current[cartKey];
       return {
         ...current,
-        [product.id]: {
+        [cartKey]: {
           product,
           quantity: existing ? existing.quantity + 1 : 1,
+          selectedModifiers,
+          effectiveUnitPrice,
         },
       };
     });
@@ -142,23 +160,23 @@ export default function RegisterView() {
     setNotice(null);
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (cartKey: string, quantity: number) => {
     setCart((current) => {
       if (quantity <= 0) {
         const next = { ...current };
-        delete next[productId];
+        delete next[cartKey];
         return next;
       }
-      const item = current[productId];
+      const item = current[cartKey];
       if (!item) return current;
-      return { ...current, [productId]: { ...item, quantity } };
+      return { ...current, [cartKey]: { ...item, quantity } };
     });
   };
 
-  const removeItem = (productId: string) => {
+  const removeItem = (cartKey: string) => {
     setCart((current) => {
       const next = { ...current };
-      delete next[productId];
+      delete next[cartKey];
       return next;
     });
   };
@@ -220,6 +238,7 @@ export default function RegisterView() {
       items: cartItems.map((item) => ({
         product_id: item.product.id,
         quantity: item.quantity,
+        modifier_option_ids: item.selectedModifiers.map((m) => m.optionId),
       })),
       payments: splitPaymentsEnabled
         ? splitPayments
@@ -335,33 +354,42 @@ export default function RegisterView() {
             <p className="muted">{copy.register.cartPlaceholder}</p>
           ) : (
             <ul className="cart-list">
-              {cartItems.map((item) => (
-                <li className="cart-line" key={item.product.id}>
-                  <div>
-                    <strong>{item.product.name}</strong>
-                    <p className="muted">{formatMoney(item.product.price_amount)}</p>
-                  </div>
-                  <label>
-                    {copy.register.quantity}
-                    <input
-                      min={1}
-                      type="number"
-                      value={item.quantity}
-                      onChange={(event) =>
-                        updateQuantity(item.product.id, Number.parseInt(event.target.value || "0", 10))
-                      }
-                    />
-                  </label>
-                  <strong>
-                    {formatMoney(
-                      centsToMoney(moneyToCents(item.product.price_amount) * item.quantity),
-                    )}
-                  </strong>
-                  <button type="button" onClick={() => removeItem(item.product.id)}>
-                    {copy.register.remove}
-                  </button>
-                </li>
-              ))}
+              {cartItems.map((item) => {
+                const cartKey = [item.product.id, ...item.selectedModifiers.map((m) => m.optionId).sort()].join(":");
+                return (
+                  <li className="cart-line" key={cartKey}>
+                    <div>
+                      <strong>{item.product.name}</strong>
+                      {item.selectedModifiers.map((m) => (
+                        <p key={m.optionId} className="muted" style={{ fontSize: "0.85rem" }}>
+                          → {m.optionName}
+                          {parseFloat(m.priceDelta) > 0 && ` +MX$${parseFloat(m.priceDelta).toFixed(2)}`}
+                        </p>
+                      ))}
+                      <p className="muted">{formatMoney(item.effectiveUnitPrice)}</p>
+                    </div>
+                    <label>
+                      {copy.register.quantity}
+                      <input
+                        min={1}
+                        type="number"
+                        value={item.quantity}
+                        onChange={(event) =>
+                          updateQuantity(cartKey, Number.parseInt(event.target.value || "0", 10))
+                        }
+                      />
+                    </label>
+                    <strong>
+                      {formatMoney(
+                        centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity),
+                      )}
+                    </strong>
+                    <button type="button" onClick={() => removeItem(cartKey)}>
+                      {copy.register.remove}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
@@ -537,6 +565,18 @@ export default function RegisterView() {
           ) : null}
         </section>
       </div>
+
+      {modifierTarget && (
+        <ModifierSelectionModal
+          productName={modifierTarget.name}
+          modifierGroups={modifierTarget.modifier_groups}
+          onConfirm={(selected) => {
+            commitAddProduct(modifierTarget, selected);
+            setModifierTarget(null);
+          }}
+          onCancel={() => setModifierTarget(null)}
+        />
+      )}
     </main>
   );
 }

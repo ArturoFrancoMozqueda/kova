@@ -9,20 +9,26 @@ import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import {
   createCategory,
+  createModifierGroup,
+  createModifierOption,
   createProduct,
   deactivateCategory,
+  deactivateModifierGroup,
+  deactivateModifierOption,
   deactivateProduct,
   listCategories,
+  listModifierGroups,
   listProducts,
+  setProductModifierGroups,
   updateCategory,
   updateProduct,
 } from "./api";
-import type { Category, Product } from "./types";
+import type { Category, ModifierGroup, Product } from "./types";
 
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; categories: Category[]; products: Product[] };
+  | { status: "ready"; categories: Category[]; products: Product[]; modifierGroups: ModifierGroup[] };
 
 type Modal =
   | null
@@ -42,11 +48,15 @@ export default function CatalogView() {
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const [showModifiers, setShowModifiers] = useState(false);
+
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
     try {
-      const [categories, products] = await Promise.all([listCategories(), listProducts()]);
-      setLoadState({ status: "ready", categories, products });
+      const [categories, products, modifierGroups] = await Promise.all([
+        listCategories(), listProducts(), listModifierGroups(),
+      ]);
+      setLoadState({ status: "ready", categories, products, modifierGroups });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -209,6 +219,7 @@ export default function CatalogView() {
             <ProductForm
               initial={modal.type === "product-edit" ? modal.product : undefined}
               categories={categories}
+              availableModifierGroups={loadState.status === "ready" ? loadState.modifierGroups : []}
               defaultCategoryId={selectedCategoryId}
               pending={pending}
               onCancel={() => setModal(null)}
@@ -216,10 +227,12 @@ export default function CatalogView() {
                 setPending(true);
                 try {
                   if (modal.type === "product-create") {
-                    await createProduct(values);
+                    const product = await createProduct(values);
+                    await setProductModifierGroups(product.id, values.modifier_group_ids);
                     showNotice(copy.catalog.productCreated);
                   } else {
                     await updateProduct(modal.product.id, values);
+                    await setProductModifierGroups(modal.product.id, values.modifier_group_ids);
                     showNotice(copy.catalog.productUpdated);
                   }
                   setModal(null);
@@ -276,7 +289,190 @@ export default function CatalogView() {
           </ul>
         </section>
       </div>
+
+      {/* Modifier Groups section */}
+      {canCreate && (
+        <section className="panel" style={{ marginTop: "1.5rem" }}>
+          <div className="panel-header">
+            <h2>{copy.catalog.modifiers}</h2>
+            <button type="button" onClick={() => setShowModifiers((v) => !v)}>
+              {showModifiers ? copy.catalog.cancel : copy.catalog.modifiers}
+            </button>
+          </div>
+          {showModifiers && loadState.status === "ready" && (
+            <ModifierGroupsPanel
+              groups={loadState.modifierGroups}
+              canEdit={canCreate}
+              canDelete={canDelete}
+              onReload={load}
+              onNotice={showNotice}
+            />
+          )}
+        </section>
+      )}
     </main>
+  );
+}
+
+function ModifierGroupsPanel({
+  groups,
+  canEdit,
+  canDelete,
+  onReload,
+  onNotice,
+}: {
+  groups: ModifierGroup[];
+  canEdit: boolean;
+  canDelete: boolean;
+  onReload: () => Promise<void>;
+  onNotice: (msg: string) => void;
+}) {
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupRequired, setNewGroupRequired] = useState(false);
+  const [addingGroup, setAddingGroup] = useState(false);
+  const [newOptions, setNewOptions] = useState<Record<string, { name: string; delta: string }>>({});
+
+  const handleCreateGroup = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+    setAddingGroup(true);
+    try {
+      await createModifierGroup({ name: newGroupName.trim(), is_required: newGroupRequired, min_selections: newGroupRequired ? 1 : 0 });
+      onNotice(copy.catalog.modifierGroupCreated);
+      setNewGroupName("");
+      setNewGroupRequired(false);
+      await onReload();
+    } catch {
+      onNotice(copy.catalog.operationError);
+    } finally {
+      setAddingGroup(false);
+    }
+  };
+
+  const handleAddOption = async (groupId: string) => {
+    const o = newOptions[groupId];
+    if (!o?.name.trim()) return;
+    try {
+      await createModifierOption(groupId, { name: o.name.trim(), price_delta: o.delta || "0" });
+      onNotice(copy.catalog.optionAdded);
+      setNewOptions((prev) => ({ ...prev, [groupId]: { name: "", delta: "" } }));
+      await onReload();
+    } catch {
+      onNotice(copy.catalog.operationError);
+    }
+  };
+
+  return (
+    <div>
+      {groups.length === 0 && <p className="muted">{copy.catalog.noModifierGroups}</p>}
+      {groups.map((group) => (
+        <article key={group.id} className="data-card" style={{ marginBottom: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <strong>
+              {group.name}
+              {group.is_required && (
+                <span className="status-warn" style={{ marginLeft: "0.5rem", fontSize: "0.8rem" }}>
+                  {copy.catalog.required}
+                </span>
+              )}
+            </strong>
+            {canDelete && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await deactivateModifierGroup(group.id);
+                    onNotice(copy.catalog.modifierGroupDeactivated);
+                    await onReload();
+                  } catch {
+                    onNotice(copy.catalog.operationError);
+                  }
+                }}
+              >
+                {copy.catalog.deactivate}
+              </button>
+            )}
+          </div>
+          <ul style={{ listStyle: "none", padding: 0, margin: "0.5rem 0" }}>
+            {group.options.map((opt) => (
+              <li key={opt.id} style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.25rem" }}>
+                <span>{opt.name}</span>
+                {parseFloat(opt.price_delta) > 0 && (
+                  <span className="muted">+MX${parseFloat(opt.price_delta).toFixed(2)}</span>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    style={{ marginLeft: "auto", fontSize: "0.8rem" }}
+                    onClick={async () => {
+                      try {
+                        await deactivateModifierOption(group.id, opt.id);
+                        onNotice(copy.catalog.optionDeactivated);
+                        await onReload();
+                      } catch {
+                        onNotice(copy.catalog.operationError);
+                      }
+                    }}
+                  >
+                    {copy.catalog.deactivate}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {canEdit && (
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+              <input
+                type="text"
+                placeholder={copy.catalog.optionName}
+                value={newOptions[group.id]?.name ?? ""}
+                onChange={(e) => setNewOptions((prev) => ({
+                  ...prev, [group.id]: { ...prev[group.id], name: e.target.value, delta: prev[group.id]?.delta ?? "" }
+                }))}
+                style={{ flex: 1 }}
+              />
+              <input
+                type="number"
+                placeholder={copy.catalog.priceDelta}
+                step="0.01"
+                min="0"
+                value={newOptions[group.id]?.delta ?? ""}
+                onChange={(e) => setNewOptions((prev) => ({
+                  ...prev, [group.id]: { ...prev[group.id], delta: e.target.value, name: prev[group.id]?.name ?? "" }
+                }))}
+                style={{ width: "7rem" }}
+              />
+              <button type="button" onClick={() => void handleAddOption(group.id)}>
+                {copy.catalog.newOption}
+              </button>
+            </div>
+          )}
+        </article>
+      ))}
+
+      {canEdit && (
+        <form onSubmit={(e) => void handleCreateGroup(e)} style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder={copy.catalog.modifierGroupName}
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            style={{ flex: 1 }}
+          />
+          <label style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={newGroupRequired}
+              onChange={(e) => setNewGroupRequired(e.target.checked)}
+            />
+            {copy.catalog.required}
+          </label>
+          <button type="submit" disabled={addingGroup || !newGroupName.trim()}>
+            {copy.catalog.newModifierGroup}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -361,11 +557,13 @@ type ProductFormValues = {
   category_id: string | null;
   track_inventory: boolean;
   low_stock_threshold: number | null;
+  modifier_group_ids: string[];
 };
 
 function ProductForm({
   initial,
   categories,
+  availableModifierGroups,
   defaultCategoryId,
   pending,
   onCancel,
@@ -374,6 +572,7 @@ function ProductForm({
 }: {
   initial?: Product;
   categories: Category[];
+  availableModifierGroups: ModifierGroup[];
   defaultCategoryId: string | null;
   pending: boolean;
   onCancel: () => void;
@@ -391,6 +590,15 @@ function ProductForm({
   const [threshold, setThreshold] = useState(
     initial?.low_stock_threshold != null ? String(initial.low_stock_threshold) : "",
   );
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
+    initial?.modifier_groups?.map((g) => g.id) ?? [],
+  );
+
+  const toggleGroup = (groupId: string) => {
+    setSelectedGroupIds((prev) =>
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId],
+    );
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -402,6 +610,7 @@ function ProductForm({
       category_id: categoryId || null,
       track_inventory: trackInventory,
       low_stock_threshold: trackInventory && threshold ? Number(threshold) : null,
+      modifier_group_ids: selectedGroupIds,
     });
   };
 
@@ -476,6 +685,24 @@ function ProductForm({
             onChange={(e) => setThreshold(e.target.value)}
           />
         </label>
+      )}
+      {availableModifierGroups.length > 0 && (
+        <fieldset>
+          <legend>{copy.catalog.assignedModifierGroups}</legend>
+          {availableModifierGroups.map((group) => (
+            <label key={group.id} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={selectedGroupIds.includes(group.id)}
+                onChange={() => toggleGroup(group.id)}
+              />
+              {group.name}
+              {group.is_required && (
+                <span className="muted" style={{ fontSize: "0.8rem" }}>({copy.catalog.required})</span>
+              )}
+            </label>
+          ))}
+        </fieldset>
       )}
       <div className="button-row">
         <button type="submit" disabled={pending || !name.trim() || !price}>

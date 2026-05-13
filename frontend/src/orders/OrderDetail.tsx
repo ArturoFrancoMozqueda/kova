@@ -110,6 +110,12 @@ export default function OrderDetail() {
         {order.items.map((item) => (
           <article key={item.id}>
             <h3>{item.product_name}</h3>
+            {item.modifiers?.map((m) => (
+              <p key={`${m.modifier_group_name}-${m.modifier_option_name}`} className="muted" style={{ margin: "0 0 0.25rem 1rem", fontSize: "0.875rem" }}>
+                → {m.modifier_option_name}
+                {parseFloat(m.price_delta_amount) > 0 && ` +MX$${parseFloat(m.price_delta_amount).toFixed(2)}`}
+              </p>
+            ))}
             <p>
               x{item.quantity} {formatMoney(item.line_total_amount)}
             </p>

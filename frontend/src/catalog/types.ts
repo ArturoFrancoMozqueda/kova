@@ -7,6 +7,27 @@ export type Category = {
   is_active: boolean;
 };
 
+export type ModifierOption = {
+  id: string;
+  group_id: string;
+  name: string;
+  price_delta: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+export type ModifierGroup = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  is_required: boolean;
+  min_selections: number;
+  max_selections: number;
+  sort_order: number;
+  is_active: boolean;
+  options: ModifierOption[];
+};
+
 export type Product = {
   id: string;
   tenant_id: string;
@@ -18,6 +39,7 @@ export type Product = {
   track_inventory: boolean;
   low_stock_threshold: number | null;
   is_active: boolean;
+  modifier_groups: ModifierGroup[];
 };
 
 export type CategoryCreate = {

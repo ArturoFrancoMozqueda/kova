@@ -1,3 +1,9 @@
+export type OrderItemModifier = {
+  modifier_group_name: string;
+  modifier_option_name: string;
+  price_delta_amount: string;
+};
+
 export type OrderItem = {
   id: string;
   product_id: string;
@@ -5,6 +11,7 @@ export type OrderItem = {
   quantity: number;
   unit_price_amount: string;
   line_total_amount: string;
+  modifiers: OrderItemModifier[];
 };
 
 export type Payment = {
