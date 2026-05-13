@@ -13,6 +13,7 @@ import SyncQueueView from "./offline/SyncQueueView";
 import RegisterView from "./register/RegisterView";
 import ReportsView from "./reports/ReportsView";
 import ShiftView from "./shifts/ShiftView";
+import AppShell from "./layout/AppShell";
 
 function RootRedirect() {
   const { state } = useAuth();
@@ -36,85 +37,23 @@ export default function App() {
 
           {/* Protected */}
           <Route
-            path="/register"
             element={
               <RequireAuth>
-                <RegisterView />
+                <AppShell />
               </RequireAuth>
             }
-          />
-          <Route
-            path="/catalog"
-            element={
-              <RequireAuth>
-                <CatalogView />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/inventory"
-            element={
-              <RequireAuth>
-                <InventoryView />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/orders"
-            element={
-              <RequireAuth>
-                <OrderListView />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/orders/:orderId"
-            element={
-              <RequireAuth>
-                <OrderDetail />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <RequireAuth>
-                <ReportsView />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/shifts"
-            element={
-              <RequireAuth>
-                <ShiftView />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/settings/billing"
-            element={
-              <RequireAuth>
-                <BillingView />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/settings/billing/:returnState"
-            element={
-              <RequireAuth>
-                <BillingView />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/sync-queue"
-            element={
-              <RequireAuth>
-                <SyncQueueView />
-              </RequireAuth>
-            }
-          />
+          >
+            <Route path="/register" element={<RegisterView />} />
+            <Route path="/catalog" element={<CatalogView />} />
+            <Route path="/inventory" element={<InventoryView />} />
+            <Route path="/orders" element={<OrderListView />} />
+            <Route path="/orders/:orderId" element={<OrderDetail />} />
+            <Route path="/reports" element={<ReportsView />} />
+            <Route path="/shifts" element={<ShiftView />} />
+            <Route path="/settings/billing" element={<BillingView />} />
+            <Route path="/settings/billing/:returnState" element={<BillingView />} />
+            <Route path="/sync-queue" element={<SyncQueueView />} />
+          </Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>

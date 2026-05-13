@@ -64,7 +64,7 @@ function centsToMoney(cents: number): string {
 }
 
 export default function RegisterView() {
-  const { state, logout } = useAuth();
+  const { state } = useAuth();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
@@ -317,9 +317,6 @@ export default function RegisterView() {
               {copy.register.manageCatalog}
             </Link>
           )}
-          <button type="button" className="text-link" onClick={() => void logout()}>
-            {copy.register.logout}
-          </button>
         </nav>
       </header>
 
