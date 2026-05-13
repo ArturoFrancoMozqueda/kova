@@ -58,6 +58,7 @@ const sellableProducts = [
     track_inventory: false,
     low_stock_threshold: null,
     is_active: true,
+    modifier_groups: [],
   },
 ];
 
@@ -191,7 +192,7 @@ describe("App shell", () => {
             {
               client_uuid: "00000000-0000-4000-8000-000000000001",
               order: {
-                items: [{ product_id: "product-1", quantity: 1 }],
+                items: [{ product_id: "product-1", quantity: 1, modifier_option_ids: [] }],
                 payments: [{ method: "bank_transfer", amount: "18.50", reference: "TRANSFER-001" }],
               },
             },
@@ -234,7 +235,7 @@ describe("App shell", () => {
             {
               client_uuid: "00000000-0000-4000-8000-000000000001",
               order: {
-                items: [{ product_id: "product-1", quantity: 1 }],
+                items: [{ product_id: "product-1", quantity: 1, modifier_option_ids: [] }],
                 payments: [{ method: "manual_card", amount: "18.50" }],
               },
             },
@@ -285,7 +286,7 @@ describe("App shell", () => {
             {
               client_uuid: "00000000-0000-4000-8000-000000000001",
               order: {
-                items: [{ product_id: "product-1", quantity: 1 }],
+                items: [{ product_id: "product-1", quantity: 1, modifier_option_ids: [] }],
                 payments: [
                   { method: "cash", amount: "10.00", amount_tendered: "10.00" },
                   { method: "bank_transfer", amount: "8.50", reference: "SPEI-001" },

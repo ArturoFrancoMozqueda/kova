@@ -19,6 +19,7 @@ const CATALOG = [
     track_inventory: false,
     low_stock_threshold: null,
     is_active: true,
+    modifier_groups: [],
   },
 ];
 

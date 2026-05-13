@@ -29,17 +29,25 @@ const products = [
     track_inventory: false,
     low_stock_threshold: null,
     is_active: true,
+    modifier_groups: [],
   },
 ];
 
-test("catalog page loads categories and products for owner", async ({ page }) => {
-  await mockAuthAs(page, "owner");
+async function mockCatalogApis(page: Page, catList = categories, prodList = products) {
   await page.route("**/api/v1/catalog/categories", async (route) => {
-    await route.fulfill({ json: categories });
+    await route.fulfill({ json: catList });
   });
   await page.route("**/api/v1/catalog/products", async (route) => {
-    await route.fulfill({ json: products });
+    await route.fulfill({ json: prodList });
   });
+  await page.route("**/api/v1/catalog/modifier-groups", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+}
+
+test("catalog page loads categories and products for owner", async ({ page }) => {
+  await mockAuthAs(page, "owner");
+  await mockCatalogApis(page);
 
   await page.goto("/catalog");
 
@@ -65,6 +73,9 @@ test("catalog page lets owner create a category", async ({ page }) => {
   await page.route("**/api/v1/catalog/products", async (route) => {
     await route.fulfill({ json: products });
   });
+  await page.route("**/api/v1/catalog/modifier-groups", async (route) => {
+    await route.fulfill({ json: [] });
+  });
 
   await page.goto("/catalog");
   await page.getByRole("button", { name: "New category" }).click();
@@ -76,12 +87,7 @@ test("catalog page lets owner create a category", async ({ page }) => {
 
 test("catalog page hides edit controls for cashier", async ({ page }) => {
   await mockAuthAs(page, "cashier");
-  await page.route("**/api/v1/catalog/categories", async (route) => {
-    await route.fulfill({ json: categories });
-  });
-  await page.route("**/api/v1/catalog/products", async (route) => {
-    await route.fulfill({ json: products });
-  });
+  await mockCatalogApis(page);
 
   await page.goto("/catalog");
 
