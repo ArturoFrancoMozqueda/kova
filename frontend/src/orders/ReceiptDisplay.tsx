@@ -33,6 +33,33 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
           <dd>{formatMoney(receipt.total_change)}</dd>
         </div>
       </dl>
+      <section aria-labelledby="receipt-items-title">
+        <h3 id="receipt-items-title">{copy.orderDetail.items}</h3>
+        <div className="receipt-lines">
+          {receipt.items.map((item, index) => (
+            <article className="receipt-line" key={`${item.product_name}-${index}`}>
+              <div>
+                <strong>{item.product_name}</strong>
+                <p className="muted">
+                  {item.quantity} x {formatMoney(item.unit_price_amount)}
+                </p>
+                {(item.modifiers ?? []).map((modifier) => (
+                  <p
+                    className="muted receipt-modifier"
+                    key={`${modifier.modifier_group_name}-${modifier.modifier_option_name}`}
+                  >
+                    {modifier.modifier_option_name}
+                    {Number.parseFloat(modifier.price_delta_amount) > 0
+                      ? ` +${formatMoney(modifier.price_delta_amount)}`
+                      : ""}
+                  </p>
+                ))}
+              </div>
+              <strong>{formatMoney(item.line_total_amount)}</strong>
+            </article>
+          ))}
+        </div>
+      </section>
       <section aria-labelledby="receipt-payments-title">
         <h3 id="receipt-payments-title">{copy.orderDetail.payments}</h3>
         {receipt.payments.map((payment, index) => (

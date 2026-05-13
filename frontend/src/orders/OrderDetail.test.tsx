@@ -16,6 +16,7 @@ const order = {
       quantity: 1,
       unit_price_amount: "25.00",
       line_total_amount: "25.00",
+      modifiers: [],
     },
     {
       id: "item-2",
@@ -24,6 +25,7 @@ const order = {
       quantity: 1,
       unit_price_amount: "25.00",
       line_total_amount: "25.00",
+      modifiers: [],
     },
   ],
   payments: [],
@@ -35,7 +37,21 @@ const receipt = {
   tenant_name: "Bakery",
   created_at: "2026-05-08T00:00:00Z",
   status: "completed",
-  items: [],
+  items: [
+    {
+      product_name: "Latte",
+      quantity: 1,
+      unit_price_amount: "58.00",
+      line_total_amount: "58.00",
+      modifiers: [
+        {
+          modifier_group_name: "Milk",
+          modifier_option_name: "Oat",
+          price_delta_amount: "8.00",
+        },
+      ],
+    },
+  ],
   subtotal_amount: "50.00",
   total_amount: "50.00",
   payments: [
@@ -111,6 +127,7 @@ describe("OrderDetail", () => {
     expect(screen.getByText(/customer return/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument();
     expect(screen.getByText(/action unavailable/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Oat/)).toBeInTheDocument();
   });
 
   it("submits a refund and reloads the receipt", async () => {

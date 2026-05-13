@@ -78,6 +78,7 @@ export type Receipt = {
     quantity: number;
     unit_price_amount: string;
     line_total_amount: string;
+    modifiers: OrderItemModifier[];
   }>;
   subtotal_amount: string;
   total_amount: string;
