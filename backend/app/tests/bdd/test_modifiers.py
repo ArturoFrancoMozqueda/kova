@@ -63,7 +63,7 @@ def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> di
 def _create_product(client: TestClient, name: str, price: str) -> dict:
     r = client.post(
         "/api/v1/catalog/products",
-        headers={"Idempotency-Key": f"mod-product-{name}"},
+        headers={"Idempotency-Key": str(uuid4())},  # uuid4 is always ASCII-safe
         json={"name": name, "price_amount": price},
     )
     assert r.status_code == 201, r.text
@@ -73,7 +73,7 @@ def _create_product(client: TestClient, name: str, price: str) -> dict:
 def _create_group(client: TestClient, name: str, *, required: bool = False) -> dict:
     r = client.post(
         "/api/v1/catalog/modifier-groups",
-        headers={"Idempotency-Key": f"mod-group-{name}"},
+        headers={"Idempotency-Key": str(uuid4())},
         json={"name": name, "is_required": required, "min_selections": 1 if required else 0},
     )
     assert r.status_code == 201, r.text
@@ -83,7 +83,7 @@ def _create_group(client: TestClient, name: str, *, required: bool = False) -> d
 def _add_option(client: TestClient, group_id: str, name: str, delta: str) -> dict:
     r = client.post(
         f"/api/v1/catalog/modifier-groups/{group_id}/options",
-        headers={"Idempotency-Key": f"mod-option-{group_id}-{name}"},
+        headers={"Idempotency-Key": str(uuid4())},
         json={"name": name, "price_delta": delta},
     )
     assert r.status_code == 201, r.text
@@ -176,13 +176,6 @@ def owner_creates_first_group(mod_context, g1, g1_opt1, g1_opt2):
 @given(parsers.parse('the owner creates modifier group "{g2}" with options "{g2_opt1}" and "{g2_opt2}"'))
 def owner_creates_second_group(mod_context, g2, g2_opt1, g2_opt2):
     owner_creates_group_with_options(mod_context, g2, g2_opt1, g2_opt2)
-
-
-@given(parsers.parse('the owner assigns "{g1}" and "{g2}" to "{product_name}"'))
-def owner_assigns_two_groups(mod_context, g1, g2, product_name):
-    gid1 = mod_context["groups"][g1]["id"]
-    gid2 = mod_context["groups"][g2]["id"]
-    _assign_groups(mod_context["client"], mod_context["product"]["id"], gid1, gid2)
 
 
 @when(parsers.parse('the cashier creates an order with "{product_name}" selecting "{opt1}" and "{opt2}"'))

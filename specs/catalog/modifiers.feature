@@ -15,7 +15,8 @@ Feature: Product modifiers
     Given a verified tenant owner with a product "Latte" priced at "50.00"
     And the owner creates modifier group "Size" with options "Regular +0.00" and "Large +10.00"
     And the owner creates modifier group "Milk" with options "Whole +0.00" and "Oat +8.00"
-    And the owner assigns "Size" and "Milk" to "Latte"
+    And the owner assigns "Size" to "Latte"
+    And the owner assigns "Milk" to "Latte"
     When the cashier creates an order with "Latte" selecting "Large" and "Oat"
     Then the order item unit price is "68.00"
 

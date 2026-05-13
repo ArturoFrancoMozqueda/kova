@@ -1,6 +1,8 @@
 """Security headers and rate limiting tests (Sprint 14)."""
 from fastapi.testclient import TestClient
 
+from app.config import settings
+
 
 def test_api_response_includes_security_headers(client: TestClient) -> None:
     response = client.get("/health")
@@ -15,7 +17,9 @@ def test_hsts_not_set_in_local_env(client: TestClient) -> None:
     assert "strict-transport-security" not in response.headers
 
 
-def test_login_rate_limit_returns_429(client: TestClient) -> None:
+def test_login_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
+    # Override app_env so the limiter is active (it skips in local/test mode)
+    monkeypatch.setattr(settings, "app_env", "staging")
     test_ip = "192.0.2.11"  # TEST-NET range — unique to this test
     payload = {"email": "ratelimit@example.com", "password": "wrongpassword"}
     for _ in range(20):
@@ -33,7 +37,8 @@ def test_login_rate_limit_returns_429(client: TestClient) -> None:
     assert response.headers.get("retry-after") == "60"
 
 
-def test_signup_rate_limit_returns_429(client: TestClient) -> None:
+def test_signup_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "app_env", "staging")
     test_ip = "192.0.2.12"
     payload = {"email": "spam@example.com", "password": "S3cur3pass!", "tenant_name": "Spam"}
     for _ in range(10):
@@ -50,7 +55,8 @@ def test_signup_rate_limit_returns_429(client: TestClient) -> None:
     assert response.status_code == 429
 
 
-def test_password_reset_rate_limit_returns_429(client: TestClient) -> None:
+def test_password_reset_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "app_env", "staging")
     test_ip = "192.0.2.13"
     payload = {"email": "reset@example.com"}
     for _ in range(5):
@@ -67,8 +73,8 @@ def test_password_reset_rate_limit_returns_429(client: TestClient) -> None:
     assert response.status_code == 429
 
 
-def test_rate_limit_is_per_ip(client: TestClient) -> None:
-    # Different IPs should have independent windows
+def test_rate_limit_is_per_ip(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "app_env", "staging")
     ip_a = "192.0.2.21"
     ip_b = "192.0.2.22"
     payload = {"email": "x@example.com", "password": "x"}
@@ -78,7 +84,7 @@ def test_rate_limit_is_per_ip(client: TestClient) -> None:
     assert client.post(
         "/api/v1/auth/login", json=payload, headers={"X-Forwarded-For": ip_a}
     ).status_code == 429
-    # ip_b is independent — first request should not be throttled (returns 400 for bad creds)
+    # ip_b is independent — first request should not be throttled (returns 401 for bad creds)
     response_b = client.post(
         "/api/v1/auth/login", json=payload, headers={"X-Forwarded-For": ip_b}
     )
