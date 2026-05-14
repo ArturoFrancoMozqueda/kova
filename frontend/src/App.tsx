@@ -6,6 +6,7 @@ import VerifyEmailView from "./auth/VerifyEmailView";
 import { useAuth } from "./auth/useAuth";
 import BillingView from "./billing/BillingView";
 import CatalogView from "./catalog/CatalogView";
+import DashboardView from "./dashboard/DashboardView";
 import InventoryView from "./inventory/InventoryView";
 import OrderDetail from "./orders/OrderDetail";
 import OrderListView from "./orders/OrderListView";
@@ -14,11 +15,16 @@ import RegisterView from "./register/RegisterView";
 import ReportsView from "./reports/ReportsView";
 import ShiftView from "./shifts/ShiftView";
 import AppShell from "./layout/AppShell";
+import { ToastProvider } from "./components/ui/toast";
 
 function RootRedirect() {
   const { state } = useAuth();
   if (state.status === "loading") return null;
-  if (state.status === "authenticated") return <Navigate to="/register" replace />;
+  if (state.status === "authenticated") {
+    const role = state.user.role;
+    if (role === "owner" || role === "manager") return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/register" replace />;
+  }
   return <Navigate to="/login" replace />;
 }
 
@@ -26,35 +32,38 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          {/* Public */}
-          <Route path="/login" element={<AuthView mode="login" />} />
-          <Route path="/signup" element={<AuthView mode="signup" />} />
-          <Route path="/verify-email" element={<VerifyEmailView />} />
+        <ToastProvider>
+          <Routes>
+            {/* Public */}
+            <Route path="/login" element={<AuthView mode="login" />} />
+            <Route path="/signup" element={<AuthView mode="signup" />} />
+            <Route path="/verify-email" element={<VerifyEmailView />} />
 
-          {/* Root redirect */}
-          <Route path="/" element={<RootRedirect />} />
+            {/* Root redirect */}
+            <Route path="/" element={<RootRedirect />} />
 
-          {/* Protected */}
-          <Route
-            element={
-              <RequireAuth>
-                <AppShell />
-              </RequireAuth>
-            }
-          >
-            <Route path="/register" element={<RegisterView />} />
-            <Route path="/catalog" element={<CatalogView />} />
-            <Route path="/inventory" element={<InventoryView />} />
-            <Route path="/orders" element={<OrderListView />} />
-            <Route path="/orders/:orderId" element={<OrderDetail />} />
-            <Route path="/reports" element={<ReportsView />} />
-            <Route path="/shifts" element={<ShiftView />} />
-            <Route path="/settings/billing" element={<BillingView />} />
-            <Route path="/settings/billing/:returnState" element={<BillingView />} />
-            <Route path="/sync-queue" element={<SyncQueueView />} />
-          </Route>
-        </Routes>
+            {/* Protected */}
+            <Route
+              element={
+                <RequireAuth>
+                  <AppShell />
+                </RequireAuth>
+              }
+            >
+              <Route path="/dashboard" element={<DashboardView />} />
+              <Route path="/register" element={<RegisterView />} />
+              <Route path="/catalog" element={<CatalogView />} />
+              <Route path="/inventory" element={<InventoryView />} />
+              <Route path="/orders" element={<OrderListView />} />
+              <Route path="/orders/:orderId" element={<OrderDetail />} />
+              <Route path="/reports" element={<ReportsView />} />
+              <Route path="/shifts" element={<ShiftView />} />
+              <Route path="/settings/billing" element={<BillingView />} />
+              <Route path="/settings/billing/:returnState" element={<BillingView />} />
+              <Route path="/sync-queue" element={<SyncQueueView />} />
+            </Route>
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );
