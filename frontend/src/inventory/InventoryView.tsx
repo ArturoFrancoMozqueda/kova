@@ -102,7 +102,7 @@ export default function InventoryView() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{copy.inventoryView.title}</h1>
-          <p className="text-sm text-muted-foreground">{loadState.stock.length} tracked products</p>
+          <p className="text-sm text-muted-foreground">{copy.inventoryView.trackedProducts(loadState.stock.length)}</p>
         </div>
         {loadState.lowStock.length > 0 && (
           <Badge variant="warning" className="text-sm gap-1.5 py-1 px-3">
@@ -156,13 +156,13 @@ export default function InventoryView() {
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h3 className="font-semibold text-sm">{item.product_name}</h3>
-                    <p className="text-xs text-muted-foreground">{item.sku ?? "No SKU"}</p>
+                    <p className="text-xs text-muted-foreground">{item.sku ?? copy.inventoryView.noSku}</p>
                   </div>
-                  {item.is_low_stock && <Badge variant="warning">Low</Badge>}
+                  {item.is_low_stock && <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>}
                 </div>
                 <div className="flex items-baseline gap-2 mb-2">
                   <span className="text-3xl font-bold">{item.stock_on_hand}</span>
-                  <span className="text-sm text-muted-foreground">on hand</span>
+                  <span className="text-sm text-muted-foreground">{copy.inventoryView.onHand}</span>
                 </div>
                 <p className="text-xs text-muted-foreground mb-3">
                   {copy.inventoryView.threshold}: {item.low_stock_threshold ?? "—"}

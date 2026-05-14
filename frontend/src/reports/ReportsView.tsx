@@ -323,7 +323,7 @@ export default function ReportsView() {
                           {product.product_name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {product.quantity_sold} sold
+                          {copy.reportsView.soldCount(product.quantity_sold)}
                         </p>
                       </div>
                       <span className="text-sm font-semibold tabular-nums">

@@ -16,7 +16,7 @@ export default function SyncQueueView() {
           <h1 className="text-2xl font-bold tracking-tight">{copy.syncQueue.title}</h1>
           <div className="flex items-center gap-2 mt-1">
             {isOnline ? (
-              <Badge variant="success" className="gap-1"><Wifi className="h-3 w-3" />Online</Badge>
+              <Badge variant="success" className="gap-1"><Wifi className="h-3 w-3" />{copy.syncQueue.online}</Badge>
             ) : (
               <Badge variant="warning" className="gap-1"><WifiOff className="h-3 w-3" />{copy.register.offline}</Badge>
             )}
@@ -54,7 +54,7 @@ export default function SyncQueueView() {
               </div>
               <div>
                 <p className="text-sm font-medium">{copy.register.pendingSales(pendingCount)}</p>
-                {!isOnline && <p className="text-xs text-muted-foreground">Will sync when connection restores</p>}
+                {!isOnline && <p className="text-xs text-muted-foreground">{copy.syncQueue.willSyncWhenRestored}</p>}
               </div>
             </div>
           </CardContent>
