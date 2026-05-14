@@ -6,8 +6,8 @@ import {
   usePermission,
 } from "../auth/permissions";
 import { useAuth } from "../auth/useAuth";
-import { listProducts } from "../catalog/api";
-import type { Product } from "../catalog/types";
+import { listProducts, listCategories } from "../catalog/api";
+import type { Category, Product } from "../catalog/types";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import type { Order } from "../orders/types";
@@ -39,12 +39,16 @@ import {
   AlertCircle,
   ShoppingBag,
   Tag,
+  Banknote,
+  Building2,
+  CreditCard,
+  Zap,
 } from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; products: Product[] };
+  | { status: "ready"; products: Product[]; categories: Category[] };
 
 type CartItem = {
   product: Product;
@@ -86,6 +90,11 @@ function centsToMoney(cents: number): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
 }
 
+const paymentMethodOptions: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
+  { value: "cash", label: copy.register.cash, icon: <Banknote className="h-5 w-5" /> },
+  { value: "bank_transfer", label: copy.register.bankTransfer, icon: <Building2 className="h-5 w-5" /> },
+  { value: "manual_card", label: copy.register.manualCard, icon: <CreditCard className="h-5 w-5" /> },
+];
 
 export default function RegisterView() {
   const { state } = useAuth();
@@ -111,8 +120,12 @@ export default function RegisterView() {
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
     try {
-      const products = (await listProducts()).filter((product) => product.is_active);
-      setLoadState({ status: "ready", products });
+      const [allProducts, categories] = await Promise.all([
+        listProducts(),
+        listCategories(),
+      ]);
+      const products = allProducts.filter((product) => product.is_active);
+      setLoadState({ status: "ready", products, categories });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -123,17 +136,23 @@ export default function RegisterView() {
     void triggerSync();
   }, [load]);
 
-  // Derive unique categories from products
-  const categories = useMemo(() => {
+  // Map category_id → category name for readable filter pills
+  const categoryMap = useMemo<Map<string, string>>(() => {
+    if (loadState.status !== "ready") return new Map();
+    return new Map(loadState.categories.map((c) => [c.id, c.name]));
+  }, [loadState]);
+
+  // Unique category IDs present in the active product list
+  const categoriesInUse = useMemo<string[]>(() => {
     if (loadState.status !== "ready") return [];
-    const catMap = new Map<string, string>();
+    const seen = new Set<string>();
     for (const p of loadState.products) {
-      if (p.category_id) {
-        // We don't have category names in the product list, use category_id
-        catMap.set(p.category_id, p.category_id);
-      }
+      if (p.category_id) seen.add(p.category_id);
     }
-    return Array.from(catMap.keys());
+    // Preserve the sort order from the loaded categories list
+    return loadState.categories
+      .filter((c) => seen.has(c.id))
+      .map((c) => c.id);
   }, [loadState]);
 
   const filteredProducts = useMemo(() => {
@@ -355,10 +374,10 @@ export default function RegisterView() {
       <main className="p-6 lg:p-8 max-w-7xl mx-auto">
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-4 p-6">
-            <AlertCircle className="h-8 w-8 text-destructive" />
+            <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
             <div>
               <p className="font-medium">{copy.register.loadError}</p>
-              <p className="text-sm text-muted-foreground">Check your connection and try again.</p>
+              <p className="text-sm text-muted-foreground">{copy.dashboard.connectionHint}</p>
             </div>
             <Button variant="outline" onClick={() => void load()} className="ml-auto">
               {copy.register.retry}
@@ -380,8 +399,8 @@ export default function RegisterView() {
         <div className="flex items-center gap-2">
           {canManageCatalog && (
             <Link to="/catalog" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                <LayoutGrid className="h-4 w-4" />
-                {copy.register.manageCatalog}
+              <LayoutGrid className="h-4 w-4" />
+              {copy.register.manageCatalog}
             </Link>
           )}
         </div>
@@ -398,8 +417,8 @@ export default function RegisterView() {
               </CardTitle>
               <Badge variant="secondary">{loadState.products.length} items</Badge>
             </div>
-            {/* Category pills */}
-            {categories.length > 0 && (
+            {/* Category pills — show readable names */}
+            {categoriesInUse.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button
                   onClick={() => setSelectedCategory(null)}
@@ -413,7 +432,7 @@ export default function RegisterView() {
                 >
                   All
                 </button>
-                {categories.map((catId) => (
+                {categoriesInUse.map((catId) => (
                   <button
                     key={catId}
                     onClick={() => setSelectedCategory(catId)}
@@ -425,7 +444,7 @@ export default function RegisterView() {
                     )}
                     type="button"
                   >
-                    {catId.slice(0, 8)}
+                    {categoryMap.get(catId) ?? catId}
                   </button>
                 ))}
               </div>
@@ -450,7 +469,7 @@ export default function RegisterView() {
                   <button
                     key={product.id}
                     type="button"
-                    aria-label={copy.register.add}
+                    aria-label={`${copy.register.add} ${product.name}`}
                     onClick={() => addProduct(product)}
                     className="group flex flex-col justify-between rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
                   >
@@ -525,6 +544,7 @@ export default function RegisterView() {
                           <button
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity - 1)}
+                            aria-label="Decrease quantity"
                             className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted transition-colors"
                           >
                             <Minus className="h-3 w-3" />
@@ -533,6 +553,7 @@ export default function RegisterView() {
                           <button
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity + 1)}
+                            aria-label="Increase quantity"
                             className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted transition-colors"
                           >
                             <Plus className="h-3 w-3" />
@@ -545,6 +566,7 @@ export default function RegisterView() {
                           <button
                             type="button"
                             onClick={() => removeItem(cartKey)}
+                            aria-label={`Remove ${item.product.name}`}
                             className="text-xs text-destructive hover:underline mt-1"
                           >
                             <Trash2 className="h-3 w-3 inline" />
@@ -570,7 +592,7 @@ export default function RegisterView() {
 
                 {!canCreateOrders && (
                   <div className="flex items-center gap-2 rounded-lg bg-warning/20 border border-warning/30 px-3 py-2 text-sm text-warning-foreground">
-                    <AlertCircle className="h-4 w-4" />
+                    <AlertCircle className="h-4 w-4 shrink-0" />
                     {copy.register.permissionHidden}
                   </div>
                 )}
@@ -687,20 +709,35 @@ export default function RegisterView() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="paymentMethod">{copy.register.paymentMethod}</Label>
-                      <Select
-                        id="paymentMethod"
-                        value={paymentMethod}
-                        onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                    {/* Payment method button group */}
+                    <div>
+                      <Label className="mb-2 block">{copy.register.paymentMethod}</Label>
+                      <div
+                        className="grid grid-cols-3 gap-2"
+                        role="group"
+                        aria-label={copy.register.paymentMethod}
                       >
-                        <option value="cash">{copy.register.cash}</option>
-                        <option value="bank_transfer">{copy.register.bankTransfer}</option>
-                        <option value="manual_card">{copy.register.manualCard}</option>
-                      </Select>
+                        {paymentMethodOptions.map(({ value, label, icon }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={paymentMethod === value}
+                            onClick={() => setPaymentMethod(value)}
+                            className={cn(
+                              "flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-medium transition-all",
+                              paymentMethod === value
+                                ? "border-primary bg-primary/5 text-primary shadow-sm"
+                                : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                            )}
+                          >
+                            {icon}
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
-                    {paymentMethod === "cash" ? (
+                    {paymentMethod === "cash" && (
                       <div className="space-y-2">
                         <Label htmlFor="cashTendered">{copy.register.amountTendered}</Label>
                         <Input
@@ -723,7 +760,9 @@ export default function RegisterView() {
                           </p>
                         )}
                       </div>
-                    ) : (
+                    )}
+
+                    {(paymentMethod === "bank_transfer" || paymentMethod === "manual_card") && (
                       <div className="space-y-2">
                         <Label htmlFor="reference">{copy.register.paymentReference}</Label>
                         <Input
@@ -732,6 +771,21 @@ export default function RegisterView() {
                           value={reference}
                           onChange={(event) => setReference(event.target.value)}
                         />
+                      </div>
+                    )}
+
+                    {/* Card recommendation stub */}
+                    {paymentMethod === "manual_card" && (
+                      <div className="flex items-start gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/80 p-3 animate-fade-in">
+                        <Zap className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-semibold text-amber-800">
+                            {copy.register.cardRecommendationTitle}
+                          </p>
+                          <p className="text-xs text-amber-700">
+                            {copy.register.cardRecommendationHint}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -771,8 +825,8 @@ export default function RegisterView() {
                 </div>
                 <div className="flex gap-2">
                   <Link to={`/orders/${completedOrder.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      {copy.register.openOrder}
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {copy.register.openOrder}
                   </Link>
                   <Button size="sm" onClick={resetSale}>
                     <RotateCcw className="h-3.5 w-3.5" />
