@@ -1,3 +1,4 @@
+import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Response
@@ -33,14 +34,18 @@ def _idempotency_key(value: str | None = Header(default=None, alias="Idempotency
 def list_orders(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    status: str | None = Query(default=None, pattern="^(completed|voided)$"),
+    start_date: datetime.date | None = Query(default=None),
+    end_date: datetime.date | None = Query(default=None),
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
 ):
     _, membership, _ = ctx
+    filters = dict(status=status, start_date=start_date, end_date=end_date)
     items = repository.list_orders_by_tenant(
-        db, tenant_id=membership.tenant_id, limit=limit, offset=offset
+        db, tenant_id=membership.tenant_id, limit=limit, offset=offset, **filters
     )
-    total = repository.count_orders_by_tenant(db, tenant_id=membership.tenant_id)
+    total = repository.count_orders_by_tenant(db, tenant_id=membership.tenant_id, **filters)
     return OrderListResponse(items=items, total=total, limit=limit, offset=offset)
 
 

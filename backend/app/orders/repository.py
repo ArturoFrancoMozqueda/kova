@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -120,25 +121,54 @@ def create_inventory_movement(
     return movement
 
 
+def _apply_order_filters(
+    query,
+    *,
+    status: str | None = None,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+):
+    if status:
+        query = query.filter(Order.status == status)
+    if start_date:
+        query = query.filter(
+            Order.created_at >= datetime.datetime.combine(start_date, datetime.time.min)
+        )
+    if end_date:
+        query = query.filter(
+            Order.created_at < datetime.datetime.combine(
+                end_date + datetime.timedelta(days=1), datetime.time.min
+            )
+        )
+    return query
+
+
 def list_orders_by_tenant(
     db: Session,
     *,
     tenant_id: UUID,
     limit: int = 50,
     offset: int = 0,
+    status: str | None = None,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
 ) -> list[Order]:
-    return (
-        db.query(Order)
-        .filter(Order.tenant_id == tenant_id)
-        .order_by(Order.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-        .all()
-    )
+    query = db.query(Order).filter(Order.tenant_id == tenant_id)
+    query = _apply_order_filters(query, status=status, start_date=start_date, end_date=end_date)
+    return query.order_by(Order.created_at.desc()).limit(limit).offset(offset).all()
 
 
-def count_orders_by_tenant(db: Session, *, tenant_id: UUID) -> int:
-    return db.query(Order).filter(Order.tenant_id == tenant_id).count()
+def count_orders_by_tenant(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    status: str | None = None,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> int:
+    query = db.query(Order).filter(Order.tenant_id == tenant_id)
+    query = _apply_order_filters(query, status=status, start_date=start_date, end_date=end_date)
+    return query.count()
 
 
 def get_order(db: Session, *, tenant_id: UUID, order_id: UUID) -> Order | None:
