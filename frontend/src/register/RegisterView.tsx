@@ -711,7 +711,17 @@ export default function RegisterView() {
                   <div className="space-y-3">
                     {/* Payment method button group */}
                     <div>
-                      <Label className="mb-2 block">{copy.register.paymentMethod}</Label>
+                      <Label htmlFor="paymentMethod" className="mb-2 block">{copy.register.paymentMethod}</Label>
+                      <select
+                        id="paymentMethod"
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                        className="sr-only"
+                      >
+                        <option value="cash">{copy.register.cash}</option>
+                        <option value="bank_transfer">{copy.register.bankTransfer}</option>
+                        <option value="manual_card">{copy.register.manualCard}</option>
+                      </select>
                       <div
                         className="grid grid-cols-3 gap-2"
                         role="group"
