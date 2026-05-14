@@ -152,17 +152,43 @@ export default function CatalogView() {
   }
 
   const { categories } = loadState;
+  const activeProducts = loadState.products.filter((product) => product.is_active);
+  const trackedProducts = activeProducts.filter((product) => product.track_inventory);
+  const setupNext = activeProducts.length === 0
+    ? copy.catalog.setupNextProducts
+    : trackedProducts.length === 0
+      ? copy.catalog.setupNextInventory
+      : copy.catalog.setupNextDone;
 
   return (
     <main className="flex-1 p-6 space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
             <Package className="h-5 w-5 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.catalog.title}</h1>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{copy.catalog.title}</h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{copy.catalog.setupIntro}</p>
+          </div>
         </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        {[
+          copy.catalog.activeProducts(activeProducts.length),
+          copy.catalog.activeCategories(categories.length),
+          copy.catalog.inventoryTracked(trackedProducts.length),
+          setupNext,
+        ].map((item, index) => (
+          <div key={item} className="rounded-lg border bg-card p-4">
+            <p className="text-xs font-medium uppercase text-muted-foreground">
+              {index === 3 ? copy.catalog.setupNext : copy.catalog.title}
+            </p>
+            <p className="mt-2 text-sm font-semibold leading-6">{item}</p>
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
