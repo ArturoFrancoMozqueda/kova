@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { formatMoney } from "@/orders/format";
 import { getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
+import { listProducts } from "@/catalog/api";
 import type { SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/i18n/messages";
+import { cn } from "@/lib/utils";
 import {
   DollarSign,
   ShoppingCart,
@@ -20,6 +22,10 @@ import {
   LayoutGrid,
   Receipt,
   AlertCircle,
+  TrendingDown,
+  Minus,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 
 type LoadState =
@@ -28,12 +34,20 @@ type LoadState =
   | {
       status: "ready";
       summary: SalesSummary;
+      yesterday: SalesSummary | null;
       payments: PaymentBreakdown;
       topProducts: TopProducts;
+      hasProducts: boolean;
     };
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function yesterdayISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function getGreeting(): string {
@@ -43,31 +57,136 @@ function getGreeting(): string {
   return copy.dashboard.greetingEvening;
 }
 
+type DeltaBadgeProps = { current: number; previous: number | null; format?: "money" | "count" };
+
+function DeltaBadge({ current, previous }: DeltaBadgeProps) {
+  if (previous === null || previous === 0) {
+    return <span className="text-xs text-muted-foreground">{copy.dashboard.deltaNoData}</span>;
+  }
+  const pct = ((current - previous) / previous) * 100;
+  const abs = Math.abs(pct);
+  const label = `${abs < 1 ? "<1" : Math.round(abs)}%`;
+
+  if (pct > 0.5) {
+    return (
+      <span className="flex items-center gap-0.5 text-xs font-medium text-emerald-600">
+        <TrendingUp className="h-3 w-3" />
+        {label} {copy.dashboard.vsYesterday}
+      </span>
+    );
+  }
+  if (pct < -0.5) {
+    return (
+      <span className="flex items-center gap-0.5 text-xs font-medium text-rose-500">
+        <TrendingDown className="h-3 w-3" />
+        {label} {copy.dashboard.vsYesterday}
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+      <Minus className="h-3 w-3" />
+      {copy.dashboard.vsYesterday}
+    </span>
+  );
+}
+
+function OnboardingChecklist({
+  hasProducts,
+  orderCount,
+}: {
+  hasProducts: boolean;
+  orderCount: number;
+}) {
+  const steps = [
+    {
+      label: copy.dashboard.onboardingStep1Label,
+      desc: copy.dashboard.onboardingStep1Desc,
+      done: true,
+      action: null,
+      actionTo: null,
+    },
+    {
+      label: copy.dashboard.onboardingStep2Label,
+      desc: copy.dashboard.onboardingStep2Desc,
+      done: hasProducts,
+      action: copy.dashboard.onboardingStep2Action,
+      actionTo: "/catalog",
+    },
+    {
+      label: copy.dashboard.onboardingStep3Label,
+      desc: copy.dashboard.onboardingStep3Desc,
+      done: orderCount > 0,
+      action: copy.dashboard.onboardingStep3Action,
+      actionTo: "/register",
+    },
+  ];
+
+  const allDone = steps.every((s) => s.done);
+  if (allDone) return null;
+
+  const doneCount = steps.filter((s) => s.done).length;
+
+  return (
+    <Card className="border-primary/20 bg-primary/3 animate-fade-in">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{copy.dashboard.onboardingTitle}</CardTitle>
+          <span className="text-xs text-muted-foreground">
+            {doneCount}/{steps.length}
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground">{copy.dashboard.onboardingSubtitle}</p>
+        {/* Progress bar */}
+        <div className="h-1.5 rounded-full bg-muted mt-2 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: `${(doneCount / steps.length) * 100}%` }}
+          />
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          {steps.map((step, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex items-start gap-3 rounded-lg p-3 transition-colors",
+                step.done ? "opacity-60" : "bg-background border",
+              )}
+            >
+              {step.done ? (
+                <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className={cn("text-sm font-medium", step.done && "line-through text-muted-foreground")}>
+                  {step.label}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
+              </div>
+              {!step.done && step.actionTo && (
+                <Link
+                  to={step.actionTo}
+                  className="shrink-0 text-xs font-medium text-primary hover:underline"
+                >
+                  {step.action} →
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 const kpiCards = [
-  {
-    key: "netSales",
-    label: () => copy.dashboard.netSales,
-    icon: DollarSign,
-    iconClass: "text-emerald-600 bg-emerald-50",
-  },
-  {
-    key: "orders",
-    label: () => copy.dashboard.orders,
-    icon: ShoppingCart,
-    iconClass: "text-blue-600 bg-blue-50",
-  },
-  {
-    key: "avgTicket",
-    label: () => copy.dashboard.avgTicket,
-    icon: TrendingUp,
-    iconClass: "text-violet-600 bg-violet-50",
-  },
-  {
-    key: "refunds",
-    label: () => copy.dashboard.refunds,
-    icon: Receipt,
-    iconClass: "text-rose-600 bg-rose-50",
-  },
+  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "text-emerald-600 bg-emerald-50" },
+  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "text-blue-600 bg-blue-50" },
+  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: TrendingUp, iconClass: "text-violet-600 bg-violet-50" },
+  { key: "refunds", label: () => copy.dashboard.refunds, icon: Receipt, iconClass: "text-rose-600 bg-rose-50" },
 ] as const;
 
 export default function DashboardView() {
@@ -79,12 +198,24 @@ export default function DashboardView() {
     setLoadState({ status: "loading" });
     try {
       const today = todayISO();
-      const [summary, payments, topProducts] = await Promise.all([
+      const yesterday = yesterdayISO();
+
+      const [summary, payments, topProducts, productsResult, yesterdaySummary] = await Promise.all([
         getSalesSummary(today, today),
         getPaymentBreakdown(today, today),
         getTopProducts(today, today),
+        listProducts().catch(() => [] as Awaited<ReturnType<typeof listProducts>>),
+        getSalesSummary(yesterday, yesterday).catch(() => null),
       ]);
-      setLoadState({ status: "ready", summary, payments, topProducts });
+
+      setLoadState({
+        status: "ready",
+        summary,
+        yesterday: yesterdaySummary,
+        payments,
+        topProducts,
+        hasProducts: productsResult.some((p) => p.is_active),
+      });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -114,26 +245,14 @@ export default function DashboardView() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <Card key={i}>
-                <CardHeader className="pb-2">
-                  <Skeleton className="h-4 w-24" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-32" />
-                </CardContent>
+                <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
+                <CardContent><Skeleton className="h-8 w-32" /></CardContent>
               </Card>
             ))}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardContent className="p-6">
-                <Skeleton className="h-48 w-full" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <Skeleton className="h-48 w-full" />
-              </CardContent>
-            </Card>
+            <Card><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
+            <Card><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
           </div>
         </div>
       )}
@@ -155,32 +274,45 @@ export default function DashboardView() {
 
       {loadState.status === "ready" && (
         <div className="space-y-6">
+          {/* Onboarding checklist — hidden once complete */}
+          <OnboardingChecklist
+            hasProducts={loadState.hasProducts}
+            orderCount={loadState.summary.order_count}
+          />
+
           {/* KPI Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {kpiCards.map(({ key, label, icon: Icon, iconClass }) => {
-              const { summary } = loadState;
-
+              const { summary, yesterday } = loadState;
               let value = "";
               let sub = "";
+              let currentNum = 0;
+              let prevNum: number | null = null;
 
               if (key === "netSales") {
+                currentNum = Number(summary.net_sales);
+                prevNum = yesterday ? Number(yesterday.net_sales) : null;
                 value = formatMoney(summary.net_sales);
                 sub = copy.dashboard.grossSuffix(formatMoney(summary.gross_sales));
               } else if (key === "orders") {
+                currentNum = summary.order_count;
+                prevNum = yesterday?.order_count ?? null;
                 value = String(summary.order_count);
-                sub =
-                  summary.void_count > 0
-                    ? copy.dashboard.voidedCount(summary.void_count)
-                    : copy.dashboard.noVoidsToday;
+                sub = summary.void_count > 0
+                  ? copy.dashboard.voidedCount(summary.void_count)
+                  : copy.dashboard.noVoidsToday;
               } else if (key === "avgTicket") {
-                value =
-                  summary.order_count > 0
-                    ? formatMoney(
-                        (Number(summary.net_sales) / summary.order_count).toFixed(2),
-                      )
-                    : formatMoney("0.00");
+                currentNum = summary.order_count > 0
+                  ? Number(summary.net_sales) / summary.order_count : 0;
+                prevNum = yesterday && yesterday.order_count > 0
+                  ? Number(yesterday.net_sales) / yesterday.order_count : null;
+                value = summary.order_count > 0
+                  ? formatMoney((currentNum).toFixed(2))
+                  : formatMoney("0.00");
                 sub = copy.dashboard.perCompletedOrder;
               } else {
+                currentNum = summary.refund_count;
+                prevNum = yesterday?.refund_count ?? null;
                 value = String(summary.refund_count);
                 sub = formatMoney(summary.refund_total);
               }
@@ -197,7 +329,10 @@ export default function DashboardView() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-2xl font-bold">{value}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                    <div className="mt-1.5">
+                      <DeltaBadge current={currentNum} previous={prevNum} />
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -223,8 +358,7 @@ export default function DashboardView() {
                   <div className="space-y-4">
                     {loadState.payments.payments.map((p) => {
                       const total = loadState.payments.payments.reduce(
-                        (sum, x) => sum + Number(x.amount),
-                        0,
+                        (sum, x) => sum + Number(x.amount), 0,
                       );
                       const pct = total > 0 ? (Number(p.amount) / total) * 100 : 0;
                       return (
@@ -273,7 +407,9 @@ export default function DashboardView() {
                         </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{p.product_name}</p>
-                          <p className="text-xs text-muted-foreground">{p.quantity_sold} sold</p>
+                          <p className="text-xs text-muted-foreground">
+                            {copy.reportsView.soldCount(p.quantity_sold)}
+                          </p>
                         </div>
                         <span className="text-sm font-semibold shrink-0">
                           {formatMoney(p.gross_sales)}
@@ -294,34 +430,10 @@ export default function DashboardView() {
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  {
-                    to: "/register",
-                    icon: ShoppingCart,
-                    iconClass: "bg-primary/10 text-primary",
-                    label: copy.dashboard.newSale,
-                    desc: copy.dashboard.newSaleDesc,
-                  },
-                  {
-                    to: "/catalog",
-                    icon: LayoutGrid,
-                    iconClass: "bg-amber-500/10 text-amber-600",
-                    label: copy.dashboard.manageCatalog,
-                    desc: copy.dashboard.manageCatalogDesc,
-                  },
-                  {
-                    to: "/reports",
-                    icon: BarChart3,
-                    iconClass: "bg-blue-500/10 text-blue-600",
-                    label: copy.dashboard.viewReports,
-                    desc: copy.dashboard.viewReportsDesc,
-                  },
-                  {
-                    to: "/shifts",
-                    icon: Clock,
-                    iconClass: "bg-violet-500/10 text-violet-600",
-                    label: copy.dashboard.shifts,
-                    desc: copy.dashboard.shiftsDesc,
-                  },
+                  { to: "/register", icon: ShoppingCart, iconClass: "bg-primary/10 text-primary", label: copy.dashboard.newSale, desc: copy.dashboard.newSaleDesc },
+                  { to: "/catalog", icon: LayoutGrid, iconClass: "bg-amber-500/10 text-amber-600", label: copy.dashboard.manageCatalog, desc: copy.dashboard.manageCatalogDesc },
+                  { to: "/reports", icon: BarChart3, iconClass: "bg-blue-500/10 text-blue-600", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
+                  { to: "/shifts", icon: Clock, iconClass: "bg-violet-500/10 text-violet-600", label: copy.dashboard.shifts, desc: copy.dashboard.shiftsDesc },
                 ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                   <Link key={to} to={to} className="group">
                     <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-primary/50 hover:shadow-sm">
