@@ -194,7 +194,7 @@ export default function ReportsView() {
         <>
           {/* KPI cards */}
           <section
-            className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5"
+            className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6"
             aria-label={copy.reportsView.title}
           >
             <KpiCard
@@ -222,12 +222,41 @@ export default function ReportsView() {
               accent="text-violet-600"
             />
             <KpiCard
+              icon={TrendingUp}
+              label={copy.reportsView.avgTicket}
+              value={
+                loadState.summary.order_count > 0
+                  ? formatMoney((Number(loadState.summary.net_sales) / loadState.summary.order_count).toFixed(2))
+                  : formatMoney("0.00")
+              }
+              accent="text-sky-600"
+            />
+            <KpiCard
               icon={XCircle}
               label={copy.reportsView.voids}
               value={String(loadState.summary.void_count)}
               accent="text-orange-500"
             />
           </section>
+
+          <Card>
+            <CardContent className="flex items-start gap-3 p-5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <BarChart3 className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">{copy.reportsView.periodInsight}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {loadState.summary.order_count > 0
+                    ? copy.reportsView.salesInsightActive(
+                        loadState.summary.order_count,
+                        formatMoney(loadState.summary.net_sales),
+                      )
+                    : copy.reportsView.salesInsightEmpty}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Payment breakdown */}
           <Card>
