@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +30,6 @@ import {
   Plus,
   Minus,
   Trash2,
-  CreditCard,
-  Banknote,
-  Building2,
   SplitSquareHorizontal,
   CheckCircle2,
   ExternalLink,
@@ -88,11 +86,6 @@ function centsToMoney(cents: number): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
 }
 
-const paymentIcons: Record<PaymentMethod, React.ReactNode> = {
-  cash: <Banknote className="h-4 w-4" />,
-  bank_transfer: <Building2 className="h-4 w-4" />,
-  manual_card: <CreditCard className="h-4 w-4" />,
-};
 
 export default function RegisterView() {
   const { state } = useAuth();
@@ -457,6 +450,7 @@ export default function RegisterView() {
                   <button
                     key={product.id}
                     type="button"
+                    aria-label={copy.register.add}
                     onClick={() => addProduct(product)}
                     className="group flex flex-col justify-between rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
                   >
@@ -624,35 +618,47 @@ export default function RegisterView() {
                           <option value="bank_transfer">{copy.register.bankTransfer}</option>
                           <option value="manual_card">{copy.register.manualCard}</option>
                         </Select>
-                        <Input
-                          min="0"
-                          step="0.01"
-                          type="number"
-                          placeholder={copy.register.amount}
-                          value={payment.amount}
-                          onChange={(event) =>
-                            updateSplitPayment(payment.id, { amount: event.target.value })
-                          }
-                        />
-                        {payment.method === "cash" ? (
+                        <div className="space-y-1">
+                          <Label htmlFor={`amount-${payment.id}`}>{copy.register.amount}</Label>
                           <Input
+                            id={`amount-${payment.id}`}
                             min="0"
                             step="0.01"
                             type="number"
-                            placeholder={copy.register.amountTendered}
-                            value={payment.amountTendered}
+                            placeholder={copy.register.amount}
+                            value={payment.amount}
                             onChange={(event) =>
-                              updateSplitPayment(payment.id, { amountTendered: event.target.value })
+                              updateSplitPayment(payment.id, { amount: event.target.value })
                             }
                           />
+                        </div>
+                        {payment.method === "cash" ? (
+                          <div className="space-y-1">
+                            <Label htmlFor={`cashTendered-${payment.id}`}>{copy.register.amountTendered}</Label>
+                            <Input
+                              id={`cashTendered-${payment.id}`}
+                              min="0"
+                              step="0.01"
+                              type="number"
+                              placeholder={copy.register.amountTendered}
+                              value={payment.amountTendered}
+                              onChange={(event) =>
+                                updateSplitPayment(payment.id, { amountTendered: event.target.value })
+                              }
+                            />
+                          </div>
                         ) : (
-                          <Input
-                            placeholder={copy.register.optionalReference}
-                            value={payment.reference}
-                            onChange={(event) =>
-                              updateSplitPayment(payment.id, { reference: event.target.value })
-                            }
-                          />
+                          <div className="space-y-1">
+                            <Label htmlFor={`reference-${payment.id}`}>{copy.register.paymentReference}</Label>
+                            <Input
+                              id={`reference-${payment.id}`}
+                              placeholder={copy.register.optionalReference}
+                              value={payment.reference}
+                              onChange={(event) =>
+                                updateSplitPayment(payment.id, { reference: event.target.value })
+                              }
+                            />
+                          </div>
                         )}
                       </div>
                     ))}
@@ -681,33 +687,24 @@ export default function RegisterView() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {/* Payment method pills */}
-                    <div className="grid grid-cols-3 gap-2">
-                      {(["cash", "bank_transfer", "manual_card"] as const).map((method) => (
-                        <button
-                          key={method}
-                          type="button"
-                          onClick={() => setPaymentMethod(method)}
-                          className={cn(
-                            "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs font-medium transition-all",
-                            paymentMethod === method
-                              ? "border-primary bg-primary/5 text-primary shadow-sm"
-                              : "border-input hover:border-primary/30 text-muted-foreground",
-                          )}
-                        >
-                          {paymentIcons[method]}
-                          {method === "cash"
-                            ? copy.register.cash
-                            : method === "bank_transfer"
-                              ? copy.register.bankTransfer
-                              : copy.register.manualCard}
-                        </button>
-                      ))}
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentMethod">{copy.register.paymentMethod}</Label>
+                      <Select
+                        id="paymentMethod"
+                        value={paymentMethod}
+                        onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                      >
+                        <option value="cash">{copy.register.cash}</option>
+                        <option value="bank_transfer">{copy.register.bankTransfer}</option>
+                        <option value="manual_card">{copy.register.manualCard}</option>
+                      </Select>
                     </div>
 
                     {paymentMethod === "cash" ? (
                       <div className="space-y-2">
+                        <Label htmlFor="cashTendered">{copy.register.amountTendered}</Label>
                         <Input
+                          id="cashTendered"
                           min="0"
                           step="0.01"
                           type="number"
@@ -727,11 +724,15 @@ export default function RegisterView() {
                         )}
                       </div>
                     ) : (
-                      <Input
-                        placeholder={copy.register.optionalReference}
-                        value={reference}
-                        onChange={(event) => setReference(event.target.value)}
-                      />
+                      <div className="space-y-2">
+                        <Label htmlFor="reference">{copy.register.paymentReference}</Label>
+                        <Input
+                          id="reference"
+                          placeholder={copy.register.optionalReference}
+                          value={reference}
+                          onChange={(event) => setReference(event.target.value)}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
@@ -752,7 +753,7 @@ export default function RegisterView() {
                   ) : (
                     <>
                       <CheckCircle2 className="h-5 w-5" />
-                      {copy.register.charge} {formatMoney(totalAmount)}
+                      {copy.register.completeSale}
                     </>
                   )}
                 </Button>
