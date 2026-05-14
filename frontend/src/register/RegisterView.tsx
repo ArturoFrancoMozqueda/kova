@@ -8,6 +8,8 @@ import {
 import { useAuth } from "../auth/useAuth";
 import { listProducts, listCategories } from "../catalog/api";
 import type { Category, Product } from "../catalog/types";
+import { listStock } from "../inventory/api";
+import type { StockItem } from "../inventory/types";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import type { Order } from "../orders/types";
@@ -116,6 +118,7 @@ export default function RegisterView() {
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -134,6 +137,10 @@ export default function RegisterView() {
   useEffect(() => {
     void load();
     void triggerSync();
+    // Best-effort: stock badges are informational; register still works if this fails
+    listStock()
+      .then((items) => setStockMap(new Map(items.map((i) => [i.product_id, i]))))
+      .catch(() => undefined);
   }, [load]);
 
   // Map category_id → category name for readable filter pills
@@ -347,7 +354,7 @@ export default function RegisterView() {
 
   if (loadState.status === "loading") {
     return (
-      <main className="p-6 lg:p-8 max-w-7xl mx-auto">
+      <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
           <Card>
             <CardContent className="p-6">
@@ -389,7 +396,7 @@ export default function RegisterView() {
   }
 
   return (
-    <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
+    <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -423,7 +430,7 @@ export default function RegisterView() {
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                    "rounded-full px-3 py-2 text-xs font-medium transition-all",
                     !selectedCategory
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -437,7 +444,7 @@ export default function RegisterView() {
                     key={catId}
                     onClick={() => setSelectedCategory(catId)}
                     className={cn(
-                      "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                      "rounded-full px-3 py-2 text-xs font-medium transition-all",
                       selectedCategory === catId
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -465,35 +472,52 @@ export default function RegisterView() {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {filteredProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    aria-label={`${copy.register.add} ${product.name}`}
-                    onClick={() => addProduct(product)}
-                    className="group flex flex-col justify-between rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                        {product.name}
-                      </p>
-                      {product.sku && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          {product.sku}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-base font-bold text-primary">
-                        {formatMoney(product.price_amount)}
-                      </span>
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Plus className="h-3.5 w-3.5" />
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                {filteredProducts.map((product) => {
+                  const stock = stockMap.get(product.id);
+                  const isOut = stock?.track_inventory && stock.stock_on_hand === 0;
+                  const isLow = stock?.is_low_stock && !isOut;
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      aria-label={`${copy.register.add} ${product.name}`}
+                      onClick={() => addProduct(product)}
+                      className="group flex flex-col justify-between rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-start justify-between gap-1">
+                          <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors flex-1">
+                            {product.name}
+                          </p>
+                          {isOut && (
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-muted text-muted-foreground">
+                              {copy.inventoryView.outBadge}
+                            </span>
+                          )}
+                          {isLow && (
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-amber-100 text-amber-700">
+                              {copy.inventoryView.lowBadge}
+                            </span>
+                          )}
+                        </div>
+                        {product.sku && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Tag className="h-3 w-3" />
+                            {product.sku}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between mt-3">
+                        <span className="text-base font-bold text-primary">
+                          {formatMoney(product.price_amount)}
+                        </span>
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Plus className="h-3.5 w-3.5" />
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -545,7 +569,7 @@ export default function RegisterView() {
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity - 1)}
                             aria-label="Decrease quantity"
-                            className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted transition-colors"
+                            className="flex h-8 w-8 items-center justify-center rounded-md border hover:bg-muted transition-colors"
                           >
                             <Minus className="h-3 w-3" />
                           </button>
@@ -554,7 +578,7 @@ export default function RegisterView() {
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity + 1)}
                             aria-label="Increase quantity"
-                            className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted transition-colors"
+                            className="flex h-8 w-8 items-center justify-center rounded-md border hover:bg-muted transition-colors"
                           >
                             <Plus className="h-3 w-3" />
                           </button>
