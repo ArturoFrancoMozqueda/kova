@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { OrderItem, RefundPayload } from "./types";
+import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { RotateCcw } from "lucide-react";
 
 type RefundModalProps = {
   items: OrderItem[];
@@ -29,49 +35,63 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
   const canSubmit = selectedItems.length > 0 && !disabled;
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="refund-title">
-      <h2 id="refund-title">{copy.refundModal.title}</h2>
-      <label>
-        {copy.refundModal.reason}
-        <select value={reason} onChange={(event) => setReason(event.target.value)}>
-          {refundReasons.map((option) => (
-            <option key={option} value={option}>
-              {option.replaceAll("_", " ")}
-            </option>
+    <Dialog open onClose={onCancel}>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <RotateCcw className="h-4 w-4" />
+          {copy.refundModal.title}
+        </DialogTitle>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>{copy.refundModal.reason}</Label>
+          <Select value={reason} onChange={(event) => setReason(event.target.value)}>
+            {refundReasons.map((option) => (
+              <option key={option} value={option}>
+                {option.replaceAll("_", " ")}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{item.product_name}</p>
+                <p className="text-xs text-muted-foreground">Max: {item.quantity}</p>
+              </div>
+              <div className="w-20">
+                <Input
+                  aria-label={`${item.product_name} ${copy.refundModal.quantity}`}
+                  min="0"
+                  max={item.quantity}
+                  type="number"
+                  value={quantities[item.id] ?? 0}
+                  onChange={(event) =>
+                    setQuantities((current) => ({
+                      ...current,
+                      [item.id]: Number(event.target.value),
+                    }))
+                  }
+                  className="text-center"
+                />
+              </div>
+            </div>
           ))}
-        </select>
-      </label>
-      <div>
-        {items.map((item) => (
-          <label key={item.id}>
-            {item.product_name}
-            <span>{copy.refundModal.quantity}</span>
-            <input
-              aria-label={`${item.product_name} ${copy.refundModal.quantity}`}
-              min="0"
-              max={item.quantity}
-              type="number"
-              value={quantities[item.id] ?? 0}
-              onChange={(event) =>
-                setQuantities((current) => ({
-                  ...current,
-                  [item.id]: Number(event.target.value),
-                }))
-              }
-            />
-          </label>
-        ))}
+        </div>
       </div>
-      <button type="button" onClick={onCancel}>
-        {copy.refundModal.cancel}
-      </button>
-      <button
-        type="button"
-        disabled={!canSubmit}
-        onClick={() => onSubmit({ reason, items: selectedItems })}
-      >
-        {copy.refundModal.submit}
-      </button>
-    </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel}>{copy.refundModal.cancel}</Button>
+        <Button
+          disabled={!canSubmit}
+          onClick={() => onSubmit({ reason, items: selectedItems })}
+        >
+          {copy.refundModal.submit}
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }

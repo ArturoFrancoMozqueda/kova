@@ -12,6 +12,14 @@ import { ReceiptDisplay } from "./ReceiptDisplay";
 import { RefundModal } from "./RefundModal";
 import type { Order, Receipt, RefundPayload } from "./types";
 import { VoidModal } from "./VoidModal";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
+import { AlertCircle, RotateCcw, Ban, ArrowLeft, Package } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type LoadState =
   | { status: "loading" }
@@ -23,9 +31,9 @@ export default function OrderDetail() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<"refund" | "void" | null>(null);
   const [operationPending, setOperationPending] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const canRefund = usePermission(ORDER_REFUND_PERMISSION);
   const canVoid = usePermission(ORDER_VOID_PERMISSION);
+  const { toast } = useToast();
 
   const load = useCallback(async () => {
     if (!orderId) {
@@ -46,52 +54,59 @@ export default function OrderDetail() {
   }, [load]);
 
   const submitRefund = async (payload: RefundPayload) => {
-    if (!orderId) {
-      return;
-    }
+    if (!orderId) return;
     setOperationPending(true);
-    setNotice(null);
     try {
       await createRefund(orderId, payload);
       setActiveModal(null);
-      setNotice(copy.orderDetail.refundSuccess);
+      toast(copy.orderDetail.refundSuccess, "success");
       await load();
     } catch {
-      setNotice(copy.orderDetail.operationError);
+      toast(copy.orderDetail.operationError, "error");
     } finally {
       setOperationPending(false);
     }
   };
 
   const submitVoid = async (reason: string) => {
-    if (!orderId) {
-      return;
-    }
+    if (!orderId) return;
     setOperationPending(true);
-    setNotice(null);
     try {
       await createVoid(orderId, reason);
       setActiveModal(null);
-      setNotice(copy.orderDetail.voidSuccess);
+      toast(copy.orderDetail.voidSuccess, "success");
       await load();
     } catch {
-      setNotice(copy.orderDetail.operationError);
+      toast(copy.orderDetail.operationError, "error");
     } finally {
       setOperationPending(false);
     }
   };
 
   if (loadState.status === "loading") {
-    return <main aria-busy="true">{copy.orderDetail.loading}</main>;
+    return (
+      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+        <Skeleton className="h-8 w-48 mb-6" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </main>
+    );
   }
 
   if (loadState.status === "error") {
     return (
-      <main>
-        <p role="alert">{loadState.message}</p>
-        <button type="button" onClick={() => void load()}>
-          {copy.orderDetail.retry}
-        </button>
+      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+        <Card className="border-destructive/50">
+          <CardContent className="flex items-center gap-4 p-6">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <p className="font-medium">{loadState.message}</p>
+            <Button variant="outline" onClick={() => void load()} className="ml-auto">
+              {copy.orderDetail.retry}
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     );
   }
@@ -100,59 +115,99 @@ export default function OrderDetail() {
   const isVoided = receipt.status === "voided";
 
   return (
-    <main>
-      <h1>{copy.orderDetail.title}</h1>
-      {notice ? <p role="status">{notice}</p> : null}
-      {isVoided ? <p role="status">{copy.orderDetail.voidedBanner}</p> : null}
-      <p>{isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}</p>
-      <section aria-labelledby="items-title">
-        <h2 id="items-title">{copy.orderDetail.items}</h2>
-        {order.items.map((item) => (
-          <article key={item.id}>
-            <h3>{item.product_name}</h3>
-            {item.modifiers?.map((m) => (
-              <p key={`${m.modifier_group_name}-${m.modifier_option_name}`} className="muted" style={{ margin: "0 0 0.25rem 1rem", fontSize: "0.875rem" }}>
-                → {m.modifier_option_name}
-                {parseFloat(m.price_delta_amount) > 0 && ` +MX$${parseFloat(m.price_delta_amount).toFixed(2)}`}
-              </p>
+    <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <Link to="/orders" className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight">{copy.orderDetail.title}</h1>
+          <p className="text-sm text-muted-foreground font-mono">{orderId?.slice(0, 8)}</p>
+        </div>
+        <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">
+          {isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}
+        </Badge>
+      </div>
+
+      {isVoided && (
+        <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive mb-6 animate-fade-in">
+          <Ban className="h-4 w-4 shrink-0" />
+          {copy.orderDetail.voidedBanner}
+        </div>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Items */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              {copy.orderDetail.items}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {order.items.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">{item.product_name}</p>
+                  {item.modifiers?.map((m) => (
+                    <p key={`${m.modifier_group_name}-${m.modifier_option_name}`} className="text-xs text-muted-foreground mt-0.5 pl-2">
+                      + {m.modifier_option_name}
+                      {parseFloat(m.price_delta_amount) > 0 && ` (+MX$${parseFloat(m.price_delta_amount).toFixed(2)})`}
+                    </p>
+                  ))}
+                  <p className="text-xs text-muted-foreground mt-1">x{item.quantity}</p>
+                </div>
+                <span className="text-sm font-semibold">{formatMoney(item.line_total_amount)}</span>
+              </div>
             ))}
-            <p>
-              x{item.quantity} {formatMoney(item.line_total_amount)}
-            </p>
-          </article>
-        ))}
-      </section>
-      <section aria-labelledby="actions-title">
-        <h2 id="actions-title">{copy.orderDetail.actions}</h2>
-        {canRefund && !isVoided ? (
-          <button type="button" onClick={() => setActiveModal("refund")}>
-            {copy.orderDetail.refund}
-          </button>
-        ) : (
-          <p>{copy.orderDetail.permissionHidden}</p>
-        )}
-        {canVoid && !isVoided && receipt.refunds.length === 0 ? (
-          <button type="button" onClick={() => setActiveModal("void")}>
-            {copy.orderDetail.void}
-          </button>
-        ) : null}
-      </section>
-      <ReceiptDisplay order={order} receipt={receipt} />
-      {activeModal === "refund" ? (
+          </CardContent>
+        </Card>
+
+        {/* Actions + Receipt */}
+        <div className="space-y-4">
+          {(canRefund || canVoid) && !isVoided && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{copy.orderDetail.actions}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex gap-2">
+                {canRefund && (
+                  <Button variant="outline" onClick={() => setActiveModal("refund")}>
+                    <RotateCcw className="h-4 w-4" />
+                    {copy.orderDetail.refund}
+                  </Button>
+                )}
+                {canVoid && receipt.refunds.length === 0 && (
+                  <Button variant="destructive" onClick={() => setActiveModal("void")}>
+                    <Ban className="h-4 w-4" />
+                    {copy.orderDetail.void}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <ReceiptDisplay order={order} receipt={receipt} />
+        </div>
+      </div>
+
+      {activeModal === "refund" && (
         <RefundModal
           disabled={operationPending}
           items={order.items}
           onCancel={() => setActiveModal(null)}
           onSubmit={submitRefund}
         />
-      ) : null}
-      {activeModal === "void" ? (
+      )}
+      {activeModal === "void" && (
         <VoidModal
           disabled={operationPending}
           onCancel={() => setActiveModal(null)}
           onSubmit={submitVoid}
         />
-      ) : null}
+      )}
     </main>
   );
 }
