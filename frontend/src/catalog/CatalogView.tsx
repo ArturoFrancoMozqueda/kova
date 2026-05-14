@@ -25,6 +25,30 @@ import {
 } from "./api";
 import type { Category, ModifierGroup, Product } from "./types";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Package,
+  FolderOpen,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  Tag,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
@@ -46,7 +70,7 @@ export default function CatalogView() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [pending, setPending] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const [showModifiers, setShowModifiers] = useState(false);
 
@@ -66,9 +90,8 @@ export default function CatalogView() {
     void load();
   }, [load]);
 
-  const showNotice = (msg: string) => {
-    setNotice(msg);
-    window.setTimeout(() => setNotice(null), 3000);
+  const showNotice = (msg: string, variant: "success" | "error" = "success") => {
+    toast(msg, variant);
   };
 
   const visibleProducts =
@@ -78,17 +101,52 @@ export default function CatalogView() {
         : loadState.products
       : [];
 
+  /* ---- Loading state ---- */
   if (loadState.status === "loading") {
-    return <main aria-busy="true">{copy.catalog.loading}</main>;
+    return (
+      <main className="flex-1 p-6 space-y-6" aria-busy="true">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full rounded-lg" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
   }
 
+  /* ---- Error state ---- */
   if (loadState.status === "error") {
     return (
-      <main>
-        <p role="alert">{copy.catalog.loadError}</p>
-        <button type="button" onClick={() => void load()}>
-          {copy.catalog.retry}
-        </button>
+      <main className="flex-1 p-6">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="text-sm text-muted-foreground" role="alert">{copy.catalog.loadError}</p>
+            <Button variant="outline" onClick={() => void load()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {copy.catalog.retry}
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     );
   }
@@ -96,223 +154,343 @@ export default function CatalogView() {
   const { categories } = loadState;
 
   return (
-    <main className="page">
-      <header className="page-header">
-        <div>
-          <h1>{copy.catalog.title}</h1>
-        </div>
-        {notice && <p role="status">{notice}</p>}
-      </header>
-
-      <div className="catalog-shell">
-        {/* Categories sidebar */}
-        <aside className="panel catalog-categories">
-          <div className="panel-header">
-            <h2>{copy.catalog.categories}</h2>
-            {canCreate && modal?.type !== "category-create" && (
-              <button type="button" onClick={() => setModal({ type: "category-create" })}>
-                {copy.catalog.newCategory}
-              </button>
-            )}
+    <main className="flex-1 p-6 space-y-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <Package className="h-5 w-5 text-primary" />
           </div>
+          <h1 className="text-2xl font-bold tracking-tight">{copy.catalog.title}</h1>
+        </div>
+      </div>
 
-          {(modal?.type === "category-create" || modal?.type === "category-edit") && (
-            <CategoryForm
-              initial={modal.type === "category-edit" ? modal.category : undefined}
-              pending={pending}
-              onCancel={() => setModal(null)}
-              onSubmit={async (values) => {
-                setPending(true);
-                try {
-                  if (modal.type === "category-create") {
-                    await createCategory(values);
-                    showNotice(copy.catalog.categoryCreated);
-                  } else {
-                    await updateCategory(modal.category.id, values);
-                    showNotice(copy.catalog.categoryUpdated);
-                  }
-                  setModal(null);
-                  await load();
-                } catch {
-                  showNotice(copy.catalog.operationError);
-                } finally {
-                  setPending(false);
-                }
-              }}
-            />
-          )}
-
-          <ul className="category-list" role="listbox" aria-label={copy.catalog.categories}>
-            <li>
-              <button
-                type="button"
-                role="option"
-                aria-selected={selectedCategoryId === null}
-                className={selectedCategoryId === null ? "selected" : ""}
-                onClick={() => setSelectedCategoryId(null)}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        {/* ---- Categories sidebar ---- */}
+        <Card className="h-fit">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+              {copy.catalog.categories}
+            </CardTitle>
+            {canCreate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setModal({ type: "category-create" })}
               >
-                {copy.catalog.allProducts}
-              </button>
-            </li>
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {/* All products filter */}
+            <button
+              type="button"
+              role="option"
+              aria-selected={selectedCategoryId === null}
+              className={cn(
+                "w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors text-left",
+                selectedCategoryId === null
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              )}
+              onClick={() => setSelectedCategoryId(null)}
+            >
+              <Layers className="h-4 w-4" />
+              {copy.catalog.allProducts}
+            </button>
+
             {categories.map((cat) => (
-              <li key={cat.id}>
+              <div
+                key={cat.id}
+                className={cn(
+                  "group flex items-center rounded-md transition-colors",
+                  selectedCategoryId === cat.id
+                    ? "bg-primary/10"
+                    : "hover:bg-accent",
+                )}
+              >
                 <button
                   type="button"
                   role="option"
                   aria-selected={selectedCategoryId === cat.id}
-                  className={selectedCategoryId === cat.id ? "selected" : ""}
+                  className={cn(
+                    "flex-1 text-left px-3 py-2 text-sm font-medium transition-colors truncate",
+                    selectedCategoryId === cat.id
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-accent-foreground",
+                  )}
                   onClick={() => setSelectedCategoryId(cat.id)}
                 >
                   {cat.name}
                 </button>
-                {canUpdate && (
-                  <button
-                    type="button"
-                    aria-label={`Edit ${cat.name}`}
-                    onClick={() => setModal({ type: "category-edit", category: cat })}
-                  >
-                    Edit
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    aria-label={`Deactivate ${cat.name}`}
-                    onClick={async () => {
-                      setPending(true);
-                      try {
-                        await deactivateCategory(cat.id);
-                        showNotice(copy.catalog.categoryDeactivated);
-                        if (selectedCategoryId === cat.id) setSelectedCategoryId(null);
-                        await load();
-                      } catch {
-                        showNotice(copy.catalog.operationError);
-                      } finally {
-                        setPending(false);
-                      }
-                    }}
-                  >
-                    {copy.catalog.deactivate}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-
-          {categories.length === 0 && !modal && (
-            <p className="muted">{copy.catalog.emptyCategories}</p>
-          )}
-        </aside>
-
-        {/* Products main panel */}
-        <section className="panel catalog-products">
-          <div className="panel-header">
-            <h2>{copy.catalog.products}</h2>
-            {canCreate && modal?.type !== "product-create" && (
-              <button type="button" onClick={() => setModal({ type: "product-create" })}>
-                {copy.catalog.newProduct}
-              </button>
-            )}
-          </div>
-
-          {(modal?.type === "product-create" || modal?.type === "product-edit") && (
-            <ProductForm
-              initial={modal.type === "product-edit" ? modal.product : undefined}
-              categories={categories}
-              availableModifierGroups={loadState.status === "ready" ? loadState.modifierGroups : []}
-              defaultCategoryId={selectedCategoryId}
-              pending={pending}
-              onCancel={() => setModal(null)}
-              onSubmit={async (values) => {
-                setPending(true);
-                try {
-                  if (modal.type === "product-create") {
-                    const product = await createProduct(values);
-                    await setProductModifierGroups(product.id, values.modifier_group_ids);
-                    showNotice(copy.catalog.productCreated);
-                  } else {
-                    await updateProduct(modal.product.id, values);
-                    await setProductModifierGroups(modal.product.id, values.modifier_group_ids);
-                    showNotice(copy.catalog.productUpdated);
-                  }
-                  setModal(null);
-                  await load();
-                } catch {
-                  showNotice(copy.catalog.operationError);
-                } finally {
-                  setPending(false);
-                }
-              }}
-              onDeactivate={
-                canDelete && modal.type === "product-edit"
-                  ? async () => {
-                      setPending(true);
-                      try {
-                        await deactivateProduct(modal.product.id);
-                        showNotice(copy.catalog.productDeactivated);
-                        setModal(null);
-                        await load();
-                      } catch {
-                        showNotice(copy.catalog.operationError);
-                      } finally {
-                        setPending(false);
-                      }
-                    }
-                  : undefined
-              }
-            />
-          )}
-
-          {visibleProducts.length === 0 && !modal && (
-            <p className="muted">{copy.catalog.emptyProducts}</p>
-          )}
-
-          <ul className="product-list">
-            {visibleProducts.map((product) => (
-              <li key={product.id} className="data-card">
-                <div>
-                  <strong>{product.name}</strong>
-                  {product.sku && <span className="muted"> · {product.sku}</span>}
+                <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {canUpdate && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      aria-label={`Edit ${cat.name}`}
+                      onClick={() => setModal({ type: "category-edit", category: cat })}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      aria-label={`Deactivate ${cat.name}`}
+                      onClick={async () => {
+                        setPending(true);
+                        try {
+                          await deactivateCategory(cat.id);
+                          showNotice(copy.catalog.categoryDeactivated);
+                          if (selectedCategoryId === cat.id) setSelectedCategoryId(null);
+                          await load();
+                        } catch {
+                          showNotice(copy.catalog.operationError, "error");
+                        } finally {
+                          setPending(false);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-                <div>{formatMoney(product.price_amount)}</div>
-                {canUpdate && (
-                  <button
-                    type="button"
-                    aria-label={`Edit ${product.name}`}
-                    onClick={() => setModal({ type: "product-edit", product })}
-                  >
-                    Edit
-                  </button>
-                )}
-              </li>
+              </div>
             ))}
-          </ul>
-        </section>
+
+            {categories.length === 0 && !modal && (
+              <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                {copy.catalog.emptyCategories}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ---- Products grid ---- */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Tag className="h-4 w-4 text-muted-foreground" />
+              {copy.catalog.products}
+            </CardTitle>
+            {canCreate && (
+              <Button
+                size="sm"
+                onClick={() => setModal({ type: "product-create" })}
+              >
+                <Plus className="h-4 w-4" />
+                {copy.catalog.newProduct}
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {visibleProducts.length === 0 && !modal ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                  <Package className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">{copy.catalog.emptyProducts}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {visibleProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className={cn(
+                      "group relative rounded-lg border bg-card p-4 transition-all hover:shadow-md",
+                      canUpdate && "cursor-pointer",
+                    )}
+                    onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-sm truncate">{product.name}</h3>
+                        {product.sku && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{product.sku}</p>
+                        )}
+                      </div>
+                      {canUpdate && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          aria-label={`Edit ${product.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModal({ type: "product-edit", product });
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="mt-3">
+                      <span className="text-lg font-bold text-primary">
+                        {formatMoney(product.price_amount)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Modifier Groups section */}
+      {/* ---- Modifier Groups section ---- */}
       {canCreate && (
-        <section className="panel" style={{ marginTop: "1.5rem" }}>
-          <div className="panel-header">
-            <h2>{copy.catalog.modifiers}</h2>
-            <button type="button" onClick={() => setShowModifiers((v) => !v)}>
-              {showModifiers ? copy.catalog.cancel : copy.catalog.modifiers}
-            </button>
-          </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+              {copy.catalog.modifiers}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowModifiers((v) => !v)}
+            >
+              {showModifiers ? (
+                <><ChevronUp className="h-4 w-4 mr-1" />{copy.catalog.cancel}</>
+              ) : (
+                <><ChevronDown className="h-4 w-4 mr-1" />{copy.catalog.modifiers}</>
+              )}
+            </Button>
+          </CardHeader>
           {showModifiers && loadState.status === "ready" && (
-            <ModifierGroupsPanel
-              groups={loadState.modifierGroups}
-              canEdit={canCreate}
-              canDelete={canDelete}
-              onReload={load}
-              onNotice={showNotice}
-            />
+            <CardContent>
+              <ModifierGroupsPanel
+                groups={loadState.modifierGroups}
+                canEdit={canCreate}
+                canDelete={canDelete}
+                onReload={load}
+                onNotice={(msg) => showNotice(msg)}
+                onError={(msg) => showNotice(msg, "error")}
+              />
+            </CardContent>
           )}
-        </section>
+        </Card>
       )}
+
+      {/* ---- Category Dialog ---- */}
+      <Dialog
+        open={modal?.type === "category-create" || modal?.type === "category-edit"}
+        onClose={() => setModal(null)}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {modal?.type === "category-edit" ? copy.catalog.categoryUpdated && `Edit Category` : copy.catalog.newCategory}
+          </DialogTitle>
+          <DialogDescription>
+            {modal?.type === "category-edit"
+              ? "Update the category details below."
+              : "Add a new category to organize your products."}
+          </DialogDescription>
+        </DialogHeader>
+        {(modal?.type === "category-create" || modal?.type === "category-edit") && (
+          <CategoryForm
+            initial={modal.type === "category-edit" ? modal.category : undefined}
+            pending={pending}
+            onCancel={() => setModal(null)}
+            onSubmit={async (values) => {
+              setPending(true);
+              try {
+                if (modal.type === "category-create") {
+                  await createCategory(values);
+                  showNotice(copy.catalog.categoryCreated);
+                } else {
+                  await updateCategory(modal.category.id, values);
+                  showNotice(copy.catalog.categoryUpdated);
+                }
+                setModal(null);
+                await load();
+              } catch {
+                showNotice(copy.catalog.operationError, "error");
+              } finally {
+                setPending(false);
+              }
+            }}
+          />
+        )}
+      </Dialog>
+
+      {/* ---- Product Dialog ---- */}
+      <Dialog
+        open={modal?.type === "product-create" || modal?.type === "product-edit"}
+        onClose={() => setModal(null)}
+        className="max-w-lg"
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {modal?.type === "product-edit" ? `Edit Product` : copy.catalog.newProduct}
+          </DialogTitle>
+          <DialogDescription>
+            {modal?.type === "product-edit"
+              ? "Update the product details below."
+              : "Add a new product to your catalog."}
+          </DialogDescription>
+        </DialogHeader>
+        {(modal?.type === "product-create" || modal?.type === "product-edit") && (
+          <ProductForm
+            initial={modal.type === "product-edit" ? modal.product : undefined}
+            categories={categories}
+            availableModifierGroups={loadState.status === "ready" ? loadState.modifierGroups : []}
+            defaultCategoryId={selectedCategoryId}
+            pending={pending}
+            onCancel={() => setModal(null)}
+            onSubmit={async (values) => {
+              setPending(true);
+              try {
+                if (modal.type === "product-create") {
+                  const product = await createProduct(values);
+                  await setProductModifierGroups(product.id, values.modifier_group_ids);
+                  showNotice(copy.catalog.productCreated);
+                } else {
+                  await updateProduct(modal.product.id, values);
+                  await setProductModifierGroups(modal.product.id, values.modifier_group_ids);
+                  showNotice(copy.catalog.productUpdated);
+                }
+                setModal(null);
+                await load();
+              } catch {
+                showNotice(copy.catalog.operationError, "error");
+              } finally {
+                setPending(false);
+              }
+            }}
+            onDeactivate={
+              canDelete && modal.type === "product-edit"
+                ? async () => {
+                    setPending(true);
+                    try {
+                      await deactivateProduct(modal.product.id);
+                      showNotice(copy.catalog.productDeactivated);
+                      setModal(null);
+                      await load();
+                    } catch {
+                      showNotice(copy.catalog.operationError, "error");
+                    } finally {
+                      setPending(false);
+                    }
+                  }
+                : undefined
+            }
+          />
+        )}
+      </Dialog>
     </main>
   );
 }
+
+/* ======================================================================
+   ModifierGroupsPanel
+   ====================================================================== */
 
 function ModifierGroupsPanel({
   groups,
@@ -320,12 +498,14 @@ function ModifierGroupsPanel({
   canDelete,
   onReload,
   onNotice,
+  onError,
 }: {
   groups: ModifierGroup[];
   canEdit: boolean;
   canDelete: boolean;
   onReload: () => Promise<void>;
   onNotice: (msg: string) => void;
+  onError: (msg: string) => void;
 }) {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupRequired, setNewGroupRequired] = useState(false);
@@ -343,7 +523,7 @@ function ModifierGroupsPanel({
       setNewGroupRequired(false);
       await onReload();
     } catch {
-      onNotice(copy.catalog.operationError);
+      onError(copy.catalog.operationError);
     } finally {
       setAddingGroup(false);
     }
@@ -358,123 +538,152 @@ function ModifierGroupsPanel({
       setNewOptions((prev) => ({ ...prev, [groupId]: { name: "", delta: "" } }));
       await onReload();
     } catch {
-      onNotice(copy.catalog.operationError);
+      onError(copy.catalog.operationError);
     }
   };
 
   return (
-    <div>
-      {groups.length === 0 && <p className="muted">{copy.catalog.noModifierGroups}</p>}
+    <div className="space-y-4">
+      {groups.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          {copy.catalog.noModifierGroups}
+        </p>
+      )}
+
       {groups.map((group) => (
-        <article key={group.id} className="data-card" style={{ marginBottom: "1rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <strong>
-              {group.name}
+        <div key={group.id} className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm">{group.name}</span>
               {group.is_required && (
-                <span className="status-warn" style={{ marginLeft: "0.5rem", fontSize: "0.8rem" }}>
-                  {copy.catalog.required}
-                </span>
+                <Badge variant="warning">{copy.catalog.required}</Badge>
               )}
-            </strong>
+            </div>
             {canDelete && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-destructive hover:text-destructive"
                 onClick={async () => {
                   try {
                     await deactivateModifierGroup(group.id);
                     onNotice(copy.catalog.modifierGroupDeactivated);
                     await onReload();
                   } catch {
-                    onNotice(copy.catalog.operationError);
+                    onError(copy.catalog.operationError);
                   }
                 }}
               >
-                {copy.catalog.deactivate}
-              </button>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             )}
           </div>
-          <ul style={{ listStyle: "none", padding: 0, margin: "0.5rem 0" }}>
+
+          {/* Options list */}
+          <div className="space-y-1.5">
             {group.options.map((opt) => (
-              <li key={opt.id} style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.25rem" }}>
-                <span>{opt.name}</span>
+              <div
+                key={opt.id}
+                className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted/50 group/opt"
+              >
+                <span className="flex-1">{opt.name}</span>
                 {parseFloat(opt.price_delta) > 0 && (
-                  <span className="muted">+MX${parseFloat(opt.price_delta).toFixed(2)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    +MX${parseFloat(opt.price_delta).toFixed(2)}
+                  </span>
                 )}
                 {canDelete && (
-                  <button
-                    type="button"
-                    style={{ marginLeft: "auto", fontSize: "0.8rem" }}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover/opt:opacity-100 transition-opacity text-destructive hover:text-destructive"
                     onClick={async () => {
                       try {
                         await deactivateModifierOption(group.id, opt.id);
                         onNotice(copy.catalog.optionDeactivated);
                         await onReload();
                       } catch {
-                        onNotice(copy.catalog.operationError);
+                        onError(copy.catalog.operationError);
                       }
                     }}
                   >
-                    {copy.catalog.deactivate}
-                  </button>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
+
+          {/* Add option inline */}
           {canEdit && (
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-              <input
+            <div className="flex items-center gap-2 pt-1">
+              <Input
                 type="text"
                 placeholder={copy.catalog.optionName}
                 value={newOptions[group.id]?.name ?? ""}
-                onChange={(e) => setNewOptions((prev) => ({
-                  ...prev, [group.id]: { ...prev[group.id], name: e.target.value, delta: prev[group.id]?.delta ?? "" }
-                }))}
-                style={{ flex: 1 }}
+                onChange={(e) =>
+                  setNewOptions((prev) => ({
+                    ...prev,
+                    [group.id]: { ...prev[group.id], name: e.target.value, delta: prev[group.id]?.delta ?? "" },
+                  }))
+                }
+                className="flex-1"
               />
-              <input
+              <Input
                 type="number"
                 placeholder={copy.catalog.priceDelta}
                 step="0.01"
                 min="0"
                 value={newOptions[group.id]?.delta ?? ""}
-                onChange={(e) => setNewOptions((prev) => ({
-                  ...prev, [group.id]: { ...prev[group.id], delta: e.target.value, name: prev[group.id]?.name ?? "" }
-                }))}
-                style={{ width: "7rem" }}
+                onChange={(e) =>
+                  setNewOptions((prev) => ({
+                    ...prev,
+                    [group.id]: { ...prev[group.id], delta: e.target.value, name: prev[group.id]?.name ?? "" },
+                  }))
+                }
+                className="w-28"
               />
-              <button type="button" onClick={() => void handleAddOption(group.id)}>
+              <Button variant="outline" size="sm" onClick={() => void handleAddOption(group.id)}>
+                <Plus className="h-3.5 w-3.5 mr-1" />
                 {copy.catalog.newOption}
-              </button>
+              </Button>
             </div>
           )}
-        </article>
+        </div>
       ))}
 
+      {/* Create new modifier group form */}
       {canEdit && (
-        <form onSubmit={(e) => void handleCreateGroup(e)} style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", alignItems: "center" }}>
-          <input
+        <form onSubmit={(e) => void handleCreateGroup(e)} className="flex items-center gap-3 pt-2">
+          <Input
             type="text"
             placeholder={copy.catalog.modifierGroupName}
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
-            style={{ flex: 1 }}
+            className="flex-1"
           />
-          <label style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+          <label className="flex items-center gap-1.5 text-sm whitespace-nowrap">
             <input
               type="checkbox"
               checked={newGroupRequired}
               onChange={(e) => setNewGroupRequired(e.target.checked)}
+              className="rounded border-input"
             />
             {copy.catalog.required}
           </label>
-          <button type="submit" disabled={addingGroup || !newGroupName.trim()}>
+          <Button type="submit" size="sm" disabled={addingGroup || !newGroupName.trim()}>
+            <Plus className="h-4 w-4 mr-1" />
             {copy.catalog.newModifierGroup}
-          </button>
+          </Button>
         </form>
       )}
     </div>
   );
 }
+
+/* ======================================================================
+   CategoryForm (renders inside Dialog)
+   ====================================================================== */
 
 type CategoryFormValues = {
   name: string;
@@ -507,10 +716,11 @@ function CategoryForm({
   };
 
   return (
-    <form className="panel-form" onSubmit={handleSubmit} aria-label="Category form">
-      <label>
-        {copy.catalog.categoryName}
-        <input
+    <form onSubmit={handleSubmit} aria-label="Category form" className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="cat-name">{copy.catalog.categoryName}</Label>
+        <Input
+          id="cat-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -518,36 +728,42 @@ function CategoryForm({
           maxLength={120}
           autoFocus
         />
-      </label>
-      <label>
-        {copy.catalog.categoryDescription}
-        <input
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="cat-desc">{copy.catalog.categoryDescription}</Label>
+        <Input
+          id="cat-desc"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           maxLength={500}
         />
-      </label>
-      <label>
-        {copy.catalog.sortOrder}
-        <input
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="cat-sort">{copy.catalog.sortOrder}</Label>
+        <Input
+          id="cat-sort"
           type="number"
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value)}
           min={0}
         />
-      </label>
-      <div className="button-row">
-        <button type="submit" disabled={pending || !name.trim()}>
-          {copy.catalog.saveCategory}
-        </button>
-        <button type="button" onClick={onCancel}>
-          {copy.catalog.cancel}
-        </button>
       </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          {copy.catalog.cancel}
+        </Button>
+        <Button type="submit" disabled={pending || !name.trim()}>
+          {copy.catalog.saveCategory}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }
+
+/* ======================================================================
+   ProductForm (renders inside Dialog)
+   ====================================================================== */
 
 type ProductFormValues = {
   name: string;
@@ -615,108 +831,143 @@ function ProductForm({
   };
 
   return (
-    <form className="panel-form" onSubmit={handleSubmit} aria-label="Product form">
-      <label>
-        {copy.catalog.productName}
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          maxLength={160}
-          autoFocus
-        />
-      </label>
-      <label>
-        {copy.catalog.productPrice}
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          required
-        />
-      </label>
-      <label>
-        {copy.catalog.productCategory}
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-          <option value="">—</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {copy.catalog.productSku}
-        <input
-          type="text"
-          value={sku}
-          onChange={(e) => setSku(e.target.value)}
-          maxLength={100}
-        />
-      </label>
-      <label>
-        {copy.catalog.productDescription}
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          maxLength={1000}
-        />
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={trackInventory}
-          onChange={(e) => setTrackInventory(e.target.checked)}
-        />
-        {" "}{copy.catalog.trackInventory}
-      </label>
-      {trackInventory && (
-        <label>
-          {copy.catalog.lowStockThreshold}
-          <input
-            type="number"
-            min="0"
-            value={threshold}
-            onChange={(e) => setThreshold(e.target.value)}
+    <form onSubmit={handleSubmit} aria-label="Product form" className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="prod-name">{copy.catalog.productName}</Label>
+          <Input
+            id="prod-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={160}
+            autoFocus
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-price">{copy.catalog.productPrice}</Label>
+          <Input
+            id="prod-price"
+            type="number"
+            step="0.01"
+            min="0"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-cat">{copy.catalog.productCategory}</Label>
+          <Select
+            id="prod-cat"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
+            <option value="">&mdash;</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-sku">{copy.catalog.productSku}</Label>
+          <Input
+            id="prod-sku"
+            type="text"
+            value={sku}
+            onChange={(e) => setSku(e.target.value)}
+            maxLength={100}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-desc">{copy.catalog.productDescription}</Label>
+          <Input
+            id="prod-desc"
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={1000}
+          />
+        </div>
+      </div>
+
+      {/* Track inventory */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            checked={trackInventory}
+            onChange={(e) => setTrackInventory(e.target.checked)}
+            className="rounded border-input"
+          />
+          {copy.catalog.trackInventory}
         </label>
-      )}
+        {trackInventory && (
+          <div className="space-y-2 pl-6">
+            <Label htmlFor="prod-threshold">{copy.catalog.lowStockThreshold}</Label>
+            <Input
+              id="prod-threshold"
+              type="number"
+              min="0"
+              value={threshold}
+              onChange={(e) => setThreshold(e.target.value)}
+              className="w-32"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Modifier groups */}
       {availableModifierGroups.length > 0 && (
-        <fieldset>
-          <legend>{copy.catalog.assignedModifierGroups}</legend>
-          {availableModifierGroups.map((group) => (
-            <label key={group.id} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-              <input
-                type="checkbox"
-                checked={selectedGroupIds.includes(group.id)}
-                onChange={() => toggleGroup(group.id)}
-              />
-              {group.name}
-              {group.is_required && (
-                <span className="muted" style={{ fontSize: "0.8rem" }}>({copy.catalog.required})</span>
-              )}
-            </label>
-          ))}
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">{copy.catalog.assignedModifierGroups}</legend>
+          <div className="space-y-1.5 rounded-md border p-3">
+            {availableModifierGroups.map((group) => (
+              <label
+                key={group.id}
+                className="flex items-center gap-2 text-sm cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedGroupIds.includes(group.id)}
+                  onChange={() => toggleGroup(group.id)}
+                  className="rounded border-input"
+                />
+                <span>{group.name}</span>
+                {group.is_required && (
+                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">
+                    {copy.catalog.required}
+                  </Badge>
+                )}
+              </label>
+            ))}
+          </div>
         </fieldset>
       )}
-      <div className="button-row">
-        <button type="submit" disabled={pending || !name.trim() || !price}>
-          {copy.catalog.saveProduct}
-        </button>
+
+      <DialogFooter>
         {onDeactivate && (
-          <button type="button" disabled={pending} onClick={() => void onDeactivate()}>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={pending}
+            onClick={() => void onDeactivate()}
+            className="mr-auto"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
             {copy.catalog.deactivate}
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel}>
           {copy.catalog.cancel}
-        </button>
-      </div>
+        </Button>
+        <Button type="submit" disabled={pending || !name.trim() || !price}>
+          {copy.catalog.saveProduct}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }
