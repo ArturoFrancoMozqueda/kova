@@ -73,7 +73,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Register" })).toBeVisible();
   await expect(page.getByText("Concha")).toBeVisible();
 
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add Concha" }).click();
   await page.getByLabel("Cash tendered").fill("20.00");
   await expect(page.getByText("MX$1.50")).toBeVisible();
 
@@ -114,7 +114,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
 
   await page.goto("/register");
   await expect(page.getByRole("heading", { name: "Register" })).toBeVisible();
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add Concha" }).click();
   await page.getByLabel("Split payment").check();
   await page.getByLabel("Amount").first().fill("10.00");
   await page.getByLabel("Cash tendered").fill("10.00");
@@ -144,7 +144,7 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
   await page.route("**/api/v1/sync/offline-sales", (route) => route.abort());
 
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add Concha" }).click();
   await page.getByLabel("Cash tendered").fill("20.00");
   await page.getByRole("button", { name: "Complete sale" }).click();
 

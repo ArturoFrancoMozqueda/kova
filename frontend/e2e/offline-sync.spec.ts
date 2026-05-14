@@ -101,7 +101,7 @@ test("network-error sale appears in pending sync and clears after manual sync", 
 
   // Submit sale — first sync fails
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add Concha" }).click();
   await page.getByLabel("Cash tendered").fill("20.00");
   await page.getByRole("button", { name: "Complete sale" }).click();
   await expect(page.getByRole("status")).toContainText("queued");
@@ -153,7 +153,7 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
 
   // Submit sale — server returns per-sale failure → dead letter
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add Concha" }).click();
   await page.getByLabel("Cash tendered").fill("20.00");
   await page.getByRole("button", { name: "Complete sale" }).click();
   // Notice shown (server returned failed result, not a network error)
@@ -194,7 +194,7 @@ test("duplicate sync of same client_uuid returns same order (idempotency)", asyn
   });
 
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add Concha" }).click();
   await page.getByLabel("Cash tendered").fill("20.00");
   await page.getByRole("button", { name: "Complete sale" }).click();
 
