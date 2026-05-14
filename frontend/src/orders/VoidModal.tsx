@@ -52,7 +52,7 @@ export function VoidModal({ disabled, onCancel, onSubmit }: VoidModalProps) {
             onChange={(event) => setConfirmed(event.target.checked)}
             className="rounded border-input text-destructive focus:ring-destructive"
           />
-          <span className="text-sm">I understand this reverses the entire order</span>
+          <span className="text-sm">{copy.voidModal.confirmation}</span>
         </label>
       </div>
 

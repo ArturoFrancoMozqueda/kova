@@ -167,27 +167,31 @@ export default function OrderDetail() {
 
         {/* Actions + Receipt */}
         <div className="space-y-4">
-          {(canRefund || canVoid) && !isVoided && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{copy.orderDetail.actions}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex gap-2">
-                {canRefund && (
-                  <Button variant="outline" onClick={() => setActiveModal("refund")}>
-                    <RotateCcw className="h-4 w-4" />
-                    {copy.orderDetail.refund}
-                  </Button>
-                )}
-                {canVoid && receipt.refunds.length === 0 && (
-                  <Button variant="destructive" onClick={() => setActiveModal("void")}>
-                    <Ban className="h-4 w-4" />
-                    {copy.orderDetail.void}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>{copy.orderDetail.actions}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex gap-2">
+              {(canRefund || canVoid) && !isVoided ? (
+                <>
+                  {canRefund && (
+                    <Button variant="outline" onClick={() => setActiveModal("refund")}>
+                      <RotateCcw className="h-4 w-4" />
+                      {copy.orderDetail.refund}
+                    </Button>
+                  )}
+                  {canVoid && receipt.refunds.length === 0 && (
+                    <Button variant="destructive" onClick={() => setActiveModal("void")}>
+                      <Ban className="h-4 w-4" />
+                      {copy.orderDetail.void}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">{copy.orderDetail.permissionHidden}</p>
+              )}
+            </CardContent>
+          </Card>
 
           <ReceiptDisplay order={order} receipt={receipt} />
         </div>
