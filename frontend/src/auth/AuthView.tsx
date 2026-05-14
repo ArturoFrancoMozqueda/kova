@@ -3,6 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { login, signup, verifyEmail } from "./api";
 import { useAuth } from "./useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { AlertCircle, CheckCircle2, Loader2, ArrowRight, Store } from "lucide-react";
 
 type AuthMode = "login" | "signup";
 type ActionState = "idle" | "submitting" | "error" | "created" | "verified";
@@ -23,7 +28,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       if (mode === "login") {
         await login({ email, password });
         await refresh();
-        navigate("/register");
+        navigate("/");
         return;
       }
       const response = await signup({ email, password, tenant_name: tenantName });
@@ -45,84 +50,132 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   };
 
   return (
-    <main className="page auth-page">
-      <header className="hero">
-        <p className="eyebrow">{copy.auth.secureAccess}</p>
-        <h1>{mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}</h1>
-      </header>
-
-      <section className="panel auth-panel">
-        <form onSubmit={(event) => void submit(event)}>
-          {mode === "signup" ? (
-            <label>
-              {copy.auth.tenantName}
-              <input
-                required
-                autoComplete="organization"
-                value={tenantName}
-                onChange={(event) => setTenantName(event.target.value)}
-              />
-            </label>
-          ) : null}
-          <label>
-            {copy.auth.email}
-            <input
-              required
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </label>
-          <label>
-            {copy.auth.password}
-            <input
-              required
-              type="password"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          <div className="button-row">
-            <button type="submit" disabled={state === "submitting"}>
-              {state === "submitting" ? copy.auth.submitting : mode === "login" ? copy.auth.login : copy.auth.signup}
-            </button>
-            <Link className="text-link" to={mode === "login" ? "/signup" : "/login"}>
-              {mode === "login" ? copy.auth.needAccount : copy.auth.haveAccount}
-            </Link>
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
+      <div className="w-full max-w-md animate-fade-in">
+        {/* Brand header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-extrabold text-lg shadow-lg mb-4">
+            <Store className="h-7 w-7" />
           </div>
-        </form>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {mode === "login" ? "Welcome back" : "Create your account"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {mode === "login"
+              ? "Sign in to your point of sale"
+              : "Start accepting payments in minutes"}
+          </p>
+        </div>
 
-        {state === "error" ? (
-          <p className="status-warn" role="alert">
-            {copy.auth.operationError}
-          </p>
-        ) : null}
-        {state === "created" ? (
-          <div className="notice-stack">
-            <p className="notice" role="status">
-              {verificationToken ? copy.auth.devVerifyReady : copy.auth.checkEmail}
-            </p>
-            {verificationToken ? (
-              <>
-                <label>
-                  {copy.auth.verificationToken}
-                  <input value={verificationToken} onChange={(event) => setVerificationToken(event.target.value)} />
-                </label>
-                <button type="button" onClick={() => void verify()} disabled={!verificationToken}>
-                  {copy.auth.verifyEmail}
-                </button>
-              </>
-            ) : null}
-          </div>
-        ) : null}
-        {state === "verified" ? (
-          <p className="notice" role="status">
-            {copy.auth.verified}
-          </p>
-        ) : null}
-      </section>
+        <Card className="shadow-lg border-border/50">
+          <CardContent className="p-6">
+            <form onSubmit={(event) => void submit(event)} className="space-y-4">
+              {mode === "signup" && (
+                <div className="space-y-2">
+                  <Label htmlFor="tenantName">{copy.auth.tenantName}</Label>
+                  <Input
+                    id="tenantName"
+                    required
+                    autoComplete="organization"
+                    placeholder="My Bakery"
+                    value={tenantName}
+                    onChange={(event) => setTenantName(event.target.value)}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="email">{copy.auth.email}</Label>
+                <Input
+                  id="email"
+                  required
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">{copy.auth.password}</Label>
+                <Input
+                  id="password"
+                  required
+                  type="password"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  placeholder={mode === "login" ? "Enter your password" : "Create a password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </div>
+
+              <Button type="submit" className="w-full" size="lg" disabled={state === "submitting"}>
+                {state === "submitting" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {copy.auth.submitting}
+                  </>
+                ) : (
+                  <>
+                    {mode === "login" ? copy.auth.login : copy.auth.signup}
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            {state === "error" && (
+              <div className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {copy.auth.operationError}
+              </div>
+            )}
+
+            {state === "created" && (
+              <div className="mt-4 space-y-3 animate-fade-in">
+                <div className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  {verificationToken ? copy.auth.devVerifyReady : copy.auth.checkEmail}
+                </div>
+                {verificationToken && (
+                  <div className="space-y-2">
+                    <Label htmlFor="verificationToken">{copy.auth.verificationToken}</Label>
+                    <Input
+                      id="verificationToken"
+                      value={verificationToken}
+                      onChange={(event) => setVerificationToken(event.target.value)}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => void verify()}
+                      disabled={!verificationToken}
+                      className="w-full"
+                    >
+                      {copy.auth.verifyEmail}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {state === "verified" && (
+              <div className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-emerald-800 animate-fade-in">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                {copy.auth.verified}
+              </div>
+            )}
+
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+              <Link
+                to={mode === "login" ? "/signup" : "/login"}
+                className="font-medium text-primary hover:underline underline-offset-4"
+              >
+                {mode === "login" ? copy.auth.needAccount : copy.auth.haveAccount}
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }
