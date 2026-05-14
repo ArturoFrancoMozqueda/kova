@@ -58,7 +58,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             <Store className="h-7 w-7" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {mode === "login" ? "Welcome back" : "Create your account"}
+            {mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {mode === "login"
