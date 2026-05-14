@@ -60,6 +60,16 @@
     margin: 0;
     min-width: 320px;
   }
+
+  /* Remove 300ms tap delay on all touch devices */
+  a,
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
 }
 
 /* Smooth scrollbar */
