@@ -725,7 +725,6 @@ export default function RegisterView() {
                       <div
                         className="grid grid-cols-3 gap-2"
                         role="group"
-                        aria-label={copy.register.paymentMethod}
                       >
                         {paymentMethodOptions.map(({ value, label, icon }) => (
                           <button

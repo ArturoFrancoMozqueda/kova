@@ -78,6 +78,9 @@ test("network-error sale appears in pending sync and clears after manual sync", 
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: CATALOG }),
   );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
+  );
 
   let syncCallCount = 0;
   let capturedClientUuid: string | null = null;
@@ -123,6 +126,9 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
   );
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: CATALOG }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
   );
 
   let syncCallCount = 0;
@@ -171,6 +177,9 @@ test("duplicate sync of same client_uuid returns same order (idempotency)", asyn
   );
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: CATALOG }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
   );
 
   const syncedOrderId = "order-idem-1";

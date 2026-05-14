@@ -51,6 +51,9 @@ test("register shows modifier selection modal for products with modifier groups"
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: [productWithModifiers] }),
   );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
+  );
   await page.route("**/api/v1/sync/offline-sales", (route) =>
     route.fulfill({ json: { results: [] } }),
   );
@@ -73,6 +76,9 @@ test("add to cart is disabled until required modifier is selected", async ({ pag
   );
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: [productWithModifiers] }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
   );
   await page.route("**/api/v1/sync/offline-sales", (route) =>
     route.fulfill({ json: { results: [] } }),
@@ -97,6 +103,9 @@ test("selecting a modifier adds it to cart with effective price", async ({ page 
   );
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: [productWithModifiers] }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
   );
 
   let capturedBody: unknown;
@@ -138,6 +147,9 @@ test("products without modifier groups are added directly to cart", async ({ pag
   );
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: [productNoModifiers] }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
   );
   await page.route("**/api/v1/sync/offline-sales", (route) =>
     route.fulfill({ json: { results: [] } }),

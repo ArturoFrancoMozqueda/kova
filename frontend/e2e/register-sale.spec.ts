@@ -52,6 +52,9 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: CATALOG }),
   );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
+  );
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     expect(route.request().method()).toBe("POST");
@@ -89,6 +92,9 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
   );
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: CATALOG }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
   );
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
@@ -131,6 +137,9 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
   );
   await page.route("**/api/v1/catalog/products", (route) =>
     route.fulfill({ json: CATALOG }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
   );
   await page.route("**/api/v1/sync/offline-sales", (route) => route.abort());
 
