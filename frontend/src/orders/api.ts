@@ -31,8 +31,21 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function listOrders(limit = 50, offset = 0): Promise<OrderListResponse> {
-  return requestJson<OrderListResponse>(`/api/v1/orders?limit=${limit}&offset=${offset}`);
+export type OrderFilters = {
+  status?: "completed" | "voided";
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export function listOrders(filters: OrderFilters = {}): Promise<OrderListResponse> {
+  const { limit = 50, offset = 0, status, startDate, endDate } = filters;
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (status) params.set("status", status);
+  if (startDate) params.set("start_date", startDate);
+  if (endDate) params.set("end_date", endDate);
+  return requestJson<OrderListResponse>(`/api/v1/orders?${params.toString()}`);
 }
 
 export function getOrder(orderId: string): Promise<Order> {
