@@ -7,6 +7,22 @@ import reactRefresh from "eslint-plugin-react-refresh";
 export default [
   { ignores: ["dist", "node_modules", "coverage"] },
   js.configs.recommended,
+  // Node globals for config files (vite.config.ts, tailwind.config.js, postcss.config.js)
+  {
+    files: ["*.config.{js,ts}", "*.config.*.{js,ts}"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        require: "readonly",
+        module: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+        process: "readonly",
+        console: "readonly",
+      },
+    },
+  },
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
@@ -24,6 +40,8 @@ export default [
         RequestInit: "readonly",
         Response: "readonly",
         URLSearchParams: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
     plugins: {
@@ -34,6 +52,9 @@ export default [
     rules: {
       ...tseslint.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      // TypeScript's own checker handles undefined-variable errors for TS/TSX;
+      // no-undef produces false positives for DOM types and the react-jsx transform.
+      "no-undef": "off",
       "no-console": ["error", { allow: ["warn", "error"] }],
     },
   },
