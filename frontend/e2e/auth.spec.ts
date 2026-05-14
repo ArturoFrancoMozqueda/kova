@@ -46,6 +46,9 @@ test("login posts credentials and navigates to the register", async ({ page }) =
   await page.route("**/api/v1/catalog/products", async (route) => {
     await route.fulfill({ json: [] });
   });
+  await page.route("**/api/v1/catalog/categories", async (route) => {
+    await route.fulfill({ json: [] });
+  });
 
   await page.goto("/login");
   await page.getByLabel("Email").fill("owner@example.com");
