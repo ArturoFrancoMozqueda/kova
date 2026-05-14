@@ -1,9 +1,8 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import RequireAuth from "./auth/RequireAuth";
 import AuthView from "./auth/AuthView";
 import VerifyEmailView from "./auth/VerifyEmailView";
-import { useAuth } from "./auth/useAuth";
 import BillingView from "./billing/BillingView";
 import CatalogView from "./catalog/CatalogView";
 import DashboardView from "./dashboard/DashboardView";
@@ -16,17 +15,7 @@ import ReportsView from "./reports/ReportsView";
 import ShiftView from "./shifts/ShiftView";
 import AppShell from "./layout/AppShell";
 import { ToastProvider } from "./components/ui/toast";
-
-function RootRedirect() {
-  const { state } = useAuth();
-  if (state.status === "loading") return null;
-  if (state.status === "authenticated") {
-    const role = state.user.role;
-    if (role === "owner" || role === "manager") return <Navigate to="/dashboard" replace />;
-    return <Navigate to="/register" replace />;
-  }
-  return <Navigate to="/login" replace />;
-}
+import Home from "./routes/Home";
 
 export default function App() {
   return (
@@ -39,8 +28,7 @@ export default function App() {
             <Route path="/signup" element={<AuthView mode="signup" />} />
             <Route path="/verify-email" element={<VerifyEmailView />} />
 
-            {/* Root redirect */}
-            <Route path="/" element={<RootRedirect />} />
+            <Route path="/" element={<Home />} />
 
             {/* Protected */}
             <Route
