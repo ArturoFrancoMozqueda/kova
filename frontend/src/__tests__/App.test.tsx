@@ -113,6 +113,9 @@ describe("App shell", () => {
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify([]), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }),
       );
 
     render(<App />);
@@ -135,6 +138,9 @@ describe("App shell", () => {
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }),
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-1")), { status: 200 }),
@@ -165,6 +171,9 @@ describe("App shell", () => {
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }),
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-transfer")), { status: 200 }),
@@ -213,6 +222,9 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-card")), { status: 200 }),
       );
 
@@ -254,6 +266,9 @@ describe("App shell", () => {
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }),
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-split")), { status: 200 }),
