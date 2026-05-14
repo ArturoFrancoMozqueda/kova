@@ -140,7 +140,10 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }),
+        new Response(JSON.stringify([]), { status: 200 }), // categories
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-1")), { status: 200 }),
@@ -173,7 +176,10 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }),
+        new Response(JSON.stringify([]), { status: 200 }), // categories
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-transfer")), { status: 200 }),
@@ -183,9 +189,7 @@ describe("App shell", () => {
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
-    fireEvent.change(screen.getByLabelText(/payment method/i), {
-      target: { value: "bank_transfer" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: /bank transfer/i }));
     fireEvent.change(screen.getByLabelText(/^reference$/i), {
       target: { value: "TRANSFER-001" },
     });
@@ -222,7 +226,10 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }),
+        new Response(JSON.stringify([]), { status: 200 }), // categories
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-card")), { status: 200 }),
@@ -232,9 +239,7 @@ describe("App shell", () => {
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
-    fireEvent.change(screen.getByLabelText(/payment method/i), {
-      target: { value: "manual_card" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: /manual card/i }));
     fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
@@ -268,7 +273,10 @@ describe("App shell", () => {
         new Response(JSON.stringify(sellableProducts), { status: 200 }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }),
+        new Response(JSON.stringify([]), { status: 200 }), // categories
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify(syncResponse("order-split")), { status: 200 }),
