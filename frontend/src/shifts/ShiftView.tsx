@@ -17,6 +17,27 @@ import { CloseShiftModal } from "./CloseShiftModal";
 import { OpenShiftModal } from "./OpenShiftModal";
 import type { CashMovementPayload, Shift, ShiftClosePayload, ShiftOpenPayload } from "./types";
 
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
+import {
+  Clock,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  PlayCircle,
+  StopCircle,
+  Banknote,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
+
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
@@ -28,9 +49,9 @@ export default function ShiftView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [operationPending, setOperationPending] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const canOpen = usePermission(SHIFT_OPEN_PERMISSION);
   const canClose = usePermission(SHIFT_CLOSE_PERMISSION);
+  const { toast } = useToast();
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -49,14 +70,13 @@ export default function ShiftView() {
 
   const submitOpenShift = async (payload: ShiftOpenPayload) => {
     setOperationPending(true);
-    setNotice(null);
     try {
       await openShift(payload);
       setActiveModal(null);
-      setNotice(copy.shiftView.openSuccess);
+      toast(copy.shiftView.openSuccess, "success");
       await load();
     } catch {
-      setNotice(copy.shiftView.operationError);
+      toast(copy.shiftView.operationError, "error");
     } finally {
       setOperationPending(false);
     }
@@ -67,14 +87,13 @@ export default function ShiftView() {
       return;
     }
     setOperationPending(true);
-    setNotice(null);
     try {
       await closeShift(loadState.openShift.id, payload);
       setActiveModal(null);
-      setNotice(copy.shiftView.closeSuccess);
+      toast(copy.shiftView.closeSuccess, "success");
       await load();
     } catch {
-      setNotice(copy.shiftView.operationError);
+      toast(copy.shiftView.operationError, "error");
     } finally {
       setOperationPending(false);
     }
@@ -85,30 +104,57 @@ export default function ShiftView() {
       return;
     }
     setOperationPending(true);
-    setNotice(null);
     try {
       await recordCashMovement(loadState.openShift.id, payload);
       setActiveModal(null);
-      setNotice(copy.shiftView.movementSuccess);
+      toast(copy.shiftView.movementSuccess, "success");
       await load();
     } catch {
-      setNotice(copy.shiftView.operationError);
+      toast(copy.shiftView.operationError, "error");
     } finally {
       setOperationPending(false);
     }
   };
 
+  // Loading state
   if (loadState.status === "loading") {
-    return <main aria-busy="true">{copy.shiftView.loading}</main>;
+    return (
+      <main className="flex-1 p-6 space-y-6">
+        <div>
+          <Skeleton className="h-4 w-24 mb-2" />
+          <Skeleton className="h-8 w-48" />
+        </div>
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-20 w-full" />
+          </CardContent>
+        </Card>
+      </main>
+    );
   }
 
+  // Error state
   if (loadState.status === "error") {
     return (
-      <main className="page">
-        <p role="alert">{loadState.message}</p>
-        <button type="button" onClick={() => void load()}>
-          {copy.shiftView.retry}
-        </button>
+      <main className="flex-1 p-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+            <p className="text-sm text-destructive font-medium" role="alert">
+              {loadState.message}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => void load()}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {copy.shiftView.retry}
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     );
   }
@@ -116,103 +162,193 @@ export default function ShiftView() {
   const { openShift: currentShift, closedShifts } = loadState;
 
   return (
-    <main className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">{copy.app.dashboard}</p>
-          <h1>{copy.shiftView.title}</h1>
-        </div>
-      </header>
+    <main className="flex-1 p-6 space-y-6">
+      {/* Header */}
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">
+          {copy.app.dashboard}
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {copy.shiftView.title}
+        </h1>
+      </div>
 
-      {notice && <p role="status" className="notice">{notice}</p>}
-
+      {/* Active shift card */}
       {currentShift ? (
-        <section className="panel">
-          <h2>{copy.shiftView.activeShift}</h2>
-          <article className="data-card">
-            <div>
-              <p className="eyebrow">{copy.shiftView.openedAt}</p>
-              <p>{new Date(currentShift.opened_at).toLocaleString()}</p>
+        <Card className="border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <CardTitle>{copy.shiftView.activeShift}</CardTitle>
             </div>
-            {currentShift.opening_cash_amount && (
-              <div>
-                <p className="eyebrow">{copy.shiftView.openingCash}</p>
-                <strong>${parseFloat(currentShift.opening_cash_amount).toFixed(2)}</strong>
+            <Badge variant="success">Open</Badge>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {copy.shiftView.openedAt}
+                </p>
+                <p className="text-sm font-medium mt-1">
+                  {new Date(currentShift.opened_at).toLocaleString()}
+                </p>
               </div>
-            )}
-            <div>
-              <h3>{copy.shiftView.movements}</h3>
-              {currentShift.movements.length > 0 ? (
-                <ul style={{ margin: 0, paddingLeft: "1.5rem" }}>
-                  {currentShift.movements.map((m) => (
-                    <li key={m.id} style={{ marginBlock: "0.5rem" }}>
-                      <span className="eyebrow">{m.type}</span>
-                      <strong>${parseFloat(m.amount).toFixed(2)}</strong>
-                      <p style={{ margin: "0.25rem 0 0" }} className="muted">{m.reason}</p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="muted">{copy.shiftView.noMovements}</p>
+              {currentShift.opening_cash_amount && (
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {copy.shiftView.openingCash}
+                  </p>
+                  <p className="text-sm font-bold mt-1">
+                    ${parseFloat(currentShift.opening_cash_amount).toFixed(2)}
+                  </p>
+                </div>
               )}
             </div>
-            <div className="button-row">
+
+            {/* Movements */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">
+                {copy.shiftView.movements}
+              </h3>
+              {currentShift.movements.length > 0 ? (
+                <div className="space-y-2">
+                  {currentShift.movements.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-center gap-3 rounded-lg border p-3"
+                    >
+                      {m.type === "cash_in" ? (
+                        <ArrowUpCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+                      ) : (
+                        <ArrowDownCircle className="h-4 w-4 shrink-0 text-red-500" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground uppercase">
+                          {m.type}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {m.reason}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold tabular-nums">
+                        ${parseFloat(m.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {copy.shiftView.noMovements}
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-2">
               {canOpen && (
-                <button type="button" onClick={() => setActiveModal("movement")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveModal("movement")}
+                >
+                  <Banknote className="mr-2 h-4 w-4" />
                   {copy.shiftView.recordMovement}
-                </button>
+                </Button>
               )}
               {canClose && (
-                <button type="button" onClick={() => setActiveModal("close")}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setActiveModal("close")}
+                >
+                  <StopCircle className="mr-2 h-4 w-4" />
                   {copy.shiftView.closeShift}
-                </button>
+                </Button>
               )}
             </div>
-          </article>
-        </section>
+          </CardContent>
+        </Card>
       ) : (
-        <section className="panel">
-          <h2>{copy.shiftView.noOpenShift}</h2>
-          {canOpen && (
-            <button type="button" onClick={() => setActiveModal("open")}>
-              {copy.shiftView.openShift}
-            </button>
-          )}
-        </section>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Clock className="h-10 w-10 text-muted-foreground mb-3" />
+            <h2 className="text-lg font-semibold mb-1">
+              {copy.shiftView.noOpenShift}
+            </h2>
+            {canOpen && (
+              <Button
+                className="mt-4"
+                onClick={() => setActiveModal("open")}
+              >
+                <PlayCircle className="mr-2 h-4 w-4" />
+                {copy.shiftView.openShift}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       )}
 
+      {/* Closed shifts table */}
       {closedShifts.length > 0 && (
-        <section className="panel">
-          <h2>{copy.shiftView.closedShifts}</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #d8d0c2" }}>
-                  <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>{copy.shiftView.openedAt}</th>
-                  <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>{copy.shiftView.closedAt}</th>
-                  <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>{copy.shiftView.status}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {closedShifts.slice(0, 10).map((shift) => (
-                  <tr key={shift.id} style={{ borderBottom: "1px solid #e8e1d6" }}>
-                    <td style={{ padding: "0.75rem" }}>{new Date(shift.opened_at).toLocaleString()}</td>
-                    <td style={{ padding: "0.75rem" }}>{shift.closed_at ? new Date(shift.closed_at).toLocaleString() : "-"}</td>
-                    <td style={{ padding: "0.75rem" }}>
-                      {shift.reconciliation_status ? (
-                        <span className={shift.reconciliation_status === "balanced" ? "notice" : "status-warn"}>
-                          {shift.reconciliation_status}
-                        </span>
-                      ) : "-"}
-                    </td>
+        <Card>
+          <CardHeader>
+            <CardTitle>{copy.shiftView.closedShifts}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                      {copy.shiftView.openedAt}
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                      {copy.shiftView.closedAt}
+                    </th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                      {copy.shiftView.status}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {closedShifts.slice(0, 10).map((shift) => (
+                    <tr
+                      key={shift.id}
+                      className="border-b last:border-0 hover:bg-muted/50 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        {new Date(shift.opened_at).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        {shift.closed_at
+                          ? new Date(shift.closed_at).toLocaleString()
+                          : "-"}
+                      </td>
+                      <td className="py-3 px-4">
+                        {shift.reconciliation_status ? (
+                          <Badge
+                            variant={
+                              shift.reconciliation_status === "balanced"
+                                ? "success"
+                                : "warning"
+                            }
+                          >
+                            {shift.reconciliation_status}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">closed</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
+      {/* Modals */}
       {activeModal === "open" && (
         <OpenShiftModal
           pending={operationPending}

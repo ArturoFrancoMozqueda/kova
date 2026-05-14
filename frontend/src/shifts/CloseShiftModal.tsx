@@ -2,6 +2,20 @@ import { type FormEvent, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { Shift, ShiftClosePayload } from "./types";
 
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Lock, TrendingDown, TrendingUp, Minus } from "lucide-react";
+
 interface CloseShiftModalProps {
   shift: Shift;
   pending: boolean;
@@ -28,62 +42,120 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
   const variance = actualAmount - expectedCash;
   const variancePercentage = expectedCash > 0 ? ((variance / expectedCash) * 100).toFixed(2) : "0.00";
 
+  const VarianceIcon =
+    variance === 0 ? Minus : variance > 0 ? TrendingUp : TrendingDown;
+
   return (
-    <div className="modal">
+    <Dialog open onClose={onCancel}>
       <form onSubmit={handleSubmit}>
-        <h2>{copy.closeShiftModal.title}</h2>
-        <div style={{ marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "1px solid #d8d0c2" }}>
-          <div style={{ marginBottom: "0.75rem" }}>
-            <p className="eyebrow">{copy.closeShiftModal.openingCash}</p>
-            <p style={{ margin: "0.25rem 0 0", fontSize: "1.1rem" }}>
-              <strong>${openingCash.toFixed(2)}</strong>
-            </p>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-primary" />
+            {copy.closeShiftModal.title}
+          </DialogTitle>
+          <DialogDescription>
+            {copy.closeShiftModal.enterActualCash}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4 space-y-4">
+          {/* Cash summary */}
+          <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                {copy.closeShiftModal.openingCash}
+              </span>
+              <span className="text-sm font-semibold tabular-nums">
+                ${openingCash.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                {copy.closeShiftModal.expectedCash}
+              </span>
+              <span className="text-sm font-semibold tabular-nums">
+                ${expectedCash.toFixed(2)}
+              </span>
+            </div>
+            {actualCash && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {copy.closeShiftModal.actualCash}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums">
+                    ${actualAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="border-t pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium flex items-center gap-1.5">
+                      <VarianceIcon
+                        className={cn(
+                          "h-4 w-4",
+                          variance === 0
+                            ? "text-emerald-600"
+                            : "text-amber-600",
+                        )}
+                      />
+                      {copy.closeShiftModal.variance}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "text-sm font-bold tabular-nums",
+                          variance === 0
+                            ? "text-emerald-600"
+                            : "text-amber-600",
+                        )}
+                      >
+                        ${variance.toFixed(2)}
+                      </span>
+                      <Badge
+                        variant={variance === 0 ? "success" : "warning"}
+                      >
+                        {variancePercentage}%
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-          <div style={{ marginBottom: "0.75rem" }}>
-            <p className="eyebrow">{copy.closeShiftModal.expectedCash}</p>
-            <p style={{ margin: "0.25rem 0 0", fontSize: "1.1rem" }}>
-              <strong>${expectedCash.toFixed(2)}</strong>
-            </p>
+
+          {/* Input */}
+          <div className="space-y-2">
+            <Label htmlFor="actual-cash">{copy.closeShiftModal.enterActualCash}</Label>
+            <Input
+              id="actual-cash"
+              type="number"
+              step="0.01"
+              min="0"
+              value={actualCash}
+              onChange={(e) => setActualCash(e.target.value)}
+              placeholder="0.00"
+              disabled={pending}
+              required
+            />
           </div>
-          {actualCash && (
-            <>
-              <div style={{ marginBottom: "0.75rem" }}>
-                <p className="eyebrow">{copy.closeShiftModal.actualCash}</p>
-                <p style={{ margin: "0.25rem 0 0", fontSize: "1.1rem" }}>
-                  <strong>${actualAmount.toFixed(2)}</strong>
-                </p>
-              </div>
-              <div className={variance === 0 ? "notice" : "status-warn"} style={{ marginTop: "0.75rem" }}>
-                <p className="eyebrow" style={{ margin: 0 }}>{copy.closeShiftModal.variance}</p>
-                <p style={{ margin: "0.25rem 0 0", fontSize: "1rem" }}>
-                  <strong>${variance.toFixed(2)}</strong> ({variancePercentage}%)
-                </p>
-              </div>
-            </>
-          )}
         </div>
-        <label>
-          <span>{copy.closeShiftModal.enterActualCash}</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={actualCash}
-            onChange={(e) => setActualCash(e.target.value)}
-            placeholder="0.00"
-            disabled={pending}
-            required
-          />
-        </label>
-        <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "1.5rem" }}>
-          <button type="button" onClick={onCancel} disabled={pending}>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
             {copy.closeShiftModal.cancel}
-          </button>
-          <button type="submit" disabled={pending || !actualCash} aria-busy={pending}>
-            {copy.closeShiftModal.submit}
-          </button>
-        </div>
+          </Button>
+          <Button type="submit" disabled={pending || !actualCash}>
+            {pending ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {copy.closeShiftModal.submit}
+              </span>
+            ) : (
+              copy.closeShiftModal.submit
+            )}
+          </Button>
+        </DialogFooter>
       </form>
-    </div>
+    </Dialog>
   );
 }

@@ -2,6 +2,19 @@ import { type FormEvent, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { CashMovementPayload } from "./types";
 
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+
 interface CashMovementModalProps {
   pending: boolean;
   initialType?: "cash_in" | "cash_out";
@@ -34,49 +47,85 @@ export function CashMovementModal({
   const isValid = amount && reason;
 
   return (
-    <div className="modal">
+    <Dialog open onClose={onCancel}>
       <form onSubmit={handleSubmit}>
-        <h2>{copy.cashMovementModal.title}</h2>
-        <label>
-          <span>{copy.cashMovementModal.type}</span>
-          <select value={type} onChange={(e) => setType(e.target.value as "cash_in" | "cash_out")} disabled={pending}>
-            <option value="cash_in">{copy.cashMovementModal.cashIn}</option>
-            <option value="cash_out">{copy.cashMovementModal.cashOut}</option>
-          </select>
-        </label>
-        <label>
-          <span>{copy.cashMovementModal.amount}</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            disabled={pending}
-            required
-          />
-        </label>
-        <label>
-          <span>{copy.cashMovementModal.reason}</span>
-          <input
-            type="text"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder={copy.cashMovementModal.reasonPlaceholder}
-            disabled={pending}
-            required
-          />
-        </label>
-        <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "1.5rem" }}>
-          <button type="button" onClick={onCancel} disabled={pending}>
-            {copy.cashMovementModal.cancel}
-          </button>
-          <button type="submit" disabled={pending || !isValid} aria-busy={pending}>
-            {copy.cashMovementModal.submit}
-          </button>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {type === "cash_in" ? (
+              <ArrowUpCircle className="h-5 w-5 text-emerald-600" />
+            ) : (
+              <ArrowDownCircle className="h-5 w-5 text-red-500" />
+            )}
+            {copy.cashMovementModal.title}
+          </DialogTitle>
+          <DialogDescription>
+            {type === "cash_in"
+              ? copy.cashMovementModal.cashIn
+              : copy.cashMovementModal.cashOut}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="movement-type">{copy.cashMovementModal.type}</Label>
+            <Select
+              id="movement-type"
+              value={type}
+              onChange={(e) =>
+                setType(e.target.value as "cash_in" | "cash_out")
+              }
+              disabled={pending}
+            >
+              <option value="cash_in">{copy.cashMovementModal.cashIn}</option>
+              <option value="cash_out">{copy.cashMovementModal.cashOut}</option>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="movement-amount">{copy.cashMovementModal.amount}</Label>
+            <Input
+              id="movement-amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              disabled={pending}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="movement-reason">{copy.cashMovementModal.reason}</Label>
+            <Input
+              id="movement-reason"
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={copy.cashMovementModal.reasonPlaceholder}
+              disabled={pending}
+              required
+            />
+          </div>
         </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+            {copy.cashMovementModal.cancel}
+          </Button>
+          <Button type="submit" disabled={pending || !isValid}>
+            {pending ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {copy.cashMovementModal.submit}
+              </span>
+            ) : (
+              copy.cashMovementModal.submit
+            )}
+          </Button>
+        </DialogFooter>
       </form>
-    </div>
+    </Dialog>
   );
 }
