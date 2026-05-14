@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
@@ -13,6 +14,8 @@ import {
   LogOut,
   LayoutDashboard,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
@@ -47,6 +50,8 @@ function isAdminRole(role: string): boolean {
 
 export default function AppShell() {
   const { state, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const userEmail = state.status === "authenticated" ? state.user.email : "";
   const userRole = state.status === "authenticated" ? state.user.role : "";
@@ -61,69 +66,121 @@ export default function AppShell() {
     return true;
   });
 
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const SidebarContent = (
+    <>
+      {/* Brand */}
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-400 text-sidebar font-extrabold text-sm shadow-md shrink-0">
+          POS
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-sidebar-muted tracking-wide uppercase">Operations</p>
+          <p className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</p>
+        </div>
+        {/* Close button — mobile only */}
+        <button
+          type="button"
+          onClick={closeSidebar}
+          aria-label={copy.app.closeMenu}
+          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors lg:hidden"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label={copy.auth.accountNavigation}>
+        {filteredNavItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={closeSidebar}
+            className={({ isActive }) =>
+              cn(
+                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                isActive
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+              )
+            }
+          >
+            {item.icon}
+            <span className="flex-1">{item.label}</span>
+            <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t border-sidebar-border p-4 space-y-3">
+        <OfflineIndicator />
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-xs font-bold uppercase shrink-0">
+            {userEmail.charAt(0)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-sidebar-muted truncate">{userEmail}</p>
+            <p className="text-[10px] text-sidebar-muted/60 capitalize">{userRole}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => void logout()}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          type="button"
+        >
+          <LogOut className="h-4 w-4" />
+          {copy.register.logout}
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <aside className="flex w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border shrink-0">
-        {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-400 text-sidebar font-extrabold text-sm shadow-md">
-            POS
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-sidebar-muted tracking-wide uppercase">Operations</p>
-            <p className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</p>
-          </div>
-        </div>
+      {/* Mobile backdrop overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+      )}
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label={copy.auth.accountNavigation}>
-          {filteredNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                )
-              }
-            >
-              {item.icon}
-              <span className="flex-1">{item.label}</span>
-              <ChevronRight className={cn("h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100")} />
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        <div className="border-t border-sidebar-border p-4 space-y-3">
-          <OfflineIndicator />
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-xs font-bold uppercase">
-              {userEmail.charAt(0)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-sidebar-muted truncate">{userEmail}</p>
-              <p className="text-[10px] text-sidebar-muted/60 capitalize">{userRole}</p>
-            </div>
-          </div>
-          <button
-            onClick={() => void logout()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            type="button"
-          >
-            <LogOut className="h-4 w-4" />
-            {copy.register.logout}
-          </button>
-        </div>
+      {/* Sidebar — fixed on mobile, static on desktop */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-300 ease-in-out",
+          "lg:relative lg:translate-x-0 lg:shrink-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        {SidebarContent}
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto bg-background">
-        <Outlet />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        {/* Mobile top bar */}
+        <header className="flex items-center gap-3 border-b bg-background px-4 py-3 lg:hidden shrink-0">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            aria-label={copy.app.openMenu}
+            aria-expanded={sidebarOpen}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-amber-400 font-extrabold text-xs text-sidebar">
+            POS
+          </div>
+          <span className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</span>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">
+          <Outlet />
+        </div>
       </div>
     </div>
   );
