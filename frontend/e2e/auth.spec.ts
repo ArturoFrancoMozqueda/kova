@@ -29,7 +29,7 @@ test("signup can verify a local dev token", async ({ page }) => {
   await expect(page.getByText("Email verified. You can log in now.")).toBeVisible();
 });
 
-test("login posts credentials and navigates to the register", async ({ page }) => {
+test("login posts credentials and navigates owners to the dashboard", async ({ page }) => {
   await page.route("**/api/v1/auth/login", async (route) => {
     await route.fulfill({ json: { message: "Logged in." } });
   });
@@ -49,12 +49,49 @@ test("login posts credentials and navigates to the register", async ({ page }) =
   await page.route("**/api/v1/catalog/categories", async (route) => {
     await route.fulfill({ json: [] });
   });
+  await page.route("**/api/v1/catalog/modifier-groups", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+  await page.route("**/api/v1/inventory/stock", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+  await page.route("**/api/v1/inventory/low-stock", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: {
+        plan: { name: "Standard Plan", amount_minor_units: 19900, currency: "MXN" },
+        subscription: null,
+      },
+    });
+  });
+  await page.route("**/api/v1/reports/sales-summary**", async (route) => {
+    await route.fulfill({
+      json: {
+        start_date: "2026-05-14",
+        end_date: "2026-05-14",
+        gross_sales: "0.00",
+        refund_total: "0.00",
+        net_sales: "0.00",
+        order_count: 0,
+        refund_count: 0,
+        void_count: 0,
+      },
+    });
+  });
+  await page.route("**/api/v1/reports/payment-breakdown**", async (route) => {
+    await route.fulfill({ json: { start_date: "2026-05-14", end_date: "2026-05-14", payments: [] } });
+  });
+  await page.route("**/api/v1/reports/top-products**", async (route) => {
+    await route.fulfill({ json: { start_date: "2026-05-14", end_date: "2026-05-14", products: [] } });
+  });
 
   await page.goto("/login");
   await page.getByLabel("Email").fill("owner@example.com");
   await page.getByLabel("Password").fill("S3cur3pass!");
   await page.getByRole("button", { name: "Log in" }).click();
 
-  await expect(page).toHaveURL("/register");
-  await expect(page.getByRole("heading", { name: "Register" })).toBeVisible();
+  await expect(page).toHaveURL("/dashboard");
+  await expect(page.getByRole("heading", { name: "Bakery Demo" })).toBeVisible();
 });

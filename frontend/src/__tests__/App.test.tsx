@@ -96,12 +96,13 @@ afterEach(() => {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("App shell", () => {
-  it("redirects unauthenticated users to login", async () => {
+  it("renders the public landing page for unauthenticated users", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
     );
     render(<App />);
-    expect(await screen.findByRole("heading", { name: /log in/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /focused POS SaaS/i })).toBeInTheDocument();
+    expect(screen.getByText("$199")).toBeInTheDocument();
   });
 
   it("lands on register after a successful login", async () => {
