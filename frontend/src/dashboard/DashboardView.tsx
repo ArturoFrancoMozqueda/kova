@@ -4,6 +4,8 @@ import { useAuth } from "@/auth/useAuth";
 import { formatMoney } from "@/orders/format";
 import { getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
 import { listProducts } from "@/catalog/api";
+import { listLowStock, listStock } from "@/inventory/api";
+import { getBillingSubscription } from "@/billing/api";
 import type { SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,9 @@ type LoadState =
       payments: PaymentBreakdown;
       topProducts: TopProducts;
       hasProducts: boolean;
+      trackedInventoryCount: number;
+      lowStockCount: number;
+      hasActiveSubscription: boolean;
     };
 
 function todayISO(): string {
@@ -94,17 +99,21 @@ function DeltaBadge({ current, previous }: DeltaBadgeProps) {
 function OnboardingChecklist({
   hasProducts,
   orderCount,
+  trackedInventoryCount,
+  hasActiveSubscription,
 }: {
   hasProducts: boolean;
   orderCount: number;
+  trackedInventoryCount: number;
+  hasActiveSubscription: boolean;
 }) {
   const steps = [
     {
       label: copy.dashboard.onboardingStep1Label,
       desc: copy.dashboard.onboardingStep1Desc,
-      done: true,
-      action: null,
-      actionTo: null,
+      done: hasActiveSubscription,
+      action: copy.dashboard.onboardingStep1Action,
+      actionTo: "/settings/billing",
     },
     {
       label: copy.dashboard.onboardingStep2Label,
@@ -116,8 +125,15 @@ function OnboardingChecklist({
     {
       label: copy.dashboard.onboardingStep3Label,
       desc: copy.dashboard.onboardingStep3Desc,
-      done: orderCount > 0,
+      done: trackedInventoryCount > 0,
       action: copy.dashboard.onboardingStep3Action,
+      actionTo: "/inventory",
+    },
+    {
+      label: copy.dashboard.onboardingStep4Label,
+      desc: copy.dashboard.onboardingStep4Desc,
+      done: orderCount > 0,
+      action: copy.dashboard.onboardingStep4Action,
       actionTo: "/register",
     },
   ];
@@ -200,13 +216,18 @@ export default function DashboardView() {
       const today = todayISO();
       const yesterday = yesterdayISO();
 
-      const [summary, payments, topProducts, productsResult, yesterdaySummary] = await Promise.all([
+      const [summary, payments, topProducts, productsResult, stock, lowStock, billing, yesterdaySummary] = await Promise.all([
         getSalesSummary(today, today),
         getPaymentBreakdown(today, today),
         getTopProducts(today, today),
         listProducts().catch(() => [] as Awaited<ReturnType<typeof listProducts>>),
+        listStock().catch(() => [] as Awaited<ReturnType<typeof listStock>>),
+        listLowStock().catch(() => [] as Awaited<ReturnType<typeof listLowStock>>),
+        getBillingSubscription().catch(() => null),
         getSalesSummary(yesterday, yesterday).catch(() => null),
       ]);
+
+      const subscriptionStatus = billing?.subscription?.status;
 
       setLoadState({
         status: "ready",
@@ -215,6 +236,9 @@ export default function DashboardView() {
         payments,
         topProducts,
         hasProducts: productsResult.some((p) => p.is_active),
+        trackedInventoryCount: stock.length,
+        lowStockCount: lowStock.length,
+        hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
       });
     } catch {
       setLoadState({ status: "error" });
@@ -278,7 +302,22 @@ export default function DashboardView() {
           <OnboardingChecklist
             hasProducts={loadState.hasProducts}
             orderCount={loadState.summary.order_count}
+            trackedInventoryCount={loadState.trackedInventoryCount}
+            hasActiveSubscription={loadState.hasActiveSubscription}
           />
+
+          {loadState.lowStockCount > 0 && (
+            <Link
+              to="/inventory"
+              className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground transition-colors hover:bg-warning/15"
+            >
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span className="font-medium">
+                {copy.dashboard.lowStockAction(loadState.lowStockCount)}
+              </span>
+              <ArrowRight className="ml-auto h-4 w-4" />
+            </Link>
+          )}
 
           {/* KPI Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
