@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import {
-  BILLING_MANAGE_PERMISSION,
-  BILLING_VIEW_PERMISSION,
-  usePermission,
-} from "../auth/permissions";
+import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { getBillingSubscription, startCheckout, cancelSubscription } from "./api";
 import type { BillingSubscription } from "./types";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
+import { AlertCircle, AlertTriangle, Loader2, ExternalLink, XCircle } from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
@@ -25,21 +27,22 @@ const statusLabels: Record<string, string> = {
   unpaid: copy.billingView.statusUnpaid,
 };
 
+const statusVariants: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
+  active: "success",
+  trialing: "secondary",
+  past_due: "warning",
+  canceled: "destructive",
+  unpaid: "destructive",
+  incomplete: "warning",
+};
+
 function formatPlanAmount(amountMinorUnits: number, currency: string): string {
-  return new Intl.NumberFormat("en", {
-    style: "currency",
-    currency,
-  }).format(amountMinorUnits / 100);
+  return new Intl.NumberFormat("en", { style: "currency", currency }).format(amountMinorUnits / 100);
 }
 
 function formatDate(value: string | null): string {
-  if (!value) {
-    return copy.billingView.notAvailable;
-  }
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  if (!value) return copy.billingView.notAvailable;
+  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 export default function BillingView() {
@@ -53,12 +56,10 @@ export default function BillingView() {
   const canManageBilling = usePermission(BILLING_MANAGE_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [actionState, setActionState] = useState<ActionState>("idle");
+  const { toast } = useToast();
 
   const load = useCallback(async () => {
-    if (!canViewBilling) {
-      setLoadState({ status: "error" });
-      return;
-    }
+    if (!canViewBilling) { setLoadState({ status: "error" }); return; }
     setLoadState({ status: "loading" });
     try {
       setLoadState({ status: "loaded", billing: await getBillingSubscription() });
@@ -67,9 +68,11 @@ export default function BillingView() {
     }
   }, [canViewBilling]);
 
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (checkoutReturnState === "success") toast(copy.billingView.checkoutSuccess, "success");
+    if (checkoutReturnState === "cancel") toast(copy.billingView.checkoutCanceled, "warning");
+  }, [checkoutReturnState, toast]);
 
   const beginCheckout = async () => {
     setActionState("checkout");
@@ -78,6 +81,7 @@ export default function BillingView() {
       window.location.assign(session.checkout_url);
     } catch {
       setActionState("error");
+      toast(copy.billingView.operationError, "error");
     }
   };
 
@@ -87,131 +91,153 @@ export default function BillingView() {
       const billing = await cancelSubscription();
       setLoadState({ status: "loaded", billing });
       setActionState("idle");
+      toast("Subscription cancelled", "success");
     } catch {
       setActionState("error");
+      toast(copy.billingView.operationError, "error");
     }
   };
 
   if (!canViewBilling) {
     return (
-      <main className="page">
-        <h1>{copy.billingView.title}</h1>
-        <p className="muted">{copy.billingView.permissionHidden}</p>
+      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold tracking-tight mb-4">{copy.billingView.title}</h1>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-6">
+            <AlertCircle className="h-5 w-5 text-muted-foreground" />
+            <p className="text-muted-foreground">{copy.billingView.permissionHidden}</p>
+          </CardContent>
+        </Card>
       </main>
     );
   }
 
   return (
-    <main className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">{copy.app.dashboard}</p>
-          <h1>{copy.billingView.title}</h1>
+    <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">{copy.billingView.title}</h1>
+        <p className="text-sm text-muted-foreground">Manage your subscription and payments</p>
+      </div>
+
+      {loadState.status === "loading" && (
+        <div className="grid gap-4 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}><CardContent className="p-6"><Skeleton className="h-24" /></CardContent></Card>
+          ))}
         </div>
-      </header>
+      )}
 
-      {loadState.status === "loading" ? <p aria-busy="true">{copy.billingView.loading}</p> : null}
-      {loadState.status === "error" ? (
-        <section className="panel">
-          <p role="alert">{copy.billingView.loadError}</p>
-          <button type="button" onClick={() => void load()}>
-            {copy.billingView.retry}
-          </button>
-        </section>
-      ) : null}
-      {actionState === "error" ? (
-        <p className="status-warn" role="alert">
-          {copy.billingView.operationError}
-        </p>
-      ) : null}
-      {checkoutReturnState === "success" ? (
-        <p className="notice" role="status">
-          {copy.billingView.checkoutSuccess}
-        </p>
-      ) : null}
-      {checkoutReturnState === "cancel" ? (
-        <p className="status-warn" role="status">
-          {copy.billingView.checkoutCanceled}
-        </p>
-      ) : null}
+      {loadState.status === "error" && (
+        <Card className="border-destructive/50">
+          <CardContent className="flex items-center gap-4 p-6">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <p className="font-medium">{copy.billingView.loadError}</p>
+            <Button variant="outline" onClick={() => void load()} className="ml-auto">{copy.billingView.retry}</Button>
+          </CardContent>
+        </Card>
+      )}
 
-      {loadState.status === "loaded" ? (
-        <>
-          {loadState.billing.subscription?.status === "past_due" ? (
-            <section className="panel">
-              <p className="status-warn" role="alert">
-                {copy.billingView.pastDueBanner}
-              </p>
-            </section>
-          ) : null}
-
-          <section className="data-grid" aria-label={copy.billingView.title}>
-            <article className="data-card">
-              <p className="muted">{copy.billingView.plan}</p>
-              <h2>{loadState.billing.plan.name}</h2>
-              <strong>
-                {formatPlanAmount(
-                  loadState.billing.plan.amount_minor_units,
-                  loadState.billing.plan.currency,
-                )}
-              </strong>
-              <p>{copy.billingView.monthly}</p>
-            </article>
-            <article className="data-card">
-              <p className="muted">{copy.billingView.status}</p>
-              <h2>
-                {loadState.billing.subscription
-                  ? statusLabels[loadState.billing.subscription.status] ??
-                    loadState.billing.subscription.status
-                  : copy.billingView.noSubscription}
-              </h2>
-              <p>
-                {loadState.billing.subscription?.cancel_at_period_end
-                  ? copy.billingView.cancelAtPeriodEnd
-                  : copy.billingView.currentAccess}
-              </p>
-            </article>
-            <article className="data-card">
-              <p className="muted">{copy.billingView.currentPeriodEnd}</p>
-              <h2>{formatDate(loadState.billing.subscription?.current_period_end ?? null)}</h2>
-              {loadState.billing.subscription?.grace_period_ends_at ? (
-                <p>
-                  {copy.billingView.graceEnds}{" "}
-                  {formatDate(loadState.billing.subscription.grace_period_ends_at)}
-                </p>
-              ) : null}
-            </article>
-          </section>
-
-          <section className="panel">
-            <div className="button-row">
-              <button
-                type="button"
-                disabled={!canManageBilling || actionState === "checkout"}
-                onClick={() => void beginCheckout()}
-              >
-                {actionState === "checkout"
-                  ? copy.billingView.redirecting
-                  : copy.billingView.startCheckout}
-              </button>
-              <button
-                type="button"
-                disabled={
-                  !canManageBilling ||
-                  !loadState.billing.subscription ||
-                  loadState.billing.subscription.cancel_at_period_end ||
-                  loadState.billing.subscription.status === "canceled" ||
-                  actionState === "cancel"
-                }
-                onClick={() => void requestCancel()}
-              >
-                {actionState === "cancel" ? copy.billingView.canceling : copy.billingView.cancel}
-              </button>
+      {loadState.status === "loaded" && (
+        <div className="space-y-6">
+          {loadState.billing.subscription?.status === "past_due" && (
+            <div className="flex items-center gap-3 rounded-lg bg-warning/20 border border-warning/30 px-4 py-3 text-sm animate-fade-in">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+              <p className="text-warning-foreground">{copy.billingView.pastDueBanner}</p>
             </div>
-            {!canManageBilling ? <p className="muted">{copy.billingView.manageHidden}</p> : null}
-          </section>
-        </>
-      ) : null}
+          )}
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Plan */}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.plan}</p>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-bold">{loadState.billing.plan.name}</p>
+                <p className="text-2xl font-bold text-primary mt-1">
+                  {formatPlanAmount(loadState.billing.plan.amount_minor_units, loadState.billing.plan.currency)}
+                </p>
+                <p className="text-xs text-muted-foreground">{copy.billingView.monthly}</p>
+              </CardContent>
+            </Card>
+
+            {/* Status */}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.status}</p>
+              </CardHeader>
+              <CardContent>
+                {loadState.billing.subscription ? (
+                  <>
+                    <Badge variant={statusVariants[loadState.billing.subscription.status] ?? "secondary"} className="mb-2">
+                      {statusLabels[loadState.billing.subscription.status] ?? loadState.billing.subscription.status}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground">
+                      {loadState.billing.subscription.cancel_at_period_end
+                        ? copy.billingView.cancelAtPeriodEnd
+                        : copy.billingView.currentAccess}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">{copy.billingView.noSubscription}</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Period */}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.currentPeriodEnd}</p>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm font-medium">
+                  {formatDate(loadState.billing.subscription?.current_period_end ?? null)}
+                </p>
+                {loadState.billing.subscription?.grace_period_ends_at && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {copy.billingView.graceEnds} {formatDate(loadState.billing.subscription.grace_period_ends_at)}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Actions */}
+          <Card>
+            <CardContent className="flex items-center gap-3 p-5">
+              {canManageBilling ? (
+                <>
+                  <Button onClick={() => void beginCheckout()} disabled={actionState === "checkout"}>
+                    {actionState === "checkout" ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
+                    ) : (
+                      <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout}</>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={
+                      !loadState.billing.subscription ||
+                      loadState.billing.subscription.cancel_at_period_end ||
+                      loadState.billing.subscription.status === "canceled" ||
+                      actionState === "cancel"
+                    }
+                    onClick={() => void requestCancel()}
+                  >
+                    {actionState === "cancel" ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.canceling}</>
+                    ) : (
+                      <><XCircle className="h-4 w-4" />{copy.billingView.cancel}</>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">{copy.billingView.manageHidden}</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </main>
   );
 }
