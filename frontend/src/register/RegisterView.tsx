@@ -11,12 +11,37 @@ import type { Product } from "../catalog/types";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import type { Order } from "../orders/types";
-import { OfflineIndicator } from "../offline/OfflineIndicator";
 import { queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
 import { triggerSync } from "../offline/syncWorker";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
 import type { SelectedModifier } from "./ModifierSelectionModal";
+import { useToast } from "@/components/ui/toast";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
+  CreditCard,
+  Banknote,
+  Building2,
+  SplitSquareHorizontal,
+  CheckCircle2,
+  ExternalLink,
+  RotateCcw,
+  Loader2,
+  LayoutGrid,
+  AlertCircle,
+  ShoppingBag,
+  Tag,
+} from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
@@ -63,11 +88,18 @@ function centsToMoney(cents: number): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
 }
 
+const paymentIcons: Record<PaymentMethod, React.ReactNode> = {
+  cash: <Banknote className="h-4 w-4" />,
+  bank_transfer: <Building2 className="h-4 w-4" />,
+  manual_card: <CreditCard className="h-4 w-4" />,
+};
+
 export default function RegisterView() {
   const { state } = useAuth();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
+  const { toast } = useToast();
 
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [cart, setCart] = useState<Record<string, CartItem>>({});
@@ -79,9 +111,9 @@ export default function RegisterView() {
     createPaymentDraft("cash"),
   ]);
   const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -95,8 +127,27 @@ export default function RegisterView() {
 
   useEffect(() => {
     void load();
-    void triggerSync(); // flush any pending offline sales on mount
+    void triggerSync();
   }, [load]);
+
+  // Derive unique categories from products
+  const categories = useMemo(() => {
+    if (loadState.status !== "ready") return [];
+    const catMap = new Map<string, string>();
+    for (const p of loadState.products) {
+      if (p.category_id) {
+        // We don't have category names in the product list, use category_id
+        catMap.set(p.category_id, p.category_id);
+      }
+    }
+    return Array.from(catMap.keys());
+  }, [loadState]);
+
+  const filteredProducts = useMemo(() => {
+    if (loadState.status !== "ready") return [];
+    if (!selectedCategory) return loadState.products;
+    return loadState.products.filter((p) => p.category_id === selectedCategory);
+  }, [loadState, selectedCategory]);
 
   const cartItems = useMemo(() => Object.values(cart), [cart]);
   const totalCents = useMemo(
@@ -157,7 +208,6 @@ export default function RegisterView() {
       };
     });
     setCompletedOrder(null);
-    setNotice(null);
   };
 
   const updateQuantity = (cartKey: string, quantity: number) => {
@@ -223,7 +273,6 @@ export default function RegisterView() {
     setReference("");
     setSplitPaymentsEnabled(false);
     setSplitPayments([createPaymentDraft("cash")]);
-    setNotice(null);
     setCompletedOrder(null);
   };
 
@@ -232,7 +281,6 @@ export default function RegisterView() {
     if (!canSubmitSale) return;
 
     setSubmitting(true);
-    setNotice(null);
 
     const sale = {
       items: cartItems.map((item) => ({
@@ -261,10 +309,8 @@ export default function RegisterView() {
           ],
     };
 
-    // Persist locally first — the sale is safe regardless of network
     const queueItem = await queueOfflineSale(sale);
 
-    // Clear cart immediately
     setCart({});
     setCashTendered("");
     setReference("");
@@ -276,151 +322,295 @@ export default function RegisterView() {
       const result = results[0];
       if (result.status === "synced" && result.order) {
         setCompletedOrder(result.order as Order);
-        setNotice(copy.register.saleComplete);
+        toast(copy.register.saleComplete, "success");
       } else {
-        setNotice(copy.register.saleQueued);
+        toast(copy.register.saleQueued, "warning");
       }
     } catch {
-      // Network error — sale is safe in Dexie; sync worker retries on next mount or online event
-      setNotice(copy.register.saleQueued);
+      toast(copy.register.saleQueued, "warning");
     } finally {
       setSubmitting(false);
     }
   };
 
   if (loadState.status === "loading") {
-    return <main aria-busy="true">{copy.register.loading}</main>;
+    return (
+      <main className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+          <Card>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-32 rounded-lg" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <Skeleton className="h-8 w-24 mb-4" />
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
   }
 
   if (loadState.status === "error") {
     return (
-      <main className="page">
-        <p role="alert">{copy.register.loadError}</p>
-        <button type="button" onClick={() => void load()}>
-          {copy.register.retry}
-        </button>
+      <main className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <Card className="border-destructive/50">
+          <CardContent className="flex items-center gap-4 p-6">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <div>
+              <p className="font-medium">{copy.register.loadError}</p>
+              <p className="text-sm text-muted-foreground">Check your connection and try again.</p>
+            </div>
+            <Button variant="outline" onClick={() => void load()} className="ml-auto">
+              {copy.register.retry}
+            </Button>
+          </CardContent>
+        </Card>
       </main>
     );
   }
 
   return (
-    <main className="page">
-      <header className="page-header">
+    <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="eyebrow">{tenantName}</p>
-          <h1>{copy.register.title}</h1>
+          <p className="text-sm text-muted-foreground">{tenantName}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{copy.register.title}</h1>
         </div>
-        <nav className="button-row" aria-label={copy.auth.accountNavigation}>
-          <OfflineIndicator />
+        <div className="flex items-center gap-2">
           {canManageCatalog && (
-            <Link className="text-link" to="/catalog">
-              {copy.register.manageCatalog}
+            <Link to="/catalog" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                <LayoutGrid className="h-4 w-4" />
+                {copy.register.manageCatalog}
             </Link>
           )}
-        </nav>
-      </header>
+        </div>
+      </div>
 
-      {notice ? <p className="notice" role="status">{notice}</p> : null}
-
-      <div className="register-shell">
-        <section className="panel register-catalog" aria-label={copy.register.catalog}>
-          <h2>{copy.register.catalog}</h2>
-          {loadState.products.length === 0 ? (
-            <p className="muted">{copy.register.catalogPlaceholder}</p>
-          ) : (
-            <div className="product-grid">
-              {loadState.products.map((product) => (
-                <article className="data-card sellable-product" key={product.id}>
-                  <div>
-                    <strong>{product.name}</strong>
-                    {product.sku ? <p className="muted">{product.sku}</p> : null}
-                  </div>
-                  <strong>{formatMoney(product.price_amount)}</strong>
-                  <button type="button" onClick={() => addProduct(product)}>
-                    {copy.register.add}
+      <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+        {/* Product Grid */}
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-3 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4" />
+                {copy.register.catalog}
+              </CardTitle>
+              <Badge variant="secondary">{loadState.products.length} items</Badge>
+            </div>
+            {/* Category pills */}
+            {categories.length > 0 && (
+              <div className="flex gap-2 mt-3 flex-wrap">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                    !selectedCategory
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80",
+                  )}
+                  type="button"
+                >
+                  All
+                </button>
+                {categories.map((catId) => (
+                  <button
+                    key={catId}
+                    onClick={() => setSelectedCategory(catId)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs font-medium transition-all",
+                      selectedCategory === catId
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    )}
+                    type="button"
+                  >
+                    {catId.slice(0, 8)}
                   </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="panel register-cart" aria-label={copy.register.cart}>
-          <h2>{copy.register.cart}</h2>
-          {cartItems.length === 0 ? (
-            <p className="muted">{copy.register.cartPlaceholder}</p>
-          ) : (
-            <ul className="cart-list">
-              {cartItems.map((item) => {
-                const cartKey = [item.product.id, ...item.selectedModifiers.map((m) => m.optionId).sort()].join(":");
-                return (
-                  <li className="cart-line" key={cartKey}>
-                    <div>
-                      <strong>{item.product.name}</strong>
-                      {item.selectedModifiers.map((m) => (
-                        <p key={m.optionId} className="muted" style={{ fontSize: "0.85rem" }}>
-                          → {m.optionName}
-                          {parseFloat(m.priceDelta) > 0 && ` +MX$${parseFloat(m.priceDelta).toFixed(2)}`}
+                ))}
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="p-4">
+            {filteredProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
+                  <ShoppingBag className="h-7 w-7 text-muted-foreground" />
+                </div>
+                <p className="font-medium text-muted-foreground">{copy.register.catalogPlaceholder}</p>
+                {canManageCatalog && (
+                  <Link to="/catalog" className={cn(buttonVariants({ variant: "link" }), "mt-2")}>
+                    {copy.register.manageCatalog}
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {filteredProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => addProduct(product)}
+                    className="group flex flex-col justify-between rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                        {product.name}
+                      </p>
+                      {product.sku && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Tag className="h-3 w-3" />
+                          {product.sku}
                         </p>
-                      ))}
-                      <p className="muted">{formatMoney(item.effectiveUnitPrice)}</p>
-                    </div>
-                    <label>
-                      {copy.register.quantity}
-                      <input
-                        min={1}
-                        type="number"
-                        value={item.quantity}
-                        onChange={(event) =>
-                          updateQuantity(cartKey, Number.parseInt(event.target.value || "0", 10))
-                        }
-                      />
-                    </label>
-                    <strong>
-                      {formatMoney(
-                        centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity),
                       )}
-                    </strong>
-                    <button type="button" onClick={() => removeItem(cartKey)}>
-                      {copy.register.remove}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-base font-bold text-primary">
+                        {formatMoney(product.price_amount)}
+                      </span>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Plus className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-          <form className="checkout-panel" onSubmit={(event) => void submitSale(event)}>
-            <div className="cart-footer">
-              <p>
-                <span className="muted">{copy.register.total}</span>
-                <strong>{formatMoney(totalAmount)}</strong>
-              </p>
-              <button type="submit" disabled={!canSubmitSale}>
-                {submitting ? copy.register.salePending : copy.register.completeSale}
-              </button>
-            </div>
+        {/* Cart + Payment */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  {copy.register.cart}
+                </CardTitle>
+                {cartItems.length > 0 && (
+                  <Badge variant="secondary">{cartItems.reduce((s, i) => s + i.quantity, 0)}</Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              {cartItems.length === 0 ? (
+                <div className="flex flex-col items-center py-10 text-center">
+                  <ShoppingCart className="h-10 w-10 text-muted-foreground/30 mb-2" />
+                  <p className="text-sm text-muted-foreground">{copy.register.cartPlaceholder}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {cartItems.map((item) => {
+                    const cartKey = [item.product.id, ...item.selectedModifiers.map((m) => m.optionId).sort()].join(":");
+                    return (
+                      <div
+                        key={cartKey}
+                        className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{item.product.name}</p>
+                          {item.selectedModifiers.map((m) => (
+                            <p key={m.optionId} className="text-xs text-muted-foreground mt-0.5">
+                              + {m.optionName}
+                              {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
+                            </p>
+                          ))}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatMoney(item.effectiveUnitPrice)} each
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(cartKey, item.quantity - 1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted transition-colors"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateQuantity(cartKey, item.quantity + 1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-md border hover:bg-muted transition-colors"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">
+                            {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(cartKey)}
+                            className="text-xs text-destructive hover:underline mt-1"
+                          >
+                            <Trash2 className="h-3 w-3 inline" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            {!canCreateOrders ? <p className="status-warn">{copy.register.permissionHidden}</p> : null}
+          {/* Payment section */}
+          <Card>
+            <form onSubmit={(event) => void submitSale(event)}>
+              <CardContent className="p-4 space-y-4">
+                {/* Total */}
+                <div className="flex items-center justify-between py-2 border-b">
+                  <span className="text-sm text-muted-foreground">{copy.register.total}</span>
+                  <span className="text-2xl font-bold">{formatMoney(totalAmount)}</span>
+                </div>
 
-            <div className="payment-grid">
-              <label className="inline-toggle">
-                <input
-                  checked={splitPaymentsEnabled}
-                  type="checkbox"
-                  onChange={(event) => toggleSplitPayments(event.target.checked)}
-                />
-                {copy.register.splitPayment}
-              </label>
+                {!canCreateOrders && (
+                  <div className="flex items-center gap-2 rounded-lg bg-warning/20 border border-warning/30 px-3 py-2 text-sm text-warning-foreground">
+                    <AlertCircle className="h-4 w-4" />
+                    {copy.register.permissionHidden}
+                  </div>
+                )}
 
-              {splitPaymentsEnabled ? (
-                <div className="split-payment-list">
-                  {splitPayments.map((payment, index) => (
-                    <fieldset className="split-payment-row" key={payment.id}>
-                      <legend>{`${copy.register.payment} ${index + 1}`}</legend>
-                      <label>
-                        {copy.register.method}
-                        <select
+                {/* Split toggle */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={splitPaymentsEnabled}
+                    onChange={(event) => toggleSplitPayments(event.target.checked)}
+                    className="rounded border-input text-primary focus:ring-primary"
+                  />
+                  <SplitSquareHorizontal className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{copy.register.splitPayment}</span>
+                </label>
+
+                {splitPaymentsEnabled ? (
+                  <div className="space-y-3">
+                    {splitPayments.map((payment, index) => (
+                      <div key={payment.id} className="rounded-lg border p-3 space-y-2 animate-fade-in">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase">
+                            Payment {index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={splitPayments.length === 1}
+                            onClick={() => removeSplitPayment(payment.id)}
+                            className="text-xs text-destructive hover:underline disabled:opacity-40"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <Select
                           value={payment.method}
                           onChange={(event) =>
                             updateSplitPayment(payment.id, {
@@ -433,134 +623,165 @@ export default function RegisterView() {
                           <option value="cash">{copy.register.cash}</option>
                           <option value="bank_transfer">{copy.register.bankTransfer}</option>
                           <option value="manual_card">{copy.register.manualCard}</option>
-                        </select>
-                      </label>
-                      <label>
-                        {copy.register.amount}
-                        <input
+                        </Select>
+                        <Input
                           min="0"
                           step="0.01"
                           type="number"
+                          placeholder={copy.register.amount}
                           value={payment.amount}
                           onChange={(event) =>
                             updateSplitPayment(payment.id, { amount: event.target.value })
                           }
                         />
-                      </label>
-                      {payment.method === "cash" ? (
-                        <label>
-                          {copy.register.amountTendered}
-                          <input
+                        {payment.method === "cash" ? (
+                          <Input
                             min="0"
                             step="0.01"
                             type="number"
+                            placeholder={copy.register.amountTendered}
                             value={payment.amountTendered}
                             onChange={(event) =>
-                              updateSplitPayment(payment.id, {
-                                amountTendered: event.target.value,
-                              })
+                              updateSplitPayment(payment.id, { amountTendered: event.target.value })
                             }
                           />
-                        </label>
-                      ) : (
-                        <label>
-                          {copy.register.paymentReference}
-                          <input
+                        ) : (
+                          <Input
                             placeholder={copy.register.optionalReference}
                             value={payment.reference}
                             onChange={(event) =>
                               updateSplitPayment(payment.id, { reference: event.target.value })
                             }
                           />
-                        </label>
-                      )}
-                      <button
-                        disabled={splitPayments.length === 1}
-                        type="button"
-                        onClick={() => removeSplitPayment(payment.id)}
-                      >
-                        {copy.register.removePayment}
-                      </button>
-                    </fieldset>
-                  ))}
-
-                  <button type="button" onClick={addSplitPayment}>
-                    {copy.register.addPayment}
-                  </button>
-
-                  <div className="payment-summary">
-                    <span className="muted">{copy.register.paymentTotal}</span>
-                    <strong>{formatMoney(centsToMoney(splitPaymentTotalCents))}</strong>
-                    <span className="muted">{copy.register.remaining}</span>
-                    <strong>{formatMoney(centsToMoney(Math.abs(splitRemainingCents)))}</strong>
+                        )}
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={addSplitPayment} className="w-full">
+                      <Plus className="h-3.5 w-3.5" />
+                      {copy.register.addPayment}
+                    </Button>
+                    <div className="rounded-lg bg-muted/50 p-3 space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{copy.register.paymentTotal}</span>
+                        <span className="font-semibold">{formatMoney(centsToMoney(splitPaymentTotalCents))}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{copy.register.remaining}</span>
+                        <span className={cn("font-semibold", splitRemainingCents !== 0 && "text-destructive")}>
+                          {formatMoney(centsToMoney(Math.abs(splitRemainingCents)))}
+                        </span>
+                      </div>
+                    </div>
+                    {!splitTotalMatches && cartItems.length > 0 && (
+                      <p className="flex items-center gap-1.5 text-xs text-destructive">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        {copy.register.splitTotalMismatch}
+                      </p>
+                    )}
                   </div>
-                  {!splitTotalMatches && cartItems.length > 0 ? (
-                    <p className="status-warn">{copy.register.splitTotalMismatch}</p>
-                  ) : null}
-                  {!splitCashIsValid && cartItems.length > 0 ? (
-                    <p className="status-warn">{copy.register.cashTooLow}</p>
-                  ) : null}
+                ) : (
+                  <div className="space-y-3">
+                    {/* Payment method pills */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["cash", "bank_transfer", "manual_card"] as const).map((method) => (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() => setPaymentMethod(method)}
+                          className={cn(
+                            "flex flex-col items-center gap-1.5 rounded-lg border p-3 text-xs font-medium transition-all",
+                            paymentMethod === method
+                              ? "border-primary bg-primary/5 text-primary shadow-sm"
+                              : "border-input hover:border-primary/30 text-muted-foreground",
+                          )}
+                        >
+                          {paymentIcons[method]}
+                          {method === "cash"
+                            ? copy.register.cash
+                            : method === "bank_transfer"
+                              ? copy.register.bankTransfer
+                              : copy.register.manualCard}
+                        </button>
+                      ))}
+                    </div>
+
+                    {paymentMethod === "cash" ? (
+                      <div className="space-y-2">
+                        <Input
+                          min="0"
+                          step="0.01"
+                          type="number"
+                          placeholder={copy.register.amountTendered}
+                          value={cashTendered}
+                          onChange={(event) => setCashTendered(event.target.value)}
+                        />
+                        <div className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
+                          <span className="text-muted-foreground">{copy.register.changeDue}</span>
+                          <span className="font-bold text-primary">{formatMoney(centsToMoney(changeDueCents))}</span>
+                        </div>
+                        {!cashIsValid && cartItems.length > 0 && (
+                          <p className="flex items-center gap-1.5 text-xs text-destructive">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {copy.register.cashTooLow}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <Input
+                        placeholder={copy.register.optionalReference}
+                        value={reference}
+                        onChange={(event) => setReference(event.target.value)}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {/* Submit */}
+                <Button
+                  type="submit"
+                  disabled={!canSubmitSale}
+                  size="xl"
+                  className="w-full"
+                  variant={canSubmitSale ? "success" : "default"}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {copy.register.salePending}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-5 w-5" />
+                      {copy.register.charge} {formatMoney(totalAmount)}
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </form>
+          </Card>
+
+          {/* Completed sale result */}
+          {completedOrder && (
+            <Card className="border-success/30 bg-success/5 animate-fade-in">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <span className="font-semibold text-success">{copy.register.saleComplete}</span>
                 </div>
-              ) : (
-                <>
-              <label>
-                {copy.register.paymentMethod}
-                <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}>
-                  <option value="cash">{copy.register.cash}</option>
-                  <option value="bank_transfer">{copy.register.bankTransfer}</option>
-                  <option value="manual_card">{copy.register.manualCard}</option>
-                </select>
-              </label>
-
-              {paymentMethod === "cash" ? (
-                <>
-                  <label>
-                    {copy.register.amountTendered}
-                    <input
-                      min="0"
-                      step="0.01"
-                      type="number"
-                      value={cashTendered}
-                      onChange={(event) => setCashTendered(event.target.value)}
-                    />
-                  </label>
-                  <div className="payment-summary">
-                    <span className="muted">{copy.register.changeDue}</span>
-                    <strong>{formatMoney(centsToMoney(changeDueCents))}</strong>
-                  </div>
-                  {!cashIsValid && cartItems.length > 0 ? (
-                    <p className="status-warn">{copy.register.cashTooLow}</p>
-                  ) : null}
-                </>
-              ) : (
-                <label>
-                  {copy.register.paymentReference}
-                  <input
-                    placeholder={copy.register.optionalReference}
-                    value={reference}
-                  onChange={(event) => setReference(event.target.value)}
-                />
-              </label>
-              )}
-                </>
-              )}
-            </div>
-          </form>
-
-          {completedOrder ? (
-            <section className="sale-result" aria-label={copy.register.saleComplete}>
-              <strong>{copy.register.saleComplete}</strong>
-              <div className="button-row">
-                <Link className="text-link" to={`/orders/${completedOrder.id}`}>
-                  {copy.register.openOrder}
-                </Link>
-                <button type="button" onClick={resetSale}>
-                  {copy.register.newSale}
-                </button>
-              </div>
-            </section>
-          ) : null}
-        </section>
+                <div className="flex gap-2">
+                  <Link to={`/orders/${completedOrder.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {copy.register.openOrder}
+                  </Link>
+                  <Button size="sm" onClick={resetSale}>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    {copy.register.newSale}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       {modifierTarget && (

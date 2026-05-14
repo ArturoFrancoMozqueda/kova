@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { ModifierGroup, ModifierOption } from "../catalog/types";
 import { copy } from "../i18n/messages";
+import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 export type SelectedModifier = {
   groupId: string;
@@ -24,7 +29,6 @@ function isGroupSatisfied(group: ModifierGroup, selections: Map<string, string[]
 }
 
 export function ModifierSelectionModal({ productName, modifierGroups, onConfirm, onCancel }: Props) {
-  // groupId → list of selected optionIds
   const [selections, setSelections] = useState<Map<string, string[]>>(new Map());
 
   const toggle = (group: ModifierGroup, option: ModifierOption) => {
@@ -32,10 +36,8 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
       const next = new Map(prev);
       const current = next.get(group.id) ?? [];
       if (group.max_selections === 1) {
-        // radio: replace
         next.set(group.id, [option.id]);
       } else {
-        // checkbox: toggle
         if (current.includes(option.id)) {
           next.set(group.id, current.filter((id) => id !== option.id));
         } else if (current.length < group.max_selections) {
@@ -69,51 +71,70 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
   };
 
   return (
-    <div className="modal">
-      <h2>{copy.modifierModal.title} — {productName}</h2>
-      {modifierGroups.map((group) => {
-        const groupSelections = selections.get(group.id) ?? [];
-        return (
-          <fieldset key={group.id} style={{ marginBottom: "1.25rem" }}>
-            <legend>
-              {group.name}
-              {group.is_required && (
-                <span className="status-warn" style={{ marginLeft: "0.5rem", fontSize: "0.8rem" }}>
-                  {copy.modifierModal.required}
-                </span>
-              )}
-            </legend>
-            {group.options.map((option) => {
-              const checked = groupSelections.includes(option.id);
-              const inputType = group.max_selections === 1 ? "radio" : "checkbox";
-              return (
-                <label key={option.id} style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.25rem" }}>
-                  <input
-                    type={inputType}
-                    name={`group-${group.id}`}
-                    checked={checked}
-                    onChange={() => toggle(group, option)}
-                  />
-                  <span>{option.name}</span>
-                  {parseFloat(option.price_delta) > 0 && (
-                    <span className="muted" style={{ marginLeft: "auto" }}>
-                      +MX${parseFloat(option.price_delta).toFixed(2)}
-                    </span>
-                  )}
-                </label>
-              );
-            })}
-          </fieldset>
-        );
-      })}
-      <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "1.5rem" }}>
-        <button type="button" onClick={onCancel}>
-          {copy.modifierModal.cancel}
-        </button>
-        <button type="button" disabled={!allRequiredSatisfied} onClick={handleConfirm}>
-          {copy.modifierModal.addToCart}
-        </button>
+    <Dialog open onClose={onCancel} className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{copy.modifierModal.title} — {productName}</DialogTitle>
+      </DialogHeader>
+
+      <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
+        {modifierGroups.map((group) => {
+          const groupSelections = selections.get(group.id) ?? [];
+          return (
+            <div key={group.id}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-semibold">{group.name}</span>
+                {group.is_required && (
+                  <Badge variant="warning" className="text-[10px]">
+                    {copy.modifierModal.required}
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                {group.options.map((option) => {
+                  const checked = groupSelections.includes(option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => toggle(group, option)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-all",
+                        checked
+                          ? "border-primary bg-primary/5 text-foreground"
+                          : "border-input hover:border-primary/30 text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all shrink-0",
+                          checked ? "border-primary bg-primary text-white" : "border-input",
+                        )}
+                      >
+                        {checked && <Check className="h-3 w-3" />}
+                      </span>
+                      <span className="flex-1 text-left font-medium">{option.name}</span>
+                      {parseFloat(option.price_delta) > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          +MX${parseFloat(option.price_delta).toFixed(2)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
-    </div>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel}>
+          {copy.modifierModal.cancel}
+        </Button>
+        <Button disabled={!allRequiredSatisfied} onClick={handleConfirm}>
+          {copy.modifierModal.addToCart}
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }
