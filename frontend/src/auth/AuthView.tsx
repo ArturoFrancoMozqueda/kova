@@ -27,8 +27,9 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     try {
       if (mode === "login") {
         await login({ email, password });
-        await refresh();
-        navigate("/register");
+        const next = await refresh();
+        const role = next.status === "authenticated" ? next.user.role : "";
+        navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
         return;
       }
       const response = await signup({ email, password, tenant_name: tenantName });

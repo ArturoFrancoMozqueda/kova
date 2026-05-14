@@ -17,7 +17,7 @@ type AuthState =
 type AuthContextValue = {
   state: AuthState;
   logout: () => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<AuthState>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,17 +30,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const session = await getSession();
       if (!session.authenticated) {
-        setState({ status: "unauthenticated" });
-        return;
+        const next: AuthState = { status: "unauthenticated" };
+        setState(next);
+        return next;
       }
-      setState({
+      const next: AuthState = {
         status: "authenticated",
         user: session.user,
         tenantId: session.tenant_id,
         tenantName: session.tenant_name,
-      });
+      };
+      setState(next);
+      return next;
     } catch {
-      setState({ status: "unauthenticated" });
+      const next: AuthState = { status: "unauthenticated" };
+      setState(next);
+      return next;
     }
   }, []);
 
