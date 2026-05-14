@@ -149,7 +149,7 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
     fireEvent.change(screen.getByLabelText(/cash tendered/i), {
       target: { value: "20.00" },
     });
@@ -182,7 +182,7 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
     fireEvent.change(screen.getByLabelText(/payment method/i), {
       target: { value: "bank_transfer" },
     });
@@ -231,7 +231,7 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
     fireEvent.change(screen.getByLabelText(/payment method/i), {
       target: { value: "manual_card" },
     });
@@ -277,7 +277,7 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
     fireEvent.click(screen.getByLabelText(/split payment/i));
     fireEvent.change(screen.getAllByLabelText(/^amount$/i)[0], {
       target: { value: "10.00" },
