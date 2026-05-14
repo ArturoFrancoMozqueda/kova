@@ -153,7 +153,7 @@ export default function BillingView() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.plan}</p>
               </CardHeader>
               <CardContent>
-                <p className="text-lg font-bold">{loadState.billing.plan.name}</p>
+                <h2 className="text-lg font-bold">{loadState.billing.plan.name}</h2>
                 <p className="text-2xl font-bold text-primary mt-1">
                   {formatPlanAmount(loadState.billing.plan.amount_minor_units, loadState.billing.plan.currency)}
                 </p>
@@ -169,9 +169,11 @@ export default function BillingView() {
               <CardContent>
                 {loadState.billing.subscription ? (
                   <>
-                    <Badge variant={statusVariants[loadState.billing.subscription.status] ?? "secondary"} className="mb-2">
-                      {statusLabels[loadState.billing.subscription.status] ?? loadState.billing.subscription.status}
-                    </Badge>
+                    <h2 className="mb-2">
+                      <Badge variant={statusVariants[loadState.billing.subscription.status] ?? "secondary"}>
+                        {statusLabels[loadState.billing.subscription.status] ?? loadState.billing.subscription.status}
+                      </Badge>
+                    </h2>
                     <p className="text-xs text-muted-foreground">
                       {loadState.billing.subscription.cancel_at_period_end
                         ? copy.billingView.cancelAtPeriodEnd

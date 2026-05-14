@@ -92,18 +92,27 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
               <div className="space-y-1.5">
                 {group.options.map((option) => {
                   const checked = groupSelections.includes(option.id);
+                  const inputType = group.max_selections === 1 ? "radio" : "checkbox";
+                  const inputId = `option-${option.id}`;
                   return (
-                    <button
+                    <label
                       key={option.id}
-                      type="button"
-                      onClick={() => toggle(group, option)}
+                      htmlFor={inputId}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-all",
+                        "relative flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-all cursor-pointer",
                         checked
                           ? "border-primary bg-primary/5 text-foreground"
                           : "border-input hover:border-primary/30 text-muted-foreground hover:text-foreground",
                       )}
                     >
+                      <input
+                        id={inputId}
+                        type={inputType}
+                        name={`group-${group.id}`}
+                        checked={checked}
+                        onChange={() => toggle(group, option)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer m-0"
+                      />
                       <span
                         className={cn(
                           "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all shrink-0",
@@ -118,7 +127,7 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
                           +MX${parseFloat(option.price_delta).toFixed(2)}
                         </span>
                       )}
-                    </button>
+                    </label>
                   );
                 })}
               </div>

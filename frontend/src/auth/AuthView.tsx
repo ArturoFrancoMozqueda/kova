@@ -28,7 +28,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       if (mode === "login") {
         await login({ email, password });
         await refresh();
-        navigate("/");
+        navigate("/register");
         return;
       }
       const response = await signup({ email, password, tenant_name: tenantName });

@@ -177,6 +177,7 @@ export default function CatalogView() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={copy.catalog.newCategory}
                 onClick={() => setModal({ type: "category-create" })}
               >
                 <Plus className="h-4 w-4" />

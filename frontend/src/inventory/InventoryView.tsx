@@ -155,7 +155,7 @@ export default function InventoryView() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-semibold text-sm">{item.product_name}</p>
+                    <h3 className="font-semibold text-sm">{item.product_name}</h3>
                     <p className="text-xs text-muted-foreground">{item.sku ?? "No SKU"}</p>
                   </div>
                   {item.is_low_stock && <Badge variant="warning">Low</Badge>}
@@ -173,10 +173,10 @@ export default function InventoryView() {
                       <Pencil className="h-3 w-3" />
                       {copy.inventoryView.adjust}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setModal({ type: "stockTake", item })}>
+                    <Button variant="outline" size="sm" aria-label={copy.inventoryView.stockTake} onClick={() => setModal({ type: "stockTake", item })}>
                       <ClipboardCheck className="h-3 w-3" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setModal({ type: "threshold", item })}>
+                    <Button variant="outline" size="sm" aria-label={copy.inventoryView.setThreshold} onClick={() => setModal({ type: "threshold", item })}>
                       <Settings2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -232,13 +232,14 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
       </DialogHeader>
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
-          <Label>{amountLabel}</Label>
-          <Input type="number" value={amount} onChange={(event) => setAmount(event.target.value)} />
+          <Label htmlFor="inv-amount">{amountLabel}</Label>
+          <Input id="inv-amount" type="number" value={amount} onChange={(event) => setAmount(event.target.value)} />
         </div>
         {modal.type !== "threshold" && (
           <div className="space-y-2">
-            <Label>{copy.inventoryModal.reason}</Label>
+            <Label htmlFor="inv-reason">{copy.inventoryModal.reason}</Label>
             <Input
+              id="inv-reason"
               value={reason}
               placeholder={copy.inventoryModal.reasonPlaceholder}
               onChange={(event) => setReason(event.target.value)}

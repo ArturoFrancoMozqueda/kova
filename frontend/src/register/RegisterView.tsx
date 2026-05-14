@@ -482,7 +482,7 @@ export default function RegisterView() {
 
         {/* Cart + Payment */}
         <div className="space-y-4">
-          <Card>
+          <Card aria-label={copy.register.cart}>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
@@ -513,7 +513,7 @@ export default function RegisterView() {
                           <p className="font-medium text-sm">{item.product.name}</p>
                           {item.selectedModifiers.map((m) => (
                             <p key={m.optionId} className="text-xs text-muted-foreground mt-0.5">
-                              + {m.optionName}
+                              → {m.optionName}
                               {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
                             </p>
                           ))}

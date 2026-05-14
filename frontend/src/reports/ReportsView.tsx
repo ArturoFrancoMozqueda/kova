@@ -353,7 +353,7 @@ function KpiCard({
   accent?: string;
 }) {
   return (
-    <Card>
+    <Card className="data-card">
       <CardContent className="p-5">
         <div className="flex items-center gap-2 mb-2">
           <Icon className={cn("h-4 w-4", accent ?? "text-muted-foreground")} />
