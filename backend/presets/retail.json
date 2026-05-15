@@ -1,0 +1,120 @@
+{
+  "name": "retail",
+  "label": "Tienda / Retail",
+  "categories": [
+    { "name": "Accesorios Electrónicos", "description": "Cables, audífonos y accesorios para dispositivos", "sort_order": 0 },
+    { "name": "Ropa", "description": "Playeras, pantalones y accesorios de moda", "sort_order": 1 },
+    { "name": "Alimentos y Snacks", "description": "Botanas, dulces y bebidas envasadas", "sort_order": 2 },
+    { "name": "Papelería", "description": "Cuadernos, bolígrafos y material escolar", "sort_order": 3 }
+  ],
+  "products": [
+    {
+      "name": "Cable USB-C a USB-A 1m",
+      "category": "Accesorios Electrónicos",
+      "price_amount": "89.00",
+      "sku": "ELEC-001",
+      "description": "Cable de carga y datos USB-C trenzado",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Audífonos inalámbricos",
+      "category": "Accesorios Electrónicos",
+      "price_amount": "349.00",
+      "sku": "ELEC-002",
+      "description": "Audífonos Bluetooth con micrófono integrado",
+      "track_inventory": true,
+      "low_stock_threshold": 3
+    },
+    {
+      "name": "Funda para celular universal",
+      "category": "Accesorios Electrónicos",
+      "price_amount": "129.00",
+      "sku": "ELEC-003",
+      "description": "Funda protectora transparente con borde reforzado",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Cargador de pared USB-C 20W",
+      "category": "Accesorios Electrónicos",
+      "price_amount": "199.00",
+      "sku": "ELEC-004",
+      "description": "Cargador rápido USB-C con enchufe compacto",
+      "track_inventory": true,
+      "low_stock_threshold": 4
+    },
+    {
+      "name": "Playera básica talla M",
+      "category": "Ropa",
+      "price_amount": "149.00",
+      "sku": "ROPA-001",
+      "description": "Playera de algodón 100 % talla mediana",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Playera básica talla L",
+      "category": "Ropa",
+      "price_amount": "149.00",
+      "sku": "ROPA-002",
+      "description": "Playera de algodón 100 % talla grande",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Gorra bordada",
+      "category": "Ropa",
+      "price_amount": "199.00",
+      "sku": "ROPA-003",
+      "description": "Gorra snapback con bordado frontal",
+      "track_inventory": true,
+      "low_stock_threshold": 4
+    },
+    {
+      "name": "Papas fritas 45 g",
+      "category": "Alimentos y Snacks",
+      "price_amount": "22.00",
+      "sku": "SNK-001",
+      "description": "Papas fritas sabor natural 45 g",
+      "track_inventory": true,
+      "low_stock_threshold": 10
+    },
+    {
+      "name": "Refresco lata 355 ml",
+      "category": "Alimentos y Snacks",
+      "price_amount": "20.00",
+      "sku": "SNK-002",
+      "description": "Refresco carbonatado lata 355 ml",
+      "track_inventory": true,
+      "low_stock_threshold": 12
+    },
+    {
+      "name": "Agua embotellada 600 ml",
+      "category": "Alimentos y Snacks",
+      "price_amount": "15.00",
+      "sku": "SNK-003",
+      "description": "Agua purificada 600 ml",
+      "track_inventory": true,
+      "low_stock_threshold": 15
+    },
+    {
+      "name": "Cuaderno profesional 100 hojas",
+      "category": "Papelería",
+      "price_amount": "55.00",
+      "sku": "PAP-001",
+      "description": "Cuaderno profesional cuadrícula 100 hojas",
+      "track_inventory": true,
+      "low_stock_threshold": 6
+    },
+    {
+      "name": "Bolígrafo (pack de 3)",
+      "category": "Papelería",
+      "price_amount": "29.00",
+      "sku": "PAP-002",
+      "description": "Bolígrafos punto medio azul, negro y rojo",
+      "track_inventory": true,
+      "low_stock_threshold": 8
+    }
+  ]
+}

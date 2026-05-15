@@ -1,0 +1,117 @@
+{
+  "name": "bakery",
+  "label": "Panadería / Pastelería",
+  "categories": [
+    { "name": "Panes", "description": "Pan artesanal y de caja", "sort_order": 0 },
+    { "name": "Pasteles", "description": "Pasteles y repostería", "sort_order": 1 },
+    { "name": "Galletas", "description": "Galletas y bocadillos dulces", "sort_order": 2 },
+    { "name": "Bebidas", "description": "Café, té y atole", "sort_order": 3 },
+    { "name": "Especiales", "description": "Productos de temporada y edición limitada", "sort_order": 4 }
+  ],
+  "products": [
+    {
+      "name": "Pan de caja integral",
+      "category": "Panes",
+      "price_amount": "35.00",
+      "sku": "PAN-001",
+      "description": "Pan integral rebanado 680 g",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Baguette artesanal",
+      "category": "Panes",
+      "price_amount": "42.00",
+      "sku": "PAN-002",
+      "description": "Baguette crujiente horneada",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Concha de vainilla",
+      "category": "Panes",
+      "price_amount": "18.00",
+      "sku": "PAN-003",
+      "description": "Concha esponjosa con costra de azúcar",
+      "track_inventory": true,
+      "low_stock_threshold": 10
+    },
+    {
+      "name": "Pastel de chocolate 1 kg",
+      "category": "Pasteles",
+      "price_amount": "380.00",
+      "sku": "PAS-001",
+      "description": "Pastel húmedo con ganache",
+      "track_inventory": false
+    },
+    {
+      "name": "Pastel de vainilla 1 kg",
+      "category": "Pasteles",
+      "price_amount": "350.00",
+      "sku": "PAS-002",
+      "description": "Pastel esponjoso con betún",
+      "track_inventory": false
+    },
+    {
+      "name": "Cupcake de chocolate",
+      "category": "Pasteles",
+      "price_amount": "45.00",
+      "sku": "PAS-003",
+      "description": "Cupcake con betún de chocolate",
+      "track_inventory": true,
+      "low_stock_threshold": 6
+    },
+    {
+      "name": "Galleta de avena con pasas",
+      "category": "Galletas",
+      "price_amount": "18.00",
+      "sku": "GAL-001",
+      "description": "Galleta grande con avena y pasas",
+      "track_inventory": true,
+      "low_stock_threshold": 10
+    },
+    {
+      "name": "Galleta decorada",
+      "category": "Galletas",
+      "price_amount": "25.00",
+      "sku": "GAL-002",
+      "description": "Galleta de mantequilla artesanal",
+      "track_inventory": true,
+      "low_stock_threshold": 8
+    },
+    {
+      "name": "Café americano",
+      "category": "Bebidas",
+      "price_amount": "35.00",
+      "sku": "BEB-001",
+      "description": "Café de grano tostado artesanal",
+      "track_inventory": false
+    },
+    {
+      "name": "Atole de guayaba",
+      "category": "Bebidas",
+      "price_amount": "28.00",
+      "sku": "BEB-002",
+      "description": "Atole tradicional 355 ml",
+      "track_inventory": false
+    },
+    {
+      "name": "Pan de muerto",
+      "category": "Especiales",
+      "price_amount": "55.00",
+      "sku": "ESP-001",
+      "description": "Pan de muerto con anís — temporada",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Rosca de reyes (porción)",
+      "category": "Especiales",
+      "price_amount": "45.00",
+      "sku": "ESP-002",
+      "description": "Porción individual de rosca con relleno",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    }
+  ]
+}
