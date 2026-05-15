@@ -53,7 +53,7 @@ Read-only smoke checks against the current production database:
 | Check | Result |
 |---|---:|
 | Alembic version in production | `0015_modifier_price_precision` |
-| Repo migration head present locally | `0016_product_modifier_groups_rls_policy` |
+| Repo migration head present locally | `0016_pmg_rls_policy` |
 | Tenant rows | 8 |
 | Order rows | 4 |
 | Latest order timestamp | `2026-05-14 15:57:13.971388+00` |
@@ -61,7 +61,7 @@ Read-only smoke checks against the current production database:
 Notes:
 
 - The restore drill acceptance criterion requiring at least 5 recent orders would currently fail on restored data because production only has 4 orders.
-- Production is also one migration behind the repo head. A restored database should be upgraded to `0016_product_modifier_groups_rls_policy` during the drill.
+- Production is also one migration behind the repo head. A restored database should be upgraded to `0016_pmg_rls_policy` during the drill.
 
 ## Required Next Steps
 

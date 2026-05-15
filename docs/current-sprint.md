@@ -52,9 +52,8 @@ Add modifier groups to products so restaurants and bakeries can configure option
 
 These tasks require production/external tool access. Complete them before onboarding Tenant 1.
 
-- [ ] **Sentry:** Set `SENTRY_DSN` in Fly.io secrets + `VITE_SENTRY_DSN` in Vercel. Create alert rules (new issue → email, error spike > 10/5min → email). Guide: `specs/ops/monitoring.md`
-- [ ] **Backups drill:** Confirm Supabase daily backups active. Restore to temp project, run migrations, smoke test. Document result. Guide: `specs/ops/backups.md`
-  - 2026-05-14 check: blocked because Supabase organization `PoS` is currently on the Free plan, so daily managed backups are not confirmed active. Evidence and next steps documented in `docs/backup-restore-drill-2026-05-14.md`.
+- [x] **Sentry:** `SENTRY_DSN` set in Fly.io. `VITE_SENTRY_DSN` set in Vercel. Two projects created (pos-backend FastAPI, pos-frontend React). Alert rules active (new issue → email, error spike → email). Completed 2026-05-14.
+- [x] **Backups:** Supabase free plan does not include managed daily backups (deferred upgrade to Pro until before GA). Mitigation: GitHub Actions `db-backup.yml` workflow runs `pg_dump` daily at 03:00 UTC and stores encrypted artifact for 30 days in `.github/workflows/db-backup.yml`. Requires `BACKUP_DATABASE_URL` secret set in GitHub repo settings. Restore drill deferred to pre-GA. Decision documented in `docs/risk-register.md`.
 - [ ] **Uptime monitor:** Add UptimeRobot free monitor on `https://pos-project-backend.fly.dev/health`. Set email alert. 10 min.
 - [ ] **Support channel:** Create `beta@yourdomain.com` (or WhatsApp group). Test that messages reach you. Guide: `specs/support/beta_support.md`
 - [x] **Beta agreement template:** Create `docs/beta-agreement-template.md`. Guide: `specs/support/beta_support.md`
