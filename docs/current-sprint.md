@@ -54,6 +54,7 @@ These tasks require production/external tool access. Complete them before onboar
 
 - [ ] **Sentry:** Set `SENTRY_DSN` in Fly.io secrets + `VITE_SENTRY_DSN` in Vercel. Create alert rules (new issue → email, error spike > 10/5min → email). Guide: `specs/ops/monitoring.md`
 - [ ] **Backups drill:** Confirm Supabase daily backups active. Restore to temp project, run migrations, smoke test. Document result. Guide: `specs/ops/backups.md`
+  - 2026-05-14 check: blocked because Supabase organization `PoS` is currently on the Free plan, so daily managed backups are not confirmed active. Evidence and next steps documented in `docs/backup-restore-drill-2026-05-14.md`.
 - [ ] **Uptime monitor:** Add UptimeRobot free monitor on `https://pos-project-backend.fly.dev/health`. Set email alert. 10 min.
 - [ ] **Support channel:** Create `beta@yourdomain.com` (or WhatsApp group). Test that messages reach you. Guide: `specs/support/beta_support.md`
 - [x] **Beta agreement template:** Create `docs/beta-agreement-template.md`. Guide: `specs/support/beta_support.md`
