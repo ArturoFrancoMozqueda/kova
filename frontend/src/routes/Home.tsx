@@ -162,6 +162,7 @@ const LANDING_STYLES = `
 /* ─── useReveal ──────────────────────────────────────────────────────────── */
 function useReveal() {
   useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
     const els = document.querySelectorAll(".lp-reveal");
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("in")),
@@ -182,6 +183,7 @@ function CountUp({ to, duration = 1100 }: CountUpProps) {
   const [v, setV] = useState(0);
   const started = useRef(false);
   useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") { setV(to); return; }
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
