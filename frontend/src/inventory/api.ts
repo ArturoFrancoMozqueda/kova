@@ -1,4 +1,4 @@
-import type { MovementResponse, StockItem } from "./types";
+import type { MovementHistoryResponse, MovementResponse, StockItem } from "./types";
 
 class ApiError extends Error {
   constructor(
@@ -53,6 +53,16 @@ export function recordStockTake(
     headers: { "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify({ counted_quantity: countedQuantity, reason }),
   });
+}
+
+export function listMovements(
+  productId: string,
+  limit = 20,
+  offset = 0,
+): Promise<MovementHistoryResponse> {
+  return requestJson<MovementHistoryResponse>(
+    `/api/v1/inventory/products/${productId}/movements?limit=${limit}&offset=${offset}`,
+  );
 }
 
 export function updateLowStockThreshold(

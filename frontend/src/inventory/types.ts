@@ -16,3 +16,20 @@ export type MovementResponse = {
   stock_on_hand: number;
   reason: string;
 };
+
+export type MovementHistoryItem = {
+  id: string;
+  movement_type: string;
+  quantity_delta: number;
+  stock_on_hand_after: number | null;
+  reason: string | null;
+  created_by_user_id: string | null;
+  created_at: string;
+};
+
+export type MovementHistoryResponse = {
+  items: MovementHistoryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};

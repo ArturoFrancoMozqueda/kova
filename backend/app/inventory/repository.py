@@ -62,4 +62,46 @@ def create_movement(
     )
     db.add(movement)
     db.flush()
+    # Compute and store stock_on_hand_after so movement history is accurate
+    movement.stock_on_hand_after = stock_on_hand(
+        db, tenant_id=tenant_id, product_id=product_id
+    )
+    db.flush()
     return movement
+
+
+def list_movements(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    product_id: UUID,
+    limit: int = 20,
+    offset: int = 0,
+) -> list[InventoryMovement]:
+    return (
+        db.query(InventoryMovement)
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.product_id == product_id,
+        )
+        .order_by(InventoryMovement.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+
+
+def count_movements(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    product_id: UUID,
+) -> int:
+    return (
+        db.query(InventoryMovement)
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.product_id == product_id,
+        )
+        .count()
+    )

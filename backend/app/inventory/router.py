@@ -1,16 +1,18 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
 from app.db import get_db
 from app.inventory import service
+from app.inventory import repository as repo
 from app.inventory.schemas import (
     InventoryAdjustmentCreate,
     InventoryMovementResponse,
     InventoryStockItem,
     LowStockThresholdUpdate,
+    MovementHistoryResponse,
     StockTakeCreate,
 )
 from app.rbac.permissions import Permission
@@ -98,6 +100,38 @@ def stock_take(
     )
     response.status_code = status_code
     return response_body
+
+
+@router.get("/products/{product_id}/movements", response_model=MovementHistoryResponse)
+def list_movements(
+    product_id: UUID,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+):
+    _, membership, _ = ctx
+    items = repo.list_movements(
+        db, tenant_id=membership.tenant_id, product_id=product_id, limit=limit, offset=offset
+    )
+    total = repo.count_movements(db, tenant_id=membership.tenant_id, product_id=product_id)
+    return MovementHistoryResponse(
+        items=[
+            {
+                "id": m.id,
+                "movement_type": m.movement_type,
+                "quantity_delta": m.quantity_delta,
+                "stock_on_hand_after": m.stock_on_hand_after,
+                "reason": m.reason,
+                "created_by_user_id": m.created_by_user_id,
+                "created_at": m.created_at,
+            }
+            for m in items
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.patch("/products/{product_id}/low-stock-threshold", response_model=InventoryStockItem)

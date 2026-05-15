@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -41,3 +42,20 @@ class StockTakeCreate(BaseModel):
 
 class LowStockThresholdUpdate(BaseModel):
     low_stock_threshold: int | None = Field(default=None, ge=0)
+
+
+class MovementHistoryItem(BaseModel):
+    id: UUID
+    movement_type: str
+    quantity_delta: int
+    stock_on_hand_after: int | None
+    reason: str | None
+    created_by_user_id: UUID | None
+    created_at: datetime
+
+
+class MovementHistoryResponse(BaseModel):
+    items: list[MovementHistoryItem]
+    total: int
+    limit: int
+    offset: int
