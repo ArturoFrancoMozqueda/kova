@@ -146,6 +146,13 @@ export default function BillingView() {
             </div>
           )}
 
+          {!loadState.billing.subscription && (
+            <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm animate-fade-in">
+              <AlertCircle className="h-5 w-5 text-primary shrink-0" />
+              <p className="text-foreground">{copy.billingView.noSubscriptionBanner}</p>
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-3">
             {/* Plan */}
             <Card className="hover:shadow-md transition-shadow">
