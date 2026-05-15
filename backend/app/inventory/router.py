@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
 from app.db import get_db
-from app.inventory import service
 from app.inventory import repository as repo
+from app.inventory import service
 from app.inventory.schemas import (
     InventoryAdjustmentCreate,
     InventoryMovementResponse,
