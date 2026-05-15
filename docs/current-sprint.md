@@ -55,7 +55,7 @@ These tasks require production/external tool access. Complete them before onboar
 - [x] **Sentry:** `SENTRY_DSN` set in Fly.io. `VITE_SENTRY_DSN` set in Vercel. Two projects created (pos-backend FastAPI, pos-frontend React). Alert rules active (new issue → email, error spike → email). Completed 2026-05-14.
 - [x] **Backups:** Supabase free plan does not include managed daily backups (deferred upgrade to Pro until before GA). Mitigation: GitHub Actions `db-backup.yml` workflow runs `pg_dump` daily at 03:00 UTC and stores encrypted artifact for 30 days in `.github/workflows/db-backup.yml`. Requires `BACKUP_DATABASE_URL` secret set in GitHub repo settings. Restore drill deferred to pre-GA. Decision documented in `docs/risk-register.md`.
 - [ ] **Uptime monitor:** Add UptimeRobot free monitor on `https://pos-project-backend.fly.dev/health`. Set email alert. 10 min.
-- [ ] **Support channel:** Create `beta@yourdomain.com` (or WhatsApp group). Test that messages reach you. Guide: `specs/support/beta_support.md`
+- [x] **Support channel:** `posprojectsupport@gmail.com` created and active. Share this address with beta tenants for all support requests. Completed 2026-05-14.
 - [x] **Beta agreement template:** Create `docs/beta-agreement-template.md`. Guide: `specs/support/beta_support.md`
 - [x] **Production deployment Sprint 14:** Deploy backend + frontend, verify security headers in live production response headers.
 - [x] **Verify secure cookies in production:** Confirm `Secure; HttpOnly; SameSite=Lax` on auth cookies after deploy.

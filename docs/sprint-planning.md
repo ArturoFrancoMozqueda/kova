@@ -55,13 +55,12 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Core POS | 11–13 | ✅ Done | Catalog, register, cash/manual sale, order creation, offline sync |
 | Beta Hardening | 14 | ✅ Code done — ops pending | Security, monitoring, backup drill, beta support |
 | Modifiers | 15 | ✅ Done | Modifier groups, options, pricing, register modal, receipts |
-| UX Polish + Onboarding | 16 | 🔄 In progress | Mobile sidebar, category names, payment picker, card rec stub (done); onboarding, orders filter, stock badges TBD |
+| UX Polish + Onboarding | 16 | ✅ Done | Mobile sidebar, category names, payment picker, onboarding checklist, orders filter, stock badges, i18n audit |
 | Tax Engine | 17 | 📋 Planned | Tax rates, tax-inclusive/exclusive, receipt line tax |
 | Discounts | 18 | 📋 Planned | Per-line and per-order discounts, reason tracking |
-| Card Recommendation v1 | 19 | 📋 Planned | Card management, benefit rules, checkout recommendation engine |
-| Retail Preset + Adv. Inventory | 20 | 📋 Planned | Retail preset, barcode/SKU input, CSV import, stock history |
-| Restaurant Preset | 21 | 📋 Planned | Restaurant catalog preset, table notes, modifier-heavy menus |
-| GA Hardening | 22 | 📋 Planned | Legal, marketing site, help center, security + load review, accessibility |
+| Retail Preset + Adv. Inventory | 19 | 📋 Planned | Retail preset, barcode/SKU input, CSV import, stock history |
+| Restaurant Preset | 20 | 📋 Planned | Restaurant catalog preset, table notes, modifier-heavy menus |
+| GA Hardening | 21 | 📋 Planned | Legal, marketing site, help center, security + load review, accessibility |
 | Closed Beta | — | 🔜 After Sprint 16 + ops | 3 friendly tenants, $199 MXN/month |
 
 ### Core POS Sprint Breakdown
@@ -942,131 +941,7 @@ a reason and is recorded in the audit log. Managers can restrict discount depth 
 
 ---
 
-## Sprint 19 — Card Recommendation v1
-
-### Goal
-
-Users can register their credit cards and benefit rules. At checkout, when a cashier selects card
-payment, the app recommends the best card to use based on the current basket — showing expected
-cashback, promotions, or months without interest. This turns the register into a smart financial
-advisor for the customer.
-
-### Product Outcome
-
-- Tenant owner or manager can register cards (personal or shared business cards).
-- Each card has named benefit rules: cashback %, points multiplier, MSI threshold, promo period.
-- At checkout, when cart has items and "Card" is selected, a ranked recommendation list appears.
-- Each card in the list shows the expected benefit in human-readable form ("~$32 cashback").
-- The cashier (or customer) selects the recommended card.
-- The selected card is recorded on the order for future benefit tracking.
-- The recommendation stub (`copy.register.cardRecommendationHint`) is replaced with real data.
-
-### Required Specs
-
-- `specs/cards/card_management.md`
-- `specs/cards/benefit_rules.md`
-- `specs/cards/recommendation_engine.md`
-- `specs/cards/checkout_recommendation.md`
-
-### Data Model
-
-- [ ] Create `cards` table:
-  - `id`, `tenant_id` (RLS), `name` (e.g. "Citibanamex Rewards"), `issuer`, `last_4` (nullable), `card_network` (`visa` | `mastercard` | `amex` | `other`), `is_active`, `created_at`.
-- [ ] Create `benefit_rules` table:
-  - `id`, `card_id`, `tenant_id` (RLS), `rule_type` (`cashback_pct` | `points_multiplier` | `msi_threshold` | `flat_promo`), `value` (Decimal), `min_amount` (Decimal, nullable), `max_amount` (Decimal, nullable), `valid_from` (date, nullable), `valid_to` (date, nullable), `description` (text), `is_active`.
-- [ ] Create `order_card_selection` table:
-  - `id`, `order_id`, `card_id`, `tenant_id`, `selected_by_user_id`, `expected_benefit_value` (Decimal, nullable), `created_at`.
-- [ ] Add RLS policies on all three tables.
-- [ ] Write Alembic migration; document rollback.
-
-### Backend
-
-- [ ] Add Card CRUD endpoints with tenant scoping + RLS:
-  - `POST /api/v1/cards` (create card)
-  - `GET /api/v1/cards` (list tenant cards)
-  - `PATCH /api/v1/cards/{id}` (update card name / last_4)
-  - `DELETE /api/v1/cards/{id}` (soft deactivate)
-- [ ] Add Benefit Rule CRUD endpoints:
-  - `POST /api/v1/cards/{card_id}/benefit-rules`
-  - `GET /api/v1/cards/{card_id}/benefit-rules`
-  - `PATCH /api/v1/cards/{card_id}/benefit-rules/{rule_id}`
-  - `DELETE /api/v1/cards/{card_id}/benefit-rules/{rule_id}`
-- [ ] Add recommendation endpoint:
-  - `POST /api/v1/recommend/card`
-  - Request: `{ order_total: Decimal, items: [{ category_id, amount }] }`
-  - Response: `{ recommendations: [{ card_id, card_name, rule_type, expected_benefit_value, description, rank }] }`
-  - Engine logic:
-    - Fetch active cards + active benefit rules for tenant.
-    - Filter rules valid today (check `valid_from` / `valid_to`).
-    - Filter rules that meet `min_amount` threshold.
-    - Compute expected benefit per card: cashback → `total * rate`, MSI → eligible if `total >= threshold`, points → `total * multiplier`.
-    - Rank cards by `expected_benefit_value` descending.
-    - Return top 3 cards with computed benefit.
-  - Use only Decimal arithmetic throughout; no floats.
-- [ ] Add `POST /api/v1/orders/{id}/card-selection` to record which card was ultimately used.
-- [ ] Add RBAC permissions: `cards.manage` (owner / manager only), `cards.view` (all roles).
-- [ ] Add audit log events: `card.created`, `card.deactivated`, `benefit_rule.created`, `benefit_rule.deactivated`, `order.card_selected`.
-- [ ] Add idempotency on `POST /api/v1/cards` and benefit rule creation.
-
-### Frontend
-
-**Card Management UI**
-- [ ] Add `/cards` route under admin nav (icon: `CreditCard`).
-- [ ] Add `CardsView` page:
-  - List of registered cards with name, issuer, last 4 digits, active/inactive badge.
-  - "Add card" button opens a modal: name, issuer, card network, last 4 (optional).
-  - Edit card inline or via modal.
-  - Deactivate card with confirmation dialog.
-  - Empty state: "No cards registered yet. Add your first card to start getting smart recommendations."
-- [ ] Add benefit rules panel below each card in `CardsView`:
-  - List of rules per card (type, value, validity period, description).
-  - "Add rule" button: rule type selector + value + amount bounds + date range + description.
-  - Edit / deactivate individual rules.
-  - Expired rules shown with muted styling.
-
-**Checkout Recommendation**
-- [ ] When `paymentMethod === "manual_card"` and `cartItems.length > 0`, call `POST /api/v1/recommend/card` with current cart state.
-- [ ] Replace the static `cardRecommendationHint` stub with a live ranked recommendation list:
-  - Show top 3 cards with card name, expected benefit, rule description.
-  - Highlight the #1 pick with a "Best pick" badge and distinct border color.
-  - Each card in the list is selectable — clicking it records the selection.
-  - Loading skeleton while the API call resolves (< 200 ms target).
-  - If no cards are registered, show the "Add your first card" empty state with a link to `/cards`.
-  - If the API fails, fall back to a graceful "Could not load recommendations" message.
-- [ ] Add `selectedCardId` state in `RegisterView`; pass it in the order submission payload.
-- [ ] After sale completes, reset `selectedCardId`.
-- [ ] Add i18n strings: `register.cardRecommendationLoading`, `register.cardBestPick`, `register.noCardsRegistered`, `register.addFirstCard`, `register.expectedBenefit`.
-
-**Order Detail**
-- [ ] If an order has a card selection, show it in `OrderDetail` under payments:
-  - "Paid with [Card Name]" + expected benefit value.
-
-### Tests
-
-- [ ] BDD: `specs/cards/recommendation_engine.feature`
-  - Given a basket of $500 MXN and a card with 2% cashback rule, When `/recommend/card` is called, Then the card is ranked first with expected benefit $10.
-  - Given two cards (card A: 2% cashback, card B: 3 MSI at $300+), When basket is $350, Then both cards appear, card A ranked by cashback value, card B ranked by MSI convenience.
-  - Given a card rule with `valid_to` yesterday, When recommendation runs today, Then the rule is excluded.
-  - Given no active cards, When `/recommend/card` is called, Then response returns empty list.
-- [ ] Golden tests: `test_recommendation_money.py` — all benefit computations use Decimal, no floats.
-- [ ] Tenant isolation: tenant A cannot see tenant B's cards or benefit rules.
-- [ ] Permission test: cashier can view recommendations but cannot manage cards.
-- [ ] Audit log test: card creation and rule creation produce audit rows.
-- [ ] E2E: register card → add benefit rule → go to checkout → recommendation appears → select card → order created with card selection.
-
-### Definition of Done
-
-- Cards and benefit rules are manageable per tenant.
-- Recommendation endpoint returns ranked card list in < 200 ms for < 20 active rules.
-- The checkout recommendation panel replaces the stub with live data.
-- Card selection is persisted on the order.
-- All money computations use Decimal — no floats.
-- Tenant isolation tests pass.
-- All BDD scenarios pass.
-
----
-
-## Sprint 20 — Retail Preset + Advanced Inventory
+## Sprint 19 — Retail Preset + Advanced Inventory
 
 ### Goal
 
@@ -1136,7 +1011,7 @@ their workflow. Barcode/SKU input speeds up checkout. Stock history is auditable
 
 ---
 
-## Sprint 21 — Restaurant Preset
+## Sprint 20 — Restaurant Preset
 
 ### Goal
 
@@ -1192,7 +1067,7 @@ workflow, including item notes per line and a kitchen view placeholder.
 
 ---
 
-## Sprint 22 — GA Hardening
+## Sprint 21 — GA Hardening
 
 ### Goal
 
