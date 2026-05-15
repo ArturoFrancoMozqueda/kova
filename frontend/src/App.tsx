@@ -15,6 +15,7 @@ import ReportsView from "./reports/ReportsView";
 import ShiftView from "./shifts/ShiftView";
 import AppShell from "./layout/AppShell";
 import { ToastProvider } from "./components/ui/toast";
+import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import Home from "./routes/Home";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
+          <PWAUpdatePrompt />
           <Routes>
             {/* Public */}
             <Route path="/login" element={<AuthView mode="login" />} />
