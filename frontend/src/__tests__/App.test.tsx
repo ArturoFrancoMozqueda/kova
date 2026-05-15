@@ -101,7 +101,7 @@ describe("App shell", () => {
       new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
     );
     render(<App />);
-    expect(await screen.findByRole("heading", { name: /focused POS SaaS/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /bajo control/i })).toBeInTheDocument();
     expect(screen.getByText("$199")).toBeInTheDocument();
   });
 

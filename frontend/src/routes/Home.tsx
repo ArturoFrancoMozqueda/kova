@@ -177,13 +177,15 @@ function useReveal() {
 interface CountUpProps {
   to: number;
   duration?: number;
+  prefix?: string;
 }
-function CountUp({ to, duration = 1100 }: CountUpProps) {
+function CountUp({ to, duration = 1100, prefix = "" }: CountUpProps) {
+  const hasIO = typeof IntersectionObserver !== "undefined";
   const ref = useRef<HTMLSpanElement>(null);
-  const [v, setV] = useState(0);
+  const [v, setV] = useState(hasIO ? 0 : to);
   const started = useRef(false);
   useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") { setV(to); return; }
+    if (!hasIO) return;
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -204,7 +206,7 @@ function CountUp({ to, duration = 1100 }: CountUpProps) {
     if (ref.current) io.observe(ref.current);
     return () => io.disconnect();
   }, [to, duration]);
-  return <span ref={ref}>{v}</span>;
+  return <span ref={ref}>{prefix + v}</span>;
 }
 
 /* ─── SplitWords ─────────────────────────────────────────────────────────── */
@@ -811,7 +813,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
 
               <div className="flex items-baseline gap-2 mb-1">
                 <div className="text-[52px] font-bold tracking-[-0.03em] leading-none text-white">
-                  $<CountUp to={199} duration={1100} />
+                  <CountUp to={199} duration={1100} prefix="$" />
                 </div>
                 <div className="text-[14px] text-[#7a7a7a] font-mono">MXN</div>
                 <div className="text-[14px] text-[#7a7a7a]">/ mes</div>
