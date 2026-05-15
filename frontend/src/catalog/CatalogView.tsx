@@ -7,6 +7,8 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
+import { applyPreset } from "../onboarding/api";
+import type { PresetName } from "../onboarding/api";
 import {
   createCategory,
   createModifierGroup,
@@ -46,6 +48,8 @@ import {
   Tag,
   AlertCircle,
   RefreshCw,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +77,7 @@ export default function CatalogView() {
   const { toast } = useToast();
 
   const [showModifiers, setShowModifiers] = useState(false);
+  const [presetApplying, setPresetApplying] = useState(false);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -92,6 +97,23 @@ export default function CatalogView() {
 
   const showNotice = (msg: string, variant: "success" | "error" = "success") => {
     toast(msg, variant);
+  };
+
+  const handleApplyPreset = async (preset: PresetName) => {
+    setPresetApplying(true);
+    try {
+      const result = await applyPreset(preset);
+      if (result.skipped) {
+        showNotice(copy.onboarding.presetSkipped);
+      } else {
+        showNotice(copy.onboarding.presetApplied(result.products_created));
+        await load();
+      }
+    } catch {
+      showNotice(copy.catalog.operationError, "error");
+    } finally {
+      setPresetApplying(false);
+    }
   };
 
   const visibleProducts =
@@ -174,6 +196,55 @@ export default function CatalogView() {
           </div>
         </div>
       </div>
+
+      {/* Preset banner — shown only when catalog is empty and user can create */}
+      {activeProducts.length === 0 && canCreate && (
+        <div className="rounded-xl border border-primary/20 bg-primary/3 p-5 animate-fade-in">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">{copy.onboarding.presetTitle}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{copy.onboarding.presetSubtitle}</p>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([
+              { preset: "bakery" as PresetName, label: copy.onboarding.presetBakery, desc: copy.onboarding.presetBakeryDesc },
+              { preset: "retail" as PresetName, label: copy.onboarding.presetRetail, desc: copy.onboarding.presetRetailDesc },
+            ] as const).map(({ preset, label, desc }) => (
+              <button
+                key={preset}
+                type="button"
+                disabled={presetApplying}
+                onClick={() => void handleApplyPreset(preset)}
+                className="flex flex-col rounded-xl border-2 border-border bg-background p-4 text-left transition-all hover:border-primary/40 hover:shadow-sm disabled:opacity-60"
+              >
+                <p className="font-semibold text-sm">{label}</p>
+                <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={presetApplying}
+              onClick={() => void handleApplyPreset("bakery").then(() => {/* no-op, user dismissed */}).catch(() => undefined)}
+              className="hidden" // blank option is handled by not clicking any preset
+            />
+            {/* Blank / dismiss */}
+            <div className="flex flex-col rounded-xl border-2 border-dashed border-border bg-background p-4 text-left">
+              <p className="font-semibold text-sm text-muted-foreground">{copy.onboarding.presetBlank}</p>
+              <p className="text-xs text-muted-foreground mt-1">{copy.onboarding.presetBlankDesc}</p>
+            </div>
+          </div>
+          {presetApplying && (
+            <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {copy.onboarding.presetApplying}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-3 md:grid-cols-4">
         {[
