@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   CATALOG_CREATE_PERMISSION,
@@ -44,7 +44,8 @@ import {
   Banknote,
   Building2,
   CreditCard,
-  Zap,
+  Search,
+  X,
 } from "lucide-react";
 
 type LoadState =
@@ -119,6 +120,9 @@ export default function RegisterView() {
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
+  const [skuQuery, setSkuQuery] = useState("");
+  const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [skuMatches, setSkuMatches] = useState<Product[]>([]);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -167,6 +171,37 @@ export default function RegisterView() {
     if (!selectedCategory) return loadState.products;
     return loadState.products.filter((p) => p.category_id === selectedCategory);
   }, [loadState, selectedCategory]);
+
+  // SKU/barcode search: debounced, filters across ALL products (ignores category filter)
+  const handleSkuChange = useCallback(
+    (value: string) => {
+      setSkuQuery(value);
+      if (skuDebounceRef.current) clearTimeout(skuDebounceRef.current);
+      skuDebounceRef.current = setTimeout(() => {
+        if (!value.trim() || loadState.status !== "ready") {
+          setSkuMatches([]);
+          return;
+        }
+        const q = value.trim().toLowerCase();
+        const exactSku = loadState.products.filter(
+          (p) => p.sku?.toLowerCase() === q,
+        );
+        if (exactSku.length === 1) {
+          addProduct(exactSku[0]);
+          setSkuQuery("");
+          setSkuMatches([]);
+          return;
+        }
+        const partial = loadState.products.filter(
+          (p) =>
+            p.sku?.toLowerCase().includes(q) ||
+            p.name.toLowerCase().includes(q),
+        );
+        setSkuMatches(partial);
+      }, 150);
+    },
+    [loadState],
+  );
 
   const cartItems = useMemo(() => Object.values(cart), [cart]);
   const totalCents = useMemo(
@@ -424,6 +459,61 @@ export default function RegisterView() {
               </CardTitle>
               <Badge variant="secondary">{loadState.products.length} items</Badge>
             </div>
+            {/* SKU / barcode search */}
+            <div className="relative mt-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={skuQuery}
+                onChange={(e) => handleSkuChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && skuMatches.length === 1) {
+                    addProduct(skuMatches[0]);
+                    setSkuQuery("");
+                    setSkuMatches([]);
+                  }
+                  if (e.key === "Escape") {
+                    setSkuQuery("");
+                    setSkuMatches([]);
+                  }
+                }}
+                placeholder={copy.register.skuSearchPlaceholder}
+                className="w-full rounded-lg border bg-background py-2 pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
+              />
+              {skuQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSkuQuery(""); setSkuMatches([]); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* SKU match results */}
+            {skuQuery && skuMatches.length === 0 && (
+              <p className="mt-1.5 text-xs text-muted-foreground px-1">
+                {copy.register.skuNoMatch(skuQuery)}
+              </p>
+            )}
+            {skuMatches.length > 1 && (
+              <div className="mt-1.5 space-y-1 animate-fade-in">
+                <p className="text-xs text-muted-foreground px-1">{copy.register.skuMultipleMatches}</p>
+                {skuMatches.slice(0, 6).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => { addProduct(p); setSkuQuery(""); setSkuMatches([]); }}
+                    className="flex w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                  >
+                    <span className="font-medium">{p.name}</span>
+                    <span className="text-primary font-semibold">{formatMoney(p.price_amount)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Category pills — show readable names */}
             {categoriesInUse.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
@@ -807,20 +897,6 @@ export default function RegisterView() {
                       </div>
                     )}
 
-                    {/* Card recommendation stub */}
-                    {paymentMethod === "manual_card" && (
-                      <div className="flex items-start gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/80 p-3 animate-fade-in">
-                        <Zap className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-semibold text-amber-800">
-                            {copy.register.cardRecommendationTitle}
-                          </p>
-                          <p className="text-xs text-amber-700">
-                            {copy.register.cardRecommendationHint}
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
