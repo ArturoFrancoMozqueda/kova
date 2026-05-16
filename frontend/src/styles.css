@@ -62,6 +62,8 @@
     --kova-muted: #6B7A99;
     --kova-tertiary: #8892A4;
     --kova-border: #E2E6EF;
+    --kova-danger: #DC2626;
+    --kova-danger-foreground: #FFFFFF;
 
     --radius-kova-sm: 6px;
     --radius-kova-md: 8px;

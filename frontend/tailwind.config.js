@@ -64,6 +64,8 @@ export default {
           muted: "var(--kova-muted)",
           tertiary: "var(--kova-tertiary)",
           border: "var(--kova-border)",
+          danger: "var(--kova-danger)",
+          "danger-foreground": "var(--kova-danger-foreground)",
         },
       },
       borderRadius: {
