@@ -53,11 +53,27 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        // Kova brand palette (Phase 1 foundation — not yet applied to
+        // component semantics; consume via `kova-*` utility classes).
+        kova: {
+          blue: "var(--kova-blue)",
+          "blue-light": "var(--kova-blue-light)",
+          ink: "var(--kova-ink)",
+          mist: "var(--kova-mist)",
+          growth: "var(--kova-growth)",
+          muted: "var(--kova-muted)",
+          tertiary: "var(--kova-tertiary)",
+          border: "var(--kova-border)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "kova-sm": "var(--radius-kova-sm)",
+        "kova-md": "var(--radius-kova-md)",
+        "kova-lg": "var(--radius-kova-lg)",
+        "kova-xl": "var(--radius-kova-xl)",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
