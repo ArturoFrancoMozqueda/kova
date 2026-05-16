@@ -49,6 +49,28 @@
     --sidebar-accent-foreground: 150 30% 96%;
     --sidebar-border: 163 32% 20%;
     --sidebar-muted: 150 22% 72%;
+
+    /* ── Kova brand tokens (Phase 1 foundation) ───────────────────────────
+       Defined but not yet applied to component semantics. Wired into Tailwind
+       via theme.extend.colors.kova and theme.extend.borderRadius.kova-*.
+       Existing tokens above remain authoritative until later phases. */
+    --kova-blue: #4F7EF7;
+    --kova-blue-light: #7BA7FF;
+    --kova-ink: #0F1117;
+    --kova-mist: #F5F6FA;
+    --kova-growth: #1EBF8A;
+    --kova-muted: #6B7A99;
+    --kova-tertiary: #8892A4;
+    --kova-border: #E2E6EF;
+
+    --radius-kova-sm: 6px;
+    --radius-kova-md: 8px;
+    --radius-kova-lg: 10px;
+    --radius-kova-xl: 14px;
+
+    --kova-ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+    --kova-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --kova-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   * {
