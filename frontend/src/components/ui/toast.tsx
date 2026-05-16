@@ -23,7 +23,7 @@ const icons: Record<ToastVariant, ReactNode> = {
   success: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
   error: <XCircle className="h-4 w-4 text-red-500" />,
   warning: <AlertTriangle className="h-4 w-4 text-amber-500" />,
-  info: <Info className="h-4 w-4 text-blue-500" />,
+  info: <Info className="h-4 w-4 text-kova-blue" />,
 };
 
 const variantStyles: Record<ToastVariant, string> = {
@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             role="status"
             className={cn(
-              "pointer-events-auto flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg min-w-[280px] max-w-[420px]",
+              "pointer-events-auto flex items-center gap-3 rounded-kova-lg border-[0.5px] px-4 py-3 shadow-lg min-w-[280px] max-w-[420px]",
               variantStyles[t.variant],
               t.exiting ? "toast-exit" : "toast-enter",
             )}
