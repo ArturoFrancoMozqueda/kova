@@ -93,7 +93,7 @@ test("billing page shows past due recovery and return states", async ({ page }) 
 
   await page.goto("/settings/billing/success");
 
-  await expect(page.getByText("Checkout completed. Subscription status is refreshing.")).toBeVisible();
+  await expect(page.getByText("Checkout completed. Subscription status is refreshing.").first()).toBeVisible();
   await expect(page.getByText("Payment is past due. Recover billing to keep uninterrupted access.")).toBeVisible();
   await expect(page.getByText(/Grace period ends/)).toBeVisible();
 });
