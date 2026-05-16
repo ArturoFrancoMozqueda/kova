@@ -21,7 +21,7 @@ const NODES = [
   { x: 11.22, y: 44 },
 ] as const;
 
-const ARC_RADIUS = 32;
+const ARC_RADIUS = 52;
 
 function arcPath(from: { x: number; y: number }, to: { x: number; y: number }) {
   return `M ${from.x} ${from.y} A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 1 ${to.x} ${to.y}`;
@@ -55,7 +55,7 @@ export function LogoMark({
             key={`arc-${i}`}
             d={arcPath(from, to)}
             stroke={circuitColor ?? "currentColor"}
-            strokeWidth={2.4}
+            strokeWidth={1.8}
             strokeLinecap="round"
             fill="none"
           />
@@ -67,13 +67,12 @@ export function LogoMark({
           key={`node-${i}`}
           cx={n.x}
           cy={n.y}
-          r={3.2}
+          r={5}
           fill={circuitColor ?? "currentColor"}
         />
       ))}
 
-      <circle cx={32} cy={32} r={6} fill={coreColor ?? "var(--kova-blue)"} />
-      <circle cx={32} cy={32} r={2} fill="#FFFFFF" />
+      <circle cx={32} cy={32} r={5} fill={coreColor ?? "var(--kova-blue)"} />
     </svg>
   );
 }
@@ -100,7 +99,7 @@ export default function Logo({
   }
 
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
+    <span className={cn("inline-flex items-center gap-3", className)}>
       <LogoMark
         size={size}
         title={title}
@@ -108,9 +107,10 @@ export default function Logo({
         coreColor={coreColor}
       />
       <span
-        className="font-semibold tracking-tight"
+        className="tracking-tight"
         style={{
           color: wordmarkColor,
+          fontWeight: 500,
           fontSize: `${Math.round(size * 0.72)}px`,
           letterSpacing: "-0.02em",
         }}
