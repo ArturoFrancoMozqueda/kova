@@ -906,7 +906,7 @@ export default function RegisterView() {
                   disabled={!canSubmitSale}
                   size="xl"
                   className="w-full"
-                  variant={canSubmitSale ? "success" : "default"}
+                  variant="default"
                 >
                   {submitting ? (
                     <>
