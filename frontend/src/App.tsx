@@ -18,6 +18,7 @@ import { ToastProvider } from "./components/ui/toast";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import Home from "./routes/Home";
 import LogoPreview from "./routes/LogoPreview";
+import ComponentsPreview from "./routes/ComponentsPreview";
 
 export default function App() {
   return (
@@ -35,6 +36,9 @@ export default function App() {
 
             {import.meta.env.DEV ? (
               <Route path="/dev/logo-preview" element={<LogoPreview />} />
+            ) : null}
+            {import.meta.env.DEV ? (
+              <Route path="/dev/components-preview" element={<ComponentsPreview />} />
             ) : null}
 
             {/* Protected */}
