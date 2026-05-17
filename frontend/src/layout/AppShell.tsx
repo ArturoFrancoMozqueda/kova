@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
+import { LogoMark } from "@/components/brand/Logo";
 
 type NavItem = {
   to: string;
@@ -72,11 +73,9 @@ export default function AppShell() {
     <>
       {/* Brand */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-400 text-sidebar font-extrabold text-sm shadow-md shrink-0">
-          POS
-        </div>
+        <LogoMark size={32} circuitColor="var(--kova-on-ink)" />
         <div className="min-w-0">
-          <p className="text-xs text-sidebar-muted tracking-wide uppercase">Operations</p>
+          <p className="text-[10px] text-sidebar-muted tracking-[0.14em] uppercase">kova</p>
           <p className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</p>
         </div>
         {/* Close button — mobile only */}
@@ -172,9 +171,7 @@ export default function AppShell() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex h-7 w-7 items-center justify-center rounded bg-amber-400 font-extrabold text-xs text-sidebar">
-            POS
-          </div>
+          <LogoMark size={24} circuitColor="var(--kova-ink)" />
           <span className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</span>
         </header>
 
