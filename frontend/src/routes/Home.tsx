@@ -367,7 +367,7 @@ function ValueProps() {
     },
     {
       icon: <Ico.tag width={20} height={20} />,
-      title: "$199 al mes. Todo incluido. Para siempre.",
+      title: "$299 al mes. Todo incluido. Para siempre.",
       body: "Sin plan básico que te limita. Sin cobro por empleado. Sin sorpresa al final del mes.",
       tag: "Precio sin trampa",
     },
@@ -551,7 +551,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
 
               <div className="flex items-baseline gap-2 mb-1">
                 <div className="text-[52px] font-bold tracking-[-0.03em] leading-none text-white">
-                  <CountUp to={199} duration={1100} prefix="$" />
+                  <CountUp to={299} duration={1100} prefix="$" />
                 </div>
                 <div className="text-[14px] text-[#7a7a7a] font-mono">MXN</div>
                 <div className="text-[14px] text-[#7a7a7a]">/ mes</div>
@@ -563,7 +563,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
                 className="block lp-btn-accent text-center font-semibold py-3 rounded-lg text-[14px]"
                 style={accentBtnStyle}
               >
-                <span>Empieza gratis 14 días →</span>
+                <span>Empieza 3 días gratis →</span>
               </Link>
               <div className="text-center text-[12px] text-[#7a7a7a] mt-3">
                 Cancela cuando quieras. Sin contratos.
