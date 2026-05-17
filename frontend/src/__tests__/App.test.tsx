@@ -101,8 +101,8 @@ describe("App shell", () => {
       new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
     );
     render(<App />);
-    expect(await screen.findByRole("heading", { name: /bajo control/i })).toBeInTheDocument();
-    expect(screen.getByText("$299")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /en flujo constante/i })).toBeInTheDocument();
+    expect(screen.getByText("Premium, pero accesible.")).toBeInTheDocument();
   });
 
   it("lands on register after a successful login", async () => {
