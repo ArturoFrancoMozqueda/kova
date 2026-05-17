@@ -102,7 +102,7 @@ describe("App shell", () => {
     );
     render(<App />);
     expect(await screen.findByRole("heading", { name: /bajo control/i })).toBeInTheDocument();
-    expect(screen.getByText("$199")).toBeInTheDocument();
+    expect(screen.getByText("$299")).toBeInTheDocument();
   });
 
   it("lands on register after a successful login", async () => {
