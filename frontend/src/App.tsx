@@ -19,6 +19,7 @@ import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import Home from "./routes/Home";
 import LogoPreview from "./routes/LogoPreview";
 import ComponentsPreview from "./routes/ComponentsPreview";
+import IntroPreview from "./routes/dev/IntroPreview";
 
 export default function App() {
   return (
@@ -39,6 +40,9 @@ export default function App() {
             ) : null}
             {import.meta.env.DEV ? (
               <Route path="/dev/components-preview" element={<ComponentsPreview />} />
+            ) : null}
+            {import.meta.env.DEV ? (
+              <Route path="/dev/intro-preview" element={<IntroPreview />} />
             ) : null}
 
             {/* Protected */}
