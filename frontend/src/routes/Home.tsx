@@ -108,6 +108,17 @@ const LANDING_STYLES = `
     50%      { transform: scale(1.18); }
   }
 
+  .lp-product-tile:hover {
+    border-color: var(--accent) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -6px rgba(15,17,23,0.18);
+  }
+  .lp-product-tile[data-active="1"] {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 1px var(--accent) inset;
+  }
+  .lp-product-tile:active { transform: scale(0.97); }
+
   @media (prefers-reduced-motion: reduce) {
     .lp-live-dot { animation: none !important; }
     .lp-root *, .lp-root *::before, .lp-root *::after {
@@ -184,14 +195,16 @@ function Navbar({
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32,
         }}
       >
-        <Logo
-          variant="horizontal"
-          size={24}
-          circuitColor="var(--page-fg)"
-          wordmarkColor="var(--page-fg)"
-          coreColor="var(--accent)"
-          title="kova"
-        />
+        <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>
+          <Logo
+            variant="horizontal"
+            size={24}
+            circuitColor="currentColor"
+            wordmarkColor="currentColor"
+            coreColor="var(--accent)"
+            title="kova"
+          />
+        </span>
 
         <div style={{ display: "flex", gap: 28, fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }} className="hidden md:flex">
           {[
@@ -394,7 +407,6 @@ function ThreeNodes() {
     <section id="como-funciona" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
-          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 01</span>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
             Cómo funciona
           </span>
@@ -486,6 +498,7 @@ const qtyBtnStyle: CSSProperties = {
 function DesktopPreview() {
   const [cart, setCart] = useState<Record<string, number>>({ p2: 2, p4: 1 });
   const [filter, setFilter] = useState("todos");
+  const [pulseId, setPulseId] = useState<string | null>(null);
 
   const items = Object.entries(cart)
     .map(([id, qty]) => {
@@ -496,7 +509,11 @@ function DesktopPreview() {
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
   const filtered = filter === "todos" ? CATALOG : CATALOG.filter((p) => p.cat === filter);
 
-  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+  const add = (id: string) => {
+    setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+    setPulseId(id);
+    window.setTimeout(() => setPulseId((cur) => (cur === id ? null : cur)), 280);
+  };
   const adj = (id: string, d: number) =>
     setCart((c) => {
       const next = Math.max(0, (c[id] || 0) + d);
@@ -545,26 +562,50 @@ function DesktopPreview() {
         </div>
 
         <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "start" }}>
-          {filtered.map((p) => (
-            <button
-              key={p.id} onClick={() => add(p.id)}
-              style={{
-                background: "var(--card-bg)", border: "0.5px solid var(--hairline-color)",
-                borderRadius: 10, padding: 12, textAlign: "left", cursor: "pointer",
-                fontFamily: "inherit", color: "inherit",
-                display: "flex", flexDirection: "column", gap: 4,
-                transition: "all 150ms var(--kova-ease-entrance)",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--hairline-color)"; e.currentTarget.style.transform = "translateY(0)"; }}
-            >
-              <div style={{ fontSize: 18, lineHeight: 1 }}>{p.icon}</div>
-              <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>{p.name}</div>
-              <div className="tabular" style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginTop: "auto" }}>
-                {formatMXN(p.price)}
-              </div>
-            </button>
-          ))}
+          {filtered.map((p) => {
+            const inCart = (cart[p.id] || 0) > 0;
+            const pulsing = pulseId === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => add(p.id)}
+                className="lp-product-tile"
+                data-active={inCart ? "1" : "0"}
+                style={{
+                  background: "var(--card-bg)",
+                  border: "0.5px solid var(--hairline-color)",
+                  borderRadius: 10, padding: 12, textAlign: "left",
+                  cursor: "pointer", fontFamily: "inherit", color: "inherit",
+                  display: "flex", flexDirection: "column", gap: 4,
+                  transition: "border-color 150ms var(--kova-ease-entrance), transform 150ms var(--kova-ease-entrance), box-shadow 150ms var(--kova-ease-entrance)",
+                  transform: pulsing ? "scale(0.97)" : "scale(1)",
+                  position: "relative",
+                }}
+              >
+                <div style={{ fontSize: 18, lineHeight: 1 }}>{p.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>{p.name}</div>
+                <div className="tabular" style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginTop: "auto" }}>
+                  {formatMXN(p.price)}
+                </div>
+                {inCart && (
+                  <span
+                    className="tabular"
+                    style={{
+                      position: "absolute", top: 8, right: 8,
+                      minWidth: 18, height: 18, borderRadius: 999,
+                      background: "var(--accent)", color: "#fff",
+                      fontSize: 10, fontWeight: 600,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      padding: "0 5px",
+                    }}
+                  >
+                    {cart[p.id]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -681,70 +722,12 @@ function TabletPreview() {
   );
 }
 
-/* ─── LiveActivityFeed ───────────────────────────────────────────────────── */
-type FeedItem = { who: string; city: string; item: string; amt: number; key?: number };
-const ACTIVITY_SEED: FeedItem[] = [
-  { who: "Café Lupita", city: "CDMX", item: "Latte 12 oz", amt: 52 },
-  { who: "Panadería Mateo", city: "Guadalajara", item: "Concha + café", amt: 60 },
-  { who: "Taquería La Doña", city: "Monterrey", item: "3× pastor", amt: 75 },
-  { who: "Abarrotes Don Beto", city: "Puebla", item: "Refresco 600 ml", amt: 25 },
-  { who: "Café Lupita", city: "CDMX", item: "Americano + concha", amt: 60 },
-  { who: "Salón Aurora", city: "Mérida", item: "Corte + tinte", amt: 540 },
-];
-
-function LiveActivityFeed() {
-  const [feed, setFeed] = useState<FeedItem[]>(() => ACTIVITY_SEED.slice(0, 4));
-  useEffect(() => {
-    const t = setInterval(() => {
-      setFeed((cur) => {
-        const next = ACTIVITY_SEED[Math.floor(Math.random() * ACTIVITY_SEED.length)];
-        return [{ ...next, key: Date.now() }, ...cur.slice(0, 3)];
-      });
-    }, 2800);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <div style={{ background: "var(--surface)", border: "0.5px solid var(--hairline-color)", borderRadius: 14, padding: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="lp-live-dot" />
-          <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)" }}>
-            En vivo
-          </span>
-        </div>
-        <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>últimas ventas en kova</span>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        {feed.map((f, i) => (
-          <div
-            key={f.key ?? `seed-${i}`}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "10px 0",
-              borderTop: i === 0 ? "none" : "0.5px solid var(--hairline-color)",
-              opacity: 1 - i * 0.15,
-              animation: i === 0 && f.key ? "lp-feed-in 380ms var(--kova-ease-entrance)" : undefined,
-            }}
-          >
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{f.who}</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{f.item} · {f.city}</div>
-            </div>
-            <div className="tabular" style={{ fontSize: 13, fontWeight: 600 }}>+{formatMXN(f.amt)}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* ─── POSShowcase ────────────────────────────────────────────────────────── */
 function POSShowcase() {
   return (
     <section id="producto" style={{ padding: "120px 32px", background: "var(--surface)", borderTop: "0.5px solid var(--hairline-color)", borderBottom: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
-          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 02</span>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>El producto</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.6fr)", gap: 56, alignItems: "end", marginBottom: 56 }} className="lp-showcase-head">
@@ -761,22 +744,6 @@ function POSShowcase() {
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 32, alignItems: "center" }} className="lp-showcase-row">
           <DesktopPreview />
           <TabletPreview />
-        </div>
-
-        <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }} className="lp-2cols">
-          <div style={{ paddingTop: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-              En todo México, ahora mismo
-            </span>
-            <h3 style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.05, margin: "8px 0 12px", maxWidth: 380 }}>
-              Ventas reales, latiendo en vivo.
-            </h3>
-            <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0, maxWidth: 420, lineHeight: 1.5 }}>
-              Cada PyME con kova abierto contribuye al pulso. Tus métricas no
-              esperan al cierre del día — se actualizan al ritmo de tu caja.
-            </p>
-          </div>
-          <LiveActivityFeed />
         </div>
       </div>
     </section>
@@ -853,7 +820,6 @@ function Features() {
     <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 03</span>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Capacidades</span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 700 }}>
@@ -897,7 +863,6 @@ function BuiltFor() {
     <section id="comercios" style={{ padding: "120px 32px", background: "var(--kova-ink)", color: "var(--kova-on-ink)", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span className="mono" style={{ fontSize: 12, color: "var(--kova-tertiary)" }}>§ 04</span>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>Para quién</span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 800, color: "var(--kova-on-ink)" }}>
@@ -929,109 +894,83 @@ function BuiltFor() {
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing({ primaryTarget }: { primaryTarget: string }) {
-  const plans: { name: string; price: number | string; priceLabel?: string; tag: string; featured: boolean; feats: string[]; cta: string; target: string }[] = [
-    {
-      name: "Solo", price: 0, tag: "Para empezar a vender hoy", featured: false,
-      feats: ["1 caja", "1 sucursal", "Catálogo ilimitado", "Pagos efectivo + transferencia", "Soporte por correo"],
-      cta: "Empezar gratis", target: primaryTarget,
-    },
-    {
-      name: "Negocio", price: 299, tag: "Para PyMEs en operación", featured: true,
-      feats: ["Hasta 5 cajas", "3 sucursales", "Modificadores y splits", "Reportes en vivo", "Cierre de turnos", "Soporte prioritario"],
-      cta: "Probar 3 días gratis", target: primaryTarget,
-    },
-    {
-      name: "Cadena", price: "—", priceLabel: "A medida", tag: "Para multi-sucursal", featured: false,
-      feats: ["Cajas ilimitadas", "Sucursales ilimitadas", "API + integraciones", "SLA dedicado", "Onboarding asistido"],
-      cta: "Hablar con ventas", target: "mailto:posprojectsupport@gmail.com",
-    },
+  const feats = [
+    "Ventas en efectivo, transferencia y tarjeta manual",
+    "Modo offline con sincronización automática",
+    "Control de turnos con apertura y cierre",
+    "Inventario por movimiento",
+    "Reportes de ventas y productos",
+    "Gestión de empleados con roles",
+    "Logo y personalización del POS",
+    "Historial de auditoría",
   ];
   return (
     <section id="precio" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 05</span>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Precios</span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32, justifyContent: "center" }}>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Precio</span>
         </div>
-        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 700 }}>
-          Premium, pero accesible.
+        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, textAlign: "center" }}>
+          Un solo plan. Sin letra chica.
         </h2>
-        <p style={{ marginTop: 16, fontSize: 17, color: "var(--text-muted)", maxWidth: 540 }}>
-          Sin comisiones por venta. Sin contratos. Mensual, cancela cuando quieras.
+        <p style={{ marginTop: 16, fontSize: 17, color: "var(--text-muted)", maxWidth: 540, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
+          Todo incluido. Sin comisiones por venta. Sin cobro por empleado. Cancela cuando quieras.
         </p>
 
-        <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }} className="lp-3cols">
-          {plans.map((p) => (
-            <PlanCard key={p.name} {...p} />
-          ))}
+        <div style={{ marginTop: 56, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
+          <div
+            style={{
+              borderRadius: 14, padding: 36,
+              background: "var(--kova-ink)", color: "var(--kova-on-ink)",
+              border: "0.5px solid var(--kova-ink)",
+              boxShadow: "0 24px 60px -20px rgba(15,17,23,0.3)",
+              display: "flex", flexDirection: "column", gap: 22, position: "relative",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-blue-light)" }}>Estándar</div>
+              <div style={{ fontSize: 13, marginTop: 6, color: "rgba(240,244,255,0.6)" }}>Para PyMEs en operación</div>
+            </div>
+
+            <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span style={{ fontSize: 16, opacity: 0.7 }}>$</span>
+              <span style={{ fontSize: 64, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>299</span>
+              <span style={{ fontSize: 14, opacity: 0.7 }}>MXN / mes</span>
+            </div>
+
+            <Link
+              to={primaryTarget}
+              style={{
+                width: "100%", background: "var(--kova-blue)", color: "#fff",
+                padding: "14px 16px", borderRadius: 10, border: "none",
+                fontWeight: 600, fontSize: 14, fontFamily: "inherit",
+                textAlign: "center", textDecoration: "none", display: "block",
+              }}
+            >
+              Empieza 3 días gratis →
+            </Link>
+            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(240,244,255,0.55)", marginTop: -10 }}>
+              Sin tarjeta para empezar. Cancela cuando quieras.
+            </div>
+
+            <div style={{ height: "0.5px", background: "rgba(255,255,255,0.1)" }} />
+
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+              {feats.map((f) => (
+                <li key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(240,244,255,0.85)" }}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M2 6L5 9L10 3" stroke="var(--kova-blue-light)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </section>
   );
 }
-
-function PlanCard({
-  name, price, priceLabel, tag, featured, feats, cta, target,
-}: { name: string; price: number | string; priceLabel?: string; tag: string; featured: boolean; feats: string[]; cta: string; target: string }) {
-  const isExternal = target.startsWith("mailto:") || target.startsWith("http");
-  return (
-    <div
-      style={{
-        borderRadius: 14, padding: 32,
-        background: featured ? "var(--kova-ink)" : "var(--surface)",
-        color: featured ? "var(--kova-on-ink)" : "var(--page-fg)",
-        border: featured ? "0.5px solid var(--kova-ink)" : "0.5px solid var(--hairline-color)",
-        boxShadow: featured ? "0 24px 60px -20px rgba(15,17,23,0.3)" : "none",
-        display: "flex", flexDirection: "column", gap: 20, position: "relative",
-      }}
-    >
-      {featured && (
-        <div style={{ position: "absolute", top: -10, left: 24, background: "var(--kova-blue)", color: "#fff", fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 8px", borderRadius: 4 }}>
-          Más popular
-        </div>
-      )}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: featured ? "var(--kova-blue-light)" : "var(--text-muted)" }}>{name}</div>
-        <div style={{ fontSize: 13, marginTop: 6, color: featured ? "rgba(240,244,255,0.6)" : "var(--text-muted)" }}>{tag}</div>
-      </div>
-      <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-        {priceLabel ? (
-          <span style={{ fontSize: 48, fontWeight: 600, letterSpacing: "-0.04em" }}>{priceLabel}</span>
-        ) : (
-          <>
-            <span style={{ fontSize: 16, opacity: 0.7 }}>$</span>
-            <span style={{ fontSize: 56, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>{price}</span>
-            <span style={{ fontSize: 13, opacity: 0.7 }}>MXN/mes</span>
-          </>
-        )}
-      </div>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-        {feats.map((f) => (
-          <li key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-              <path d="M2 6L5 9L10 3" stroke={featured ? "var(--kova-blue-light)" : "var(--accent)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {f}
-          </li>
-        ))}
-      </ul>
-      {isExternal ? (
-        <a href={target} style={planCtaStyle(featured)}>{cta}</a>
-      ) : (
-        <Link to={target} style={planCtaStyle(featured)}>{cta}</Link>
-      )}
-    </div>
-  );
-}
-
-const planCtaStyle = (featured: boolean): CSSProperties => ({
-  marginTop: "auto", width: "100%",
-  background: featured ? "var(--kova-blue)" : "var(--invert-ink-bg)",
-  color: featured ? "#fff" : "var(--invert-ink-fg)",
-  padding: "13px 16px", borderRadius: 10, border: "none",
-  fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
-  textAlign: "center", textDecoration: "none", display: "block",
-});
 
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 function Footer() {
@@ -1040,7 +979,9 @@ function Footer() {
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: 48 }} className="lp-footer-grid">
           <div>
-            <Logo size={24} circuitColor="var(--page-fg)" wordmarkColor="var(--page-fg)" coreColor="var(--accent)" />
+            <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>
+              <Logo size={24} circuitColor="currentColor" wordmarkColor="currentColor" coreColor="var(--accent)" />
+            </span>
             <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 280, marginTop: 16, lineHeight: 1.55 }}>
               Punto de venta multi-tenant, offline-first, para PyMEs en México.
             </p>
