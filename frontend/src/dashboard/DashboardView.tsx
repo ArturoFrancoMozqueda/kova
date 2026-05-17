@@ -469,13 +469,13 @@ export default function DashboardView() {
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  { to: "/register", icon: ShoppingCart, iconClass: "bg-primary/10 text-primary", label: copy.dashboard.newSale, desc: copy.dashboard.newSaleDesc },
-                  { to: "/catalog", icon: LayoutGrid, iconClass: "bg-amber-500/10 text-amber-600", label: copy.dashboard.manageCatalog, desc: copy.dashboard.manageCatalogDesc },
+                  { to: "/register", icon: ShoppingCart, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.newSale, desc: copy.dashboard.newSaleDesc },
+                  { to: "/catalog", icon: LayoutGrid, iconClass: "bg-kova-growth/10 text-kova-growth", label: copy.dashboard.manageCatalog, desc: copy.dashboard.manageCatalogDesc },
                   { to: "/reports", icon: BarChart3, iconClass: "bg-blue-500/10 text-blue-600", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
                   { to: "/shifts", icon: Clock, iconClass: "bg-violet-500/10 text-violet-600", label: copy.dashboard.shifts, desc: copy.dashboard.shiftsDesc },
                 ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                   <Link key={to} to={to} className="group">
-                    <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-primary/50 hover:shadow-sm">
+                    <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
                       <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
                         <Icon className="h-4 w-4" />
                       </div>
