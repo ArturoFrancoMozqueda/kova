@@ -19,6 +19,7 @@ export default defineConfig({
         name: "Kova",
         short_name: "Kova",
         description: "POS multi-tenant offline-first para PyMEs en México",
+        lang: "es-MX",
         theme_color: "#0F1117",
         background_color: "#F5F6FA",
         display: "standalone",
