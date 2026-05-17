@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { verifyEmail } from "./api";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2, AlertCircle, Loader2, Store } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 type State = "verifying" | "success" | "error" | "missing";
 
@@ -27,8 +28,8 @@ export default function VerifyEmailView() {
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-extrabold text-lg shadow-lg mb-4">
-            <Store className="h-7 w-7" />
+          <div className="mb-4 flex justify-center">
+            <LogoMark size={48} circuitColor="var(--kova-ink)" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">{copy.auth.verifyEmail}</h1>
         </div>
@@ -37,7 +38,7 @@ export default function VerifyEmailView() {
           <CardContent className="p-6 text-center">
             {state === "verifying" && (
               <div className="flex flex-col items-center gap-3 py-4">
-                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                <Loader2 className="h-8 w-8 text-kova-blue animate-spin" />
                 <p className="text-muted-foreground">{copy.auth.submitting}...</p>
               </div>
             )}

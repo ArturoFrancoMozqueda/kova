@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, Loader2, ArrowRight, Store } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
+import { LogoMark } from "@/components/brand/Logo";
 
 type AuthMode = "login" | "signup";
 type ActionState = "idle" | "submitting" | "error" | "created" | "verified";
@@ -55,8 +56,8 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       <div className="w-full max-w-md animate-fade-in">
         {/* Brand header */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-extrabold text-lg shadow-lg mb-4">
-            <Store className="h-7 w-7" />
+          <div className="mb-4 flex justify-center">
+            <LogoMark size={48} circuitColor="var(--kova-ink)" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
             {mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
@@ -169,7 +170,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
               {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
               <Link
                 to={mode === "login" ? "/signup" : "/login"}
-                className="font-medium text-primary hover:underline underline-offset-4"
+                className="font-medium text-kova-blue hover:underline underline-offset-4"
               >
                 {mode === "login" ? copy.auth.needAccount : copy.auth.haveAccount}
               </Link>
