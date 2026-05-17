@@ -466,11 +466,9 @@ function PosMockup() {
 void PosMockup;
 
 /* ─── Shared style helpers ───────────────────────────────────────────────── */
-const ACCENT_BUTTON_SHADOW = "0 1px 0 rgba(255,255,255,0.35) inset, 0 0 0 1px color-mix(in oklab, var(--lp-accent) 50%, black 10%), 0 10px 30px -8px color-mix(in oklab, var(--lp-accent) 60%, transparent)";
 const accentBtnStyle = {
-  background: "var(--lp-accent)" as const,
-  color: "var(--lp-accent-ink)" as const,
-  boxShadow: ACCENT_BUTTON_SHADOW,
+  background: "var(--kova-ink)" as const,
+  color: "var(--kova-on-ink)" as const,
 };
 
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
