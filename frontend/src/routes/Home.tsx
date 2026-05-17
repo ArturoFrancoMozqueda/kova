@@ -18,8 +18,14 @@ const LANDING_STYLES = `
   .lp-hairline { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
   .lp-hairline-strong { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10); }
   .lp-glow-radial {
+    /* Kova hero glow. Applied at 12% per Phase 3 instinct (kept subtle so it
+     * complements the IntroAnimation below without competing). If validation
+     * shows it reads as too weak, swap to the 18% variant commented below.
+     *   Version B (presente, 18%):
+     *     radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--kova-blue) 18%, transparent) 0%, transparent 60%),
+     */
     background:
-      radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--lp-accent) 22%, transparent) 0%, transparent 60%),
+      radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--kova-blue) 12%, transparent) 0%, transparent 60%),
       radial-gradient(40% 30% at 20% 30%, rgba(255,255,255,0.04) 0%, transparent 60%);
   }
   .lp-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); }
