@@ -15,8 +15,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 30% 10%;
 
-    /* Primary — deep teal with enough saturation to feel premium */
-    --primary: 162 52% 30%;
+    /* Primary — Kova blue (HSL of #4F7EF7) so every legacy bg-primary /
+       text-primary / border-primary / ring-primary utility consumed by
+       authenticated screens picks up the brand accent automatically. */
+    --primary: 225 91% 64%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 16% 93%;
@@ -39,7 +41,7 @@
 
     --border: 214 18% 88%;
     --input: 214 18% 88%;
-    --ring: 162 52% 30%;
+    --ring: 225 91% 64%;
     --radius: 0.625rem;
 
     /* Sidebar — Kova ink palette. HSL equivalents of the brand hex tokens
