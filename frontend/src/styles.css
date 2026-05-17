@@ -42,13 +42,14 @@
     --ring: 162 52% 30%;
     --radius: 0.625rem;
 
-    /* Sidebar — deep teal, slightly darker and more saturated than before */
-    --sidebar: 165 58% 12%;
-    --sidebar-foreground: 150 20% 96%;
-    --sidebar-accent: 163 48% 22%;
-    --sidebar-accent-foreground: 150 30% 96%;
-    --sidebar-border: 163 32% 20%;
-    --sidebar-muted: 150 22% 72%;
+    /* Sidebar — Kova ink palette. HSL equivalents of the brand hex tokens
+       so the existing hsl(var(--sidebar...)) Tailwind mappings keep working. */
+    --sidebar: 225 21% 8%;             /* ≈ #0F1117  (kova-ink) */
+    --sidebar-foreground: 222 100% 97%;/* ≈ #F0F4FF  (kova-on-ink) */
+    --sidebar-accent: 225 19% 17%;     /* ≈ #23283A  (lifted ink for hover/active) */
+    --sidebar-accent-foreground: 222 100% 97%;
+    --sidebar-border: 225 24% 15%;     /* ≈ #1E2330  (kova-ink-border) */
+    --sidebar-muted: 220 12% 60%;      /* ≈ #8892A4  (kova-tertiary) */
 
     /* ── Kova brand tokens (Phase 1 foundation) ───────────────────────────
        Defined but not yet applied to component semantics. Wired into Tailwind
