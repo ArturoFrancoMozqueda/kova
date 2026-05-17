@@ -1,401 +1,422 @@
-import { useEffect, useRef, useState, SVGProps } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
+import { LogoMark } from "@/components/brand/Logo";
+
+/* ─── Theme ──────────────────────────────────────────────────────────────── */
+type Theme = "light" | "dark";
+const THEME_KEY = "kova-landing-theme";
+
+function useLandingTheme(): [Theme, (t: Theme) => void, () => void] {
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "light";
+    const stored = window.localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(THEME_KEY, theme); } catch { /* quota / private mode */ }
+  }, [theme]);
+  const toggle = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+  return [theme, setTheme, toggle];
+}
+
+function themeVars(theme: Theme): CSSProperties {
+  if (theme === "dark") {
+    return {
+      "--page-bg": "var(--kova-ink)",
+      "--page-fg": "var(--kova-on-ink)",
+      "--surface": "#1A1D28",
+      "--surface-2": "#161922",
+      "--hairline-color": "rgba(255,255,255,0.08)",
+      "--hairline-strong": "rgba(255,255,255,0.14)",
+      "--accent": "var(--kova-blue-light)",
+      "--accent-soft": "rgba(123,167,255,0.16)",
+      "--text-muted": "#8892A4",
+      "--text-tertiary": "#6B7A99",
+      "--ink-on-fg": "var(--kova-ink)",
+      "--card-bg": "#1A1D28",
+      "--chip-bg": "rgba(255,255,255,0.06)",
+      "--invert-ink-bg": "#FBFBFD",
+      "--invert-ink-fg": "var(--kova-ink)",
+    } as CSSProperties;
+  }
+  return {
+    "--page-bg": "var(--kova-paper, #FBFBFD)",
+    "--page-fg": "var(--kova-ink)",
+    "--surface": "#FFFFFF",
+    "--surface-2": "var(--kova-mist)",
+    "--hairline-color": "var(--kova-border)",
+    "--hairline-strong": "#CDD4E3",
+    "--accent": "var(--kova-blue)",
+    "--accent-soft": "rgba(79,126,247,0.12)",
+    "--text-muted": "var(--kova-muted)",
+    "--text-tertiary": "var(--kova-tertiary)",
+    "--ink-on-fg": "var(--kova-on-ink)",
+    "--card-bg": "#FFFFFF",
+    "--chip-bg": "rgba(15,17,23,0.05)",
+    "--invert-ink-bg": "var(--kova-ink)",
+    "--invert-ink-fg": "var(--kova-on-ink)",
+  } as CSSProperties;
+}
 
 /* ─── Landing-scoped CSS ─────────────────────────────────────────────────── */
 const LANDING_STYLES = `
   .lp-root {
-    font-family: 'DM Sans', 'Geist', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    background: var(--page-bg);
+    color: var(--page-fg);
     -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    transition: background 280ms var(--kova-ease-entrance), color 280ms var(--kova-ease-entrance);
   }
-  .lp-grain::before {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    opacity: .035; mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.7'/></svg>");
-  }
-  .lp-hairline { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
-  .lp-hairline-strong { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10); }
-  .lp-glow-radial {
-    /* Kova hero glow. Applied at 12% per Phase 3 instinct (kept subtle so it
-     * complements the IntroAnimation below without competing). If validation
-     * shows it reads as too weak, swap to the 18% variant commented below.
-     *   Version B (presente, 18%):
-     *     radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--kova-blue) 18%, transparent) 0%, transparent 60%),
-     */
-    background:
-      radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--kova-blue) 12%, transparent) 0%, transparent 60%),
-      radial-gradient(40% 30% at 20% 30%, rgba(255,255,255,0.04) 0%, transparent 60%);
-  }
-  .lp-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); }
-  .lp-dotgrid {
-    background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
-    background-size: 22px 22px;
+  .lp-root .tabular { font-variant-numeric: tabular-nums; }
+  .lp-root .mono { font-family: "DM Mono", ui-monospace, monospace; }
+  .lp-root ::selection { background: var(--accent); color: #fff; }
+
+  .lp-grid-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--hairline-color) 0.5px, transparent 0.5px),
+      linear-gradient(to bottom, var(--hairline-color) 0.5px, transparent 0.5px);
+    background-size: 80px 80px;
+    opacity: 0.5;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
   }
 
-  /* breathe */
-  @keyframes lp-breathe {
-    0%, 100% { opacity: .85; transform: translateY(0) scale(1); }
-    50%       { opacity: 1;   transform: translateY(-6px) scale(1.04); }
+  .lp-live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--kova-growth);
+    box-shadow: 0 0 0 0 rgba(30,191,138,0.5);
+    animation: lp-live-pulse 1.5s ease-out infinite;
+    display: inline-block;
   }
-  .lp-breathe { animation: lp-breathe 11s ease-in-out infinite; will-change: transform, opacity; }
-
-  /* float */
-  @keyframes lp-float {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-4px); }
+  @keyframes lp-live-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(30,191,138,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(30,191,138,0);   }
+    100% { box-shadow: 0 0 0 0   rgba(30,191,138,0);   }
   }
-  .lp-float { animation: lp-float 9s ease-in-out infinite; will-change: transform; }
-
-  /* sync dot ping */
-  @keyframes lp-ping {
-    0%   { transform: scale(1);   opacity: .6; }
-    80%  { transform: scale(2.4); opacity: 0; }
-    100% { transform: scale(2.4); opacity: 0; }
-  }
-  .lp-sync-dot { position: relative; }
-  .lp-sync-dot::after {
-    content: ""; position: absolute; inset: 0; border-radius: 9999px;
-    background: currentColor;
-    animation: lp-ping 2.4s cubic-bezier(0,0,.2,1) infinite;
-  }
-
-  /* button shimmer sweep */
-  .lp-btn-accent { position: relative; overflow: hidden; }
-  .lp-btn-accent::before {
-    content: ""; position: absolute; inset: 0; z-index: 0;
-    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
-    transform: translateX(-120%);
-    transition: transform .9s cubic-bezier(.2,.7,.2,1);
-    pointer-events: none;
-  }
-  .lp-btn-accent:hover::before { transform: translateX(120%); }
-  .lp-btn-accent > * { position: relative; z-index: 1; }
-
-  /* word rise */
-  @keyframes lp-word-rise {
-    from { opacity: 0; transform: translateY(18px); }
+  @keyframes lp-feed-in {
+    from { opacity: 0; transform: translateY(-6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  .lp-word  { display: inline-block; opacity: 0; animation: lp-word-rise .85s cubic-bezier(.2,.7,.2,1) forwards; }
-  .lp-rise  { opacity: 0; animation: lp-word-rise .85s cubic-bezier(.2,.7,.2,1) forwards; }
-  .lp-rise-in { animation: lp-word-rise .55s cubic-bezier(.2,.7,.2,1) both; }
-
-  /* scroll reveal */
-  .lp-reveal { opacity: 0; transform: translateY(14px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
-  .lp-reveal.in { opacity: 1; transform: none; }
-
-  /* card hover lift */
-  .lp-card-lift { transition: transform .25s ease, background-color .25s ease, box-shadow .25s ease; }
-  .lp-card-lift:hover { transform: translateY(-2px); background-color: rgba(255,255,255,0.025) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10), 0 20px 50px -20px rgba(0,0,0,.6); }
-
-  /* border travel on hover (Linear-style) */
-  @property --lp-ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
-  @keyframes lp-border-spin { to { --lp-ang: 360deg; } }
-  .lp-border-travel { position: relative; isolation: isolate; }
-  .lp-border-travel::before {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
-    background: conic-gradient(from var(--lp-ang), transparent 0deg, var(--lp-accent) 40deg, transparent 90deg, transparent 360deg);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor; mask-composite: exclude;
-    opacity: 0; transition: opacity .35s ease; pointer-events: none;
-  }
-  .lp-border-travel:hover::before { opacity: .9; animation: lp-border-spin 4s linear infinite; }
-
-  /* feature row icon hover */
-  .lp-feat-row .lp-feat-ico { transition: background .35s ease, box-shadow .35s ease, transform .35s ease; }
-  .lp-feat-row:hover .lp-feat-ico {
-    background: var(--lp-accent-soft) !important;
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--lp-accent) 30%, transparent) !important;
-    transform: translateY(-1px);
+  @keyframes lp-core-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.18); }
   }
 
-  /* step circle pop */
-  @keyframes lp-step-pop {
-    from { transform: scale(.6); opacity: 0; }
-    to   { transform: scale(1);  opacity: 1; }
-  }
-  .lp-reveal.in .lp-step-circle { animation: lp-step-pop .7s cubic-bezier(.2,.9,.2,1.1) forwards; }
-  .lp-step-circle { transform: scale(.6); opacity: 0; }
-
-  /* timeline line draw */
-  .lp-timeline-line { transform-origin: left center; transform: scaleX(0); transition: transform 1.4s cubic-bezier(.2,.7,.2,1) .1s; }
-  .lp-timeline.in .lp-timeline-line { transform: scaleX(1); }
-
-  /* reduce motion */
   @media (prefers-reduced-motion: reduce) {
-    .lp-breathe, .lp-float, .lp-sync-dot::after { animation: none !important; transition: none !important; }
-    .lp-reveal { opacity: 1; transform: none; }
-    .lp-step-circle { opacity: 1; transform: none; }
-    .lp-timeline-line { transform: scaleX(1); }
-    .lp-word, .lp-rise { opacity: 1; animation: none; }
+    .lp-live-dot { animation: none !important; }
+    .lp-root *, .lp-root *::before, .lp-root *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 `;
 
-/* ─── useReveal ──────────────────────────────────────────────────────────── */
-function useReveal() {
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
-    const els = document.querySelectorAll(".lp-reveal");
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("in")),
-      { threshold: 0.12 },
-    );
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
-  }, []);
+/* ─── Money formatter ────────────────────────────────────────────────────── */
+function formatMXN(n: number, opts: { hideCurrency?: boolean } = {}) {
+  return (opts.hideCurrency ? "" : "$") +
+    Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/* ─── CountUp ────────────────────────────────────────────────────────────── */
-interface CountUpProps {
-  to: number;
-  duration?: number;
-  prefix?: string;
-}
-function CountUp({ to, duration = 1100, prefix = "" }: CountUpProps) {
-  const hasIO = typeof IntersectionObserver !== "undefined";
-  const ref = useRef<HTMLSpanElement>(null);
-  const [v, setV] = useState(hasIO ? 0 : to);
-  const started = useRef(false);
-  useEffect(() => {
-    if (!hasIO) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting && !started.current) {
-            started.current = true;
-            const t0 = performance.now();
-            const tick = (now: number) => {
-              const p = Math.min(1, (now - t0) / duration);
-              setV(Math.round(to * (1 - Math.pow(1 - p, 3))));
-              if (p < 1) requestAnimationFrame(tick);
-            };
-            requestAnimationFrame(tick);
-          }
-        });
-      },
-      { threshold: 0.4 },
-    );
-    if (ref.current) io.observe(ref.current);
-    return () => io.disconnect();
-  }, [to, duration]);
-  return <span ref={ref}>{prefix + v}</span>;
-}
-
-/* ─── SplitWords ─────────────────────────────────────────────────────────── */
-function SplitWords({ text, baseDelay = 0, step = 70 }: { text: string; baseDelay?: number; step?: number }) {
-  const parts = String(text).split(/(\s+)/);
-  let i = 0;
+/* ─── ThemeToggle ────────────────────────────────────────────────────────── */
+function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
   return (
-    <span>
-      {parts.map((p, idx) => {
-        if (/^\s+$/.test(p)) return <span key={idx}>{p}</span>;
-        const delay = baseDelay + i++ * step;
-        return (
-          <span key={idx} className="lp-word" style={{ animationDelay: delay + "ms" }}>
-            {p}
-          </span>
-        );
-      })}
-    </span>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+      style={{
+        width: 34, height: 34, borderRadius: 8,
+        border: "0.5px solid var(--hairline-color)",
+        background: "var(--surface)",
+        color: "var(--page-fg)",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        cursor: "pointer",
+        transition: "all 150ms var(--kova-ease-entrance)",
+      }}
+    >
+      {theme === "dark" ? (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </svg>
+      ) : (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      )}
+    </button>
   );
 }
-
-/* Inline Logo() removed; navbar now consumes the Kova Logo component. The
- * lp-logo-path / lp-logo-draw / lp-logo-pulse rules in LANDING_STYLES are
- * now dead style declarations; they'll be cleaned up in Phase 6. */
-
-/* ─── Icons ──────────────────────────────────────────────────────────────── */
-type IcoProps = SVGProps<SVGSVGElement>;
-const Ico = {
-  eye:     (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>,
-  wifiOff: (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m2 2 20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 13a10 10 0 0 1 5.24-2.76"/><line x1="12" x2="12.01" y1="20" y2="20"/></svg>,
-  tag:     (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><circle cx="7" cy="7" r="1.5"/></svg>,
-  shield:  (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>,
-  check:   (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M20 6 9 17l-5-5"/></svg>,
-  arrow:   (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>,
-  card:    (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>,
-  sync:    (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M21 12a9 9 0 0 0-15-6.7L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/><path d="M21 21v-5h-5"/></svg>,
-  clock:   (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-  box:     (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>,
-  chart:   (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-5"/></svg>,
-  users:   (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  brush:   (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02Z"/></svg>,
-  history: (p: IcoProps) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>,
-};
-
-/* ─── Shared style helpers ───────────────────────────────────────────────── */
-const accentBtnStyle = {
-  background: "var(--kova-ink)" as const,
-  color: "var(--kova-on-ink)" as const,
-};
 
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
-function Navbar({ primaryTarget, isAuthenticated }: { primaryTarget: string; isAuthenticated: boolean }) {
+function Navbar({
+  primaryTarget,
+  isAuthenticated,
+  theme,
+  onToggleTheme,
+}: {
+  primaryTarget: string;
+  isAuthenticated: boolean;
+  theme: Theme;
+  onToggleTheme: () => void;
+}) {
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-white/[0.05]" style={{ background: "rgba(7,7,7,0.7)" }}>
-      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+    <nav
+      style={{
+        position: "sticky", top: 0, zIndex: 50,
+        background: "color-mix(in srgb, var(--page-bg) 85%, transparent)",
+        backdropFilter: "saturate(140%) blur(12px)",
+        WebkitBackdropFilter: "saturate(140%) blur(12px)",
+        borderBottom: "0.5px solid var(--hairline-color)",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1280, margin: "0 auto",
+          padding: "14px 32px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32,
+        }}
+      >
         <Logo
           variant="horizontal"
-          size={22}
-          circuitColor="var(--kova-on-ink)"
-          wordmarkColor="var(--kova-on-ink)"
+          size={24}
+          circuitColor="var(--page-fg)"
+          wordmarkColor="var(--page-fg)"
+          coreColor="var(--accent)"
           title="kova"
         />
-        <nav className="hidden md:flex items-center gap-7 text-[13px] text-[#a8a8a8]">
-          <a href="#producto" className="hover:text-white transition-colors">Producto</a>
-          <a href="#precio"   className="hover:text-white transition-colors">Precio</a>
-          <a href="#soporte"  className="hover:text-white transition-colors">Soporte</a>
-        </nav>
-        <Link
-          to={primaryTarget}
-          className="lp-btn-accent text-[12.5px] font-semibold px-3.5 py-1.5 rounded-md"
-          style={accentBtnStyle}
-        >
-          <span>{isAuthenticated ? "Ir al dashboard" : "Empieza gratis"}</span>
-        </Link>
+
+        <div style={{ display: "flex", gap: 28, fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }} className="hidden md:flex">
+          {[
+            { label: "Producto", href: "#producto" },
+            { label: "Cómo funciona", href: "#como-funciona" },
+            { label: "Precio", href: "#precio" },
+            { label: "Comercios", href: "#comercios" },
+          ].map((l) => (
+            <a key={l.label} href={l.href} style={{ color: "inherit", textDecoration: "none", transition: "color 150ms" }}
+               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--page-fg)")}
+               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+              {l.label}
+            </a>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          {!isAuthenticated && (
+            <Link
+              to="/login"
+              style={{
+                fontSize: 13, fontWeight: 500, color: "var(--page-fg)",
+                padding: "8px 12px", textDecoration: "none",
+              }}
+              className="hidden sm:inline-flex"
+            >
+              Iniciar sesión
+            </Link>
+          )}
+          <Link
+            to={primaryTarget}
+            style={{
+              fontSize: 13, fontWeight: 600,
+              background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
+              padding: "9px 14px", borderRadius: 8, textDecoration: "none",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}
+          >
+            {isAuthenticated ? "Ir al dashboard" : "Crear cuenta"}
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
+        </div>
       </div>
-    </header>
+    </nav>
   );
+}
+
+/* ─── MXN Ticker ─────────────────────────────────────────────────────────── */
+function MxnTicker() {
+  const [v, setV] = useState(847_392);
+  useEffect(() => {
+    const start = Date.now();
+    const base = 847_392;
+    const id = setInterval(() => {
+      const dt = (Date.now() - start) / 1000;
+      setV(Math.floor(base + dt * 1847 + Math.sin(dt) * 12));
+    }, 80);
+    return () => clearInterval(id);
+  }, []);
+  return <span className="tabular">${v.toLocaleString("es-MX")}</span>;
 }
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ primaryTarget }: { primaryTarget: string }) {
   return (
-    <section className="relative overflow-hidden lp-grain">
-      <div className="absolute inset-0 lp-glow-radial lp-breathe pointer-events-none" />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      <div className="relative max-w-6xl mx-auto px-6 pt-8 pb-12 md:pt-16 md:pb-24">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-[44px] md:text-[68px] leading-[1.02] font-bold tracking-[-0.02em] text-balance text-white">
-            <SplitWords text="Tu negocio," baseDelay={120} step={80} />
-            <br className="hidden md:block" />
-            <SplitWords text="bajo control." baseDelay={360} step={80} />
-            <br />
-            <span className="text-[#7a7a7a]">
-              <SplitWords text="Desde el primer turno." baseDelay={680} step={80} />
-            </span>
-          </h1>
+    <section style={{ position: "relative", padding: "72px 32px 100px", overflow: "hidden" }}>
+      <div className="lp-grid-bg" />
+      <div style={{ position: "relative", maxWidth: 1280, margin: "0 auto" }}>
+        <div
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
+            borderRadius: 999, padding: "6px 12px 6px 8px",
+            fontSize: 12, fontWeight: 500, color: "var(--text-muted)",
+          }}
+        >
+          <span className="lp-live-dot" />
+          <span style={{ color: "var(--page-fg)" }}><MxnTicker /> MXN</span>
+          procesados hoy en kova
+        </div>
 
-          {/* hero visual — Kova IntroAnimation (embedded, no chrome) */}
-          <div className="relative mt-10 md:mt-14 lp-reveal max-w-lg mx-auto">
-            <IntroAnimation embedded skippable={false} />
-          </div>
-
-          <div className="mt-10 md:mt-12 flex flex-col items-center gap-3 lp-rise" style={{ animationDelay: "1150ms" }}>
-            <Link
-              to={primaryTarget}
-              className="lp-btn-accent inline-flex items-center gap-2 px-5 py-3 rounded-lg font-semibold text-[14.5px]"
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
+            gap: 64, alignItems: "center", marginTop: 40,
+          }}
+          className="lp-hero-grid"
+        >
+          <div>
+            <h1
               style={{
-                background: "var(--kova-blue)",
-                color: "#FFFFFF",
-                boxShadow: "0 12px 30px -10px color-mix(in oklab, var(--kova-blue) 45%, transparent)",
+                fontSize: "clamp(48px, 7vw, 96px)",
+                fontWeight: 600,
+                letterSpacing: "-0.035em",
+                lineHeight: 0.96,
+                margin: 0,
+                color: "var(--page-fg)",
               }}
             >
-              <span className="inline-flex items-center gap-2">
-                Empieza 3 días gratis <Ico.arrow width={16} height={16} />
-              </span>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+              Tu negocio,<br />
+              en flujo{" "}
+              <span style={{ position: "relative", whiteSpace: "nowrap" }}>
+                constante
+                <svg
+                  viewBox="0 0 200 14" preserveAspectRatio="none"
+                  style={{ position: "absolute", bottom: "-0.06em", left: 0, width: "100%", height: "0.18em" }}
+                  aria-hidden="true"
+                >
+                  <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
+                </svg>
+              </span>.
+            </h1>
 
-/* ─── SocialProof ────────────────────────────────────────────────────────── */
-function SocialProof() {
-  const items = [
-    { icon: <Ico.wifiOff width={14} height={14} />, label: "Modo offline" },
-    { icon: <Ico.shield  width={14} height={14} />, label: "Seguro y auditable" },
-    { icon: <Ico.tag     width={14} height={14} />, label: "Un solo precio" },
-  ];
-  return (
-    <section className="border-y border-white/[0.05]" style={{ background: "rgba(255,255,255,0.01)" }}>
-      <div className="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4 text-[12.5px] text-[#7a7a7a]">
-        <div>El POS que despegará tu negocio</div>
-        <div className="flex items-center gap-6">
-          {items.map((it) => (
-            <div key={it.label} className="flex items-center gap-2" style={{ color: "var(--kova-blue)" }}>
-              {it.icon}
-              <span className="text-[#7a7a7a]">{it.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+            <p style={{ fontSize: 19, lineHeight: 1.5, color: "var(--text-muted)", marginTop: 24, maxWidth: 480 }}>
+              El punto de venta para PyMEs en México. Ventas, inventario y pagos
+              orquestados desde un solo lugar — incluso sin internet.
+            </p>
 
-/* ─── Why ────────────────────────────────────────────────────────────────── */
-function Why() {
-  return (
-    <section id="producto" className="relative">
-      <div className="max-w-3xl mx-auto px-6 py-28 md:py-36 text-center lp-reveal">
-        <div className="text-[11px] uppercase tracking-[0.18em] font-medium mb-5" style={{ color: "var(--lp-accent)" }}>
-          El porqué
-        </div>
-        <h2 className="text-[32px] md:text-[44px] leading-[1.1] font-bold tracking-[-0.02em] mb-7 text-white">
-          ¿Por qué existe esta app?
-        </h2>
-        <p className="text-[17px] md:text-[19px] leading-[1.6] text-[#a8a8a8] text-balance">
-          La mayoría de los negocios pequeños no fracasan por falta de esfuerzo. Fracasan por falta de claridad.
-          No saben qué productos les dejan más dinero. No saben si sus empleados están registrando bien las ventas.{" "}
-          <span className="text-white">Este POS existe para cambiar eso.</span>
-        </p>
-      </div>
-    </section>
-  );
-}
-
-/* ─── ValueProps ─────────────────────────────────────────────────────────── */
-function ValueProps() {
-  const cards = [
-    {
-      icon: <Ico.eye width={20} height={20} />,
-      title: "Sabes exactamente qué pasa en tu negocio, en tiempo real.",
-      body: "Cada venta queda registrada. Cada turno tiene apertura y cierre. No más 'creo que vendimos bien hoy'.",
-      tag: "Control operativo",
-    },
-    {
-      icon: <Ico.wifiOff width={20} height={20} />,
-      title: "Cuando el internet falla, tú no fallas.",
-      body: "Tu POS sigue funcionando sin conexión. Las ventas se guardan localmente y sincronizan solas cuando vuelve la señal.",
-      tag: "Resiliencia offline",
-    },
-    {
-      icon: <Ico.tag width={20} height={20} />,
-      title: "$299 al mes. Todo incluido. Para siempre.",
-      body: "Sin plan básico que te limita. Sin cobro por empleado. Sin sorpresa al final del mes.",
-      tag: "Precio sin trampa",
-    },
-  ];
-  return (
-    <section className="relative border-t border-white/[0.05]">
-      <div className="max-w-6xl mx-auto px-6 py-24">
-        <div className="grid md:grid-cols-3 gap-4 md:gap-5">
-          {cards.map((c, i) => (
-            <div
-              key={i}
-              className="lp-reveal lp-card-lift lp-border-travel lp-hairline rounded-2xl p-7 md:p-8 flex flex-col"
-              style={{ transitionDelay: `${i * 60}ms`, background: "rgba(255,255,255,0.012)" }}
-            >
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center mb-6"
+            <div style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
+              <Link
+                to={primaryTarget}
                 style={{
-                  background: "var(--lp-accent-soft)",
-                  boxShadow: "inset 0 0 0 1px color-mix(in oklab, var(--lp-accent) 35%, transparent)",
-                  color: "var(--lp-accent)",
+                  background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
+                  padding: "14px 22px", borderRadius: 10,
+                  fontWeight: 600, fontSize: 14, textDecoration: "none",
+                  display: "inline-flex", alignItems: "center", gap: 8,
                 }}
               >
-                {c.icon}
-              </div>
-              <div className="text-[10.5px] uppercase tracking-[0.16em] text-[#7a7a7a] font-medium mb-3">{c.tag}</div>
-              <h3 className="text-[19px] leading-[1.25] font-semibold tracking-tight text-balance mb-3 text-white">{c.title}</h3>
-              <p className="text-[13.5px] leading-[1.6] text-[#a8a8a8]">{c.body}</p>
+                Empezar gratis
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+              <a
+                href="#producto"
+                style={{
+                  background: "var(--surface)", color: "var(--page-fg)",
+                  padding: "14px 22px", borderRadius: 10,
+                  fontWeight: 500, fontSize: 14, textDecoration: "none",
+                  border: "0.5px solid var(--hairline-color)",
+                }}
+              >
+                Ver el POS en vivo →
+              </a>
             </div>
+
+            <div
+              style={{
+                marginTop: 56, display: "flex", alignItems: "center", gap: 24,
+                fontSize: 12, color: "var(--text-muted)", paddingTop: 24,
+                borderTop: "0.5px solid var(--hairline-color)", flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
+                Hecho en México · es-MX
+              </span>
+              <span>·</span>
+              <span><strong style={{ color: "var(--page-fg)" }}>247</strong> negocios activos ahora mismo</span>
+              <span>·</span>
+              <span>Offline-first real</span>
+            </div>
+          </div>
+
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <IntroAnimation embedded skippable={false} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── ThreeNodes ─────────────────────────────────────────────────────────── */
+function ThreeNodes() {
+  const items = [
+    {
+      label: "Negocio",
+      title: "Tu catálogo, tus reglas.",
+      body: "Configura productos, modificadores, impuestos y sucursales sin tocar código. Lo que vendes y cómo lo vendes — tú decides.",
+      meta: ["Catálogo", "Modificadores", "Inventario", "Sucursales"],
+    },
+    {
+      label: "Cliente",
+      title: "Cobra como ellos pagan.",
+      body: "Efectivo, transferencia, tarjeta o split. Cobra una venta en menos de 4 toques. Recibos por correo o WhatsApp.",
+      meta: ["Efectivo", "Transferencia", "Tarjeta", "Split"],
+    },
+    {
+      label: "Dinero",
+      title: "El flujo, en tiempo real.",
+      body: "KPIs en vivo, cierres de turno automáticos, reportes por sucursal. Lo que entró y lo que falta, sin esperar al cierre.",
+      meta: ["KPIs", "Turnos", "Reportes", "Reembolsos"],
+    },
+  ];
+  return (
+    <section id="como-funciona" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
+          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 01</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            Cómo funciona
+          </span>
+        </div>
+        <h2 style={{ fontSize: "clamp(36px, 4.4vw, 60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
+          Tres nodos. Un circuito. Cero fricción.
+        </h2>
+        <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 580, lineHeight: 1.5 }}>
+          Cada venta es un pulso que viaja entre tu <em>negocio</em>, tu{" "}
+          <em>cliente</em> y tu <em>dinero</em>. Kova mantiene los tres
+          conectados, incluso cuando se cae el internet.
+        </p>
+
+        <div
+          style={{
+            display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 24, marginTop: 64, position: "relative",
+          }}
+          className="lp-3cols"
+        >
+          {items.map((it, i) => (
+            <NodeCard key={i} index={i} {...it} />
           ))}
         </div>
       </div>
@@ -403,47 +424,359 @@ function ValueProps() {
   );
 }
 
-/* ─── HowItWorks ─────────────────────────────────────────────────────────── */
-function HowItWorks() {
-  const steps = [
-    "Registra tu cuenta y verifica tu email",
-    "Sube el logo de tu negocio",
-    "Agrega tus categorías y productos",
-    "Da acceso a tus empleados",
-    "Abre tu primer turno y empieza a vender",
-  ];
+function NodeCard({ index, label, title, body, meta }: { index: number; label: string; title: string; body: string; meta: string[] }) {
   return (
-    <section className="relative border-t border-white/[0.05]" style={{ background: "rgba(10,10,10,0.4)" }}>
-      <div className="max-w-6xl mx-auto px-6 py-24">
-        <div className="max-w-2xl mb-14 lp-reveal">
-          <div className="text-[11px] uppercase tracking-[0.18em] font-medium mb-4" style={{ color: "var(--lp-accent)" }}>
-            Cómo empezar
+    <div
+      style={{
+        position: "relative", borderRadius: 14, padding: 28,
+        background: "var(--card-bg)", border: "0.5px solid var(--hairline-color)",
+        display: "flex", flexDirection: "column", gap: 16,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span
+            style={{
+              width: 10, height: 10, borderRadius: "50%",
+              background: index === 1 ? "var(--accent)" : "var(--page-fg)",
+              outline: index === 1 ? "4px solid var(--accent-soft)" : "none",
+            }}
+          />
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            Nodo · {label}
+          </span>
+        </div>
+        <span className="mono" style={{ fontSize: 11, color: "var(--text-tertiary)" }}>0{index + 1}</span>
+      </div>
+
+      <h3 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.15, margin: 0 }}>{title}</h3>
+      <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--text-muted)", margin: 0 }}>{body}</p>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: "auto", paddingTop: 16, borderTop: "0.5px solid var(--hairline-color)" }}>
+        {meta.map((m) => (
+          <span key={m} style={{ fontSize: 11, fontWeight: 500, padding: "4px 8px", borderRadius: 6, background: "var(--chip-bg)", color: "var(--page-fg)" }}>
+            {m}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── DesktopPreview ─────────────────────────────────────────────────────── */
+type Product = { id: string; name: string; price: number; cat: string; icon: string };
+const CATALOG: Product[] = [
+  { id: "p1", name: "Café americano", price: 38, cat: "cafés", icon: "☕" },
+  { id: "p2", name: "Latte 12 oz", price: 52, cat: "cafés", icon: "🥛" },
+  { id: "p3", name: "Capuchino", price: 48, cat: "cafés", icon: "☕" },
+  { id: "p4", name: "Concha", price: 22, cat: "panadería", icon: "🥐" },
+  { id: "p5", name: "Cuernito", price: 28, cat: "panadería", icon: "🥖" },
+  { id: "p6", name: "Galleta avena", price: 18, cat: "panadería", icon: "🍪" },
+];
+
+const qtyBtnStyle: CSSProperties = {
+  width: 22, height: 22, borderRadius: 6,
+  border: "0.5px solid var(--hairline-color)",
+  background: "var(--surface)",
+  fontSize: 12, cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  fontFamily: "inherit", color: "var(--page-fg)", padding: 0,
+};
+
+function DesktopPreview() {
+  const [cart, setCart] = useState<Record<string, number>>({ p2: 2, p4: 1 });
+  const [filter, setFilter] = useState("todos");
+
+  const items = Object.entries(cart)
+    .map(([id, qty]) => {
+      const p = CATALOG.find((x) => x.id === id);
+      return p ? { ...p, qty } : null;
+    })
+    .filter((x): x is Product & { qty: number } => !!x && x.qty > 0);
+  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const filtered = filter === "todos" ? CATALOG : CATALOG.filter((p) => p.cat === filter);
+
+  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
+  const adj = (id: string, d: number) =>
+    setCart((c) => {
+      const next = Math.max(0, (c[id] || 0) + d);
+      const out = { ...c };
+      if (next === 0) delete out[id]; else out[id] = next;
+      return out;
+    });
+
+  return (
+    <div
+      style={{
+        background: "var(--card-bg)", borderRadius: 10,
+        border: "0.5px solid var(--hairline-color)", overflow: "hidden",
+        boxShadow: "0 24px 60px -20px rgba(15,17,23,0.25)",
+        display: "grid", gridTemplateColumns: "1fr 280px",
+        height: 420, color: "var(--page-fg)",
+      }}
+    >
+      <div style={{ borderRight: "0.5px solid var(--hairline-color)", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "0.5px solid var(--hairline-color)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <LogoMark size={18} circuitColor="var(--page-fg)" coreColor="var(--accent)" />
+            <span style={{ fontSize: 13, fontWeight: 500 }}>Café Lupita · Caja 1</span>
           </div>
-          <h2 className="text-[32px] md:text-[44px] leading-[1.1] font-bold tracking-[-0.02em] text-balance text-white">
-            Configura tu negocio en menos de una hora
-          </h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
+            <span className="lp-live-dot" /> En línea
+          </div>
         </div>
 
-        <div className="relative lp-reveal lp-timeline">
-          <div
-            className="lp-timeline-line absolute left-0 right-0 top-[18px] h-px hidden md:block"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)" }}
-          />
-          <ol className="grid md:grid-cols-5 gap-6 md:gap-4">
-            {steps.map((s, i) => (
-              <li key={i} className="lp-reveal" style={{ transitionDelay: `${i * 70}ms` }}>
-                <div className="relative flex md:block items-center gap-4">
-                  <div
-                    className="lp-step-circle relative w-9 h-9 rounded-full lp-hairline-strong flex items-center justify-center text-[13px] font-semibold shrink-0"
-                    style={{ background: "#0a0a0a", color: "var(--lp-accent)", animationDelay: `${i * 90}ms`, fontVariantNumeric: "tabular-nums" }}
-                  >
-                    {String(i + 1).padStart(2, "0")}
-                  </div>
-                  <p className="md:mt-5 text-[14px] leading-[1.45] text-[#d9d9d9] text-balance">{s}</p>
-                </div>
-              </li>
+        <div style={{ padding: "10px 20px", display: "flex", gap: 6, borderBottom: "0.5px solid var(--hairline-color)" }}>
+          {["todos", "cafés", "panadería"].map((c) => (
+            <button
+              key={c} onClick={() => setFilter(c)}
+              style={{
+                border: "0.5px solid var(--hairline-color)",
+                background: filter === c ? "var(--invert-ink-bg)" : "var(--surface)",
+                color: filter === c ? "var(--invert-ink-fg)" : "var(--page-fg)",
+                fontSize: 11, padding: "5px 10px", borderRadius: 999, fontWeight: 500,
+                fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize",
+                transition: "all 150ms var(--kova-ease-entrance)",
+              }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "start" }}>
+          {filtered.map((p) => (
+            <button
+              key={p.id} onClick={() => add(p.id)}
+              style={{
+                background: "var(--card-bg)", border: "0.5px solid var(--hairline-color)",
+                borderRadius: 10, padding: 12, textAlign: "left", cursor: "pointer",
+                fontFamily: "inherit", color: "inherit",
+                display: "flex", flexDirection: "column", gap: 4,
+                transition: "all 150ms var(--kova-ease-entrance)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--hairline-color)"; e.currentTarget.style.transform = "translateY(0)"; }}
+            >
+              <div style={{ fontSize: 18, lineHeight: 1 }}>{p.icon}</div>
+              <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>{p.name}</div>
+              <div className="tabular" style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginTop: "auto" }}>
+                {formatMXN(p.price)}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", background: "var(--surface-2)" }}>
+        <div style={{ padding: "16px 16px 12px", borderBottom: "0.5px solid var(--hairline-color)" }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)", fontWeight: 500 }}>
+            Venta actual
+          </div>
+          <div style={{ fontSize: 13, marginTop: 4, color: "var(--text-muted)" }}>
+            {items.length} {items.length === 1 ? "artículo" : "artículos"}
+          </div>
+        </div>
+        <div style={{ flex: 1, padding: "8px 16px", overflow: "auto" }}>
+          {items.length === 0 && (
+            <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "20px 0", textAlign: "center" }}>
+              Agrega un producto del catálogo.
+            </div>
+          )}
+          {items.map((i) => (
+            <div key={i.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid var(--hairline-color)" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.name}</div>
+                <div className="tabular" style={{ fontSize: 11, color: "var(--text-muted)" }}>{formatMXN(i.price)} c/u</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button onClick={() => adj(i.id, -1)} style={qtyBtnStyle}>−</button>
+                <span className="tabular" style={{ fontSize: 12, fontWeight: 600, width: 16, textAlign: "center" }}>{i.qty}</span>
+                <button onClick={() => adj(i.id, 1)} style={qtyBtnStyle}>+</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: 16, borderTop: "0.5px solid var(--hairline-color)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Total</span>
+            <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMXN(total)}</span>
+          </div>
+          <button
+            style={{
+              width: "100%", background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
+              border: "none", borderRadius: 8, padding: "10px 12px",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}
+          >
+            Cobrar {formatMXN(total)}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── TabletPreview ──────────────────────────────────────────────────────── */
+function TabletPreview() {
+  const bars = [10, 8, 6, 4, 3, 12, 24, 38, 42, 30, 26, 28, 36, 48, 40, 32, 28, 38, 44, 50, 38, 22, 16, 10];
+  return (
+    <div
+      style={{
+        background: "var(--kova-ink)", borderRadius: 24, padding: 10,
+        boxShadow: "0 24px 60px -20px rgba(15,17,23,0.35)",
+        width: 280, height: 420, position: "relative",
+      }}
+    >
+      <div style={{ position: "absolute", top: 18, left: "50%", transform: "translateX(-50%)", width: 6, height: 6, borderRadius: "50%", background: "#2a2d38", zIndex: 2 }} />
+      <div style={{ background: "var(--kova-paper, #FBFBFD)", borderRadius: 16, height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", color: "var(--kova-ink)" }}>
+        <div style={{ padding: "14px 14px 10px", borderBottom: "0.5px solid var(--kova-border)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>
+              Hoy · May 17
+            </div>
+            <div style={{ fontSize: 10, color: "var(--kova-muted)", display: "flex", gap: 4, alignItems: "center" }}>
+              <span className="lp-live-dot" /> Vivo
+            </div>
+          </div>
+          <div className="tabular" style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.04em", marginTop: 4 }}>
+            $8,432<span style={{ fontSize: 14, color: "var(--kova-muted)", marginLeft: 6 }}>MXN</span>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--kova-growth)", marginTop: 2 }}>↑ 12% vs. ayer</div>
+        </div>
+        <div style={{ padding: "14px 14px 8px" }}>
+          <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
+            Ventas por hora
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60 }}>
+            {bars.map((h, i) => (
+              <div key={i} style={{ flex: 1, height: `${h}%`, background: i === 19 ? "var(--kova-blue)" : "#CDD4E3", borderRadius: 1, minHeight: 2 }} />
             ))}
-          </ol>
+          </div>
+        </div>
+        <div style={{ padding: "8px 14px", flex: 1 }}>
+          <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
+            Órdenes recientes
+          </div>
+          {[
+            { id: "#A-247", item: "Latte 12 oz · concha", amt: 74, time: "ahora" },
+            { id: "#A-246", item: "2× americano", amt: 76, time: "2 min" },
+            { id: "#A-245", item: "Capuchino · galleta", amt: 66, time: "8 min" },
+          ].map((o, i) => (
+            <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid var(--kova-border)", animation: i === 0 ? "lp-feed-in 280ms var(--kova-ease-entrance)" : undefined }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="mono" style={{ fontSize: 10, color: "var(--kova-muted)" }}>{o.id}</div>
+                <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.item}</div>
+              </div>
+              <div style={{ textAlign: "right", marginLeft: 8 }}>
+                <div className="tabular" style={{ fontSize: 12, fontWeight: 600 }}>{formatMXN(o.amt)}</div>
+                <div style={{ fontSize: 9, color: "var(--kova-muted)" }}>{o.time}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── LiveActivityFeed ───────────────────────────────────────────────────── */
+type FeedItem = { who: string; city: string; item: string; amt: number; key?: number };
+const ACTIVITY_SEED: FeedItem[] = [
+  { who: "Café Lupita", city: "CDMX", item: "Latte 12 oz", amt: 52 },
+  { who: "Panadería Mateo", city: "Guadalajara", item: "Concha + café", amt: 60 },
+  { who: "Taquería La Doña", city: "Monterrey", item: "3× pastor", amt: 75 },
+  { who: "Abarrotes Don Beto", city: "Puebla", item: "Refresco 600 ml", amt: 25 },
+  { who: "Café Lupita", city: "CDMX", item: "Americano + concha", amt: 60 },
+  { who: "Salón Aurora", city: "Mérida", item: "Corte + tinte", amt: 540 },
+];
+
+function LiveActivityFeed() {
+  const [feed, setFeed] = useState<FeedItem[]>(() => ACTIVITY_SEED.slice(0, 4));
+  useEffect(() => {
+    const t = setInterval(() => {
+      setFeed((cur) => {
+        const next = ACTIVITY_SEED[Math.floor(Math.random() * ACTIVITY_SEED.length)];
+        return [{ ...next, key: Date.now() }, ...cur.slice(0, 3)];
+      });
+    }, 2800);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div style={{ background: "var(--surface)", border: "0.5px solid var(--hairline-color)", borderRadius: 14, padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="lp-live-dot" />
+          <span style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)" }}>
+            En vivo
+          </span>
+        </div>
+        <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>últimas ventas en kova</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {feed.map((f, i) => (
+          <div
+            key={f.key ?? `seed-${i}`}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "10px 0",
+              borderTop: i === 0 ? "none" : "0.5px solid var(--hairline-color)",
+              opacity: 1 - i * 0.15,
+              animation: i === 0 && f.key ? "lp-feed-in 380ms var(--kova-ease-entrance)" : undefined,
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{f.who}</div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{f.item} · {f.city}</div>
+            </div>
+            <div className="tabular" style={{ fontSize: 13, fontWeight: 600 }}>+{formatMXN(f.amt)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── POSShowcase ────────────────────────────────────────────────────────── */
+function POSShowcase() {
+  return (
+    <section id="producto" style={{ padding: "120px 32px", background: "var(--surface)", borderTop: "0.5px solid var(--hairline-color)", borderBottom: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
+          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 02</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>El producto</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.6fr)", gap: 56, alignItems: "end", marginBottom: 56 }} className="lp-showcase-head">
+          <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0 }}>
+            Hecho para vender,<br />no para configurar.
+          </h2>
+          <p style={{ fontSize: 16, color: "var(--text-muted)", margin: 0, lineHeight: 1.55, paddingBottom: 8 }}>
+            Abre la caja, escanea, cobra. Funciona idéntico en laptop, tablet o
+            teléfono — y sigue funcionando sin internet. Cuando vuelve la señal,
+            todo se sincroniza solo.
+          </p>
+        </div>
+
+        <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 32, alignItems: "center" }} className="lp-showcase-row">
+          <DesktopPreview />
+          <TabletPreview />
+        </div>
+
+        <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }} className="lp-2cols">
+          <div style={{ paddingTop: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+              En todo México, ahora mismo
+            </span>
+            <h3 style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.05, margin: "8px 0 12px", maxWidth: 380 }}>
+              Ventas reales, latiendo en vivo.
+            </h3>
+            <p style={{ fontSize: 15, color: "var(--text-muted)", margin: 0, maxWidth: 420, lineHeight: 1.5 }}>
+              Cada PyME con kova abierto contribuye al pulso. Tus métricas no
+              esperan al cierre del día — se actualizan al ritmo de tu caja.
+            </p>
+          </div>
+          <LiveActivityFeed />
         </div>
       </div>
     </section>
@@ -451,45 +784,141 @@ function HowItWorks() {
 }
 
 /* ─── Features ───────────────────────────────────────────────────────────── */
+type FeatKind = "offline" | "tenant" | "pay" | "live" | "shift" | "pwa";
+function FeatIcon({ kind }: { kind: FeatKind }) {
+  const sx: CSSProperties = { width: 32, height: 32, color: "var(--page-fg)" };
+  switch (kind) {
+    case "offline":
+      return (
+        <svg viewBox="0 0 32 32" fill="none" style={sx}>
+          <path d="M4 16 Q 16 4, 28 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="3 3" />
+          <path d="M9 20 Q 16 14, 23 20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="16" cy="24" r="2" fill="var(--accent)" />
+        </svg>
+      );
+    case "tenant":
+      return (
+        <svg viewBox="0 0 32 32" fill="none" style={sx}>
+          <circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="23" cy="9" r="3" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="16" cy="22" r="3" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M9 12 L 16 19 M 23 12 L 16 19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      );
+    case "pay":
+      return (
+        <svg viewBox="0 0 32 32" fill="none" style={sx}>
+          <rect x="5" y="9" width="22" height="14" rx="2" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M5 13 H 27" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="22" cy="18" r="1.5" fill="var(--accent)" />
+        </svg>
+      );
+    case "live":
+      return (
+        <svg viewBox="0 0 32 32" fill="none" style={sx}>
+          <path d="M3 18 H 9 L 12 10 L 15 24 L 19 14 L 22 18 H 29" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="29" cy="18" r="2" fill="var(--accent)" />
+        </svg>
+      );
+    case "shift":
+      return (
+        <svg viewBox="0 0 32 32" fill="none" style={sx}>
+          <circle cx="16" cy="16" r="11" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M16 9 V 16 L 21 19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="16" cy="16" r="1.6" fill="var(--accent)" />
+        </svg>
+      );
+    case "pwa":
+      return (
+        <svg viewBox="0 0 32 32" fill="none" style={sx}>
+          <rect x="9" y="4" width="14" height="24" rx="2.5" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="16" cy="24" r="1" fill="currentColor" />
+          <path d="M13 9 H 19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="22" cy="6" r="1.6" fill="var(--accent)" />
+        </svg>
+      );
+  }
+}
+
 function Features() {
-  const feats = [
-    { i: <Ico.card    width={18} height={18} />, f: "Ventas en efectivo, transferencia y tarjeta manual", b: "Cobras como tu cliente prefiere" },
-    { i: <Ico.sync    width={18} height={18} />, f: "Modo offline con sincronización automática",          b: "Si se va el internet, tu negocio no para" },
-    { i: <Ico.clock   width={18} height={18} />, f: "Control de turnos con apertura y cierre",             b: "Sabes cuánto entró en cada turno, sin depender de nadie" },
-    { i: <Ico.box     width={18} height={18} />, f: "Inventario por movimiento",                           b: "Cada venta descuenta stock automáticamente" },
-    { i: <Ico.chart   width={18} height={18} />, f: "Reportes de ventas y productos",                      b: "Decisiones con datos reales, no intuición" },
-    { i: <Ico.users   width={18} height={18} />, f: "Gestión de empleados con roles",                      b: "Cada quien ve solo lo que debe ver" },
-    { i: <Ico.brush   width={18} height={18} />, f: "Logo y personalización del POS",                      b: "Tu punto de venta tiene la cara de tu negocio" },
-    { i: <Ico.history width={18} height={18} />, f: "Historial de auditoría",                              b: "Si algo no cuadra, puedes rastrear qué pasó y quién lo hizo" },
+  const feats: { kicker: string; title: string; body: string; kind: FeatKind }[] = [
+    { kicker: "Offline-first", title: "Vende aunque se caiga el WiFi.", body: "Cola local en IndexedDB. Cuando vuelve la conexión, todo se sincroniza al backend sin que tú hagas nada.", kind: "offline" },
+    { kicker: "Multi-tenant", title: "Un kova por cada negocio.", body: "Catálogo, impuestos, modificadores, usuarios — aislados por negocio. Multi-sucursal incluida.", kind: "tenant" },
+    { kicker: "Pagos · MX", title: "Efectivo, transferencia, tarjeta.", body: "Cobra como tu cliente prefiera. Split entre métodos. Referencias automáticas para transferencias.", kind: "pay" },
+    { kicker: "Tiempo real", title: "Métricas que laten contigo.", body: "KPIs, top productos, breakdown por método. Sin esperar al cierre del día.", kind: "live" },
+    { kicker: "Turnos & caja", title: "Apertura, cierre, sin Excel.", body: "Movimientos de caja, diferencias, reportes por turno. Tu cajero abre, vende, cierra.", kind: "shift" },
+    { kicker: "PWA instalable", title: "Se siente como app, vive en la web.", body: "Ícono en el escritorio o pantalla de inicio. Sin App Store, sin Play Store, sin instalador.", kind: "pwa" },
   ];
   return (
-    <section className="relative border-t border-white/[0.05]">
-      <div className="max-w-6xl mx-auto px-6 py-24">
-        <div className="max-w-2xl mb-14 lp-reveal">
-          <div className="text-[11px] uppercase tracking-[0.18em] font-medium mb-4" style={{ color: "var(--lp-accent)" }}>
-            Lo que incluye
-          </div>
-          <h2 className="text-[32px] md:text-[44px] leading-[1.1] font-bold tracking-[-0.02em] text-balance text-white">
-            Todo lo que necesitas. Nada que no necesitas.
-          </h2>
+    <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
+          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 03</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Capacidades</span>
         </div>
-        <div className="grid md:grid-cols-2 gap-x-10 md:gap-x-16 gap-y-0 border-t border-white/[0.05]">
-          {feats.map((it, i) => (
+        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 700 }}>
+          Lo que hace posible el flujo.
+        </h2>
+
+        <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0, border: "0.5px solid var(--hairline-color)", borderRadius: 14, overflow: "hidden", background: "var(--surface)" }} className="lp-3cols">
+          {feats.map((f, i) => (
             <div
               key={i}
-              className="lp-feat-row lp-reveal flex items-start gap-4 py-6 border-b border-white/[0.05]"
-              style={{ transitionDelay: `${(i % 2) * 60}ms` }}
+              style={{
+                padding: "32px 28px",
+                borderRight: i % 3 !== 2 ? "0.5px solid var(--hairline-color)" : "none",
+                borderBottom: i < 3 ? "0.5px solid var(--hairline-color)" : "none",
+                display: "flex", flexDirection: "column", gap: 12, minHeight: 240,
+              }}
             >
-              <div
-                className="lp-feat-ico mt-0.5 w-9 h-9 rounded-md flex items-center justify-center shrink-0 lp-hairline"
-                style={{ background: "rgba(255,255,255,0.025)", color: "var(--lp-accent)" }}
-              >
-                {it.i}
+              <div style={{ marginBottom: 8 }}><FeatIcon kind={f.kind} /></div>
+              <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>{f.kicker}</span>
+              <h3 style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.2, margin: 0 }}>{f.title}</h3>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{f.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── BuiltFor ───────────────────────────────────────────────────────────── */
+function BuiltFor() {
+  const types = [
+    { name: "Cafeterías", body: "Latte, americano, modificadores de leche, splits con el cliente. Línea rápida.", tag: "Café Lupita · CDMX" },
+    { name: "Restaurantes", body: "Mesas, comandas, propinas, cocina. Modificadores por platillo.", tag: "Cocina La Doña · Monterrey" },
+    { name: "Tiendas de barrio", body: "SKUs por código de barras, fiado opcional, refresco más cigarro en un toque.", tag: "Abarrotes Don Beto · Puebla" },
+    { name: "Panaderías", body: "Por pieza, por kilo, charolas mixtas. Inventario que respira con el horno.", tag: "Panadería Mateo · Guadalajara" },
+    { name: "Food trucks", body: "Sin internet, sin drama. Vende todo el día, sincroniza al volver a casa.", tag: "Tacos Sobre Ruedas · Tijuana" },
+    { name: "Salones de belleza", body: "Servicios + productos. Comisiones por estilista, propinas, paquetes.", tag: "Salón Aurora · Mérida" },
+  ];
+  return (
+    <section id="comercios" style={{ padding: "120px 32px", background: "var(--kova-ink)", color: "var(--kova-on-ink)", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
+          <span className="mono" style={{ fontSize: 12, color: "var(--kova-tertiary)" }}>§ 04</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>Para quién</span>
+        </div>
+        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 800, color: "var(--kova-on-ink)" }}>
+          De la caja al cierre,<br />sin importar qué vendas.
+        </h2>
+
+        <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden", border: "0.5px solid rgba(255,255,255,0.08)" }} className="lp-3cols">
+          {types.map((t, i) => (
+            <div
+              key={t.name}
+              style={{ background: "var(--kova-ink)", padding: "28px 24px", display: "flex", flexDirection: "column", gap: 12, minHeight: 200, transition: "background 220ms", cursor: "pointer" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#1A1D28")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--kova-ink)")}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>0{i + 1}</span>
+                <LogoMark size={22} circuitColor="rgba(255,255,255,0.4)" coreColor="var(--kova-blue-light)" />
               </div>
-              <div className="min-w-0">
-                <div className="text-[14.5px] font-medium text-white leading-snug">{it.f}</div>
-                <div className="text-[13px] text-[#7a7a7a] mt-1 leading-[1.55]">{it.b}</div>
-              </div>
+              <h3 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.025em", margin: 0, color: "#fff" }}>{t.name}</h3>
+              <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, color: "rgba(240,244,255,0.6)" }}>{t.body}</p>
+              <div className="mono" style={{ marginTop: "auto", fontSize: 11, color: "var(--kova-blue-light)" }}>↳ {t.tag}</div>
             </div>
           ))}
         </div>
@@ -500,154 +929,197 @@ function Features() {
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing({ primaryTarget }: { primaryTarget: string }) {
-  const features = [
-    "Ventas en efectivo, transferencia y tarjeta manual",
-    "Modo offline con sincronización automática",
-    "Control de turnos con apertura y cierre",
-    "Inventario por movimiento",
-    "Reportes de ventas y productos",
-    "Gestión de empleados con roles",
-    "Logo y personalización del POS",
-    "Historial de auditoría",
+  const plans: { name: string; price: number | string; priceLabel?: string; tag: string; featured: boolean; feats: string[]; cta: string; target: string }[] = [
+    {
+      name: "Solo", price: 0, tag: "Para empezar a vender hoy", featured: false,
+      feats: ["1 caja", "1 sucursal", "Catálogo ilimitado", "Pagos efectivo + transferencia", "Soporte por correo"],
+      cta: "Empezar gratis", target: primaryTarget,
+    },
+    {
+      name: "Negocio", price: 299, tag: "Para PyMEs en operación", featured: true,
+      feats: ["Hasta 5 cajas", "3 sucursales", "Modificadores y splits", "Reportes en vivo", "Cierre de turnos", "Soporte prioritario"],
+      cta: "Probar 3 días gratis", target: primaryTarget,
+    },
+    {
+      name: "Cadena", price: "—", priceLabel: "A medida", tag: "Para multi-sucursal", featured: false,
+      feats: ["Cajas ilimitadas", "Sucursales ilimitadas", "API + integraciones", "SLA dedicado", "Onboarding asistido"],
+      cta: "Hablar con ventas", target: "mailto:posprojectsupport@gmail.com",
+    },
   ];
   return (
-    <section id="precio" className="relative border-t border-white/[0.05] overflow-hidden" style={{ background: "rgba(10,10,10,0.4)" }}>
-      <div className="absolute inset-0 lp-dotgrid opacity-40 pointer-events-none" />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-      <div className="relative max-w-6xl mx-auto px-6 py-24">
-        <div className="max-w-2xl mx-auto text-center mb-12 lp-reveal">
-          <div className="text-[11px] uppercase tracking-[0.18em] font-medium mb-4" style={{ color: "var(--lp-accent)" }}>
-            Precio
-          </div>
-          <h2 className="text-[32px] md:text-[44px] leading-[1.1] font-bold tracking-[-0.02em] text-balance text-white">
-            Un solo plan. Sin letra chica.
-          </h2>
+    <section id="precio" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
+          <span className="mono" style={{ fontSize: 12, color: "var(--text-tertiary)" }}>§ 05</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Precios</span>
         </div>
+        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 700 }}>
+          Premium, pero accesible.
+        </h2>
+        <p style={{ marginTop: 16, fontSize: 17, color: "var(--text-muted)", maxWidth: 540 }}>
+          Sin comisiones por venta. Sin contratos. Mensual, cancela cuando quieras.
+        </p>
 
-        <div className="max-w-md mx-auto lp-reveal">
-          <div className="relative rounded-2xl lp-hairline-strong overflow-hidden" style={{ background: "#0a0a0a" }}>
-            <div
-              className="absolute inset-x-0 top-0 h-px"
-              style={{ background: "linear-gradient(90deg, transparent, color-mix(in oklab, var(--lp-accent) 60%, transparent), transparent)" }}
-            />
-            <div className="p-7 md:p-8">
-              <div className="flex items-center justify-between mb-7">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] font-medium" style={{ color: "var(--lp-accent)" }}>Plan</div>
-                  <div className="text-[20px] font-semibold mt-1 text-white">Estándar</div>
-                </div>
-                <div
-                  className="px-2.5 py-1 rounded-full text-[10.5px] font-medium uppercase tracking-wider"
-                  style={{
-                    background: "var(--lp-accent-soft)",
-                    boxShadow: "inset 0 0 0 1px color-mix(in oklab, var(--lp-accent) 35%, transparent)",
-                    color: "var(--lp-accent)",
-                  }}
-                >
-                  Único
-                </div>
-              </div>
-
-              <div className="flex items-baseline gap-2 mb-1">
-                <div className="text-[52px] font-bold tracking-[-0.03em] leading-none text-white">
-                  <CountUp to={299} duration={1100} prefix="$" />
-                </div>
-                <div className="text-[14px] text-[#7a7a7a] font-mono">MXN</div>
-                <div className="text-[14px] text-[#7a7a7a]">/ mes</div>
-              </div>
-              <p className="text-[13.5px] text-[#7a7a7a] mb-7">Todo incluido. Sin cobro por empleado. Sin niveles.</p>
-
-              <Link
-                to={primaryTarget}
-                className="block lp-btn-accent text-center font-semibold py-3 rounded-lg text-[14px]"
-                style={accentBtnStyle}
-              >
-                <span>Empieza 3 días gratis →</span>
-              </Link>
-              <div className="text-center text-[12px] text-[#7a7a7a] mt-3">
-                Cancela cuando quieras. Sin contratos.
-              </div>
-
-              <div className="lp-divider my-7" />
-
-              <ul className="space-y-3">
-                {features.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-[13.5px] text-[#d9d9d9]">
-                    <span className="mt-[3px] shrink-0" style={{ color: "var(--lp-accent)" }}>
-                      <Ico.check width={14} height={14} />
-                    </span>
-                    <span className="leading-[1.5]">{f}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+        <div style={{ marginTop: 56, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }} className="lp-3cols">
+          {plans.map((p) => (
+            <PlanCard key={p.name} {...p} />
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
+function PlanCard({
+  name, price, priceLabel, tag, featured, feats, cta, target,
+}: { name: string; price: number | string; priceLabel?: string; tag: string; featured: boolean; feats: string[]; cta: string; target: string }) {
+  const isExternal = target.startsWith("mailto:") || target.startsWith("http");
+  return (
+    <div
+      style={{
+        borderRadius: 14, padding: 32,
+        background: featured ? "var(--kova-ink)" : "var(--surface)",
+        color: featured ? "var(--kova-on-ink)" : "var(--page-fg)",
+        border: featured ? "0.5px solid var(--kova-ink)" : "0.5px solid var(--hairline-color)",
+        boxShadow: featured ? "0 24px 60px -20px rgba(15,17,23,0.3)" : "none",
+        display: "flex", flexDirection: "column", gap: 20, position: "relative",
+      }}
+    >
+      {featured && (
+        <div style={{ position: "absolute", top: -10, left: 24, background: "var(--kova-blue)", color: "#fff", fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 8px", borderRadius: 4 }}>
+          Más popular
+        </div>
+      )}
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: featured ? "var(--kova-blue-light)" : "var(--text-muted)" }}>{name}</div>
+        <div style={{ fontSize: 13, marginTop: 6, color: featured ? "rgba(240,244,255,0.6)" : "var(--text-muted)" }}>{tag}</div>
+      </div>
+      <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        {priceLabel ? (
+          <span style={{ fontSize: 48, fontWeight: 600, letterSpacing: "-0.04em" }}>{priceLabel}</span>
+        ) : (
+          <>
+            <span style={{ fontSize: 16, opacity: 0.7 }}>$</span>
+            <span style={{ fontSize: 56, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>{price}</span>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>MXN/mes</span>
+          </>
+        )}
+      </div>
+      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        {feats.map((f) => (
+          <li key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M2 6L5 9L10 3" stroke={featured ? "var(--kova-blue-light)" : "var(--accent)"} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {f}
+          </li>
+        ))}
+      </ul>
+      {isExternal ? (
+        <a href={target} style={planCtaStyle(featured)}>{cta}</a>
+      ) : (
+        <Link to={target} style={planCtaStyle(featured)}>{cta}</Link>
+      )}
+    </div>
+  );
+}
+
+const planCtaStyle = (featured: boolean): CSSProperties => ({
+  marginTop: "auto", width: "100%",
+  background: featured ? "var(--kova-blue)" : "var(--invert-ink-bg)",
+  color: featured ? "#fff" : "var(--invert-ink-fg)",
+  padding: "13px 16px", borderRadius: 10, border: "none",
+  fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+  textAlign: "center", textDecoration: "none", display: "block",
+});
+
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 function Footer() {
   return (
-    <footer id="soporte" className="border-t border-white/[0.05]">
-      <div className="max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <Logo />
-          <div className="text-[12.5px] text-[#7a7a7a] mt-3">
-            ¿Necesitas ayuda?{" "}
-            <a
-              href="mailto:posprojectsupport@gmail.com"
-              className="text-[#d9d9d9] hover:text-white transition-colors underline decoration-white/15 underline-offset-4"
-            >
-              posprojectsupport@gmail.com
-            </a>
+    <footer style={{ padding: "80px 32px 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: 48 }} className="lp-footer-grid">
+          <div>
+            <Logo size={24} circuitColor="var(--page-fg)" wordmarkColor="var(--page-fg)" coreColor="var(--accent)" />
+            <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 280, marginTop: 16, lineHeight: 1.55 }}>
+              Punto de venta multi-tenant, offline-first, para PyMEs en México.
+            </p>
+            <div style={{ marginTop: 24, display: "flex", gap: 6, alignItems: "center" }}>
+              <span className="lp-live-dot" />
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Todos los sistemas operando con normalidad</span>
+            </div>
+          </div>
+          <FooterCol title="Producto" links={["Punto de venta", "Catálogo", "Inventario", "Reportes", "PWA"]} />
+          <FooterCol title="Soluciones" links={["Cafeterías", "Restaurantes", "Tiendas", "Panaderías", "Food trucks"]} />
+          <FooterCol title="Compañía" links={["Sobre kova", "Blog", "Empleo", "Contacto"]} />
+          <FooterCol title="Recursos" links={["Documentación", "API", "Estatus", "Seguridad"]} />
+        </div>
+        <div style={{ marginTop: 64, paddingTop: 24, borderTop: "0.5px solid var(--hairline-color)", display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-tertiary)", flexWrap: "wrap", gap: 16 }}>
+          <span>© 2026 kova · hecho en México 🇲🇽</span>
+          <div style={{ display: "flex", gap: 24 }}>
+            <a href="#" style={footerLinkStyle}>Privacidad</a>
+            <a href="#" style={footerLinkStyle}>Términos</a>
+            <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>Soporte</a>
           </div>
         </div>
-        <div className="flex items-center gap-6 text-[13px] text-[#7a7a7a]">
-          <a href="#" className="hover:text-white transition-colors">Privacidad</a>
-          <a href="#" className="hover:text-white transition-colors">Términos</a>
-          <a href="#soporte" className="hover:text-white transition-colors">Soporte</a>
-        </div>
-      </div>
-      <div className="max-w-6xl mx-auto px-6 pb-10 text-[11.5px] text-[#4a4a4a] font-mono">
-        © 2026 kova. Hecho en México.
       </div>
     </footer>
   );
 }
+const footerLinkStyle: CSSProperties = { color: "var(--text-tertiary)", textDecoration: "none" };
+
+function FooterCol({ title, links }: { title: string; links: string[] }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>{title}</div>
+      <ul style={{ listStyle: "none", padding: 0, margin: "16px 0 0", display: "flex", flexDirection: "column", gap: 10 }}>
+        {links.map((l) => (
+          <li key={l}>
+            <a href="#" style={{ fontSize: 14, color: "var(--text-muted)", textDecoration: "none", transition: "color 150ms" }}
+               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--page-fg)")}
+               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+              {l}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* ─── Responsive helper ──────────────────────────────────────────────────── */
+const RESPONSIVE_STYLES = `
+  @media (max-width: 900px) {
+    .lp-hero-grid, .lp-showcase-row, .lp-showcase-head, .lp-2cols {
+      grid-template-columns: 1fr !important;
+    }
+    .lp-3cols { grid-template-columns: 1fr !important; }
+    .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
+  }
+  @media (max-width: 640px) {
+    .lp-footer-grid { grid-template-columns: 1fr !important; }
+  }
+`;
 
 /* ─── Home ───────────────────────────────────────────────────────────────── */
-export default function Home() {
+export default function Home(): ReactNode {
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
+  const [theme, , toggleTheme] = useLandingTheme();
 
-  useReveal();
+  const rootStyle = useMemo(() => themeVars(theme), [theme]);
 
   return (
-    <div
-      className="lp-root min-h-screen"
-      style={{
-        background: "#070707",
-        color: "#f5f5f5",
-        "--lp-accent": "#4F7EF7",
-        "--lp-accent-soft": "rgba(79,126,247,0.14)",
-        "--lp-accent-strong": "#7BA7FF",
-        "--lp-accent-ink": "#F0F4FF",
-      } as React.CSSProperties}
-    >
-      <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES }} />
-      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
+    <div className="lp-root" style={rootStyle}>
+      <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
+      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} theme={theme} onToggleTheme={toggleTheme} />
       <main>
         <Hero primaryTarget={primaryTarget} />
-        <SocialProof />
-        <Why />
-        <ValueProps />
-        <HowItWorks />
+        <ThreeNodes />
+        <POSShowcase />
         <Features />
+        <BuiltFor />
         <Pricing primaryTarget={primaryTarget} />
       </main>
       <Footer />
