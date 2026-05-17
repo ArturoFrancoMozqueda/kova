@@ -541,7 +541,11 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             <Link
               to={primaryTarget}
               className="lp-btn-accent inline-flex items-center gap-2 px-5 py-3 rounded-lg font-semibold text-[14.5px]"
-              style={accentBtnStyle}
+              style={{
+                background: "var(--kova-blue)",
+                color: "#FFFFFF",
+                boxShadow: "0 12px 30px -10px color-mix(in oklab, var(--kova-blue) 45%, transparent)",
+              }}
             >
               <span className="inline-flex items-center gap-2">
                 Empieza 3 días gratis <Ico.arrow width={16} height={16} />
