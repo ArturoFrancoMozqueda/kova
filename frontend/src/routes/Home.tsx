@@ -512,7 +512,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
     <section className="relative overflow-hidden lp-grain">
       <div className="absolute inset-0 lp-glow-radial lp-breathe pointer-events-none" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      <div className="relative max-w-6xl mx-auto px-6 pt-20 pb-16 md:pt-28 md:pb-24">
+      <div className="relative max-w-6xl mx-auto px-6 pt-14 pb-12 md:pt-28 md:pb-24">
         <div className="max-w-3xl mx-auto text-center">
           <div
             className="lp-rise inline-flex items-center gap-2 px-3 py-1 rounded-full lp-hairline text-[11.5px] text-[#a8a8a8] mb-6"
@@ -532,14 +532,12 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             </span>
           </h1>
 
-          <p
-            className="mt-6 text-[16px] md:text-[18px] leading-[1.55] text-[#a8a8a8] max-w-2xl mx-auto text-balance lp-rise"
-            style={{ animationDelay: "1000ms" }}
-          >
-            Registra ventas, gestiona tu catálogo, controla tu inventario y conoce tus números reales — desde cualquier dispositivo, aunque no tengas internet.
-          </p>
+          {/* hero visual — Kova IntroAnimation (embedded, no chrome) */}
+          <div className="relative mt-10 md:mt-14 lp-reveal max-w-lg mx-auto">
+            <IntroAnimation embedded skippable={false} />
+          </div>
 
-          <div className="mt-9 flex flex-col items-center gap-3 lp-rise" style={{ animationDelay: "1150ms" }}>
+          <div className="mt-10 md:mt-12 flex flex-col items-center gap-3 lp-rise" style={{ animationDelay: "1150ms" }}>
             <Link
               to={primaryTarget}
               className="lp-btn-accent inline-flex items-center gap-2 px-5 py-3 rounded-lg font-semibold text-[14.5px]"
@@ -553,11 +551,6 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               $199 MXN/mes · Sin contrato · Cancela cuando quieras
             </div>
           </div>
-        </div>
-
-        {/* hero visual — Kova IntroAnimation (embedded, no chrome) */}
-        <div className="relative mt-14 md:mt-20 lp-reveal max-w-lg mx-auto">
-          <IntroAnimation embedded skippable={false} />
         </div>
       </div>
     </section>
