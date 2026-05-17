@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
 import { LogoMark } from "@/components/brand/Logo";
+import { BillingBanner } from "@/billing/BillingBanner";
 
 type NavItem = {
   to: string;
@@ -176,6 +177,7 @@ export default function AppShell() {
         </header>
 
         <div className="flex-1 overflow-y-auto">
+          <BillingBanner />
           <Outlet />
         </div>
       </div>

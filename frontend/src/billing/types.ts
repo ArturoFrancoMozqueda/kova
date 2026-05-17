@@ -23,9 +23,19 @@ export type Subscription = {
   updated_at: string;
 };
 
+export type BillingAccess = {
+  allowed: boolean;
+  reason: string;
+  trialing: boolean;
+  trial_ends_at: string | null;
+  blocked_at: string | null;
+  recovery_path: string;
+};
+
 export type BillingSubscription = {
   plan: StandardPlan;
   subscription: Subscription | null;
+  access: BillingAccess;
 };
 
 export type CheckoutSession = {
