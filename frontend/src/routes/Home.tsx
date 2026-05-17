@@ -7,7 +7,7 @@ import Logo from "@/components/brand/Logo";
 /* ─── Landing-scoped CSS ─────────────────────────────────────────────────── */
 const LANDING_STYLES = `
   .lp-root {
-    font-family: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'DM Sans', 'Geist', ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   .lp-grain::before {
