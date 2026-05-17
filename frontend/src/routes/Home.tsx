@@ -878,10 +878,10 @@ export default function Home() {
       style={{
         background: "#070707",
         color: "#f5f5f5",
-        "--lp-accent": "#f5b14a",
-        "--lp-accent-soft": "rgba(245,177,74,0.14)",
-        "--lp-accent-strong": "#ffcc6b",
-        "--lp-accent-ink": "#1a1300",
+        "--lp-accent": "#4F7EF7",
+        "--lp-accent-soft": "rgba(79,126,247,0.14)",
+        "--lp-accent-strong": "#7BA7FF",
+        "--lp-accent-ink": "#F0F4FF",
       } as React.CSSProperties}
     >
       <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES }} />
