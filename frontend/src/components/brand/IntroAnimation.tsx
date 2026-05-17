@@ -40,7 +40,6 @@ export default function IntroAnimation({
   skippable = true,
   showLabels = true,
   showWordmark = true,
-  showBadge = true,
   tone = "dark",
   forceReducedMotion = false,
   className,
