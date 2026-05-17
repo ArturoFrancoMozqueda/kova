@@ -280,23 +280,14 @@ describe("App shell", () => {
 
   it("creates a split cash and bank transfer sale", async () => {
     window.history.pushState(null, "", "/register");
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(sellableProducts), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // categories
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(syncResponse("order-split")), { status: 200 }),
-      );
+    const fetchMock = setupFetchMock({
+      "/api/v1/auth/session": [authenticatedCashier],
+      "/api/v1/billing/subscription": [billingAllowedResponse],
+      "/api/v1/catalog/products": [sellableProducts],
+      "/api/v1/catalog/categories": [[]],
+      "/api/v1/inventory/stock": [[]],
+      "/api/v1/sync/offline-sales": [syncResponse("order-split")],
+    });
 
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
