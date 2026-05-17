@@ -24,6 +24,20 @@
   color: var(--kova-ink);
 }
 
+.embedded {
+  aspect-ratio: auto;
+  border-radius: 0;
+  overflow: visible;
+}
+.embedded.toneDark,
+.embedded.toneLight {
+  background: transparent;
+  border: none;
+}
+.embedded .composition {
+  padding: 0;
+}
+
 .bgGrid {
   position: absolute;
   inset: 0;

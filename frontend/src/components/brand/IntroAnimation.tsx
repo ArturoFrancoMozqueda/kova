@@ -5,6 +5,9 @@ import styles from "./IntroAnimation.module.css";
 export type IntroAnimationTone = "dark" | "light";
 
 export type IntroAnimationProps = {
+  /** Drop chrome (frame, background, internal grid + radial glow, padding,
+   *  aspect-ratio) so the animation lives inline over the parent surface. */
+  embedded?: boolean;
   onComplete?: () => void;
   skippable?: boolean;
   showLabels?: boolean;
@@ -32,6 +35,7 @@ function useSystemReducedMotion(): boolean {
 }
 
 export default function IntroAnimation({
+  embedded = false,
   onComplete,
   skippable = true,
   showLabels = true,
@@ -60,12 +64,18 @@ export default function IntroAnimation({
 
   return (
     <div
-      className={cn(styles.stage, tone === "dark" ? styles.toneDark : styles.toneLight, className)}
+      className={cn(
+        styles.stage,
+        tone === "dark" ? styles.toneDark : styles.toneLight,
+        embedded && styles.embedded,
+        className,
+      )}
       data-tone={tone}
+      data-embedded={embedded ? "true" : undefined}
       data-reduced-motion={reduced ? "true" : undefined}
     >
-      <div className={styles.bgGrid} data-anim />
-      <div className={styles.radial} data-anim />
+      {embedded ? null : <div className={styles.bgGrid} data-anim />}
+      {embedded ? null : <div className={styles.radial} data-anim />}
 
       {skippable ? (
         <button
