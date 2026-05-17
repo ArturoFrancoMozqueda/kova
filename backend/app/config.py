@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     stripe_standard_price_id: str | None = None
     stripe_checkout_success_url: str | None = None
     stripe_checkout_cancel_url: str | None = None
+    stripe_allow_test_mode_in_production: bool = False
     billing_grace_period_days: int = 7
     internal_api_key: str | None = None
     resend_api_key: str | None = None

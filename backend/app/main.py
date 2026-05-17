@@ -29,7 +29,11 @@ def _validate_config() -> None:
         raise RuntimeError(
             "SECRET_KEY must be changed from the default value in non-local environments"
         )
-    if settings.app_env == "production" and _is_stripe_test_key(settings.stripe_secret_key):
+    if (
+        settings.app_env == "production"
+        and _is_stripe_test_key(settings.stripe_secret_key)
+        and not settings.stripe_allow_test_mode_in_production
+    ):
         raise RuntimeError("STRIPE_SECRET_KEY must use live mode in production")
 
 

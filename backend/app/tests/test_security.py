@@ -23,9 +23,19 @@ def test_config_rejects_production_stripe_test_key(monkeypatch) -> None:
     monkeypatch.setattr(settings, "app_env", "production")
     monkeypatch.setattr(settings, "secret_key", "production-secret-key")
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
+    monkeypatch.setattr(settings, "stripe_allow_test_mode_in_production", False)
 
     with pytest.raises(RuntimeError, match="STRIPE_SECRET_KEY must use live mode"):
         _validate_config()
+
+
+def test_config_allows_explicit_production_stripe_test_mode(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "secret_key", "production-secret-key")
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
+    monkeypatch.setattr(settings, "stripe_allow_test_mode_in_production", True)
+
+    _validate_config()
 
 
 def test_login_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:

@@ -327,6 +327,30 @@ def test_production_checkout_rejects_test_checkout_session(
     assert len(fake_client.calls) == 1
 
 
+def test_production_checkout_allows_explicit_test_mode(
+    client: TestClient, monkeypatch
+) -> None:
+    fake_client = FakeStripeCheckoutClient()
+    monkeypatch.setattr(billing_service, "checkout_client", fake_client)
+    _configure_stripe(monkeypatch)
+    _signup_verify_login(
+        client,
+        f"checkout-allowed-test-mode-{uuid4().hex}@example.com",
+        "Checkout Test Mode",
+    )
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "stripe_allow_test_mode_in_production", True)
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-allowed-test-mode"},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["checkout_session_id"] == "cs_test_123"
+    assert len(fake_client.calls) == 1
+
+
 def test_cashier_cannot_start_checkout(client: TestClient, db: Session, monkeypatch) -> None:
     _configure_stripe(monkeypatch)
     email = f"checkout-cashier-{uuid4().hex}@example.com"

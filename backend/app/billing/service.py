@@ -73,13 +73,17 @@ def _is_production() -> bool:
     return settings.app_env == "production"
 
 
+def _requires_live_stripe() -> bool:
+    return _is_production() and not settings.stripe_allow_test_mode_in_production
+
+
 def _validate_live_checkout_configuration(*, secret_key: str) -> None:
-    if _is_production() and secret_key.startswith(("sk_test_", "rk_test_")):
+    if _requires_live_stripe() and secret_key.startswith(("sk_test_", "rk_test_")):
         raise HTTPException(status_code=503, detail=LIVE_MODE_CONFIGURATION_ERROR)
 
 
 def _validate_live_checkout_session(stripe_session: dict[str, Any]) -> None:
-    if not _is_production():
+    if not _requires_live_stripe():
         return
     checkout_session_id = str(stripe_session.get("id") or "")
     checkout_url = str(stripe_session.get("url") or "")
