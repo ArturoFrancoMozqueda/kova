@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, SVGProps } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import IntroAnimation from "@/components/brand/IntroAnimation";
+import Logo from "@/components/brand/Logo";
 
 /* ─── Landing-scoped CSS ─────────────────────────────────────────────────── */
 const LANDING_STYLES = `
@@ -229,24 +230,9 @@ function SplitWords({ text, baseDelay = 0, step = 70 }: { text: string; baseDela
   );
 }
 
-/* ─── Logo ───────────────────────────────────────────────────────────────── */
-function Logo() {
-  return (
-    <div className="flex items-center gap-2">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          className="lp-logo-path"
-          d="M3 12 H7 L9 6 L13 18 L15 10 L17 13 H21"
-          stroke="var(--lp-accent)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span className="font-semibold tracking-tight text-[15px] text-white">Pulso</span>
-    </div>
-  );
-}
+/* Inline Logo() removed; navbar now consumes the Kova Logo component. The
+ * lp-logo-path / lp-logo-draw / lp-logo-pulse rules in LANDING_STYLES are
+ * now dead style declarations; they'll be cleaned up in Phase 6. */
 
 /* ─── Icons ──────────────────────────────────────────────────────────────── */
 type IcoProps = SVGProps<SVGSVGElement>;
@@ -492,7 +478,13 @@ function Navbar({ primaryTarget, isAuthenticated }: { primaryTarget: string; isA
   return (
     <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-white/[0.05]" style={{ background: "rgba(7,7,7,0.7)" }}>
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-        <Logo />
+        <Logo
+          variant="horizontal"
+          size={22}
+          circuitColor="var(--kova-on-ink)"
+          wordmarkColor="var(--kova-on-ink)"
+          title="kova"
+        />
         <nav className="hidden md:flex items-center gap-7 text-[13px] text-[#a8a8a8]">
           <a href="#producto" className="hover:text-white transition-colors">Producto</a>
           <a href="#precio"   className="hover:text-white transition-colors">Precio</a>
