@@ -658,6 +658,11 @@ Sprints 16 through 22 are defined below in execution order.
 
 Sprint 15 (Modifiers) is done and documented in `docs/current-sprint.md`.
 
+Production review on 2026-05-17 created a pre-beta repair backlog in
+`docs/product-review-backlog.md`. Complete the PB sprints in that document before selling to cold
+customers and before resuming broader feature expansion, unless an explicit beta tenant commitment
+changes the order.
+
 Pre-beta ops tasks (Sentry DSN, backup drill, uptime monitor, support channel) must be completed
 before the first beta tenant is onboarded. They are tracked in `docs/current-sprint.md` and are
 not a numbered sprint — they are operational work that can run in parallel with Sprint 16.

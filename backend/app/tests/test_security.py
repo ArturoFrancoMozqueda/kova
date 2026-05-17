@@ -1,7 +1,9 @@
 """Security headers and rate limiting tests (Sprint 14)."""
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
+from app.main import _validate_config
 
 
 def test_api_response_includes_security_headers(client: TestClient) -> None:
@@ -15,6 +17,15 @@ def test_hsts_not_set_in_local_env(client: TestClient) -> None:
     # Tests run with APP_ENV=local — HSTS must be absent
     response = client.get("/health")
     assert "strict-transport-security" not in response.headers
+
+
+def test_config_rejects_production_stripe_test_key(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "secret_key", "production-secret-key")
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
+
+    with pytest.raises(RuntimeError, match="STRIPE_SECRET_KEY must use live mode"):
+        _validate_config()
 
 
 def test_login_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:

@@ -36,7 +36,8 @@ script-src 'self';
 style-src 'self' 'unsafe-inline';
 img-src 'self' data: https:;
 connect-src 'self' https://*.sentry.io https://*.ingest.sentry.io;
-font-src 'self' data:;
+font-src 'self' data: https://fonts.gstatic.com;
+style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;
 frame-src 'none';
 object-src 'none';
 base-uri 'self';
@@ -53,3 +54,4 @@ No `unsafe-eval` — Vite production builds do not require it.
 - HSTS is only set when `app_env == "production"`.
 - `vercel.json` headers block renders the CSP header in browser dev tools.
 - Automated test verifies backend headers.
+- Production routes `/`, `/login`, `/dashboard`, and `/settings/billing` load required fonts without CSP console errors.

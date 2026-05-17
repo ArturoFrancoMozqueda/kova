@@ -20,11 +20,17 @@ from app.sync.router import router as sync_router
 _DEFAULT_SECRET_KEY = "change-me-in-production-use-a-long-random-string"
 
 
+def _is_stripe_test_key(value: str | None) -> bool:
+    return bool(value and value.startswith(("sk_test_", "rk_test_")))
+
+
 def _validate_config() -> None:
     if settings.app_env != "local" and settings.secret_key == _DEFAULT_SECRET_KEY:
         raise RuntimeError(
             "SECRET_KEY must be changed from the default value in non-local environments"
         )
+    if settings.app_env == "production" and _is_stripe_test_key(settings.stripe_secret_key):
+        raise RuntimeError("STRIPE_SECRET_KEY must use live mode in production")
 
 
 def create_app() -> FastAPI:

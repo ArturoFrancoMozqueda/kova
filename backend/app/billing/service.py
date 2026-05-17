@@ -33,6 +33,7 @@ checkout_client = StripeCheckoutClient()
 price_client = StripePriceClient()
 subscription_client = StripeSubscriptionClient()
 WEBHOOK_TOLERANCE_SECONDS = 300
+LIVE_MODE_CONFIGURATION_ERROR = "Stripe checkout is not configured for live mode"
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
@@ -53,6 +54,7 @@ def _checkout_config() -> tuple[str, str, str, str]:
     assert settings.stripe_standard_price_id is not None
     assert settings.stripe_checkout_success_url is not None
     assert settings.stripe_checkout_cancel_url is not None
+    _validate_live_checkout_configuration(secret_key=settings.stripe_secret_key)
     return (
         settings.stripe_secret_key,
         settings.stripe_standard_price_id,
@@ -65,6 +67,28 @@ def _stripe_secret_key() -> str:
     if not settings.stripe_secret_key:
         raise HTTPException(status_code=503, detail="Stripe billing is not configured")
     return settings.stripe_secret_key
+
+
+def _is_production() -> bool:
+    return settings.app_env == "production"
+
+
+def _validate_live_checkout_configuration(*, secret_key: str) -> None:
+    if _is_production() and secret_key.startswith(("sk_test_", "rk_test_")):
+        raise HTTPException(status_code=503, detail=LIVE_MODE_CONFIGURATION_ERROR)
+
+
+def _validate_live_checkout_session(stripe_session: dict[str, Any]) -> None:
+    if not _is_production():
+        return
+    checkout_session_id = str(stripe_session.get("id") or "")
+    checkout_url = str(stripe_session.get("url") or "")
+    if (
+        checkout_session_id.startswith("cs_test")
+        or "cs_test" in checkout_url
+        or "checkout.stripe.test" in checkout_url
+    ):
+        raise HTTPException(status_code=503, detail=LIVE_MODE_CONFIGURATION_ERROR)
 
 
 def _validate_standard_price_configuration(*, secret_key: str, price_id: str) -> None:
@@ -177,6 +201,7 @@ def create_checkout_session(
     except StripeCheckoutError as exc:
         raise HTTPException(status_code=502, detail="Stripe checkout failed") from exc
 
+    _validate_live_checkout_session(stripe_session)
     checkout_url = stripe_session.get("url")
     checkout_session_id = stripe_session.get("id")
     if not checkout_url or not checkout_session_id:

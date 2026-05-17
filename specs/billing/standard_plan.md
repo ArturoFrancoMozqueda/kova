@@ -17,6 +17,7 @@ A single paid plan validates willingness to pay while avoiding pricing-tier comp
 
 - The only public plan is `Standard Plan`.
 - The price is exactly $199 MXN/month.
+- All user-facing billing, dashboard, onboarding, landing, and checkout copy must show the same $199 MXN/month price.
 - The plan includes all currently available features.
 - There are no Basic, Pro, Premium, annual, per-user, per-location, usage-based, or add-on plans in v1.
 - Feature flags may hide unfinished/internal modules but must not create paid tiers.

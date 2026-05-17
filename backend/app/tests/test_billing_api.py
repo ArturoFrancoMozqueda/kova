@@ -110,15 +110,16 @@ def test_billing_subscription_is_tenant_scoped(client: TestClient, db: Session) 
 
 
 class FakeStripeCheckoutClient:
-    def __init__(self) -> None:
+    def __init__(self, *, session: dict | None = None) -> None:
         self.calls: list[dict] = []
-
-    def create_checkout_session(self, **kwargs) -> dict:
-        self.calls.append(kwargs)
-        return {
+        self.session = session or {
             "id": "cs_test_123",
             "url": "https://checkout.stripe.test/session/cs_test_123",
         }
+
+    def create_checkout_session(self, **kwargs) -> dict:
+        self.calls.append(kwargs)
+        return self.session
 
 
 class FakeStripePriceClient:
@@ -281,6 +282,49 @@ def test_checkout_blocks_misconfigured_standard_plan_price(
 
     assert response.status_code == 503
     assert response.json()["detail"] == "Stripe Standard Plan price is misconfigured"
+
+
+def test_production_checkout_rejects_test_stripe_key(
+    client: TestClient, monkeypatch
+) -> None:
+    fake_client = FakeStripeCheckoutClient()
+    monkeypatch.setattr(billing_service, "checkout_client", fake_client)
+    _configure_stripe(monkeypatch)
+    monkeypatch.setattr(settings, "app_env", "production")
+    _signup_verify_login(client, f"checkout-test-key-{uuid4().hex}@example.com", "Checkout Key")
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-test-key"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == billing_service.LIVE_MODE_CONFIGURATION_ERROR
+    assert fake_client.calls == []
+
+
+def test_production_checkout_rejects_test_checkout_session(
+    client: TestClient, monkeypatch
+) -> None:
+    fake_client = FakeStripeCheckoutClient()
+    monkeypatch.setattr(billing_service, "checkout_client", fake_client)
+    _configure_stripe(monkeypatch)
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_live_123")
+    _signup_verify_login(
+        client,
+        f"checkout-test-session-{uuid4().hex}@example.com",
+        "Checkout Session",
+    )
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-test-session"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == billing_service.LIVE_MODE_CONFIGURATION_ERROR
+    assert len(fake_client.calls) == 1
 
 
 def test_cashier_cannot_start_checkout(client: TestClient, db: Session, monkeypatch) -> None:

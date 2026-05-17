@@ -934,7 +934,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
 
             <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
               <span style={{ fontSize: 16, opacity: 0.7 }}>$</span>
-              <span style={{ fontSize: 64, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>299</span>
+              <span style={{ fontSize: 64, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>199</span>
               <span style={{ fontSize: 14, opacity: 0.7 }}>MXN / mes</span>
             </div>
 

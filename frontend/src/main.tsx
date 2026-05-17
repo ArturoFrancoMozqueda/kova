@@ -6,9 +6,16 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import "./observability/sentry";
 import "./styles.css";
 
-// Auto-update service worker silently — no prompt needed for a POS kiosk
+// Check for service worker updates early; the user-facing prompt applies them safely.
 const updateSW = registerSW({
   immediate: true,
+  onRegisteredSW(_swUrl, registration) {
+    if (!registration) return;
+    void registration.update();
+    window.setInterval(() => {
+      void registration.update();
+    }, 60 * 60 * 1000);
+  },
   onNeedRefresh() {
     window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
   },

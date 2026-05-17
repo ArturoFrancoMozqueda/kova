@@ -31,6 +31,8 @@ export default defineConfig({
       workbox: {
         // Cache the app shell (HTML, JS, CSS) and static assets
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
         // Network-first for API calls — never serve stale API responses from cache
         runtimeCaching: [
           {
