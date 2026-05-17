@@ -62,9 +62,9 @@ support a real paid beta subscription.
 - [ ] Configure live Stripe keys, live price, and live webhook endpoint for production.
 - [x] Add production runtime guard that rejects Stripe test keys and test Checkout Sessions.
 - [x] Add environment validation that fails startup/build if production uses Stripe test keys.
-- [ ] Add production smoke test for landing, login, dashboard, billing, checkout redirect, and console errors.
+- [x] Add production smoke test for landing, login, dashboard, billing, checkout redirect, and console errors.
 - [ ] Clean up the stray Vercel `frontend` project after confirming it is unused.
-- [ ] Update `docs/risk-register.md` with PWA stale release and billing-mode risks.
+- [x] Update `docs/risk-register.md` with PWA stale release and billing-mode risks.
 
 ### Acceptance Criteria
 
@@ -73,6 +73,14 @@ support a real paid beta subscription.
 - Landing, dashboard, billing UI, API response, and Stripe Checkout all show 199 MXN/month.
 - Stripe Checkout URL is live mode in production.
 - A production smoke checklist can be run after every deploy.
+
+### Validation Notes
+
+- 2026-05-17: `npm run test:production-smoke` against
+  `https://point-of-sale-ochre.vercel.app` passed landing/login/dashboard/billing price checks and
+  register sale/receipt/report checks.
+- 2026-05-17: Production smoke failed the checkout gate because Stripe redirected to
+  `checkout.stripe.com` with a `cs_test` session id. Live Stripe configuration remains a P0 blocker.
 
 ## Sprint PB-2 - Signup, Onboarding, and Business Setup
 

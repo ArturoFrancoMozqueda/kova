@@ -290,8 +290,8 @@ def test_production_checkout_rejects_test_stripe_key(
     fake_client = FakeStripeCheckoutClient()
     monkeypatch.setattr(billing_service, "checkout_client", fake_client)
     _configure_stripe(monkeypatch)
-    monkeypatch.setattr(settings, "app_env", "production")
     _signup_verify_login(client, f"checkout-test-key-{uuid4().hex}@example.com", "Checkout Key")
+    monkeypatch.setattr(settings, "app_env", "production")
 
     response = client.post(
         "/api/v1/billing/checkout",
@@ -309,13 +309,13 @@ def test_production_checkout_rejects_test_checkout_session(
     fake_client = FakeStripeCheckoutClient()
     monkeypatch.setattr(billing_service, "checkout_client", fake_client)
     _configure_stripe(monkeypatch)
-    monkeypatch.setattr(settings, "app_env", "production")
-    monkeypatch.setattr(settings, "stripe_secret_key", "sk_live_123")
     _signup_verify_login(
         client,
         f"checkout-test-session-{uuid4().hex}@example.com",
         "Checkout Session",
     )
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_live_123")
 
     response = client.post(
         "/api/v1/billing/checkout",

@@ -12,6 +12,8 @@ This document tracks the highest-risk areas of the POS SaaS project.
 | Data loss during offline sync | Critical | Medium | Dexie queue, retry policy, recoverable failed state, E2E offline tests | Engineering |
 | Weak authorization | High | Medium | centralized RBAC, permission constants, endpoint tests | Engineering |
 | Billing webhook bugs | High | Medium | webhook idempotency, event log, state from webhook only | Engineering |
+| Production billing in Stripe test mode | Critical | High | backend startup/runtime guards, production smoke checkout gate, live Stripe env verification before selling | Engineering/Product |
+| Stale PWA app shell after deployment | High | Medium | Workbox outdated cache cleanup, early service worker update checks, production smoke for returning browsers | Engineering |
 | Scope creep | High | High | current-sprint.md, deferred-scope.md, strict beta scope | Product/Engineering |
 | Over-engineering | High | Medium | modular monolith, no microservices, avoid Kafka/GraphQL/custom auth | Engineering |
 | Solo-engineer burnout | High | Medium | smaller sprints, 60% capacity planning, defer non-beta scope | Product |
@@ -102,6 +104,47 @@ Mitigation:
 
 Release gate:
 Offline E2E scenarios must pass.
+
+### Production Billing In Stripe Test Mode
+
+Severity: Critical
+
+Why it matters:
+A buyer can reach Checkout and believe payment is available, but test-mode sessions cannot create a
+real paid subscription. This blocks selling and damages trust.
+
+Current evidence:
+Production smoke on 2026-05-17 reached `checkout.stripe.com` but received a `cs_test` session id.
+
+Mitigation:
+
+- Configure production `STRIPE_SECRET_KEY`, Standard Plan price, and webhook endpoint with live-mode
+  Stripe values.
+- Keep backend startup validation that rejects test Stripe keys in `APP_ENV=production`.
+- Keep checkout runtime validation that rejects test Checkout Session ids before returning them.
+- Run `npm run test:production-smoke` after every billing/environment change.
+
+Release gate:
+No paid beta release until production smoke proves Checkout redirects with a live `cs_live` session
+and the webhook activates a subscription.
+
+### Stale PWA App Shell After Deployment
+
+Severity: High
+
+Why it matters:
+Returning users can see old pricing, old copy, or stale flows after a deployment, creating conflicting
+business claims and support confusion.
+
+Mitigation:
+
+- Enable outdated cache cleanup in the PWA service worker.
+- Check for service worker updates early and periodically.
+- Keep visible app update prompt behavior.
+- Add a returning-browser smoke scenario before paid beta.
+
+Release gate:
+Before selling, fresh and returning browsers must show the same current landing and app shell.
 
 ### Scope Creep
 

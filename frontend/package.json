@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:production-smoke": "playwright test e2e/production-smoke.spec.ts --project=chromium"
   },
   "dependencies": {
     "@sentry/react": "^8.47.0",
