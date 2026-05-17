@@ -548,7 +548,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               </span>
             </Link>
             <div className="text-[12.5px] text-[#7a7a7a]">
-              $199 MXN/mes · Sin contrato · Cancela cuando quieras
+              Sin tarjeta · Cancela cuando quieras
             </div>
           </div>
         </div>
