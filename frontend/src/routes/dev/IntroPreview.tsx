@@ -6,9 +6,12 @@ type SlotProps = {
   description: string;
   props: Partial<IntroAnimationProps>;
   forceReduced: boolean;
+  /** When true, the animation renders on a plain --kova-ink surface so the
+   *  embedded variant can be evaluated without the default frame chrome. */
+  inkSurface?: boolean;
 };
 
-function Slot({ title, description, props, forceReduced }: SlotProps) {
+function Slot({ title, description, props, forceReduced, inkSurface = false }: SlotProps) {
   const [replayKey, setReplayKey] = useState(0);
 
   return (
@@ -48,7 +51,21 @@ function Slot({ title, description, props, forceReduced }: SlotProps) {
         </button>
       </header>
 
-      <IntroAnimation key={replayKey} {...props} forceReducedMotion={forceReduced} />
+      {inkSurface ? (
+        <div
+          style={{
+            background: "var(--kova-ink)",
+            padding: 48,
+            borderRadius: 14,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <IntroAnimation key={replayKey} {...props} forceReducedMotion={forceReduced} />
+        </div>
+      ) : (
+        <IntroAnimation key={replayKey} {...props} forceReducedMotion={forceReduced} />
+      )}
     </section>
   );
 }
@@ -143,6 +160,13 @@ export default function IntroPreview() {
           description="showWordmark={false} showBadge={false} — animated isotipo as decoration."
           props={{ showWordmark: false, showBadge: false }}
           forceReduced={forceReduced}
+        />
+        <Slot
+          title="Embedded"
+          description="embedded={true} — no frame, no background, no internal decor. Hosted on a plain --kova-ink surface to validate the inline integration form."
+          props={{ embedded: true }}
+          forceReduced={forceReduced}
+          inkSurface
         />
       </div>
     </main>
