@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
-from app.db import get_db
 from app.billing.access import require_commercial_access
+from app.db import get_db
 from app.orders import repository, service
 from app.orders.schemas import (
     OrderCreate,
