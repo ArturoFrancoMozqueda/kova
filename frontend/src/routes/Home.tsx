@@ -512,7 +512,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             className="lp-rise inline-flex items-center gap-2 px-3 py-1 rounded-full lp-hairline text-[11.5px] text-[#a8a8a8] mb-6"
             style={{ animationDelay: "0ms", background: "rgba(255,255,255,0.02)" }}
           >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--lp-accent)" }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--kova-blue)" }} />
             En beta · $199 MXN/mes · sin contrato
           </div>
 
