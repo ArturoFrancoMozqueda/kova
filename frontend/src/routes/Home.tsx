@@ -512,16 +512,8 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
     <section className="relative overflow-hidden lp-grain">
       <div className="absolute inset-0 lp-glow-radial lp-breathe pointer-events-none" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      <div className="relative max-w-6xl mx-auto px-6 pt-14 pb-12 md:pt-28 md:pb-24">
+      <div className="relative max-w-6xl mx-auto px-6 pt-8 pb-12 md:pt-16 md:pb-24">
         <div className="max-w-3xl mx-auto text-center">
-          <div
-            className="lp-rise inline-flex items-center gap-2 px-3 py-1 rounded-full lp-hairline text-[11.5px] text-[#a8a8a8] mb-6"
-            style={{ animationDelay: "0ms", background: "rgba(255,255,255,0.02)" }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--kova-blue)" }} />
-            En beta · $199 MXN/mes · sin contrato
-          </div>
-
           <h1 className="text-[44px] md:text-[68px] leading-[1.02] font-bold tracking-[-0.02em] text-balance text-white">
             <SplitWords text="Tu negocio," baseDelay={120} step={80} />
             <br className="hidden md:block" />
