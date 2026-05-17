@@ -110,17 +110,17 @@ business profile, and reach first sale without engineering assistance.
 
 ### Tasks
 
-- [ ] Write `specs/onboarding/first_sale.md`.
-- [ ] Write `specs/onboarding/first_sale.feature`.
-- [ ] Create `docs/test-matrixes/onboarding.md`.
+- [x] Write `specs/onboarding/first_sale.md`.
+- [x] Write `specs/onboarding/first_sale.feature`.
+- [x] Create `docs/test-matrixes/onboarding.md`.
 - [ ] Add tenant onboarding state model with tenant-scoped RLS.
 - [ ] Add API endpoints for onboarding state read/update.
 - [ ] Add dashboard checklist steps: business profile, first product, inventory optional, open shift, first sale, billing.
 - [ ] Make each checklist step link to the exact action, not just the module.
 - [ ] Add business profile settings: public business name, support phone/email, timezone, locale, currency display.
 - [ ] Add receipt settings: receipt business name, footer, tax/contact text placeholder, logo hook.
-- [ ] Replace signup copy "Start accepting payments in minutes" with POS-accurate copy.
-- [ ] Move remaining signup/login/app-shell copy into i18n.
+- [x] Replace signup copy "Start accepting payments in minutes" with POS-accurate copy.
+- [x] Move remaining signup/login/app-shell copy into i18n.
 - [ ] Add loading, empty, and error states for onboarding settings.
 - [ ] Add E2E new-tenant onboarding happy path.
 
