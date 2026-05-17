@@ -16,11 +16,11 @@ export default defineConfig({
       registerType: "prompt",
       devOptions: { enabled: false },
       manifest: {
-        name: "POS — Point of Sale",
-        short_name: "POS",
-        description: "Offline-first point of sale for small businesses",
-        theme_color: "#2d2418",
-        background_color: "#faf7f2",
+        name: "Kova",
+        short_name: "Kova",
+        description: "POS multi-tenant offline-first para PyMEs en México",
+        theme_color: "#0F1117",
+        background_color: "#F5F6FA",
         display: "standalone",
         start_url: "/register",
         icons: [
