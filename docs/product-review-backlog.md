@@ -158,9 +158,9 @@ Make the commercial model enforceable without creating pricing tiers.
 - [x] Add subscription access service used by protected business flows.
 - [x] Gate write-heavy paid flows after trial/grace: orders, catalog writes, inventory adjustments, shifts.
 - [x] Keep read-only access to receipts, billing, and support while blocked.
-- [ ] Add clear billing banner on dashboard/register when unpaid, trialing, past_due, canceled, or blocked.
+- [x] Add clear billing banner on dashboard/register when unpaid, trialing, past_due, canceled, or blocked.
 - [x] Add backend tests for subscription access states.
-- [ ] Add E2E coverage for blocked and active subscription states.
+- [x] Add E2E coverage for blocked and active subscription states.
 - [x] Add audit log event for billing access block if a blocked write is attempted.
 
 ### Acceptance Criteria
