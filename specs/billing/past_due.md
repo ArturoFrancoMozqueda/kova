@@ -22,8 +22,9 @@ Past-due handling protects revenue while avoiding surprise disruption during bet
 - Tenant owners and users with `billing.manage` can open billing recovery/checkout guidance.
 - The UI shows a persistent past_due banner for authenticated users in the tenant.
 - The banner copy is user-facing and must use i18n.
-- A configurable grace period may allow normal POS operation while payment is recovered.
-- After grace period expiry, access restrictions must be explicit and documented before implementation.
+- A configurable grace period allows normal POS operation while payment is recovered.
+- After grace period expiry, paid write-heavy flows are blocked according to
+  `specs/billing/access_control.md`.
 - Offline sale capture should continue to protect already-started sales where possible.
 
 ## Non-Functional Requirements
@@ -72,3 +73,5 @@ Past-due handling protects revenue while avoiding surprise disruption during bet
 - Non-owner cannot manage payment recovery.
 - `past_due` status is tenant-scoped.
 - Grace period behavior is deterministic and test-covered before enforcement.
+- Expired grace returns `402 Payment Required` for paid write-heavy flows while billing recovery
+  remains available.
