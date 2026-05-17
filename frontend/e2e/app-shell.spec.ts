@@ -23,3 +23,38 @@ test("protected routes redirect unauthenticated users to login", async ({ page }
   await expect(page).toHaveURL("/login");
   await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
 });
+
+test("returning browsers get a visible app update path", async ({ page }) => {
+  await page.route("**/api/v1/auth/session", async (route) => {
+    await route.fulfill({ json: { authenticated: false } });
+  });
+
+  await page.goto("/");
+
+  await page.evaluate(() => {
+    const testWindow = window as Window & { __pwaApplyCount?: number };
+    testWindow.__pwaApplyCount = 0;
+    window.addEventListener("pos:pwa-apply-update", () => {
+      testWindow.__pwaApplyCount = (testWindow.__pwaApplyCount ?? 0) + 1;
+    });
+    window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
+  });
+
+  await expect(page.getByRole("status")).toContainText("New version available");
+  await expect(page.getByText("Refresh when the counter is free")).toBeVisible();
+
+  await page.getByRole("button", { name: "Later" }).click();
+  await expect(page.getByRole("status")).toHaveCount(0);
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
+  });
+
+  await page.getByRole("button", { name: "Refresh now" }).click();
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() => (window as Window & { __pwaApplyCount?: number }).__pwaApplyCount ?? 0)
+    )
+    .toBe(1);
+});

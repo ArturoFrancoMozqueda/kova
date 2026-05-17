@@ -51,8 +51,8 @@ prevents sale completion.
 
 | Scenario | Layer | Expected Result |
 |---|---|---|
-| New service worker available | Frontend unit/E2E | Update prompt appears |
-| User applies update | Frontend unit/E2E | App dispatches update event and reloads through update callback |
+| New service worker available | E2E: `frontend/e2e/app-shell.spec.ts` | Update prompt appears |
+| User applies update | E2E: `frontend/e2e/app-shell.spec.ts` | App dispatches update event and reloads through update callback |
 | API request while service worker active | E2E | Request is network-only, not cached |
 | Returning browser after deploy | Production smoke | Latest landing/app shell is visible after accepting update |
 
