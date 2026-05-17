@@ -1,10 +1,12 @@
-# Point of Sale
+# Kova
 
-Multi-tenant, offline-first POS SaaS platform. See [CLAUDE.md](CLAUDE.md) for the product, engineering, and architectural rules of this repository.
+POS multi-tenant offline-first para PyMEs en México. Tu negocio, en flujo constante.
+
+See [CLAUDE.md](CLAUDE.md) for the product, engineering, brand, and architectural rules of this repository.
 
 ## Status
 
-Sprint 0A — Platform Skeleton. See [docs/current-sprint.md](docs/current-sprint.md).
+Active sprint scope: [docs/current-sprint.md](docs/current-sprint.md). Kova rebrand is in progress; see CLAUDE.md for migration phases.
 
 ## Quickstart
 
@@ -20,7 +22,7 @@ Full local-dev instructions: [specs/shared/local_dev.md](specs/shared/local_dev.
 
 ## Documentation
 
-- [CLAUDE.md](CLAUDE.md) — repository rules
+- [CLAUDE.md](CLAUDE.md) — repository, product, and brand rules
 - [docs/architecture.md](docs/architecture.md) — architecture overview
 - [docs/sprint-planning.md](docs/sprint-planning.md) — sprint plan
 - [docs/current-sprint.md](docs/current-sprint.md) — active sprint scope

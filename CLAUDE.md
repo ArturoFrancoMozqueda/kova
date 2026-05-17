@@ -142,50 +142,42 @@ Chart lines: smooth transition to new values, no full redraw
 
 
 Migration Strategy
-This is incremental, not a rewrite. Follow this order:
-Phase 1 — Foundation (no visual change yet)
+This is incremental, not a rewrite. Status as of 2026-05-17 reflected per phase.
 
-Add design tokens to global CSS
-Add DM Sans to the project
-Create the Logo component
-Create a formatMoney utility if not already centralized
-Verify nothing in the existing UI broke
+Phase 1 — Foundation — DONE
+- Tokens in frontend/src/styles.css
+- DM Sans loaded (tailwind.config.js, index.html)
+- Logo component at frontend/src/components/brand/Logo.tsx (isotipo + horizontal)
+- formatMoney centralized in frontend/src/orders/format
 
-Phase 2 — Component primitives (gradual swap)
+Phase 2 — Component primitives — DONE for shared primitives (Button, Card, BillingBanner, Badge). Remaining legacy `hsl(var(--primary))` is intentional during gradual transition; replace only when touching the file for another reason.
 
-Update existing Button component to use new tokens (keep API)
-Update existing Card/Input/Modal to new tokens (keep API)
-Update color usage in shared layout components
-Run the app — every screen should still work, just looking off
+Phase 3 — Brand swap — DONE
+- Logo used in AuthView, VerifyEmailView, AppShell sidebar
+- No "Sweet Home" strings remain in src/
+- Favicon + PWA icons updated (frontend/public/)
+- PWA manifest (vite.config.ts) has Kova name/description and lang es-MX
+- Email templates updated to Spanish + Kova brand (backend/app/email/service.py)
+- Page title set to "kova · POS para tu negocio"
 
-Phase 3 — Brand swap
+Phase 4 — Landing and auth polish — IN PROGRESS
+- Landing copy refreshed in i18n
+- Auth subtitles + placeholders added (commit 351a544)
+- IntroAnimation component exists; ensure it's wired into landing hero
+- Pending: full es-MX localization of messages.ts (currently mostly English)
 
-Replace logo everywhere
-Replace product name strings in i18n: "Sweet Home" → "kova"
-Update favicon, app icon, splash
-Update email templates (visual only)
-Update meta tags, page titles
-
-Phase 4 — Landing and auth polish
-
-Apply new tone to landing page hero, features, pricing
-Apply new tone to auth screens (login, registro, recuperar)
-Add IntroAnimation to landing hero
-
-Phase 5 — Dashboard polish
-
-Update sidebar (Kova logo, new colors)
-Update KPI cards with new tokens
-Update charts with new color palette
-Add real-time animations (live badge, count-up, etc.)
+Phase 5 — Dashboard polish — IN PROGRESS
+- Sidebar Kova logo: DONE (AppShell renders LogoMark)
+- Real-time animations: count-up KPIs and live pulse badge — NEW work, gated behind incremental commits
+- KPI cards using tokens, charts color audit pending
 
 Phase 6 — Long tail
+- Audit remaining hardcoded colors in `routes/` (Home.tsx contains scoped CSS variables for its own landing dark theme — those are not violations)
+- Final visual QA pass per screen
 
-Audit every screen for remaining hardcoded colors/fonts
-Replace all instances of legacy brand wherever it lingers
-Run a final visual QA pass
+Stripe live keys / live Checkout — LAST step before GA. Do not switch until everything else above is approved. Until then, Stripe stays in test mode in production. This is a hard rule per product owner.
 
-Do not start Phase N+1 until Phase N is reviewed and approved.
+Do not start a new phase until the previous one is reviewed and approved.
 
 What to Preserve
 
@@ -195,7 +187,6 @@ All database schema
 All business logic (sales, payments, offline sync, refunds, shifts)
 All test coverage that exists
 Sprint 15 (modifiers) and any in-flight feature work — let those merge first
-Sweet Home POS branding stays available behind a feature flag during transition if needed
 
 
 Working Mode for Claude Code
