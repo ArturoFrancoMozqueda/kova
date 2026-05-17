@@ -64,6 +64,8 @@
     --kova-border: #E2E6EF;
     --kova-danger: #DC2626;
     --kova-danger-foreground: #FFFFFF;
+    --kova-on-ink: #F0F4FF;
+    --kova-ink-border: #1E2330;
 
     --radius-kova-sm: 6px;
     --radius-kova-md: 8px;

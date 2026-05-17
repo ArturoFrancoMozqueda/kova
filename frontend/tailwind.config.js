@@ -66,6 +66,8 @@ export default {
           border: "var(--kova-border)",
           danger: "var(--kova-danger)",
           "danger-foreground": "var(--kova-danger-foreground)",
+          "on-ink": "var(--kova-on-ink)",
+          "ink-border": "var(--kova-ink-border)",
         },
       },
       borderRadius: {
