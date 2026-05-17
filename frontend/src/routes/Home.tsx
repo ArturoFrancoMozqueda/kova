@@ -559,9 +559,9 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
           </div>
         </div>
 
-        {/* hero visual — Kova IntroAnimation */}
+        {/* hero visual — Kova IntroAnimation (embedded, no chrome) */}
         <div className="relative mt-14 md:mt-20 lp-reveal max-w-lg mx-auto">
-          <IntroAnimation skippable={false} />
+          <IntroAnimation embedded skippable={false} />
         </div>
       </div>
     </section>
