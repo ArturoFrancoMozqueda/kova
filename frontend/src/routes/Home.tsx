@@ -544,7 +544,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               style={accentBtnStyle}
             >
               <span className="inline-flex items-center gap-2">
-                Empieza gratis 14 días <Ico.arrow width={16} height={16} />
+                Empieza 3 días gratis <Ico.arrow width={16} height={16} />
               </span>
             </Link>
             <div className="text-[12.5px] text-[#7a7a7a]">
