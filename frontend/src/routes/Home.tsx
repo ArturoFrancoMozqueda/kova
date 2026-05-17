@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { STANDARD_PLAN_AMOUNT, STANDARD_PLAN_PRICE_CADENCE_ES } from "@/billing/standardPlan";
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
@@ -934,8 +935,8 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
 
             <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
               <span style={{ fontSize: 16, opacity: 0.7 }}>$</span>
-              <span style={{ fontSize: 64, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>199</span>
-              <span style={{ fontSize: 14, opacity: 0.7 }}>MXN / mes</span>
+              <span style={{ fontSize: 64, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>{STANDARD_PLAN_AMOUNT}</span>
+              <span style={{ fontSize: 14, opacity: 0.7 }}>{STANDARD_PLAN_PRICE_CADENCE_ES}</span>
             </div>
 
             <Link

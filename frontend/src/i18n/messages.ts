@@ -1,3 +1,10 @@
+import {
+  STANDARD_PLAN,
+  STANDARD_PLAN_PRICE,
+  STANDARD_PLAN_PRICE_CADENCE,
+  STANDARD_PLAN_PRICE_LABEL,
+} from "@/billing/standardPlan";
+
 export const copy = {
   landing: {
     brand: "kova",
@@ -14,7 +21,7 @@ export const copy = {
     heroSubtitle: "Configure products, run the register, record payments, recover offline sales, track inventory, and review real performance from one clean operating workspace.",
     continueSetup: "Continue setup",
     createAccount: "Create account",
-    seePlan: "See the $199 MXN plan",
+    seePlan: `See the ${STANDARD_PLAN_PRICE} ${STANDARD_PLAN.currency} plan`,
     today: "Today",
     businessPerformance: "Business performance",
     realDataOnly: "Real data only",
@@ -28,7 +35,7 @@ export const copy = {
     honestReportsText: "If there are no sales in a period, the app shows an empty state instead of demo charts.",
     setupSteps: [
       { title: "Create your account", text: "Register the business, verify email, and keep access protected with server-managed sessions." },
-      { title: "Subscribe once", text: "Activate the Standard Plan through Stripe Checkout at $199 MXN/month." },
+      { title: "Subscribe once", text: `Activate the ${STANDARD_PLAN.name} through Stripe Checkout at ${STANDARD_PLAN_PRICE_LABEL}.` },
       { title: "Configure products", text: "Add the products, categories, modifiers, and inventory tracking your counter needs." },
       { title: "Start selling", text: "Open the register, record payments, issue receipts, and review real sales data." },
     ],
@@ -51,10 +58,10 @@ export const copy = {
       { title: "Team activity", text: "Deferred until employee management is exposed through the API." },
     ],
     onePlan: "One plan",
-    standardPlan: "Standard Plan",
+    standardPlan: STANDARD_PLAN.name,
     pricingText: "One subscription for the current beta POS core. No Basic, Pro, Premium, per-user, per-location, annual, usage-based, or add-on pricing.",
-    price: "$199",
-    priceCadence: "MXN/month",
+    price: STANDARD_PLAN_PRICE,
+    priceCadence: STANDARD_PLAN_PRICE_CADENCE,
     manageSetup: "Manage setup",
     startWithStandard: "Start with Standard",
     included: [
@@ -78,7 +85,7 @@ export const copy = {
       },
       {
         q: "Is there more than one plan?",
-        a: "No. The beta offer is one Standard Plan at $199 MXN/month with all currently available features included.",
+        a: `No. The beta offer is one ${STANDARD_PLAN.name} at ${STANDARD_PLAN_PRICE_LABEL} with all currently available features included.`,
       },
       {
         q: "Who is it best for right now?",
@@ -107,7 +114,7 @@ export const copy = {
     shiftsSummary: "Open shifts, record cash movements, and close reconciliation.",
     ordersSummary: "Review receipts, refunds, and voids.",
     reportsSummary: "Review sales, payment mix, and best-selling products.",
-    billingSummary: "Manage the Standard Plan subscription and billing recovery.",
+    billingSummary: `Manage the ${STANDARD_PLAN.name} subscription and billing recovery.`,
     openMenu: "Open navigation menu",
     closeMenu: "Close navigation menu",
   },
@@ -144,8 +151,8 @@ export const copy = {
     deltaNoData: "—",
     onboardingTitle: "Configure your POS",
     onboardingSubtitle: "Complete the essentials that are supported today, then start selling.",
-    onboardingStep1Label: "Activate Standard Plan",
-    onboardingStep1Desc: "Keep the POS available with the $199 MXN/month subscription.",
+    onboardingStep1Label: `Activate ${STANDARD_PLAN.name}`,
+    onboardingStep1Desc: `Keep the POS available with the ${STANDARD_PLAN_PRICE_LABEL} subscription.`,
     onboardingStep1Action: "Open Billing",
     onboardingStep2Label: "Add your first product",
     onboardingStep2Desc: "Set up your catalog so you can sell.",
@@ -523,7 +530,7 @@ export const copy = {
     statusCanceled: "Canceled",
     statusUnpaid: "Unpaid",
     noSubscription: "No subscription",
-    noSubscriptionBanner: "Activate the Standard Plan to keep this tenant ready for paid beta use.",
+    noSubscriptionBanner: `Activate the ${STANDARD_PLAN.name} to keep this tenant ready for paid beta use.`,
     currentAccess: "Current access",
     cancelAtPeriodEnd: "Cancels at period end",
     currentPeriodEnd: "Current period end",
