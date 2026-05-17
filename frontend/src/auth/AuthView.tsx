@@ -63,9 +63,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             {mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {mode === "login"
-              ? "Sign in to your point of sale"
-              : "Start accepting payments in minutes"}
+            {mode === "login" ? copy.auth.loginSubtitle : copy.auth.signupSubtitle}
           </p>
         </div>
 
@@ -79,7 +77,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                     id="tenantName"
                     required
                     autoComplete="organization"
-                    placeholder="My Bakery"
+                    placeholder={copy.auth.tenantNamePlaceholder}
                     value={tenantName}
                     onChange={(event) => setTenantName(event.target.value)}
                   />
@@ -92,7 +90,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   required
                   type="email"
                   autoComplete="email"
-                  placeholder="you@example.com"
+                  placeholder={copy.auth.emailPlaceholder}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                 />
@@ -104,7 +102,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   required
                   type="password"
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  placeholder={mode === "login" ? "Enter your password" : "Create a password"}
+                  placeholder={mode === "login" ? copy.auth.passwordPlaceholderLogin : copy.auth.passwordPlaceholderSignup}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
@@ -167,7 +165,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             )}
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
-              {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+              {mode === "login" ? copy.auth.needAccountPrompt : copy.auth.haveAccountPrompt}{" "}
               <Link
                 to={mode === "login" ? "/signup" : "/login"}
                 className="font-medium text-kova-blue hover:underline underline-offset-4"
