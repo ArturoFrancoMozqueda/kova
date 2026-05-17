@@ -315,7 +315,7 @@ function SocialProof() {
   return (
     <section className="border-y border-white/[0.05]" style={{ background: "rgba(255,255,255,0.01)" }}>
       <div className="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row items-center justify-between gap-4 text-[12.5px] text-[#7a7a7a]">
-        <div>El PoS que despegara tu negocio</div>
+        <div>El POS que despegará tu negocio</div>
         <div className="flex items-center gap-6">
           {items.map((it) => (
             <div key={it.label} className="flex items-center gap-2" style={{ color: "var(--kova-blue)" }}>
