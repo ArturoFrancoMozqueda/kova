@@ -154,14 +154,14 @@ Make the commercial model enforceable without creating pricing tiers.
 
 ### Tasks
 
-- [ ] Define trial rules: duration, start trigger, grace behavior, and owner-visible copy.
-- [ ] Add subscription access service used by protected business flows.
-- [ ] Gate write-heavy paid flows after trial/grace: orders, catalog writes, inventory adjustments, shifts.
-- [ ] Keep read-only access to receipts, billing, and support while blocked.
+- [x] Define trial rules: duration, start trigger, grace behavior, and owner-visible copy.
+- [x] Add subscription access service used by protected business flows.
+- [x] Gate write-heavy paid flows after trial/grace: orders, catalog writes, inventory adjustments, shifts.
+- [x] Keep read-only access to receipts, billing, and support while blocked.
 - [ ] Add clear billing banner on dashboard/register when unpaid, trialing, past_due, canceled, or blocked.
-- [ ] Add backend tests for subscription access states.
+- [x] Add backend tests for subscription access states.
 - [ ] Add E2E coverage for blocked and active subscription states.
-- [ ] Add audit log event for billing access block if a blocked write is attempted.
+- [x] Add audit log event for billing access block if a blocked write is attempted.
 
 ### Acceptance Criteria
 
