@@ -88,6 +88,50 @@ function syncResponse(orderId: string) {
   };
 }
 
+const billingAllowedResponse = {
+  plan: { name: "Standard Plan", amount_minor_units: 19900, currency: "MXN", interval: "month" },
+  subscription: null,
+  access: {
+    allowed: true,
+    reason: "active",
+    trialing: false,
+    trial_ends_at: null,
+    blocked_at: null,
+    recovery_path: "/settings/billing",
+  },
+};
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+// URL-pattern → response queue. Decouples mock setup from React effect ordering
+// so BillingBanner's /billing/subscription fetch does not consume mocks intended
+// for RegisterView's product/category/stock fetches.
+type FetchMockHandler = unknown | ((init?: RequestInit) => unknown);
+function setupFetchMock(routes: Record<string, FetchMockHandler[]>) {
+  const queues = Object.fromEntries(
+    Object.entries(routes).map(([pattern, list]) => [pattern, [...list]]),
+  );
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = typeof input === "string" ? input : (input as Request | URL).toString();
+    for (const [pattern, queue] of Object.entries(queues)) {
+      if (url.includes(pattern)) {
+        const next = queue.shift();
+        if (next === undefined) {
+          throw new Error(`Exhausted fetch mocks for ${pattern} (called ${url})`);
+        }
+        const resolved = typeof next === "function" ? (next as (i?: RequestInit) => unknown)(init) : next;
+        return jsonResponse(resolved);
+      }
+    }
+    throw new Error(`No fetch mock matched ${url}`);
+  });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   window.history.pushState(null, "", "/");
@@ -107,17 +151,14 @@ describe("App shell", () => {
 
   it("lands on register after a successful login", async () => {
     window.history.pushState(null, "", "/login");
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "Logged in." }), { status: 200 }))
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }),
-      );
+    setupFetchMock({
+      "/api/v1/auth/login": [{ message: "Logged in." }],
+      "/api/v1/auth/session": [authenticatedCashier],
+      "/api/v1/billing/subscription": [billingAllowedResponse],
+      "/api/v1/catalog/products": [[]],
+      "/api/v1/catalog/categories": [[]],
+      "/api/v1/inventory/stock": [[]],
+    });
 
     render(<App />);
     fireEvent.change(screen.getByRole("textbox", { name: /email/i }), {
@@ -133,22 +174,14 @@ describe("App shell", () => {
 
   it("creates a cash sale from the register", async () => {
     window.history.pushState(null, "", "/register");
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(sellableProducts), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // categories
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(syncResponse("order-1")), { status: 200 }),
-      );
+    setupFetchMock({
+      "/api/v1/auth/session": [authenticatedCashier],
+      "/api/v1/billing/subscription": [billingAllowedResponse],
+      "/api/v1/catalog/products": [sellableProducts],
+      "/api/v1/catalog/categories": [[]],
+      "/api/v1/inventory/stock": [[]],
+      "/api/v1/sync/offline-sales": [syncResponse("order-1")],
+    });
 
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
@@ -168,23 +201,14 @@ describe("App shell", () => {
 
   it("creates a bank transfer sale with a reference", async () => {
     window.history.pushState(null, "", "/register");
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(sellableProducts), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // categories
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(syncResponse("order-transfer")), { status: 200 }),
-      );
+    const fetchMock = setupFetchMock({
+      "/api/v1/auth/session": [authenticatedCashier],
+      "/api/v1/billing/subscription": [billingAllowedResponse],
+      "/api/v1/catalog/products": [sellableProducts],
+      "/api/v1/catalog/categories": [[]],
+      "/api/v1/inventory/stock": [[]],
+      "/api/v1/sync/offline-sales": [syncResponse("order-transfer")],
+    });
 
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
@@ -218,23 +242,14 @@ describe("App shell", () => {
 
   it("creates a manual card sale with an optional reference", async () => {
     window.history.pushState(null, "", "/register");
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(authenticatedCashier), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(sellableProducts), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // categories
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), { status: 200 }), // inventory/stock
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(syncResponse("order-card")), { status: 200 }),
-      );
+    const fetchMock = setupFetchMock({
+      "/api/v1/auth/session": [authenticatedCashier],
+      "/api/v1/billing/subscription": [billingAllowedResponse],
+      "/api/v1/catalog/products": [sellableProducts],
+      "/api/v1/catalog/categories": [[]],
+      "/api/v1/inventory/stock": [[]],
+      "/api/v1/sync/offline-sales": [syncResponse("order-card")],
+    });
 
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();

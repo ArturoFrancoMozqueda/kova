@@ -85,11 +85,47 @@ function meResponse(role: string) {
   };
 }
 
+const billingAllowedResponse = {
+  plan: { name: "Standard Plan", amount_minor_units: 19900, currency: "MXN", interval: "month" },
+  subscription: null,
+  access: {
+    allowed: true,
+    reason: "active",
+    trialing: false,
+    trial_ends_at: null,
+    blocked_at: null,
+    recovery_path: "/settings/billing",
+  },
+};
+
+// URL-pattern → response queue. First-match wins. Each pattern has its own queue
+// so the order BillingBanner vs OrderDetail fires their effects does not matter.
+function setupFetchMock(routes: Record<string, unknown[]>) {
+  const queues = Object.fromEntries(
+    Object.entries(routes).map(([pattern, list]) => [pattern, [...list]]),
+  );
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = typeof input === "string" ? input : (input as Request | URL).toString();
+    for (const [pattern, queue] of Object.entries(queues)) {
+      if (url.includes(pattern)) {
+        const next = queue.shift();
+        if (next === undefined) {
+          throw new Error(`Exhausted fetch mocks for ${pattern} (called ${url})`);
+        }
+        return jsonResponse(next);
+      }
+    }
+    throw new Error(`No fetch mock matched ${url}`);
+  });
+}
+
 function mockInitialLoad(currentReceipt: unknown = receipt, role = "cashier") {
-  vi.spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(jsonResponse(meResponse(role)))
-    .mockResolvedValueOnce(jsonResponse(order))
-    .mockResolvedValueOnce(jsonResponse(currentReceipt));
+  return setupFetchMock({
+    "/api/v1/auth/session": [meResponse(role)],
+    "/api/v1/billing/subscription": [billingAllowedResponse],
+    "/api/v1/orders/order-1/receipt": [currentReceipt],
+    "/api/v1/orders/order-1": [order],
+  });
 }
 
 afterEach(() => {
@@ -131,36 +167,33 @@ describe("OrderDetail", () => {
   });
 
   it("submits a refund and reloads the receipt", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse(meResponse("owner")))
-      .mockResolvedValueOnce(jsonResponse(order))
-      .mockResolvedValueOnce(jsonResponse(receipt))
-      .mockResolvedValueOnce(
-        jsonResponse({
+    const refundResponse = {
+      id: "refund-1",
+      order_id: "order-1",
+      reason: "customer_return",
+      refunded_amount: "25.00",
+      items: [],
+      created_at: "2026-05-08T01:00:00Z",
+    };
+    const reloadedReceipt = {
+      ...receipt,
+      refunds: [
+        {
           id: "refund-1",
-          order_id: "order-1",
           reason: "customer_return",
           refunded_amount: "25.00",
-          items: [],
           created_at: "2026-05-08T01:00:00Z",
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse(order))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          ...receipt,
-          refunds: [
-            {
-              id: "refund-1",
-              reason: "customer_return",
-              refunded_amount: "25.00",
-              created_at: "2026-05-08T01:00:00Z",
-              items: [],
-            },
-          ],
-        }),
-      );
+          items: [],
+        },
+      ],
+    };
+    const fetchMock = setupFetchMock({
+      "/api/v1/auth/session": [meResponse("owner")],
+      "/api/v1/billing/subscription": [billingAllowedResponse, billingAllowedResponse],
+      "/api/v1/orders/order-1/refunds": [refundResponse],
+      "/api/v1/orders/order-1/receipt": [receipt, reloadedReceipt],
+      "/api/v1/orders/order-1": [order, order],
+    });
     window.history.pushState(null, "", "/orders/order-1");
 
     render(<App />);
@@ -177,31 +210,25 @@ describe("OrderDetail", () => {
   });
 
   it("submits a void after confirmation", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(jsonResponse(meResponse("owner")))
-      .mockResolvedValueOnce(jsonResponse(order))
-      .mockResolvedValueOnce(jsonResponse(receipt))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          id: "void-1",
-          order_id: "order-1",
-          reason: "operator_error",
-          created_at: "2026-05-08T01:00:00Z",
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse({ ...order, status: "voided" }))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          ...receipt,
-          status: "voided",
-          void: {
-            id: "void-1",
-            reason: "operator_error",
-            created_at: "2026-05-08T01:00:00Z",
-          },
-        }),
-      );
+    const voidResponse = {
+      id: "void-1",
+      order_id: "order-1",
+      reason: "operator_error",
+      created_at: "2026-05-08T01:00:00Z",
+    };
+    const voidedOrder = { ...order, status: "voided" };
+    const voidedReceipt = {
+      ...receipt,
+      status: "voided",
+      void: { id: "void-1", reason: "operator_error", created_at: "2026-05-08T01:00:00Z" },
+    };
+    const fetchMock = setupFetchMock({
+      "/api/v1/auth/session": [meResponse("owner")],
+      "/api/v1/billing/subscription": [billingAllowedResponse, billingAllowedResponse],
+      "/api/v1/orders/order-1/void": [voidResponse],
+      "/api/v1/orders/order-1/receipt": [receipt, voidedReceipt],
+      "/api/v1/orders/order-1": [order, voidedOrder],
+    });
     window.history.pushState(null, "", "/orders/order-1");
 
     render(<App />);
