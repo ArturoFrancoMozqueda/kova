@@ -73,22 +73,6 @@ const LANDING_STYLES = `
   .lp-btn-accent:hover::before { transform: translateX(120%); }
   .lp-btn-accent > * { position: relative; z-index: 1; }
 
-  /* logo draw + pulse */
-  @keyframes lp-logo-draw {
-    from { stroke-dashoffset: 64; }
-    to   { stroke-dashoffset: 0; }
-  }
-  @keyframes lp-logo-pulse {
-    0%, 92%, 100% { filter: drop-shadow(0 0 0 transparent); }
-    95%            { filter: drop-shadow(0 0 6px rgba(245,177,74,0.7)); }
-  }
-  .lp-logo-path {
-    stroke-dasharray: 64; stroke-dashoffset: 64;
-    animation:
-      lp-logo-draw 1.1s cubic-bezier(.2,.7,.2,1) .15s forwards,
-      lp-logo-pulse 6s ease-in-out 1.5s infinite;
-  }
-
   /* word rise */
   @keyframes lp-word-rise {
     from { opacity: 0; transform: translateY(18px); }
