@@ -88,9 +88,9 @@
 }
 
 .svgWrap {
-  width: 40%;
+  width: 50%;
   max-width: 220px;
-  min-width: 140px;
+  min-width: 160px;
   aspect-ratio: 1 / 1;
 }
 .svgWrap svg {
