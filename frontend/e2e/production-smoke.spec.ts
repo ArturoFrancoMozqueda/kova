@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const productionSmokeEnabled = process.env.PRODUCTION_SMOKE === "1";
 const smokeEmail = process.env.PRODUCTION_SMOKE_EMAIL;
 const smokePassword = process.env.PRODUCTION_SMOKE_PASSWORD;
+const expectedStripeMode = process.env.PRODUCTION_SMOKE_STRIPE_MODE ?? "test";
 
 test.skip(!productionSmokeEnabled, "Set PRODUCTION_SMOKE=1 to run production smoke checks.");
 
@@ -63,7 +64,7 @@ test("landing, login, dashboard, and billing are production healthy", async ({ p
   await expectNoConsoleErrors(consoleErrors);
 });
 
-test("production checkout redirects to live Stripe Checkout", async ({ page }) => {
+test("production checkout redirects to the expected Stripe Checkout mode", async ({ page }) => {
   const consoleErrors = watchConsole(page);
   await login(page);
   await page.goto("/settings/billing");
@@ -74,8 +75,12 @@ test("production checkout redirects to live Stripe Checkout", async ({ page }) =
 
   const checkoutUrl = page.url();
   expect(checkoutUrl).toContain("checkout.stripe.com");
-  expect(checkoutUrl).not.toContain("cs_test");
   expect(checkoutUrl).not.toContain("checkout.stripe.test");
+  if (expectedStripeMode === "live") {
+    expect(checkoutUrl).not.toContain("cs_test");
+  } else {
+    expect(checkoutUrl).toContain("cs_test");
+  }
 });
 
 test("register can create a smoke cash sale, receipt, and report data", async ({ page }, testInfo) => {

@@ -34,7 +34,9 @@ reports, browser console, and deployment metadata.
 - Landing page shows one Standard Plan at 199 MXN/month.
 - Dashboard onboarding copy shows 199 MXN/month.
 - Billing API and UI show 199 MXN/month.
-- Stripe Checkout opens in live mode for production validation.
+- Stripe Checkout opens in the expected mode for the current release phase:
+  - `test` while the app is still pre-launch.
+  - `live` before paid beta or public selling.
 - Login works with the support smoke account.
 - Register can complete a small cash sale.
 - Order detail receipt opens for the created sale.
@@ -51,6 +53,7 @@ PRODUCTION_SMOKE=1 \
 PLAYWRIGHT_BASE_URL=https://point-of-sale-ochre.vercel.app \
 PRODUCTION_SMOKE_EMAIL=posprojectsupport@gmail.com \
 PRODUCTION_SMOKE_PASSWORD=<support-password> \
+PRODUCTION_SMOKE_STRIPE_MODE=test \
 npm run test:production-smoke
 ```
 
@@ -63,7 +66,9 @@ committed to the repository.
 - Login works with the support smoke account.
 - Dashboard loads after login.
 - Billing page shows the Standard Plan price as 199 MXN/month.
-- Checkout redirects to `checkout.stripe.com` and does not expose `cs_test` or sandbox checkout URLs.
+- Checkout redirects to `checkout.stripe.com`.
+- When `PRODUCTION_SMOKE_STRIPE_MODE=test`, Checkout must expose a `cs_test` session id.
+- When `PRODUCTION_SMOKE_STRIPE_MODE=live`, Checkout must not expose a `cs_test` session id.
 - Register creates a small identifiable cash sale using the first available catalog product.
 - The created order receipt opens.
 - Reports page loads backend sales data after the smoke sale.
@@ -74,7 +79,7 @@ committed to the repository.
 - Use Vercel connector to confirm latest production deployment is `READY` and record deployment id
   and commit sha.
 - Use Supabase connector to confirm project health and expected Alembic version.
-- Confirm Stripe webhook endpoint is live in Stripe Dashboard for the production backend URL.
+- Confirm Stripe webhook endpoint matches the expected Stripe mode for the current phase.
 
 ## Non-Functional Requirements
 
@@ -86,4 +91,6 @@ committed to the repository.
 
 - A release is not considered production-validated until all required checks pass or a documented
 exception is accepted.
+- A release is not considered paid-beta-ready until the smoke is rerun with
+  `PRODUCTION_SMOKE_STRIPE_MODE=live`.
 - Any failed check creates a backlog item with severity and owner.
