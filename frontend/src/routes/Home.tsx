@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, SVGProps } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import IntroAnimation from "@/components/brand/IntroAnimation";
 
 /* ─── Landing-scoped CSS ─────────────────────────────────────────────────── */
 const LANDING_STYLES = `
@@ -472,6 +473,12 @@ function PosMockup() {
   );
 }
 
+// PosMockup is preserved (with its PRODUCTS/BASE_CART/ADDITIONS/CATS) for
+// quick revert during the Kova rebrand. Tracked for removal in the Phase 6
+// landing cleanup. This void reference keeps `noUnusedLocals` happy without
+// reintroducing the mockup into the rendered tree.
+void PosMockup;
+
 /* ─── Shared style helpers ───────────────────────────────────────────────── */
 const ACCENT_BUTTON_SHADOW = "0 1px 0 rgba(255,255,255,0.35) inset, 0 0 0 1px color-mix(in oklab, var(--lp-accent) 50%, black 10%), 0 10px 30px -8px color-mix(in oklab, var(--lp-accent) 60%, transparent)";
 const accentBtnStyle = {
@@ -552,15 +559,9 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
           </div>
         </div>
 
-        {/* mockup */}
-        <div className="relative mt-14 md:mt-20 lp-reveal">
-          <div
-            className="absolute -inset-x-8 -bottom-10 h-40 blur-3xl opacity-60 pointer-events-none lp-breathe"
-            style={{ background: "radial-gradient(50% 100% at 50% 0%, var(--lp-accent-soft), transparent 70%)" }}
-          />
-          <div className="relative lp-float">
-            <PosMockup />
-          </div>
+        {/* hero visual — Kova IntroAnimation */}
+        <div className="relative mt-14 md:mt-20 lp-reveal max-w-lg mx-auto">
+          <IntroAnimation skippable={false} />
         </div>
       </div>
     </section>
