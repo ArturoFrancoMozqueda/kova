@@ -126,12 +126,6 @@ export default function IntroAnimation({
               </p>
             </>
           ) : null}
-          {showBadge ? (
-            <div className={styles.badge} data-anim>
-              <span className={styles.badgeDot} />
-              <span className={styles.badgeText}>Punto de venta para México</span>
-            </div>
-          ) : null}
         </div>
       </div>
     </div>
