@@ -46,7 +46,7 @@ export default function VerifyEmailView() {
               <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
                 <CheckCircle2 className="h-10 w-10 text-emerald-500" />
                 <p className="font-medium text-emerald-800">{copy.auth.verified}</p>
-                <p className="text-xs text-muted-foreground">Redirecting to login...</p>
+                <p className="text-xs text-muted-foreground">{copy.auth.verifyRedirecting}</p>
               </div>
             )}
             {state === "error" && (
@@ -58,7 +58,7 @@ export default function VerifyEmailView() {
             {state === "missing" && (
               <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
                 <AlertCircle className="h-10 w-10 text-destructive" />
-                <p className="font-medium text-destructive">Missing verification token.</p>
+                <p className="font-medium text-destructive">{copy.auth.verifyMissingToken}</p>
               </div>
             )}
           </CardContent>

@@ -193,6 +193,8 @@ export const copy = {
     passwordPlaceholderSignup: "Create a password",
     needAccountPrompt: "New to Kova?",
     haveAccountPrompt: "Already have an account?",
+    verifyRedirecting: "Redirecting to login...",
+    verifyMissingToken: "Missing verification token.",
   },
   orderDetail: {
     title: "Order detail",
