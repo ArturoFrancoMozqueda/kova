@@ -1,6 +1,6 @@
 export const copy = {
   landing: {
-    brand: "Reliable POS",
+    brand: "kova",
     navBenefits: "Benefits",
     navAnalytics: "Analytics",
     navPricing: "Pricing",
