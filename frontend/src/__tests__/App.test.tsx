@@ -102,7 +102,7 @@ describe("App shell", () => {
     );
     render(<App />);
     expect(await screen.findByRole("heading", { name: /en flujo constante/i })).toBeInTheDocument();
-    expect(screen.getByText("Premium, pero accesible.")).toBeInTheDocument();
+    expect(screen.getByText("Un solo plan. Sin letra chica.")).toBeInTheDocument();
   });
 
   it("lands on register after a successful login", async () => {
