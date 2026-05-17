@@ -8,7 +8,7 @@ test("public landing explains the single Standard Plan", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: /bajo control/i })).toBeVisible();
-  await expect(page.getByText(/\$199 MXN\/mes/).first()).toBeVisible();
+  await expect(page.getByText(/\$299 al mes/).first()).toBeVisible();
   await expect(page.getByText("Un solo plan. Sin letra chica.")).toBeVisible();
 });
 
