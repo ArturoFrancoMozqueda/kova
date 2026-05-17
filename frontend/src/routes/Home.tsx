@@ -257,20 +257,6 @@ function Navbar({
 }
 
 /* ─── MXN Ticker ─────────────────────────────────────────────────────────── */
-function MxnTicker() {
-  const [v, setV] = useState(847_392);
-  useEffect(() => {
-    const start = Date.now();
-    const base = 847_392;
-    const id = setInterval(() => {
-      const dt = (Date.now() - start) / 1000;
-      setV(Math.floor(base + dt * 1847 + Math.sin(dt) * 12));
-    }, 80);
-    return () => clearInterval(id);
-  }, []);
-  return <span className="tabular">${v.toLocaleString("es-MX")}</span>;
-}
-
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ primaryTarget }: { primaryTarget: string }) {
   return (
@@ -285,9 +271,6 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             fontSize: 12, fontWeight: 500, color: "var(--text-muted)",
           }}
         >
-          <span className="lp-live-dot" />
-          <span style={{ color: "var(--page-fg)" }}><MxnTicker /> MXN</span>
-          procesados hoy en kova
         </div>
 
         <div
