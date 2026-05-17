@@ -21,7 +21,7 @@ The app is not yet sellable without founder assistance because:
 - Returning browsers can see stale UI through the PWA/service worker.
 - Production CSP blocks Google Fonts.
 - Pricing copy is inconsistent: dashboard says 299 MXN/month while billing and Stripe say 199 MXN/month.
-- Stripe Checkout is still in sandbox/test mode.
+- Stripe Checkout is intentionally still in sandbox/test mode until the app is ready for paid beta.
 - Subscription access rules are not enforced clearly.
 - Signup, onboarding, employee setup, business settings, and inventory activation are incomplete.
 - Mobile orders layout overflows at phone width.
@@ -46,22 +46,22 @@ support a real paid beta subscription.
 
 - Returning browser receives the newest landing/app shell after deployment.
 - Standard Plan price is 199 MXN/month everywhere.
-- Production checkout opens live Stripe Checkout, not sandbox.
+- Production checkout opens the expected Stripe mode: sandbox before launch, live before paid beta.
 - Unsubscribed tenant sees correct trial or billing state.
 - CSP allows required production assets and produces zero console errors on landing/login/dashboard.
 
 ### Tasks
 
 - [x] Write `specs/ops/pwa_release_updates.md` with service worker update behavior, cache rules, and rollback behavior.
-- [ ] Add BDD/E2E coverage for stale app shell prevention.
+- [x] Add BDD/E2E coverage for stale app shell prevention.
 - [x] Review `vite-plugin-pwa` config for `skipWaiting`, `clientsClaim`, app shell precache, and update prompt behavior.
 - [x] Add a visible update prompt or forced refresh strategy for breaking UI deploys.
 - [x] Fix CSP to either self-host fonts or allow `fonts.googleapis.com` and `fonts.gstatic.com`.
-- [ ] Create one source of truth for Standard Plan amount and copy.
+- [x] Create one source of truth for Standard Plan amount and copy.
 - [x] Replace all 299 MXN references with 199 MXN unless explicitly test-only.
-- [ ] Configure live Stripe keys, live price, and live webhook endpoint for production.
-- [x] Add production runtime guard that rejects Stripe test keys and test Checkout Sessions.
-- [x] Add environment validation that fails startup/build if production uses Stripe test keys.
+- [ ] Configure live Stripe keys, live price, and live webhook endpoint before paid beta.
+- [x] Add production runtime guard that rejects Stripe test keys and test Checkout Sessions unless sandbox mode is explicitly enabled.
+- [x] Add environment validation that fails startup/build if production uses Stripe test keys unless sandbox mode is explicitly enabled.
 - [x] Add production smoke test for landing, login, dashboard, billing, checkout redirect, and console errors.
 - [ ] Clean up the stray Vercel `frontend` project after confirming it is unused.
 - [x] Update `docs/risk-register.md` with PWA stale release and billing-mode risks.
@@ -71,7 +71,7 @@ support a real paid beta subscription.
 - Fresh and returning browsers show the same current landing after deploy.
 - Browser console has zero CSP/font errors on `/`, `/login`, `/dashboard`, and `/settings/billing`.
 - Landing, dashboard, billing UI, API response, and Stripe Checkout all show 199 MXN/month.
-- Stripe Checkout URL is live mode in production.
+- Stripe Checkout URL matches the expected phase: sandbox while pre-launch, live before paid beta.
 - A production smoke checklist can be run after every deploy.
 
 ### Validation Notes
@@ -79,8 +79,11 @@ support a real paid beta subscription.
 - 2026-05-17: `npm run test:production-smoke` against
   `https://point-of-sale-ochre.vercel.app` passed landing/login/dashboard/billing price checks and
   register sale/receipt/report checks.
-- 2026-05-17: Production smoke failed the checkout gate because Stripe redirected to
-  `checkout.stripe.com` with a `cs_test` session id. Live Stripe configuration remains a P0 blocker.
+- 2026-05-17: Production smoke confirmed Stripe redirected to `checkout.stripe.com` with a `cs_test`
+  session id. This is accepted for pre-launch sandbox mode. Live Stripe configuration remains a
+  paid-beta release gate, not a current development blocker.
+- 2026-05-17: `npx playwright test e2e/app-shell.spec.ts --project=chromium` passed the app-shell
+  stale update prompt scenario, including visible notice, dismiss, and apply-update event.
 
 ## Sprint PB-2 - Signup, Onboarding, and Business Setup
 

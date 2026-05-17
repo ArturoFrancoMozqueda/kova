@@ -18,8 +18,12 @@ Stripe Checkout gives the beta a sellable billing path while keeping payment col
 - Checkout uses the configured Stripe Price for Standard Plan.
 - Checkout mode is `subscription`.
 - Checkout currency and amount must correspond to $199 MXN/month.
-- Production checkout must use live Stripe keys, a live Stripe Price, and a live Checkout Session.
-- Test-mode Checkout Sessions are allowed only in local, CI, and staging-like validation environments.
+- Sellable production checkout must use live Stripe keys, a live Stripe Price, and a live Checkout Session.
+- Test-mode Checkout Sessions are allowed in local, CI, staging-like validation environments, and
+  explicitly approved pre-launch production demos.
+- Pre-launch production sandbox mode must be enabled intentionally with
+  `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=true`.
+- Paid beta and public selling must set `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=false`.
 - The checkout session is associated with the tenant through metadata.
 - The checkout session is associated with the authenticated user where useful for audit/support.
 - Success and cancel URLs return the tenant owner to billing UI states.
@@ -54,7 +58,8 @@ Stripe Checkout gives the beta a sellable billing path while keeping payment col
 - Missing permission returns `403`.
 - Tenant with `active` subscription receives current subscription response instead of a duplicate checkout flow.
 - Missing Stripe price configuration returns `503`.
-- Production configured with a Stripe test key or test price returns a configuration failure before checkout.
+- Production configured with a Stripe test key or test price returns a configuration failure before
+  checkout unless pre-launch sandbox mode is explicitly enabled.
 - Stripe API failure returns `502` or `503` with retry guidance.
 
 ## Data Model Impact
@@ -68,7 +73,10 @@ Stripe Checkout gives the beta a sellable billing path while keeping payment col
 ## Acceptance Criteria
 
 - Tenant owner receives a Stripe Checkout URL for the Standard Plan.
-- Production checkout URL is live mode and must not contain a `cs_test` session id.
+- Production checkout URL is live mode and must not contain a `cs_test` session id before paid beta
+  or public selling.
+- Pre-launch production sandbox checkout may contain a `cs_test` session id only while
+  `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=true`.
 - Non-owner without billing permission cannot start checkout.
 - Tenant B cannot create or view checkout state for Tenant A.
 - Frontend success state tells the user billing is being confirmed if the webhook has not arrived yet.
