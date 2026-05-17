@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
+import { CountUp, LivePulse } from "@/components/brand/RealTime";
 import {
   DollarSign,
   ShoppingCart,
@@ -260,7 +261,10 @@ export default function DashboardView() {
       {/* Header */}
       <div className="mb-8">
         <p className="text-sm text-muted-foreground mb-1">{getGreeting()}</p>
-        <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
+          {loadState.status === "ready" && <LivePulse label="En vivo" />}
+        </div>
         <p className="text-muted-foreground mt-1">{copy.dashboard.todayActivity(todayLabel)}</p>
       </div>
 
@@ -323,20 +327,19 @@ export default function DashboardView() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {kpiCards.map(({ key, label, icon: Icon, iconClass }) => {
               const { summary, yesterday } = loadState;
-              let value = "";
               let sub = "";
               let currentNum = 0;
               let prevNum: number | null = null;
+              let isMoney = false;
 
               if (key === "netSales") {
                 currentNum = Number(summary.net_sales);
                 prevNum = yesterday ? Number(yesterday.net_sales) : null;
-                value = formatMoney(summary.net_sales);
                 sub = copy.dashboard.grossSuffix(formatMoney(summary.gross_sales));
+                isMoney = true;
               } else if (key === "orders") {
                 currentNum = summary.order_count;
                 prevNum = yesterday?.order_count ?? null;
-                value = String(summary.order_count);
                 sub = summary.void_count > 0
                   ? copy.dashboard.voidedCount(summary.void_count)
                   : copy.dashboard.noVoidsToday;
@@ -345,14 +348,11 @@ export default function DashboardView() {
                   ? Number(summary.net_sales) / summary.order_count : 0;
                 prevNum = yesterday && yesterday.order_count > 0
                   ? Number(yesterday.net_sales) / yesterday.order_count : null;
-                value = summary.order_count > 0
-                  ? formatMoney((currentNum).toFixed(2))
-                  : formatMoney("0.00");
                 sub = copy.dashboard.perCompletedOrder;
+                isMoney = true;
               } else {
                 currentNum = summary.refund_count;
                 prevNum = yesterday?.refund_count ?? null;
-                value = String(summary.refund_count);
                 sub = formatMoney(summary.refund_total);
               }
 
@@ -367,7 +367,14 @@ export default function DashboardView() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-2xl font-bold">{value}</p>
+                    <p className="text-2xl font-bold">
+                      <CountUp
+                        value={currentNum}
+                        format={isMoney
+                          ? (n) => formatMoney(n.toFixed(2))
+                          : (n) => String(Math.round(n))}
+                      />
+                    </p>
                     <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
                     <div className="mt-1.5">
                       <DeltaBadge current={currentNum} previous={prevNum} />

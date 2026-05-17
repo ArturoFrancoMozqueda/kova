@@ -80,6 +80,19 @@
     --kova-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
+  @keyframes kovaLivePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(30, 191, 138, 0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(30, 191, 138, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(30, 191, 138, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kova-live-pulse-dot,
+    [style*="kovaLivePulse"] {
+      animation: none !important;
+    }
+  }
+
   * {
     @apply border-border;
   }
