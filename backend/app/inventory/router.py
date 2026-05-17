@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
+from app.billing.access import require_commercial_access
 from app.db import get_db
 from app.inventory import repository as repo
 from app.inventory import service
@@ -16,7 +17,7 @@ from app.inventory.schemas import (
     StockTakeCreate,
 )
 from app.rbac.permissions import Permission
-from app.shared.dependencies import get_current_session, require_permission
+from app.shared.dependencies import get_current_session
 from app.shared.exceptions import bad_request
 
 router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
@@ -58,7 +59,7 @@ def adjust_stock(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.INVENTORY_ADJUST)
+        require_commercial_access(Permission.INVENTORY_ADJUST)
     ),
 ):
     user, membership, _ = ctx
@@ -86,7 +87,7 @@ def stock_take(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.INVENTORY_ADJUST)
+        require_commercial_access(Permission.INVENTORY_ADJUST)
     ),
 ):
     user, membership, _ = ctx
@@ -142,7 +143,7 @@ def update_low_stock_threshold(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.INVENTORY_ADJUST)
+        require_commercial_access(Permission.INVENTORY_ADJUST)
     ),
 ):
     user, membership, _ = ctx

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
+from app.billing.access import require_commercial_access
 from app.db import get_db
 from app.modifiers import service
 from app.modifiers.schemas import (
@@ -16,7 +17,7 @@ from app.modifiers.schemas import (
     SetProductModifierGroups,
 )
 from app.rbac.permissions import Permission
-from app.shared.dependencies import get_current_session, require_permission
+from app.shared.dependencies import get_current_session
 from app.shared.exceptions import bad_request
 
 router = APIRouter(prefix="/api/v1/catalog", tags=["modifiers"])
@@ -46,7 +47,7 @@ def create_modifier_group(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_CREATE)
+        require_commercial_access(Permission.CATALOG_CREATE)
     ),
 ) -> ModifierGroupResponse:
     user, membership, _ = ctx
@@ -66,7 +67,7 @@ def update_modifier_group(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_UPDATE)
+        require_commercial_access(Permission.CATALOG_UPDATE)
     ),
 ) -> ModifierGroupResponse:
     user, membership, _ = ctx
@@ -85,7 +86,7 @@ def deactivate_modifier_group(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_DELETE)
+        require_commercial_access(Permission.CATALOG_DELETE)
     ),
 ) -> ModifierGroupResponse:
     user, membership, _ = ctx
@@ -109,7 +110,7 @@ def create_modifier_option(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_CREATE)
+        require_commercial_access(Permission.CATALOG_CREATE)
     ),
 ) -> ModifierOptionResponse:
     user, membership, _ = ctx
@@ -131,7 +132,7 @@ def update_modifier_option(
     body: ModifierOptionUpdate,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_UPDATE)
+        require_commercial_access(Permission.CATALOG_UPDATE)
     ),
 ) -> ModifierOptionResponse:
     user, membership, _ = ctx
@@ -150,7 +151,7 @@ def deactivate_modifier_option(
     option_id: UUID,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_DELETE)
+        require_commercial_access(Permission.CATALOG_DELETE)
     ),
 ) -> ModifierOptionResponse:
     user, membership, _ = ctx
@@ -169,7 +170,7 @@ def set_product_modifier_groups(
     body: SetProductModifierGroups,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_UPDATE)
+        require_commercial_access(Permission.CATALOG_UPDATE)
     ),
 ) -> list[ModifierGroupResponse]:
     user, membership, _ = ctx

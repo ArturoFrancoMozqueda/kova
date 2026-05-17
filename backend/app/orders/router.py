@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
 from app.db import get_db
+from app.billing.access import require_commercial_access
 from app.orders import repository, service
 from app.orders.schemas import (
     OrderCreate,
@@ -18,7 +19,7 @@ from app.orders.schemas import (
     VoidResponse,
 )
 from app.rbac.permissions import Permission
-from app.shared.dependencies import get_current_session, require_permission
+from app.shared.dependencies import get_current_session
 from app.shared.exceptions import bad_request
 
 router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
@@ -56,7 +57,7 @@ def create_order(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.ORDERS_CREATE)
+        require_commercial_access(Permission.ORDERS_CREATE)
     ),
 ):
     user, membership, _ = ctx
@@ -99,7 +100,7 @@ def create_refund(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.ORDERS_REFUND)
+        require_commercial_access(Permission.ORDERS_REFUND)
     ),
 ):
     user, membership, _ = ctx
@@ -143,7 +144,7 @@ def create_void(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.ORDERS_VOID)
+        require_commercial_access(Permission.ORDERS_VOID)
     ),
 ):
     user, membership, _ = ctx

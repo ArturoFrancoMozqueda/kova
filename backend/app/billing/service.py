@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.billing import repository
+from app.billing.access import get_billing_access_status, serialize_billing_access
 from app.billing.models import Subscription, WebhookEvent
 from app.billing.stripe_client import (
     StripeCheckoutClient,
@@ -155,6 +156,7 @@ def verify_stripe_signature(
 
 def get_subscription_status(db: Session, *, tenant_id: UUID) -> dict:
     subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
+    access = get_billing_access_status(db, tenant_id=tenant_id)
     return {
         "plan": {
             "name": STANDARD_PLAN_NAME,
@@ -163,6 +165,7 @@ def get_subscription_status(db: Session, *, tenant_id: UUID) -> dict:
             "interval": STANDARD_PLAN_INTERVAL,
         },
         "subscription": subscription,
+        "access": serialize_billing_access(access),
     }
 
 

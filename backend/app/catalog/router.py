@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
+from app.billing.access import require_commercial_access
 from app.catalog import service
 from app.catalog.schemas import (
     CategoryCreate,
@@ -16,7 +17,7 @@ from app.catalog.schemas import (
 from app.db import get_db
 from app.modifiers import service as modifier_service
 from app.rbac.permissions import Permission
-from app.shared.dependencies import get_current_session, require_permission
+from app.shared.dependencies import get_current_session
 from app.shared.exceptions import bad_request
 
 router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
@@ -44,7 +45,7 @@ def create_category(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_CREATE)
+        require_commercial_access(Permission.CATALOG_CREATE)
     ),
 ):
     user, membership, _ = ctx
@@ -67,7 +68,7 @@ def update_category(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_UPDATE)
+        require_commercial_access(Permission.CATALOG_UPDATE)
     ),
 ):
     user, membership, _ = ctx
@@ -90,7 +91,7 @@ def deactivate_category(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_DELETE)
+        require_commercial_access(Permission.CATALOG_DELETE)
     ),
 ):
     user, membership, _ = ctx
@@ -129,7 +130,7 @@ def create_product(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_CREATE)
+        require_commercial_access(Permission.CATALOG_CREATE)
     ),
 ):
     user, membership, _ = ctx
@@ -152,7 +153,7 @@ def update_product(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_UPDATE)
+        require_commercial_access(Permission.CATALOG_UPDATE)
     ),
 ):
     user, membership, _ = ctx
@@ -175,7 +176,7 @@ def deactivate_product(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.CATALOG_DELETE)
+        require_commercial_access(Permission.CATALOG_DELETE)
     ),
 ):
     user, membership, _ = ctx

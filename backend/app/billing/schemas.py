@@ -31,9 +31,19 @@ class SubscriptionResponse(BaseModel):
     updated_at: datetime
 
 
+class BillingAccessResponse(BaseModel):
+    allowed: bool
+    reason: str
+    trialing: bool
+    trial_ends_at: datetime | None
+    blocked_at: datetime | None
+    recovery_path: str
+
+
 class BillingSubscriptionResponse(BaseModel):
     plan: StandardPlanResponse
     subscription: SubscriptionResponse | None
+    access: BillingAccessResponse
 
 
 class CheckoutSessionResponse(BaseModel):

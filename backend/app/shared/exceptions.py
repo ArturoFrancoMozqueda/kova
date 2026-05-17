@@ -13,6 +13,10 @@ def forbidden(detail: str = "Permission denied") -> HTTPException:
     return HTTPException(status_code=403, detail=detail)
 
 
+def payment_required(detail: str | dict = "Payment required") -> HTTPException:
+    return HTTPException(status_code=402, detail=detail)
+
+
 def bad_request(detail: str) -> HTTPException:
     return HTTPException(status_code=400, detail=detail)
 

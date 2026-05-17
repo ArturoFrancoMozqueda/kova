@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, Header, Response
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
+from app.billing.access import require_commercial_access
 from app.db import get_db
 from app.rbac.permissions import Permission
-from app.shared.dependencies import get_current_session, require_permission
+from app.shared.dependencies import get_current_session
 from app.shared.exceptions import bad_request
 from app.shifts import service
 from app.shifts.schemas import CashMovementCreate, ShiftCloseCreate, ShiftOpenCreate
@@ -27,7 +28,7 @@ def open_shift(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.SHIFTS_OPEN)
+        require_commercial_access(Permission.SHIFTS_OPEN)
     ),
 ):
     user, membership, _ = ctx
@@ -78,7 +79,7 @@ def close_shift(
     db: Session = Depends(get_db),
     idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.SHIFTS_CLOSE)
+        require_commercial_access(Permission.SHIFTS_CLOSE)
     ),
 ):
     user, membership, _ = ctx
@@ -100,7 +101,7 @@ def record_movement(
     body: CashMovementCreate,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.SHIFTS_OPEN)
+        require_commercial_access(Permission.SHIFTS_OPEN)
     ),
 ):
     user, membership, _ = ctx
