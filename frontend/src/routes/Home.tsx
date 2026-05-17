@@ -613,7 +613,7 @@ function Footer() {
         </div>
       </div>
       <div className="max-w-6xl mx-auto px-6 pb-10 text-[11.5px] text-[#4a4a4a] font-mono">
-        © 2026 Pulso. Hecho en México.
+        © 2026 kova. Hecho en México.
       </div>
     </footer>
   );
