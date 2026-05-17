@@ -563,7 +563,7 @@ function SocialProof() {
         <div>El PoS que despegara tu negocio</div>
         <div className="flex items-center gap-6">
           {items.map((it) => (
-            <div key={it.label} className="flex items-center gap-2" style={{ color: "var(--lp-accent)" }}>
+            <div key={it.label} className="flex items-center gap-2" style={{ color: "var(--kova-blue)" }}>
               {it.icon}
               <span className="text-[#7a7a7a]">{it.label}</span>
             </div>
