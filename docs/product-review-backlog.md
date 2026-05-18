@@ -283,6 +283,7 @@ Make analytics trustworthy and useful for owners without inventing data.
 - [ ] Add `GET /api/v1/reports/sales-by-hour?start=&end=` for real hourly sales trend.
 - [ ] Add `GET /api/v1/reports/sales-by-employee?start=&end=` for coaching-oriented employee performance.
 - [ ] Add `GET /api/v1/reports/refunds-by-reason?start=&end=` because `refunds.reason` exists in the schema.
+- [ ] Add `GET /api/v1/inventory/velocity` for 7-day stock velocity and days until out.
 - [ ] Postpone business health summary until hourly and employee reporting are in production.
 - [ ] Add report empty states with actions to register/catalog.
 - [ ] Add export decision: defer CSV or add minimal CSV for orders/reports.

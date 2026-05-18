@@ -10,6 +10,7 @@ from app.inventory import repository as repo
 from app.inventory import service
 from app.inventory.schemas import (
     InventoryAdjustmentCreate,
+    InventoryVelocityItem,
     InventoryMovementResponse,
     InventoryStockItem,
     LowStockThresholdUpdate,
@@ -45,6 +46,15 @@ def list_low_stock(
 ):
     _, membership, _ = ctx
     return service.list_low_stock(db, tenant_id=membership.tenant_id)
+
+
+@router.get("/velocity", response_model=list[InventoryVelocityItem])
+def inventory_velocity(
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+):
+    _, membership, _ = ctx
+    return service.inventory_velocity(db, tenant_id=membership.tenant_id)
 
 
 @router.post(

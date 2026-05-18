@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -59,3 +60,11 @@ class MovementHistoryResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class InventoryVelocityItem(BaseModel):
+    product_id: UUID
+    product_name: str
+    units_per_day_7d: Decimal
+    days_until_out: Decimal | None
+    stock_on_hand: int

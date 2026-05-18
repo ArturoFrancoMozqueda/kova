@@ -33,3 +33,11 @@ export type MovementHistoryResponse = {
   limit: number;
   offset: number;
 };
+
+export type InventoryVelocityItem = {
+  product_id: string;
+  product_name: string;
+  units_per_day_7d: string;
+  days_until_out: string | null;
+  stock_on_hand: number;
+};

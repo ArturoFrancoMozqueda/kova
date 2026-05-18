@@ -1,4 +1,9 @@
-import type { MovementHistoryResponse, MovementResponse, StockItem } from "./types";
+import type {
+  InventoryVelocityItem,
+  MovementHistoryResponse,
+  MovementResponse,
+  StockItem,
+} from "./types";
 
 class ApiError extends Error {
   constructor(
@@ -29,6 +34,10 @@ export function listStock(): Promise<StockItem[]> {
 
 export function listLowStock(): Promise<StockItem[]> {
   return requestJson<StockItem[]>("/api/v1/inventory/low-stock");
+}
+
+export function listVelocity(): Promise<InventoryVelocityItem[]> {
+  return requestJson<InventoryVelocityItem[]>("/api/v1/inventory/velocity");
 }
 
 export function adjustStock(

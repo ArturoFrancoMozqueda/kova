@@ -423,6 +423,10 @@ export const copy = {
     stockAfter: "Stock después",
     viewHistory: "Historial",
     hideHistory: "Ocultar",
+    stockVelocity: "Velocidad de stock",
+    daysUntilOut: (name: string, days: number) =>
+      `${name} se agotará en ~${days} días con el ritmo actual.`,
+    reorderSuggestion: "Sugerencia: preparar reabasto.",
   },
   inventoryModal: {
     adjustmentTitle: "Ajustar stock",

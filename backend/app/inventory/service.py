@@ -1,8 +1,11 @@
 import hashlib
 import json
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
@@ -14,6 +17,7 @@ from app.inventory.schemas import (
     LowStockThresholdUpdate,
     StockTakeCreate,
 )
+from app.orders.models import InventoryMovement
 from app.shared.exceptions import bad_request, not_found
 
 
@@ -85,6 +89,54 @@ def list_stock(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
 
 def list_low_stock(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
     return [item for item in list_stock(db, tenant_id=tenant_id) if item["is_low_stock"]]
+
+
+def inventory_velocity(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
+    since = datetime.now(UTC) - timedelta(days=7)
+    sales_rows = (
+        db.query(
+            InventoryMovement.product_id,
+            func.coalesce(func.sum(InventoryMovement.quantity_delta), 0).label("units"),
+        )
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.movement_type == "sale",
+            InventoryMovement.created_at >= since,
+        )
+        .group_by(InventoryMovement.product_id)
+        .all()
+    )
+    sold_by_product = {row.product_id: abs(int(row.units or 0)) for row in sales_rows}
+
+    results: list[dict[str, Any]] = []
+    for product in repo.list_active_products(db, tenant_id=tenant_id):
+        if not product.track_inventory:
+            continue
+        stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+        units_per_day = (Decimal(sold_by_product.get(product.id, 0)) / Decimal("7")).quantize(
+            Decimal("0.01")
+        )
+        days_until_out = None
+        if units_per_day > 0:
+            days_until_out = (Decimal(stock) / units_per_day).quantize(Decimal("0.1"))
+        results.append(
+            {
+                "product_id": product.id,
+                "product_name": product.name,
+                "units_per_day_7d": units_per_day,
+                "days_until_out": days_until_out,
+                "stock_on_hand": stock,
+            }
+        )
+
+    return sorted(
+        results,
+        key=lambda row: (
+            row["days_until_out"] is None,
+            row["days_until_out"] if row["days_until_out"] is not None else Decimal("999999"),
+            row["product_name"],
+        ),
+    )
 
 
 def adjust_stock(

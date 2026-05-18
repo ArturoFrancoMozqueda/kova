@@ -19,6 +19,10 @@ Low-stock visibility prevents missed sales for bakery and small food retail tena
 - The stock view returns `is_low_stock=true` when stock on hand is less than or equal to the threshold.
 - A low-stock endpoint returns only low-stock tracked products.
 - Threshold updates require `inventory.adjust`.
+- `GET /api/v1/inventory/velocity` returns 7-day sale velocity for tracked active products.
+- Velocity is calculated from tenant-scoped `inventory_movements` rows where `movement_type = 'sale'`.
+- Each velocity row includes `product_id`, `product_name`, `units_per_day_7d`, `days_until_out`, and `stock_on_hand`.
+- `days_until_out` is `null` when there is no sale velocity for the product.
 
 ## Non-Functional Requirements
 
@@ -51,3 +55,4 @@ Low-stock visibility prevents missed sales for bakery and small food retail tena
 
 - Products at or below threshold appear in the low-stock list.
 - Tenant B cannot see Tenant A's low-stock products.
+- Products with recent sale movements show estimated days until out.

@@ -2,8 +2,8 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
-import { adjustStock, listLowStock, listMovements, listStock, recordStockTake, updateLowStockThreshold } from "./api";
-import type { MovementHistoryItem, StockItem } from "./types";
+import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
+import type { InventoryVelocityItem, MovementHistoryItem, StockItem } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2,
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "loaded"; stock: StockItem[]; lowStock: StockItem[] };
+  | { status: "loaded"; stock: StockItem[]; lowStock: StockItem[]; velocity: InventoryVelocityItem[] };
 
 type ModalState =
   | { type: "adjust"; item: StockItem }
@@ -36,8 +36,12 @@ export default function InventoryView() {
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
     try {
-      const [stock, lowStock] = await Promise.all([listStock(), listLowStock()]);
-      setLoadState({ status: "loaded", stock, lowStock });
+      const [stock, lowStock, velocity] = await Promise.all([
+        listStock(),
+        listLowStock(),
+        listVelocity().catch(() => [] as InventoryVelocityItem[]),
+      ]);
+      setLoadState({ status: "loaded", stock, lowStock, velocity });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -122,6 +126,38 @@ export default function InventoryView() {
       )}
 
       {/* Low stock alerts */}
+      {loadState.velocity.some((item) => item.days_until_out !== null) && (
+        <Card className="border-kova-blue/20 bg-kova-blue/5 mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Package className="h-4 w-4 text-kova-blue" />
+              {copy.inventoryView.stockVelocity}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {loadState.velocity
+                .filter((item) => item.days_until_out !== null)
+                .slice(0, 3)
+                .map((item) => (
+                  <div key={item.product_id} className="rounded-lg border bg-background p-3">
+                    <p className="text-sm font-semibold">{item.product_name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {copy.inventoryView.daysUntilOut(
+                        item.product_name,
+                        Math.ceil(Number(item.days_until_out)),
+                      )}
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-kova-blue">
+                      {copy.inventoryView.reorderSuggestion}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {loadState.lowStock.length > 0 && (
         <Card className="border-warning/30 mb-6">
           <CardHeader className="pb-3">
