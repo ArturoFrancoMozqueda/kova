@@ -10,9 +10,9 @@ from app.inventory import repository as repo
 from app.inventory import service
 from app.inventory.schemas import (
     InventoryAdjustmentCreate,
-    InventoryVelocityItem,
     InventoryMovementResponse,
     InventoryStockItem,
+    InventoryVelocityItem,
     LowStockThresholdUpdate,
     MovementHistoryResponse,
     StockTakeCreate,
