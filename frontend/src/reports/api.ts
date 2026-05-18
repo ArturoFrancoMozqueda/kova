@@ -42,6 +42,16 @@ export function getPaymentBreakdown(
   );
 }
 
-export function getTopProducts(startDate: string, endDate: string): Promise<TopProducts> {
-  return requestJson<TopProducts>(`/api/v1/reports/top-products${query(startDate, endDate)}`);
+export function getTopProducts(
+  startDate: string,
+  endDate: string,
+  limit?: number,
+): Promise<TopProducts> {
+  const base = query(startDate, endDate);
+  const sep = base ? "&" : "?";
+  const url =
+    limit != null
+      ? `/api/v1/reports/top-products${base}${sep}limit=${limit}`
+      : `/api/v1/reports/top-products${base}`;
+  return requestJson<TopProducts>(url);
 }

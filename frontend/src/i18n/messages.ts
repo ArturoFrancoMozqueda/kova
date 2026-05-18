@@ -459,6 +459,18 @@ export const copy = {
     noProducts: "Sin ventas de productos en este rango.",
     permissionHidden: "Reportes no disponibles para tu rol.",
     soldCount: (n: number) => `${n} vendido${n === 1 ? "" : "s"}`,
+    topProductNew: "Nuevo en top",
+    topProductDeltaUp: (pct: number) => `▲ ${pct}% vs. periodo anterior`,
+    topProductDeltaDown: (pct: number) => `▼ ${pct}% vs. periodo anterior`,
+    topProductDeltaFlat: "Sin cambio vs. periodo anterior",
+    paymentInsightTitle: "Mezcla de pagos",
+    paymentInsightCashHeavy: (pct: number) =>
+      `${pct}% de tus cobros fueron en efectivo. Considera incentivar pagos con tarjeta o transferencia para reducir tiempo en caja y manejo de cambio.`,
+    paymentInsightNewMethod: (method: string) =>
+      `Apareció un método nuevo este periodo: ${method}.`,
+    paymentInsightLostMethod: (method: string) =>
+      `Dejaste de cobrar con ${method} este periodo.`,
+    paymentInsightBalanced: "Mezcla de pagos balanceada — sin alertas por método.",
   },
   orderList: {
     title: "Órdenes",

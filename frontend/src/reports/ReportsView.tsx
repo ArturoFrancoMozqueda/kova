@@ -24,6 +24,8 @@ import {
   DollarSign,
   RotateCcw,
   TrendingUp,
+  TrendingDown,
+  Minus,
   ShoppingCart,
   XCircle,
   BarChart3,
@@ -32,6 +34,7 @@ import {
   AlertCircle,
   ShieldOff,
   Filter,
+  Sparkles,
 } from "lucide-react";
 
 type LoadState =
@@ -42,10 +45,32 @@ type LoadState =
       summary: SalesSummary;
       payments: PaymentBreakdown;
       products: TopProducts;
+      prevPayments: PaymentBreakdown | null;
+      prevProducts: TopProducts | null;
     };
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function previousRangeOf(startDate: string, endDate: string): { start: string; end: string } {
+  // Inclusive day count. Previous range ends the day before startDate.
+  const s = new Date(`${startDate}T00:00:00`);
+  const e = new Date(`${endDate}T00:00:00`);
+  const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
+  const prevEnd = new Date(s);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - (days - 1));
+  return {
+    start: prevStart.toISOString().slice(0, 10),
+    end: prevEnd.toISOString().slice(0, 10),
+  };
+}
+
+function pctRound(pct: number): number {
+  const abs = Math.abs(pct);
+  return abs < 1 ? 1 : Math.round(abs);
 }
 
 export default function ReportsView() {
@@ -61,12 +86,22 @@ export default function ReportsView() {
     }
     setLoadState({ status: "loading" });
     try {
-      const [summary, payments, products] = await Promise.all([
+      const prev = previousRangeOf(startDate, endDate);
+      const [summary, payments, products, prevPayments, prevProducts] = await Promise.all([
         getSalesSummary(startDate, endDate),
         getPaymentBreakdown(startDate, endDate),
         getTopProducts(startDate, endDate),
+        getPaymentBreakdown(prev.start, prev.end).catch(() => null),
+        getTopProducts(prev.start, prev.end, 20).catch(() => null),
       ]);
-      setLoadState({ status: "loaded", summary, payments, products });
+      setLoadState({
+        status: "loaded",
+        summary,
+        payments,
+        products,
+        prevPayments,
+        prevProducts,
+      });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -111,8 +146,11 @@ export default function ReportsView() {
             {copy.reportsView.title}
           </h1>
         </div>
-        <form onSubmit={submit} className="flex items-end gap-3">
-          <div className="space-y-1.5">
+        <form
+          onSubmit={submit}
+          className="flex flex-wrap items-end gap-3"
+        >
+          <div className="flex-1 min-w-[140px] space-y-1.5">
             <Label htmlFor="report-start-date">
               {copy.reportsView.startDate}
             </Label>
@@ -121,10 +159,10 @@ export default function ReportsView() {
               type="date"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
-              className="w-40"
+              className="w-full sm:w-40"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex-1 min-w-[140px] space-y-1.5">
             <Label htmlFor="report-end-date">
               {copy.reportsView.endDate}
             </Label>
@@ -133,7 +171,7 @@ export default function ReportsView() {
               type="date"
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
-              className="w-40"
+              className="w-full sm:w-40"
             />
           </div>
           <Button type="submit" size="sm">
@@ -313,6 +351,14 @@ export default function ReportsView() {
             </CardContent>
           </Card>
 
+          {/* Payment mix insight */}
+          {loadState.payments.payments.length > 0 ? (
+            <PaymentMixInsight
+              current={loadState.payments}
+              previous={loadState.prevPayments}
+            />
+          ) : null}
+
           {/* Top products */}
           <Card>
             <CardHeader>
@@ -328,38 +374,82 @@ export default function ReportsView() {
                 </p>
               ) : (
                 <div className="divide-y divide-border">
-                  {loadState.products.products.map((product, index) => (
-                    <div
-                      key={product.product_id}
-                      className="flex items-center gap-4 py-3"
-                    >
-                      <span
-                        className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-                          index === 0
-                            ? "bg-kova-blue/10 text-kova-blue"
-                            : index === 1
-                              ? "bg-kova-mist text-kova-muted"
-                              : index === 2
-                                ? "bg-warning/10 text-warning"
-                                : "bg-muted text-muted-foreground",
-                        )}
+                  {loadState.products.products.map((product, index) => {
+                    const prev = loadState.prevProducts?.products.find(
+                      (p) => p.product_id === product.product_id,
+                    );
+                    let deltaNode: React.ReactNode = null;
+                    if (loadState.prevProducts) {
+                      if (!prev) {
+                        deltaNode = (
+                          <Badge variant="secondary" className="gap-1">
+                            <Sparkles className="h-3 w-3" />
+                            {copy.reportsView.topProductNew}
+                          </Badge>
+                        );
+                      } else if (prev.quantity_sold > 0) {
+                        const pct =
+                          ((product.quantity_sold - prev.quantity_sold) /
+                            prev.quantity_sold) *
+                          100;
+                        if (pct > 5) {
+                          deltaNode = (
+                            <span className="flex items-center gap-0.5 text-xs font-medium text-kova-growth tabular-nums">
+                              <TrendingUp className="h-3 w-3" />
+                              {copy.reportsView.topProductDeltaUp(pctRound(pct))}
+                            </span>
+                          );
+                        } else if (pct < -5) {
+                          deltaNode = (
+                            <span className="flex items-center gap-0.5 text-xs font-medium text-destructive tabular-nums">
+                              <TrendingDown className="h-3 w-3" />
+                              {copy.reportsView.topProductDeltaDown(pctRound(pct))}
+                            </span>
+                          );
+                        } else {
+                          deltaNode = (
+                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                              <Minus className="h-3 w-3" />
+                              {copy.reportsView.topProductDeltaFlat}
+                            </span>
+                          );
+                        }
+                      }
+                    }
+                    return (
+                      <div
+                        key={product.product_id}
+                        className="flex items-center gap-4 py-3"
                       >
-                        {index + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {product.product_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {copy.reportsView.soldCount(product.quantity_sold)}
-                        </p>
+                        <span
+                          className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                            index === 0
+                              ? "bg-kova-blue/10 text-kova-blue"
+                              : index === 1
+                                ? "bg-kova-mist text-kova-muted"
+                                : index === 2
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {product.product_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {copy.reportsView.soldCount(product.quantity_sold)}
+                          </p>
+                          {deltaNode && <div className="mt-1">{deltaNode}</div>}
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums">
+                          {formatMoney(product.gross_sales)}
+                        </span>
                       </div>
-                      <span className="text-sm font-semibold tabular-nums">
-                        {formatMoney(product.gross_sales)}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -367,6 +457,64 @@ export default function ReportsView() {
         </>
       ) : null}
     </main>
+  );
+}
+
+function PaymentMixInsight({
+  current,
+  previous,
+}: {
+  current: PaymentBreakdown;
+  previous: PaymentBreakdown | null;
+}) {
+  const total = current.payments.reduce((s, p) => s + Number(p.amount), 0);
+  if (total <= 0) return null;
+
+  const currentMethods = new Set(current.payments.map((p) => p.method));
+  const prevMethods = previous ? new Set(previous.payments.map((p) => p.method)) : null;
+
+  // Cash dominance
+  const cash = current.payments.find((p) => p.method === "cash");
+  const cashPct = cash ? Math.round((Number(cash.amount) / total) * 100) : 0;
+
+  const lines: string[] = [];
+  if (cashPct >= 70) {
+    lines.push(copy.reportsView.paymentInsightCashHeavy(cashPct));
+  }
+  if (prevMethods) {
+    const newMethods = [...currentMethods].filter((m) => !prevMethods.has(m));
+    const lostMethods = [...prevMethods].filter((m) => !currentMethods.has(m));
+    for (const m of newMethods) {
+      lines.push(copy.reportsView.paymentInsightNewMethod(reasonLabel(m)));
+    }
+    for (const m of lostMethods) {
+      lines.push(copy.reportsView.paymentInsightLostMethod(reasonLabel(m)));
+    }
+  }
+
+  if (lines.length === 0) return null;
+
+  return (
+    <Card className="border-kova-blue/20 bg-kova-blue/5">
+      <CardContent className="flex items-start gap-3 p-5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-blue/15">
+          <Sparkles className="h-4 w-4 text-kova-blue" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold">
+            {copy.reportsView.paymentInsightTitle}
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {lines.map((line, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-kova-muted">
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-kova-blue/60" />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
