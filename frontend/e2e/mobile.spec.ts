@@ -159,8 +159,17 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
   await page.route("**/api/v1/reports/top-products**", (route) =>
     route.fulfill({ json: { products: [] } }),
   );
+  await page.route("**/api/v1/reports/sales-by-hour**", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/reports/sales-by-employee**", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/reports/refunds-by-reason**", (route) =>
+    route.fulfill({ json: [] }),
+  );
 
-  for (const path of ["/register", "/dashboard", "/settings/billing"]) {
+  for (const path of ["/register", "/dashboard", "/reports", "/settings/billing"]) {
     await page.goto(path);
     await expectNoHorizontalOverflow(page);
   }

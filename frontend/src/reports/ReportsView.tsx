@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { type ComponentType, FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
 import {
   REPORTS_VIEW_ALL_PERMISSION,
   usePermission,
@@ -13,6 +13,7 @@ import {
   getSalesSummary,
   getTopProducts,
 } from "./api";
+import { InteractiveBarChart, InteractiveRankChart, type ChartRow } from "./InteractiveCharts";
 import type {
   PaymentBreakdown,
   RefundsByReasonRow,
@@ -38,12 +39,9 @@ import {
   DollarSign,
   RotateCcw,
   TrendingUp,
-  TrendingDown,
-  Minus,
   ShoppingCart,
   XCircle,
   BarChart3,
-  Trophy,
   RefreshCw,
   AlertCircle,
   ShieldOff,
@@ -83,11 +81,6 @@ function previousRangeOf(startDate: string, endDate: string): { start: string; e
     start: prevStart.toISOString().slice(0, 10),
     end: prevEnd.toISOString().slice(0, 10),
   };
-}
-
-function pctRound(pct: number): number {
-  const abs = Math.abs(pct);
-  return abs < 1 ? 1 : Math.round(abs);
 }
 
 export default function ReportsView() {
@@ -262,73 +255,17 @@ export default function ReportsView() {
       {/* Loaded content */}
       {loadState.status === "loaded" ? (
         <>
-          {/* KPI cards */}
-          <section
-            className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6"
-            aria-label={copy.reportsView.title}
-          >
-            <KpiCard
-              icon={DollarSign}
-              label={copy.reportsView.grossSales}
-              value={formatMoney(loadState.summary.gross_sales)}
-              accent="text-kova-growth"
-            />
-            <KpiCard
-              icon={RotateCcw}
-              label={copy.reportsView.refunds}
-              value={formatMoney(loadState.summary.refund_total)}
-              accent="text-destructive"
-            />
-            <KpiCard
-              icon={TrendingUp}
-              label={copy.reportsView.netSales}
-              value={formatMoney(loadState.summary.net_sales)}
-              accent="text-kova-blue"
-            />
-            <KpiCard
-              icon={ShoppingCart}
-              label={copy.reportsView.orders}
-              value={String(loadState.summary.order_count)}
-              accent="text-kova-ink"
-            />
-            <KpiCard
-              icon={TrendingUp}
-              label={copy.reportsView.avgTicket}
-              value={
-                loadState.summary.order_count > 0
-                  ? formatMoney((Number(loadState.summary.net_sales) / loadState.summary.order_count).toFixed(2))
-                  : formatMoney("0.00")
-              }
-              accent="text-kova-blue-light"
-            />
-            <KpiCard
-              icon={XCircle}
-              label={copy.reportsView.voids}
-              value={String(loadState.summary.void_count)}
-              accent="text-warning"
-            />
-          </section>
+          <PeriodNarrativeCard
+            summary={loadState.summary}
+            hourly={loadState.hourly}
+            payments={loadState.payments}
+            products={loadState.products}
+            employees={loadState.employees}
+            refundReasons={loadState.refundReasons}
+          />
 
-          <Card>
-            <CardContent className="flex items-start gap-3 p-5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <BarChart3 className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">{copy.reportsView.periodInsight}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {loadState.summary.order_count > 0
-                    ? copy.reportsView.salesInsightActive(
-                        loadState.summary.order_count,
-                        formatMoney(loadState.summary.net_sales),
-                      )
-                    : copy.reportsView.salesInsightEmpty}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <KpiRow summary={loadState.summary} />
 
-          {/* Payment breakdown */}
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -337,71 +274,17 @@ export default function ReportsView() {
               </div>
             </CardHeader>
             <CardContent>
-              {loadState.hourly.every((row) => row.order_count === 0) ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  {copy.reportsView.noHourlySales}
-                </p>
-              ) : (
-                <HourlyChart rows={loadState.hourly} />
-              )}
+              <HourlyChart rows={loadState.hourly} />
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>{copy.reportsView.paymentBreakdown}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadState.payments.payments.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  {copy.reportsView.noPayments}
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {(() => {
-                    const maxAmount = Math.max(
-                      ...loadState.payments.payments.map((p) =>
-                        parseFloat(p.amount),
-                      ),
-                      1,
-                    );
-                    return loadState.payments.payments.map((payment) => {
-                      const pct =
-                        (parseFloat(payment.amount) / maxAmount) * 100;
-                      return (
-                        <div key={payment.method} className="space-y-1.5">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium">
-                              {reasonLabel(payment.method)}
-                            </span>
-                            <div className="flex items-center gap-3">
-                              <Badge variant="secondary">
-                                {payment.payment_count}
-                              </Badge>
-                              <span className="font-semibold tabular-nums">
-                                {formatMoney(payment.amount)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-muted">
-                            <div
-                              className="h-2 rounded-full bg-primary transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <section className="grid gap-6 xl:grid-cols-2">
+            <PaymentBreakdownChart payments={loadState.payments} />
+            <TopProductsChart products={loadState.products} />
+            <EmployeePerformance rows={loadState.employees} />
+            <RefundReasonBreakdown rows={loadState.refundReasons} />
+          </section>
 
-          {/* Payment mix insight */}
           {loadState.payments.payments.length > 0 ? (
             <PaymentMixInsight
               current={loadState.payments}
@@ -409,137 +292,13 @@ export default function ReportsView() {
             />
           ) : null}
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>{copy.reportsView.employeePerformance}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadState.employees.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  {copy.reportsView.noEmployeeSales}
-                </p>
-              ) : (
-                <EmployeePerformance rows={loadState.employees} />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <RotateCcw className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>{copy.reportsView.refundsByReason}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadState.refundReasons.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  {copy.reportsView.noRefundReasons}
-                </p>
-              ) : (
-                <RefundReasonBreakdown rows={loadState.refundReasons} />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Top products */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>{copy.reportsView.topProducts}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadState.products.products.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  {copy.reportsView.noProducts}
-                </p>
-              ) : (
-                <div className="divide-y divide-border">
-                  {loadState.products.products.map((product, index) => {
-                    const prev = loadState.prevProducts?.products.find(
-                      (p) => p.product_id === product.product_id,
-                    );
-                    let deltaNode: React.ReactNode = null;
-                    if (loadState.prevProducts) {
-                      if (!prev) {
-                        deltaNode = (
-                          <Badge variant="secondary" className="gap-1">
-                            <Sparkles className="h-3 w-3" />
-                            {copy.reportsView.topProductNew}
-                          </Badge>
-                        );
-                      } else if (prev.quantity_sold > 0) {
-                        const pct =
-                          ((product.quantity_sold - prev.quantity_sold) /
-                            prev.quantity_sold) *
-                          100;
-                        if (pct > 5) {
-                          deltaNode = (
-                            <span className="flex items-center gap-0.5 text-xs font-medium text-kova-growth tabular-nums">
-                              <TrendingUp className="h-3 w-3" />
-                              {copy.reportsView.topProductDeltaUp(pctRound(pct))}
-                            </span>
-                          );
-                        } else if (pct < -5) {
-                          deltaNode = (
-                            <span className="flex items-center gap-0.5 text-xs font-medium text-destructive tabular-nums">
-                              <TrendingDown className="h-3 w-3" />
-                              {copy.reportsView.topProductDeltaDown(pctRound(pct))}
-                            </span>
-                          );
-                        } else {
-                          deltaNode = (
-                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                              <Minus className="h-3 w-3" />
-                              {copy.reportsView.topProductDeltaFlat}
-                            </span>
-                          );
-                        }
-                      }
-                    }
-                    return (
-                      <div
-                        key={product.product_id}
-                        className="flex items-center gap-4 py-3"
-                      >
-                        <span
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-                            index === 0
-                              ? "bg-kova-blue/10 text-kova-blue"
-                              : index === 1
-                                ? "bg-kova-mist text-kova-muted"
-                                : index === 2
-                                  ? "bg-warning/10 text-warning"
-                                  : "bg-muted text-muted-foreground",
-                          )}
-                        >
-                          {index + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {product.product_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {copy.reportsView.soldCount(product.quantity_sold)}
-                          </p>
-                          {deltaNode && <div className="mt-1">{deltaNode}</div>}
-                        </div>
-                        <span className="text-sm font-semibold tabular-nums">
-                          {formatMoney(product.gross_sales)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <RecommendedActions
+            payments={loadState.payments}
+            products={loadState.products}
+            employees={loadState.employees}
+            refundReasons={loadState.refundReasons}
+            orderCount={loadState.summary.order_count}
+          />
         </>
       ) : null}
     </main>
@@ -551,79 +310,293 @@ function hourRange(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00-${String(next).padStart(2, "0")}:00`;
 }
 
-function HourlyChart({ rows }: { rows: SalesByHourRow[] }) {
-  const max = Math.max(...rows.map((row) => Number(row.net_sales)), 1);
-  const best = [...rows].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
+function share(value: number, total: number): number {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+function bestHourlyRow(rows: SalesByHourRow[]): SalesByHourRow | null {
+  return [...rows].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0] ?? null;
+}
+
+function dominantPayment(payments: PaymentBreakdown): { method: string; pct: number } | null {
+  const total = payments.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const top = [...payments.payments].sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+  return top && total > 0 ? { method: reasonLabel(top.method), pct: share(Number(top.amount), total) } : null;
+}
+
+function chartCopy() {
+  return {
+    detailPlaceholder: copy.reportsView.chartDetailPlaceholder,
+    totalShareLabel: copy.reportsView.chartShare,
+  };
+}
+
+function PeriodNarrativeCard({
+  summary,
+  hourly,
+  payments,
+  products,
+  employees,
+  refundReasons,
+}: {
+  summary: SalesSummary;
+  hourly: SalesByHourRow[];
+  payments: PaymentBreakdown;
+  products: TopProducts;
+  employees: SalesByEmployeeRow[];
+  refundReasons: RefundsByReasonRow[];
+}) {
+  const bestHour = bestHourlyRow(hourly);
+  const hourlyTotal = hourly.reduce((sum, row) => sum + Number(row.net_sales), 0);
+  const topProduct = products.products[0];
+  const topPayment = dominantPayment(payments);
+  const topRefund = refundReasons[0];
+  const coaching = employees.find((row) => row.refund_count > 0) ?? employees[employees.length - 1];
+
+  const why: string[] = [];
+  if (bestHour && Number(bestHour.net_sales) > 0) {
+    why.push(copy.reportsView.narrativeBestHour(hourRange(bestHour.hour), share(Number(bestHour.net_sales), hourlyTotal)));
+  }
+  if (topProduct) {
+    why.push(copy.reportsView.narrativeTopProduct(topProduct.product_name, formatMoney(topProduct.gross_sales)));
+  }
+  if (topPayment) {
+    why.push(copy.reportsView.narrativePayment(topPayment.method, topPayment.pct));
+  }
+  if (topRefund) {
+    why.push(copy.reportsView.narrativeRefund(reasonLabel(topRefund.reason)));
+  }
+
+  const action =
+    topRefund ? copy.reportsView.actionAuditRefunds(reasonLabel(topRefund.reason)) :
+    coaching ? copy.reportsView.actionCoachEmployee(coaching.display_name) :
+    topProduct ? copy.reportsView.actionRestockTop(topProduct.product_name) :
+    topPayment ? copy.reportsView.actionReviewPayments(topPayment.method) :
+    copy.reportsView.actionStartSelling;
+
   return (
-    <div className="space-y-3">
-      {best && Number(best.net_sales) > 0 ? (
-        <p className="text-sm font-medium text-kova-ink">
-          {copy.reportsView.bestHour(hourRange(best.hour))}
-        </p>
-      ) : null}
-      <div className="flex h-36 items-end gap-1 overflow-x-auto rounded-lg border bg-kova-mist/40 p-3">
-        {rows.map((row) => {
-          const height = Math.max(4, (Number(row.net_sales) / max) * 100);
-          return (
-            <div key={row.hour} className="flex min-w-7 flex-1 flex-col items-center gap-1">
-              <div
-                className="w-full rounded-t bg-kova-blue transition-all"
-                style={{ height: `${height}%` }}
-                title={`${hourRange(row.hour)}: ${formatMoney(row.net_sales)}`}
-              />
-              <span className="text-[10px] text-muted-foreground tabular-nums">
-                {row.hour % 3 === 0 ? row.hour : ""}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+    <Card className="border-kova-blue/20 bg-kova-blue/5">
+      <CardContent className="grid gap-5 p-5 lg:grid-cols-3">
+        <NarrativeColumn
+          title={copy.reportsView.narrativeQuestion}
+          body={
+            summary.order_count > 0
+              ? copy.reportsView.narrativeActive(summary.order_count, formatMoney(summary.net_sales))
+              : copy.reportsView.narrativeEmpty
+          }
+        />
+        <NarrativeColumn
+          title={copy.reportsView.narrativeWhy}
+          body={why.length > 0 ? why.join(" ") : copy.reportsView.narrativeNoSecondary}
+        />
+        <NarrativeColumn title={copy.reportsView.narrativeAction} body={action} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function NarrativeColumn({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-kova-blue">{title}</p>
+      <p className="text-sm leading-6 text-kova-ink">{body}</p>
     </div>
   );
 }
 
-function EmployeePerformance({ rows }: { rows: SalesByEmployeeRow[] }) {
-  const max = Math.max(...rows.map((row) => Number(row.net_sales)), 1);
-  const coaching = rows.find((row) => row.refund_count > 0) ?? rows[rows.length - 1];
+function KpiRow({ summary }: { summary: SalesSummary }) {
   return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        {rows.map((row) => (
-          <div key={row.user_id ?? row.display_name} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{row.display_name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {copy.reportsView.employeeStats(row.order_count, row.refund_count)}
-                </p>
-              </div>
-              <span className="font-semibold tabular-nums">{formatMoney(row.net_sales)}</span>
-            </div>
-            <div className="h-2 rounded-full bg-muted">
-              <div
-                className="h-2 rounded-full bg-kova-blue"
-                style={{ width: `${(Number(row.net_sales) / max) * 100}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+    <section
+      className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6"
+      aria-label={copy.reportsView.title}
+    >
+      <KpiCard
+        icon={DollarSign}
+        label={copy.reportsView.grossSales}
+        value={formatMoney(summary.gross_sales)}
+        accent="text-kova-growth"
+      />
+      <KpiCard
+        icon={TrendingUp}
+        label={copy.reportsView.netSales}
+        value={formatMoney(summary.net_sales)}
+        accent="text-kova-blue"
+      />
+      <KpiCard
+        icon={ShoppingCart}
+        label={copy.reportsView.orders}
+        value={String(summary.order_count)}
+        accent="text-kova-ink"
+      />
+      <KpiCard
+        icon={TrendingUp}
+        label={copy.reportsView.avgTicket}
+        value={
+          summary.order_count > 0
+            ? formatMoney((Number(summary.net_sales) / summary.order_count).toFixed(2))
+            : formatMoney("0.00")
+        }
+        accent="text-kova-blue-light"
+      />
+      <KpiCard
+        icon={RotateCcw}
+        label={copy.reportsView.refunds}
+        value={formatMoney(summary.refund_total)}
+        accent="text-destructive"
+      />
+      <KpiCard
+        icon={XCircle}
+        label={copy.reportsView.voids}
+        value={String(summary.void_count)}
+        accent="text-warning"
+      />
+    </section>
+  );
+}
+
+function HourlyChart({ rows }: { rows: SalesByHourRow[] }) {
+  const total = rows.reduce((sum, row) => sum + Number(row.net_sales), 0);
+  const best = bestHourlyRow(rows);
+  const chartRows: ChartRow[] = rows.map((row) => ({
+    id: String(row.hour),
+    label: hourRange(row.hour),
+    value: Number(row.net_sales),
+    valueLabel: formatMoney(row.net_sales),
+    meta: [{ label: copy.reportsView.chartOrders, value: String(row.order_count) }],
+    accentClassName: "bg-kova-blue",
+  }));
+  return (
+    <InteractiveBarChart
+      title={copy.reportsView.hourlyQuestion}
+      insight={
+        best && Number(best.net_sales) > 0
+          ? copy.reportsView.bestHourShare(hourRange(best.hour), share(Number(best.net_sales), total))
+          : undefined
+      }
+      rows={chartRows}
+      emptyLabel={copy.reportsView.noHourlySales}
+      ariaLabel={copy.reportsView.hourlySales}
+      {...chartCopy()}
+    />
+  );
+}
+
+function PaymentBreakdownChart({ payments }: { payments: PaymentBreakdown }) {
+  const total = payments.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const top = dominantPayment(payments);
+  const rows: ChartRow[] = payments.payments.map((payment) => ({
+    id: payment.method,
+    label: reasonLabel(payment.method),
+    value: Number(payment.amount),
+    valueLabel: formatMoney(payment.amount),
+    meta: [{ label: copy.reportsView.chartPayments, value: String(payment.payment_count) }],
+    accentClassName: "bg-kova-blue",
+  }));
+
+  return (
+    <DriverCard icon={BarChart3} title={copy.reportsView.paymentBreakdown}>
+      <InteractiveBarChart
+        title={copy.reportsView.paymentQuestion}
+        insight={top ? copy.reportsView.paymentShare(top.method, top.pct) : undefined}
+        rows={rows}
+        emptyLabel={copy.reportsView.noPayments}
+        ariaLabel={copy.reportsView.paymentBreakdown}
+        {...chartCopy()}
+      />
+      {total <= 0 ? null : <span className="sr-only">{formatMoney(total.toFixed(2))}</span>}
+    </DriverCard>
+  );
+}
+
+function TopProductsChart({ products }: { products: TopProducts }) {
+  const top = products.products[0];
+  const rows: ChartRow[] = products.products.map((product) => ({
+    id: product.product_id,
+    label: product.product_name,
+    value: Number(product.gross_sales),
+    valueLabel: formatMoney(product.gross_sales),
+    meta: [{ label: copy.reportsView.chartUnits, value: String(product.quantity_sold) }],
+    accentClassName: "bg-kova-growth",
+  }));
+
+  return (
+    <DriverCard icon={ShoppingCart} title={copy.reportsView.topProducts}>
+      <InteractiveRankChart
+        title={copy.reportsView.productsQuestion}
+        insight={
+          top
+            ? copy.reportsView.topProductInsight(
+                top.product_name,
+                formatMoney(top.gross_sales),
+                top.quantity_sold,
+              )
+            : undefined
+        }
+        rows={rows}
+        emptyLabel={copy.reportsView.noProducts}
+        ariaLabel={copy.reportsView.topProducts}
+        {...chartCopy()}
+      />
+    </DriverCard>
+  );
+}
+
+function EmployeePerformance({ rows }: { rows: SalesByEmployeeRow[] }) {
+  const coaching = rows.find((row) => row.refund_count > 0) ?? rows[rows.length - 1];
+  const chartRows: ChartRow[] = rows.map((row) => ({
+    id: row.user_id ?? row.display_name,
+    label: row.display_name,
+    value: Number(row.net_sales),
+    valueLabel: formatMoney(row.net_sales),
+    meta: [
+      { label: copy.reportsView.chartOrders, value: String(row.order_count) },
+      { label: copy.reportsView.chartRefunds, value: String(row.refund_count) },
+    ],
+    accentClassName: "bg-kova-blue",
+  }));
+
+  return (
+    <DriverCard icon={ShoppingCart} title={copy.reportsView.employeePerformance}>
+      <InteractiveBarChart
+        title={copy.reportsView.employeeQuestion}
+        insight={coaching ? copy.reportsView.coachingOpportunity(coaching.display_name) : undefined}
+        rows={chartRows}
+        emptyLabel={copy.reportsView.noEmployeeSales}
+        ariaLabel={copy.reportsView.employeePerformance}
+        {...chartCopy()}
+      />
       {coaching ? (
         <p className="rounded-lg bg-kova-mist p-3 text-sm text-kova-muted">
           {copy.reportsView.coachingOpportunity(coaching.display_name)}
         </p>
       ) : null}
-    </div>
+    </DriverCard>
   );
 }
 
 function RefundReasonBreakdown({ rows }: { rows: RefundsByReasonRow[] }) {
-  const max = Math.max(...rows.map((row) => Number(row.refunded_amount)), 1);
   const top = rows[0];
+  const chartRows: ChartRow[] = rows.map((row) => ({
+    id: row.reason,
+    label: reasonLabel(row.reason),
+    value: Number(row.refunded_amount),
+    valueLabel: formatMoney(row.refunded_amount),
+    meta: [{ label: copy.reportsView.chartRefunds, value: String(row.refund_count) }],
+    accentClassName: "bg-destructive",
+  }));
+
   return (
-    <div className="space-y-4">
+    <DriverCard icon={RotateCcw} title={copy.reportsView.refundsByReason}>
+      <InteractiveBarChart
+        title={copy.reportsView.refundQuestion}
+        insight={top ? copy.reportsView.auditRefunds(reasonLabel(top.reason)) : undefined}
+        rows={chartRows}
+        emptyLabel={copy.reportsView.noRefundReasons}
+        ariaLabel={copy.reportsView.refundsByReason}
+        {...chartCopy()}
+      />
       {rows.map((row) => (
-        <div key={row.reason} className="space-y-1.5">
+        <div key={row.reason} className="hidden">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium">{reasonLabel(row.reason)}</span>
             <span className="font-semibold tabular-nums">
@@ -633,7 +606,7 @@ function RefundReasonBreakdown({ rows }: { rows: RefundsByReasonRow[] }) {
           <div className="h-2 rounded-full bg-muted">
             <div
               className="h-2 rounded-full bg-destructive"
-              style={{ width: `${(Number(row.refunded_amount) / max) * 100}%` }}
+              style={{ width: `${row.refunded_amount === "0.00" ? 0 : 100}%` }}
             />
           </div>
         </div>
@@ -643,7 +616,29 @@ function RefundReasonBreakdown({ rows }: { rows: RefundsByReasonRow[] }) {
           {copy.reportsView.auditRefunds(reasonLabel(top.reason))}
         </p>
       ) : null}
-    </div>
+    </DriverCard>
+  );
+}
+
+function DriverCard({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Icon className="h-5 w-5 text-muted-foreground" />
+          <CardTitle>{title}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -705,13 +700,66 @@ function PaymentMixInsight({
   );
 }
 
+function RecommendedActions({
+  payments,
+  products,
+  employees,
+  refundReasons,
+  orderCount,
+}: {
+  payments: PaymentBreakdown;
+  products: TopProducts;
+  employees: SalesByEmployeeRow[];
+  refundReasons: RefundsByReasonRow[];
+  orderCount: number;
+}) {
+  const topPayment = dominantPayment(payments);
+  const topProduct = products.products[0];
+  const coaching = employees.find((row) => row.refund_count > 0) ?? employees[employees.length - 1];
+  const topRefund = refundReasons[0];
+  const actions = [
+    topProduct ? copy.reportsView.actionRestockTop(topProduct.product_name) : null,
+    topRefund ? copy.reportsView.actionAuditRefunds(reasonLabel(topRefund.reason)) : null,
+    coaching ? copy.reportsView.actionCoachEmployee(coaching.display_name) : null,
+    topPayment ? copy.reportsView.actionReviewPayments(topPayment.method) : null,
+  ].filter((action): action is string => Boolean(action));
+
+  if (actions.length === 0 && orderCount === 0) {
+    actions.push(copy.reportsView.actionStartSelling);
+  }
+
+  if (actions.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-muted-foreground" />
+          <CardTitle>{copy.reportsView.actionTitle}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {actions.slice(0, 4).map((action) => (
+            <Badge key={action} variant="secondary" className="justify-start whitespace-normal px-3 py-2 text-left">
+              {action}
+            </Badge>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function KpiCard({
   icon: Icon,
   label,
   value,
   accent,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   label: string;
   value: string;
   accent?: string;

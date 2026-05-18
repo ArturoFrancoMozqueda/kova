@@ -485,6 +485,27 @@ export const copy = {
     periodInsight: "Resumen del periodo",
     salesInsightEmpty: "Aún no hay ventas completadas en este periodo. Los reportes se llenarán cuando se registren transacciones reales.",
     salesInsightActive: (orders: number, amount: string) => `${orders} orden${orders === 1 ? "" : "es"} completada${orders === 1 ? "" : "s"} generaron ${amount} en ventas netas en este periodo.`,
+    narrativeQuestion: "Qué pasó en este periodo",
+    narrativeWhy: "Por qué pasó",
+    narrativeAction: "Qué hacer ahora",
+    narrativeEmpty: "Aún no hay ventas completadas en este periodo. Cuando existan transacciones, esta tarjeta conectará ventas, pagos, productos, equipo y devoluciones.",
+    narrativeActive: (orders: number, amount: string) =>
+      `${orders} orden${orders === 1 ? "" : "es"} completada${orders === 1 ? "" : "s"} dejaron ${amount} en ventas netas.`,
+    narrativeBestHour: (hour: string, pct: number) =>
+      `El pico fue ${hour}, con ${pct}% de las ventas netas del periodo.`,
+    narrativeTopProduct: (name: string, amount: string) =>
+      `${name} fue el principal driver de producto con ${amount}.`,
+    narrativePayment: (method: string, pct: number) =>
+      `${method} concentró ${pct}% del cobro registrado.`,
+    narrativeRefund: (reason: string) =>
+      `La principal causa de devolución fue ${reason}. Conviene auditarla antes del cierre.`,
+    narrativeNoSecondary: "Los datos secundarios todavía no están disponibles; el resumen se mantiene con ventas, pagos y productos reales.",
+    actionTitle: "Acciones recomendadas",
+    actionRestockTop: (name: string) => `Asegura stock de ${name} si seguirá empujando ventas.`,
+    actionAuditRefunds: (reason: string) => `Audita devoluciones por ${reason} y documenta el patrón.`,
+    actionCoachEmployee: (name: string) => `Revisa con ${name} si necesita apoyo operativo o entrenamiento.`,
+    actionReviewPayments: (method: string) => `Revisa si ${method} está afectando velocidad de caja o conciliación.`,
+    actionStartSelling: "Abre caja y registra ventas para que el reporte tenga evidencia.",
     paymentBreakdown: "Mezcla de pagos",
     topProducts: "Productos top",
     noPayments: "Sin pagos en este rango.",
@@ -504,17 +525,34 @@ export const copy = {
       `Dejaste de cobrar con ${method} este periodo.`,
     paymentInsightBalanced: "Mezcla de pagos balanceada — sin alertas por método.",
     hourlySales: "Ventas por hora",
+    hourlyQuestion: "¿Cuándo se concentraron las ventas?",
     noHourlySales: "Sin ventas por hora en este rango.",
-    bestHour: (hour: string) => `Mejor hora: ${hour}`,
+    bestHour: (hour: string) => `Tu mejor hora fue ${hour}.`,
+    bestHourShare: (hour: string, pct: number) =>
+      `Tu mejor hora fue ${hour} y aportó ${pct}% de las ventas netas.`,
+    chartDetailPlaceholder: "Selecciona un punto para ver el detalle.",
+    chartShare: (pct: number) => `${pct}% del total`,
+    chartAmount: "Monto",
+    chartOrders: "Órdenes",
+    chartPayments: "Pagos",
+    chartRefunds: "Devoluciones",
+    chartUnits: "Unidades",
+    paymentQuestion: "¿Cómo pagaron tus clientes?",
+    paymentShare: (method: string, pct: number) => `${method} representa ${pct}% del cobro registrado.`,
     employeePerformance: "Desempeño por empleado",
+    employeeQuestion: "¿Dónde hay oportunidad de coaching?",
     noEmployeeSales: "Sin ventas por empleado en este rango.",
     employeeStats: (orders: number, refunds: number) =>
       `${orders} orden${orders === 1 ? "" : "es"} · ${refunds} devolución${refunds === 1 ? "" : "es"}`,
     coachingOpportunity: (name: string) =>
       `Oportunidad de coaching: revisa con ${name} si necesita apoyo en caja, producto o flujo de cobro.`,
     refundsByReason: "Motivos de devolución",
+    refundQuestion: "¿Por qué se devolvió dinero?",
     noRefundReasons: "Sin devoluciones en este rango.",
     auditRefunds: (reason: string) => `Auditar devoluciones: principal causa ${reason}.`,
+    productsQuestion: "¿Qué productos empujaron el periodo?",
+    topProductInsight: (name: string, amount: string, units: number) =>
+      `${name} lideró con ${amount} y ${units} unidad${units === 1 ? "" : "es"} vendida${units === 1 ? "" : "s"}.`,
   },
   productStory: {
     title: "Historia del producto",
