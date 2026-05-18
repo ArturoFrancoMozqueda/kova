@@ -22,7 +22,9 @@ class BusinessProfile(Base):
     locale: Mapped[str] = mapped_column(String(20), nullable=False, default="es-MX")
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="MXN")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
 
 
 class ReceiptSettings(Base):
@@ -34,4 +36,6 @@ class ReceiptSettings(Base):
     tax_contact_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )

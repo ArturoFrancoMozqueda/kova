@@ -23,4 +23,6 @@ class TenantOnboardingState(Base):
     first_sale_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     billing_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )

@@ -166,7 +166,12 @@ def get_onboarding_state(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
     db.commit()
 
     steps = [
-        ("business_profile", "Business profile", business_profile_completed, "/settings/business-profile"),
+        (
+            "business_profile",
+            "Business profile",
+            business_profile_completed,
+            "/settings/business-profile",
+        ),
         ("receipt_settings", "Receipt settings", receipt_settings_completed, "/settings/receipt"),
         ("first_product", "Create product", first_product_completed, "/catalog?new=product"),
         ("inventory", "Activate inventory", inventory_completed, "/inventory"),

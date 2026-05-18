@@ -1,6 +1,6 @@
 """onboarding settings and employees
 
-Revision ID: 0018_onboarding_settings_employees
+Revision ID: 0018_onboarding_employees
 Revises: 0017_inventory_movement_history
 Create Date: 2026-05-18
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0018_onboarding_settings_employees"
+revision: str = "0018_onboarding_employees"
 down_revision: str | None = "0017_inventory_movement_history"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
