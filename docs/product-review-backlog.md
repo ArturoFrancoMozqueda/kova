@@ -19,7 +19,7 @@ audit logs, Vercel deployment, and Supabase tenant-scoped tables are all present
 The app is not yet sellable without founder assistance because:
 
 - Returning browsers can see stale UI through the PWA/service worker.
-- Production CSP blocks Google Fonts.
+- Production no longer depends on Google Fonts, avoiding stale-shell CSP font failures.
 - Pricing copy is inconsistent: dashboard says 299 MXN/month while billing and Stripe say 199 MXN/month.
 - Stripe Checkout intentionally remains in sandbox/test mode until the web app is fully complete.
 - Subscription access rules are not enforced clearly.
@@ -56,7 +56,7 @@ support a real paid beta subscription.
 - [x] Add BDD/E2E coverage for stale app shell prevention.
 - [x] Review `vite-plugin-pwa` config for `skipWaiting`, `clientsClaim`, app shell precache, and update prompt behavior.
 - [x] Add a visible update prompt or forced refresh strategy for breaking UI deploys.
-- [x] Fix CSP to either self-host fonts or allow `fonts.googleapis.com` and `fonts.gstatic.com`.
+- [x] Fix CSP to avoid external Google Fonts in the app shell.
 - [x] Create one source of truth for Standard Plan amount and copy.
 - [x] Replace all 299 MXN references with 199 MXN unless explicitly test-only.
 - [x] Keep Stripe in sandbox mode and defer live Stripe keys/webhook until the web app is complete.
@@ -84,6 +84,8 @@ support a real paid beta subscription.
   until the web app is fully complete.
 - 2026-05-17: `npx playwright test e2e/app-shell.spec.ts --project=chromium` passed the app-shell
   stale update prompt scenario, including visible notice, dismiss, and apply-update event.
+- 2026-05-18: Removed Google Fonts `<link>` tags from `frontend/index.html`; the app now falls
+  back to system fonts and no longer requires `fonts.googleapis.com` for stale-shell users.
 
 ## Sprint PB-2 - Signup, Onboarding, and Business Setup
 
@@ -113,15 +115,15 @@ business profile, and reach first sale without engineering assistance.
 - [x] Write `specs/onboarding/first_sale.md`.
 - [x] Write `specs/onboarding/first_sale.feature`.
 - [x] Create `docs/test-matrixes/onboarding.md`.
-- [ ] Add tenant onboarding state model with tenant-scoped RLS.
-- [ ] Add API endpoints for onboarding state read/update.
-- [ ] Add dashboard checklist steps: business profile, first product, inventory optional, open shift, first sale, billing.
-- [ ] Make each checklist step link to the exact action, not just the module.
-- [ ] Add business profile settings: public business name, support phone/email, timezone, locale, currency display.
-- [ ] Add receipt settings: receipt business name, footer, tax/contact text placeholder, logo hook.
+- [x] Add tenant onboarding state model with tenant-scoped RLS.
+- [x] Add API endpoints for onboarding state read/update.
+- [x] Add dashboard checklist steps: business profile, first product, inventory optional, open shift, first sale, billing.
+- [x] Make each checklist step link to the exact action, not just the module.
+- [x] Add business profile settings: public business name, support phone/email, timezone, locale, currency display.
+- [x] Add receipt settings: receipt business name, footer, tax/contact text placeholder, logo hook.
 - [x] Replace signup copy "Start accepting payments in minutes" with POS-accurate copy.
 - [x] Move remaining signup/login/app-shell copy into i18n.
-- [ ] Add loading, empty, and error states for onboarding settings.
+- [x] Add loading, empty, and error states for onboarding settings.
 - [ ] Add E2E new-tenant onboarding happy path.
 
 ### Acceptance Criteria
@@ -162,6 +164,7 @@ Make the commercial model enforceable without creating pricing tiers.
 - [x] Add backend tests for subscription access states.
 - [x] Add E2E coverage for blocked and active subscription states.
 - [x] Add audit log event for billing access block if a blocked write is attempted.
+- [x] Verify production expired-trial tenant receives 402 on sales, catalog, inventory, and shifts.
 
 ### Acceptance Criteria
 
@@ -193,16 +196,16 @@ mobile order review, and shift-first POS guidance.
 
 ### Tasks
 
-- [ ] Define whether employees are modeled as `memberships` only or a separate employee profile table.
-- [ ] Add employee invite/list/deactivate UI.
-- [ ] Add employee role management for owner/manager/cashier using existing RBAC constants.
-- [ ] Add inventory activation path from Inventory empty state to product edit.
+- [x] Define whether employees are modeled as `memberships` only or a separate employee profile table.
+- [x] Add employee invite/list/deactivate UI.
+- [x] Add employee role management for owner/manager/cashier using existing RBAC constants.
+- [x] Add inventory activation path from Inventory empty state to product edit.
 - [ ] Add inline product inventory controls: track inventory, current stock, low-stock threshold.
 - [ ] Add inventory movement history panel for tracked products if API already supports it.
-- [ ] Convert mobile orders table to cards below small breakpoint.
-- [ ] Add mobile viewport tests for orders, register, dashboard, and billing at 390 px.
-- [ ] Decide shift gate behavior: hard block sales, soft warning, or checklist-only.
-- [ ] Implement chosen shift behavior consistently in register and dashboard.
+- [x] Convert mobile orders table to cards below small breakpoint.
+- [x] Add mobile viewport tests for orders, register, dashboard, and billing at 390 px.
+- [x] Decide shift gate behavior: hard block sales, soft warning, or checklist-only.
+- [x] Implement chosen shift behavior consistently in register and dashboard.
 
 ### Acceptance Criteria
 
