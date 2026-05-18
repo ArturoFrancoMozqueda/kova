@@ -11,6 +11,7 @@ import {
   Clock,
   BarChart3,
   CreditCard,
+  Settings,
   LogOut,
   LayoutDashboard,
   ChevronRight,
@@ -37,6 +38,7 @@ const adminNavItems: NavItem[] = [
   { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" /> },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" /> },
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, permission: "reports.view_all" },
+  { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" /> },
   { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, permission: "billing.view" },
 ];
 

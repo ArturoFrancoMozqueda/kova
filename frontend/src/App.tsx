@@ -12,6 +12,7 @@ import OrderListView from "./orders/OrderListView";
 import SyncQueueView from "./offline/SyncQueueView";
 import RegisterView from "./register/RegisterView";
 import ReportsView from "./reports/ReportsView";
+import SettingsView from "./settings/SettingsView";
 import ShiftView from "./shifts/ShiftView";
 import AppShell from "./layout/AppShell";
 import { ToastProvider } from "./components/ui/toast";
@@ -63,6 +64,10 @@ export default function App() {
               <Route path="/shifts" element={<ShiftView />} />
               <Route path="/settings/billing" element={<BillingView />} />
               <Route path="/settings/billing/:returnState" element={<BillingView />} />
+              <Route path="/settings/business-profile" element={<SettingsView />} />
+              <Route path="/settings/receipt" element={<SettingsView />} />
+              <Route path="/settings/employees" element={<SettingsView />} />
+              <Route path="/settings" element={<SettingsView />} />
               <Route path="/sync-queue" element={<SyncQueueView />} />
             </Route>
           </Routes>
