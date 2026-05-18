@@ -20,6 +20,16 @@ Basic range reporting helps beta tenants understand daily sales and catch operat
 - Voided orders are excluded from gross and net sales.
 - Refund totals reduce net sales.
 - If no dates are provided, the endpoint defaults to the current UTC day.
+- A user with `reports.view_all` can request hourly sales with `GET /api/v1/reports/sales-by-hour?start=&end=`.
+- Hourly sales returns 24 rows, one for each hour `0..23`, with `net_sales` and `order_count`.
+- Hourly sales uses only completed orders for the authenticated tenant and selected UTC date range.
+- Refunds linked to completed orders reduce the `net_sales` for the order hour.
+- A user with `reports.view_all` can request employee sales with `GET /api/v1/reports/sales-by-employee?start=&end=`.
+- Employee sales is grouped by `orders.created_by_user_id` for the authenticated tenant and selected UTC date range.
+- Employee sales returns `user_id`, `display_name`, `order_count`, `net_sales`, and `refund_count`.
+- Employee performance copy must be coaching-oriented and not punitive.
+- A user with `reports.view_all` can request refund reasons with `GET /api/v1/reports/refunds-by-reason?start=&end=` because `refunds.reason` exists in the schema.
+- Refund reason rows include reason, refund count, and refunded amount.
 
 ## Non-Functional Requirements
 
@@ -53,3 +63,6 @@ Basic range reporting helps beta tenants understand daily sales and catch operat
 - Completed orders contribute to gross sales.
 - Refunds reduce net sales.
 - Voided orders are excluded.
+- Hourly sales returns stable 24-hour buckets and never invents traffic.
+- Employee sales is hidden from roles without `reports.view_all`.
+- Refund reasons aggregate only tenant-scoped refund rows.

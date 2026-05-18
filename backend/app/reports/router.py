@@ -9,6 +9,9 @@ from app.rbac.permissions import Permission
 from app.reports import service
 from app.reports.schemas import (
     PaymentBreakdownResponse,
+    RefundsByReasonRow,
+    SalesByEmployeeRow,
+    SalesByHourRow,
     SalesSummaryResponse,
     TopProductsResponse,
 )
@@ -64,4 +67,49 @@ def top_products(
         start_date=start_date,
         end_date=end_date,
         limit=limit,
+    )
+
+
+@router.get("/sales-by-hour", response_model=list[SalesByHourRow])
+def sales_by_hour(
+    start: date | None = None,
+    end: date | None = None,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.REPORTS_VIEW_ALL)
+    ),
+):
+    _, membership, _ = ctx
+    return service.sales_by_hour(
+        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
+    )
+
+
+@router.get("/sales-by-employee", response_model=list[SalesByEmployeeRow])
+def sales_by_employee(
+    start: date | None = None,
+    end: date | None = None,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.REPORTS_VIEW_ALL)
+    ),
+):
+    _, membership, _ = ctx
+    return service.sales_by_employee(
+        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
+    )
+
+
+@router.get("/refunds-by-reason", response_model=list[RefundsByReasonRow])
+def refunds_by_reason(
+    start: date | None = None,
+    end: date | None = None,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.REPORTS_VIEW_ALL)
+    ),
+):
+    _, membership, _ = ctx
+    return service.refunds_by_reason(
+        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
     )

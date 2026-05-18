@@ -15,6 +15,21 @@ Feature: Sales reports
     When the manager requests the top products report
     Then products are sorted by quantity sold
 
+  Scenario: Manager views hourly sales trend
+    Given an authenticated manager with sales in different hours
+    When the manager requests the hourly sales report
+    Then sales are grouped into 24 hourly buckets
+
+  Scenario: Manager views employee sales performance
+    Given an authenticated manager with sales from multiple employees
+    When the manager requests the employee sales report
+    Then sales are grouped by employee with refund counts
+
+  Scenario: Manager views refund reasons
+    Given an authenticated manager with refunds for different reasons
+    When the manager requests the refund reason report
+    Then refunds are grouped by reason
+
   Scenario: Permission denied without reports view permission
     Given an authenticated cashier without reports permission
     When the cashier requests the sales summary report

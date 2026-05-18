@@ -39,3 +39,23 @@ class TopProductsResponse(BaseModel):
     start_date: date
     end_date: date
     products: list[TopProductRow]
+
+
+class SalesByHourRow(BaseModel):
+    hour: int
+    net_sales: Decimal
+    order_count: int
+
+
+class SalesByEmployeeRow(BaseModel):
+    user_id: UUID | None
+    display_name: str
+    order_count: int
+    net_sales: Decimal
+    refund_count: int
+
+
+class RefundsByReasonRow(BaseModel):
+    reason: str
+    refund_count: int
+    refunded_amount: Decimal

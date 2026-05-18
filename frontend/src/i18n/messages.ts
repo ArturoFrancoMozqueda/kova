@@ -471,6 +471,18 @@ export const copy = {
     paymentInsightLostMethod: (method: string) =>
       `Dejaste de cobrar con ${method} este periodo.`,
     paymentInsightBalanced: "Mezcla de pagos balanceada — sin alertas por método.",
+    hourlySales: "Ventas por hora",
+    noHourlySales: "Sin ventas por hora en este rango.",
+    bestHour: (hour: string) => `Mejor hora: ${hour}`,
+    employeePerformance: "Desempeño por empleado",
+    noEmployeeSales: "Sin ventas por empleado en este rango.",
+    employeeStats: (orders: number, refunds: number) =>
+      `${orders} orden${orders === 1 ? "" : "es"} · ${refunds} devolución${refunds === 1 ? "" : "es"}`,
+    coachingOpportunity: (name: string) =>
+      `Oportunidad de coaching: revisa con ${name} si necesita apoyo en caja, producto o flujo de cobro.`,
+    refundsByReason: "Motivos de devolución",
+    noRefundReasons: "Sin devoluciones en este rango.",
+    auditRefunds: (reason: string) => `Auditar devoluciones: principal causa ${reason}.`,
   },
   productStory: {
     title: "Historia del producto",

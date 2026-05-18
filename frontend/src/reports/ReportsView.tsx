@@ -5,8 +5,22 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { formatMoney, reasonLabel } from "../orders/format";
-import { getPaymentBreakdown, getSalesSummary, getTopProducts } from "./api";
-import type { PaymentBreakdown, SalesSummary, TopProducts } from "./types";
+import {
+  getPaymentBreakdown,
+  getRefundsByReason,
+  getSalesByEmployee,
+  getSalesByHour,
+  getSalesSummary,
+  getTopProducts,
+} from "./api";
+import type {
+  PaymentBreakdown,
+  RefundsByReasonRow,
+  SalesByEmployeeRow,
+  SalesByHourRow,
+  SalesSummary,
+  TopProducts,
+} from "./types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +59,9 @@ type LoadState =
       summary: SalesSummary;
       payments: PaymentBreakdown;
       products: TopProducts;
+      hourly: SalesByHourRow[];
+      employees: SalesByEmployeeRow[];
+      refundReasons: RefundsByReasonRow[];
       prevPayments: PaymentBreakdown | null;
       prevProducts: TopProducts | null;
     };
@@ -87,10 +104,22 @@ export default function ReportsView() {
     setLoadState({ status: "loading" });
     try {
       const prev = previousRangeOf(startDate, endDate);
-      const [summary, payments, products, prevPayments, prevProducts] = await Promise.all([
+      const [
+        summary,
+        payments,
+        products,
+        hourly,
+        employees,
+        refundReasons,
+        prevPayments,
+        prevProducts,
+      ] = await Promise.all([
         getSalesSummary(startDate, endDate),
         getPaymentBreakdown(startDate, endDate),
         getTopProducts(startDate, endDate),
+        getSalesByHour(startDate, endDate),
+        getSalesByEmployee(startDate, endDate),
+        getRefundsByReason(startDate, endDate),
         getPaymentBreakdown(prev.start, prev.end).catch(() => null),
         getTopProducts(prev.start, prev.end, 20).catch(() => null),
       ]);
@@ -99,6 +128,9 @@ export default function ReportsView() {
         summary,
         payments,
         products,
+        hourly,
+        employees,
+        refundReasons,
         prevPayments,
         prevProducts,
       });
@@ -301,6 +333,24 @@ export default function ReportsView() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>{copy.reportsView.hourlySales}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadState.hourly.every((row) => row.order_count === 0) ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  {copy.reportsView.noHourlySales}
+                </p>
+              ) : (
+                <HourlyChart rows={loadState.hourly} />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-muted-foreground" />
                 <CardTitle>{copy.reportsView.paymentBreakdown}</CardTitle>
               </div>
             </CardHeader>
@@ -358,6 +408,42 @@ export default function ReportsView() {
               previous={loadState.prevPayments}
             />
           ) : null}
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>{copy.reportsView.employeePerformance}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadState.employees.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  {copy.reportsView.noEmployeeSales}
+                </p>
+              ) : (
+                <EmployeePerformance rows={loadState.employees} />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>{copy.reportsView.refundsByReason}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadState.refundReasons.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  {copy.reportsView.noRefundReasons}
+                </p>
+              ) : (
+                <RefundReasonBreakdown rows={loadState.refundReasons} />
+              )}
+            </CardContent>
+          </Card>
 
           {/* Top products */}
           <Card>
@@ -457,6 +543,107 @@ export default function ReportsView() {
         </>
       ) : null}
     </main>
+  );
+}
+
+function hourRange(hour: number): string {
+  const next = (hour + 1) % 24;
+  return `${String(hour).padStart(2, "0")}:00-${String(next).padStart(2, "0")}:00`;
+}
+
+function HourlyChart({ rows }: { rows: SalesByHourRow[] }) {
+  const max = Math.max(...rows.map((row) => Number(row.net_sales)), 1);
+  const best = [...rows].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
+  return (
+    <div className="space-y-3">
+      {best && Number(best.net_sales) > 0 ? (
+        <p className="text-sm font-medium text-kova-ink">
+          {copy.reportsView.bestHour(hourRange(best.hour))}
+        </p>
+      ) : null}
+      <div className="flex h-36 items-end gap-1 overflow-x-auto rounded-lg border bg-kova-mist/40 p-3">
+        {rows.map((row) => {
+          const height = Math.max(4, (Number(row.net_sales) / max) * 100);
+          return (
+            <div key={row.hour} className="flex min-w-7 flex-1 flex-col items-center gap-1">
+              <div
+                className="w-full rounded-t bg-kova-blue transition-all"
+                style={{ height: `${height}%` }}
+                title={`${hourRange(row.hour)}: ${formatMoney(row.net_sales)}`}
+              />
+              <span className="text-[10px] text-muted-foreground tabular-nums">
+                {row.hour % 3 === 0 ? row.hour : ""}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EmployeePerformance({ rows }: { rows: SalesByEmployeeRow[] }) {
+  const max = Math.max(...rows.map((row) => Number(row.net_sales)), 1);
+  const coaching = rows.find((row) => row.refund_count > 0) ?? rows[rows.length - 1];
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        {rows.map((row) => (
+          <div key={row.user_id ?? row.display_name} className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{row.display_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {copy.reportsView.employeeStats(row.order_count, row.refund_count)}
+                </p>
+              </div>
+              <span className="font-semibold tabular-nums">{formatMoney(row.net_sales)}</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+              <div
+                className="h-2 rounded-full bg-kova-blue"
+                style={{ width: `${(Number(row.net_sales) / max) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      {coaching ? (
+        <p className="rounded-lg bg-kova-mist p-3 text-sm text-kova-muted">
+          {copy.reportsView.coachingOpportunity(coaching.display_name)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function RefundReasonBreakdown({ rows }: { rows: RefundsByReasonRow[] }) {
+  const max = Math.max(...rows.map((row) => Number(row.refunded_amount)), 1);
+  const top = rows[0];
+  return (
+    <div className="space-y-4">
+      {rows.map((row) => (
+        <div key={row.reason} className="space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium">{reasonLabel(row.reason)}</span>
+            <span className="font-semibold tabular-nums">
+              {formatMoney(row.refunded_amount)} · {row.refund_count}
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-muted">
+            <div
+              className="h-2 rounded-full bg-destructive"
+              style={{ width: `${(Number(row.refunded_amount) / max) * 100}%` }}
+            />
+          </div>
+        </div>
+      ))}
+      {top ? (
+        <p className="rounded-lg bg-destructive/5 p-3 text-sm text-muted-foreground">
+          {copy.reportsView.auditRefunds(reasonLabel(top.reason))}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

@@ -1,4 +1,11 @@
-import type { PaymentBreakdown, SalesSummary, TopProducts } from "./types";
+import type {
+  PaymentBreakdown,
+  RefundsByReasonRow,
+  SalesByEmployeeRow,
+  SalesByHourRow,
+  SalesSummary,
+  TopProducts,
+} from "./types";
 
 class ApiError extends Error {
   constructor(
@@ -29,6 +36,18 @@ function query(startDate: string, endDate: string): string {
   return value ? `?${value}` : "";
 }
 
+function rangeQuery(startDate: string, endDate: string): string {
+  const params = new URLSearchParams();
+  if (startDate) {
+    params.set("start", startDate);
+  }
+  if (endDate) {
+    params.set("end", endDate);
+  }
+  const value = params.toString();
+  return value ? `?${value}` : "";
+}
+
 export function getSalesSummary(startDate: string, endDate: string): Promise<SalesSummary> {
   return requestJson<SalesSummary>(`/api/v1/reports/sales-summary${query(startDate, endDate)}`);
 }
@@ -54,4 +73,31 @@ export function getTopProducts(
       ? `/api/v1/reports/top-products${base}${sep}limit=${limit}`
       : `/api/v1/reports/top-products${base}`;
   return requestJson<TopProducts>(url);
+}
+
+export function getSalesByHour(
+  startDate: string,
+  endDate: string,
+): Promise<SalesByHourRow[]> {
+  return requestJson<SalesByHourRow[]>(
+    `/api/v1/reports/sales-by-hour${rangeQuery(startDate, endDate)}`,
+  );
+}
+
+export function getSalesByEmployee(
+  startDate: string,
+  endDate: string,
+): Promise<SalesByEmployeeRow[]> {
+  return requestJson<SalesByEmployeeRow[]>(
+    `/api/v1/reports/sales-by-employee${rangeQuery(startDate, endDate)}`,
+  );
+}
+
+export function getRefundsByReason(
+  startDate: string,
+  endDate: string,
+): Promise<RefundsByReasonRow[]> {
+  return requestJson<RefundsByReasonRow[]>(
+    `/api/v1/reports/refunds-by-reason${rangeQuery(startDate, endDate)}`,
+  );
 }

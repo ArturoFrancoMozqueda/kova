@@ -3,8 +3,10 @@ from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import Integer, cast, func
 from sqlalchemy.orm import Session
 
+from app.auth.models import User
 from app.orders.models import Order, OrderItem, Payment, Refund, Void
 from app.pricing import calculator
 from app.shared.exceptions import bad_request
@@ -172,3 +174,142 @@ def top_products(
         reverse=True,
     )[:limit]
     return {"start_date": start_date, "end_date": end_date, "products": products}
+
+
+def _refunds_by_order_subquery(db: Session, *, tenant_id: UUID):
+    return (
+        db.query(
+            Refund.order_id.label("order_id"),
+            func.coalesce(func.sum(Refund.refunded_amount), Decimal("0.00")).label(
+                "refund_total"
+            ),
+            func.count(Refund.id).label("refund_count"),
+        )
+        .filter(Refund.tenant_id == tenant_id)
+        .group_by(Refund.order_id)
+        .subquery()
+    )
+
+
+def sales_by_hour(
+    db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
+) -> list[dict]:
+    start_date, end_date = _normalize_range(start_date, end_date)
+    start, end = _bounds(start_date, end_date)
+    refunds_by_order = _refunds_by_order_subquery(db, tenant_id=tenant_id)
+    hour_expr = cast(func.extract("hour", Order.created_at), Integer)
+
+    rows = (
+        db.query(
+            hour_expr.label("hour"),
+            func.coalesce(
+                func.sum(
+                    Order.total_amount
+                    - func.coalesce(refunds_by_order.c.refund_total, Decimal("0.00"))
+                ),
+                Decimal("0.00"),
+            ).label("net_sales"),
+            func.count(Order.id).label("order_count"),
+        )
+        .outerjoin(refunds_by_order, refunds_by_order.c.order_id == Order.id)
+        .filter(
+            Order.tenant_id == tenant_id,
+            Order.status == "completed",
+            Order.created_at >= start,
+            Order.created_at <= end,
+        )
+        .group_by(hour_expr)
+        .all()
+    )
+    buckets = {
+        int(row.hour): {
+            "hour": int(row.hour),
+            "net_sales": calculator.money(row.net_sales or Decimal("0.00")),
+            "order_count": int(row.order_count or 0),
+        }
+        for row in rows
+    }
+    return [
+        buckets.get(
+            hour,
+            {"hour": hour, "net_sales": Decimal("0.00"), "order_count": 0},
+        )
+        for hour in range(24)
+    ]
+
+
+def sales_by_employee(
+    db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
+) -> list[dict]:
+    start_date, end_date = _normalize_range(start_date, end_date)
+    start, end = _bounds(start_date, end_date)
+    refunds_by_order = _refunds_by_order_subquery(db, tenant_id=tenant_id)
+
+    rows = (
+        db.query(
+            Order.created_by_user_id.label("user_id"),
+            User.email.label("email"),
+            func.count(Order.id).label("order_count"),
+            func.coalesce(
+                func.sum(
+                    Order.total_amount
+                    - func.coalesce(refunds_by_order.c.refund_total, Decimal("0.00"))
+                ),
+                Decimal("0.00"),
+            ).label("net_sales"),
+            func.coalesce(func.sum(refunds_by_order.c.refund_count), 0).label("refund_count"),
+        )
+        .outerjoin(User, User.id == Order.created_by_user_id)
+        .outerjoin(refunds_by_order, refunds_by_order.c.order_id == Order.id)
+        .filter(
+            Order.tenant_id == tenant_id,
+            Order.status == "completed",
+            Order.created_at >= start,
+            Order.created_at <= end,
+        )
+        .group_by(Order.created_by_user_id, User.email)
+        .order_by(func.sum(Order.total_amount).desc())
+        .all()
+    )
+    return [
+        {
+            "user_id": row.user_id,
+            "display_name": row.email or "Sin usuario",
+            "order_count": int(row.order_count or 0),
+            "net_sales": calculator.money(row.net_sales or Decimal("0.00")),
+            "refund_count": int(row.refund_count or 0),
+        }
+        for row in rows
+    ]
+
+
+def refunds_by_reason(
+    db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
+) -> list[dict]:
+    start_date, end_date = _normalize_range(start_date, end_date)
+    start, end = _bounds(start_date, end_date)
+    rows = (
+        db.query(
+            Refund.reason.label("reason"),
+            func.count(Refund.id).label("refund_count"),
+            func.coalesce(func.sum(Refund.refunded_amount), Decimal("0.00")).label(
+                "refunded_amount"
+            ),
+        )
+        .filter(
+            Refund.tenant_id == tenant_id,
+            Refund.created_at >= start,
+            Refund.created_at <= end,
+        )
+        .group_by(Refund.reason)
+        .order_by(func.sum(Refund.refunded_amount).desc())
+        .all()
+    )
+    return [
+        {
+            "reason": row.reason,
+            "refund_count": int(row.refund_count or 0),
+            "refunded_amount": calculator.money(row.refunded_amount or Decimal("0.00")),
+        }
+        for row in rows
+    ]
