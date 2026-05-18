@@ -191,6 +191,7 @@ function Navbar({
       }}
     >
       <div
+        className="lp-nav-shell"
         style={{
           maxWidth: 1280, margin: "0 auto",
           padding: "14px 32px",
@@ -208,7 +209,7 @@ function Navbar({
           />
         </span>
 
-        <div style={{ display: "flex", gap: 28, fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }} className="hidden md:flex">
+        <div className="lp-desktop-nav" style={{ display: "flex", gap: 28, fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>
           {[
             { label: "Producto", href: "#producto" },
             { label: "Cómo funciona", href: "#como-funciona" },
@@ -223,7 +224,7 @@ function Navbar({
           ))}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="lp-nav-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           {!isAuthenticated && (
             <Link
@@ -238,6 +239,7 @@ function Navbar({
             </Link>
           )}
           <Link
+            className="lp-nav-primary"
             to={primaryTarget}
             style={{
               fontSize: 13, fontWeight: 600,
@@ -261,7 +263,7 @@ function Navbar({
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ primaryTarget }: { primaryTarget: string }) {
   return (
-    <section style={{ position: "relative", padding: "72px 32px 100px", overflow: "hidden" }}>
+    <section className="lp-hero-section" style={{ position: "relative", padding: "72px 32px 100px", overflow: "hidden" }}>
       <div className="lp-grid-bg" />
       <div style={{ position: "relative", maxWidth: 1280, margin: "0 auto" }}>
         <div
@@ -284,6 +286,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
         >
           <div>
             <h1
+              className="lp-hero-title"
               style={{
                 fontSize: "clamp(48px, 7vw, 96px)",
                 fontWeight: 600,
@@ -307,12 +310,12 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               </span>.
             </h1>
 
-            <p style={{ fontSize: 19, lineHeight: 1.5, color: "var(--text-muted)", marginTop: 24, maxWidth: 480 }}>
+            <p className="lp-hero-copy" style={{ fontSize: 19, lineHeight: 1.5, color: "var(--text-muted)", marginTop: 24, maxWidth: 480 }}>
               El punto de venta para PyMEs en México. Ventas, inventario y pagos
               orquestados desde un solo lugar — incluso sin internet.
             </p>
 
-            <div style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
+            <div className="lp-hero-actions" style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
               <Link
                 to={primaryTarget}
                 style={{
@@ -341,6 +344,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             </div>
 
             <div
+              className="lp-hero-stats"
               style={{
                 marginTop: 56, display: "flex", alignItems: "center", gap: 24,
                 fontSize: 12, color: "var(--text-muted)", paddingTop: 24,
@@ -351,13 +355,13 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 Hecho en México · es-MX
               </span>
               <span>·</span>
-              <span><strong style={{ color: "var(--page-fg)" }}>247</strong> negocios activos ahora mismo</span>
+              <span>Beta privada para negocios reales</span>
               <span>·</span>
               <span>Offline-first real</span>
             </div>
           </div>
 
-          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <IntroAnimation embedded skippable={false} />
           </div>
         </div>
@@ -509,6 +513,7 @@ function DesktopPreview() {
 
   return (
     <div
+      className="lp-desktop-preview"
       style={{
         background: "var(--card-bg)", borderRadius: 10,
         border: "0.5px solid var(--hairline-color)", overflow: "hidden",
@@ -517,7 +522,7 @@ function DesktopPreview() {
         height: 420, color: "var(--page-fg)",
       }}
     >
-      <div style={{ borderRight: "0.5px solid var(--hairline-color)", display: "flex", flexDirection: "column" }}>
+      <div className="lp-preview-main" style={{ borderRight: "0.5px solid var(--hairline-color)", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 20px", borderBottom: "0.5px solid var(--hairline-color)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <LogoMark size={18} circuitColor="var(--page-fg)" coreColor="var(--accent)" />
@@ -546,7 +551,7 @@ function DesktopPreview() {
           ))}
         </div>
 
-        <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "start" }}>
+        <div className="lp-product-grid" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "start" }}>
           {filtered.map((p) => {
             const inCart = (cart[p.id] || 0) > 0;
             const pulsing = pulseId === p.id;
@@ -594,7 +599,7 @@ function DesktopPreview() {
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", background: "var(--surface-2)" }}>
+      <div className="lp-preview-cart" style={{ display: "flex", flexDirection: "column", background: "var(--surface-2)" }}>
         <div style={{ padding: "16px 16px 12px", borderBottom: "0.5px solid var(--hairline-color)" }}>
           <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)", fontWeight: 500 }}>
             Venta actual
@@ -649,6 +654,7 @@ function TabletPreview() {
   const bars = [10, 8, 6, 4, 3, 12, 24, 38, 42, 30, 26, 28, 36, 48, 40, 32, 28, 38, 44, 50, 38, 22, 16, 10];
   return (
     <div
+      className="lp-tablet-preview"
       style={{
         background: "var(--kova-ink)", borderRadius: 24, padding: 10,
         boxShadow: "0 24px 60px -20px rgba(15,17,23,0.35)",
@@ -710,7 +716,7 @@ function TabletPreview() {
 /* ─── POSShowcase ────────────────────────────────────────────────────────── */
 function POSShowcase() {
   return (
-    <section id="producto" style={{ padding: "120px 32px", background: "var(--surface)", borderTop: "0.5px solid var(--hairline-color)", borderBottom: "0.5px solid var(--hairline-color)" }}>
+    <section id="producto" className="lp-product-section" style={{ padding: "120px 32px", background: "var(--surface)", borderTop: "0.5px solid var(--hairline-color)", borderBottom: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>El producto</span>
@@ -1015,15 +1021,99 @@ function FooterCol({ title, links }: { title: string; links: string[] }) {
 
 /* ─── Responsive helper ──────────────────────────────────────────────────── */
 const RESPONSIVE_STYLES = `
+  .lp-root {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+  .lp-root *, .lp-root *::before, .lp-root *::after {
+    box-sizing: border-box;
+  }
+  .lp-desktop-preview,
+  .lp-tablet-preview {
+    max-width: 100%;
+  }
   @media (max-width: 900px) {
     .lp-hero-grid, .lp-showcase-row, .lp-showcase-head, .lp-2cols {
       grid-template-columns: 1fr !important;
     }
     .lp-3cols { grid-template-columns: 1fr !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
+    .lp-hero-section { padding: 56px 24px 80px !important; }
+    .lp-hero-grid { gap: 44px !important; margin-top: 24px !important; }
+    .lp-hero-title {
+      font-size: 46px !important;
+      letter-spacing: 0 !important;
+      line-height: 1 !important;
+    }
+    .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
+    .lp-hero-visual { max-width: 100% !important; overflow: hidden !important; }
+    .lp-hero-visual > * { max-width: min(100%, 360px) !important; }
+    .lp-product-section { padding: 88px 24px !important; }
+    .lp-showcase-row { gap: 24px !important; }
+    .lp-desktop-preview {
+      grid-template-columns: 1fr !important;
+      height: auto !important;
+      min-width: 0 !important;
+    }
+    .lp-preview-main {
+      border-right: none !important;
+      border-bottom: 0.5px solid var(--hairline-color) !important;
+      min-width: 0 !important;
+    }
+    .lp-preview-cart { min-width: 0 !important; }
+    .lp-tablet-preview {
+      width: min(280px, 100%) !important;
+      justify-self: center !important;
+    }
   }
   @media (max-width: 640px) {
+    .lp-nav-shell {
+      padding: 12px 16px !important;
+      gap: 12px !important;
+    }
+    .lp-desktop-nav {
+      display: none !important;
+    }
+    .lp-nav-actions {
+      gap: 6px !important;
+      min-width: 0 !important;
+    }
+    .lp-nav-primary {
+      padding: 9px 12px !important;
+      white-space: nowrap !important;
+    }
+    .lp-hero-section { padding: 42px 20px 68px !important; }
+    .lp-hero-title { font-size: 42px !important; }
+    .lp-hero-actions {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+    }
+    .lp-hero-actions > * {
+      width: 100% !important;
+      justify-content: center !important;
+      text-align: center !important;
+    }
+    .lp-hero-stats {
+      gap: 10px !important;
+      align-items: flex-start !important;
+      flex-direction: column !important;
+      margin-top: 40px !important;
+    }
+    .lp-hero-stats > span:nth-child(2),
+    .lp-hero-stats > span:nth-child(4) {
+      display: none !important;
+    }
+    .lp-product-section { padding: 72px 20px !important; }
+    .lp-product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      padding: 12px !important;
+    }
     .lp-footer-grid { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 360px) {
+    .lp-nav-primary { padding: 9px 10px !important; font-size: 12px !important; }
+    .lp-hero-title { font-size: 38px !important; }
+    .lp-hero-copy { font-size: 16px !important; }
   }
 `;
 

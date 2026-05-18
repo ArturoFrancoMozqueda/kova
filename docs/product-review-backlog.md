@@ -25,6 +25,8 @@ The app is not yet sellable without founder assistance because:
 - Subscription access rules are not enforced clearly.
 - Signup, onboarding, employee setup, business settings, and inventory activation are incomplete.
 - Mobile orders layout overflows at phone width.
+- Mobile landing layout overflows at phone width, including desktop nav links and the product
+  showcase.
 - Supabase has schema and RLS findings that need documented decisions or fixes before beta.
 
 ## Sprint PB-1 - Production Trust Repair
@@ -288,6 +290,51 @@ Make analytics trustworthy and useful for owners without inventing data.
 - A business owner can understand today, payment mix, and top products from real data.
 - No marketing claim implies traction or processed volume that is not backed by production data.
 
+## Sprint PB-7 - Mobile Landing Responsiveness
+
+### Goal
+
+Make the public landing page credible and usable on phone widths before sending it to beta leads.
+
+### Required Specs
+
+- Create `specs/marketing/mobile_landing.md`
+- Update `specs/marketing/landing_metrics.md`
+
+### Required BDD / E2E Scenarios
+
+- Landing page has no horizontal overflow at 320, 390, 430, and 768 px.
+- Desktop nav links are hidden on phone widths.
+- Header primary CTA remains visible and tappable on phone widths.
+- Product showcase does not push the page wider than the viewport.
+- Returning PWA/app-shell visitor receives the fixed mobile landing layout after deploy.
+
+### Tasks
+
+- [x] Write `specs/marketing/mobile_landing.md` with mobile layout, copy, CTA, and QA acceptance rules.
+- [x] Fix the landing navbar so inline styles do not override responsive visibility classes.
+- [x] Add a compact mobile header pattern for public pages.
+- [x] Rework hero mobile sizing: padding, heading scale, CTA wrapping, stats row, and animation width.
+- [x] Rework product showcase for mobile instead of relying on desktop mockup shrinkage.
+- [x] Add landing route to mobile overflow E2E tests at 320, 390, 430, and 768 px.
+- [x] Add debug output for the widest overflowing elements when mobile overflow tests fail.
+- [x] Verify the fixed landing on iOS Safari dimensions with browser chrome considered.
+- [x] Remove, verify, or label the `247 negocios activos ahora mismo` landing claim.
+
+### Acceptance Criteria
+
+- Public landing fits on common phone widths without horizontal scrolling.
+- First viewport clearly shows brand, offer, and primary CTA on mobile.
+- Product showcase remains useful on phone widths without breaking layout.
+- CI protects the public landing route from future mobile overflow regressions.
+
+### Validation Notes
+
+- 2026-05-18: `npm run test:e2e -- e2e/mobile.spec.ts --project=chromium` passed the
+  320, 390, 430, and 768 px landing overflow checks.
+- 2026-05-18: Manual browser check at 390 px measured `documentElement.scrollWidth` at 384 px with
+  no overflowing elements.
+
 ## Suggested Execution Order
 
 1. Sprint PB-1 - Production Trust Repair
@@ -296,6 +343,7 @@ Make analytics trustworthy and useful for owners without inventing data.
 4. Sprint PB-5 - Data Integrity and Tenant Isolation Hardening
 5. Sprint PB-4 - Core Operations Completion
 6. Sprint PB-6 - Analytics Credibility and Reporting v1 Polish
+7. Sprint PB-7 - Mobile Landing Responsiveness
 
 Tax, discounts, retail preset, and restaurant preset should resume after PB-1 through PB-5 are done,
 unless a beta tenant has a signed need that changes the order.
@@ -310,3 +358,4 @@ unless a beta tenant has a signed need that changes the order.
 - New tenant onboarding path passes E2E.
 - Subscription access behavior is explicit and tested.
 - Owner can set up catalog, employee, inventory tracking, shift, sale, receipt, and report without database work.
+- Public landing page has no mobile horizontal overflow.

@@ -62,9 +62,57 @@ async function mockCommon(page: import("@playwright/test").Page) {
 }
 
 async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
-  expect(overflow).toBe(false);
+  const report = await page.evaluate(() => {
+    const viewportWidth = window.innerWidth;
+    const offenders = Array.from(document.querySelectorAll("body *"))
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        const text = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+        return {
+          tag: el.tagName.toLowerCase(),
+          className: typeof el.className === "string" ? el.className : "",
+          text,
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+        };
+      })
+      .filter((item) => item.width > 0 && (item.left < -1 || item.right > viewportWidth + 1))
+      .sort((a, b) => Math.max(b.right - viewportWidth, -b.left) - Math.max(a.right - viewportWidth, -a.left))
+      .slice(0, 8);
+
+    return {
+      viewportWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      bodyWidth: document.body.scrollWidth,
+      hasOverflow: document.documentElement.scrollWidth > viewportWidth,
+      offenders,
+    };
+  });
+
+  expect(report.hasOverflow, JSON.stringify(report, null, 2)).toBe(false);
 }
+
+test("public landing fits common phone and tablet widths", async ({ page }) => {
+  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+
+  for (const viewport of [
+    { width: 320, height: 844 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 768, height: 1024 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: /crear cuenta/i })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    if (viewport.width < 768) {
+      await expect(page.getByRole("link", { name: "Producto" })).toBeHidden();
+      await expect(page.getByRole("link", { name: "Precio" })).toBeHidden();
+    }
+  }
+});
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {
   await mockCommon(page);
