@@ -23,7 +23,6 @@ import {
   AlertTriangle,
   AlertCircle,
   Sparkles,
-  Loader2,
 } from "lucide-react";
 
 type Props = {
