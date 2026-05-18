@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { formatMoney } from "@/orders/format";
-import { getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
+import { getSalesByHour, getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
 import { listProducts } from "@/catalog/api";
 import { listLowStock, listStock } from "@/inventory/api";
 import { getBillingSubscription } from "@/billing/api";
 import { getOnboardingState, type OnboardingState } from "@/onboarding/api";
-import type { SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
+import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +42,7 @@ type LoadState =
       summary: SalesSummary;
       yesterday: SalesSummary | null;
       payments: PaymentBreakdown;
+      hourly: SalesByHourRow[];
       topProducts: TopProducts;
       hasProducts: boolean;
       trackedInventoryCount: number;
@@ -233,9 +234,10 @@ export default function DashboardView() {
       const today = todayISO();
       const yesterday = yesterdayISO();
 
-      const [summary, payments, topProducts, productsResult, stock, lowStock, billing, onboarding, yesterdaySummary] = await Promise.all([
+      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, yesterdaySummary] = await Promise.all([
         getSalesSummary(today, today),
         getPaymentBreakdown(today, today),
+        getSalesByHour(today, today).catch(() => [] as SalesByHourRow[]),
         getTopProducts(today, today),
         listProducts().catch(() => [] as Awaited<ReturnType<typeof listProducts>>),
         listStock().catch(() => [] as Awaited<ReturnType<typeof listStock>>),
@@ -252,6 +254,7 @@ export default function DashboardView() {
         summary,
         yesterday: yesterdaySummary,
         payments,
+        hourly,
         topProducts,
         hasProducts: productsResult.some((p) => p.is_active),
         trackedInventoryCount: stock.length,
@@ -348,6 +351,7 @@ export default function DashboardView() {
             summary={loadState.summary}
             yesterday={loadState.yesterday}
             payments={loadState.payments}
+            hourly={loadState.hourly}
             topProducts={loadState.topProducts}
             lowStock={loadState.lowStockItems}
           />

@@ -200,6 +200,8 @@ export const copy = {
       `${name} es el más vendido (${units} ${units === 1 ? "unidad" : "unidades"}).`,
     storyTicketUp: (pct: number) => `El ticket promedio subió ${pct}% por orden.`,
     storyTicketDown: (pct: number) => `El ticket promedio bajó ${pct}% por orden.`,
+    storyBestHour: (hour: string) =>
+      `Tu mejor hora hoy fue ${hour}. Ese pico puede explicar parte del crecimiento.`,
     storyPaymentDominant: (method: string, pct: number) =>
       `${pct}% del cobro entró por ${method}.`,
     storyRefundsFlag: (n: number) =>

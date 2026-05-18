@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
-import type { SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
+import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import type { StockItem } from "@/inventory/types";
 import {
   Sparkles,
@@ -17,6 +17,7 @@ type Props = {
   summary: SalesSummary;
   yesterday: SalesSummary | null;
   payments: PaymentBreakdown;
+  hourly: SalesByHourRow[];
   topProducts: TopProducts;
   lowStock: StockItem[];
 };
@@ -40,7 +41,7 @@ function pctRound(pct: number): number {
   return abs < 1 ? 1 : Math.round(abs);
 }
 
-export function InsightStrip({ summary, yesterday, payments, topProducts, lowStock }: Props) {
+export function InsightStrip({ summary, yesterday, payments, hourly, topProducts, lowStock }: Props) {
   const orderCount = summary.order_count;
   const netSales = Number(summary.net_sales);
   const yNet = yesterday ? Number(yesterday.net_sales) : null;
@@ -88,6 +89,16 @@ export function InsightStrip({ summary, yesterday, payments, topProducts, lowSto
         bullets.push(copy.dashboard.storyPaymentDominant(paymentLabel(dominant.method), pct));
       }
     }
+  }
+
+  const bestHour = [...hourly].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
+  if (bestHour && Number(bestHour.net_sales) > 0) {
+    const nextHour = (bestHour.hour + 1) % 24;
+    bullets.push(
+      copy.dashboard.storyBestHour(
+        `${String(bestHour.hour).padStart(2, "0")}:00-${String(nextHour).padStart(2, "0")}:00`,
+      ),
+    );
   }
 
   if (summary.refund_count > 0) {
@@ -163,8 +174,8 @@ export function InsightStrip({ summary, yesterday, payments, topProducts, lowSto
     });
   }
 
-  // TODO(backend): richer "why" insights need: hourly sales (best hour, peak window),
-  // per-employee sales, refund reasons, stock velocity (days-until-out).
+  // TODO(backend): richer "why" insights still need per-employee sales in dashboard,
+  // refund reasons, and stock velocity (days-until-out).
   // Current narrative uses today vs yesterday + top product + payment mix + low-stock
   // — all real data from existing endpoints.
 
