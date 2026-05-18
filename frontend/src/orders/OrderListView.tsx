@@ -195,7 +195,42 @@ export default function OrderListView() {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="grid gap-3 p-3 sm:hidden">
+              {loadState.items.map((order) => (
+                <Link
+                  key={order.id}
+                  to={`/orders/${order.id}`}
+                  className="rounded-lg border bg-background p-3 transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {new Intl.DateTimeFormat(navigator.language, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(new Date(order.created_at))}
+                      </p>
+                      <Badge
+                        className="mt-2"
+                        variant={order.status === "voided" ? "destructive" : "success"}
+                      >
+                        {order.status === "voided"
+                          ? copy.orderList.filterVoided
+                          : copy.orderList.filterCompleted}
+                      </Badge>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{formatMoney(order.total_amount)}</p>
+                      <p className="mt-2 inline-flex items-center gap-1 text-xs text-primary">
+                        {copy.orderList.view}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
