@@ -7,6 +7,15 @@ const plan = {
   interval: "month",
 };
 
+const activeAccess = {
+  allowed: true,
+  reason: "active",
+  trialing: false,
+  trial_ends_at: null,
+  blocked_at: null,
+  recovery_path: "/settings/billing",
+};
+
 const activeSubscription = {
   id: "sub-local-1",
   tenant_id: "tenant-1",
@@ -41,7 +50,7 @@ async function mockAuthAs(page: Page, role: string) {
 test("billing page displays the Standard Plan and active subscription", async ({ page }) => {
   await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
-    await route.fulfill({ json: { plan, subscription: activeSubscription } });
+    await route.fulfill({ json: { plan, subscription: activeSubscription, access: activeAccess } });
   });
 
   await page.goto("/settings/billing");
@@ -55,7 +64,7 @@ test("billing page displays the Standard Plan and active subscription", async ({
 test("billing page redirects to checkout and handles cancellation", async ({ page }) => {
   await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
-    await route.fulfill({ json: { plan, subscription: activeSubscription } });
+    await route.fulfill({ json: { plan, subscription: activeSubscription, access: activeAccess } });
   });
   await page.route("**/api/v1/billing/checkout", async (route) => {
     await route.fulfill({
@@ -87,6 +96,7 @@ test("billing page shows past due recovery and return states", async ({ page }) 
           past_due_at: "2026-05-10T00:00:00Z",
           grace_period_ends_at: "2026-05-17T00:00:00Z",
         },
+        access: { ...activeAccess, reason: "past_due" },
       },
     });
   });
@@ -101,7 +111,7 @@ test("billing page shows past due recovery and return states", async ({ page }) 
 test("billing page lets owners request subscription cancellation", async ({ page }) => {
   await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
-    await route.fulfill({ json: { plan, subscription: activeSubscription } });
+    await route.fulfill({ json: { plan, subscription: activeSubscription, access: activeAccess } });
   });
   await page.route("**/api/v1/billing/cancel", async (route) => {
     await route.fulfill({
@@ -111,6 +121,7 @@ test("billing page lets owners request subscription cancellation", async ({ page
           ...activeSubscription,
           cancel_at_period_end: true,
         },
+        access: activeAccess,
       },
     });
   });
