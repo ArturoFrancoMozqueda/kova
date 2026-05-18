@@ -26,6 +26,7 @@ import {
   updateProduct,
 } from "./api";
 import type { Category, ModifierGroup, Product } from "./types";
+import { ProductStoryCard } from "./ProductStoryCard";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,7 @@ import {
   RefreshCw,
   Sparkles,
   Loader2,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +80,7 @@ export default function CatalogView() {
 
   const [showModifiers, setShowModifiers] = useState(false);
   const [presetApplying, setPresetApplying] = useState(false);
+  const [storyProduct, setStoryProduct] = useState<Product | null>(null);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -413,20 +416,34 @@ export default function CatalogView() {
                           <p className="text-xs text-muted-foreground mt-0.5">{product.sku}</p>
                         )}
                       </div>
-                      {canUpdate && (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                          aria-label={`Edit ${product.name}`}
+                          className="h-7 w-7"
+                          aria-label={copy.productStory.storyButton}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setModal({ type: "product-edit", product });
+                            setStoryProduct(product);
                           }}
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <BarChart2 className="h-3.5 w-3.5" />
                         </Button>
-                      )}
+                        {canUpdate && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label={`Edit ${product.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setModal({ type: "product-edit", product });
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="mt-3">
                       <span className="text-lg font-bold text-primary">
@@ -517,6 +534,15 @@ export default function CatalogView() {
           />
         )}
       </Dialog>
+
+      {/* ---- Product Story Dialog ---- */}
+      {storyProduct && (
+        <ProductStoryCard
+          product={storyProduct}
+          open
+          onClose={() => setStoryProduct(null)}
+        />
+      )}
 
       {/* ---- Product Dialog ---- */}
       <Dialog
