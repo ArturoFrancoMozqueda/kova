@@ -4,6 +4,7 @@ import {
   STANDARD_PLAN_PRICE_CADENCE,
   STANDARD_PLAN_PRICE_LABEL,
 } from "@/billing/standardPlan";
+import { BILLING_TRIAL_LABEL } from "@/billing/trial";
 
 export const copy = {
   landing: {
@@ -540,8 +541,12 @@ export const copy = {
     statusCanceled: "Canceled",
     statusUnpaid: "Unpaid",
     noSubscription: "No subscription",
-    noSubscriptionBanner: `Activate the ${STANDARD_PLAN.name} to keep this tenant ready for paid beta use.`,
+    noSubscriptionBanner: `You are on the ${BILLING_TRIAL_LABEL} signup trial. Activate the ${STANDARD_PLAN.name} before it ends to keep paid features.`,
     currentAccess: "Current access",
+    trialAccess: "Trial access",
+    trialEnds: "Trial ends",
+    trialDaysLeft: (n: number) => `${n} day${n === 1 ? "" : "s"} left`,
+    trialExpired: "Trial expired",
     cancelAtPeriodEnd: "Cancels at period end",
     currentPeriodEnd: "Current period end",
     graceEnds: "Grace period ends",
@@ -558,7 +563,7 @@ export const copy = {
   billingBanner: {
     manageCta: "Manage billing",
     trialActive: "Trial active",
-    trialActiveBody: "You are on the signup trial. Activate the Standard Plan before it ends to keep paid features.",
+    trialActiveBody: `You are on the ${BILLING_TRIAL_LABEL} signup trial. Activate the Standard Plan before it ends to keep paid features.`,
     trialingActive: "Trial active",
     trialingActiveBody: "Your subscription is in trial. Add a payment method to keep selling after it ends.",
     pastDueGrace: "Payment past due",

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { AlertCircle, AlertTriangle, Loader2, ExternalLink, XCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
@@ -43,6 +43,24 @@ function formatPlanAmount(amountMinorUnits: number, currency: string): string {
 function formatDate(value: string | null): string {
   if (!value) return copy.billingView.notAvailable;
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function daysUntil(value: string | null): number | null {
+  if (!value) return null;
+  const ms = new Date(value).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  return Math.max(0, Math.ceil(ms / 86_400_000));
+}
+
+function accessStatusLabel(billing: BillingSubscription): string {
+  if (!billing.access.allowed && billing.access.reason === "trial_expired") {
+    return copy.billingView.trialExpired;
+  }
+  if (billing.access.reason === "signup_trial") return copy.billingView.trialAccess;
+  if (billing.subscription) {
+    return statusLabels[billing.subscription.status] ?? billing.subscription.status;
+  }
+  return copy.billingView.noSubscription;
 }
 
 export default function BillingView() {
@@ -139,6 +157,28 @@ export default function BillingView() {
 
       {loadState.status === "loaded" && (
         <div className="space-y-6">
+          {loadState.billing.access.reason === "signup_trial" && (
+            <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm animate-fade-in">
+              <Clock className="h-5 w-5 text-primary shrink-0" />
+              <div>
+                <p className="font-medium">{copy.billingView.trialAccess}</p>
+                <p className="text-muted-foreground">
+                  {copy.billingView.noSubscriptionBanner}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!loadState.billing.access.allowed && (
+            <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm animate-fade-in">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div>
+                <p className="font-medium">{copy.billingBanner.blockedTitle}</p>
+                <p className="text-muted-foreground">{copy.billingBanner.blockedGeneric}</p>
+              </div>
+            </div>
+          )}
+
           {loadState.billing.subscription?.status === "past_due" && (
             <div className="flex items-center gap-3 rounded-lg bg-warning/20 border border-warning/30 px-4 py-3 text-sm animate-fade-in">
               <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
@@ -146,7 +186,7 @@ export default function BillingView() {
             </div>
           )}
 
-          {!loadState.billing.subscription && (
+          {!loadState.billing.subscription && loadState.billing.access.reason !== "signup_trial" && (
             <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm animate-fade-in">
               <AlertCircle className="h-5 w-5 text-primary shrink-0" />
               <p className="text-foreground">{copy.billingView.noSubscriptionBanner}</p>
@@ -188,7 +228,16 @@ export default function BillingView() {
                     </p>
                   </>
                 ) : (
-                  <p className="text-muted-foreground">{copy.billingView.noSubscription}</p>
+                  <>
+                    <Badge variant={loadState.billing.access.allowed ? "secondary" : "destructive"}>
+                      {accessStatusLabel(loadState.billing)}
+                    </Badge>
+                    {loadState.billing.access.trial_ends_at && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {copy.billingView.trialDaysLeft(daysUntil(loadState.billing.access.trial_ends_at) ?? 0)}
+                      </p>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -196,11 +245,19 @@ export default function BillingView() {
             {/* Period */}
             <Card className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.currentPeriodEnd}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  {loadState.billing.access.reason === "signup_trial"
+                    ? copy.billingView.trialEnds
+                    : copy.billingView.currentPeriodEnd}
+                </p>
               </CardHeader>
               <CardContent>
                 <p className="text-sm font-medium">
-                  {formatDate(loadState.billing.subscription?.current_period_end ?? null)}
+                  {formatDate(
+                    loadState.billing.access.reason === "signup_trial"
+                      ? loadState.billing.access.trial_ends_at
+                      : loadState.billing.subscription?.current_period_end ?? null
+                  )}
                 </p>
                 {loadState.billing.subscription?.grace_period_ends_at && (
                   <p className="text-xs text-muted-foreground mt-1">
