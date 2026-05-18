@@ -8,7 +8,12 @@ from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.billing.access import get_billing_access_status
+from app.business_settings.models import BusinessProfile, ReceiptSettings
 from app.catalog.models import Category, Product
+from app.onboarding.models import TenantOnboardingState
+from app.orders.models import Order
+from app.shifts.models import Shift
 
 _PRESETS_DIR = Path(__file__).resolve().parent.parent.parent / "presets"
 
@@ -102,4 +107,79 @@ def apply_preset(
         "categories_created": len(data["categories"]),
         "products_created": products_created,
         "skipped": False,
+    }
+
+
+def get_onboarding_state(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
+    state = db.get(TenantOnboardingState, tenant_id)
+    if state is None:
+        state = TenantOnboardingState(tenant_id=tenant_id)
+        db.add(state)
+
+    business_profile_completed = (
+        db.query(BusinessProfile).filter(BusinessProfile.tenant_id == tenant_id).first()
+        is not None
+    )
+    receipt_settings_completed = (
+        db.query(ReceiptSettings).filter(ReceiptSettings.tenant_id == tenant_id).first()
+        is not None
+    )
+    first_product_completed = (
+        db.query(Product)
+        .filter(Product.tenant_id == tenant_id, Product.is_active.is_(True))
+        .limit(1)
+        .count()
+        > 0
+    )
+    inventory_completed = (
+        db.query(Product)
+        .filter(
+            Product.tenant_id == tenant_id,
+            Product.is_active.is_(True),
+            Product.track_inventory.is_(True),
+        )
+        .limit(1)
+        .count()
+        > 0
+    )
+    shift_opened_completed = (
+        db.query(Shift).filter(Shift.tenant_id == tenant_id).limit(1).count() > 0
+    )
+    first_sale_completed = (
+        db.query(Order).filter(Order.tenant_id == tenant_id).limit(1).count() > 0
+    )
+    billing_access = get_billing_access_status(db, tenant_id=tenant_id)
+    billing_completed = billing_access.reason in {"active_subscription", "subscription_trial"}
+
+    updates = {
+        "business_profile_completed": business_profile_completed,
+        "receipt_settings_completed": receipt_settings_completed,
+        "first_product_completed": first_product_completed,
+        "inventory_completed": inventory_completed,
+        "shift_opened_completed": shift_opened_completed,
+        "first_sale_completed": first_sale_completed,
+        "billing_completed": billing_completed,
+    }
+    for key, value in updates.items():
+        setattr(state, key, value)
+    state.updated_at = datetime.now(UTC)
+    db.commit()
+
+    steps = [
+        ("business_profile", "Business profile", business_profile_completed, "/settings/business-profile"),
+        ("receipt_settings", "Receipt settings", receipt_settings_completed, "/settings/receipt"),
+        ("first_product", "Create product", first_product_completed, "/catalog?new=product"),
+        ("inventory", "Activate inventory", inventory_completed, "/inventory"),
+        ("open_shift", "Open shift", shift_opened_completed, "/shifts"),
+        ("first_sale", "First sale", first_sale_completed, "/register"),
+        ("billing", "Billing", billing_completed, "/settings/billing"),
+    ]
+    return {
+        "tenant_id": str(tenant_id),
+        "completed_count": sum(1 for _, _, completed, _ in steps if completed),
+        "total_count": len(steps),
+        "steps": [
+            {"key": key, "label": label, "completed": completed, "action_path": action_path}
+            for key, label, completed, action_path in steps
+        ],
     }

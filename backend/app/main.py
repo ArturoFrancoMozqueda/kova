@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
 from app.billing.router import router as billing_router
+from app.business_settings.router import router as business_settings_router
 from app.catalog.router import router as catalog_router
 from app.config import settings
+from app.employees.router import router as employees_router
 from app.health.router import router as health_router
 from app.inventory.router import router as inventory_router
 from app.middleware.security_headers import security_headers_middleware
@@ -55,7 +57,9 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(billing_router)
+    app.include_router(business_settings_router)
     app.include_router(catalog_router)
+    app.include_router(employees_router)
     app.include_router(modifiers_router)
     app.include_router(inventory_router)
     app.include_router(onboarding_router)

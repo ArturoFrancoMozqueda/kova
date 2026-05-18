@@ -14,11 +14,14 @@ from sqlalchemy.orm import Session, sessionmaker
 import app.audit.models  # noqa: F401
 import app.auth.models  # noqa: F401
 import app.billing.models  # noqa: F401
+import app.business_settings.models  # noqa: F401
 import app.catalog.models  # noqa: F401
+import app.employees.models  # noqa: F401
 import app.idempotency.models  # noqa: F401
 import app.inventory  # noqa: F401
 import app.modifiers.models  # noqa: F401
 import app.orders.models  # noqa: F401
+import app.onboarding.models  # noqa: F401
 import app.rbac.models  # noqa: F401
 import app.reports  # noqa: F401
 import app.shifts.models  # noqa: F401
