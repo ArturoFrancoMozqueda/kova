@@ -117,3 +117,36 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
     await expectNoHorizontalOverflow(page);
   }
 });
+
+test("catalog fits at 390px with category and product visible", async ({ page }) => {
+  await mockCommon(page);
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({
+      json: [{ id: "cat-1", tenant_id: "tenant-1", name: "Pan", description: null, sort_order: 0, is_active: true }],
+    }),
+  );
+  await page.route("**/api/v1/catalog/modifier-groups", (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/catalog");
+  await expect(page.getByRole("heading", { name: /cat[áa]logo/i })).toBeVisible();
+  await expect(page.getByText("Concha")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test("inventory fits at 390px with empty state", async ({ page }) => {
+  await mockCommon(page);
+  await page.route("**/api/v1/inventory/movements**", (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/inventory");
+  await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test("shifts fits at 390px with no open shift", async ({ page }) => {
+  await mockCommon(page);
+  await page.route(/\/api\/v1\/shifts(\?|$)/, (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/shifts");
+  await expect(page.getByRole("heading", { name: /turnos/i })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});

@@ -4,15 +4,27 @@ import { cn } from "@/lib/utils";
 
 type ToastVariant = "success" | "error" | "warning" | "info";
 
+interface ToastAction {
+  label: string;
+  onAction: () => void;
+}
+
+interface ToastOptions {
+  variant?: ToastVariant;
+  action?: ToastAction;
+  durationMs?: number;
+}
+
 interface Toast {
   id: number;
   message: string;
   variant: ToastVariant;
+  action?: ToastAction;
   exiting?: boolean;
 }
 
 interface ToastContextValue {
-  toast: (message: string, variant?: ToastVariant) => void;
+  toast: (message: string, variantOrOptions?: ToastVariant | ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -44,11 +56,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    (message: string, variant: ToastVariant = "success") => {
+    (message: string, variantOrOptions: ToastVariant | ToastOptions = "success") => {
+      const opts: ToastOptions =
+        typeof variantOrOptions === "string"
+          ? { variant: variantOrOptions }
+          : variantOrOptions;
+      const variant = opts.variant ?? "success";
+      const duration = opts.durationMs ?? (opts.action ? 6000 : 4000);
       toastId += 1;
       const id = toastId;
-      setToasts((prev) => [...prev, { id, message, variant }]);
-      setTimeout(() => dismissToast(id), 4000);
+      setToasts((prev) => [...prev, { id, message, variant, action: opts.action }]);
+      setTimeout(() => dismissToast(id), duration);
     },
     [dismissToast],
   );
@@ -69,8 +87,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           >
             {icons[t.variant]}
             <span className="flex-1 text-sm font-medium">{t.message}</span>
+            {t.action && (
+              <button
+                onClick={() => {
+                  t.action!.onAction();
+                  dismissToast(t.id);
+                }}
+                className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold text-kova-blue hover:bg-kova-blue/10 transition-colors"
+                type="button"
+              >
+                {t.action.label}
+              </button>
+            )}
             <button
               onClick={() => dismissToast(t.id)}
+              aria-label="Cerrar aviso"
               className="shrink-0 rounded-sm opacity-60 hover:opacity-100 transition-opacity"
               type="button"
             >

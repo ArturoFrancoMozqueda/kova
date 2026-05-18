@@ -289,8 +289,19 @@ export default function RegisterView() {
 
   const removeItem = (cartKey: string) => {
     setCart((current) => {
+      const removed = current[cartKey];
+      if (!removed) return current;
       const next = { ...current };
       delete next[cartKey];
+      toast(copy.register.itemRemoved(removed.product.name), {
+        variant: "info",
+        action: {
+          label: copy.register.undo,
+          onAction: () => {
+            setCart((c) => ({ ...c, [cartKey]: removed }));
+          },
+        },
+      });
       return next;
     });
   };
@@ -939,9 +950,9 @@ export default function RegisterView() {
             </form>
           </Card>
 
-          {/* Completed sale result */}
+          {/* Completed sale result (desktop card) */}
           {completedOrder && (
-            <Card className="border-success/30 bg-success/5 animate-fade-in">
+            <Card className="hidden lg:block border-success/30 bg-success/5 animate-fade-in">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="h-5 w-5 text-success" />
@@ -973,6 +984,40 @@ export default function RegisterView() {
           }}
           onCancel={() => setModifierTarget(null)}
         />
+      )}
+
+      {/* Mobile full-screen success state */}
+      {completedOrder && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-success/5 backdrop-blur-sm px-6 animate-fade-in lg:hidden"
+        >
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-success/15">
+            <CheckCircle2 className="h-14 w-14 text-success" />
+          </div>
+          <div className="text-center space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight text-kova-ink">
+              {copy.register.saleSuccessTitle}
+            </h2>
+            <p className="text-sm text-kova-muted">{copy.register.saleSuccessSubtitle}</p>
+            <p className="pt-2 text-3xl font-bold tabular-nums tracking-tight text-kova-ink">
+              {formatMoney(completedOrder.total_amount)}
+            </p>
+          </div>
+          <div className="w-full max-w-xs space-y-2">
+            <Button size="xl" className="w-full" onClick={resetSale}>
+              <RotateCcw className="h-5 w-5" />
+              {copy.register.newSale}
+            </Button>
+            <Link
+              to={`/orders/${completedOrder.id}`}
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}
+            >
+              <ExternalLink className="h-4 w-4" />
+              {copy.register.openOrder}
+            </Link>
+          </div>
+        </div>
       )}
 
       {/* Sticky bottom cart bar (mobile only) */}

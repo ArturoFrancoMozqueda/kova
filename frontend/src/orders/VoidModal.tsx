@@ -25,7 +25,7 @@ export function VoidModal({ disabled, onCancel, onSubmit }: VoidModalProps) {
           <Ban className="h-4 w-4" />
           {copy.voidModal.title}
         </DialogTitle>
-        <DialogDescription>This action cannot be undone.</DialogDescription>
+        <DialogDescription>{copy.voidModal.irreversible}</DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">

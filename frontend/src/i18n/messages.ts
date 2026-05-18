@@ -283,6 +283,7 @@ export const copy = {
   voidModal: {
     title: "Cancelar orden",
     confirmation: "Entiendo que esto revierte el inventario de la orden.",
+    irreversible: "Esta acción no se puede deshacer.",
     reason: "Motivo",
     submit: "Cancelar orden",
     cancel: "Cerrar",
@@ -496,6 +497,10 @@ export const copy = {
     skuSearchPlaceholder: "Escanea o escribe SKU / nombre del producto…",
     skuNoMatch: (q: string) => `No se encontró producto para "${q}"`,
     skuMultipleMatches: "Varias coincidencias — selecciona una:",
+    itemRemoved: (name: string) => `${name} se quitó del carrito.`,
+    undo: "Deshacer",
+    saleSuccessTitle: "¡Venta completada!",
+    saleSuccessSubtitle: "Lista para la siguiente.",
   },
   syncQueue: {
     title: "Cola de sincronización",
