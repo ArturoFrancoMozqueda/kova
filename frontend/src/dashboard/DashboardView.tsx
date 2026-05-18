@@ -8,6 +8,8 @@ import { listLowStock, listStock } from "@/inventory/api";
 import { getBillingSubscription } from "@/billing/api";
 import { getOnboardingState, type OnboardingState } from "@/onboarding/api";
 import type { SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
+import type { StockItem } from "@/inventory/types";
+import { InsightStrip } from "./InsightStrip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,6 +46,7 @@ type LoadState =
       hasProducts: boolean;
       trackedInventoryCount: number;
       lowStockCount: number;
+      lowStockItems: StockItem[];
       hasActiveSubscription: boolean;
       onboarding: OnboardingState | null;
     };
@@ -253,6 +256,7 @@ export default function DashboardView() {
         hasProducts: productsResult.some((p) => p.is_active),
         trackedInventoryCount: stock.length,
         lowStockCount: lowStock.length,
+        lowStockItems: lowStock,
         hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
         onboarding,
       });
@@ -338,6 +342,15 @@ export default function DashboardView() {
               <ArrowRight className="ml-auto h-4 w-4" />
             </Link>
           )}
+
+          {/* Today's business story — narrative + recommended actions */}
+          <InsightStrip
+            summary={loadState.summary}
+            yesterday={loadState.yesterday}
+            payments={loadState.payments}
+            topProducts={loadState.topProducts}
+            lowStock={loadState.lowStockItems}
+          />
 
           {/* KPI Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

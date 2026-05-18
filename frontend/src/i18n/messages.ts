@@ -188,6 +188,39 @@ export const copy = {
       })[key] ?? "Abrir",
     onboardingDone: "¡Listo! Tu POS está listo para vender.",
     lowStockAction: (n: number) => `${n} producto${n === 1 ? "" : "s"} necesita${n === 1 ? "" : "n"} atención de inventario.`,
+    storyTitle: "Hoy en tu negocio",
+    storyHeadlineUp: (pct: number) =>
+      `Las ventas van ${pct}% arriba comparado con ayer a esta hora.`,
+    storyHeadlineDown: (pct: number) =>
+      `Las ventas van ${pct}% abajo comparado con ayer.`,
+    storyHeadlineFlat: "Las ventas van parejas con ayer.",
+    storyHeadlineNoYesterday: "Primer día con actividad registrada — sin comparativo aún.",
+    storyHeadlineEmpty: "Aún no hay ventas hoy. Abre la caja para empezar.",
+    storyTopProduct: (name: string, units: number) =>
+      `${name} es el más vendido (${units} ${units === 1 ? "unidad" : "unidades"}).`,
+    storyTicketUp: (pct: number) => `El ticket promedio subió ${pct}% por orden.`,
+    storyTicketDown: (pct: number) => `El ticket promedio bajó ${pct}% por orden.`,
+    storyPaymentDominant: (method: string, pct: number) =>
+      `${pct}% del cobro entró por ${method}.`,
+    storyRefundsFlag: (n: number) =>
+      `${n} devolución${n === 1 ? "" : "es"} hoy — revisa si hubo un problema operativo.`,
+    storyLowStockOne: (name: string) => `${name} está por agotarse.`,
+    storyLowStockMany: (n: number) => `${n} productos están en riesgo de agotarse.`,
+    nextActionsTitle: "Qué hacer ahora",
+    actionRestockTitle: "Reabastece pronto",
+    actionRestockDesc: (names: string) => `Bajo stock: ${names}.`,
+    actionRestockCta: "Abrir inventario",
+    actionReviewRefundsTitle: "Revisa devoluciones",
+    actionReviewRefundsDesc: (n: number) =>
+      `${n} devolución${n === 1 ? "" : "es"} hoy. Confirma motivo y si afecta el turno.`,
+    actionReviewRefundsCta: "Ver reportes",
+    actionStartSellingTitle: "Abre la primera venta",
+    actionStartSellingDesc: "El turno está listo pero aún no hay cobros registrados.",
+    actionStartSellingCta: "Abrir caja",
+    actionPromoteTopTitle: "Impulsa tu producto estrella",
+    actionPromoteTopDesc: (name: string) =>
+      `${name} está empujando las ventas hoy. Considera destacarlo o asegurar stock.`,
+    actionPromoteTopCta: "Ver catálogo",
   },
   settings: {
     title: "Configuración",
