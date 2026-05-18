@@ -10,6 +10,7 @@ import { getOnboardingState, type OnboardingState } from "@/onboarding/api";
 import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
+import { BusinessHealthCard } from "./BusinessHealthCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -345,6 +346,14 @@ export default function DashboardView() {
               <ArrowRight className="ml-auto h-4 w-4" />
             </Link>
           )}
+
+          {/* Business health composite score */}
+          <BusinessHealthCard
+            summary={loadState.summary}
+            yesterday={loadState.yesterday}
+            payments={loadState.payments}
+            lowStockCount={loadState.lowStockCount}
+          />
 
           {/* Today's business story — narrative + recommended actions */}
           <InsightStrip
