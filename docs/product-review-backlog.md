@@ -1,6 +1,6 @@
 # Product Review Backlog
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -21,7 +21,7 @@ The app is not yet sellable without founder assistance because:
 - Returning browsers can see stale UI through the PWA/service worker.
 - Production CSP blocks Google Fonts.
 - Pricing copy is inconsistent: dashboard says 299 MXN/month while billing and Stripe say 199 MXN/month.
-- Stripe Checkout is intentionally still in sandbox/test mode until the app is ready for paid beta.
+- Stripe Checkout intentionally remains in sandbox/test mode until the web app is fully complete.
 - Subscription access rules are not enforced clearly.
 - Signup, onboarding, employee setup, business settings, and inventory activation are incomplete.
 - Mobile orders layout overflows at phone width.
@@ -46,7 +46,7 @@ support a real paid beta subscription.
 
 - Returning browser receives the newest landing/app shell after deployment.
 - Standard Plan price is 199 MXN/month everywhere.
-- Production checkout opens the expected Stripe mode: sandbox before launch, live before paid beta.
+- Production checkout opens the expected Stripe sandbox mode while the app is pre-launch.
 - Unsubscribed tenant sees correct trial or billing state.
 - CSP allows required production assets and produces zero console errors on landing/login/dashboard.
 
@@ -59,7 +59,7 @@ support a real paid beta subscription.
 - [x] Fix CSP to either self-host fonts or allow `fonts.googleapis.com` and `fonts.gstatic.com`.
 - [x] Create one source of truth for Standard Plan amount and copy.
 - [x] Replace all 299 MXN references with 199 MXN unless explicitly test-only.
-- [ ] Configure live Stripe keys, live price, and live webhook endpoint before paid beta.
+- [x] Keep Stripe in sandbox mode and defer live Stripe keys/webhook until the web app is complete.
 - [x] Add production runtime guard that rejects Stripe test keys and test Checkout Sessions unless sandbox mode is explicitly enabled.
 - [x] Add environment validation that fails startup/build if production uses Stripe test keys unless sandbox mode is explicitly enabled.
 - [x] Add production smoke test for landing, login, dashboard, billing, checkout redirect, and console errors.
@@ -71,7 +71,7 @@ support a real paid beta subscription.
 - Fresh and returning browsers show the same current landing after deploy.
 - Browser console has zero CSP/font errors on `/`, `/login`, `/dashboard`, and `/settings/billing`.
 - Landing, dashboard, billing UI, API response, and Stripe Checkout all show 199 MXN/month.
-- Stripe Checkout URL matches the expected phase: sandbox while pre-launch, live before paid beta.
+- Stripe Checkout URL remains sandbox while the product is pre-launch.
 - A production smoke checklist can be run after every deploy.
 
 ### Validation Notes
@@ -80,8 +80,8 @@ support a real paid beta subscription.
   `https://point-of-sale-ochre.vercel.app` passed landing/login/dashboard/billing price checks and
   register sale/receipt/report checks.
 - 2026-05-17: Production smoke confirmed Stripe redirected to `checkout.stripe.com` with a `cs_test`
-  session id. This is accepted for pre-launch sandbox mode. Live Stripe configuration remains a
-  paid-beta release gate, not a current development blocker.
+  session id. This is accepted for pre-launch sandbox mode. Live Stripe configuration is deferred
+  until the web app is fully complete.
 - 2026-05-17: `npx playwright test e2e/app-shell.spec.ts --project=chromium` passed the app-shell
   stale update prompt scenario, including visible notice, dismiss, and apply-update event.
 
@@ -299,7 +299,7 @@ unless a beta tenant has a signed need that changes the order.
 
 ## Release Gates Before Selling
 
-- Production Stripe is live and webhook-backed.
+- Stripe remains sandbox until the web app is fully complete; live Stripe is a later launch task.
 - Standard Plan price is consistent everywhere.
 - PWA stale app shell issue is fixed and tested.
 - No production console errors on core routes.

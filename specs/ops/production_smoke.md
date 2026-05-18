@@ -35,8 +35,8 @@ reports, browser console, and deployment metadata.
 - Dashboard onboarding copy shows 199 MXN/month.
 - Billing API and UI show 199 MXN/month.
 - Stripe Checkout opens in the expected mode for the current release phase:
-  - `test` while the app is still pre-launch.
-  - `live` before paid beta or public selling.
+  - `test` while the app is still pre-launch and the web app is incomplete.
+  - `live` only after the web app is complete and before public selling.
 - Login works with the support smoke account.
 - Register can complete a small cash sale.
 - Order detail receipt opens for the created sale.
@@ -91,6 +91,6 @@ committed to the repository.
 
 - A release is not considered production-validated until all required checks pass or a documented
 exception is accepted.
-- A release is not considered paid-beta-ready until the smoke is rerun with
+- A public-selling release is not considered launch-ready until the smoke is rerun with
   `PRODUCTION_SMOKE_STRIPE_MODE=live`.
 - Any failed check creates a backlog item with severity and owner.

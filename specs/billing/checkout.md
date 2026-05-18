@@ -18,12 +18,12 @@ Stripe Checkout gives the beta a sellable billing path while keeping payment col
 - Checkout uses the configured Stripe Price for Standard Plan.
 - Checkout mode is `subscription`.
 - Checkout currency and amount must correspond to $199 MXN/month.
-- Sellable production checkout must use live Stripe keys, a live Stripe Price, and a live Checkout Session.
+- Launch-ready public checkout must use live Stripe keys, a live Stripe Price, and a live Checkout Session.
 - Test-mode Checkout Sessions are allowed in local, CI, staging-like validation environments, and
   explicitly approved pre-launch production demos.
 - Pre-launch production sandbox mode must be enabled intentionally with
   `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=true`.
-- Paid beta and public selling must set `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=false`.
+- Public selling must set `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=false` after the web app is complete.
 - The checkout session is associated with the tenant through metadata.
 - The checkout session is associated with the authenticated user where useful for audit/support.
 - Success and cancel URLs return the tenant owner to billing UI states.
@@ -73,8 +73,9 @@ Stripe Checkout gives the beta a sellable billing path while keeping payment col
 ## Acceptance Criteria
 
 - Tenant owner receives a Stripe Checkout URL for the Standard Plan.
-- Production checkout URL is live mode and must not contain a `cs_test` session id before paid beta
-  or public selling.
+- Production checkout URL may stay in sandbox while the app is pre-launch and intentionally configured
+  with `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=true`.
+- Launch-ready public checkout URL is live mode and must not contain a `cs_test` session id.
 - Pre-launch production sandbox checkout may contain a `cs_test` session id only while
   `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=true`.
 - Non-owner without billing permission cannot start checkout.
