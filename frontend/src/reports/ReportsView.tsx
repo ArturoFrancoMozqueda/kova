@@ -117,9 +117,9 @@ export default function ReportsView() {
         getSalesSummary(startDate, endDate),
         getPaymentBreakdown(startDate, endDate),
         getTopProducts(startDate, endDate),
-        getSalesByHour(startDate, endDate),
-        getSalesByEmployee(startDate, endDate),
-        getRefundsByReason(startDate, endDate),
+        getSalesByHour(startDate, endDate).catch(() => []),
+        getSalesByEmployee(startDate, endDate).catch(() => []),
+        getRefundsByReason(startDate, endDate).catch(() => []),
         getPaymentBreakdown(prev.start, prev.end).catch(() => null),
         getTopProducts(prev.start, prev.end, 20).catch(() => null),
       ]);
