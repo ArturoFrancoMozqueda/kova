@@ -18,6 +18,7 @@ import { syncOfflineSales } from "../offline/sync";
 import { triggerSync } from "../offline/syncWorker";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
 import type { SelectedModifier } from "./ModifierSelectionModal";
+import { getOpenShift } from "@/shifts/api";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,7 @@ export default function RegisterView() {
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
+  const [hasOpenShift, setHasOpenShift] = useState<boolean | null>(null);
   const [skuQuery, setSkuQuery] = useState("");
   const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skuMatches, setSkuMatches] = useState<Product[]>([]);
@@ -145,6 +147,9 @@ export default function RegisterView() {
     listStock()
       .then((items) => setStockMap(new Map(items.map((i) => [i.product_id, i]))))
       .catch(() => undefined);
+    getOpenShift()
+      .then((shift) => setHasOpenShift(Boolean(shift)))
+      .catch(() => setHasOpenShift(null));
   }, [load]);
 
   // Map category_id → category name for readable filter pills
@@ -335,6 +340,9 @@ export default function RegisterView() {
     if (!canSubmitSale) return;
 
     setSubmitting(true);
+    if (hasOpenShift === false) {
+      toast(copy.register.noShiftWarning, "warning");
+    }
 
     const sale = {
       items: cartItems.map((item) => ({
@@ -447,6 +455,16 @@ export default function RegisterView() {
           )}
         </div>
       </div>
+
+      {hasOpenShift === false && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{copy.register.noShiftWarning}</span>
+          <Link to="/shifts" className="ml-auto font-medium text-primary hover:underline">
+            {copy.register.openShift}
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
         {/* Product Grid */}
