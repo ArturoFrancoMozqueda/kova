@@ -595,22 +595,6 @@ function RefundReasonBreakdown({ rows }: { rows: RefundsByReasonRow[] }) {
         ariaLabel={copy.reportsView.refundsByReason}
         {...chartCopy()}
       />
-      {rows.map((row) => (
-        <div key={row.reason} className="hidden">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">{reasonLabel(row.reason)}</span>
-            <span className="font-semibold tabular-nums">
-              {formatMoney(row.refunded_amount)} · {row.refund_count}
-            </span>
-          </div>
-          <div className="h-2 rounded-full bg-muted">
-            <div
-              className="h-2 rounded-full bg-destructive"
-              style={{ width: `${row.refunded_amount === "0.00" ? 0 : 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
       {top ? (
         <p className="rounded-lg bg-destructive/5 p-3 text-sm text-muted-foreground">
           {copy.reportsView.auditRefunds(reasonLabel(top.reason))}
