@@ -65,8 +65,8 @@ test("sync queue view shows empty state when no offline sales exist", async ({ p
   );
 
   await page.goto("/sync-queue");
-  await expect(page.getByRole("heading", { name: "Sync Queue" })).toBeVisible();
-  await expect(page.getByText("No pending or failed sales.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
+  await expect(page.getByText(/sin ventas pendientes o fallidas/i)).toBeVisible();
 });
 
 test("network-error sale appears in pending sync and clears after manual sync", async ({
@@ -101,21 +101,21 @@ test("network-error sale appears in pending sync and clears after manual sync", 
 
   // Submit sale — first sync fails
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add Concha" }).click();
-  await page.getByLabel("Cash tendered").fill("20.00");
-  await page.getByRole("button", { name: "Complete sale" }).click();
-  await expect(page.getByRole("status")).toContainText("queued");
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
+  await expect(page.getByRole("status")).toContainText(/en cola/i);
 
   // Sync queue shows 1 pending entry
   await page.goto("/sync-queue");
-  await expect(page.getByRole("heading", { name: "Sync Queue" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Pending sync" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /pendientes/i })).toBeVisible();
 
   // Click Sync now → second call succeeds
-  await page.getByRole("button", { name: "Sync now" }).click();
+  await page.getByRole("button", { name: /sincronizar ahora/i }).click();
 
   // Pending section disappears after successful sync
-  await expect(page.getByRole("heading", { name: "Pending sync" })).not.toBeVisible({
+  await expect(page.getByRole("heading", { name: /pendientes/i })).not.toBeVisible({
     timeout: 5000,
   });
 });
@@ -153,22 +153,22 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
 
   // Submit sale — server returns per-sale failure → dead letter
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add Concha" }).click();
-  await page.getByLabel("Cash tendered").fill("20.00");
-  await page.getByRole("button", { name: "Complete sale" }).click();
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
   // Notice shown (server returned failed result, not a network error)
   await expect(page.getByRole("status")).toBeVisible();
 
   // Navigate to sync queue — should show Failed section
   await page.goto("/sync-queue");
-  await expect(page.getByRole("heading", { name: "Sync Queue" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Failed" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /fallidas/i })).toBeVisible();
 
   // Retry the dead-letter entry — second sync call succeeds
-  await page.getByRole("button", { name: "Retry" }).click();
+  await page.getByRole("button", { name: /reintentar/i }).click();
 
   // Failed section disappears
-  await expect(page.getByRole("heading", { name: "Failed" })).not.toBeVisible({ timeout: 5000 });
+  await expect(page.getByRole("heading", { name: /fallidas/i })).not.toBeVisible({ timeout: 5000 });
 });
 
 test("duplicate sync of same client_uuid returns same order (idempotency)", async ({ page }) => {
@@ -194,12 +194,12 @@ test("duplicate sync of same client_uuid returns same order (idempotency)", asyn
   });
 
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add Concha" }).click();
-  await page.getByLabel("Cash tendered").fill("20.00");
-  await page.getByRole("button", { name: "Complete sale" }).click();
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
 
-  await expect(page.getByRole("status")).toHaveText("Sale completed.");
-  await expect(page.getByRole("link", { name: "Open order" })).toHaveAttribute(
+  await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
+  await expect(page.getByRole("link", { name: /abrir orden/i })).toHaveAttribute(
     "href",
     `/orders/${syncedOrderId}`,
   );

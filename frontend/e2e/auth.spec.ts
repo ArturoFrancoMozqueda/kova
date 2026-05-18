@@ -17,16 +17,16 @@ test("signup can verify a local dev token", async ({ page }) => {
   });
 
   await page.goto("/signup");
-  await page.getByLabel("Business name").fill("Bakery Demo");
-  await page.getByLabel("Email").fill("owner@example.com");
-  await page.getByLabel("Password").fill("S3cur3pass!");
-  await page.getByRole("button", { name: "Sign up" }).click();
+  await page.getByLabel(/nombre del negocio/i).fill("Bakery Demo");
+  await page.getByLabel(/correo/i).fill("owner@example.com");
+  await page.getByLabel(/contrase[ñn]a/i).fill("S3cur3pass!");
+  await page.getByRole("button", { name: /crear cuenta/i }).click();
 
-  await expect(page.getByText("Account created. Local verification token is ready.")).toBeVisible();
-  await expect(page.getByLabel("Verification token")).toHaveValue("verify-token-1");
+  await expect(page.getByText(/cuenta creada\. el token local de verificaci[óo]n est[áa] listo/i)).toBeVisible();
+  await expect(page.getByLabel(/token de verificaci[óo]n/i)).toHaveValue("verify-token-1");
 
-  await page.getByRole("button", { name: "Verify email" }).click();
-  await expect(page.getByText("Email verified. You can log in now.")).toBeVisible();
+  await page.getByRole("button", { name: /verificar correo/i }).click();
+  await expect(page.getByText(/correo verificado\. ya puedes iniciar sesi[óo]n/i)).toBeVisible();
 });
 
 test("login posts credentials and navigates owners to the dashboard", async ({ page }) => {
@@ -88,9 +88,9 @@ test("login posts credentials and navigates owners to the dashboard", async ({ p
   });
 
   await page.goto("/login");
-  await page.getByLabel("Email").fill("owner@example.com");
-  await page.getByLabel("Password").fill("S3cur3pass!");
-  await page.getByRole("button", { name: "Log in" }).click();
+  await page.getByLabel(/correo/i).fill("owner@example.com");
+  await page.getByLabel(/contrase[ñn]a/i).fill("S3cur3pass!");
+  await page.getByRole("button", { name: /iniciar sesi[óo]n/i }).click();
 
   await expect(page).toHaveURL("/dashboard");
   await expect(page.getByRole("heading", { name: "Bakery Demo" })).toBeVisible();

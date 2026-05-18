@@ -201,25 +201,25 @@ export default function ReportsView() {
               icon={DollarSign}
               label={copy.reportsView.grossSales}
               value={formatMoney(loadState.summary.gross_sales)}
-              accent="text-emerald-600"
+              accent="text-kova-growth"
             />
             <KpiCard
               icon={RotateCcw}
               label={copy.reportsView.refunds}
               value={formatMoney(loadState.summary.refund_total)}
-              accent="text-red-500"
+              accent="text-destructive"
             />
             <KpiCard
               icon={TrendingUp}
               label={copy.reportsView.netSales}
               value={formatMoney(loadState.summary.net_sales)}
-              accent="text-blue-600"
+              accent="text-kova-blue"
             />
             <KpiCard
               icon={ShoppingCart}
               label={copy.reportsView.orders}
               value={String(loadState.summary.order_count)}
-              accent="text-violet-600"
+              accent="text-kova-ink"
             />
             <KpiCard
               icon={TrendingUp}
@@ -229,13 +229,13 @@ export default function ReportsView() {
                   ? formatMoney((Number(loadState.summary.net_sales) / loadState.summary.order_count).toFixed(2))
                   : formatMoney("0.00")
               }
-              accent="text-sky-600"
+              accent="text-kova-blue-light"
             />
             <KpiCard
               icon={XCircle}
               label={copy.reportsView.voids}
               value={String(loadState.summary.void_count)}
-              accent="text-orange-500"
+              accent="text-warning"
             />
           </section>
 
@@ -337,11 +337,11 @@ export default function ReportsView() {
                         className={cn(
                           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold",
                           index === 0
-                            ? "bg-amber-100 text-amber-700"
+                            ? "bg-kova-blue/10 text-kova-blue"
                             : index === 1
-                              ? "bg-slate-100 text-slate-600"
+                              ? "bg-kova-mist text-kova-muted"
                               : index === 2
-                                ? "bg-orange-100 text-orange-700"
+                                ? "bg-warning/10 text-warning"
                                 : "bg-muted text-muted-foreground",
                         )}
                       >

@@ -47,8 +47,8 @@ function bannerForAccess(access: BillingAccess): BannerContent | null {
 
 const toneStyles: Record<BannerTone, string> = {
   info: "border-[color:var(--kova-border)] bg-[color:var(--kova-mist)] text-[color:var(--kova-ink)]",
-  warning: "border-amber-300 bg-amber-50 text-amber-900",
-  danger: "border-red-300 bg-red-50 text-red-900",
+  warning: "border-warning/40 bg-warning/10 text-warning-foreground",
+  danger: "border-destructive/40 bg-destructive/10 text-destructive",
 };
 
 const toneIcon: Record<BannerTone, React.ReactNode> = {

@@ -94,8 +94,8 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                         className={cn(
                           "h-4 w-4",
                           variance === 0
-                            ? "text-emerald-600"
-                            : "text-amber-600",
+                            ? "text-kova-growth"
+                            : "text-warning",
                         )}
                       />
                       {copy.closeShiftModal.variance}
@@ -105,8 +105,8 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                         className={cn(
                           "text-sm font-bold tabular-nums",
                           variance === 0
-                            ? "text-emerald-600"
-                            : "text-amber-600",
+                            ? "text-kova-growth"
+                            : "text-warning",
                         )}
                       >
                         ${variance.toFixed(2)}

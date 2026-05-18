@@ -118,6 +118,11 @@ export default function RegisterView() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const paymentSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToPayment = () => {
+    paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
@@ -439,7 +444,7 @@ export default function RegisterView() {
   }
 
   return (
-    <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
+    <main className="p-4 pb-40 sm:p-6 lg:p-8 lg:pb-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -603,7 +608,7 @@ export default function RegisterView() {
                             </span>
                           )}
                           {isLow && (
-                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-amber-100 text-amber-700">
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-warning/15 text-warning">
                               {copy.inventoryView.lowBadge}
                             </span>
                           )}
@@ -632,7 +637,7 @@ export default function RegisterView() {
         </Card>
 
         {/* Cart + Payment */}
-        <div className="space-y-4">
+        <div ref={paymentSectionRef} className="space-y-4 scroll-mt-4">
           <Card aria-label={copy.register.cart}>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center justify-between">
@@ -672,23 +677,23 @@ export default function RegisterView() {
                             {formatMoney(item.effectiveUnitPrice)} each
                           </p>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity - 1)}
                             aria-label="Decrease quantity"
-                            className="flex h-8 w-8 items-center justify-center rounded-md border hover:bg-muted transition-colors"
+                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-4 w-4" />
                           </button>
-                          <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
+                          <span className="w-8 text-center text-sm font-semibold tabular-nums">{item.quantity}</span>
                           <button
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity + 1)}
                             aria-label="Increase quantity"
-                            className="flex h-8 w-8 items-center justify-center rounded-md border hover:bg-muted transition-colors"
+                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-4 w-4" />
                           </button>
                         </div>
                         <div className="text-right">
@@ -843,32 +848,24 @@ export default function RegisterView() {
                   <div className="space-y-3">
                     {/* Payment method button group */}
                     <div>
-                      <Label htmlFor="paymentMethod" className="mb-2 block">{copy.register.paymentMethod}</Label>
-                      <select
-                        id="paymentMethod"
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                        className="sr-only"
-                      >
-                        <option value="cash">{copy.register.cash}</option>
-                        <option value="bank_transfer">{copy.register.bankTransfer}</option>
-                        <option value="manual_card">{copy.register.manualCard}</option>
-                      </select>
+                      <Label id="paymentMethodLabel" className="mb-2 block">{copy.register.paymentMethod}</Label>
                       <div
                         className="grid grid-cols-3 gap-2"
-                        role="group"
+                        role="radiogroup"
+                        aria-labelledby="paymentMethodLabel"
                       >
                         {paymentMethodOptions.map(({ value, label, icon }) => (
                           <button
                             key={value}
                             type="button"
-                            aria-pressed={paymentMethod === value}
+                            role="radio"
+                            aria-checked={paymentMethod === value}
                             onClick={() => setPaymentMethod(value)}
                             className={cn(
-                              "flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-medium transition-all",
+                              "flex min-h-[60px] flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-medium transition-all",
                               paymentMethod === value
-                                ? "border-primary bg-primary/5 text-primary shadow-sm"
-                                : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                                ? "border-kova-blue bg-kova-blue/5 text-kova-blue shadow-sm"
+                                : "border-kova-border text-kova-muted hover:border-kova-blue/40 hover:text-kova-ink",
                             )}
                           >
                             {icon}
@@ -976,6 +973,30 @@ export default function RegisterView() {
           }}
           onCancel={() => setModifierTarget(null)}
         />
+      )}
+
+      {/* Sticky bottom cart bar (mobile only) */}
+      {cartItems.length > 0 && !completedOrder && (
+        <div
+          className="fixed inset-x-0 bottom-14 z-40 border-t border-kova-border bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_16px_-4px_rgba(15,17,23,0.08)] lg:hidden animate-fade-in"
+        >
+          <button
+            type="button"
+            onClick={scrollToPayment}
+            className="flex w-full items-center justify-between gap-3 rounded-kova-md bg-kova-ink px-4 py-3 text-white shadow-sm transition-transform active:scale-[0.98]"
+          >
+            <span className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                {cartItems.reduce((s, i) => s + i.quantity, 0)} {copy.register.cart.toLowerCase()}
+              </span>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="text-base font-semibold tabular-nums">{formatMoney(totalAmount)}</span>
+              <span className="text-xs opacity-80">{copy.register.completeSale} →</span>
+            </span>
+          </button>
+        </div>
       )}
     </main>
   );

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, AlertCircle, Inbox, X } from "lucide-react";
+import { ExternalLink, AlertCircle, Inbox, X, CheckCircle2, Ban } from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
@@ -205,15 +205,20 @@ export default function OrderListView() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium">
-                        {new Intl.DateTimeFormat(navigator.language, {
+                        {new Intl.DateTimeFormat("es-MX", {
                           dateStyle: "medium",
                           timeStyle: "short",
                         }).format(new Date(order.created_at))}
                       </p>
                       <Badge
-                        className="mt-2"
+                        className="mt-2 gap-1"
                         variant={order.status === "voided" ? "destructive" : "success"}
                       >
+                        {order.status === "voided" ? (
+                          <Ban className="h-3 w-3" />
+                        ) : (
+                          <CheckCircle2 className="h-3 w-3" />
+                        )}
                         {order.status === "voided"
                           ? copy.orderList.filterVoided
                           : copy.orderList.filterCompleted}
@@ -247,15 +252,21 @@ export default function OrderListView() {
                       className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                     >
                       <td className="px-4 py-3 text-muted-foreground">
-                        {new Intl.DateTimeFormat(navigator.language, {
+                        {new Intl.DateTimeFormat("es-MX", {
                           dateStyle: "medium",
                           timeStyle: "short",
                         }).format(new Date(order.created_at))}
                       </td>
                       <td className="px-4 py-3">
                         <Badge
+                          className="gap-1"
                           variant={order.status === "voided" ? "destructive" : "success"}
                         >
+                          {order.status === "voided" ? (
+                            <Ban className="h-3 w-3" />
+                          ) : (
+                            <CheckCircle2 className="h-3 w-3" />
+                          )}
                           {order.status === "voided"
                             ? copy.orderList.filterVoided
                             : copy.orderList.filterCompleted}

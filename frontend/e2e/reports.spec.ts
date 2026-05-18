@@ -60,9 +60,9 @@ test("reports page displays summary, payments, and top products", async ({ page 
 
   await page.goto("/reports");
 
-  await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
-  await expect(page.locator(".data-card").filter({ hasText: "Gross sales" }).getByText("MX$150.00")).toBeVisible();
-  await expect(page.locator(".data-card").filter({ hasText: "Net sales" }).getByText("MX$125.00")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /reportes/i })).toBeVisible();
+  await expect(page.locator(".data-card").filter({ hasText: /ventas brutas/i }).getByText("MX$150.00")).toBeVisible();
+  await expect(page.locator(".data-card").filter({ hasText: /ventas netas/i }).getByText("MX$125.00")).toBeVisible();
   await expect(page.getByText(/bank transfer/i)).toBeVisible();
   await expect(page.getByText("Concha")).toBeVisible();
 });

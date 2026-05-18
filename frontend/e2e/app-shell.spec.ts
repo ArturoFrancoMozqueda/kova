@@ -21,7 +21,7 @@ test("protected routes redirect unauthenticated users to login", async ({ page }
   await page.goto("/dashboard");
 
   await expect(page).toHaveURL("/login");
-  await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /iniciar sesi[óo]n/i })).toBeVisible();
 });
 
 test("returning browsers get a visible app update path", async ({ page }) => {
@@ -40,17 +40,17 @@ test("returning browsers get a visible app update path", async ({ page }) => {
     window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
   });
 
-  await expect(page.getByRole("status")).toContainText("New version available");
-  await expect(page.getByText("Refresh when the counter is free")).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(/nueva versi[óo]n disponible/i);
+  await expect(page.getByText(/actualiza cuando la caja est[ée] libre/i)).toBeVisible();
 
-  await page.getByRole("button", { name: "Later" }).click();
+  await page.getByRole("button", { name: /m[áa]s tarde/i }).click();
   await expect(page.getByRole("status")).toHaveCount(0);
 
   await page.evaluate(() => {
     window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
   });
 
-  await page.getByRole("button", { name: "Refresh now" }).click();
+  await page.getByRole("button", { name: /actualizar ahora/i }).click();
 
   await expect
     .poll(async () =>

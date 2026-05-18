@@ -161,15 +161,15 @@ describe("App shell", () => {
     });
 
     render(<App />);
-    fireEvent.change(screen.getByRole("textbox", { name: /email/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /correo/i }), {
       target: { value: "owner@example.com" },
     });
-    fireEvent.change(screen.getByLabelText(/password/i), {
+    fireEvent.change(screen.getByLabelText(/contrase/i), {
       target: { value: "testing" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^log in$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /iniciar sesi[oó]n/i }));
 
-    expect(await screen.findByRole("heading", { name: /register/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /caja/i })).toBeInTheDocument();
   });
 
   it("creates a cash sale from the register", async () => {
@@ -186,14 +186,14 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
-    fireEvent.change(screen.getByLabelText(/cash tendered/i), {
+    fireEvent.click(screen.getByRole("button", { name: /^agregar concha$/i }));
+    fireEvent.change(screen.getByLabelText(/efectivo recibido/i), {
       target: { value: "20.00" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
-    expect(screen.getByRole("link", { name: /open order/i })).toHaveAttribute(
+    expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
+    expect(screen.getByRole("link", { name: /abrir orden/i })).toHaveAttribute(
       "href",
       "/orders/order-1",
     );
@@ -213,14 +213,14 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /bank transfer/i }));
-    fireEvent.change(screen.getByLabelText(/^reference$/i), {
+    fireEvent.click(screen.getByRole("button", { name: /^agregar concha$/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /transferencia/i }));
+    fireEvent.change(screen.getByLabelText(/^referencia$/i), {
       target: { value: "TRANSFER-001" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
     expect(fetchMock).toHaveBeenLastCalledWith(
       expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
@@ -254,11 +254,11 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /manual card/i }));
-    fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^agregar concha$/i }));
+    fireEvent.click(screen.getByRole("radio", { name: /tarjeta manual/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
     expect(fetchMock).toHaveBeenLastCalledWith(
       expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
@@ -292,21 +292,21 @@ describe("App shell", () => {
     render(<App />);
     expect(await screen.findByText("Concha")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^add concha$/i }));
-    fireEvent.click(screen.getByLabelText(/split payment/i));
-    fireEvent.change(screen.getAllByLabelText(/^amount$/i)[0], {
+    fireEvent.click(screen.getByRole("button", { name: /^agregar concha$/i }));
+    fireEvent.click(screen.getByLabelText(/pago dividido/i));
+    fireEvent.change(screen.getAllByLabelText(/^monto$/i)[0], {
       target: { value: "10.00" },
     });
-    fireEvent.change(screen.getByLabelText(/cash tendered/i), {
+    fireEvent.change(screen.getByLabelText(/efectivo recibido/i), {
       target: { value: "10.00" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /add payment/i }));
-    fireEvent.change(screen.getByLabelText(/^reference$/i), {
+    fireEvent.click(screen.getByRole("button", { name: /agregar pago/i }));
+    fireEvent.change(screen.getByLabelText(/^referencia$/i), {
       target: { value: "SPEI-001" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /complete sale/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/sale completed/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
     expect(fetchMock).toHaveBeenLastCalledWith(
       expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({

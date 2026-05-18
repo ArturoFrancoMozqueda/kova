@@ -123,18 +123,18 @@ test("refund and void modals post to the order APIs", async ({ page }) => {
   });
 
   await page.goto("/orders/demo");
-  await expect(page.getByRole("heading", { name: "Order detail" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /detalle de la orden/i })).toBeVisible();
 
-  await page.getByRole("button", { name: "Refund" }).click();
-  await page.getByLabel("Concha Quantity").fill("1");
-  await page.getByRole("button", { name: "Record refund" }).click();
-  await expect(page.getByText("Refund recorded.")).toBeVisible();
+  await page.getByRole("button", { name: /^devolver$/i }).click();
+  await page.getByLabel("Concha Cantidad").fill("1");
+  await page.getByRole("button", { name: /registrar devoluci[óo]n/i }).click();
+  await expect(page.getByText(/devoluci[óo]n registrada/i)).toBeVisible();
   await expect(page.getByText(/customer return/i)).toBeVisible();
 
   refundCreated = false;
   await page.goto("/orders/demo");
-  await page.getByRole("button", { name: "Void" }).click();
-  await page.getByLabel(/reverses the order inventory/i).check();
-  await page.getByRole("button", { name: "Void order" }).click();
-  await expect(page.getByText("Order voided.")).toBeVisible();
+  await page.getByRole("button", { name: /^cancelar$/i }).click();
+  await page.getByLabel(/revierte el inventario de la orden/i).check();
+  await page.getByRole("button", { name: /cancelar orden/i }).click();
+  await expect(page.getByText(/orden cancelada/i)).toBeVisible();
 });

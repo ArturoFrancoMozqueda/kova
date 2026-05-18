@@ -62,10 +62,10 @@ test("register shows modifier selection modal for products with modifier groups"
   await expect(page.getByText("Café Americano")).toBeVisible();
 
   // Click Add on a product with modifiers — should show modal
-  await page.getByRole("button", { name: "Add Café Americano" }).click();
-  await expect(page.getByRole("heading", { name: /Customize/i })).toBeVisible();
+  await page.getByRole("button", { name: "Agregar Café Americano" }).click();
+  await expect(page.getByRole("heading", { name: /Personalizar/i })).toBeVisible();
   await expect(page.getByText("Size")).toBeVisible();
-  await expect(page.getByText("Required")).toBeVisible();
+  await expect(page.getByText(/obligatorio/i).first()).toBeVisible();
   await expect(page.getByText("Small")).toBeVisible();
   await expect(page.getByText("Large")).toBeVisible();
 });
@@ -85,16 +85,16 @@ test("add to cart is disabled until required modifier is selected", async ({ pag
   );
 
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add Café Americano" }).click();
+  await page.getByRole("button", { name: "Agregar Café Americano" }).click();
 
   // Add to cart button disabled before selection
-  await expect(page.getByRole("button", { name: "Add to cart" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /agregar al carrito/i })).toBeDisabled();
 
   // Select "Large"
   await page.getByLabel("Large").check();
 
   // Now enabled
-  await expect(page.getByRole("button", { name: "Add to cart" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /agregar al carrito/i })).toBeEnabled();
 });
 
 test("selecting a modifier adds it to cart with effective price", async ({ page }) => {
@@ -121,20 +121,20 @@ test("selecting a modifier adds it to cart with effective price", async ({ page 
   });
 
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add Café Americano" }).click();
+  await page.getByRole("button", { name: "Agregar Café Americano" }).click();
   await page.getByLabel("Large").check();
-  await page.getByRole("button", { name: "Add to cart" }).click();
+  await page.getByRole("button", { name: /agregar al carrito/i }).click();
 
   // Cart shows modifier and effective price
-  const cart = page.getByLabel("Cart");
+  const cart = page.getByLabel(/carrito/i);
   await expect(cart.getByText("→ Large")).toBeVisible();
   await expect(cart.getByText("MX$55.00").first()).toBeVisible();
 
   // Fill tendered and complete sale
-  await page.getByLabel("Cash tendered").fill("60.00");
-  await page.getByRole("button", { name: "Complete sale" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("60.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
 
-  await expect(page.getByRole("status")).toHaveText("Sale completed.");
+  await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
 
   // Verify modifier_option_ids were sent
   const body = capturedBody as { sales: Array<{ order: { items: Array<{ modifier_option_ids: string[] }> } }> };
@@ -156,12 +156,12 @@ test("products without modifier groups are added directly to cart", async ({ pag
   );
 
   await page.goto("/register");
-  await page.getByRole("button", { name: "Add Concha" }).click();
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
 
   // No modifier modal should appear
-  await expect(page.getByRole("heading", { name: /Customize/i })).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: /Personalizar/i })).not.toBeVisible();
   // Product goes directly to cart
-  const cart = page.getByLabel("Cart");
+  const cart = page.getByLabel(/carrito/i);
   await expect(cart.getByText("Concha")).toBeVisible();
   await expect(cart.getByText("MX$18.50").first()).toBeVisible();
 });

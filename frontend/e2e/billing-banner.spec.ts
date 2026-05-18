@@ -87,7 +87,7 @@ test("blocked tenant sees billing banner with recovery link on the register", as
   await expect(banner).toBeVisible();
   await expect(banner).toHaveAttribute("data-billing-reason", "trial_expired");
   await expect(banner).toHaveAttribute("role", "alert");
-  await expect(banner.getByRole("link", { name: /manage billing/i })).toHaveAttribute(
+  await expect(banner.getByRole("link", { name: /administrar facturaci[óo]n/i })).toHaveAttribute(
     "href",
     BILLING_RECOVERY,
   );

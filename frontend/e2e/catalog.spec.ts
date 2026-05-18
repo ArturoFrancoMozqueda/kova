@@ -51,11 +51,11 @@ test("catalog page loads categories and products for owner", async ({ page }) =>
 
   await page.goto("/catalog");
 
-  await expect(page.getByRole("heading", { name: "Catalog" })).toBeVisible();
-  await expect(page.getByText("Pan")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /cat[áa]logo/i })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Pan" })).toBeVisible();
   await expect(page.getByText("Concha")).toBeVisible();
-  await expect(page.getByRole("button", { name: "New category" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "New product" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /nueva categor[íi]a/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /nuevo producto/i })).toBeVisible();
 });
 
 test("catalog page lets owner create a category", async ({ page }) => {
@@ -78,11 +78,11 @@ test("catalog page lets owner create a category", async ({ page }) => {
   });
 
   await page.goto("/catalog");
-  await page.getByRole("button", { name: "New category" }).click();
-  await page.getByLabel("Category name").fill("Pasteles");
-  await page.getByRole("button", { name: "Save category" }).click();
+  await page.getByRole("button", { name: /nueva categor[íi]a/i }).click();
+  await page.getByLabel(/nombre de la categor[íi]a/i).fill("Pasteles");
+  await page.getByRole("button", { name: /guardar categor[íi]a/i }).click();
 
-  await expect(page.getByText("Category created.")).toBeVisible();
+  await expect(page.getByText(/categor[íi]a creada/i)).toBeVisible();
 });
 
 test("catalog page hides edit controls for cashier", async ({ page }) => {
@@ -91,7 +91,7 @@ test("catalog page hides edit controls for cashier", async ({ page }) => {
 
   await page.goto("/catalog");
 
-  await expect(page.getByRole("heading", { name: "Catalog" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "New category" })).not.toBeVisible();
-  await expect(page.getByRole("button", { name: "New product" })).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: /cat[áa]logo/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /nueva categor[íi]a/i })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: /nuevo producto/i })).not.toBeVisible();
 });

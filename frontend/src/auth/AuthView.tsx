@@ -132,7 +132,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
 
             {state === "created" && (
               <div className="mt-4 space-y-3 animate-fade-in">
-                <div className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-emerald-800">
+                <div className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
                   {verificationToken ? copy.auth.devVerifyReady : copy.auth.checkEmail}
                 </div>
@@ -158,7 +158,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             )}
 
             {state === "verified" && (
-              <div className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-emerald-800 animate-fade-in">
+              <div className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success animate-fade-in">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 {copy.auth.verified}
               </div>

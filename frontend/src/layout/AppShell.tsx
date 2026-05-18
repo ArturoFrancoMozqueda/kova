@@ -64,6 +64,18 @@ export default function AppShell() {
 
   const navItems = isAdminRole(userRole) ? adminNavItems : cashierNavItems;
 
+  const bottomNavItems: NavItem[] = isAdminRole(userRole)
+    ? [
+        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" /> },
+        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" /> },
+        { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-5 w-5" /> },
+      ]
+    : [
+        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" /> },
+        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" /> },
+        { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-5 w-5" /> },
+      ];
+
   const filteredNavItems = navItems.filter((item) => {
     if (item.permission === "reports.view_all") return canViewReports;
     if (item.permission === "billing.view") return canViewBilling;
@@ -178,11 +190,46 @@ export default function AppShell() {
           <span className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</span>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           <BillingBanner />
           <Outlet />
         </div>
+
+        {/* Bottom navigation — mobile only */}
+        <nav
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-kova-border bg-white/95 backdrop-blur lg:hidden"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          aria-label={copy.auth.accountNavigation}
+        >
+          {bottomNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                cn(
+                  "flex h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
+                  isActive
+                    ? "text-kova-blue"
+                    : "text-kova-muted hover:text-kova-ink",
+                )
+              }
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            aria-label={copy.app.openMenu}
+            className="flex h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium text-kova-muted hover:text-kova-ink transition-colors"
+          >
+            <Menu className="h-5 w-5" />
+            <span>{copy.app.more ?? "Más"}</span>
+          </button>
+        </nav>
       </div>
     </div>
   );
+
 }

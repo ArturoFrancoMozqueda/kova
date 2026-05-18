@@ -20,17 +20,17 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 let toastId = 0;
 
 const icons: Record<ToastVariant, ReactNode> = {
-  success: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-  error: <XCircle className="h-4 w-4 text-red-500" />,
-  warning: <AlertTriangle className="h-4 w-4 text-amber-500" />,
+  success: <CheckCircle2 className="h-4 w-4 text-kova-growth" />,
+  error: <XCircle className="h-4 w-4 text-destructive" />,
+  warning: <AlertTriangle className="h-4 w-4 text-warning" />,
   info: <Info className="h-4 w-4 text-kova-blue" />,
 };
 
 const variantStyles: Record<ToastVariant, string> = {
-  success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  error: "border-red-200 bg-red-50 text-red-900",
-  warning: "border-amber-200 bg-amber-50 text-amber-900",
-  info: "border-blue-200 bg-blue-50 text-blue-900",
+  success: "border-kova-growth/30 bg-kova-growth/10 text-kova-ink",
+  error: "border-destructive/30 bg-destructive/10 text-kova-ink",
+  warning: "border-warning/40 bg-warning/10 text-kova-ink",
+  info: "border-kova-blue/30 bg-kova-blue/10 text-kova-ink",
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {

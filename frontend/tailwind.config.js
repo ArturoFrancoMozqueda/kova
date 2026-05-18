@@ -70,6 +70,11 @@ export default {
           "ink-border": "var(--kova-ink-border)",
         },
       },
+      boxShadow: {
+        "kova-card": "var(--kova-shadow-card)",
+        "kova-card-hover": "var(--kova-shadow-card-hover)",
+        "kova-hero": "var(--kova-shadow-hero)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

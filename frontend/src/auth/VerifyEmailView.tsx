@@ -44,8 +44,8 @@ export default function VerifyEmailView() {
             )}
             {state === "success" && (
               <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
-                <CheckCircle2 className="h-10 w-10 text-emerald-500" />
-                <p className="font-medium text-emerald-800">{copy.auth.verified}</p>
+                <CheckCircle2 className="h-10 w-10 text-kova-growth" />
+                <p className="font-medium text-success">{copy.auth.verified}</p>
                 <p className="text-xs text-muted-foreground">{copy.auth.verifyRedirecting}</p>
               </div>
             )}

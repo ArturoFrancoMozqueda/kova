@@ -52,9 +52,9 @@ export function CashMovementModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {type === "cash_in" ? (
-              <ArrowUpCircle className="h-5 w-5 text-emerald-600" />
+              <ArrowUpCircle className="h-5 w-5 text-kova-growth" />
             ) : (
-              <ArrowDownCircle className="h-5 w-5 text-red-500" />
+              <ArrowDownCircle className="h-5 w-5 text-destructive" />
             )}
             {copy.cashMovementModal.title}
           </DialogTitle>

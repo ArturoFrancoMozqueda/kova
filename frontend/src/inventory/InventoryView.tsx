@@ -126,7 +126,7 @@ export default function InventoryView() {
         <Card className="border-warning/30 mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTriangle className="h-4 w-4 text-warning" />
               {copy.inventoryView.lowStock}
             </CardTitle>
           </CardHeader>
@@ -285,8 +285,8 @@ function StockCard({
                         className={cn(
                           "shrink-0 rounded-full px-1.5 py-0.5 font-medium text-[10px] uppercase",
                           m.quantity_delta > 0
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-rose-50 text-rose-700",
+                            ? "bg-kova-growth/10 text-kova-growth"
+                            : "bg-destructive/10 text-destructive",
                         )}
                       >
                         {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
@@ -298,7 +298,7 @@ function StockCard({
                         <span className="font-medium">{m.stock_on_hand_after}</span>
                       )}
                       <span className="text-muted-foreground ml-1">
-                        {new Intl.DateTimeFormat(navigator.language, { month: "short", day: "numeric" }).format(new Date(m.created_at))}
+                        {new Intl.DateTimeFormat("es-MX", { month: "short", day: "numeric" }).format(new Date(m.created_at))}
                       </span>
                     </div>
                   </div>

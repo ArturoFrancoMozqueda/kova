@@ -52,17 +52,17 @@ test("owner opens a shift with opening cash", async ({ page }) => {
   });
 
   await page.goto("/shifts");
-  await expect(page.getByRole("heading", { name: "Shift Management" })).toBeVisible();
-  await expect(page.getByText("No shift is currently open")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^turnos$/i })).toBeVisible();
+  await expect(page.getByText(/no hay turno abierto/i)).toBeVisible();
 
-  await page.getByRole("button", { name: "Open Shift" }).click();
-  await expect(page.getByRole("heading", { name: "Open Shift" })).toBeVisible();
+  await page.getByRole("button", { name: "Abrir turno", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Abrir turno", exact: true })).toBeVisible();
 
-  await page.getByLabel("Opening cash amount (optional)").fill("500.00");
-  await page.getByRole("button", { name: "Open shift", exact: true }).click();
+  await page.getByLabel(/efectivo inicial \(opcional\)/i).fill("500.00");
+  await page.locator("form").getByRole("button", { name: "Abrir turno", exact: true }).click();
 
-  await expect(page.getByRole("status")).toHaveText("Shift opened successfully.");
-  await expect(page.getByRole("heading", { name: "Active Shift" })).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText(/turno abierto correctamente/i);
+  await expect(page.getByRole("heading", { name: /turno activo/i })).toBeVisible();
 });
 
 test("owner opens a shift without opening cash", async ({ page }) => {
@@ -85,10 +85,10 @@ test("owner opens a shift without opening cash", async ({ page }) => {
   });
 
   await page.goto("/shifts");
-  await page.getByRole("button", { name: "Open Shift", exact: true }).click();
-  await page.getByRole("button", { name: "Open shift", exact: true }).click();
+  await page.getByRole("button", { name: "Abrir turno", exact: true }).click();
+  await page.locator("form").getByRole("button", { name: "Abrir turno", exact: true }).click();
 
-  await expect(page.getByRole("status")).toHaveText("Shift opened successfully.");
+  await expect(page.getByRole("status")).toHaveText(/turno abierto correctamente/i);
 });
 
 test("owner closes a shift and sees reconciliation result", async ({ page }) => {
@@ -117,15 +117,15 @@ test("owner closes a shift and sees reconciliation result", async ({ page }) => 
   });
 
   await page.goto("/shifts");
-  await expect(page.getByRole("heading", { name: "Active Shift" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /turno activo/i })).toBeVisible();
 
-  await page.getByRole("button", { name: "Close Shift" }).click();
-  await expect(page.getByRole("heading", { name: "Close Shift" })).toBeVisible();
+  await page.getByRole("button", { name: "Cerrar turno", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Cerrar turno", exact: true })).toBeVisible();
 
-  await page.getByLabel("Actual cash in register").fill("1050.00");
-  await page.getByRole("button", { name: "Close shift", exact: true }).click();
+  await page.getByLabel(/efectivo real en caja/i).fill("1050.00");
+  await page.locator("form").getByRole("button", { name: "Cerrar turno", exact: true }).click();
 
-  await expect(page.getByRole("status")).toHaveText("Shift closed successfully.");
+  await expect(page.getByRole("status")).toHaveText(/turno cerrado correctamente/i);
   await expect(page.getByText("balanced")).toBeVisible();
 });
 
@@ -136,9 +136,9 @@ test("staff user without open permission does not see Open Shift button", async 
   await page.route("**/api/v1/shifts", (route) => route.fulfill({ json: [] }));
 
   await page.goto("/shifts");
-  await expect(page.getByRole("heading", { name: "Shift Management" })).toBeVisible();
-  await expect(page.getByText("No shift is currently open")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open Shift" })).not.toBeVisible();
+  await expect(page.getByRole("heading", { name: /^turnos$/i })).toBeVisible();
+  await expect(page.getByText(/no hay turno abierto/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Abrir turno", exact: true })).not.toBeVisible();
 });
 
 test("shift view shows load error state and retry button", async ({ page }) => {
@@ -148,6 +148,6 @@ test("shift view shows load error state and retry button", async ({ page }) => {
   await page.route("**/api/v1/shifts", (route) => route.fulfill({ status: 500, json: {} }));
 
   await page.goto("/shifts");
-  await expect(page.getByRole("alert")).toContainText("Could not load shift data");
-  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText(/no se pudieron cargar los turnos/i);
+  await expect(page.getByRole("button", { name: /reintentar/i })).toBeVisible();
 });

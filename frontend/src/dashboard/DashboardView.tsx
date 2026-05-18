@@ -77,7 +77,7 @@ function DeltaBadge({ current, previous }: DeltaBadgeProps) {
 
   if (pct > 0.5) {
     return (
-      <span className="flex items-center gap-0.5 text-xs font-medium text-emerald-600">
+      <span className="flex items-center gap-0.5 text-xs font-medium text-kova-growth">
         <TrendingUp className="h-3 w-3" />
         {label} {copy.dashboard.vsYesterday}
       </span>
@@ -85,7 +85,7 @@ function DeltaBadge({ current, previous }: DeltaBadgeProps) {
   }
   if (pct < -0.5) {
     return (
-      <span className="flex items-center gap-0.5 text-xs font-medium text-rose-500">
+      <span className="flex items-center gap-0.5 text-xs font-medium text-destructive">
         <TrendingDown className="h-3 w-3" />
         {label} {copy.dashboard.vsYesterday}
       </span>
@@ -213,10 +213,10 @@ function OnboardingChecklist({
 }
 
 const kpiCards = [
-  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "text-emerald-600 bg-emerald-50" },
-  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "text-blue-600 bg-blue-50" },
-  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: TrendingUp, iconClass: "text-violet-600 bg-violet-50" },
-  { key: "refunds", label: () => copy.dashboard.refunds, icon: Receipt, iconClass: "text-rose-600 bg-rose-50" },
+  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "text-kova-growth bg-kova-growth/10" },
+  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "text-kova-blue bg-kova-blue/10" },
+  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: TrendingUp, iconClass: "text-kova-ink bg-kova-mist" },
+  { key: "refunds", label: () => copy.dashboard.refunds, icon: Receipt, iconClass: "text-destructive bg-destructive/10" },
 ] as const;
 
 export default function DashboardView() {
@@ -373,17 +373,17 @@ export default function DashboardView() {
               }
 
               return (
-                <Card key={key} className="hover:shadow-md transition-shadow">
+                <Card key={key} className="bg-gradient-to-br from-white to-kova-mist/40 shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                    <CardTitle className="text-xs font-medium uppercase tracking-[0.08em] text-kova-tertiary">
                       {label()}
                     </CardTitle>
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClass}`}>
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass}`}>
                       <Icon className="h-4 w-4" />
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-bold tabular-nums tracking-tight text-kova-ink">
                       <CountUp
                         value={currentNum}
                         format={isMoney
@@ -391,7 +391,7 @@ export default function DashboardView() {
                           : (n) => String(Math.round(n))}
                       />
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+                    <p className="text-xs text-kova-muted mt-0.5">{sub}</p>
                     <div className="mt-1.5">
                       <DeltaBadge current={currentNum} previous={prevNum} />
                     </div>
@@ -494,8 +494,8 @@ export default function DashboardView() {
                 {[
                   { to: "/register", icon: ShoppingCart, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.newSale, desc: copy.dashboard.newSaleDesc },
                   { to: "/catalog", icon: LayoutGrid, iconClass: "bg-kova-growth/10 text-kova-growth", label: copy.dashboard.manageCatalog, desc: copy.dashboard.manageCatalogDesc },
-                  { to: "/reports", icon: BarChart3, iconClass: "bg-blue-500/10 text-blue-600", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
-                  { to: "/shifts", icon: Clock, iconClass: "bg-violet-500/10 text-violet-600", label: copy.dashboard.shifts, desc: copy.dashboard.shiftsDesc },
+                  { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue-light/15 text-kova-blue", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
+                  { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.shifts, desc: copy.dashboard.shiftsDesc },
                 ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                   <Link key={to} to={to} className="group">
                     <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">

@@ -67,23 +67,23 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
   });
 
   await page.goto("/inventory");
-  await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Concha" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Adjust" }).click();
-  await page.getByLabel("Quantity change").fill("4");
-  await page.getByLabel("Reason").fill("opening_count");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Stock adjusted.")).toBeVisible();
+  await page.getByRole("button", { name: /ajustar/i }).click();
+  await page.getByLabel(/cambio de cantidad/i).fill("4");
+  await page.getByLabel(/motivo/i).fill("opening_count");
+  await page.getByRole("button", { name: /guardar/i }).click();
+  await expect(page.getByText(/stock ajustado/i)).toBeVisible();
 
-  await page.getByRole("button", { name: "Stock take" }).click();
-  await page.getByLabel("Counted quantity").fill("5");
-  await page.getByLabel("Reason").fill("physical_count");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Stock take recorded.")).toBeVisible();
+  await page.getByRole("button", { name: /^conteo$/i }).click();
+  await page.getByLabel(/cantidad contada/i).fill("5");
+  await page.getByLabel(/motivo/i).fill("physical_count");
+  await page.getByRole("button", { name: /guardar/i }).click();
+  await expect(page.getByText(/conteo registrado/i)).toBeVisible();
 
-  await page.getByRole("button", { name: "Set threshold" }).click();
-  await page.getByRole("spinbutton", { name: "Threshold" }).fill("2");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Low-stock threshold updated.")).toBeVisible();
+  await page.getByRole("button", { name: /definir umbral/i }).click();
+  await page.getByRole("spinbutton", { name: /umbral/i }).fill("2");
+  await page.getByRole("button", { name: /guardar/i }).click();
+  await expect(page.getByText(/umbral de stock bajo actualizado/i)).toBeVisible();
 });

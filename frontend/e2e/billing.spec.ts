@@ -55,10 +55,10 @@ test("billing page displays the Standard Plan and active subscription", async ({
 
   await page.goto("/settings/billing");
 
-  await expect(page.getByRole("heading", { name: "Billing" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /facturaci[óo]n/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Standard Plan" })).toBeVisible();
   await expect(page.getByText("MX$199.00")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Active" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /activo/i })).toBeVisible();
 });
 
 test("billing page redirects to checkout and handles cancellation", async ({ page }) => {
@@ -80,7 +80,7 @@ test("billing page redirects to checkout and handles cancellation", async ({ pag
   });
 
   await page.goto("/settings/billing");
-  await page.getByRole("button", { name: "Start checkout" }).click();
+  await page.getByRole("button", { name: /iniciar pago/i }).click();
   await expect(page).toHaveURL("https://checkout.stripe.test/session/cs_test_123");
 });
 
@@ -103,9 +103,9 @@ test("billing page shows past due recovery and return states", async ({ page }) 
 
   await page.goto("/settings/billing/success");
 
-  await expect(page.getByText("Checkout completed. Subscription status is refreshing.").first()).toBeVisible();
-  await expect(page.getByText("Payment is past due. Recover billing to keep uninterrupted access.")).toBeVisible();
-  await expect(page.getByText(/Grace period ends/)).toBeVisible();
+  await expect(page.getByText(/pago completado\. actualizando el estado de la suscripci[óo]n/i).first()).toBeVisible();
+  await expect(page.getByText(/pago vencido\. recupera la facturaci[óo]n para mantener acceso sin interrupciones/i)).toBeVisible();
+  await expect(page.getByText(/fin del periodo de gracia/i)).toBeVisible();
 });
 
 test("billing page lets owners request subscription cancellation", async ({ page }) => {
@@ -127,10 +127,10 @@ test("billing page lets owners request subscription cancellation", async ({ page
   });
 
   await page.goto("/settings/billing");
-  await page.getByRole("button", { name: "Cancel subscription" }).click();
+  await page.getByRole("button", { name: /cancelar suscripci[óo]n/i }).click();
 
-  await expect(page.getByText("Cancels at period end")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Cancel subscription" })).toBeDisabled();
+  await expect(page.getByText(/se cancela al final del periodo/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /cancelar suscripci[óo]n/i })).toBeDisabled();
 });
 
 test("billing page hides data without billing permission", async ({ page }) => {
@@ -138,6 +138,6 @@ test("billing page hides data without billing permission", async ({ page }) => {
 
   await page.goto("/settings/billing");
 
-  await expect(page.getByText("Billing unavailable for your role.")).toBeVisible();
+  await expect(page.getByText(/facturaci[óo]n no disponible para tu rol/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Standard Plan" })).toHaveCount(0);
 });

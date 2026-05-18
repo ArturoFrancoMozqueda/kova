@@ -159,10 +159,10 @@ describe("OrderDetail", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /order detail/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /detalle de la orden/i })).toBeInTheDocument();
     expect(screen.getByText(/customer return/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument();
-    expect(screen.getByText(/action unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Devolver" })).not.toBeInTheDocument();
+    expect(screen.getByText(/acci[oó]n no disponible/i)).toBeInTheDocument();
     expect(await screen.findByText(/Oat/)).toBeInTheDocument();
   });
 
@@ -198,15 +198,15 @@ describe("OrderDetail", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Refund" }));
-    fireEvent.change(screen.getByLabelText("Concha Quantity"), { target: { value: "1" } });
-    fireEvent.click(screen.getByRole("button", { name: /record refund/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Devolver" }));
+    fireEvent.change(screen.getByLabelText("Concha Cantidad"), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: /registrar devoluci[oó]n/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/orders/order-1/refunds",
       expect.objectContaining({ method: "POST" }),
     ));
-    expect(await screen.findByText(/refund recorded/i)).toBeInTheDocument();
+    expect(await screen.findByText(/devoluci[oó]n registrada/i)).toBeInTheDocument();
   });
 
   it("submits a void after confirmation", async () => {
@@ -233,14 +233,14 @@ describe("OrderDetail", () => {
 
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Void" }));
-    fireEvent.click(screen.getByLabelText(/reverses the order inventory/i));
-    fireEvent.click(screen.getByRole("button", { name: /void order/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancelar" }));
+    fireEvent.click(screen.getByLabelText(/revierte el inventario/i));
+    fireEvent.click(screen.getByRole("button", { name: /cancelar orden/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/orders/order-1/void",
       expect.objectContaining({ method: "POST" }),
     ));
-    expect(await screen.findByText(/order voided/i)).toBeInTheDocument();
+    expect(await screen.findByText(/orden cancelada/i)).toBeInTheDocument();
   });
 });

@@ -218,9 +218,9 @@ export default function ShiftView() {
                       className="flex items-center gap-3 rounded-lg border p-3"
                     >
                       {m.type === "cash_in" ? (
-                        <ArrowUpCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <ArrowUpCircle className="h-4 w-4 shrink-0 text-kova-growth" />
                       ) : (
-                        <ArrowDownCircle className="h-4 w-4 shrink-0 text-red-500" />
+                        <ArrowDownCircle className="h-4 w-4 shrink-0 text-destructive" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-muted-foreground uppercase">

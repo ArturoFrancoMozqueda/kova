@@ -42,7 +42,7 @@ function formatPlanAmount(amountMinorUnits: number, currency: string): string {
 
 function formatDate(value: string | null): string {
   if (!value) return copy.billingView.notAvailable;
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 function daysUntil(value: string | null): number | null {
@@ -181,7 +181,7 @@ export default function BillingView() {
 
           {loadState.billing.subscription?.status === "past_due" && (
             <div className="flex items-center gap-3 rounded-lg bg-warning/20 border border-warning/30 px-4 py-3 text-sm animate-fade-in">
-              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
               <p className="text-warning-foreground">{copy.billingView.pastDueBanner}</p>
             </div>
           )}
