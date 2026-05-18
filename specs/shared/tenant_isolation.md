@@ -52,12 +52,20 @@ Future sprints add: products, categories, orders, payments, shifts, etc.
 | permissions | Reference data, not tenant-owned |
 | role_permissions | Reference data, not tenant-owned |
 | verification_tokens | Keyed to user_id, access controlled via auth flow |
+| alembic_version | Migration metadata |
+
+See `docs/adr/ADR-009-backend-only-rls-no-policy-tables.md` for the accepted
+decision on backend-only tables where RLS is enabled without tenant policies.
 
 ## Invariants
 
 - Inserting a tenant-scoped row without `tenant_id` must fail (NOT NULL constraint).
 - A query with `tenant_id = A` must never return rows belonging to `tenant_id = B`.
 - A session created for tenant A must not grant access to tenant B.
+- Tenant-scoped join tables must carry `tenant_id` or have a documented ADR exception.
+- Cross-tenant joins must be blocked by application checks and database constraints.
+- Audit logs with `tenant_id IS NULL` must not be visible to every tenant. Beta
+  application audit events should carry a concrete tenant ID.
 - RLS policy violations must return empty results (not errors) to avoid leaking
   tenant existence.
 

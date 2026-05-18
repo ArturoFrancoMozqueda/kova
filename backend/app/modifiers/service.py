@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.catalog.models import Product
 from app.idempotency import service as idempotency_service
 from app.modifiers.models import ModifierGroup, ModifierOption, ProductModifierGroup
 from app.modifiers.schemas import (
@@ -205,18 +206,22 @@ def set_product_modifier_groups(
     product_id: UUID,
     body: SetProductModifierGroups,
 ) -> list[ModifierGroupResponse]:
+    _get_product(db, tenant_id=tenant_id, product_id=product_id)
+
     # Validate all groups belong to tenant
     for assignment in body.assignments:
         _get_group(db, tenant_id=tenant_id, group_id=assignment.modifier_group_id)
 
     # Replace existing assignments
     db.query(ProductModifierGroup).filter(
+        ProductModifierGroup.tenant_id == tenant_id,
         ProductModifierGroup.product_id == product_id
     ).delete()
 
     for assignment in body.assignments:
         db.add(ProductModifierGroup(
             id=uuid4(),
+            tenant_id=tenant_id,
             product_id=product_id,
             modifier_group_id=assignment.modifier_group_id,
             sort_order=assignment.sort_order,
@@ -235,9 +240,13 @@ def set_product_modifier_groups(
 def get_product_modifier_groups(
     db: Session, *, tenant_id: UUID, product_id: UUID
 ) -> list[ModifierGroupResponse]:
+    _get_product(db, tenant_id=tenant_id, product_id=product_id)
     assignments = (
         db.query(ProductModifierGroup)
-        .filter(ProductModifierGroup.product_id == product_id)
+        .filter(
+            ProductModifierGroup.tenant_id == tenant_id,
+            ProductModifierGroup.product_id == product_id,
+        )
         .order_by(ProductModifierGroup.sort_order)
         .all()
     )
@@ -268,7 +277,10 @@ def validate_and_price_modifiers(
     """
     assignments = (
         db.query(ProductModifierGroup)
-        .filter(ProductModifierGroup.product_id == product_id)
+        .filter(
+            ProductModifierGroup.tenant_id == tenant_id,
+            ProductModifierGroup.product_id == product_id,
+        )
         .order_by(ProductModifierGroup.sort_order)
         .all()
     )
@@ -294,6 +306,7 @@ def validate_and_price_modifiers(
     for assignment in assignments:
         group = db.query(ModifierGroup).filter(
             ModifierGroup.id == assignment.modifier_group_id,
+            ModifierGroup.tenant_id == tenant_id,
             ModifierGroup.is_active == True,  # noqa: E712
         ).first()
         if not group:
@@ -343,6 +356,16 @@ def _get_group(db: Session, *, tenant_id: UUID, group_id: UUID) -> ModifierGroup
     if not group:
         raise not_found("Modifier group not found")
     return group
+
+
+def _get_product(db: Session, *, tenant_id: UUID, product_id: UUID) -> Product:
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.tenant_id == tenant_id,
+    ).first()
+    if not product:
+        raise not_found("Product not found")
+    return product
 
 
 def _get_option(

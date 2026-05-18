@@ -2,7 +2,16 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -30,6 +39,7 @@ class ModifierGroup(Base):
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "name", name="uq_modifier_groups_tenant_name"),
+        UniqueConstraint("tenant_id", "id", name="uq_modifier_groups_tenant_id_id"),
     )
 
 
@@ -37,7 +47,7 @@ class ModifierOption(Base):
     __tablename__ = "modifier_options"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False, index=True)
     group_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     price_delta: Mapped[Decimal] = mapped_column(
@@ -50,19 +60,39 @@ class ModifierOption(Base):
         DateTime(timezone=True), default=_now, onupdate=_now
     )
 
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_modifier_options_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "group_id"],
+            ["modifier_groups.tenant_id", "modifier_groups.id"],
+            name="fk_modifier_options_tenant_group",
+        ),
+    )
+
 
 class ProductModifierGroup(Base):
     __tablename__ = "product_modifier_groups"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False, index=True)
     product_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     modifier_group_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (
         UniqueConstraint(
-            "product_id", "modifier_group_id",
+            "tenant_id", "product_id", "modifier_group_id",
             name="uq_product_modifier_groups",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "product_id"],
+            ["products.tenant_id", "products.id"],
+            name="fk_product_modifier_groups_tenant_product",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "modifier_group_id"],
+            ["modifier_groups.tenant_id", "modifier_groups.id"],
+            name="fk_product_modifier_groups_tenant_group",
         ),
     )
 
@@ -71,10 +101,29 @@ class OrderItemModifier(Base):
     __tablename__ = "order_item_modifiers"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False, index=True)
     order_item_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     modifier_group_id: Mapped[UUID] = mapped_column(nullable=False)
     modifier_group_name: Mapped[str] = mapped_column(String(120), nullable=False)
     modifier_option_id: Mapped[UUID] = mapped_column(nullable=False)
     modifier_option_name: Mapped[str] = mapped_column(String(120), nullable=False)
     price_delta_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "order_item_id"],
+            ["order_items.tenant_id", "order_items.id"],
+            name="fk_order_item_modifiers_tenant_order_item",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "modifier_group_id"],
+            ["modifier_groups.tenant_id", "modifier_groups.id"],
+            name="fk_order_item_modifiers_tenant_group",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "modifier_option_id"],
+            ["modifier_options.tenant_id", "modifier_options.id"],
+            name="fk_order_item_modifiers_tenant_option",
+        ),
+    )

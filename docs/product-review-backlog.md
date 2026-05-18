@@ -237,15 +237,15 @@ Resolve or document Supabase schema findings before onboarding real tenants.
 
 ### Tasks
 
-- [ ] Review all RLS-enabled tables with no policy and document whether backend-only access is intentional.
-- [ ] Add policies or explicit ADR for `tenants`, `users`, `roles`, `permissions`, `role_permissions`, and `verification_tokens`.
-- [ ] Review whether `audit_logs.tenant_id IS NULL` should be visible to all tenant contexts.
-- [ ] Add or confirm foreign keys for `modifier_options.group_id`.
-- [ ] Add or confirm foreign keys for `product_modifier_groups.product_id` and `modifier_group_id`.
-- [ ] Add or confirm foreign keys for `order_item_modifiers.order_item_id`, `modifier_group_id`, and `modifier_option_id`.
-- [ ] Decide whether `product_modifier_groups` needs `tenant_id`; add it unless ADR documents the join-policy exception.
-- [ ] Add covering indexes for important foreign keys used in tenant-scoped queries.
-- [ ] Optimize RLS policies flagged by Supabase advisor by wrapping `current_setting()` in select where appropriate.
+- [x] Review all RLS-enabled tables with no policy and document whether backend-only access is intentional.
+- [x] Add policies or explicit ADR for `tenants`, `users`, `roles`, `permissions`, `role_permissions`, and `verification_tokens`.
+- [x] Review whether `audit_logs.tenant_id IS NULL` should be visible to all tenant contexts.
+- [x] Add or confirm foreign keys for `modifier_options.group_id`.
+- [x] Add or confirm foreign keys for `product_modifier_groups.product_id` and `modifier_group_id`.
+- [x] Add or confirm foreign keys for `order_item_modifiers.order_item_id`, `modifier_group_id`, and `modifier_option_id`.
+- [x] Decide whether `product_modifier_groups` needs `tenant_id`; add it unless ADR documents the join-policy exception.
+- [x] Add covering indexes for important foreign keys used in tenant-scoped queries.
+- [x] Optimize RLS policies flagged by Supabase advisor by wrapping `current_setting()` in select where appropriate.
 - [ ] Add tenant isolation tests for every tenant-scoped route.
 
 ### Acceptance Criteria
