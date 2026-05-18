@@ -19,7 +19,7 @@ the commercial model enforceable.
 
 ## Functional Requirements
 
-- A tenant without a subscription receives a 14-day trial starting from `tenants.created_at`.
+- A tenant without a subscription receives a 7-day trial starting from `tenants.created_at`.
 - Trial access applies to the full current POS core; there are no feature-tier restrictions.
 - Stripe `trialing` subscription status is also treated as allowed access.
 - The billing status API must return whether the tenant is `allowed`, `trialing`, and/or `blocked`.
@@ -88,7 +88,7 @@ the commercial model enforceable.
 
 | Scenario | Layer | Expected Result |
 |---|---|---|
-| No subscription inside 14-day trial | Backend | Paid writes are allowed and billing access shows trialing |
+| No subscription inside 7-day trial | Backend | Paid writes are allowed and billing access shows trialing |
 | No subscription after trial expiry | Backend | Paid writes return `402` and audit `billing.access_blocked` |
 | Stripe `active` subscription | Backend | Paid writes are allowed |
 | Stripe `trialing` subscription | Backend | Paid writes are allowed |

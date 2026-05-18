@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { STANDARD_PLAN_AMOUNT, STANDARD_PLAN_PRICE_CADENCE_ES } from "@/billing/standardPlan";
+import { BILLING_TRIAL_LABEL_ES } from "@/billing/trial";
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
@@ -931,7 +932,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
                 textAlign: "center", textDecoration: "none", display: "block",
               }}
             >
-              Empieza 3 días gratis →
+              Empieza {BILLING_TRIAL_LABEL_ES} gratis →
             </Link>
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(240,244,255,0.55)", marginTop: -10 }}>
               Sin tarjeta para empezar. Cancela cuando quieras.
