@@ -101,13 +101,13 @@ export default function InventoryView() {
 
   return (
     <main className="p-6 lg:p-8 max-w-6xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex items-start justify-between gap-3 mb-6 flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">{copy.inventoryView.title}</h1>
           <p className="text-sm text-muted-foreground">{copy.inventoryView.trackedProducts(loadState.stock.length)}</p>
         </div>
         {loadState.lowStock.length > 0 && (
-          <Badge variant="warning" className="text-sm gap-1.5 py-1 px-3">
+          <Badge variant="warning" className="text-sm gap-1.5 py-1 px-3 shrink-0">
             <AlertTriangle className="h-3.5 w-3.5" />
             {loadState.lowStock.length} {copy.inventoryView.lowStock}
           </Badge>
