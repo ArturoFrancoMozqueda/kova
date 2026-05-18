@@ -193,10 +193,9 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
-    expect(screen.getByRole("link", { name: /abrir orden/i })).toHaveAttribute(
-      "href",
-      "/orders/order-1",
-    );
+    const openOrderLinks = screen.getAllByRole("link", { name: /abrir orden/i });
+    expect(openOrderLinks.length).toBeGreaterThan(0);
+    openOrderLinks.forEach((link) => expect(link).toHaveAttribute("href", "/orders/order-1"));
   });
 
   it("creates a bank transfer sale with a reference", async () => {

@@ -501,6 +501,7 @@ export const copy = {
     undo: "Deshacer",
     saleSuccessTitle: "¡Venta completada!",
     saleSuccessSubtitle: "Lista para la siguiente.",
+    close: "Cerrar",
   },
   syncQueue: {
     title: "Cola de sincronización",

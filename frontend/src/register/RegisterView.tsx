@@ -119,6 +119,7 @@ export default function RegisterView() {
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
+  const successPrimaryRef = useRef<HTMLButtonElement | null>(null);
 
   const scrollToPayment = () => {
     paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -144,6 +145,18 @@ export default function RegisterView() {
       setLoadState({ status: "error" });
     }
   }, []);
+
+  // Focus the primary CTA + handle Escape on mobile success overlay.
+  useEffect(() => {
+    if (!completedOrder) return;
+    successPrimaryRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") resetSale();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedOrder]);
 
   useEffect(() => {
     void load();
@@ -989,23 +1002,43 @@ export default function RegisterView() {
       {/* Mobile full-screen success state */}
       {completedOrder && (
         <div
-          aria-hidden="true"
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-success/5 backdrop-blur-sm px-6 animate-fade-in lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sale-success-title"
+          className="fixed inset-0 z-50 flex flex-col bg-background animate-fade-in lg:hidden"
+          style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
         >
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-success/15">
-            <CheckCircle2 className="h-14 w-14 text-success" />
+          <div className="flex justify-end p-3">
+            <button
+              type="button"
+              onClick={resetSale}
+              aria-label={copy.register.close ?? "Cerrar"}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-kova-muted hover:bg-kova-mist transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <div className="text-center space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight text-kova-ink">
-              {copy.register.saleSuccessTitle}
-            </h2>
-            <p className="text-sm text-kova-muted">{copy.register.saleSuccessSubtitle}</p>
-            <p className="pt-2 text-3xl font-bold tabular-nums tracking-tight text-kova-ink">
-              {formatMoney(completedOrder.total_amount)}
-            </p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-4">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-kova-growth/15 animate-scale-in">
+              <CheckCircle2 className="h-14 w-14 text-kova-growth" strokeWidth={2.25} />
+            </div>
+            <div className="text-center space-y-1">
+              <h2 id="sale-success-title" className="text-2xl font-bold tracking-tight text-kova-ink">
+                {copy.register.saleSuccessTitle}
+              </h2>
+              <p className="text-sm text-kova-muted">{copy.register.saleSuccessSubtitle}</p>
+              <p className="pt-3 text-4xl font-bold tabular-nums tracking-tight text-kova-ink">
+                {formatMoney(completedOrder.total_amount)}
+              </p>
+            </div>
           </div>
-          <div className="w-full max-w-xs space-y-2">
-            <Button size="xl" className="w-full" onClick={resetSale}>
+          <div className="px-6 pb-6 space-y-2">
+            <Button
+              ref={successPrimaryRef}
+              size="xl"
+              className="w-full"
+              onClick={resetSale}
+            >
               <RotateCcw className="h-5 w-5" />
               {copy.register.newSale}
             </Button>

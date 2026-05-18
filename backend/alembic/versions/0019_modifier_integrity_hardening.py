@@ -242,6 +242,15 @@ def downgrade() -> None:
     )
     op.execute("DROP FUNCTION IF EXISTS set_product_modifier_groups_tenant_id()")
 
+    for table_name in (
+        "audit_logs",
+        "modifier_groups",
+        "modifier_options",
+        "product_modifier_groups",
+        "order_item_modifiers",
+    ):
+        op.execute(f"DROP POLICY IF EXISTS tenant_isolation ON {table_name}")
+
     for constraint_name, table_name in (
         ("fk_order_item_modifiers_tenant_option", "order_item_modifiers"),
         ("fk_order_item_modifiers_tenant_group", "order_item_modifiers"),
