@@ -6,6 +6,7 @@ import { getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/
 import { listProducts } from "@/catalog/api";
 import { listLowStock, listStock } from "@/inventory/api";
 import { getBillingSubscription } from "@/billing/api";
+import { getOnboardingState, type OnboardingState } from "@/onboarding/api";
 import type { SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ type LoadState =
       trackedInventoryCount: number;
       lowStockCount: number;
       hasActiveSubscription: boolean;
+      onboarding: OnboardingState | null;
     };
 
 function todayISO(): string {
@@ -102,13 +104,15 @@ function OnboardingChecklist({
   orderCount,
   trackedInventoryCount,
   hasActiveSubscription,
+  onboarding,
 }: {
   hasProducts: boolean;
   orderCount: number;
   trackedInventoryCount: number;
   hasActiveSubscription: boolean;
+  onboarding: OnboardingState | null;
 }) {
-  const steps = [
+  const fallbackSteps = [
     {
       label: copy.dashboard.onboardingStep1Label,
       desc: copy.dashboard.onboardingStep1Desc,
@@ -138,6 +142,15 @@ function OnboardingChecklist({
       actionTo: "/register",
     },
   ];
+  const steps = onboarding
+    ? onboarding.steps.map((step) => ({
+        label: step.label,
+        desc: copy.dashboard.onboardingStepDesc(step.key),
+        done: step.completed,
+        action: copy.dashboard.onboardingStepAction(step.key),
+        actionTo: step.action_path,
+      }))
+    : fallbackSteps;
 
   const allDone = steps.every((s) => s.done);
   if (allDone) return null;
@@ -217,7 +230,7 @@ export default function DashboardView() {
       const today = todayISO();
       const yesterday = yesterdayISO();
 
-      const [summary, payments, topProducts, productsResult, stock, lowStock, billing, yesterdaySummary] = await Promise.all([
+      const [summary, payments, topProducts, productsResult, stock, lowStock, billing, onboarding, yesterdaySummary] = await Promise.all([
         getSalesSummary(today, today),
         getPaymentBreakdown(today, today),
         getTopProducts(today, today),
@@ -225,6 +238,7 @@ export default function DashboardView() {
         listStock().catch(() => [] as Awaited<ReturnType<typeof listStock>>),
         listLowStock().catch(() => [] as Awaited<ReturnType<typeof listLowStock>>),
         getBillingSubscription().catch(() => null),
+        getOnboardingState().catch(() => null),
         getSalesSummary(yesterday, yesterday).catch(() => null),
       ]);
 
@@ -240,6 +254,7 @@ export default function DashboardView() {
         trackedInventoryCount: stock.length,
         lowStockCount: lowStock.length,
         hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
+        onboarding,
       });
     } catch {
       setLoadState({ status: "error" });
@@ -308,6 +323,7 @@ export default function DashboardView() {
             orderCount={loadState.summary.order_count}
             trackedInventoryCount={loadState.trackedInventoryCount}
             hasActiveSubscription={loadState.hasActiveSubscription}
+            onboarding={loadState.onboarding}
           />
 
           {loadState.lowStockCount > 0 && (

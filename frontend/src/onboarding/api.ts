@@ -7,6 +7,20 @@ export type PresetApplyResponse = {
   skipped: boolean;
 };
 
+export type OnboardingStep = {
+  key: string;
+  label: string;
+  completed: boolean;
+  action_path: string;
+};
+
+export type OnboardingState = {
+  tenant_id: string;
+  completed_count: number;
+  total_count: number;
+  steps: OnboardingStep[];
+};
+
 class ApiError extends Error {
   constructor(
     message: string,
@@ -30,4 +44,8 @@ export function applyPreset(preset: PresetName): Promise<PresetApplyResponse> {
     method: "POST",
     body: JSON.stringify({ preset }),
   });
+}
+
+export function getOnboardingState(): Promise<OnboardingState> {
+  return requestJson<OnboardingState>("/api/v1/onboarding/state");
 }
