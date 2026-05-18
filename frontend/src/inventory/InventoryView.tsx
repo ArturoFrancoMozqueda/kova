@@ -1,10 +1,11 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { adjustStock, listLowStock, listMovements, listStock, recordStockTake, updateLowStockThreshold } from "./api";
 import type { MovementHistoryItem, StockItem } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -147,6 +148,9 @@ export default function InventoryView() {
           <CardContent className="flex flex-col items-center py-16">
             <Package className="h-12 w-12 text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground">{copy.inventoryView.noStock}</p>
+            <Link className={cn("mt-4", buttonVariants())} to="/catalog?inventory=activate">
+              {copy.inventoryView.activateInventory}
+            </Link>
           </CardContent>
         </Card>
       ) : (
