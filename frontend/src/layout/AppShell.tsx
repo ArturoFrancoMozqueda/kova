@@ -52,6 +52,13 @@ function isAdminRole(role: string): boolean {
   return role === "owner" || role === "manager";
 }
 
+function roleLabel(role: string): string {
+  if (role === "owner") return copy.settings.roleOwner;
+  if (role === "manager") return copy.settings.roleManager;
+  if (role === "cashier") return copy.settings.roleCashier;
+  return role;
+}
+
 export default function AppShell() {
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -136,7 +143,7 @@ export default function AppShell() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs text-sidebar-muted truncate">{userEmail}</p>
-            <p className="text-[10px] text-sidebar-muted/60 capitalize">{userRole}</p>
+            <p className="text-[10px] text-sidebar-muted/60">{roleLabel(userRole)}</p>
           </div>
         </div>
         <button

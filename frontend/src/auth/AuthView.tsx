@@ -108,6 +108,13 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                 />
               </div>
 
+              {mode === "signup" && (
+                <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+                  <p>{copy.auth.signupTrustLine}</p>
+                  <p className="mt-1">{copy.auth.signupLegalLine}</p>
+                </div>
+              )}
+
               <Button type="submit" className="w-full" size="lg" disabled={state === "submitting"}>
                 {state === "submitting" ? (
                   <>

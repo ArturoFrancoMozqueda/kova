@@ -504,7 +504,7 @@ export default function RegisterView() {
                 <ShoppingBag className="h-4 w-4" />
                 {copy.register.catalog}
               </CardTitle>
-              <Badge variant="secondary">{loadState.products.length} items</Badge>
+              <Badge variant="secondary">{copy.register.itemCount(loadState.products.length)}</Badge>
             </div>
             {/* SKU / barcode search */}
             <div className="relative mt-3">
@@ -698,14 +698,14 @@ export default function RegisterView() {
                             </p>
                           ))}
                           <p className="text-xs text-muted-foreground mt-1">
-                            {formatMoney(item.effectiveUnitPrice)} each
+                            {copy.register.unitPrice(formatMoney(item.effectiveUnitPrice))}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity - 1)}
-                            aria-label="Decrease quantity"
+                            aria-label={copy.register.decreaseQuantity}
                             className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
                           >
                             <Minus className="h-4 w-4" />
@@ -714,7 +714,7 @@ export default function RegisterView() {
                           <button
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity + 1)}
-                            aria-label="Increase quantity"
+                            aria-label={copy.register.increaseQuantity}
                             className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
                           >
                             <Plus className="h-4 w-4" />
@@ -727,7 +727,7 @@ export default function RegisterView() {
                           <button
                             type="button"
                             onClick={() => removeItem(cartKey)}
-                            aria-label={`Remove ${item.product.name}`}
+                            aria-label={copy.register.removeItem(item.product.name)}
                             className="text-xs text-destructive hover:underline mt-1"
                           >
                             <Trash2 className="h-3 w-3 inline" />
@@ -776,7 +776,7 @@ export default function RegisterView() {
                       <div key={payment.id} className="rounded-lg border p-3 space-y-2 animate-fade-in">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-muted-foreground uppercase">
-                            Payment {index + 1}
+                            {copy.register.paymentNumber(index + 1)}
                           </span>
                           <button
                             type="button"
@@ -784,7 +784,7 @@ export default function RegisterView() {
                             onClick={() => removeSplitPayment(payment.id)}
                             className="text-xs text-destructive hover:underline disabled:opacity-40"
                           >
-                            Remove
+                            {copy.register.removePayment}
                           </button>
                         </div>
                         <Select
@@ -1066,7 +1066,7 @@ export default function RegisterView() {
             <span className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4" />
               <span className="text-sm font-medium">
-                {cartItems.reduce((s, i) => s + i.quantity, 0)} {copy.register.cart.toLowerCase()}
+                {copy.register.itemCount(cartItems.reduce((s, i) => s + i.quantity, 0))}
               </span>
             </span>
             <span className="flex items-center gap-2">

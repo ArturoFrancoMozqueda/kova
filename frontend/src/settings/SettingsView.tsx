@@ -24,6 +24,16 @@ import {
 type LoadState = "loading" | "ready" | "error";
 type Role = "owner" | "manager" | "cashier";
 
+const roleOptions: { value: Role; label: string }[] = [
+  { value: "owner", label: copy.settings.roleOwner },
+  { value: "manager", label: copy.settings.roleManager },
+  { value: "cashier", label: copy.settings.roleCashier },
+];
+
+function roleLabel(role: Role | string): string {
+  return roleOptions.find((option) => option.value === role)?.label ?? role;
+}
+
 export default function SettingsView() {
   const { state } = useAuth();
   const { toast } = useToast();
@@ -188,9 +198,9 @@ export default function SettingsView() {
             <div>
               <Label>{copy.settings.role}</Label>
               <select className="h-10 rounded-md border bg-background px-3 text-sm" value={invite.role} onChange={(e) => setInvite((x) => ({ ...x, role: e.target.value as Role }))}>
-                <option value="owner">owner</option>
-                <option value="manager">manager</option>
-                <option value="cashier">cashier</option>
+                {roleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
             <Button type="submit">{copy.settings.invite}</Button>
@@ -204,9 +214,9 @@ export default function SettingsView() {
                   <p className="text-xs text-muted-foreground">{employee.is_active ? copy.settings.active : copy.settings.inactive}</p>
                 </div>
                 <select className="h-9 rounded-md border bg-background px-3 text-sm" value={employee.role} disabled={!employee.is_active} onChange={(e) => void updateEmployeeRole(employee.membership_id, e.target.value as Role).then(load)}>
-                  <option value="owner">owner</option>
-                  <option value="manager">manager</option>
-                  <option value="cashier">cashier</option>
+                  {roleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
                 <Button variant="outline" disabled={!employee.is_active} onClick={() => void deactivateEmployee(employee.membership_id).then(load)}>
                   {copy.settings.deactivate}
@@ -219,7 +229,7 @@ export default function SettingsView() {
             <div className="rounded-lg bg-muted/40 p-3 text-sm">
               <p className="font-medium mb-2">{copy.settings.pendingInvites}</p>
               {invitations.map((row) => (
-                <p key={row.id} className="text-muted-foreground">{row.email} - {row.role} - {row.status}</p>
+                <p key={row.id} className="text-muted-foreground">{row.email} - {roleLabel(row.role)} - {row.status}</p>
               ))}
             </div>
           )}

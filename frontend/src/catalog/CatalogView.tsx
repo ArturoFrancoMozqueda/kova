@@ -500,7 +500,7 @@ export default function CatalogView() {
       >
         <DialogHeader>
           <DialogTitle>
-            {modal?.type === "category-edit" ? copy.catalog.categoryUpdated && `Edit Category` : copy.catalog.newCategory}
+            {modal?.type === "category-edit" ? copy.catalog.editCategory : copy.catalog.newCategory}
           </DialogTitle>
           <DialogDescription>
             {modal?.type === "category-edit"
@@ -552,12 +552,12 @@ export default function CatalogView() {
       >
         <DialogHeader>
           <DialogTitle>
-            {modal?.type === "product-edit" ? `Edit Product` : copy.catalog.newProduct}
+            {modal?.type === "product-edit" ? copy.catalog.editProduct : copy.catalog.newProduct}
           </DialogTitle>
           <DialogDescription>
             {modal?.type === "product-edit"
-              ? "Update the product details below."
-              : "Add a new product to your catalog."}
+              ? copy.catalog.productEditDescription
+              : copy.catalog.productCreateDescription}
           </DialogDescription>
         </DialogHeader>
         {(modal?.type === "product-create" || modal?.type === "product-edit") && (
