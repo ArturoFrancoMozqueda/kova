@@ -149,7 +149,7 @@ function OnboardingChecklist({
   ];
   const steps = onboarding
     ? onboarding.steps.map((step) => ({
-        label: step.label,
+        label: copy.dashboard.onboardingStepLabel(step.key) ?? step.label,
         desc: copy.dashboard.onboardingStepDesc(step.key),
         done: step.completed,
         action: copy.dashboard.onboardingStepAction(step.key),
@@ -273,10 +273,11 @@ export default function DashboardView() {
     void load();
   }, [load]);
 
-  const todayLabel = new Date().toLocaleDateString(navigator.language, {
+  const todayLabel = new Date().toLocaleDateString("es-MX", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: "America/Mexico_City",
   });
 
   return (

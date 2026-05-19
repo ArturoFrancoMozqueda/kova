@@ -20,7 +20,7 @@ type Props = {
   lowStockCount: number;
 };
 
-type Band = "healthy" | "watch" | "critical";
+type Band = "healthy" | "watch" | "critical" | "setup";
 
 type Factor = {
   key: "sales" | "refunds" | "inventory" | "payments";
@@ -148,9 +148,10 @@ export function BusinessHealthCard({
       : 0;
   const score = Math.round(weighted * 100);
 
-  const band: Band = score >= 75 ? "healthy" : score >= 50 ? "watch" : "critical";
+  const isEmptyBusinessDay = summary.order_count === 0 && totalPay === 0;
+  const band: Band = isEmptyBusinessDay ? "setup" : score >= 75 ? "healthy" : score >= 50 ? "watch" : "critical";
   const subtitle =
-    summary.order_count === 0 && totalPay === 0
+    isEmptyBusinessDay
       ? copy.dashboard.healthSubtitleEmpty
       : band === "healthy"
         ? copy.dashboard.healthSubtitleHealthy
@@ -163,12 +164,16 @@ export function BusinessHealthCard({
       ? "text-kova-growth"
       : band === "watch"
         ? "text-warning"
+        : band === "setup"
+          ? "text-kova-blue"
         : "text-destructive";
   const ringBg =
     band === "healthy"
       ? "bg-kova-growth/10"
       : band === "watch"
         ? "bg-warning/10"
+        : band === "setup"
+          ? "bg-kova-blue/10"
         : "bg-destructive/10";
 
   return (
@@ -180,7 +185,7 @@ export function BusinessHealthCard({
             aria-hidden="true"
           >
             <span className={`text-xl font-bold tabular-nums ${ringClass}`}>
-              {score}
+              {isEmptyBusinessDay ? "—" : score}
             </span>
           </div>
           <div className="flex-1 min-w-0">
@@ -196,6 +201,8 @@ export function BusinessHealthCard({
                   ? copy.dashboard.healthBandHealthy
                   : band === "watch"
                     ? copy.dashboard.healthBandWatch
+                    : band === "setup"
+                      ? copy.dashboard.healthBandSetup
                     : copy.dashboard.healthBandCritical}
               </span>
             </div>
