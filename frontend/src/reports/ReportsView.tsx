@@ -11,8 +11,9 @@ import { getBusinessStory, getSalesByHour } from "./api";
 import { InteractiveBarChart, InteractiveRankChart, type ChartRow } from "./InteractiveCharts";
 import type { BusinessStoryReport, SalesByEmployeeRow, SalesByHourRow } from "./types";
 
+import { Link as RouterLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -219,6 +220,10 @@ export default function ReportsView() {
           previousHourly={loadState.previousHourly}
           lowStock={loadState.lowStock}
           velocity={loadState.velocity}
+          onResetRange={() => {
+            setStartDate(today());
+            setEndDate(today());
+          }}
         />
       ) : null}
     </main>
@@ -352,6 +357,7 @@ function ReportsStory({
   previousHourly,
   lowStock,
   velocity,
+  onResetRange,
 }: {
   story: BusinessStoryReport;
   hourly: SalesByHourRow[];
@@ -359,8 +365,17 @@ function ReportsStory({
   previousHourly: SalesByHourRow[];
   lowStock: StockItem[];
   velocity: InventoryVelocityItem[];
+  onResetRange?: () => void;
 }) {
   const hasSales = story.summary.completed_orders > 0;
+  if (!hasSales) {
+    return (
+      <div className="space-y-6">
+        <EmptyBusinessState onPickToday={onResetRange} />
+        <RecommendedActions story={story} />
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <ExecutiveSummary story={story} />
@@ -372,7 +387,6 @@ function ReportsStory({
         lowStock={lowStock}
         velocity={velocity}
       />
-      {!hasSales ? <EmptyBusinessState /> : null}
       <KpiGrid story={story} />
 
       <StorySection
@@ -717,18 +731,28 @@ function SummaryFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EmptyBusinessState() {
+function EmptyBusinessState({ onPickToday }: { onPickToday?: () => void }) {
   return (
-    <Card>
-      <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+    <Card className="border-kova-blue/20 bg-kova-blue/[0.03]">
+      <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10">
+          <ShoppingCart className="h-6 w-6 text-kova-blue" />
         </div>
-        <div>
-          <p className="font-semibold">{copy.reportsView.emptyStoryTitle}</p>
+        <div className="flex-1">
+          <p className="text-base font-semibold">{copy.reportsView.emptyStoryTitle}</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {copy.reportsView.emptyStoryBody}
           </p>
+        </div>
+        <div className="flex flex-wrap gap-2 sm:shrink-0">
+          <RouterLink to="/register" className={buttonVariants({ size: "sm" })}>
+            {copy.reportsView.emptyStoryCta}
+          </RouterLink>
+          {onPickToday ? (
+            <Button variant="outline" size="sm" onClick={onPickToday}>
+              {copy.reportsView.emptyStorySecondaryCta}
+            </Button>
+          ) : null}
         </div>
       </CardContent>
     </Card>

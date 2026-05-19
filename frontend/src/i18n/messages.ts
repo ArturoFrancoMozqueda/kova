@@ -548,80 +548,82 @@ export const copy = {
       `${pct}% de los cobros fueron en efectivo. Prepara cambio antes del pico y revisa si conviene empujar transferencia o tarjeta manual.`,
     cleanOpsActionTitle: "Operación limpia",
     cleanOpsActionDetail:
-      "No hubo devoluciones ni cancelaciones en el rango. Usa este periodo como referencia para comparar dias con problemas.",
+      "No hubo devoluciones ni cancelaciones en el rango. Usa este periodo como referencia para comparar días con problemas.",
     period: "Periodo",
     bestMoment: "Mejor momento",
     timezone: "Zona horaria",
     noData: "Sin datos",
-    completedOrders: "Ordenes completadas",
+    completedOrders: "Órdenes completadas",
     topProduct: "Producto top",
-    bestDay: "Mejor dia",
+    bestDay: "Mejor día",
     bestDaypart: "Mejor bloque",
-    whenItHappened: "Cuando paso",
+    whenItHappened: "Cuándo pasó",
     hourlyDrilldownKicker: "Detalle de hora pico",
-    salesByDayTitle: "Ventas por dia",
-    salesByDayQuestion: "Que dias vendes mas?",
-    daypartSalesTitle: "Ventas por momento del dia",
-    daypartSalesQuestion: "En que bloque se concentran tus ventas?",
+    salesByDayTitle: "Ventas por día",
+    salesByDayQuestion: "¿Qué días vendes más?",
+    daypartSalesTitle: "Ventas por momento del día",
+    daypartSalesQuestion: "¿En qué bloque se concentran tus ventas?",
     salesDriversTitle: "Drivers de venta",
     operationsTitle: "Devoluciones y cancelaciones",
     emptyStoryTitle: "Aún no hay ventas para contar una historia",
     emptyStoryBody: "Cuando completes ventas reales, Kova conectará días, horarios, productos, pagos y acciones recomendadas sin inventar datos.",
-    noDailySales: "Sin ventas por dia en este rango.",
+    emptyStoryCta: "Abrir caja y vender",
+    emptyStorySecondaryCta: "Cambiar rango",
+    noDailySales: "Sin ventas por día en este rango.",
     noDaypartSales: "Sin ventas por bloque en este rango.",
-    noOperationalSignals: "Sin senales operativas para este rango.",
-    chartShareLabel: "Participacion",
+    noOperationalSignals: "Sin señales operativas para este rango.",
+    chartShareLabel: "Participación",
     kpiNetSales: (orders: number) =>
       orders > 0
         ? `Ventas netas calculadas desde ${orders} orden${orders === 1 ? "" : "es"} completada${orders === 1 ? "" : "s"}.`
-        : "Aparece cuando hay ordenes completadas.",
+        : "Aparece cuando hay órdenes completadas.",
     kpiOrders: (orders: number) =>
       `${orders} orden${orders === 1 ? "" : "es"} completada${orders === 1 ? "" : "s"} en este periodo.`,
     kpiAverageTicket: (amount: string) => `Ticket promedio de ${amount} por orden.`,
     kpiTopProduct: (name: string, pct: number) =>
-      `${name} fue el producto que mas genero ventas (${pct}% del total de productos).`,
+      `${name} fue el producto que más generó ventas (${pct}% del total de productos).`,
     kpiTopProductEmpty: "Aparece cuando existan productos vendidos.",
     kpiBestDay: (day: string, pct: number) =>
-      `${day} concentro ${pct}% de las ventas del periodo.`,
-    kpiBestDayEmpty: "Aparece cuando existan ventas por dia.",
+      `${day} concentró ${pct}% de las ventas del periodo.`,
+    kpiBestDayEmpty: "Aparece cuando existan ventas por día.",
     kpiBestDaypart: (daypart: string, pct: number) =>
-      `${daypart} concentro ${pct}% de las ventas.`,
+      `${daypart} concentró ${pct}% de las ventas.`,
     kpiBestDaypartEmpty: "Aparece cuando existan ventas por bloque.",
     kpiRefunds: (count: number) =>
-      count === 0 ? "Sin devoluciones en este periodo." : `${count} devolucion${count === 1 ? "" : "es"} registrada${count === 1 ? "" : "s"}.`,
+      count === 0 ? "Sin devoluciones en este periodo." : `${count} devolución${count === 1 ? "" : "es"} registrada${count === 1 ? "" : "s"}.`,
     kpiCancellations: (count: number) =>
-      count === 0 ? "Sin cancelaciones en este periodo." : `${count} cancelacion${count === 1 ? "" : "es"} registrada${count === 1 ? "" : "s"}.`,
+      count === 0 ? "Sin cancelaciones en este periodo." : `${count} cancelación${count === 1 ? "" : "es"} registrada${count === 1 ? "" : "s"}.`,
     executiveEmpty: (start: string, end: string) =>
-      `Del ${start} al ${end}, no hay ventas completadas en este periodo. El reporte se llenara cuando existan transacciones reales.`,
+      `Del ${start} al ${end}, no hay ventas completadas en este periodo. El reporte se llenará cuando existan transacciones reales.`,
     executiveIntro: (start: string, end: string, amount: string, orders: number, avg: string) =>
-      `Del ${start} al ${end}, Kova genero ${amount} en ventas netas a partir de ${orders} orden${orders === 1 ? "" : "es"}. El ticket promedio fue ${avg}.`,
-    executiveBestDay: (day: string) => `El mejor dia fue ${day}.`,
+      `Del ${start} al ${end}, Kova generó ${amount} en ventas netas a partir de ${orders} orden${orders === 1 ? "" : "es"}. El ticket promedio fue ${avg}.`,
+    executiveBestDay: (day: string) => `El mejor día fue ${day}.`,
     executiveBestDaypart: (daypart: string, peak: string | null) =>
       peak ? `El mejor momento fue ${daypart.toLowerCase()}, especialmente entre ${peak}.` : `El mejor momento fue ${daypart.toLowerCase()}.`,
     executiveTopProduct: (name: string) => `${name} fue el producto principal del periodo.`,
     executivePayment: (method: string, pct: number) =>
-      `${method} concentro ${pct}% de los cobros.`,
-    executiveCleanOps: "Sin devoluciones ni cancelaciones: buena senal operativa.",
+      `${method} concentró ${pct}% de los cobros.`,
+    executiveCleanOps: "Sin devoluciones ni cancelaciones: buena señal operativa.",
     executiveOpsRisk: "Hay devoluciones o cancelaciones que conviene revisar.",
-    dailyInsightEmpty: "Todavia no hay ventas completadas para comparar dias.",
+    dailyInsightEmpty: "Todavía no hay ventas completadas para comparar días.",
     dailyInsightSingle: (day: string, amount: string) =>
-      `${day} registro ${amount} en ventas netas. Con mas dias de actividad podremos comparar patrones.`,
+      `${day} registró ${amount} en ventas netas. Con más días de actividad podremos comparar patrones.`,
     dailyInsightBest: (day: string, pct: number) =>
-      `${day} fue tu mejor dia, concentrando ${pct}% de las ventas del periodo. Considera reforzar inventario y personal antes de ese dia.`,
-    daypartInsightEmpty: "Todavia no hay ventas por bloque de tiempo.",
+      `${day} fue tu mejor día, concentrando ${pct}% de las ventas del periodo. Considera reforzar inventario y personal antes de ese día.`,
+    daypartInsightEmpty: "Todavía no hay ventas por bloque de tiempo.",
     daypartInsightBest: (daypart: string, amount: string, orders: number, pct: number) =>
-      `${daypart} fue tu bloque mas fuerte, con ${amount} en ventas y ${orders} orden${orders === 1 ? "" : "es"}. Represento ${pct}% de tus ventas del periodo.`,
-    peakHourEmpty: "Cuando haya ventas, la hora exacta aparecera aqui como detalle.",
+      `${daypart} fue tu bloque más fuerte, con ${amount} en ventas y ${orders} orden${orders === 1 ? "" : "es"}. Representó ${pct}% de tus ventas del periodo.`,
+    peakHourEmpty: "Cuando haya ventas, la hora exacta aparecerá aquí como detalle.",
     peakHourStory: (hour: string) => `Dentro del mejor bloque, tu pico fue de ${hour}.`,
     peakHourDetail: (hour: string) => `Hora pico del periodo: ${hour}.`,
     productDriverInsight: (name: string, pct: number) =>
-      `${name} genero ${pct}% de tus ventas de producto. Asegura disponibilidad y considera usarlo como producto gancho.`,
+      `${name} generó ${pct}% de tus ventas de producto. Asegura disponibilidad y considera usarlo como producto gancho.`,
     paymentStoryInsight: (method: string, pct: number) =>
-      `${method} representa ${pct}% de los cobros. Usa esta mezcla para anticipar conciliacion y manejo de efectivo.`,
+      `${method} representa ${pct}% de los cobros. Usa esta mezcla para anticipar conciliación y manejo de efectivo.`,
     employeeStoryInsight: (name: string) =>
-      `${name} concentro la mayor venta del periodo. Compara ordenes y ticket promedio para detectar oportunidades de coaching.`,
+      `${name} concentró la mayor venta del periodo. Compara órdenes y ticket promedio para detectar oportunidades de coaching.`,
     employeeSingleInsight: (name: string) =>
-      `${name} registro ventas en este periodo. Si hay mas empleados activos, compara ordenes y ticket promedio para detectar oportunidades de apoyo.`,
+      `${name} registró ventas en este periodo. Si hay más empleados activos, compara órdenes y ticket promedio para detectar oportunidades de apoyo.`,
     actionType: (type: string) =>
       ({
         opportunity: "Oportunidad",
