@@ -38,7 +38,8 @@ export function TrialChip({ className }: { className?: string }) {
   }, [authenticated]);
 
   if (!billing) return null;
-  const { access } = billing;
+  const access = billing.access;
+  if (!access) return null;
 
   const isTrial =
     access.allowed && (access.reason === "signup_trial" || access.reason === "trialing" || access.trialing);
