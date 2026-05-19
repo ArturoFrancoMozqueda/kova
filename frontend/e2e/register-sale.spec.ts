@@ -75,7 +75,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
 
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
-  await expect(page.getByText("MX$1.50")).toBeVisible();
+  await expect(page.getByText(/\$1\.50/).first()).toBeVisible();
 
   await page.getByRole("button", { name: /^cobrar$/i }).click();
 

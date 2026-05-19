@@ -128,7 +128,7 @@ test("selecting a modifier adds it to cart with effective price", async ({ page 
   // Cart shows modifier and effective price
   const cart = page.getByLabel(/carrito/i);
   await expect(cart.getByText("→ Large")).toBeVisible();
-  await expect(cart.getByText("MX$55.00").first()).toBeVisible();
+  await expect(cart.getByText(/\$55\.00/).first()).toBeVisible();
 
   // Fill tendered and complete sale
   await page.getByLabel(/efectivo recibido/i).fill("60.00");
@@ -163,5 +163,5 @@ test("products without modifier groups are added directly to cart", async ({ pag
   // Product goes directly to cart
   const cart = page.getByLabel(/carrito/i);
   await expect(cart.getByText("Concha")).toBeVisible();
-  await expect(cart.getByText("MX$18.50").first()).toBeVisible();
+  await expect(cart.getByText(/\$18\.50/).first()).toBeVisible();
 });

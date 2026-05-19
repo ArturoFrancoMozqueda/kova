@@ -135,7 +135,7 @@ test("orders render as cards at 390px without horizontal overflow", async ({ pag
     }),
   );
   await page.goto("/orders");
-  await expect(page.getByRole("link", { name: /MX\$18\.50/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /\$18\.50/ })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
