@@ -28,9 +28,10 @@ lives in.
       "Aún sin comparación" for fresh / zero-history tenants instead of red −100% (commit 5167a62).
 - [x] `BillingBanner` hidden on `/settings/billing`; info-styled during active trial and dismissible
       (sessionStorage, keyed by reason). Files: [BillingBanner.tsx](../frontend/src/billing/BillingBanner.tsx).
-- [ ] Remove `Dona` / `QA Concha 20260512 / QA-CON-20260512` from the tenant seed so new accounts
+- [x] Remove `Dona` / `QA Concha 20260512 / QA-CON-20260512` from the tenant seed so new accounts
       start with an empty catalog. Backend coordination required. Update
       [CatalogView.tsx](../frontend/src/catalog/CatalogView.tsx) empty state if needed.
+      No code seed source found; fixed with an idempotent purge migration plus signup empty-catalog regression.
 
 ## High priority
 

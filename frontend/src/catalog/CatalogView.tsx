@@ -392,11 +392,30 @@ export default function CatalogView() {
           </CardHeader>
           <CardContent>
             {visibleProducts.length === 0 && !modal ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                  <Package className="h-6 w-6 text-muted-foreground" />
+              <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-lg border border-[color:var(--kova-border)] bg-[color:var(--kova-mist)]/40 px-6 py-10 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-[color:var(--kova-blue)]">
+                  <Package className="h-6 w-6" />
                 </div>
-                <p className="text-sm text-muted-foreground">{copy.catalog.emptyProducts}</p>
+                <p className="text-base font-semibold">{copy.catalog.emptyProductsTitle}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{copy.catalog.emptyProductsBody}</p>
+                {canCreate ? (
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Button size="sm" onClick={() => setModal({ type: "product-create" })}>
+                      <Plus className="h-4 w-4" />
+                      {copy.catalog.newProduct}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={presetApplying}
+                      onClick={() => void handleApplyPreset("bakery")}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {copy.catalog.emptyProductsPreset}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

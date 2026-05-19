@@ -1,6 +1,8 @@
 """Auth flow integration tests (Sprint 0B)."""
 from fastapi.testclient import TestClient
 
+from app.catalog.models import Product
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _signup(client: TestClient, email="owner@example.com", tenant="Acme Bakery") -> dict:
@@ -33,6 +35,14 @@ def test_signup_creates_user_and_tenant(client):
     assert data["user_id"]
     assert data["tenant_id"]
     assert "dev_verification_token" in data
+
+
+def test_signup_starts_with_empty_catalog(client, db):
+    data = _signup(client, email="empty-catalog@example.com", tenant="Empty Catalog Bakery")
+
+    product_count = db.query(Product).filter(Product.tenant_id == data["tenant_id"]).count()
+
+    assert product_count == 0
 
 
 def test_signup_duplicate_email_returns_400(client):
