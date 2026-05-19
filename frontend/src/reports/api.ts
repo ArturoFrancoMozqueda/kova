@@ -1,4 +1,5 @@
 import type {
+  BusinessStoryReport,
   PaymentBreakdown,
   RefundsByReasonRow,
   SalesByEmployeeRow,
@@ -50,6 +51,15 @@ function rangeQuery(startDate: string, endDate: string): string {
 
 export function getSalesSummary(startDate: string, endDate: string): Promise<SalesSummary> {
   return requestJson<SalesSummary>(`/api/v1/reports/sales-summary${query(startDate, endDate)}`);
+}
+
+export function getBusinessStory(
+  startDate: string,
+  endDate: string,
+): Promise<BusinessStoryReport> {
+  return requestJson<BusinessStoryReport>(
+    `/api/v1/reports/business-story${rangeQuery(startDate, endDate)}`,
+  );
 }
 
 export function getPaymentBreakdown(

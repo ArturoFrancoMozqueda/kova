@@ -5,48 +5,33 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { formatMoney, reasonLabel } from "../orders/format";
-import {
-  getPaymentBreakdown,
-  getRefundsByReason,
-  getSalesByEmployee,
-  getSalesByHour,
-  getSalesSummary,
-  getTopProducts,
-} from "./api";
+import { getBusinessStory, getSalesByHour } from "./api";
 import { InteractiveBarChart, InteractiveRankChart, type ChartRow } from "./InteractiveCharts";
-import type {
-  PaymentBreakdown,
-  RefundsByReasonRow,
-  SalesByEmployeeRow,
-  SalesByHourRow,
-  SalesSummary,
-  TopProducts,
-} from "./types";
+import type { BusinessStoryReport, SalesByEmployeeRow, SalesByHourRow } from "./types";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
-  DollarSign,
-  RotateCcw,
-  TrendingUp,
-  ShoppingCart,
-  XCircle,
-  BarChart3,
-  RefreshCw,
   AlertCircle,
-  ShieldOff,
+  CalendarDays,
+  Clock3,
+  CreditCard,
+  DollarSign,
   Filter,
+  Package,
+  RefreshCw,
+  RotateCcw,
+  ShieldOff,
+  ShoppingCart,
   Sparkles,
+  TrendingUp,
+  Users,
+  XCircle,
 } from "lucide-react";
 
 type LoadState =
@@ -54,32 +39,38 @@ type LoadState =
   | { status: "error" }
   | {
       status: "loaded";
-      summary: SalesSummary;
-      payments: PaymentBreakdown;
-      products: TopProducts;
+      story: BusinessStoryReport;
       hourly: SalesByHourRow[];
-      employees: SalesByEmployeeRow[];
-      refundReasons: RefundsByReasonRow[];
-      prevPayments: PaymentBreakdown | null;
-      prevProducts: TopProducts | null;
     };
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function previousRangeOf(startDate: string, endDate: string): { start: string; end: string } {
-  // Inclusive day count. Previous range ends the day before startDate.
-  const s = new Date(`${startDate}T00:00:00`);
-  const e = new Date(`${endDate}T00:00:00`);
-  const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
-  const prevEnd = new Date(s);
-  prevEnd.setDate(prevEnd.getDate() - 1);
-  const prevStart = new Date(prevEnd);
-  prevStart.setDate(prevStart.getDate() - (days - 1));
+function dateLabel(value: string): string {
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function fullDateLabel(value: string): string {
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function pctLabel(value: number): string {
+  return `${value}%`;
+}
+
+function chartCopy() {
   return {
-    start: prevStart.toISOString().slice(0, 10),
-    end: prevEnd.toISOString().slice(0, 10),
+    detailPlaceholder: copy.reportsView.chartDetailPlaceholder,
+    totalShareLabel: copy.reportsView.chartShare,
   };
 }
 
@@ -96,37 +87,11 @@ export default function ReportsView() {
     }
     setLoadState({ status: "loading" });
     try {
-      const prev = previousRangeOf(startDate, endDate);
-      const [
-        summary,
-        payments,
-        products,
-        hourly,
-        employees,
-        refundReasons,
-        prevPayments,
-        prevProducts,
-      ] = await Promise.all([
-        getSalesSummary(startDate, endDate),
-        getPaymentBreakdown(startDate, endDate),
-        getTopProducts(startDate, endDate),
+      const [story, hourly] = await Promise.all([
+        getBusinessStory(startDate, endDate),
         getSalesByHour(startDate, endDate).catch(() => []),
-        getSalesByEmployee(startDate, endDate).catch(() => []),
-        getRefundsByReason(startDate, endDate).catch(() => []),
-        getPaymentBreakdown(prev.start, prev.end).catch(() => null),
-        getTopProducts(prev.start, prev.end, 20).catch(() => null),
       ]);
-      setLoadState({
-        status: "loaded",
-        summary,
-        payments,
-        products,
-        hourly,
-        employees,
-        refundReasons,
-        prevPayments,
-        prevProducts,
-      });
+      setLoadState({ status: "loaded", story, hourly });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -144,7 +109,7 @@ export default function ReportsView() {
   if (!canViewReports) {
     return (
       <main className="flex-1 p-6">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="mb-6 flex items-center gap-3">
           <ShieldOff className="h-6 w-6 text-muted-foreground" />
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -160,306 +125,406 @@ export default function ReportsView() {
   }
 
   return (
-    <main className="flex-1 p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">
-            {copy.app.dashboard}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {copy.reportsView.title}
-          </h1>
-        </div>
-        <form
-          onSubmit={submit}
-          className="flex flex-wrap items-end gap-3"
-        >
-          <div className="flex-1 min-w-[140px] space-y-1.5">
-            <Label htmlFor="report-start-date">
-              {copy.reportsView.startDate}
-            </Label>
-            <Input
-              id="report-start-date"
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              className="w-full sm:w-40"
-            />
-          </div>
-          <div className="flex-1 min-w-[140px] space-y-1.5">
-            <Label htmlFor="report-end-date">
-              {copy.reportsView.endDate}
-            </Label>
-            <Input
-              id="report-end-date"
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              className="w-full sm:w-40"
-            />
-          </div>
-          <Button type="submit" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            {copy.reportsView.apply}
-          </Button>
-        </form>
-      </div>
+    <main className="flex-1 space-y-6 p-4 sm:p-6">
+      <ReportsHeader
+        startDate={startDate}
+        endDate={endDate}
+        setStartDate={setStartDate}
+        setEndDate={setEndDate}
+        submit={submit}
+      />
 
-      {/* Loading skeleton */}
-      {loadState.status === "loading" ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-5">
-                  <Skeleton className="h-4 w-20 mb-3" />
-                  <Skeleton className="h-7 w-28" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            <CardContent className="p-6">
-              <Skeleton className="h-5 w-40 mb-4" />
-              <div className="space-y-3">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+      {loadState.status === "loading" ? <LoadingState /> : null}
+      {loadState.status === "error" ? <ErrorState onRetry={load} /> : null}
 
-      {/* Error state */}
-      {loadState.status === "error" ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive mb-3" />
-            <p className="text-sm text-destructive font-medium" role="alert">
-              {copy.reportsView.loadError}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => void load()}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {copy.reportsView.retry}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Loaded content */}
       {loadState.status === "loaded" ? (
-        <>
-          <PeriodNarrativeCard
-            summary={loadState.summary}
-            hourly={loadState.hourly}
-            payments={loadState.payments}
-            products={loadState.products}
-            employees={loadState.employees}
-            refundReasons={loadState.refundReasons}
-          />
-
-          <KpiRow summary={loadState.summary} />
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>{copy.reportsView.hourlySales}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <HourlyChart rows={loadState.hourly} />
-            </CardContent>
-          </Card>
-
-          <section className="grid gap-6 xl:grid-cols-2">
-            <PaymentBreakdownChart payments={loadState.payments} />
-            <TopProductsChart products={loadState.products} />
-            <EmployeePerformance rows={loadState.employees} />
-            <RefundReasonBreakdown rows={loadState.refundReasons} />
-          </section>
-
-          {loadState.payments.payments.length > 0 ? (
-            <PaymentMixInsight
-              current={loadState.payments}
-              previous={loadState.prevPayments}
-            />
-          ) : null}
-
-          <RecommendedActions
-            payments={loadState.payments}
-            products={loadState.products}
-            employees={loadState.employees}
-            refundReasons={loadState.refundReasons}
-            orderCount={loadState.summary.order_count}
-          />
-        </>
+        <ReportsStory story={loadState.story} hourly={loadState.hourly} />
       ) : null}
     </main>
   );
 }
 
-function hourRange(hour: number): string {
-  const next = (hour + 1) % 24;
-  return `${String(hour).padStart(2, "0")}:00-${String(next).padStart(2, "0")}:00`;
-}
-
-function share(value: number, total: number): number {
-  return total > 0 ? Math.round((value / total) * 100) : 0;
-}
-
-function bestHourlyRow(rows: SalesByHourRow[]): SalesByHourRow | null {
-  return [...rows].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0] ?? null;
-}
-
-function dominantPayment(payments: PaymentBreakdown): { method: string; pct: number } | null {
-  const total = payments.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-  const top = [...payments.payments].sort((a, b) => Number(b.amount) - Number(a.amount))[0];
-  return top && total > 0 ? { method: reasonLabel(top.method), pct: share(Number(top.amount), total) } : null;
-}
-
-function chartCopy() {
-  return {
-    detailPlaceholder: copy.reportsView.chartDetailPlaceholder,
-    totalShareLabel: copy.reportsView.chartShare,
-  };
-}
-
-function PeriodNarrativeCard({
-  summary,
-  hourly,
-  payments,
-  products,
-  employees,
-  refundReasons,
+function ReportsHeader({
+  startDate,
+  endDate,
+  setStartDate,
+  setEndDate,
+  submit,
 }: {
-  summary: SalesSummary;
-  hourly: SalesByHourRow[];
-  payments: PaymentBreakdown;
-  products: TopProducts;
-  employees: SalesByEmployeeRow[];
-  refundReasons: RefundsByReasonRow[];
+  startDate: string;
+  endDate: string;
+  setStartDate: (value: string) => void;
+  setEndDate: (value: string) => void;
+  submit: (event: FormEvent) => void;
 }) {
-  const bestHour = bestHourlyRow(hourly);
-  const hourlyTotal = hourly.reduce((sum, row) => sum + Number(row.net_sales), 0);
-  const topProduct = products.products[0];
-  const topPayment = dominantPayment(payments);
-  const topRefund = refundReasons[0];
-  const coaching = employees.find((row) => row.refund_count > 0) ?? employees[employees.length - 1];
-
-  const why: string[] = [];
-  if (bestHour && Number(bestHour.net_sales) > 0) {
-    why.push(copy.reportsView.narrativeBestHour(hourRange(bestHour.hour), share(Number(bestHour.net_sales), hourlyTotal)));
-  }
-  if (topProduct) {
-    why.push(copy.reportsView.narrativeTopProduct(topProduct.product_name, formatMoney(topProduct.gross_sales)));
-  }
-  if (topPayment) {
-    why.push(copy.reportsView.narrativePayment(topPayment.method, topPayment.pct));
-  }
-  if (topRefund) {
-    why.push(copy.reportsView.narrativeRefund(reasonLabel(topRefund.reason)));
-  }
-
-  const action =
-    topRefund ? copy.reportsView.actionAuditRefunds(reasonLabel(topRefund.reason)) :
-    coaching ? copy.reportsView.actionCoachEmployee(coaching.display_name) :
-    topProduct ? copy.reportsView.actionRestockTop(topProduct.product_name) :
-    topPayment ? copy.reportsView.actionReviewPayments(topPayment.method) :
-    copy.reportsView.actionStartSelling;
-
   return (
-    <Card className="border-kova-blue/20 bg-kova-blue/5">
-      <CardContent className="grid gap-5 p-5 lg:grid-cols-3">
-        <NarrativeColumn
-          title={copy.reportsView.narrativeQuestion}
-          body={
-            summary.order_count > 0
-              ? copy.reportsView.narrativeActive(summary.order_count, formatMoney(summary.net_sales))
-              : copy.reportsView.narrativeEmpty
-          }
-        />
-        <NarrativeColumn
-          title={copy.reportsView.narrativeWhy}
-          body={why.length > 0 ? why.join(" ") : copy.reportsView.narrativeNoSecondary}
-        />
-        <NarrativeColumn title={copy.reportsView.narrativeAction} body={action} />
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">
+          {copy.reportsView.storyEyebrow}
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {copy.reportsView.title}
+        </h1>
+      </div>
+      <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[140px] flex-1 space-y-1.5">
+          <Label htmlFor="report-start-date">{copy.reportsView.startDate}</Label>
+          <Input
+            id="report-start-date"
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="w-full sm:w-40"
+          />
+        </div>
+        <div className="min-w-[140px] flex-1 space-y-1.5">
+          <Label htmlFor="report-end-date">{copy.reportsView.endDate}</Label>
+          <Input
+            id="report-end-date"
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+            className="w-full sm:w-40"
+          />
+        </div>
+        <Button type="submit" size="sm">
+          <Filter className="mr-2 h-4 w-4" />
+          {copy.reportsView.apply}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="p-6">
+          <Skeleton className="mb-4 h-5 w-40" />
+          <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <Card key={index}>
+            <CardContent className="p-5">
+              <Skeleton className="mb-3 h-4 w-20" />
+              <Skeleton className="h-7 w-28" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+        <AlertCircle className="mb-3 h-10 w-10 text-destructive" />
+        <p className="text-sm font-medium text-destructive" role="alert">
+          {copy.reportsView.loadError}
+        </p>
+        <Button variant="outline" size="sm" className="mt-4" onClick={() => onRetry()}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          {copy.reportsView.retry}
+        </Button>
       </CardContent>
     </Card>
   );
 }
 
-function NarrativeColumn({ title, body }: { title: string; body: string }) {
+function ReportsStory({ story, hourly }: { story: BusinessStoryReport; hourly: SalesByHourRow[] }) {
+  const hasSales = story.summary.completed_orders > 0;
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-kova-blue">{title}</p>
-      <p className="text-sm leading-6 text-kova-ink">{body}</p>
+    <div className="space-y-6">
+      <ExecutiveSummary story={story} />
+      {!hasSales ? <EmptyBusinessState /> : null}
+      <KpiGrid story={story} />
+
+      <StorySection
+        kicker={copy.reportsView.whenItHappened}
+        title={copy.reportsView.salesByDayTitle}
+        description={dailyInsight(story)}
+      >
+        <SalesByDayChart story={story} />
+      </StorySection>
+
+      <StorySection
+        kicker={copy.reportsView.whenItHappened}
+        title={copy.reportsView.daypartSalesTitle}
+        description={daypartInsight(story)}
+      >
+        <SalesByDaypartChart story={story} />
+      </StorySection>
+
+      <StorySection
+        kicker={copy.reportsView.hourlyDrilldownKicker}
+        title={copy.reportsView.hourlySales}
+        description={peakHourInsight(story)}
+      >
+        <HourlyChart rows={hourly} story={story} />
+      </StorySection>
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <SalesDrivers story={story} />
+        <PaymentMix story={story} />
+        <OperationsSignals story={story} />
+        <EmployeeCoaching rows={story.sales_by_employee} />
+      </section>
+
+      <RecommendedActions story={story} />
     </div>
   );
 }
 
-function KpiRow({ summary }: { summary: SalesSummary }) {
+function ExecutiveSummary({ story }: { story: BusinessStoryReport }) {
   return (
-    <section
-      className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6"
-      aria-label={copy.reportsView.title}
-    >
-      <KpiCard
-        icon={DollarSign}
-        label={copy.reportsView.grossSales}
-        value={formatMoney(summary.gross_sales)}
-        accent="text-kova-growth"
-      />
+    <Card className="border-kova-blue/20 bg-kova-blue/5">
+      <CardContent className="grid gap-5 p-5 lg:grid-cols-[1.5fr_1fr]">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-kova-blue" />
+            <p className="text-sm font-semibold text-kova-blue">
+              {copy.reportsView.executiveSummary}
+            </p>
+          </div>
+          <p className="max-w-4xl text-base leading-7 text-kova-ink">
+            {executiveSummaryCopy(story)}
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          <SummaryFact
+            label={copy.reportsView.period}
+            value={`${fullDateLabel(story.summary.start_date)} - ${fullDateLabel(story.summary.end_date)}`}
+          />
+          <SummaryFact
+            label={copy.reportsView.bestMoment}
+            value={story.sales_by_daypart.find((row) => row.net_sales !== "0.00")?.label ?? copy.reportsView.noData}
+          />
+          <SummaryFact
+            label={copy.reportsView.timezone}
+            value={story.summary.timezone}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SummaryFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-background/80 p-3">
+      <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function EmptyBusinessState() {
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <div>
+          <p className="font-semibold">{copy.reportsView.emptyStoryTitle}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {copy.reportsView.emptyStoryBody}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function KpiGrid({ story }: { story: BusinessStoryReport }) {
+  const bestDay = bestDayRow(story);
+  const bestDaypart = bestDaypartRow(story);
+  return (
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={copy.reportsView.title}>
       <KpiCard
         icon={TrendingUp}
         label={copy.reportsView.netSales}
-        value={formatMoney(summary.net_sales)}
+        value={formatMoney(story.summary.net_sales)}
+        microcopy={copy.reportsView.kpiNetSales(story.summary.completed_orders)}
         accent="text-kova-blue"
       />
       <KpiCard
         icon={ShoppingCart}
-        label={copy.reportsView.orders}
-        value={String(summary.order_count)}
+        label={copy.reportsView.completedOrders}
+        value={String(story.summary.completed_orders)}
+        microcopy={copy.reportsView.kpiOrders(story.summary.completed_orders)}
         accent="text-kova-ink"
       />
       <KpiCard
-        icon={TrendingUp}
+        icon={DollarSign}
         label={copy.reportsView.avgTicket}
-        value={
-          summary.order_count > 0
-            ? formatMoney((Number(summary.net_sales) / summary.order_count).toFixed(2))
-            : formatMoney("0.00")
+        value={formatMoney(story.summary.average_ticket)}
+        microcopy={copy.reportsView.kpiAverageTicket(formatMoney(story.summary.average_ticket))}
+        accent="text-kova-growth"
+      />
+      <KpiCard
+        icon={Package}
+        label={copy.reportsView.topProduct}
+        value={story.top_product_by_sales?.product_name ?? copy.reportsView.noData}
+        microcopy={
+          story.top_product_by_sales
+            ? copy.reportsView.kpiTopProduct(
+                story.top_product_by_sales.product_name,
+                story.top_product_by_sales.sales_share_pct,
+              )
+            : copy.reportsView.kpiTopProductEmpty
+        }
+        accent="text-kova-growth"
+      />
+      <KpiCard
+        icon={CalendarDays}
+        label={copy.reportsView.bestDay}
+        value={bestDay ? dateLabel(bestDay.date) : copy.reportsView.noData}
+        microcopy={
+          bestDay
+            ? copy.reportsView.kpiBestDay(dateLabel(bestDay.date), bestDay.sales_share_pct)
+            : copy.reportsView.kpiBestDayEmpty
+        }
+        accent="text-kova-blue"
+      />
+      <KpiCard
+        icon={Clock3}
+        label={copy.reportsView.bestDaypart}
+        value={bestDaypart ? bestDaypart.label : copy.reportsView.noData}
+        microcopy={
+          bestDaypart
+            ? copy.reportsView.kpiBestDaypart(bestDaypart.label, bestDaypart.sales_share_pct)
+            : copy.reportsView.kpiBestDaypartEmpty
         }
         accent="text-kova-blue-light"
       />
       <KpiCard
         icon={RotateCcw}
         label={copy.reportsView.refunds}
-        value={formatMoney(summary.refund_total)}
+        value={String(story.summary.refund_count)}
+        microcopy={copy.reportsView.kpiRefunds(story.summary.refund_count)}
         accent="text-destructive"
       />
       <KpiCard
         icon={XCircle}
         label={copy.reportsView.voids}
-        value={String(summary.void_count)}
+        value={String(story.summary.cancellation_count)}
+        microcopy={copy.reportsView.kpiCancellations(story.summary.cancellation_count)}
         accent="text-warning"
       />
     </section>
   );
 }
 
-function HourlyChart({ rows }: { rows: SalesByHourRow[] }) {
-  const total = rows.reduce((sum, row) => sum + Number(row.net_sales), 0);
-  const best = bestHourlyRow(rows);
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  microcopy,
+  accent,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  microcopy: string;
+  accent?: string;
+}) {
+  return (
+    <Card className="data-card">
+      <CardContent className="p-5">
+        <div className="mb-2 flex items-center gap-2">
+          <Icon className={cn("h-4 w-4", accent ?? "text-muted-foreground")} />
+          <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
+        </div>
+        <p className="min-h-8 break-words text-2xl font-bold tracking-tight tabular-nums">
+          {value}
+        </p>
+        <p className="mt-2 text-sm leading-5 text-muted-foreground">{microcopy}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StorySection({
+  kicker,
+  title,
+  description,
+  children,
+}: {
+  kicker: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <p className="text-xs font-semibold uppercase text-kova-blue">{kicker}</p>
+        <CardTitle>{title}</CardTitle>
+        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+function SalesByDayChart({ story }: { story: BusinessStoryReport }) {
+  const rows: ChartRow[] = story.sales_by_day.map((row) => ({
+    id: row.date,
+    label: dateLabel(row.date),
+    value: Number(row.net_sales),
+    valueLabel: formatMoney(row.net_sales),
+    meta: [
+      { label: copy.reportsView.chartOrders, value: String(row.order_count) },
+      { label: copy.reportsView.avgTicket, value: formatMoney(row.average_ticket) },
+    ],
+    accentClassName: "bg-kova-blue",
+  }));
+  return (
+    <InteractiveBarChart
+      title={copy.reportsView.salesByDayQuestion}
+      rows={rows}
+      emptyLabel={copy.reportsView.noDailySales}
+      ariaLabel={copy.reportsView.salesByDayTitle}
+      {...chartCopy()}
+    />
+  );
+}
+
+function SalesByDaypartChart({ story }: { story: BusinessStoryReport }) {
+  const rows: ChartRow[] = story.sales_by_daypart.map((row) => ({
+    id: row.key,
+    label: row.label,
+    value: Number(row.net_sales),
+    valueLabel: formatMoney(row.net_sales),
+    meta: [
+      { label: copy.reportsView.chartOrders, value: String(row.order_count) },
+      { label: copy.reportsView.chartShareLabel, value: pctLabel(row.sales_share_pct) },
+      { label: copy.reportsView.avgTicket, value: formatMoney(row.average_ticket) },
+    ],
+    accentClassName: "bg-kova-growth",
+  }));
+  return (
+    <InteractiveRankChart
+      title={copy.reportsView.daypartSalesQuestion}
+      rows={rows}
+      emptyLabel={copy.reportsView.noDaypartSales}
+      ariaLabel={copy.reportsView.daypartSalesTitle}
+      {...chartCopy()}
+    />
+  );
+}
+
+function HourlyChart({ rows, story }: { rows: SalesByHourRow[]; story: BusinessStoryReport }) {
   const chartRows: ChartRow[] = rows.map((row) => ({
     id: String(row.hour),
-    label: hourRange(row.hour),
+    label: `${String(row.hour).padStart(2, "0")}:00`,
     value: Number(row.net_sales),
     valueLabel: formatMoney(row.net_sales),
     meta: [{ label: copy.reportsView.chartOrders, value: String(row.order_count) }],
@@ -468,11 +533,7 @@ function HourlyChart({ rows }: { rows: SalesByHourRow[] }) {
   return (
     <InteractiveBarChart
       title={copy.reportsView.hourlyQuestion}
-      insight={
-        best && Number(best.net_sales) > 0
-          ? copy.reportsView.bestHourShare(hourRange(best.hour), share(Number(best.net_sales), total))
-          : undefined
-      }
+      insight={story.peak_hour ? copy.reportsView.peakHourDetail(story.peak_hour.label) : undefined}
       rows={chartRows}
       emptyLabel={copy.reportsView.noHourlySales}
       ariaLabel={copy.reportsView.hourlySales}
@@ -481,68 +542,96 @@ function HourlyChart({ rows }: { rows: SalesByHourRow[] }) {
   );
 }
 
-function PaymentBreakdownChart({ payments }: { payments: PaymentBreakdown }) {
-  const total = payments.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-  const top = dominantPayment(payments);
-  const rows: ChartRow[] = payments.payments.map((payment) => ({
-    id: payment.method,
-    label: reasonLabel(payment.method),
-    value: Number(payment.amount),
-    valueLabel: formatMoney(payment.amount),
-    meta: [{ label: copy.reportsView.chartPayments, value: String(payment.payment_count) }],
-    accentClassName: "bg-kova-blue",
+function SalesDrivers({ story }: { story: BusinessStoryReport }) {
+  const top = story.top_product_by_sales;
+  const rows: ChartRow[] = story.product_drivers.map((product) => ({
+      id: product.product_id,
+      label: product.product_name,
+      value: Number(product.gross_sales),
+      valueLabel: formatMoney(product.gross_sales),
+      meta: [
+        { label: copy.reportsView.chartUnits, value: String(product.quantity_sold) },
+        { label: copy.reportsView.chartShareLabel, value: pctLabel(product.sales_share_pct) },
+      ],
+      accentClassName: "bg-kova-growth",
   }));
 
   return (
-    <DriverCard icon={BarChart3} title={copy.reportsView.paymentBreakdown}>
-      <InteractiveBarChart
-        title={copy.reportsView.paymentQuestion}
-        insight={top ? copy.reportsView.paymentShare(top.method, top.pct) : undefined}
-        rows={rows}
-        emptyLabel={copy.reportsView.noPayments}
-        ariaLabel={copy.reportsView.paymentBreakdown}
-        {...chartCopy()}
-      />
-      {total <= 0 ? null : <span className="sr-only">{formatMoney(total.toFixed(2))}</span>}
-    </DriverCard>
-  );
-}
-
-function TopProductsChart({ products }: { products: TopProducts }) {
-  const top = products.products[0];
-  const rows: ChartRow[] = products.products.map((product) => ({
-    id: product.product_id,
-    label: product.product_name,
-    value: Number(product.gross_sales),
-    valueLabel: formatMoney(product.gross_sales),
-    meta: [{ label: copy.reportsView.chartUnits, value: String(product.quantity_sold) }],
-    accentClassName: "bg-kova-growth",
-  }));
-
-  return (
-    <DriverCard icon={ShoppingCart} title={copy.reportsView.topProducts}>
+    <DriverCard icon={Package} title={copy.reportsView.salesDriversTitle}>
       <InteractiveRankChart
         title={copy.reportsView.productsQuestion}
         insight={
           top
-            ? copy.reportsView.topProductInsight(
+            ? copy.reportsView.productDriverInsight(
                 top.product_name,
-                formatMoney(top.gross_sales),
-                top.quantity_sold,
+                top.sales_share_pct,
               )
             : undefined
         }
         rows={rows}
         emptyLabel={copy.reportsView.noProducts}
-        ariaLabel={copy.reportsView.topProducts}
+        ariaLabel={copy.reportsView.salesDriversTitle}
         {...chartCopy()}
       />
     </DriverCard>
   );
 }
 
-function EmployeePerformance({ rows }: { rows: SalesByEmployeeRow[] }) {
-  const coaching = rows.find((row) => row.refund_count > 0) ?? rows[rows.length - 1];
+function PaymentMix({ story }: { story: BusinessStoryReport }) {
+  const payment = story.dominant_payment;
+  const rows: ChartRow[] = story.payment_mix.map((row) => ({
+    id: row.method,
+    label: reasonLabel(row.method),
+    value: Number(row.amount),
+    valueLabel: formatMoney(row.amount),
+    meta: [
+      { label: copy.reportsView.chartPayments, value: String(row.payment_count) },
+      { label: copy.reportsView.chartShareLabel, value: pctLabel(row.sales_share_pct) },
+    ],
+    accentClassName: "bg-kova-blue",
+  }));
+  return (
+    <DriverCard icon={CreditCard} title={copy.reportsView.paymentBreakdown}>
+      <InteractiveRankChart
+        title={copy.reportsView.paymentQuestion}
+        insight={
+          payment
+            ? copy.reportsView.paymentStoryInsight(reasonLabel(payment.method), payment.sales_share_pct)
+            : undefined
+        }
+        rows={rows}
+        emptyLabel={copy.reportsView.noPayments}
+        ariaLabel={copy.reportsView.paymentBreakdown}
+        {...chartCopy()}
+      />
+    </DriverCard>
+  );
+}
+
+function OperationsSignals({ story }: { story: BusinessStoryReport }) {
+  const signals = story.operational_signals;
+  return (
+    <DriverCard icon={RotateCcw} title={copy.reportsView.operationsTitle}>
+      {signals.length === 0 ? (
+        <p className="rounded-lg border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
+          {copy.reportsView.noOperationalSignals}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {signals.map((signal) => (
+            <InsightCard key={`${signal.title}-${signal.detail}`} type={signal.type}>
+              <p className="font-semibold">{signal.title}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{signal.detail}</p>
+            </InsightCard>
+          ))}
+        </div>
+      )}
+    </DriverCard>
+  );
+}
+
+function EmployeeCoaching({ rows }: { rows: SalesByEmployeeRow[] }) {
+  const topEmployee = [...rows].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
   const chartRows: ChartRow[] = rows.map((row) => ({
     id: row.user_id ?? row.display_name,
     label: row.display_name,
@@ -554,52 +643,22 @@ function EmployeePerformance({ rows }: { rows: SalesByEmployeeRow[] }) {
     ],
     accentClassName: "bg-kova-blue",
   }));
-
   return (
-    <DriverCard icon={ShoppingCart} title={copy.reportsView.employeePerformance}>
+    <DriverCard icon={Users} title={copy.reportsView.employeePerformance}>
       <InteractiveBarChart
         title={copy.reportsView.employeeQuestion}
-        insight={coaching ? copy.reportsView.coachingOpportunity(coaching.display_name) : undefined}
+        insight={
+          rows.length > 1 && topEmployee
+            ? copy.reportsView.employeeStoryInsight(topEmployee.display_name)
+            : rows.length === 1
+              ? copy.reportsView.employeeSingleInsight(rows[0].display_name)
+              : undefined
+        }
         rows={chartRows}
         emptyLabel={copy.reportsView.noEmployeeSales}
         ariaLabel={copy.reportsView.employeePerformance}
         {...chartCopy()}
       />
-      {coaching ? (
-        <p className="rounded-lg bg-kova-mist p-3 text-sm text-kova-muted">
-          {copy.reportsView.coachingOpportunity(coaching.display_name)}
-        </p>
-      ) : null}
-    </DriverCard>
-  );
-}
-
-function RefundReasonBreakdown({ rows }: { rows: RefundsByReasonRow[] }) {
-  const top = rows[0];
-  const chartRows: ChartRow[] = rows.map((row) => ({
-    id: row.reason,
-    label: reasonLabel(row.reason),
-    value: Number(row.refunded_amount),
-    valueLabel: formatMoney(row.refunded_amount),
-    meta: [{ label: copy.reportsView.chartRefunds, value: String(row.refund_count) }],
-    accentClassName: "bg-destructive",
-  }));
-
-  return (
-    <DriverCard icon={RotateCcw} title={copy.reportsView.refundsByReason}>
-      <InteractiveBarChart
-        title={copy.reportsView.refundQuestion}
-        insight={top ? copy.reportsView.auditRefunds(reasonLabel(top.reason)) : undefined}
-        rows={chartRows}
-        emptyLabel={copy.reportsView.noRefundReasons}
-        ariaLabel={copy.reportsView.refundsByReason}
-        {...chartCopy()}
-      />
-      {top ? (
-        <p className="rounded-lg bg-destructive/5 p-3 text-sm text-muted-foreground">
-          {copy.reportsView.auditRefunds(reasonLabel(top.reason))}
-        </p>
-      ) : null}
     </DriverCard>
   );
 }
@@ -626,96 +685,7 @@ function DriverCard({
   );
 }
 
-function PaymentMixInsight({
-  current,
-  previous,
-}: {
-  current: PaymentBreakdown;
-  previous: PaymentBreakdown | null;
-}) {
-  const total = current.payments.reduce((s, p) => s + Number(p.amount), 0);
-  if (total <= 0) return null;
-
-  const currentMethods = new Set(current.payments.map((p) => p.method));
-  const prevMethods = previous ? new Set(previous.payments.map((p) => p.method)) : null;
-
-  // Cash dominance
-  const cash = current.payments.find((p) => p.method === "cash");
-  const cashPct = cash ? Math.round((Number(cash.amount) / total) * 100) : 0;
-
-  const lines: string[] = [];
-  if (cashPct >= 70) {
-    lines.push(copy.reportsView.paymentInsightCashHeavy(cashPct));
-  }
-  if (prevMethods) {
-    const newMethods = [...currentMethods].filter((m) => !prevMethods.has(m));
-    const lostMethods = [...prevMethods].filter((m) => !currentMethods.has(m));
-    for (const m of newMethods) {
-      lines.push(copy.reportsView.paymentInsightNewMethod(reasonLabel(m)));
-    }
-    for (const m of lostMethods) {
-      lines.push(copy.reportsView.paymentInsightLostMethod(reasonLabel(m)));
-    }
-  }
-
-  if (lines.length === 0) return null;
-
-  return (
-    <Card className="border-kova-blue/20 bg-kova-blue/5">
-      <CardContent className="flex items-start gap-3 p-5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-blue/15">
-          <Sparkles className="h-4 w-4 text-kova-blue" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">
-            {copy.reportsView.paymentInsightTitle}
-          </p>
-          <ul className="mt-1.5 space-y-1">
-            {lines.map((line, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-kova-muted">
-                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-kova-blue/60" />
-                <span>{line}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function RecommendedActions({
-  payments,
-  products,
-  employees,
-  refundReasons,
-  orderCount,
-}: {
-  payments: PaymentBreakdown;
-  products: TopProducts;
-  employees: SalesByEmployeeRow[];
-  refundReasons: RefundsByReasonRow[];
-  orderCount: number;
-}) {
-  const topPayment = dominantPayment(payments);
-  const topProduct = products.products[0];
-  const coaching = employees.find((row) => row.refund_count > 0) ?? employees[employees.length - 1];
-  const topRefund = refundReasons[0];
-  const actions = [
-    topProduct ? copy.reportsView.actionRestockTop(topProduct.product_name) : null,
-    topRefund ? copy.reportsView.actionAuditRefunds(reasonLabel(topRefund.reason)) : null,
-    coaching ? copy.reportsView.actionCoachEmployee(coaching.display_name) : null,
-    topPayment ? copy.reportsView.actionReviewPayments(topPayment.method) : null,
-  ].filter((action): action is string => Boolean(action));
-
-  if (actions.length === 0 && orderCount === 0) {
-    actions.push(copy.reportsView.actionStartSelling);
-  }
-
-  if (actions.length === 0) {
-    return null;
-  }
-
+function RecommendedActions({ story }: { story: BusinessStoryReport }) {
   return (
     <Card>
       <CardHeader>
@@ -725,11 +695,15 @@ function RecommendedActions({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {actions.slice(0, 4).map((action) => (
-            <Badge key={action} variant="secondary" className="justify-start whitespace-normal px-3 py-2 text-left">
-              {action}
-            </Badge>
+        <div className="grid gap-3 md:grid-cols-2">
+          {story.recommended_actions.map((action) => (
+            <InsightCard key={`${action.title}-${action.detail}`} type={action.type}>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{copy.reportsView.actionType(action.type)}</Badge>
+                <p className="font-semibold">{action.title}</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{action.detail}</p>
+            </InsightCard>
           ))}
         </div>
       </CardContent>
@@ -737,30 +711,98 @@ function RecommendedActions({
   );
 }
 
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  accent,
+function InsightCard({
+  type,
+  children,
 }: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  accent?: string;
+  type: "opportunity" | "risk" | "good_signal" | "operational_improvement";
+  children: ReactNode;
 }) {
   return (
-    <Card className="data-card">
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 mb-2">
-          <Icon className={cn("h-4 w-4", accent ?? "text-muted-foreground")} />
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {label}
-          </p>
-        </div>
-        <p className="text-2xl font-bold tracking-tight tabular-nums">
-          {value}
-        </p>
-      </CardContent>
-    </Card>
+    <div
+      className={cn(
+        "rounded-lg border p-4",
+        type === "risk"
+          ? "border-destructive/30 bg-destructive/5"
+          : type === "good_signal"
+            ? "border-kova-growth/30 bg-kova-growth/5"
+            : "border-kova-blue/20 bg-kova-blue/5",
+      )}
+    >
+      {children}
+    </div>
   );
+}
+
+function bestDayRow(story: BusinessStoryReport) {
+  return [...story.sales_by_day].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0] ?? null;
+}
+
+function bestDaypartRow(story: BusinessStoryReport) {
+  const row = [...story.sales_by_daypart].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
+  return row && Number(row.net_sales) > 0 ? row : null;
+}
+
+function executiveSummaryCopy(story: BusinessStoryReport): string {
+  if (story.summary.completed_orders === 0) {
+    return copy.reportsView.executiveEmpty(
+      fullDateLabel(story.summary.start_date),
+      fullDateLabel(story.summary.end_date),
+    );
+  }
+  const bestDay = bestDayRow(story);
+  const bestDaypart = bestDaypartRow(story);
+  return [
+    copy.reportsView.executiveIntro(
+      fullDateLabel(story.summary.start_date),
+      fullDateLabel(story.summary.end_date),
+      formatMoney(story.summary.net_sales),
+      story.summary.completed_orders,
+      formatMoney(story.summary.average_ticket),
+    ),
+    bestDay ? copy.reportsView.executiveBestDay(dateLabel(bestDay.date)) : null,
+    bestDaypart
+      ? copy.reportsView.executiveBestDaypart(
+          bestDaypart.label,
+          story.peak_hour && story.peak_hour.daypart_key === bestDaypart.key ? story.peak_hour.label : null,
+        )
+      : null,
+    story.top_product_by_sales
+      ? copy.reportsView.executiveTopProduct(story.top_product_by_sales.product_name)
+      : null,
+    story.dominant_payment
+      ? copy.reportsView.executivePayment(
+          reasonLabel(story.dominant_payment.method),
+          story.dominant_payment.sales_share_pct,
+        )
+      : null,
+    story.summary.refund_count === 0 && story.summary.cancellation_count === 0
+      ? copy.reportsView.executiveCleanOps
+      : copy.reportsView.executiveOpsRisk,
+  ].filter(Boolean).join(" ");
+}
+
+function dailyInsight(story: BusinessStoryReport): string {
+  const best = bestDayRow(story);
+  if (!best) return copy.reportsView.dailyInsightEmpty;
+  if (story.sales_by_day.length < 2) {
+    return copy.reportsView.dailyInsightSingle(dateLabel(best.date), formatMoney(best.net_sales));
+  }
+  return copy.reportsView.dailyInsightBest(dateLabel(best.date), best.sales_share_pct);
+}
+
+function daypartInsight(story: BusinessStoryReport): string {
+  const best = bestDaypartRow(story);
+  if (!best) return copy.reportsView.daypartInsightEmpty;
+  return copy.reportsView.daypartInsightBest(
+    best.label,
+    formatMoney(best.net_sales),
+    best.order_count,
+    best.sales_share_pct,
+  );
+}
+
+function peakHourInsight(story: BusinessStoryReport): string {
+  if (!story.peak_hour) return copy.reportsView.peakHourEmpty;
+  return copy.reportsView.peakHourStory(story.peak_hour.label);
 }

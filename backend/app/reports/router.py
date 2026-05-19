@@ -8,6 +8,7 @@ from app.db import get_db
 from app.rbac.permissions import Permission
 from app.reports import service
 from app.reports.schemas import (
+    BusinessStoryReportResponse,
     PaymentBreakdownResponse,
     RefundsByReasonRow,
     SalesByEmployeeRow,
@@ -32,6 +33,21 @@ def sales_summary(
     _, membership, _ = ctx
     return service.sales_summary(
         db, tenant_id=membership.tenant_id, start_date=start_date, end_date=end_date
+    )
+
+
+@router.get("/business-story", response_model=BusinessStoryReportResponse)
+def business_story(
+    start: date | None = None,
+    end: date | None = None,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.REPORTS_VIEW_ALL)
+    ),
+):
+    _, membership, _ = ctx
+    return service.business_story(
+        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
     )
 
 

@@ -30,6 +30,16 @@ Feature: Sales reports
     When the manager requests the refund reason report
     Then refunds are grouped by reason
 
+  Scenario: Manager views the business story report
+    Given an authenticated manager with sales across days, dayparts, products, payments, and corrections
+    When the manager requests the business story report
+    Then daily sales, daypart sales, peak hour, product share, payment share, and recommended actions are calculated from real data
+
+  Scenario: Manager views an empty business story report
+    Given an authenticated manager without completed sales
+    When the manager requests the business story report
+    Then the report returns empty-state guidance without demo insights
+
   Scenario: Permission denied without reports view permission
     Given an authenticated cashier without reports permission
     When the cashier requests the sales summary report

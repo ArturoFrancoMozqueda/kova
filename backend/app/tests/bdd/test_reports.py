@@ -1,6 +1,7 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 from pytest_bdd import given, scenario, then, when
 
@@ -35,6 +36,16 @@ def test_manager_views_employee_sales_performance():
 
 @scenario("../../../../specs/reports/reports.feature", "Manager views refund reasons")
 def test_manager_views_refund_reasons():
+    pass
+
+
+@scenario("../../../../specs/reports/reports.feature", "Manager views the business story report")
+def test_manager_views_business_story_report():
+    pass
+
+
+@scenario("../../../../specs/reports/reports.feature", "Manager views an empty business story report")
+def test_manager_views_empty_business_story_report():
     pass
 
 
@@ -87,6 +98,21 @@ def _set_role(db, signup: dict, role: str) -> None:
 def _set_order_hour(db, order_id: str, hour: int) -> None:
     order = db.query(Order).filter(Order.id == UUID(order_id)).one()
     order.created_at = order.created_at.replace(hour=hour, minute=0, second=0, microsecond=0)
+    db.commit()
+
+
+def _set_order_created_at(db, order_id: str, value: datetime) -> None:
+    order = db.query(Order).filter(Order.id == UUID(order_id)).one()
+    order.created_at = value
+    order.updated_at = value
+    db.commit()
+
+
+def _set_void_created_at(db, order_id: str, value: datetime) -> None:
+    from app.orders.models import Void
+
+    void = db.query(Void).filter(Void.order_id == UUID(order_id)).one()
+    void.created_at = value
     db.commit()
 
 
@@ -277,6 +303,75 @@ def manager_with_refund_reasons(client):
     return {"client": client}
 
 
+@given(
+    "an authenticated manager with sales across days, dayparts, products, payments, and corrections",
+    target_fixture="reports_context",
+)
+def manager_with_business_story_data(client, db):
+    suffix = uuid4().hex
+    _signup_verify_login(client, f"reports-story-{suffix}@example.com", "Reports Story Tenant")
+    dona = _create_product(client, name="Dona", price="10.00")
+    concha = _create_product(client, name="Concha", price="20.00")
+    tenant_tz = ZoneInfo("America/Mexico_City")
+    today = datetime.now(tenant_tz).replace(minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+
+    night_order = _create_order(
+        client,
+        product=dona,
+        quantity=5,
+        payments=[_cash_payment("50.00")],
+    )
+    later_night_order = _create_order(
+        client,
+        product=concha,
+        quantity=2,
+        payments=[{"method": "bank_transfer", "amount": "40.00", "reference": "SPEI"}],
+    )
+    void_order = _create_order(
+        client,
+        product=concha,
+        quantity=1,
+        payments=[_cash_payment("20.00")],
+    )
+
+    _set_order_created_at(db, night_order["id"], yesterday.replace(hour=20).astimezone(UTC))
+    _set_order_created_at(
+        db, later_night_order["id"], today.replace(hour=21).astimezone(UTC)
+    )
+    _set_order_created_at(db, void_order["id"], today.replace(hour=10).astimezone(UTC))
+
+    refund = client.post(
+        f"/api/v1/orders/{later_night_order['id']}/refunds",
+        headers={"Idempotency-Key": f"reports-story-refund-{suffix}"},
+        json={
+            "items": [{"order_item_id": later_night_order["items"][0]["id"], "quantity": 1}],
+            "reason": "customer_return",
+        },
+    )
+    assert refund.status_code == 201, refund.text
+    void_response = client.post(
+        f"/api/v1/orders/{void_order['id']}/void",
+        headers={"Idempotency-Key": f"reports-story-void-{suffix}"},
+        json={"reason": "operator_error"},
+    )
+    assert void_response.status_code == 201, void_response.text
+    _set_void_created_at(db, void_order["id"], today.replace(hour=10).astimezone(UTC))
+
+    return {
+        "client": client,
+        "start": yesterday.date().isoformat(),
+        "end": today.date().isoformat(),
+    }
+
+
+@given("an authenticated manager without completed sales", target_fixture="reports_context")
+def manager_without_completed_sales(client):
+    suffix = uuid4().hex
+    _signup_verify_login(client, f"reports-empty-story-{suffix}@example.com", "Reports Empty Tenant")
+    return {"client": client}
+
+
 @given("an authenticated cashier without reports permission", target_fixture="reports_context")
 def cashier_without_reports_permission(client, db):
     suffix = uuid4().hex
@@ -342,6 +437,16 @@ def manager_requests_refund_reasons(reports_context):
     response = reports_context["client"].get("/api/v1/reports/refunds-by-reason")
     reports_context["response"] = response
     reports_context["refunds_by_reason"] = response.json() if response.status_code == 200 else None
+
+
+@when("the manager requests the business story report")
+def manager_requests_business_story(reports_context):
+    query = ""
+    if "start" in reports_context and "end" in reports_context:
+        query = f"?start={reports_context['start']}&end={reports_context['end']}"
+    response = reports_context["client"].get(f"/api/v1/reports/business-story{query}")
+    reports_context["response"] = response
+    reports_context["business_story"] = response.json() if response.status_code == 200 else None
 
 
 @when("the cashier requests the sales summary report")
@@ -416,6 +521,53 @@ def refunds_grouped_by_reason(reports_context):
     assert Decimal(rows["customer_return"]["refunded_amount"]) == Decimal("25.00")
     assert rows["defective"]["refund_count"] == 1
     assert Decimal(rows["defective"]["refunded_amount"]) == Decimal("10.00")
+
+
+@then(
+    "daily sales, daypart sales, peak hour, product share, payment share, and recommended actions are calculated from real data"
+)
+def business_story_calculated_from_real_data(reports_context):
+    story = reports_context["business_story"]
+    assert story["summary"]["completed_orders"] == 2
+    assert Decimal(story["summary"]["gross_sales"]) == Decimal("90.00")
+    assert Decimal(story["summary"]["refund_total"]) == Decimal("20.00")
+    assert Decimal(story["summary"]["net_sales"]) == Decimal("70.00")
+    assert story["summary"]["refund_count"] == 1
+    assert story["summary"]["cancellation_count"] == 1
+
+    days = {row["date"]: row for row in story["sales_by_day"]}
+    assert len(days) == 2
+    assert sum(row["order_count"] for row in days.values()) == 2
+
+    dayparts = {row["key"]: row for row in story["sales_by_daypart"]}
+    assert Decimal(dayparts["noche"]["net_sales"]) == Decimal("70.00")
+    assert dayparts["noche"]["order_count"] == 2
+    assert dayparts["noche"]["sales_share_pct"] == 100
+    assert Decimal(dayparts["manana"]["net_sales"]) == Decimal("0.00")
+
+    assert story["peak_hour"]["hour"] == 20
+    assert story["peak_hour"]["daypart_key"] == "noche"
+    assert Decimal(story["peak_hour"]["net_sales"]) == Decimal("50.00")
+    assert story["top_product_by_sales"]["product_name"] == "Dona"
+    assert story["top_product_by_sales"]["sales_share_pct"] == 56
+    assert story["top_product_by_units"]["product_name"] == "Dona"
+    assert story["dominant_payment"]["method"] == "cash"
+    assert story["dominant_payment"]["sales_share_pct"] == 56
+    assert any(action["type"] == "risk" for action in story["recommended_actions"])
+    assert "demo" not in story["executive_summary"].lower()
+
+
+@then("the report returns empty-state guidance without demo insights")
+def business_story_empty_state(reports_context):
+    story = reports_context["business_story"]
+    assert story["summary"]["completed_orders"] == 0
+    assert Decimal(story["summary"]["net_sales"]) == Decimal("0.00")
+    assert story["sales_by_day"] == []
+    assert story["peak_hour"] is None
+    assert story["top_product_by_sales"] is None
+    assert story["dominant_payment"] is None
+    assert story["recommended_actions"][0]["type"] == "opportunity"
+    assert "demo" not in story["executive_summary"].lower()
 
 
 @then("a 403 error is returned")

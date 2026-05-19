@@ -11,3 +11,6 @@
 | RPT-007 | specs/reports/reports.feature | Manager views hourly sales trend | Backend BDD | backend/app/tests/bdd/test_reports.py | @reports @money | Beta | Automated | Endpoint: `GET /api/v1/reports/sales-by-hour?start=&end=` |
 | RPT-008 | specs/reports/reports.feature | Manager views employee sales performance | Backend BDD | backend/app/tests/bdd/test_reports.py | @reports @permission | Beta | Automated | Endpoint: `GET /api/v1/reports/sales-by-employee?start=&end=` |
 | RPT-009 | specs/reports/reports.feature | Manager views refund reasons | Backend BDD | backend/app/tests/bdd/test_reports.py | @reports @money | Beta | Automated | Endpoint: `GET /api/v1/reports/refunds-by-reason?start=&end=` |
+| RPT-010 | specs/reports/reports.feature | Manager views the business story report | Backend BDD | backend/app/tests/bdd/test_reports.py | @reports @money | Beta | Automated | Endpoint: `GET /api/v1/reports/business-story?start=&end=` |
+| RPT-011 | specs/reports/reports.feature | Manager views an empty business story report | Backend BDD | backend/app/tests/bdd/test_reports.py | @reports | Beta | Automated | No demo data or invented insights |
+| RPT-012 | frontend/e2e/reports.spec.ts | reports page displays business storytelling layout | E2E | frontend/e2e/reports.spec.ts | @ui @reports | Beta | Automated | Mocked business-story API |
