@@ -200,6 +200,25 @@ Make the smallest possible change that achieves the brand goal.
 Verify the affected screens still function (not just look).
 Report files touched and which screens need manual verification.
 
+Planning Docs Convention (Non-Negotiable)
+
+`docs/current-sprint.md` is the single source of truth for what is in flight and what is next.
+Supporting docs and their roles:
+
+- `docs/current-sprint.md` — active backlog, critical / high / medium items, carry-overs, pre-beta ops checklist. Always update this file when work changes status.
+- `docs/sprint-planning.md` — historical roadmap and completed sprints only. Do not add new in-flight tasks here.
+- `docs/ux-review-2026-05-19.md` (and any future dated review) — detailed UX/product review notes referenced from `current-sprint.md`. Do not duplicate items between this file and `current-sprint.md`; keep the detail here and a one-line pointer there.
+- `docs/deferred-scope.md` — explicit out-of-scope list. A deferred feature moves into scope only via the rule at the bottom of that file.
+- `docs/risk-register.md` — risks and release gates.
+
+Hard rules:
+
+1. Do not create new top-level planning docs (e.g. `nuevo-backlog.md`, `sprint-X-plan.md`, `tasks.md`). If the user asks for one, push back and update `current-sprint.md` instead.
+2. Before starting a session of work, read `current-sprint.md` and cross-check at least one item against the actual code. If you find `[ ]` items already implemented or `[x]` items not backed by code, surface the discrepancy before making changes.
+3. When you finish a task, update `current-sprint.md` in the same change set (mark `[x]` or delete the line if it no longer adds context). Do not let the doc drift behind the code.
+4. If a planning doc starts to conflict with another (e.g. a status table disagrees with a section body), stop and reconcile before adding new work. Do not stack new tasks on top of an inconsistent doc.
+5. Archived/deleted planning docs do not come back. If the user references an old doc that no longer exists, point them to the equivalent section in `current-sprint.md`.
+
 When in doubt, ask
 If something looks like it might be branding but might be logic (e.g., a string that drives a feature toggle, a color that's status-dependent, a spacing that affects responsive breakpoints), ASK before changing.
 

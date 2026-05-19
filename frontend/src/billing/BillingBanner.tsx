@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { AlertTriangle, Clock, XCircle } from "lucide-react";
+import { AlertTriangle, Clock, X, XCircle } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -57,10 +57,29 @@ const toneIcon: Record<BannerTone, React.ReactNode> = {
   danger: <XCircle className="h-4 w-4" />,
 };
 
+const DISMISS_STORAGE_PREFIX = "kova.billingBanner.dismissed.";
+
+function readDismissed(reason: string): boolean {
+  try {
+    return sessionStorage.getItem(`${DISMISS_STORAGE_PREFIX}${reason}`) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeDismissed(reason: string) {
+  try {
+    sessionStorage.setItem(`${DISMISS_STORAGE_PREFIX}${reason}`, "1");
+  } catch {
+    /* sessionStorage unavailable — ignore */
+  }
+}
+
 export function BillingBanner() {
   const { state } = useAuth();
   const location = useLocation();
   const [access, setAccess] = useState<BillingAccess | null>(null);
+  const [dismissedReason, setDismissedReason] = useState<string | null>(null);
 
   const isAuthenticated = state.status === "authenticated";
   const onBillingRoute = location.pathname.startsWith("/settings/billing");
@@ -83,9 +102,19 @@ export function BillingBanner() {
     };
   }, [isAuthenticated, onBillingRoute, location.pathname]);
 
+  useEffect(() => {
+    if (access && readDismissed(access.reason)) {
+      setDismissedReason(access.reason);
+    } else {
+      setDismissedReason(null);
+    }
+  }, [access]);
+
   if (!access) return null;
   const content = bannerForAccess(access);
   if (!content) return null;
+  const dismissible = content.tone === "info";
+  if (dismissible && dismissedReason === access.reason) return null;
 
   return (
     <div
@@ -104,12 +133,27 @@ export function BillingBanner() {
           <p className="hidden text-xs opacity-90 sm:block">{content.body}</p>
         </div>
       </div>
-      <Link
-        to={access.recovery_path || "/settings/billing"}
-        className="shrink-0 self-start rounded-[var(--radius-md)] border border-current/30 bg-white/60 px-3 py-1.5 text-xs font-semibold hover:bg-white sm:self-auto"
-      >
-        {copy.billingBanner.manageCta}
-      </Link>
+      <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
+        <Link
+          to={access.recovery_path || "/settings/billing"}
+          className="rounded-[var(--radius-md)] border border-current/30 bg-white/60 px-3 py-1.5 text-xs font-semibold hover:bg-white"
+        >
+          {copy.billingBanner.manageCta}
+        </Link>
+        {dismissible ? (
+          <button
+            type="button"
+            aria-label={copy.billingBanner.dismissCta}
+            onClick={() => {
+              writeDismissed(access.reason);
+              setDismissedReason(access.reason);
+            }}
+            className="rounded-[var(--radius-md)] p-1.5 text-current/70 hover:bg-white/60 hover:text-current"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

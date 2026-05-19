@@ -23,11 +23,10 @@ lives in.
 
 - [ ] Logo upload replaces the "URL segura" text input in [SettingsView.tsx](../frontend/src/settings/SettingsView.tsx).
       Includes preview, drag-and-drop, size/format validation. Backend coordination required for storage.
-- [ ] `DeltaBadge` in [DashboardView.tsx](../frontend/src/dashboard/DashboardView.tsx) must not render red
-      "−100% vs ayer" for fresh / zero-history tenants. Render neutral "Aún sin comparación" instead.
-- [ ] `BillingBanner` hidden on `/settings/billing`; during active trial it must be info-styled (not
-      destructive) and dismissible. Files: [BillingBanner.tsx](../frontend/src/billing/BillingBanner.tsx),
-      [AppShell.tsx](../frontend/src/layout/AppShell.tsx).
+- [x] `DeltaBadge` in [DashboardView.tsx](../frontend/src/dashboard/DashboardView.tsx) renders neutral
+      "Aún sin comparación" for fresh / zero-history tenants instead of red −100% (commit 5167a62).
+- [x] `BillingBanner` hidden on `/settings/billing`; info-styled during active trial and dismissible
+      (sessionStorage, keyed by reason). Files: [BillingBanner.tsx](../frontend/src/billing/BillingBanner.tsx).
 - [ ] Remove `Dona` / `QA Concha 20260512 / QA-CON-20260512` from the tenant seed so new accounts
       start with an empty catalog. Backend coordination required. Update
       [CatalogView.tsx](../frontend/src/catalog/CatalogView.tsx) empty state if needed.

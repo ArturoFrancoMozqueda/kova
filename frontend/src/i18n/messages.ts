@@ -945,6 +945,7 @@ export const copy = {
   },
   billingBanner: {
     manageCta: "Administrar facturación",
+    dismissCta: "Descartar",
     trialActive: "Prueba activa",
     trialActiveBody: `Prueba activa por ${BILLING_TRIAL_LABEL}. Activa el ${STANDARD_PLAN.name} para conservar la operación al terminar.`,
     trialingActive: "Prueba activa",
