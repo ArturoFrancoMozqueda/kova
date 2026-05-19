@@ -56,9 +56,9 @@ test("billing page displays the Standard Plan and active subscription", async ({
   await page.goto("/settings/billing");
 
   await expect(page.getByRole("heading", { name: /facturaci[óo]n/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Standard Plan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /plan standard/i })).toBeVisible();
   await expect(page.getByText("MX$199.00")).toBeVisible();
-  await expect(page.getByRole("heading", { name: /activo/i })).toBeVisible();
+  await expect(page.getByText(/activo/i).first()).toBeVisible();
 });
 
 test("billing page redirects to checkout and handles cancellation", async ({ page }) => {
@@ -80,7 +80,7 @@ test("billing page redirects to checkout and handles cancellation", async ({ pag
   });
 
   await page.goto("/settings/billing");
-  await page.getByRole("button", { name: /iniciar pago/i }).click();
+  await page.getByRole("button", { name: /activar por/i }).click();
   await expect(page).toHaveURL("https://checkout.stripe.test/session/cs_test_123");
 });
 
