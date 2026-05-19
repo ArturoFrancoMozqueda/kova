@@ -10,6 +10,12 @@ def test_health_ok(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_health_head_ok(client: TestClient) -> None:
+    response = client.head("/health")
+    assert response.status_code == 200
+    assert response.content == b""
+
+
 def test_root_ok(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200

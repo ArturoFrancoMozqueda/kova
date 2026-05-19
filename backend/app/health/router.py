@@ -11,6 +11,11 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.head("")
+def health_head() -> None:
+    return None
+
+
 @router.get("/db")
 def health_db() -> dict[str, str]:
     try:
