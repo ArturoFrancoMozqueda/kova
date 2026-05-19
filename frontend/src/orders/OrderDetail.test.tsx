@@ -160,7 +160,7 @@ describe("OrderDetail", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: /detalle de la orden/i })).toBeInTheDocument();
-    expect(screen.getByText(/customer return/i)).toBeInTheDocument();
+    expect(screen.getByText(/devoluci[oó]n de cliente/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Devolver" })).not.toBeInTheDocument();
     expect(screen.getByText(/acci[oó]n no disponible/i)).toBeInTheDocument();
     expect(await screen.findByText(/Oat/)).toBeInTheDocument();
