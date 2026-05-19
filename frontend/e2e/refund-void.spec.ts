@@ -129,7 +129,7 @@ test("refund and void modals post to the order APIs", async ({ page }) => {
   await page.getByLabel("Concha Cantidad").fill("1");
   await page.getByRole("button", { name: /registrar devoluci[óo]n/i }).click();
   await expect(page.getByText(/devoluci[óo]n registrada/i)).toBeVisible();
-  await expect(page.getByText(/customer return/i)).toBeVisible();
+  await expect(page.getByText(/devoluci[oó]n de cliente/i)).toBeVisible();
 
   refundCreated = false;
   await page.goto("/orders/demo");
