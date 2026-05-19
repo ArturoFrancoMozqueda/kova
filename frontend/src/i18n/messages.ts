@@ -494,7 +494,60 @@ export const copy = {
     startDate: "Fecha inicial",
     endDate: "Fecha final",
     apply: "Aplicar",
+    presetLabel: (preset: string) =>
+      ({
+        today: "Hoy",
+        seven_days: "7 días",
+        month: "Mes",
+      })[preset] ?? "Rango",
     executiveSummary: "Resumen ejecutivo",
+    smartInsightsTitle: "Decisiones recomendadas",
+    smartInsightsDescription:
+      "Comparaciones, horarios fuertes e inventario conectado a ventas reales.",
+    smartInsightsEmpty:
+      "Aún no hay suficientes ventas reales para generar decisiones. Cuando registres ventas, este bloque comparará periodos y conectará inventario con demanda.",
+    smartInsightsStableTitle: "Operación estable",
+    smartInsightsStableDetail:
+      "No hay alertas fuertes en este rango. Mantente revisando inventario, horario pico y mezcla de pagos conforme crezca la actividad.",
+    compareNetSales: "Ventas vs. periodo anterior",
+    compareOrders: "Órdenes vs. periodo anterior",
+    compareStrongestWindow: "Horario fuerte",
+    previousPeriod: "periodo anterior",
+    compareNoPrevious: "Sin periodo previo comparable con datos reales.",
+    compareDelta: (pct: number, label: string) =>
+      pct === 0
+        ? `Sin cambio vs. ${label}.`
+        : `${pct > 0 ? "+" : ""}${pct}% vs. ${label}.`,
+    comparePeakHour: (hour: string) => `Antes el pico fue ${hour}.`,
+    compareDaypart: (daypart: string) => `Antes el bloque fuerte fue ${daypart}.`,
+    inventoryRestockTitle: (name: string) => `Reabastece ${name}`,
+    inventoryRestockDetail: (
+      name: string,
+      units: number,
+      stock: number,
+      threshold: number | null,
+    ) =>
+      `${name} vendió ${units} unidad${units === 1 ? "" : "es"} en este rango y está en stock bajo: ${stock} disponible${threshold === null ? "." : `, umbral ${threshold}.`}`,
+    inventoryVelocityTitle: (name: string) => `${name} puede agotarse pronto`,
+    inventoryVelocityDetail: (
+      name: string,
+      days: number,
+      stock: number,
+      unitsPerDay: string,
+    ) =>
+      `${name} tiene ${stock} disponible y se agotaría en ${days} día${days === 1 ? "" : "s"} al ritmo reciente (${unitsPerDay} u/día).`,
+    salesDropTitle: "Investiga caída de ventas",
+    salesDropDetail: (pct: number) =>
+      `Las ventas bajaron ${pct}% vs. el periodo anterior. Revisa horario fuerte, productos top y si hubo falta de stock o cambios de personal.`,
+    peakHourActionTitle: (hour: string) => `Prepara la operación para ${hour}`,
+    peakHourActionDetail: (hour: string, orders: number, amount: string) =>
+      `${hour} concentró ${orders} orden${orders === 1 ? "" : "es"} y ${amount}. Refuerza producto listo, cambio y personal antes de esa hora.`,
+    cashHeavyTitle: "Reduce fricción por efectivo",
+    cashHeavyDetail: (pct: number) =>
+      `${pct}% de los cobros fueron en efectivo. Prepara cambio antes del pico y revisa si conviene empujar transferencia o tarjeta manual.`,
+    cleanOpsActionTitle: "Operación limpia",
+    cleanOpsActionDetail:
+      "No hubo devoluciones ni cancelaciones en el rango. Usa este periodo como referencia para comparar dias con problemas.",
     period: "Periodo",
     bestMoment: "Mejor momento",
     timezone: "Zona horaria",

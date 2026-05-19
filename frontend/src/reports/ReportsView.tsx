@@ -4,6 +4,8 @@ import {
   usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
+import { listLowStock, listVelocity } from "../inventory/api";
+import type { InventoryVelocityItem, StockItem } from "../inventory/types";
 import { formatMoney, reasonLabel } from "../orders/format";
 import { getBusinessStory, getSalesByHour } from "./api";
 import { InteractiveBarChart, InteractiveRankChart, type ChartRow } from "./InteractiveCharts";
@@ -41,10 +43,50 @@ type LoadState =
       status: "loaded";
       story: BusinessStoryReport;
       hourly: SalesByHourRow[];
+      previousStory: BusinessStoryReport | null;
+      previousHourly: SalesByHourRow[];
+      lowStock: StockItem[];
+      velocity: InventoryVelocityItem[];
     };
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toISODate(new Date());
+}
+
+function toISODate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function localDate(value: string): Date {
+  return new Date(`${value}T00:00:00Z`);
+}
+
+function addDays(value: string, days: number): string {
+  const date = localDate(value);
+  date.setUTCDate(date.getUTCDate() + days);
+  return toISODate(date);
+}
+
+function daysBetweenInclusive(startDate: string, endDate: string): number {
+  const start = localDate(startDate).getTime();
+  const end = localDate(endDate).getTime();
+  return Math.max(1, Math.round((end - start) / 86_400_000) + 1);
+}
+
+function previousComparableRange(startDate: string, endDate: string) {
+  const days = daysBetweenInclusive(startDate, endDate);
+  const previousEnd = addDays(startDate, -1);
+  const previousStart = addDays(previousEnd, -(days - 1));
+  return { startDate: previousStart, endDate: previousEnd };
+}
+
+function currentMonthStart(): string {
+  const date = new Date();
+  return toISODate(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)));
+}
+
+function lastSevenDaysStart(): string {
+  return addDays(today(), -6);
 }
 
 function dateLabel(value: string): string {
@@ -91,7 +133,22 @@ export default function ReportsView() {
         getBusinessStory(startDate, endDate),
         getSalesByHour(startDate, endDate).catch(() => []),
       ]);
-      setLoadState({ status: "loaded", story, hourly });
+      const previousRange = previousComparableRange(startDate, endDate);
+      const [previousStory, previousHourly, lowStock, velocity] = await Promise.all([
+        getBusinessStory(previousRange.startDate, previousRange.endDate).catch(() => null),
+        getSalesByHour(previousRange.startDate, previousRange.endDate).catch(() => []),
+        listLowStock().catch(() => []),
+        listVelocity().catch(() => []),
+      ]);
+      setLoadState({
+        status: "loaded",
+        story,
+        hourly,
+        previousStory,
+        previousHourly,
+        lowStock,
+        velocity,
+      });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -104,6 +161,21 @@ export default function ReportsView() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     void load();
+  };
+
+  const applyPreset = (preset: ReportPreset) => {
+    if (preset === "today") {
+      setStartDate(today());
+      setEndDate(today());
+      return;
+    }
+    if (preset === "seven_days") {
+      setStartDate(lastSevenDaysStart());
+      setEndDate(today());
+      return;
+    }
+    setStartDate(currentMonthStart());
+    setEndDate(today());
   };
 
   if (!canViewReports) {
@@ -132,16 +204,35 @@ export default function ReportsView() {
         setStartDate={setStartDate}
         setEndDate={setEndDate}
         submit={submit}
+        applyPreset={applyPreset}
+        activePreset={activePreset(startDate, endDate)}
       />
 
       {loadState.status === "loading" ? <LoadingState /> : null}
       {loadState.status === "error" ? <ErrorState onRetry={load} /> : null}
 
       {loadState.status === "loaded" ? (
-        <ReportsStory story={loadState.story} hourly={loadState.hourly} />
+        <ReportsStory
+          story={loadState.story}
+          hourly={loadState.hourly}
+          previousStory={loadState.previousStory}
+          previousHourly={loadState.previousHourly}
+          lowStock={loadState.lowStock}
+          velocity={loadState.velocity}
+        />
       ) : null}
     </main>
   );
+}
+
+type ReportPreset = "today" | "seven_days" | "month";
+
+function activePreset(startDate: string, endDate: string): ReportPreset | null {
+  const currentToday = today();
+  if (startDate === currentToday && endDate === currentToday) return "today";
+  if (startDate === lastSevenDaysStart() && endDate === currentToday) return "seven_days";
+  if (startDate === currentMonthStart() && endDate === currentToday) return "month";
+  return null;
 }
 
 function ReportsHeader({
@@ -150,12 +241,16 @@ function ReportsHeader({
   setStartDate,
   setEndDate,
   submit,
+  applyPreset,
+  activePreset,
 }: {
   startDate: string;
   endDate: string;
   setStartDate: (value: string) => void;
   setEndDate: (value: string) => void;
   submit: (event: FormEvent) => void;
+  applyPreset: (preset: ReportPreset) => void;
+  activePreset: ReportPreset | null;
 }) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -168,6 +263,19 @@ function ReportsHeader({
         </h1>
       </div>
       <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap gap-2">
+          {(["today", "seven_days", "month"] as const).map((preset) => (
+            <Button
+              key={preset}
+              type="button"
+              size="sm"
+              variant={activePreset === preset ? "default" : "outline"}
+              onClick={() => applyPreset(preset)}
+            >
+              {copy.reportsView.presetLabel(preset)}
+            </Button>
+          ))}
+        </div>
         <div className="min-w-[140px] flex-1 space-y-1.5">
           <Label htmlFor="report-start-date">{copy.reportsView.startDate}</Label>
           <Input
@@ -237,11 +345,33 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function ReportsStory({ story, hourly }: { story: BusinessStoryReport; hourly: SalesByHourRow[] }) {
+function ReportsStory({
+  story,
+  hourly,
+  previousStory,
+  previousHourly,
+  lowStock,
+  velocity,
+}: {
+  story: BusinessStoryReport;
+  hourly: SalesByHourRow[];
+  previousStory: BusinessStoryReport | null;
+  previousHourly: SalesByHourRow[];
+  lowStock: StockItem[];
+  velocity: InventoryVelocityItem[];
+}) {
   const hasSales = story.summary.completed_orders > 0;
   return (
     <div className="space-y-6">
       <ExecutiveSummary story={story} />
+      <SmartInsights
+        story={story}
+        previousStory={previousStory}
+        hourly={hourly}
+        previousHourly={previousHourly}
+        lowStock={lowStock}
+        velocity={velocity}
+      />
       {!hasSales ? <EmptyBusinessState /> : null}
       <KpiGrid story={story} />
 
@@ -279,6 +409,269 @@ function ReportsStory({ story, hourly }: { story: BusinessStoryReport; hourly: S
       <RecommendedActions story={story} />
     </div>
   );
+}
+
+type SmartAction = {
+  type: "opportunity" | "risk" | "good_signal" | "operational_improvement";
+  title: string;
+  detail: string;
+};
+
+function SmartInsights({
+  story,
+  previousStory,
+  hourly,
+  previousHourly,
+  lowStock,
+  velocity,
+}: {
+  story: BusinessStoryReport;
+  previousStory: BusinessStoryReport | null;
+  hourly: SalesByHourRow[];
+  previousHourly: SalesByHourRow[];
+  lowStock: StockItem[];
+  velocity: InventoryVelocityItem[];
+}) {
+  const comparisons = comparativeInsights(story, previousStory, hourly, previousHourly);
+  const inventoryActions = inventoryAwareActions(story, lowStock, velocity);
+  const actions = [...inventoryActions, ...advancedRecommendations(story, previousStory, hourly)];
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-kova-blue" />
+          <CardTitle>{copy.reportsView.smartInsightsTitle}</CardTitle>
+        </div>
+        <p className="text-sm leading-6 text-muted-foreground">
+          {copy.reportsView.smartInsightsDescription}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {story.summary.completed_orders === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+            {copy.reportsView.smartInsightsEmpty}
+          </p>
+        ) : null}
+
+        <div className="grid gap-3 md:grid-cols-3">
+          {comparisons.map((item) => (
+            <div key={item.label} className="rounded-lg border bg-background p-4">
+              <p className="text-xs font-medium uppercase text-muted-foreground">{item.label}</p>
+              <p className="mt-2 text-lg font-semibold tabular-nums">{item.value}</p>
+              <p
+                className={cn(
+                  "mt-1 text-sm",
+                  item.tone === "up"
+                    ? "text-kova-growth"
+                    : item.tone === "down"
+                      ? "text-destructive"
+                      : "text-muted-foreground",
+                )}
+              >
+                {item.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          {actions.map((action) => (
+            <InsightCard key={`${action.title}-${action.detail}`} type={action.type}>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{copy.reportsView.actionType(action.type)}</Badge>
+                <p className="font-semibold">{action.title}</p>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{action.detail}</p>
+            </InsightCard>
+          ))}
+          {actions.length === 0 && story.summary.completed_orders > 0 ? (
+            <InsightCard type="good_signal">
+              <p className="font-semibold">{copy.reportsView.smartInsightsStableTitle}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {copy.reportsView.smartInsightsStableDetail}
+              </p>
+            </InsightCard>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function comparativeInsights(
+  story: BusinessStoryReport,
+  previousStory: BusinessStoryReport | null,
+  hourly: SalesByHourRow[],
+  previousHourly: SalesByHourRow[],
+) {
+  const previousHasSales = (previousStory?.summary.completed_orders ?? 0) > 0;
+  const netSalesChange = previousHasSales
+    ? pctChange(Number(story.summary.net_sales), Number(previousStory?.summary.net_sales ?? 0))
+    : null;
+  const orderChange = previousHasSales
+    ? pctChange(story.summary.completed_orders, previousStory?.summary.completed_orders ?? 0)
+    : null;
+  const currentBestHour = bestHourlyRow(hourly);
+  const previousBestHour = bestHourlyRow(previousHourly);
+  const currentBestDaypart = bestDaypartRow(story);
+  const previousBestDaypart = previousStory ? bestDaypartRow(previousStory) : null;
+
+  return [
+    {
+      label: copy.reportsView.compareNetSales,
+      value: formatMoney(story.summary.net_sales),
+      detail:
+        netSalesChange === null
+          ? copy.reportsView.compareNoPrevious
+          : copy.reportsView.compareDelta(netSalesChange, copy.reportsView.previousPeriod),
+      tone: toneFromDelta(netSalesChange),
+    },
+    {
+      label: copy.reportsView.compareOrders,
+      value: String(story.summary.completed_orders),
+      detail:
+        orderChange === null
+          ? copy.reportsView.compareNoPrevious
+          : copy.reportsView.compareDelta(orderChange, copy.reportsView.previousPeriod),
+      tone: toneFromDelta(orderChange),
+    },
+    {
+      label: copy.reportsView.compareStrongestWindow,
+      value: currentBestHour ? hourLabel(currentBestHour.hour) : currentBestDaypart?.label ?? copy.reportsView.noData,
+      detail: strongestWindowDetail(currentBestHour, previousBestHour, currentBestDaypart, previousBestDaypart),
+      tone: "neutral" as const,
+    },
+  ];
+}
+
+function inventoryAwareActions(
+  story: BusinessStoryReport,
+  lowStock: StockItem[],
+  velocity: InventoryVelocityItem[],
+): SmartAction[] {
+  const soldProducts = new Map(story.product_drivers.map((product) => [product.product_id, product]));
+  const soldLowStock = lowStock
+    .map((stock) => ({ stock, sold: soldProducts.get(stock.product_id) }))
+    .filter((item): item is { stock: StockItem; sold: BusinessStoryReport["product_drivers"][number] } => Boolean(item.sold))
+    .sort((a, b) => b.sold.quantity_sold - a.sold.quantity_sold)
+    .slice(0, 2);
+  const lowStockIds = new Set(soldLowStock.map((item) => item.stock.product_id));
+  const velocityRisks = velocity
+    .filter((item) => {
+      const daysUntilOut = Number(item.days_until_out);
+      return item.days_until_out !== null && Number.isFinite(daysUntilOut) && daysUntilOut <= 7 && !lowStockIds.has(item.product_id);
+    })
+    .sort((a, b) => Number(a.days_until_out) - Number(b.days_until_out))
+    .slice(0, 2);
+
+  return [
+    ...soldLowStock.map(({ stock, sold }) => ({
+      type: "risk" as const,
+      title: copy.reportsView.inventoryRestockTitle(stock.product_name),
+      detail: copy.reportsView.inventoryRestockDetail(
+        stock.product_name,
+        sold.quantity_sold,
+        stock.stock_on_hand,
+        stock.low_stock_threshold,
+      ),
+    })),
+    ...velocityRisks.map((item) => ({
+      type: "risk" as const,
+      title: copy.reportsView.inventoryVelocityTitle(item.product_name),
+      detail: copy.reportsView.inventoryVelocityDetail(
+        item.product_name,
+        Number(item.days_until_out),
+        item.stock_on_hand,
+        item.units_per_day_7d,
+      ),
+    })),
+  ];
+}
+
+function advancedRecommendations(
+  story: BusinessStoryReport,
+  previousStory: BusinessStoryReport | null,
+  hourly: SalesByHourRow[],
+): SmartAction[] {
+  const actions: SmartAction[] = [];
+  const netSalesChange =
+    previousStory && previousStory.summary.completed_orders > 0
+      ? pctChange(Number(story.summary.net_sales), Number(previousStory.summary.net_sales))
+      : null;
+  const bestHour = bestHourlyRow(hourly);
+
+  if (netSalesChange !== null && netSalesChange <= -10) {
+    actions.push({
+      type: "risk",
+      title: copy.reportsView.salesDropTitle,
+      detail: copy.reportsView.salesDropDetail(Math.abs(netSalesChange)),
+    });
+  }
+
+  if (bestHour && bestHour.order_count >= 3) {
+    actions.push({
+      type: "opportunity",
+      title: copy.reportsView.peakHourActionTitle(hourLabel(bestHour.hour)),
+      detail: copy.reportsView.peakHourActionDetail(
+        hourLabel(bestHour.hour),
+        bestHour.order_count,
+        formatMoney(bestHour.net_sales),
+      ),
+    });
+  }
+
+  if (story.dominant_payment?.method === "cash" && story.dominant_payment.sales_share_pct >= 70) {
+    actions.push({
+      type: "operational_improvement",
+      title: copy.reportsView.cashHeavyTitle,
+      detail: copy.reportsView.cashHeavyDetail(story.dominant_payment.sales_share_pct),
+    });
+  }
+
+  if (story.summary.refund_count === 0 && story.summary.cancellation_count === 0 && story.summary.completed_orders > 0) {
+    actions.push({
+      type: "good_signal",
+      title: copy.reportsView.cleanOpsActionTitle,
+      detail: copy.reportsView.cleanOpsActionDetail,
+    });
+  }
+
+  return actions.slice(0, 4);
+}
+
+function bestHourlyRow(rows: SalesByHourRow[]) {
+  const row = [...rows].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
+  return row && Number(row.net_sales) > 0 ? row : null;
+}
+
+function hourLabel(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
+
+function pctChange(current: number, previous: number): number | null {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+function toneFromDelta(delta: number | null): "up" | "down" | "neutral" {
+  if (delta === null || delta === 0) return "neutral";
+  return delta > 0 ? "up" : "down";
+}
+
+function strongestWindowDetail(
+  currentHour: SalesByHourRow | null,
+  previousHour: SalesByHourRow | null,
+  currentDaypart: ReturnType<typeof bestDaypartRow>,
+  previousDaypart: ReturnType<typeof bestDaypartRow>,
+): string {
+  if (currentHour && previousHour) {
+    return copy.reportsView.comparePeakHour(hourLabel(previousHour.hour));
+  }
+  if (currentDaypart && previousDaypart) {
+    return copy.reportsView.compareDaypart(previousDaypart.label);
+  }
+  return copy.reportsView.compareNoPrevious;
 }
 
 function ExecutiveSummary({ story }: { story: BusinessStoryReport }) {
