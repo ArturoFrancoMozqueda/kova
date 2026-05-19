@@ -2,9 +2,11 @@
 
 ## Status
 
-**Current:** Sprint 15 (Modifiers) complete. Pre-beta ops checklist partially done. Sprint 16 is the next execution target.
+**Current:** Sprints 9–16 complete. Pre-beta sprints PB-1..PB-5 and PB-7 closed. PB-6 (analytics
+credibility) carry-overs and a new UX trust backlog (`docs/ux-review-2026-05-19.md`) are the
+active focus, tracked in `docs/current-sprint.md`.
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-19
 
 This document defines the roadmap and task structure.
 
@@ -658,10 +660,10 @@ Sprints 16 through 22 are defined below in execution order.
 
 Sprint 15 (Modifiers) is done and documented in `docs/current-sprint.md`.
 
-Production review on 2026-05-17 created a pre-beta repair backlog in
-`docs/product-review-backlog.md`. Complete the PB sprints in that document before selling to cold
-customers and before resuming broader feature expansion, unless an explicit beta tenant commitment
-changes the order.
+Production review on 2026-05-17 created a pre-beta repair backlog (PB-1..PB-7). PB-1..PB-5 and
+PB-7 are closed; PB-6 (analytics credibility) is the only remaining piece. Carry-over items
+are listed in `docs/current-sprint.md`. A second UX review on 2026-05-19
+(`docs/ux-review-2026-05-19.md`) defined the next visual-trust sprint.
 
 Pre-beta ops tasks (Sentry DSN, backup drill, uptime monitor, support channel) must be completed
 before the first beta tenant is onboarded. They are tracked in `docs/current-sprint.md` and are
@@ -689,7 +691,12 @@ without engineering assistance. The register must work correctly on a tablet bro
 
 ### Status
 
-Partial. The following items shipped on 2026-05-14:
+Closed 2026-05-14 for the items below. Remaining open items (onboarding spec, dashboard trend
+comparison, orders search/filter, i18n audit, mobile QA at 375 px) were rolled into the PB-1..PB-7
+backlog and the UX trust backlog. Do not plan from the "Remaining Tasks" list below — it is kept
+for history; pull current state from `docs/current-sprint.md`.
+
+Items shipped on 2026-05-14:
 
 - [x] Mobile responsive sidebar with hamburger toggle and backdrop overlay
 - [x] Mobile sticky top bar (logo + business name + hamburger)
