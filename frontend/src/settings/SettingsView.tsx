@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
+import { LogoUploadField } from "./LogoUploadField";
 import {
   deactivateEmployee,
   getBusinessProfile,
@@ -220,7 +221,7 @@ export default function SettingsView() {
             <Field label={copy.settings.receiptName} value={receipt.receipt_business_name} onChange={(value) => setReceipt((x) => ({ ...x, receipt_business_name: value }))} required />
             <Field label={copy.settings.receiptFooter} value={receipt.footer} onChange={(value) => setReceipt((x) => ({ ...x, footer: value }))} />
             <Field label={copy.settings.taxContact} value={receipt.tax_contact_text} onChange={(value) => setReceipt((x) => ({ ...x, tax_contact_text: value }))} />
-            <Field label={copy.settings.logoUrl} value={receipt.logo_url} onChange={(value) => setReceipt((x) => ({ ...x, logo_url: value }))} />
+            <LogoUploadField logoUrl={receipt.logo_url} setReceipt={setReceipt} />
             <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveReceipt}</Button>
           </form>
         </CardContent>

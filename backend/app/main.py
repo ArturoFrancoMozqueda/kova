@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
 from app.billing.router import router as billing_router
+from app.business_settings.logo_router import router as business_settings_logo_router
 from app.business_settings.router import router as business_settings_router
 from app.catalog.router import router as catalog_router
 from app.config import settings
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(billing_router)
     app.include_router(business_settings_router)
+    app.include_router(business_settings_logo_router)
     app.include_router(catalog_router)
     app.include_router(employees_router)
     app.include_router(modifiers_router)

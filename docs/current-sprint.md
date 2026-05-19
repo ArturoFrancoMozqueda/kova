@@ -21,8 +21,9 @@ for the screens this sprint touches; only the visual layer is changing.
 These come from `docs/ux-review-2026-05-19.md` §B Critical. Each links to the file the work
 lives in.
 
-- [ ] Logo upload replaces the "URL segura" text input in [SettingsView.tsx](../frontend/src/settings/SettingsView.tsx).
+- [x] Logo upload replaces the "URL segura" text input in [SettingsView.tsx](../frontend/src/settings/SettingsView.tsx).
       Includes preview, drag-and-drop, size/format validation. Backend coordination required for storage.
+      Uses Postgres `bytea` in `tenant_logo_files` so no external storage dependency is introduced.
 - [x] `DeltaBadge` in [DashboardView.tsx](../frontend/src/dashboard/DashboardView.tsx) renders neutral
       "Aún sin comparación" for fresh / zero-history tenants instead of red −100% (commit 5167a62).
 - [x] `BillingBanner` hidden on `/settings/billing`; info-styled during active trial and dismissible

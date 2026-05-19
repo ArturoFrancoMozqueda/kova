@@ -16,6 +16,10 @@ export type ReceiptSettings = {
   logo_url: string | null;
 };
 
+export type LogoUploadResponse = {
+  logo_url: string;
+};
+
 export type Employee = {
   membership_id: string;
   user_id: string;
@@ -71,6 +75,22 @@ export function saveReceiptSettings(body: Omit<ReceiptSettings, "tenant_id">): P
     method: "PUT",
     body: JSON.stringify(body),
   });
+}
+
+export async function uploadReceiptLogo(file: File): Promise<LogoUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch("/api/v1/settings/receipt/logo", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) throw new ApiError(await response.text(), response.status);
+  return (await response.json()) as LogoUploadResponse;
+}
+
+export async function deleteReceiptLogo(): Promise<void> {
+  const response = await fetch("/api/v1/settings/receipt/logo", { method: "DELETE" });
+  if (!response.ok) throw new ApiError(await response.text(), response.status);
 }
 
 export function listEmployees(): Promise<Employee[]> {
