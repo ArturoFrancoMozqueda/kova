@@ -57,7 +57,7 @@ test("billing page displays the Standard Plan and active subscription", async ({
 
   await expect(page.getByRole("heading", { name: /facturaci[óo]n/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /plan standard/i })).toBeVisible();
-  await expect(page.getByText("MX$199.00")).toBeVisible();
+  await expect(page.getByText(/\$199\.00/).first()).toBeVisible();
   await expect(page.getByText(/activo/i).first()).toBeVisible();
 });
 

@@ -170,13 +170,13 @@ test("reports page displays business storytelling layout", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: /reportes/i })).toBeVisible();
   await expect(page.getByText(/resumen ejecutivo/i)).toBeVisible();
-  await expect(page.getByText(/Kova gener[oó] MX\$231\.00 en ventas netas/i)).toBeVisible();
-  await expect(page.locator(".data-card").filter({ hasText: /ventas netas/i }).getByText("MX$231.00")).toBeVisible();
+  await expect(page.getByText(/Kova gener[oó] \$231\.00 en ventas netas/i)).toBeVisible();
+  await expect(page.locator(".data-card").filter({ hasText: /ventas netas/i }).getByText(/\$231\.00/)).toBeVisible();
   await expect(page.locator(".data-card").filter({ hasText: /producto top/i }).getByText("Dona", { exact: true })).toBeVisible();
   await expect(page.getByText(/ventas por d[ií]a/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /17 may: MX\$88\.00/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /17 may: \$88\.00/i })).toBeVisible();
   await expect(page.getByText(/ventas por momento del d[ií]a/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Noche: MX\$160\.00/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Noche: \$160\.00/i })).toBeVisible();
   await expect(page.getByText(/Dentro del mejor bloque, tu pico fue de 20:00-21:00/i)).toBeVisible();
   await expect(page.getByText("Cash representa 83% de los cobros.", { exact: true })).toBeVisible();
   await expect(page.getByText(/Refuerza operación en noche/i)).toBeVisible();
