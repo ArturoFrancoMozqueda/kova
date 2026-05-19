@@ -3,13 +3,14 @@ import { useLocation } from "react-router-dom";
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { getBillingSubscription, startCheckout, cancelSubscription } from "./api";
+import { STANDARD_PLAN } from "./standardPlan";
 import type { BillingSubscription } from "./types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { AlertCircle, AlertTriangle, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
@@ -37,7 +38,7 @@ const statusVariants: Record<string, "success" | "warning" | "destructive" | "se
 };
 
 function formatPlanAmount(amountMinorUnits: number, currency: string): string {
-  return new Intl.NumberFormat("en", { style: "currency", currency }).format(amountMinorUnits / 100);
+  return new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(amountMinorUnits / 100);
 }
 
 function formatDate(value: string | null): string {
@@ -109,7 +110,7 @@ export default function BillingView() {
       const billing = await cancelSubscription();
       setLoadState({ status: "loaded", billing });
       setActionState("idle");
-      toast("Subscription cancelled", "success");
+      toast(copy.billingView.statusCanceled, "success");
     } catch {
       setActionState("error");
       toast(copy.billingView.operationError, "error");
@@ -134,7 +135,7 @@ export default function BillingView() {
     <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">{copy.billingView.title}</h1>
-        <p className="text-sm text-muted-foreground">Manage your subscription and payments</p>
+        <p className="text-sm text-muted-foreground">{copy.billingView.subtitle}</p>
       </div>
 
       {loadState.status === "loading" && (
@@ -174,7 +175,11 @@ export default function BillingView() {
               <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
               <div>
                 <p className="font-medium">{copy.billingBanner.blockedTitle}</p>
-                <p className="text-muted-foreground">{copy.billingBanner.blockedGeneric}</p>
+                <p className="text-muted-foreground">
+                  {loadState.billing.access.reason === "trial_expired"
+                    ? copy.billingBanner.blockedTrialExpired
+                    : copy.billingBanner.blockedGeneric}
+                </p>
               </div>
             </div>
           )}
@@ -189,7 +194,11 @@ export default function BillingView() {
           {!loadState.billing.subscription && loadState.billing.access.reason !== "signup_trial" && (
             <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm animate-fade-in">
               <AlertCircle className="h-5 w-5 text-primary shrink-0" />
-              <p className="text-foreground">{copy.billingView.noSubscriptionBanner}</p>
+              <p className="text-foreground">
+                {loadState.billing.access.reason === "trial_expired"
+                  ? copy.billingView.expiredTrialBanner
+                  : copy.billingView.noSubscriptionBanner}
+              </p>
             </div>
           )}
 
@@ -200,7 +209,7 @@ export default function BillingView() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.plan}</p>
               </CardHeader>
               <CardContent>
-                <h2 className="text-lg font-bold">{loadState.billing.plan.name}</h2>
+                <h2 className="text-lg font-bold">{STANDARD_PLAN.name}</h2>
                 <p className="text-2xl font-bold text-primary mt-1">
                   {formatPlanAmount(loadState.billing.plan.amount_minor_units, loadState.billing.plan.currency)}
                 </p>
@@ -270,9 +279,20 @@ export default function BillingView() {
 
           {/* Actions */}
           <Card>
-            <CardContent className="flex items-center gap-3 p-5">
+            <CardContent className="space-y-5 p-5">
+              <div>
+                <p className="text-sm font-semibold">{copy.billingView.valueTitle}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {copy.billingView.valueItems.map((item) => (
+                    <div key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
               {canManageBilling ? (
-                <>
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <Button onClick={() => void beginCheckout()} disabled={actionState === "checkout"}>
                     {actionState === "checkout" ? (
                       <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
@@ -296,7 +316,7 @@ export default function BillingView() {
                       <><XCircle className="h-4 w-4" />{copy.billingView.cancel}</>
                     )}
                   </Button>
-                </>
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground">{copy.billingView.manageHidden}</p>
               )}

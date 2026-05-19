@@ -93,7 +93,7 @@ export function BillingBanner() {
       data-testid="billing-banner"
       data-billing-reason={access.reason}
       className={cn(
-        "mx-4 mt-4 flex flex-col gap-3 rounded-[var(--radius-lg)] border px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
+        "mx-4 mt-4 flex flex-col gap-2 rounded-[var(--radius-lg)] border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3",
         toneStyles[content.tone],
       )}
     >
@@ -101,7 +101,7 @@ export function BillingBanner() {
         <span className="mt-0.5 shrink-0">{toneIcon[content.tone]}</span>
         <div className="min-w-0">
           <p className="text-sm font-semibold">{content.title}</p>
-          <p className="text-xs opacity-90">{content.body}</p>
+          <p className="hidden text-xs opacity-90 sm:block">{content.body}</p>
         </div>
       </div>
       <Link
