@@ -3,7 +3,7 @@ const MAX_LENGTH = 24;
 function toTitleCase(value: string): string {
   return value
     .toLocaleLowerCase("es-MX")
-    .replace(/(^|\s|['’\-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toLocaleUpperCase("es-MX"));
+    .replace(/(^|\s|['’-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toLocaleUpperCase("es-MX"));
 }
 
 export function formatTenantName(raw: string | null | undefined): string {
