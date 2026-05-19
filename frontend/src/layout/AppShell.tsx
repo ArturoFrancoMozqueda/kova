@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
 import { LogoMark } from "@/components/brand/Logo";
 import { BillingBanner } from "@/billing/BillingBanner";
+import { TrialChip } from "@/billing/TrialChip";
+import { formatTenantName } from "@/lib/formatTenantName";
 
 type NavItem = {
   to: string;
@@ -63,7 +65,8 @@ export default function AppShell() {
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const tenantName = state.status === "authenticated" ? state.tenantName : "";
+  const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
+  const tenantName = formatTenantName(tenantNameRaw);
   const userEmail = state.status === "authenticated" ? state.user.email : "";
   const userRole = state.status === "authenticated" ? state.user.role : "";
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
@@ -195,7 +198,15 @@ export default function AppShell() {
           </button>
           <LogoMark size={24} circuitColor="var(--kova-ink)" />
           <span className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</span>
+          <div className="ml-auto">
+            <TrialChip />
+          </div>
         </header>
+
+        {/* Desktop trial chip — top-right of content area */}
+        <div className="hidden lg:flex items-center justify-end px-8 pt-4">
+          <TrialChip />
+        </div>
 
         <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           <BillingBanner />

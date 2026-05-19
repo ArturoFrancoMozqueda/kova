@@ -956,4 +956,12 @@ export const copy = {
     blockedIncomplete: "El pago no se completó. Termina el pago para activar tu suscripción.",
     blockedGeneric: "Tu cuenta está bloqueada de las funciones de pago. Recupera la facturación para continuar.",
   },
+  trialChip: {
+    label: "Prueba",
+    daysRemaining: (n: number) => `${n} día${n === 1 ? "" : "s"} restante${n === 1 ? "" : "s"}`,
+    endsToday: "Termina hoy",
+    endsTomorrow: "Termina mañana",
+    expired: "Prueba terminada",
+    tooltip: "Administrar plan",
+  },
 };
