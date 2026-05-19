@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
@@ -28,6 +29,29 @@ const roleOptions: { value: Role; label: string }[] = [
   { value: "owner", label: copy.settings.roleOwner },
   { value: "manager", label: copy.settings.roleManager },
   { value: "cashier", label: copy.settings.roleCashier },
+];
+
+const localeOptions = [
+  { value: "es-MX", label: "Español (México)" },
+];
+
+const currencyOptions = [
+  { value: "MXN", label: "MXN — Peso mexicano" },
+  { value: "USD", label: "USD — Dólar estadounidense" },
+];
+
+const timezoneOptions = [
+  { value: "America/Mexico_City", label: "Ciudad de México (CDMX)" },
+  { value: "America/Tijuana", label: "Tijuana (Baja California)" },
+  { value: "America/Hermosillo", label: "Hermosillo (Sonora)" },
+  { value: "America/Mazatlan", label: "Mazatlán (Sinaloa, Nayarit)" },
+  { value: "America/Monterrey", label: "Monterrey (Nuevo León)" },
+  { value: "America/Merida", label: "Mérida (Yucatán)" },
+  { value: "America/Cancun", label: "Cancún (Quintana Roo)" },
+  { value: "America/Chihuahua", label: "Chihuahua" },
+  { value: "America/Ojinaga", label: "Ojinaga" },
+  { value: "America/Matamoros", label: "Matamoros" },
+  { value: "America/Bahia_Banderas", label: "Bahía de Banderas (Nayarit)" },
 ];
 
 function roleLabel(role: Role | string): string {
@@ -166,9 +190,24 @@ export default function SettingsView() {
             <Field label={copy.settings.publicName} value={business.public_name} onChange={(value) => setBusiness((x) => ({ ...x, public_name: value }))} required />
             <Field label={copy.settings.supportEmail} value={business.support_email} onChange={(value) => setBusiness((x) => ({ ...x, support_email: value }))} />
             <Field label={copy.settings.supportPhone} value={business.support_phone} onChange={(value) => setBusiness((x) => ({ ...x, support_phone: value }))} />
-            <Field label={copy.settings.timezone} value={business.timezone} onChange={(value) => setBusiness((x) => ({ ...x, timezone: value }))} required />
-            <Field label={copy.settings.locale} value={business.locale} onChange={(value) => setBusiness((x) => ({ ...x, locale: value }))} required />
-            <Field label={copy.settings.currency} value={business.currency} onChange={(value) => setBusiness((x) => ({ ...x, currency: value.toUpperCase().slice(0, 3) }))} required />
+            <SelectField
+              label={copy.settings.timezone}
+              value={business.timezone}
+              options={timezoneOptions}
+              onChange={(value) => setBusiness((x) => ({ ...x, timezone: value }))}
+            />
+            <SelectField
+              label={copy.settings.locale}
+              value={business.locale}
+              options={localeOptions}
+              onChange={(value) => setBusiness((x) => ({ ...x, locale: value }))}
+            />
+            <SelectField
+              label={copy.settings.currency}
+              value={business.currency}
+              options={currencyOptions}
+              onChange={(value) => setBusiness((x) => ({ ...x, currency: value }))}
+            />
             <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveBusiness}</Button>
           </form>
         </CardContent>
@@ -197,11 +236,11 @@ export default function SettingsView() {
             </div>
             <div>
               <Label>{copy.settings.role}</Label>
-              <select className="h-10 rounded-md border bg-background px-3 text-sm" value={invite.role} onChange={(e) => setInvite((x) => ({ ...x, role: e.target.value as Role }))}>
+              <Select value={invite.role} onChange={(e) => setInvite((x) => ({ ...x, role: e.target.value as Role }))}>
                 {roleOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <Button type="submit">{copy.settings.invite}</Button>
           </form>
@@ -213,11 +252,11 @@ export default function SettingsView() {
                   <p className="font-medium">{employee.email}</p>
                   <p className="text-xs text-muted-foreground">{employee.is_active ? copy.settings.active : copy.settings.inactive}</p>
                 </div>
-                <select className="h-9 rounded-md border bg-background px-3 text-sm" value={employee.role} disabled={!employee.is_active} onChange={(e) => void updateEmployeeRole(employee.membership_id, e.target.value as Role).then(load)}>
+                <Select className="sm:w-44" value={employee.role} disabled={!employee.is_active} onChange={(e) => void updateEmployeeRole(employee.membership_id, e.target.value as Role).then(load)}>
                   {roleOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </Select>
                 <Button variant="outline" disabled={!employee.is_active} onClick={() => void deactivateEmployee(employee.membership_id).then(load)}>
                   {copy.settings.deactivate}
                 </Button>
@@ -254,6 +293,33 @@ function Field({
     <div className="space-y-1">
       <Label>{label}</Label>
       <Input value={value} onChange={(event) => onChange(event.target.value)} required={required} />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  const known = options.some((option) => option.value === value);
+  return (
+    <div className="space-y-1">
+      <Label>{label}</Label>
+      <Select value={value} onChange={(event) => onChange(event.target.value)}>
+        {!known && value ? <option value={value}>{value}</option> : null}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
     </div>
   );
 }
