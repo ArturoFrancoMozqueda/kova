@@ -152,6 +152,7 @@ export const copy = {
     connectionHint: "Revisa tu conexión e inténtalo de nuevo.",
     vsYesterday: "vs ayer",
     deltaNoData: "Sin comparación todavía",
+    deltaWarmingUp: "Aún sin comparación",
     onboardingTitle: "Deja tu tienda lista para vender",
     onboardingSubtitle: "Completa estos pasos en orden para pasar de cuenta nueva a primera venta real.",
     onboardingStep1Label: `Activa el ${STANDARD_PLAN.name}`,

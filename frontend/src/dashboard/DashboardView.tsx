@@ -76,6 +76,11 @@ function DeltaBadge({ current, previous }: DeltaBadgeProps) {
   if (previous === null || previous === 0) {
     return <span className="text-xs text-muted-foreground">{copy.dashboard.deltaNoData}</span>;
   }
+  // Suppress misleading red -100% on fresh/zero-activity days: when current is 0,
+  // we render a neutral "Aún sin comparación" instead of a destructive red badge.
+  if (current === 0) {
+    return <span className="text-xs text-muted-foreground">{copy.dashboard.deltaWarmingUp}</span>;
+  }
   const pct = ((current - previous) / previous) * 100;
   const abs = Math.abs(pct);
   const label = `${abs < 1 ? "<1" : Math.round(abs)}%`;
