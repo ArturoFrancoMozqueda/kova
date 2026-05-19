@@ -268,16 +268,6 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
       <div style={{ position: "relative", maxWidth: 1280, margin: "0 auto" }}>
         <div
           style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
-            borderRadius: 999, padding: "6px 12px 6px 8px",
-            fontSize: 12, fontWeight: 500, color: "var(--text-muted)",
-          }}
-        >
-        </div>
-
-        <div
-          style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
             gap: 64, alignItems: "center", marginTop: 40,
@@ -342,6 +332,24 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 Ver el POS en vivo →
               </a>
             </div>
+
+            <p
+              className="lp-hero-pricing"
+              style={{
+                marginTop: 18, fontSize: 13, color: "var(--text-muted)",
+                display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8,
+              }}
+            >
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "4px 10px", borderRadius: 999,
+                background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
+                fontWeight: 600, color: "var(--page-fg)",
+              }}>
+                Plan único · $199 MXN/mes
+              </span>
+              <span>Sin comisión por venta · Sin tarjeta para empezar</span>
+            </p>
 
             <div
               className="lp-hero-stats"
@@ -1022,9 +1030,13 @@ function FooterCol({ title, links }: { title: string; links: string[] }) {
 /* ─── Responsive helper ──────────────────────────────────────────────────── */
 const RESPONSIVE_STYLES = `
   .lp-root {
+    width: 100%;
+    min-width: 100vw;
     max-width: 100%;
     overflow-x: clip;
+    background: var(--page-bg);
   }
+  .lp-root > section { width: 100%; }
   .lp-root *, .lp-root *::before, .lp-root *::after {
     box-sizing: border-box;
   }
