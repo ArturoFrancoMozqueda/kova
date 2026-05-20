@@ -162,33 +162,45 @@ export default function SettingsView() {
 
   async function submitBusiness(event: FormEvent) {
     event.preventDefault();
-    await saveBusinessProfile({
-      ...business,
-      support_email: business.support_email || null,
-      support_phone: business.support_phone || null,
-    });
-    toast(copy.settings.saved, "success");
-    void load();
+    try {
+      await saveBusinessProfile({
+        ...business,
+        support_email: business.support_email || null,
+        support_phone: business.support_phone || null,
+      });
+      toast(copy.settings.saved, "success");
+      void load();
+    } catch {
+      toast(copy.settings.saveError, "error");
+    }
   }
 
   async function submitReceipt(event: FormEvent) {
     event.preventDefault();
-    await saveReceiptSettings({
-      ...receipt,
-      footer: receipt.footer || null,
-      tax_contact_text: receipt.tax_contact_text || null,
-      logo_url: receipt.logo_url || null,
-    });
-    toast(copy.settings.saved, "success");
-    void load();
+    try {
+      await saveReceiptSettings({
+        ...receipt,
+        footer: receipt.footer || null,
+        tax_contact_text: receipt.tax_contact_text || null,
+        logo_url: receipt.logo_url || null,
+      });
+      toast(copy.settings.saved, "success");
+      void load();
+    } catch {
+      toast(copy.settings.saveError, "error");
+    }
   }
 
   async function submitInvite(event: FormEvent) {
     event.preventDefault();
-    await inviteEmployee(invite);
-    setInvite({ email: "", role: "cashier" });
-    toast(copy.settings.inviteSent, "success");
-    void load();
+    try {
+      await inviteEmployee(invite);
+      setInvite({ email: "", role: "cashier" });
+      toast(copy.settings.inviteSent, "success");
+      void load();
+    } catch {
+      toast(copy.settings.saveError, "error");
+    }
   }
 
   if (loadState === "loading") {

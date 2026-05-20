@@ -353,6 +353,7 @@ export const copy = {
     invite: "Invitar empleado",
     inviteSent: "Invitación de empleado creada.",
     saved: "Cambios guardados.",
+    saveError: "No se pudieron guardar los cambios. Revisa los campos e intentalo de nuevo.",
     active: "Acceso activo",
     inactive: "Acceso desactivado",
     deactivate: "Desactivar",
