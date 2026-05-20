@@ -1,4 +1,5 @@
 import { type Page, expect, test } from "@playwright/test";
+import { markFirstUseToursSeen } from "./helpers";
 
 async function mockAuthAs(page: Page, role: string) {
   await page.route("**/api/v1/auth/session", async (route) => {
@@ -163,12 +164,13 @@ async function mockReports(page: Page, payload = storyPayload()) {
 }
 
 test("reports page displays business storytelling layout", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
   await mockReports(page);
 
   await page.goto("/reports");
 
-  await expect(page.getByRole("heading", { name: /reportes/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
   await expect(page.getByText(/resumen ejecutivo/i)).toBeVisible();
   await expect(page.getByText(/Kova gener[oó] \$231\.00 en ventas netas/i)).toBeVisible();
   await expect(page.locator(".data-card").filter({ hasText: /ventas netas/i }).getByText(/\$231\.00/)).toBeVisible();
@@ -183,6 +185,7 @@ test("reports page displays business storytelling layout", async ({ page }) => {
 });
 
 test("reports shows useful empty state without demo data", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
   await mockReports(
     page,
