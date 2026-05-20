@@ -701,7 +701,7 @@ Tasks:
   dedicated employee section.
 - [x] Added from Kova Product/UX Audit: Replace production raw timezone/language/currency/logo URL
   controls with polished selects/upload if those changes are already complete locally.
-- [ ] Added from Kova Product/UX Audit: Add search/filter/sort QA for products, orders, and inventory.
+- [x] Added from Kova Product/UX Audit: Add search/filter/sort QA for products, orders, and inventory.
 - [x] Added from Kova Product/UX Audit: Fix mobile navigation default state and remove duplicated nav
   surfaces during operational tasks.
 
@@ -715,6 +715,7 @@ Acceptance criteria:
 Suggested files/components to inspect or modify:
 - `frontend/src/register/RegisterView.tsx`
 - `frontend/src/catalog/CatalogView.tsx`
+- `frontend/src/orders/OrderListView.tsx`
 - `frontend/src/settings/SettingsView.tsx`
 - `frontend/src/settings/LogoUploadField.tsx`
 - `frontend/src/inventory/InventoryView.tsx`
@@ -729,8 +730,9 @@ Risks:
 QA checklist:
 - Complete a cash sale on desktop and mobile/tablet viewport.
 - Add/edit/deactivate product.
-- Invite employee and verify role display/copy.
-- Activate inventory tracking and verify low-stock state.
+- Search, filter, and sort products, orders, and inventory at 390px width.
+- Invite employee, change role, deactivate access, and verify role display/copy.
+- Activate inventory tracking and verify low-stock/search/filter/sort states.
 - Keyboard navigate register and settings forms.
 
 ### Sprint 4: Reports and Business Storytelling

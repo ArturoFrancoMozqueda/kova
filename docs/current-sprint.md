@@ -14,8 +14,8 @@ Last updated: 2026-05-20
 
 Kova Product/UX Audit execution.
 
-Sprint 1 is mostly complete. Sprint 2 is functionally complete. Sprint 3 is now in progress with the
-highest-risk register, employee, and mobile navigation clarity items implemented.
+Sprint 1 is mostly complete. Sprint 2 is functionally complete. Sprint 3 is functionally complete.
+The next recommended execution target is Sprint 4: Reports and Business Storytelling.
 
 ## Completed From Kova Audit Sprint 1: Trust, Clarity, and Conversion
 
@@ -81,6 +81,10 @@ highest-risk register, employee, and mobile navigation clarity items implemented
 - [x] Focused E2E:
       `npm run test:e2e -- e2e/register-sale.spec.ts e2e/settings.spec.ts e2e/mobile.spec.ts --project=chromium`
       (11 passed)
+- [x] Focused Sprint 3 operational E2E:
+      `npm run test:e2e -- e2e/catalog.spec.ts e2e/inventory.spec.ts e2e/orders.spec.ts e2e/settings.spec.ts --project=chromium`
+      (11 passed)
+- [x] Full frontend E2E: `npm run test:e2e -- --project=chromium` (49 passed, 3 skipped)
 - [x] Diff hygiene: `git diff --check`
 
 ## Completed From Kova Audit Sprint 3: POS, Products, Employees, and Inventory Usability
@@ -93,21 +97,22 @@ highest-risk register, employee, and mobile navigation clarity items implemented
 - [x] Mobile regression coverage now confirms the sidebar is closed on fresh mobile app loads while
       bottom navigation remains available.
 - [x] Employee setup spec updated to reflect role-description UX acceptance criteria.
+- [x] Catalog now supports product search and sorting by name, price, or inventory-tracked products.
+- [x] Inventory now supports search, low/healthy filtering, and sorting by name, stock, or threshold.
+- [x] Orders now support visible client-side sort options for newest, oldest, highest amount, and
+      lowest amount alongside existing filters.
+- [x] Mobile E2E now covers catalog product search/sort, product create/edit, inventory activation,
+      inventory search/filter/sort, order status/sort, and employee invite/role/deactivation flows.
 
 ## Left From Sprint 3
 
-- [ ] Add focused product/order/inventory search, filter, and sort QA beyond current mobile overflow
-      coverage.
-- [ ] Complete hands-on mobile QA for creating/editing products, activating inventory, and employee
-      invite/deactivate flows at 390px.
 - [ ] Decide whether employee management should graduate from Settings tab to a first-class nav item
       after beta usage data.
-- [ ] Add BDD/E2E coverage for employee invitation submit, role change, and deactivation once the
-      invitation acceptance path is finalized.
+- [ ] Add invitation acceptance-path E2E once that separate acceptance flow is finalized.
 
 ## Next Sprint Recommendation
 
-Continue Sprint 3 verification and close the remaining operational QA items before starting Sprint 4.
+Start Sprint 4: Reports and Business Storytelling.
 
 ## Carried Over From Older Production-Review Backlog
 
