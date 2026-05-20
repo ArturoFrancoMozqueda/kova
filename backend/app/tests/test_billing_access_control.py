@@ -62,9 +62,9 @@ class FakeStripeCheckoutClient:
 class FakeStripePriceClient:
     def retrieve_price(self, **kwargs) -> dict:  # noqa: ARG002
         return {
-            "id": "price_standard_199_mxn",
+            "id": "price_standard_299_mxn",
             "active": True,
-            "unit_amount": 19900,
+            "unit_amount": 29900,
             "currency": "mxn",
             "recurring": {"interval": "month"},
         }
@@ -119,7 +119,7 @@ def test_active_subscription_allows_order_after_trial_expiry(
             tenant_id=UUID(signup["tenant_id"]),
             stripe_customer_id=f"cus_{uuid4().hex}",
             stripe_subscription_id=f"sub_{uuid4().hex}",
-            stripe_price_id="price_standard_199_mxn",
+            stripe_price_id="price_standard_299_mxn",
             status="active",
         )
     )
@@ -140,7 +140,7 @@ def test_blocked_tenant_can_start_billing_recovery(
     monkeypatch.setattr(billing_service, "checkout_client", fake_checkout)
     monkeypatch.setattr(billing_service, "price_client", FakeStripePriceClient())
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
-    monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_199_mxn")
+    monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_299_mxn")
     monkeypatch.setattr(settings, "stripe_checkout_success_url", "http://localhost/success")
     monkeypatch.setattr(settings, "stripe_checkout_cancel_url", "http://localhost/cancel")
 

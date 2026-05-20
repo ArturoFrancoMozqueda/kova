@@ -54,7 +54,7 @@ def test_owner_views_standard_plan_without_subscription(client: TestClient) -> N
     body = response.json()
     assert body["plan"] == {
         "name": "Standard Plan",
-        "amount_minor_units": 19900,
+        "amount_minor_units": 29900,
         "currency": "MXN",
         "interval": "month",
     }
@@ -127,9 +127,9 @@ class FakeStripePriceClient:
         self.error = error
         self.calls: list[dict] = []
         self.price = price or {
-            "id": "price_standard_199_mxn",
+            "id": "price_standard_299_mxn",
             "active": True,
-            "unit_amount": 19900,
+            "unit_amount": 29900,
             "currency": "mxn",
             "recurring": {"interval": "month"},
         }
@@ -164,7 +164,7 @@ def _configure_stripe(monkeypatch) -> None:
     monkeypatch.setattr(billing_service, "price_client", FakeStripePriceClient())
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
     monkeypatch.setattr(settings, "stripe_webhook_secret", "whsec_test_123")
-    monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_199_mxn")
+    monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_299_mxn")
     monkeypatch.setattr(
         settings,
         "stripe_checkout_success_url",
@@ -194,7 +194,7 @@ def test_owner_starts_checkout_session(client: TestClient, db: Session, monkeypa
         "checkout_session_id": "cs_test_123",
     }
     assert fake_client.calls[0]["tenant_id"] == signup["tenant_id"]
-    assert fake_client.calls[0]["price_id"] == "price_standard_199_mxn"
+    assert fake_client.calls[0]["price_id"] == "price_standard_299_mxn"
 
     audit = (
         db.query(AuditLog)
@@ -265,9 +265,9 @@ def test_checkout_blocks_misconfigured_standard_plan_price(
         "price_client",
         FakeStripePriceClient(
             price={
-                "id": "price_standard_199_mxn",
+                "id": "price_standard_299_mxn",
                 "active": True,
-                "unit_amount": 29900,
+                "unit_amount": 19900,
                 "currency": "mxn",
                 "recurring": {"interval": "month"},
             }
@@ -478,8 +478,8 @@ def test_subscription_updated_webhook_updates_status(client: TestClient, db: Ses
                 "data": [
                     {
                         "price": {
-                            "id": "price_standard_199_mxn",
-                            "unit_amount": 19900,
+                            "id": "price_standard_299_mxn",
+                            "unit_amount": 29900,
                             "currency": "mxn",
                         }
                     }
@@ -501,9 +501,9 @@ def test_subscription_updated_webhook_updates_status(client: TestClient, db: Ses
         .one()
     )
     assert subscription.status == "trialing"
-    assert subscription.stripe_price_id == "price_standard_199_mxn"
+    assert subscription.stripe_price_id == "price_standard_299_mxn"
     assert subscription.currency == "MXN"
-    assert subscription.amount_minor_units == 19900
+    assert subscription.amount_minor_units == 29900
 
 
 def test_invoice_payment_failed_marks_subscription_past_due(

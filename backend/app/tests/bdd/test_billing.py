@@ -94,7 +94,7 @@ def _configure_stripe(monkeypatch, fake_checkout=None, fake_subscription=None) -
     monkeypatch.setattr(billing_service, "price_client", _FakePriceClient())
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
     monkeypatch.setattr(settings, "stripe_webhook_secret", "whsec_test_123")
-    monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_199_mxn")
+    monkeypatch.setattr(settings, "stripe_standard_price_id", "price_standard_299_mxn")
     monkeypatch.setattr(settings, "stripe_checkout_success_url", "http://localhost:5173/billing/success")
     monkeypatch.setattr(settings, "stripe_checkout_cancel_url", "http://localhost:5173/billing/cancel")
 
@@ -116,9 +116,9 @@ def _stripe_event(event_type: str, stripe_object: dict) -> bytes:
 class _FakePriceClient:
     def retrieve_price(self, **_kwargs) -> dict:
         return {
-            "id": "price_standard_199_mxn",
+            "id": "price_standard_299_mxn",
             "active": True,
-            "unit_amount": 19900,
+            "unit_amount": 29900,
             "currency": "mxn",
             "recurring": {"interval": "month"},
         }
@@ -168,14 +168,14 @@ def owner_starts_checkout(billing_context):
     billing_context["checkout_response"] = r
 
 
-@then("a Stripe Checkout URL is returned for the $199 MXN monthly plan")
+@then("a Stripe Checkout URL is returned for the $299 MXN monthly plan")
 def stripe_checkout_url_returned(billing_context):
     r = billing_context["checkout_response"]
     assert r.status_code == 201, r.text
     body = r.json()
     assert "checkout_url" in body
     assert body["checkout_url"].startswith("https://")
-    assert billing_context["fake_checkout"].calls[0]["price_id"] == "price_standard_199_mxn"
+    assert billing_context["fake_checkout"].calls[0]["price_id"] == "price_standard_299_mxn"
 
 
 # ─── Scenario 2: Tenant returns from successful checkout ─────────────────────
@@ -189,7 +189,7 @@ def owner_completed_stripe_checkout(client, db):
         tenant_id=UUID(signup["tenant_id"]),
         stripe_customer_id="cus_bdd_post",
         stripe_subscription_id="sub_bdd_post",
-        stripe_price_id="price_standard_199_mxn",
+        stripe_price_id="price_standard_299_mxn",
         status="active",
     )
     db.add(subscription)
