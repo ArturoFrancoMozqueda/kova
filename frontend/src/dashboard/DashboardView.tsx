@@ -53,6 +53,7 @@ type LoadState =
       hasActiveSubscription: boolean;
       onboarding: OnboardingState | null;
       timezone: string;
+      compareLabel: string;
     };
 
 function todayISO(): string {
@@ -63,6 +64,43 @@ function yesterdayISO(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
+}
+
+function isoOffset(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+type Period = "day" | "week" | "month";
+
+type PeriodRange = {
+  current: { start: string; end: string };
+  previous: { start: string; end: string };
+  compareLabel: string;
+};
+
+function periodRanges(period: Period): PeriodRange {
+  const today = todayISO();
+  if (period === "day") {
+    return {
+      current: { start: today, end: today },
+      previous: { start: yesterdayISO(), end: yesterdayISO() },
+      compareLabel: copy.dashboard.vsYesterday,
+    };
+  }
+  if (period === "week") {
+    return {
+      current: { start: isoOffset(-6), end: today },
+      previous: { start: isoOffset(-13), end: isoOffset(-7) },
+      compareLabel: copy.dashboard.vsLastWeek,
+    };
+  }
+  return {
+    current: { start: isoOffset(-29), end: today },
+    previous: { start: isoOffset(-59), end: isoOffset(-30) },
+    compareLabel: copy.dashboard.vsLastMonth,
+  };
 }
 
 const DEFAULT_TIMEZONE = "America/Mexico_City";
@@ -90,13 +128,18 @@ function getGreeting(timezone: string = DEFAULT_TIMEZONE): string {
   return copy.dashboard.greetingEvening;
 }
 
-type DeltaBadgeProps = { current: number; previous: number | null; format?: "money" | "count" };
+type DeltaBadgeProps = {
+  current: number;
+  previous: number | null;
+  format?: "money" | "count";
+  compareLabel?: string;
+};
 
-function DeltaBadge({ current, previous }: DeltaBadgeProps) {
+function DeltaBadge({ current, previous, compareLabel = copy.dashboard.vsYesterday }: DeltaBadgeProps) {
   if (previous === null || previous === 0) {
     return <span className="text-xs text-muted-foreground">{copy.dashboard.deltaNoData}</span>;
   }
-  // Suppress misleading red -100% on fresh/zero-activity days: when current is 0,
+  // Suppress misleading red -100% on fresh/zero-activity periods: when current is 0,
   // we render a neutral "Aún sin comparación" instead of a destructive red badge.
   if (current === 0) {
     return <span className="text-xs text-muted-foreground">{copy.dashboard.deltaWarmingUp}</span>;
@@ -109,7 +152,7 @@ function DeltaBadge({ current, previous }: DeltaBadgeProps) {
     return (
       <span className="flex items-center gap-0.5 text-xs font-medium text-kova-growth">
         <TrendingUp className="h-3 w-3" />
-        {label} {copy.dashboard.vsYesterday}
+        {label} {compareLabel}
       </span>
     );
   }
@@ -117,14 +160,14 @@ function DeltaBadge({ current, previous }: DeltaBadgeProps) {
     return (
       <span className="flex items-center gap-0.5 text-xs font-medium text-destructive">
         <TrendingDown className="h-3 w-3" />
-        {label} {copy.dashboard.vsYesterday}
+        {label} {compareLabel}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
       <Minus className="h-3 w-3" />
-      {copy.dashboard.vsYesterday}
+      {compareLabel}
     </span>
   );
 }
@@ -253,24 +296,24 @@ export default function DashboardView() {
   const { state } = useAuth();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const [period, setPeriod] = useState<Period>("day");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (selected: Period) => {
     setLoadState({ status: "loading" });
     try {
-      const today = todayISO();
-      const yesterday = yesterdayISO();
+      const { current, previous, compareLabel } = periodRanges(selected);
 
-      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, yesterdaySummary, profile] = await Promise.all([
-        getSalesSummary(today, today),
-        getPaymentBreakdown(today, today),
-        getSalesByHour(today, today).catch(() => [] as SalesByHourRow[]),
-        getTopProducts(today, today),
+      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, previousSummary, profile] = await Promise.all([
+        getSalesSummary(current.start, current.end),
+        getPaymentBreakdown(current.start, current.end),
+        getSalesByHour(current.start, current.end).catch(() => [] as SalesByHourRow[]),
+        getTopProducts(current.start, current.end),
         listProducts().catch(() => [] as Awaited<ReturnType<typeof listProducts>>),
         listStock().catch(() => [] as Awaited<ReturnType<typeof listStock>>),
         listLowStock().catch(() => [] as Awaited<ReturnType<typeof listLowStock>>),
         getBillingSubscription().catch(() => null),
         getOnboardingState().catch(() => null),
-        getSalesSummary(yesterday, yesterday).catch(() => null),
+        getSalesSummary(previous.start, previous.end).catch(() => null),
         getBusinessProfile().catch(() => null),
       ]);
 
@@ -279,7 +322,7 @@ export default function DashboardView() {
       setLoadState({
         status: "ready",
         summary,
-        yesterday: yesterdaySummary,
+        yesterday: previousSummary,
         payments,
         hourly,
         topProducts,
@@ -290,6 +333,7 @@ export default function DashboardView() {
         hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
         onboarding,
         timezone: profile?.timezone || DEFAULT_TIMEZONE,
+        compareLabel,
       });
     } catch {
       setLoadState({ status: "error" });
@@ -297,8 +341,8 @@ export default function DashboardView() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(period);
+  }, [load, period]);
 
   const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
   const todayLabel = new Date().toLocaleDateString("es-MX", {
@@ -311,13 +355,42 @@ export default function DashboardView() {
   return (
     <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
-        <p className="text-sm text-muted-foreground mb-1">{getGreeting(tenantTimezone)}</p>
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
-          {loadState.status === "ready" && <LivePulse label="En vivo" />}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">{getGreeting(tenantTimezone)}</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
+            {loadState.status === "ready" && <LivePulse label="En vivo" />}
+          </div>
+          <p className="text-muted-foreground mt-1">{copy.dashboard.todayActivity(todayLabel)}</p>
         </div>
-        <p className="text-muted-foreground mt-1">{copy.dashboard.todayActivity(todayLabel)}</p>
+        <div
+          role="radiogroup"
+          aria-label={copy.dashboard.periodLabel}
+          className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
+        >
+          {([
+            { value: "day", label: copy.dashboard.periodDay },
+            { value: "week", label: copy.dashboard.periodWeek },
+            { value: "month", label: copy.dashboard.periodMonth },
+          ] as const).map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={period === value}
+              onClick={() => setPeriod(value)}
+              className={cn(
+                "rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors",
+                period === value
+                  ? "bg-[color:var(--kova-ink)] text-white"
+                  : "text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)]",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loadState.status === "loading" && (
@@ -345,7 +418,7 @@ export default function DashboardView() {
               <p className="font-medium">{copy.dashboard.loadError}</p>
               <p className="text-sm text-muted-foreground">{copy.dashboard.connectionHint}</p>
             </div>
-            <Button variant="outline" onClick={() => void load()} className="ml-auto">
+            <Button variant="outline" onClick={() => void load(period)} className="ml-auto">
               {copy.dashboard.retry}
             </Button>
           </CardContent>
@@ -448,7 +521,11 @@ export default function DashboardView() {
                     </p>
                     <p className="text-xs text-kova-muted mt-0.5">{sub}</p>
                     <div className="mt-1.5">
-                      <DeltaBadge current={currentNum} previous={prevNum} />
+                      <DeltaBadge
+                        current={currentNum}
+                        previous={prevNum}
+                        compareLabel={loadState.compareLabel}
+                      />
                     </div>
                   </CardContent>
                 </Card>
