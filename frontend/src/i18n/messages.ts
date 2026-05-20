@@ -289,6 +289,7 @@ export const copy = {
     logoUploadError: "No se pudo subir el logo. Revisa el archivo e intentalo de nuevo.",
     logoRemoveError: "No se pudo quitar el logo. Intentalo de nuevo.",
     saveBusiness: "Guardar perfil del negocio",
+    receiptPreviewLogoAlt: "Logo del recibo",
     saveReceipt: "Guardar ajustes del recibo",
     employeeEmail: "Correo del empleado",
     role: "Rol",
