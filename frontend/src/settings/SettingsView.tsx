@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
+import { formatMoney } from "@/orders/format";
 import { LogoUploadField } from "./LogoUploadField";
 import {
   deactivateEmployee,
@@ -217,13 +218,16 @@ export default function SettingsView() {
       <Card>
         <CardHeader><CardTitle>{copy.settings.receiptSettings}</CardTitle></CardHeader>
         <CardContent>
-          <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitReceipt}>
-            <Field label={copy.settings.receiptName} value={receipt.receipt_business_name} onChange={(value) => setReceipt((x) => ({ ...x, receipt_business_name: value }))} required />
-            <Field label={copy.settings.receiptFooter} value={receipt.footer} onChange={(value) => setReceipt((x) => ({ ...x, footer: value }))} />
-            <Field label={copy.settings.taxContact} value={receipt.tax_contact_text} onChange={(value) => setReceipt((x) => ({ ...x, tax_contact_text: value }))} />
-            <LogoUploadField logoUrl={receipt.logo_url} setReceipt={setReceipt} />
-            <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveReceipt}</Button>
-          </form>
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
+            <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitReceipt}>
+              <Field label={copy.settings.receiptName} value={receipt.receipt_business_name} onChange={(value) => setReceipt((x) => ({ ...x, receipt_business_name: value }))} required />
+              <Field label={copy.settings.receiptFooter} value={receipt.footer} onChange={(value) => setReceipt((x) => ({ ...x, footer: value }))} />
+              <Field label={copy.settings.taxContact} value={receipt.tax_contact_text} onChange={(value) => setReceipt((x) => ({ ...x, tax_contact_text: value }))} />
+              <LogoUploadField logoUrl={receipt.logo_url} setReceipt={setReceipt} />
+              <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveReceipt}</Button>
+            </form>
+            <ReceiptPreview receipt={receipt} />
+          </div>
         </CardContent>
       </Card>
 
@@ -294,6 +298,83 @@ function Field({
     <div className="space-y-1">
       <Label>{label}</Label>
       <Input value={value} onChange={(event) => onChange(event.target.value)} required={required} />
+    </div>
+  );
+}
+
+type ReceiptDraft = {
+  receipt_business_name: string;
+  footer: string;
+  tax_contact_text: string;
+  logo_url: string;
+};
+
+function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
+  const name = receipt.receipt_business_name.trim() || copy.settings.receiptPreviewPlaceholderName;
+  const logo = receipt.logo_url.trim();
+  const taxText = receipt.tax_contact_text.trim();
+  const footer = receipt.footer.trim();
+  const now = new Date();
+  const date = now.toLocaleDateString("es-MX", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const time = now.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  const total = "120.00";
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        {copy.settings.receiptPreviewTitle}
+      </p>
+      <div
+        aria-label={copy.settings.receiptPreviewTitle}
+        className="rounded-[var(--radius-lg)] border border-[color:var(--kova-border)] bg-white p-4 font-mono text-[11px] leading-snug text-[color:var(--kova-ink)] shadow-sm"
+        style={{ fontVariantNumeric: "tabular-nums" }}
+      >
+        <div className="flex flex-col items-center gap-2 text-center">
+          {logo ? (
+            <img
+              src={logo}
+              alt={copy.settings.receiptPreviewLogoAlt}
+              className="h-10 w-auto object-contain"
+              onError={(event) => {
+                (event.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : null}
+          <p className="text-sm font-semibold tracking-tight">{name}</p>
+          {taxText ? <p className="whitespace-pre-line text-[10px] text-muted-foreground">{taxText}</p> : null}
+          <p className="text-[10px] text-muted-foreground">
+            {date} · {time}
+          </p>
+        </div>
+        <div className="my-3 border-t border-dashed border-[color:var(--kova-border)]" />
+        <div className="space-y-1">
+          <div className="flex justify-between">
+            <span className="truncate">
+              {copy.settings.receiptPreviewQty} {copy.settings.receiptPreviewItem}
+            </span>
+            <span>{formatMoney(total)}</span>
+          </div>
+        </div>
+        <div className="my-3 border-t border-dashed border-[color:var(--kova-border)]" />
+        <div className="space-y-1">
+          <div className="flex justify-between">
+            <span>{copy.settings.receiptPreviewSubtotal}</span>
+            <span>{formatMoney(total)}</span>
+          </div>
+          <div className="flex justify-between font-semibold">
+            <span>{copy.settings.receiptPreviewTotal}</span>
+            <span>{formatMoney(total)}</span>
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>{copy.settings.receiptPreviewPaid}</span>
+            <span>{formatMoney(total)}</span>
+          </div>
+        </div>
+        <div className="my-3 border-t border-dashed border-[color:var(--kova-border)]" />
+        <p className="whitespace-pre-line text-center text-[10px] text-muted-foreground">
+          {footer || copy.settings.receiptPreviewThanks}
+        </p>
+      </div>
     </div>
   );
 }

@@ -35,20 +35,17 @@ lives in.
 
 ## High priority
 
-- [ ] Replace free-text `Idioma` / `Moneda` / `Zona horaria` inputs in
+- [x] Replace free-text `Idioma` / `Moneda` / `Zona horaria` inputs in
       [SettingsView.tsx](../frontend/src/settings/SettingsView.tsx) with `Select` primitives and sane
-      defaults. Place under an "Avanzado" disclosure.
-- [ ] Promote `OnboardingChecklist` above the KPI grid in
+      defaults (commit 3a8e421). "Avanzado" disclosure still pending if desired.
+- [x] Promote `OnboardingChecklist` above the KPI grid in
       [DashboardView.tsx](../frontend/src/dashboard/DashboardView.tsx) while not complete.
-- [ ] Surface the trial day count during the active trial. `TrialChip` already exists at
-      [TrialChip.tsx](../frontend/src/billing/TrialChip.tsx); confirm it is mounted in
-      `AppShell` header on desktop + mobile, and that it links to `/settings/billing`.
-- [ ] Reports empty state — when `summary.order_count === 0`, collapse the 9 "no data" cards in
-      [ReportsView.tsx](../frontend/src/reports/ReportsView.tsx) into one hero card with a primary CTA
-      to `/register`.
-- [ ] Receipt preview panel in [SettingsView.tsx](../frontend/src/settings/SettingsView.tsx) — live mock
+- [x] Surface the trial day count during the active trial via [TrialChip.tsx](../frontend/src/billing/TrialChip.tsx);
+      mounted in `AppShell` header on desktop + mobile, links to `/settings/billing`.
+- [x] Reports empty state — collapsed to single hero CTA when `summary.order_count === 0` (commit 925b2cf).
+- [x] Receipt preview panel in [SettingsView.tsx](../frontend/src/settings/SettingsView.tsx) — live mock
       that updates as the user edits business name / footer / contact text.
-- [ ] Apply `formatTenantName` (trim + truncate + sentence-case) to the rendered tenant name in
+- [x] Apply `formatTenantName` (trim + truncate + sentence-case) to the rendered tenant name in
       [AppShell.tsx](../frontend/src/layout/AppShell.tsx).
 
 ## Medium / Low priority
@@ -56,12 +53,14 @@ lives in.
 Tracked in `docs/ux-review-2026-05-19.md` §B Medium + §B Low. Pull in once the items above are
 shipped and reviewed. Highlights:
 
-- Mezcla de pagos / Productos top empty states collapse into a single explainer.
+- [x] Mezcla de pagos / Productos top empty states collapse into a single explainer when both are empty
+  (DashboardView middle row).
 - Dashboard comparison label becomes dynamic (vs ayer / vs semana / vs mes).
 - Hide `Pago dividido` toggle behind an "Opciones avanzadas" disclosure until a payment method is
   chosen.
 - Employees role select uses the styled `Select` primitive instead of the native one.
-- Time-zone-aware greeting (`getGreeting()`).
+- [x] Time-zone-aware greeting (`getGreeting()`) — now reads tenant timezone from
+  `BusinessProfile.timezone`; `todayLabel` follows the same zone.
 
 ## Carried over from the (now-deleted) production-review backlog
 

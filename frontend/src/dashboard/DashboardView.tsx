@@ -7,6 +7,7 @@ import { listProducts } from "@/catalog/api";
 import { listLowStock, listStock } from "@/inventory/api";
 import { getBillingSubscription } from "@/billing/api";
 import { getOnboardingState, type OnboardingState } from "@/onboarding/api";
+import { getBusinessProfile } from "@/settings/api";
 import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
@@ -51,6 +52,7 @@ type LoadState =
       lowStockItems: StockItem[];
       hasActiveSubscription: boolean;
       onboarding: OnboardingState | null;
+      timezone: string;
     };
 
 function todayISO(): string {
@@ -63,8 +65,26 @@ function yesterdayISO(): string {
   return d.toISOString().slice(0, 10);
 }
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
+const DEFAULT_TIMEZONE = "America/Mexico_City";
+
+function hourInTimezone(timezone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: timezone,
+    }).formatToParts(new Date());
+    const hourPart = parts.find((part) => part.type === "hour")?.value;
+    if (!hourPart) return new Date().getHours();
+    const parsed = Number.parseInt(hourPart, 10);
+    return Number.isFinite(parsed) ? parsed : new Date().getHours();
+  } catch {
+    return new Date().getHours();
+  }
+}
+
+function getGreeting(timezone: string = DEFAULT_TIMEZONE): string {
+  const hour = hourInTimezone(timezone);
   if (hour < 12) return copy.dashboard.greetingMorning;
   if (hour < 17) return copy.dashboard.greetingAfternoon;
   return copy.dashboard.greetingEvening;
@@ -240,7 +260,7 @@ export default function DashboardView() {
       const today = todayISO();
       const yesterday = yesterdayISO();
 
-      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, yesterdaySummary] = await Promise.all([
+      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, yesterdaySummary, profile] = await Promise.all([
         getSalesSummary(today, today),
         getPaymentBreakdown(today, today),
         getSalesByHour(today, today).catch(() => [] as SalesByHourRow[]),
@@ -251,6 +271,7 @@ export default function DashboardView() {
         getBillingSubscription().catch(() => null),
         getOnboardingState().catch(() => null),
         getSalesSummary(yesterday, yesterday).catch(() => null),
+        getBusinessProfile().catch(() => null),
       ]);
 
       const subscriptionStatus = billing?.subscription?.status;
@@ -268,6 +289,7 @@ export default function DashboardView() {
         lowStockItems: lowStock,
         hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
         onboarding,
+        timezone: profile?.timezone || DEFAULT_TIMEZONE,
       });
     } catch {
       setLoadState({ status: "error" });
@@ -278,18 +300,19 @@ export default function DashboardView() {
     void load();
   }, [load]);
 
+  const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
   const todayLabel = new Date().toLocaleDateString("es-MX", {
     weekday: "long",
     month: "long",
     day: "numeric",
-    timeZone: "America/Mexico_City",
+    timeZone: tenantTimezone,
   });
 
   return (
     <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-8">
-        <p className="text-sm text-muted-foreground mb-1">{getGreeting()}</p>
+        <p className="text-sm text-muted-foreground mb-1">{getGreeting(tenantTimezone)}</p>
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
           {loadState.status === "ready" && <LivePulse label="En vivo" />}
@@ -433,7 +456,27 @@ export default function DashboardView() {
             })}
           </div>
 
-          {/* Middle row */}
+          {/* Middle row — collapse to a single explainer when no activity yet */}
+          {loadState.payments.payments.length === 0 && loadState.topProducts.products.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--kova-mist)] text-[color:var(--kova-blue)]">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">{copy.dashboard.noActivityTitle}</p>
+                  <p className="max-w-md text-sm text-muted-foreground">{copy.dashboard.noActivityBody}</p>
+                </div>
+                <Link
+                  to="/register"
+                  className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--kova-blue)] hover:underline"
+                >
+                  {copy.dashboard.noActivityCta}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {/* Payment Breakdown */}
             <Card>
@@ -515,6 +558,7 @@ export default function DashboardView() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Quick Actions */}
           <Card>
