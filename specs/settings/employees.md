@@ -2,11 +2,14 @@
 
 ## Status
 
-Draft. Required before implementing employee setup UI.
+Implemented for the first beta employee setup path. Keep this spec updated when role permissions or
+invitation acceptance behavior changes.
 
 ## Problem
 
-The product needs employee setup as part of POS configuration, but the current frontend does not expose member invitation, listing, or deactivation flows.
+The product needs employee setup as part of POS configuration. Owners and managers must understand
+what each role can do before inviting staff, because assigning the wrong role can expose billing,
+reports, configuration, or employee management to the wrong person.
 
 ## Target Users
 
@@ -20,6 +23,8 @@ The product needs employee setup as part of POS configuration, but the current f
 - Owner or manager can deactivate a member.
 - Roles remain limited to existing supported roles.
 - Custom roles UI remains deferred.
+- The employee settings screen explains each role in business language before invitation.
+- The selected invitation role shows its permission meaning inline.
 
 ## Data Model Impact
 
@@ -61,3 +66,5 @@ Write endpoint requirements:
 - Employee setup is not shown as a fake completed setup step until these APIs exist.
 - Cashiers cannot invite or deactivate employees.
 - Tenant isolation tests prove one business cannot see another business's members.
+- Owner/manager sees localized role labels: Propietario, Gerente, Cajero.
+- Owner/manager sees role descriptions before sending an invitation.
