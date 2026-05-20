@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
+import { trackFunnelEvent, trackFunnelEventOnce } from "@/telemetry/funnel";
 
 type LoadState =
   | { status: "loading" }
@@ -95,6 +96,7 @@ export default function BillingView() {
 
   const beginCheckout = async () => {
     setActionState("checkout");
+    void trackFunnelEvent("checkout_started");
     try {
       const session = await startCheckout();
       window.location.assign(session.checkout_url);
@@ -103,6 +105,15 @@ export default function BillingView() {
       toast(copy.billingView.operationError, "error");
     }
   };
+
+  useEffect(() => {
+    if (loadState.status !== "loaded") return;
+    if (loadState.billing.subscription?.status === "active") {
+      trackFunnelEventOnce("trial_to_paid", "trial_to_paid", {
+        subscription_id: loadState.billing.subscription.id,
+      });
+    }
+  }, [loadState]);
 
   const requestCancel = async () => {
     setActionState("cancel");

@@ -6,6 +6,7 @@ import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { getBillingSubscription } from "./api";
 import type { BillingSubscription } from "./types";
+import { trackFunnelEvent } from "@/telemetry/funnel";
 
 function daysUntil(iso: string): number {
   const target = new Date(iso).getTime();
@@ -57,6 +58,7 @@ export function TrialChip({ className }: { className?: string }) {
   return (
     <Link
       to="/settings/billing"
+      onClick={() => void trackFunnelEvent("trial_chip_clicked", { days_remaining: Math.max(days, 0) })}
       title={copy.trialChip.tooltip}
       data-testid="trial-chip"
       className={cn(

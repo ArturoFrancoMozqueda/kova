@@ -48,6 +48,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { trackFunnelEventOnce } from "@/telemetry/funnel";
 
 type LoadState =
   | { status: "loading" }
@@ -413,6 +414,10 @@ export default function RegisterView() {
       const result = results[0];
       if (result.status === "synced" && result.order) {
         setCompletedOrder(result.order as Order);
+        trackFunnelEventOnce("first_sale", "first_sale_completed", {
+          order_id: result.order.id,
+          total_amount: result.order.total_amount,
+        });
         toast(copy.register.saleComplete, "success");
       } else {
         toast(copy.register.saleQueued, "warning");

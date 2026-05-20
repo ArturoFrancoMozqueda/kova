@@ -53,6 +53,7 @@ import {
   Loader2,
   BarChart2,
 } from "lucide-react";
+import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { cn } from "@/lib/utils";
 
 type LoadState =
@@ -593,6 +594,9 @@ export default function CatalogView() {
                 if (modal.type === "product-create") {
                   const product = await createProduct(values);
                   await setProductModifierGroups(product.id, values.modifier_group_ids);
+                  trackFunnelEventOnce("first_product", "first_product_created", {
+                    product_id: product.id,
+                  });
                   showNotice(copy.catalog.productCreated);
                 } else {
                   await updateProduct(modal.product.id, values);

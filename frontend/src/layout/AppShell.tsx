@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
@@ -24,6 +24,7 @@ import { LogoMark } from "@/components/brand/Logo";
 import { BillingBanner } from "@/billing/BillingBanner";
 import { TrialChip } from "@/billing/TrialChip";
 import { formatTenantName } from "@/lib/formatTenantName";
+import { flushFunnelEvents } from "@/telemetry/funnel";
 
 type NavItem = {
   to: string;
@@ -93,6 +94,12 @@ export default function AppShell() {
   });
 
   const closeSidebar = () => setSidebarOpen(false);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      void flushFunnelEvents();
+    }
+  }, [state.status]);
 
   const SidebarContent = (
     <>

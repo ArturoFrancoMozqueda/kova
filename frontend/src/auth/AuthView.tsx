@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
+import { queueFunnelEvent } from "@/telemetry/funnel";
 
 type AuthMode = "login" | "signup";
 type ActionState = "idle" | "submitting" | "error" | "created" | "verified";
@@ -34,6 +35,9 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         return;
       }
       const response = await signup({ email, password, tenant_name: tenantName });
+      queueFunnelEvent("signup_completed", {
+        tenant_id: response.tenant_id,
+      });
       setVerificationToken(response.dev_verification_token ?? "");
       setState("created");
     } catch {
