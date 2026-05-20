@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
@@ -9,11 +9,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown } from "lucide-react";
+import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search } from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
@@ -26,11 +27,17 @@ type ModalState =
   | { type: "threshold"; item: StockItem }
   | null;
 
+type StockFilter = "all" | "low" | "healthy";
+type StockSort = "name_asc" | "stock_asc" | "stock_desc" | "threshold_asc";
+
 export default function InventoryView() {
   const canAdjust = usePermission(INVENTORY_ADJUST_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);
   const [pending, setPending] = useState(false);
+  const [stockSearch, setStockSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  const [stockSort, setStockSort] = useState<StockSort>("name_asc");
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -50,6 +57,33 @@ export default function InventoryView() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const visibleStock = useMemo(() => {
+    if (loadState.status !== "loaded") return [];
+    const query = stockSearch.trim().toLowerCase();
+    const filtered = loadState.stock.filter((item) => {
+      const matchesSearch = query
+        ? [item.product_name, item.sku ?? ""].some((value) => value.toLowerCase().includes(query))
+        : true;
+      const matchesFilter =
+        stockFilter === "low"
+          ? item.is_low_stock
+          : stockFilter === "healthy"
+            ? !item.is_low_stock
+            : true;
+      return matchesSearch && matchesFilter;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (stockSort === "stock_asc") return a.stock_on_hand - b.stock_on_hand;
+      if (stockSort === "stock_desc") return b.stock_on_hand - a.stock_on_hand;
+      if (stockSort === "threshold_asc") {
+        return (a.low_stock_threshold ?? Number.MAX_SAFE_INTEGER)
+          - (b.low_stock_threshold ?? Number.MAX_SAFE_INTEGER);
+      }
+      return a.product_name.localeCompare(b.product_name, "es-MX");
+    });
+  }, [loadState, stockFilter, stockSearch, stockSort]);
 
   const submitModal = async (values: { amount: number; reason: string }) => {
     if (!modal) return;
@@ -191,16 +225,74 @@ export default function InventoryView() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {loadState.stock.map((item) => (
-            <StockCard
-              key={item.product_id}
-              item={item}
-              canAdjust={canAdjust}
-              onModal={setModal}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_220px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Label className="sr-only" htmlFor="inventory-search">
+                {copy.inventoryView.searchStock}
+              </Label>
+              <Input
+                id="inventory-search"
+                value={stockSearch}
+                onChange={(event) => setStockSearch(event.target.value)}
+                placeholder={copy.inventoryView.searchStockPlaceholder}
+                className="pl-9"
+              />
+            </div>
+            <div>
+              <Label className="sr-only" htmlFor="inventory-filter">
+                {copy.inventoryView.filterStock}
+              </Label>
+              <Select
+                id="inventory-filter"
+                value={stockFilter}
+                onChange={(event) => setStockFilter(event.target.value as StockFilter)}
+                aria-label={copy.inventoryView.filterStock}
+              >
+                <option value="all">{copy.inventoryView.filterAll}</option>
+                <option value="low">{copy.inventoryView.filterLow}</option>
+                <option value="healthy">{copy.inventoryView.filterHealthy}</option>
+              </Select>
+            </div>
+            <div>
+              <Label className="sr-only" htmlFor="inventory-sort">
+                {copy.inventoryView.sortStock}
+              </Label>
+              <Select
+                id="inventory-sort"
+                value={stockSort}
+                onChange={(event) => setStockSort(event.target.value as StockSort)}
+                aria-label={copy.inventoryView.sortStock}
+              >
+                <option value="name_asc">{copy.inventoryView.sortNameAsc}</option>
+                <option value="stock_asc">{copy.inventoryView.sortStockAsc}</option>
+                <option value="stock_desc">{copy.inventoryView.sortStockDesc}</option>
+                <option value="threshold_asc">{copy.inventoryView.sortThresholdAsc}</option>
+              </Select>
+            </div>
+          </div>
+          {visibleStock.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center px-6 py-10 text-center">
+                <Package className="mb-3 h-10 w-10 text-muted-foreground/30" />
+                <p className="font-semibold">{copy.inventoryView.noFilteredStock}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{copy.inventoryView.noFilteredStockBody}</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleStock.map((item) => (
+                <StockCard
+                  key={item.product_id}
+                  item={item}
+                  canAdjust={canAdjust}
+                  onModal={setModal}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {modal && (
