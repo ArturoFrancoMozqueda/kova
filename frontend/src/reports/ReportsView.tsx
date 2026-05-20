@@ -102,6 +102,20 @@ function dateLabel(value: string): string {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
+function dateWithWeekdayLabel(value: string): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  const weekday = new Intl.DateTimeFormat("es-MX", { weekday: "short", timeZone: "UTC" })
+    .format(date)
+    .replace(/\.$/, "");
+  const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  const dm = new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
+  return `${capitalized} ${dm}`;
+}
+
 function fullDateLabel(value: string): string {
   return new Intl.DateTimeFormat("es-MX", {
     day: "numeric",
@@ -804,7 +818,7 @@ function DecisionSection({
 function SalesByDayChart({ story }: { story: BusinessStoryReport }) {
   const rows: ChartRow[] = story.sales_by_day.map((row) => ({
     id: row.date,
-    label: dateLabel(row.date),
+    label: dateWithWeekdayLabel(row.date),
     value: Number(row.net_sales),
     valueLabel: formatMoney(row.net_sales),
     meta: [
@@ -849,23 +863,57 @@ function SalesByDaypartChart({ story }: { story: BusinessStoryReport }) {
 }
 
 function HourlyChart({ rows, story }: { rows: SalesByHourRow[]; story: BusinessStoryReport }) {
-  const chartRows: ChartRow[] = rows.map((row) => ({
+  const toChartRow = (row: SalesByHourRow, accent: string): ChartRow => ({
     id: String(row.hour),
     label: `${String(row.hour).padStart(2, "0")}:00`,
     value: Number(row.net_sales),
     valueLabel: formatMoney(row.net_sales),
     meta: [{ label: copy.reportsView.chartOrders, value: String(row.order_count) }],
-    accentClassName: "bg-kova-blue",
-  }));
+    accentClassName: accent,
+  });
+
+  const active = rows.filter((row) => Number(row.net_sales) > 0);
+  const sorted = [...active].sort((a, b) => Number(b.net_sales) - Number(a.net_sales));
+  const bestRows = sorted.slice(0, 3).map((row) => toChartRow(row, "bg-kova-growth"));
+  const worstRows = sorted
+    .slice(-3)
+    .reverse()
+    .filter((row) => !bestRows.some((b) => b.id === String(row.hour)))
+    .map((row) => toChartRow(row, "bg-kova-blue-light"));
+
+  if (active.length === 0) {
+    return (
+      <InteractiveRankChart
+        title={copy.reportsView.hourlyQuestion}
+        rows={[]}
+        emptyLabel={copy.reportsView.noHourlySales}
+        ariaLabel={copy.reportsView.hourlySales}
+        {...chartCopy()}
+      />
+    );
+  }
+
   return (
-    <InteractiveBarChart
-      title={copy.reportsView.hourlyQuestion}
-      insight={story.peak_hour ? copy.reportsView.peakHourDetail(story.peak_hour.label) : undefined}
-      rows={chartRows}
-      emptyLabel={copy.reportsView.noHourlySales}
-      ariaLabel={copy.reportsView.hourlySales}
-      {...chartCopy()}
-    />
+    <div className="space-y-6">
+      <InteractiveRankChart
+        title={copy.reportsView.hourlyTopTitle}
+        insight={story.peak_hour ? copy.reportsView.peakHourDetail(story.peak_hour.label) : undefined}
+        rows={bestRows}
+        emptyLabel={copy.reportsView.noHourlySales}
+        ariaLabel={copy.reportsView.hourlyTopAriaLabel}
+        {...chartCopy()}
+      />
+      {worstRows.length > 0 && (
+        <InteractiveRankChart
+          title={copy.reportsView.hourlyWorstTitle}
+          insight={copy.reportsView.hourlyWorstInsight}
+          rows={worstRows}
+          emptyLabel={copy.reportsView.noHourlySales}
+          ariaLabel={copy.reportsView.hourlyWorstAriaLabel}
+          {...chartCopy()}
+        />
+      )}
+    </div>
   );
 }
 

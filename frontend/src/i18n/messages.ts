@@ -825,6 +825,11 @@ export const copy = {
     paymentInsightBalanced: "Mezcla de pagos balanceada — sin alertas por método.",
     hourlySales: "Ventas por hora",
     hourlyQuestion: "¿Cuándo se concentraron las ventas?",
+    hourlyTopTitle: "Tus 3 mejores horas",
+    hourlyWorstTitle: "Tus 3 horas más bajas",
+    hourlyTopAriaLabel: "Mejores horas del periodo",
+    hourlyWorstAriaLabel: "Horas más bajas del periodo",
+    hourlyWorstInsight: "Estas horas concentran las ventas más bajas: úsalas para promociones, mantenimiento o ajustar personal.",
     noHourlySales: "Sin ventas por hora en este rango.",
     bestHour: (hour: string) => `Tu mejor hora fue ${hour}.`,
     bestHourShare: (hour: string, pct: number) =>
