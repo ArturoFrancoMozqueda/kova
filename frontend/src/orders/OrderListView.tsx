@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { listOrders } from "./api";
@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,12 +21,14 @@ type LoadState =
   | { status: "loaded"; items: OrderListItem[]; total: number };
 
 type StatusFilter = "completed" | "voided" | undefined;
+type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
 
 export default function OrderListView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [sortOrder, setSortOrder] = useState<OrderSort>("created_desc");
 
   const hasActiveFilter = statusFilter !== undefined || startDate !== "" || endDate !== "";
 
@@ -57,6 +60,18 @@ export default function OrderListView() {
     { value: "completed", label: copy.orderList.filterCompleted },
     { value: "voided", label: copy.orderList.filterVoided },
   ];
+
+  const sortedItems = useMemo(() => {
+    if (loadState.status !== "loaded") return [];
+    return [...loadState.items].sort((a, b) => {
+      if (sortOrder === "created_asc") {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (sortOrder === "amount_desc") return Number(b.total_amount) - Number(a.total_amount);
+      if (sortOrder === "amount_asc") return Number(a.total_amount) - Number(b.total_amount);
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [loadState, sortOrder]);
 
   if (loadState.status === "loading") {
     return (
@@ -161,6 +176,24 @@ export default function OrderListView() {
           </div>
         </div>
 
+        <div className="space-y-1 sm:w-48">
+          <Label className="text-xs" htmlFor="orders-sort">
+            {copy.orderList.sortLabel}
+          </Label>
+          <Select
+            id="orders-sort"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as OrderSort)}
+            aria-label={copy.orderList.sortLabel}
+            className="h-8 text-sm"
+          >
+            <option value="created_desc">{copy.orderList.sortNewest}</option>
+            <option value="created_asc">{copy.orderList.sortOldest}</option>
+            <option value="amount_desc">{copy.orderList.sortAmountDesc}</option>
+            <option value="amount_asc">{copy.orderList.sortAmountAsc}</option>
+          </Select>
+        </div>
+
         {/* Clear */}
         {hasActiveFilter && (
           <Button
@@ -176,7 +209,7 @@ export default function OrderListView() {
       </div>
 
       {/* Results */}
-      {loadState.items.length === 0 ? (
+      {sortedItems.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Inbox className="h-12 w-12 text-muted-foreground/30 mb-3" />
@@ -196,7 +229,7 @@ export default function OrderListView() {
         <Card>
           <CardContent className="p-0">
             <div className="grid gap-3 p-3 sm:hidden">
-              {loadState.items.map((order) => (
+              {sortedItems.map((order) => (
                 <Link
                   key={order.id}
                   to={`/orders/${order.id}`}
@@ -246,7 +279,7 @@ export default function OrderListView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loadState.items.map((order) => (
+                  {sortedItems.map((order) => (
                     <tr
                       key={order.id}
                       className="border-b last:border-0 hover:bg-muted/30 transition-colors"
