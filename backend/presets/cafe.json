@@ -1,0 +1,115 @@
+{
+  "name": "cafe",
+  "label": "Cafeteria",
+  "categories": [
+    { "name": "Cafe caliente", "description": "Bebidas calientes de barra", "sort_order": 0 },
+    { "name": "Bebidas frias", "description": "Bebidas preparadas frias", "sort_order": 1 },
+    { "name": "Pan dulce", "description": "Piezas para vitrina y mostrador", "sort_order": 2 },
+    { "name": "Alimentos", "description": "Opciones simples para acompanar", "sort_order": 3 }
+  ],
+  "products": [
+    {
+      "name": "Americano chico",
+      "category": "Cafe caliente",
+      "price_amount": "38.00",
+      "sku": "CAF-001",
+      "description": "Cafe americano 240 ml",
+      "track_inventory": false
+    },
+    {
+      "name": "Latte mediano",
+      "category": "Cafe caliente",
+      "price_amount": "58.00",
+      "sku": "CAF-002",
+      "description": "Espresso con leche vaporizada 355 ml",
+      "track_inventory": false
+    },
+    {
+      "name": "Capuchino mediano",
+      "category": "Cafe caliente",
+      "price_amount": "56.00",
+      "sku": "CAF-003",
+      "description": "Espresso, leche vaporizada y espuma 355 ml",
+      "track_inventory": false
+    },
+    {
+      "name": "Cold brew",
+      "category": "Bebidas frias",
+      "price_amount": "62.00",
+      "sku": "FRI-001",
+      "description": "Cafe frio preparado en casa 355 ml",
+      "track_inventory": true,
+      "low_stock_threshold": 6
+    },
+    {
+      "name": "Iced latte",
+      "category": "Bebidas frias",
+      "price_amount": "64.00",
+      "sku": "FRI-002",
+      "description": "Espresso con leche y hielo 455 ml",
+      "track_inventory": false
+    },
+    {
+      "name": "Chocolate frio",
+      "category": "Bebidas frias",
+      "price_amount": "55.00",
+      "sku": "FRI-003",
+      "description": "Bebida fria de chocolate 455 ml",
+      "track_inventory": false
+    },
+    {
+      "name": "Croissant mantequilla",
+      "category": "Pan dulce",
+      "price_amount": "42.00",
+      "sku": "PAN-001",
+      "description": "Croissant individual para vitrina",
+      "track_inventory": true,
+      "low_stock_threshold": 8
+    },
+    {
+      "name": "Concha vainilla",
+      "category": "Pan dulce",
+      "price_amount": "24.00",
+      "sku": "PAN-002",
+      "description": "Concha individual de vainilla",
+      "track_inventory": true,
+      "low_stock_threshold": 10
+    },
+    {
+      "name": "Muffin de moras",
+      "category": "Pan dulce",
+      "price_amount": "46.00",
+      "sku": "PAN-003",
+      "description": "Muffin individual para vitrina",
+      "track_inventory": true,
+      "low_stock_threshold": 6
+    },
+    {
+      "name": "Sandwich de pavo",
+      "category": "Alimentos",
+      "price_amount": "89.00",
+      "sku": "ALI-001",
+      "description": "Sandwich frio preparado",
+      "track_inventory": true,
+      "low_stock_threshold": 4
+    },
+    {
+      "name": "Yogurt con granola",
+      "category": "Alimentos",
+      "price_amount": "68.00",
+      "sku": "ALI-002",
+      "description": "Porcion individual refrigerada",
+      "track_inventory": true,
+      "low_stock_threshold": 5
+    },
+    {
+      "name": "Agua mineral",
+      "category": "Bebidas frias",
+      "price_amount": "32.00",
+      "sku": "FRI-004",
+      "description": "Botella 355 ml",
+      "track_inventory": true,
+      "low_stock_threshold": 12
+    }
+  ]
+}
