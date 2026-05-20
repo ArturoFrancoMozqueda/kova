@@ -38,10 +38,807 @@ The product should be:
 The first monetization model is intentionally simple:
 
 - Standard Plan
-- $199 MXN/month
+- $299 MXN/month
 - all currently available features included
 - no Basic / Pro / Premium tiers
 - no plan-based feature gates for v1
+
+## Kova Product/UX/Business Audit Findings
+
+# Kova Product, UX, Business, and Technical Audit
+
+Audit date: 2026-05-20
+
+Production audited: https://point-of-sale-ochre.vercel.app/
+
+Test account audited: `posprojectsupport@gmail.com`
+
+Primary persona: cafeteria / small coffee shop owner in Mexico.
+
+Scope note: This audit did not create or modify production records. Evidence comes from the
+production UI, authenticated navigation, and local code inspection. The requested file name was
+`sprint_planning.md`; the repository source of truth is `docs/sprint-planning.md`, so this section
+was integrated here.
+
+## Executive Summary
+
+Kova is not yet sellable with confidence at $299 MXN/month. The core POS skeleton is real and the
+backend has meaningful production-grade foundations, but the production experience currently feels
+like a polished internal beta, not a premium paid SaaS. The largest blocker is trust: the public
+site advertises $199 MXN/month while the audit target is $299 MXN/month, the app mixes Spanish and
+English, several landing claims overpromise features not proven in the authenticated product, and
+the test tenant shows an expired-trial billing state while still allowing navigation.
+
+The product does show credible direction. The dashboard has a setup checklist, the register has an
+empty-catalog path, reports attempt business storytelling, tenant-scoped backend report endpoints
+exist, and audit/offline/billing architecture is present in code. However, the first value moment is
+not strong enough for a cafeteria owner: the owner lands in a blank catalog, sees a billing-required
+banner, gets English labels like "Business profile", sees date text like "Tuesday, May 19", and
+cannot clearly understand why Kova is worth paying for before the first sale.
+
+Current scorecard:
+
+| Area | Score | Rationale |
+|---|---:|---|
+| Clarity | 3 | Navigation is clear, but pricing, trial state, report dates, and mixed copy reduce confidence. |
+| Visual polish / premium feel | 3 | Brand direction is modern, but update prompts, dead footer links, and inconsistent forms weaken it. |
+| Ease of use | 3 | Main tasks are findable, but onboarding is not guided enough for a fresh cafeteria tenant. |
+| Business usefulness | 3 | POS, catalog, inventory, shifts, and reports exist, but insights need stronger actionability. |
+| Trust | 2 | Price mismatch, overclaims, English copy, expired trial state, and placeholder links hurt trust. |
+| Speed / responsiveness | 4 | Screens loaded without console errors in audit, but report loading/error behavior needs stronger QA. |
+| Mobile readiness | 2 | Bottom nav exists, but mobile shows duplicated navigation/menu state and dense operational forms. |
+| Conversion potential | 2 | Landing is attractive, but claims exceed product proof and $299 value is not established. |
+| Data storytelling | 3 | Reports have a storytelling model, but empty/current-period handling and comparisons are weak. |
+| Technical implementation risk | 3 | Backend foundations are strong; risk remains in timezone consistency, deployment drift, and UX debt. |
+
+## Product Promise Validation
+
+Statement 1: "Kova existe para que no sacrifiques claridad por simplicidad, ni velocidad por control."
+
+Verdict: Partially supported, not yet proven.
+
+Evidence:
+- Supported: The authenticated navigation is simple and core modules are visible: Panel, Caja,
+  Catalogo, Ordenes, Inventario, Turnos, Reportes, Configuracion, Facturacion.
+- Supported: The register screen is direct and fast conceptually: catalog search, cart, payment
+  method, cash received, change, and charge button.
+- Contradicted: A first-use tenant sees billing-required state, empty catalog, English onboarding
+  labels, and update prompts before value is established.
+- Contradicted: Landing claims include sucursales, impuestos, WhatsApp receipts, restaurant tables,
+  commissions, barcode/fiado, and multi-location language that are not production-proven for beta.
+- Contradicted: Settings in production still shows raw text inputs for timezone/language/currency
+  and a logo URL field, despite current sprint notes saying improved controls exist locally.
+
+Product call: The statement can become true, but only after the product narrows the promise to the
+actual beta core and makes the first setup/sale/report path feel controlled.
+
+Statement 2: "Cuando sabes que se vende, quien lo compra y cuando llega el dinero, dejas de ser administrativo y vuelves a ser dueno."
+
+Verdict: Not currently supported.
+
+Evidence:
+- What sells: Partially supported. Reports include top products and product drivers when sales
+  exist, and the backend computes these from order items.
+- Who buys: Not supported in the audited product. There is no visible customer capture or customer
+  reporting flow.
+- When money arrives: Partially supported for recorded payment method mix, but not settlement,
+  transfer timing, accounts receivable, or cash reconciliation narrative.
+- What changed: Weak. Dashboard has today metrics and reports include previous-period comparison
+  logic in the frontend, but production empty/current-period behavior did not make change obvious.
+- What to do next: Partially supported. Reports generate recommended actions, but empty and low-data
+  states are generic, and the dashboard action model is still onboarding-heavy.
+
+Product call: Do not use this positioning yet. It overpromises customer intelligence and money timing.
+
+## End-to-End Journey Audit
+
+Landing page:
+- Goal: Convince a buyer Kova is credible and worth trying.
+- 5-second clarity: Medium. "Tu negocio, en flujo constante" is memorable but not concrete enough
+  for a coffee shop owner deciding to pay.
+- Primary action: "Empezar gratis" is visible.
+- Evidence: Production price is $199 MXN/month, not the target $299 MXN/month. Footer still has
+  placeholder `#` links for Producto, Soluciones, Compania, Recursos, Privacidad, Terminos, etc.
+- Risk: The page looks premium but overclaims. It mentions multi-sucursal, impuestos, WhatsApp
+  receipts, restaurant tables, commissions, barcode/fiado, and other vertical-specific workflows.
+- Value question: It does not yet prove "worth $299/month" because it relies on aspirational copy
+  instead of concrete cafe outcomes.
+
+Login:
+- Goal: Let existing users get into the app quickly.
+- 5-second clarity: High.
+- Primary action: Iniciar sesion.
+- Evidence: Form is simple and worked with the test account.
+- Gaps: No forgot-password link visible in audited snapshot. Copy is clean but basic.
+- Trust issue: Global PWA update prompt appears on login and can distract from a sensitive action.
+
+Signup:
+- Goal: Create a business account.
+- 5-second clarity: High.
+- Primary action: Crear cuenta.
+- Evidence: Fields are business name, email, password.
+- Gaps: No visible terms/privacy acceptance, no password guidance, no expectation setting for the
+  7-day trial, no indication of $299/$199 price, no support/trust cue.
+
+Pricing/payment/subscription:
+- Goal: Explain plan and recover billing.
+- 5-second clarity: Low.
+- Evidence: Billing page says "Manage your subscription and payments", "Facturacion requerida",
+  "prueba de 7 days", "Prueba expirada", "0 dias restantes", and "MX$199.00".
+- Gaps: Mixed language, contradictory trial messaging, wrong price for $299 target, and no clear
+  explanation of what happens after paying.
+- Business impact: This is a conversion blocker.
+
+Onboarding / first-use:
+- Goal: Move a business from blank account to first sale.
+- 5-second clarity: Medium.
+- Evidence: Dashboard checklist is useful, but labels include "Business profile", "Receipt settings",
+  "Create product", "Activate inventory", "Open shift", "First sale", "Billing".
+- Gaps: Checklist links point to routes like `/settings/business-profile` and `/settings/receipt`,
+  while production settings is a single page. A cafe owner needs a more guided path with examples.
+
+Dashboard:
+- Goal: Tell the owner what happened today and what to do next.
+- 5-second clarity: Medium.
+- Primary action: "Abrir caja" / next action.
+- Evidence: Shows setup checklist, health score, "Hoy en tu negocio", KPIs, payment mix, top
+  products, quick actions.
+- Gaps: Date renders in English ("Tuesday, May 19"), subscription price is $199, and empty state is
+  still more operational than insight-led.
+- Business usefulness: Good direction, but it needs a cafe-specific owner narrative after first data.
+
+POS / sales flow:
+- Goal: Sell quickly during service.
+- 5-second clarity: High when products exist, medium when empty.
+- Evidence: Empty catalog shows search, cart, payment method, cash received, change, disabled charge.
+- Gaps: Payment controls are visible even with no cart; split payment is exposed by default in
+  production; no "add your first cafe product" inline shortcut beyond "Gestionar catalogo".
+- Daily operator impact: Usable foundation, but not yet optimized for a rush.
+
+Products / catalog:
+- Goal: Create the sellable menu.
+- 5-second clarity: Medium-high.
+- Evidence: Catalog offers sample bakery/retail presets, empty state, categories, products, modifier
+  groups, and "Nuevo producto".
+- Gaps: Target is cafe, but presets are bakery and retail. Cafe owner has to translate bakery preset
+  mentally. The sample catalog CTA risks creating demo data in a real tenant unless clearly framed.
+
+Employees:
+- Goal: Invite/manage staff.
+- 5-second clarity: Medium.
+- Evidence: Employee invitation is embedded in Settings, with role selector and active user row.
+- Gaps: No dedicated employee module, role labels are raw English (`owner`, `manager`, `cashier`),
+  no permissions explanation.
+
+Inventory:
+- Goal: Know what needs restocking and adjust stock.
+- 5-second clarity: Medium.
+- Evidence: Empty state says no tracked products and links to catalog.
+- Gaps: No direct "turn on tracking for first product" path inside inventory. No cafe language such
+  as beans, milk, cups, pastries, or low-stock thresholds.
+
+Reports:
+- Goal: Help the owner make better decisions.
+- 5-second clarity: Medium.
+- Evidence: Reports include executive summary, date range, KPIs, sales by day/daypart/hour, product
+  drivers, payment mix, operations, employee performance, and actions.
+- Gaps: Current date defaults to a day with no sales in the test tenant. Manual date entry did not
+  reliably apply during the audit. Empty report has many sections, making "no data" feel noisy.
+- Strong point: Backend `business-story` is real and tenant-scoped through membership context.
+- Technical risk: `business_story` uses tenant timezone bounds, while older report endpoints such as
+  `sales_by_hour` use UTC bounds, which can create inconsistent answers.
+
+Settings / customization:
+- Goal: Configure business profile, receipt, and employees.
+- 5-second clarity: Medium.
+- Evidence: Business profile, receipt settings, and employees are on one screen.
+- Gaps: Production still shows text inputs for timezone/language/currency and URL logo field. This
+  contradicts current sprint notes and creates deployment drift risk. The settings page is dense on
+  mobile.
+
+Navigation:
+- Goal: Keep top tasks under three clicks.
+- 5-second clarity: High on desktop.
+- Evidence: All major modules are visible in sidebar; bottom nav exposes Caja, Ordenes, Panel, Mas.
+- Gaps: Mobile snapshot showed both side navigation and bottom navigation visible, creating duplicated
+  navigation and wasted space.
+
+Mobile:
+- Goal: Make register and owner review usable from a phone/tablet.
+- 5-second clarity: Medium.
+- Evidence: Bottom nav exists and register content stacks.
+- Gaps: Mobile menu state appears open by default in audited snapshots, with "Cerrar menu" plus bottom
+  nav. Operational forms are dense and billing/update banners compete with the task.
+
+Empty/loading/error/success states:
+- Empty states exist in catalog, register, inventory, dashboard, and reports.
+- Loading states were not visually evaluated deeply, but app screens loaded without console errors.
+- Error states need more production QA: pricing/billing and date filtering copy are currently not
+  polished enough for paid conversion.
+
+Trust/security perception:
+- Positive: httpOnly session architecture and tenant-scoped backend patterns are visible in code.
+- Negative: Placeholder links, mixed language, wrong price, overclaims, and expired-trial copy make
+  the product feel less trustworthy.
+
+Performance:
+- Production navigation felt responsive during audit and no console errors were captured.
+- Risk remains around report fan-out: reports call multiple endpoints plus `business-story`; this
+  needs measured p95/p99 API and frontend render timing before beta.
+
+Data quality / backend data:
+- Authenticated reports and orders appear backed by real tenant data, not static mock cards.
+- Landing page still uses fake/demo metrics and fake cafe orders for marketing illustration.
+- Test account contains historical production records while the catalog is empty, creating an odd
+  data story for audits and demos.
+
+## Cafe Owner Scenario Review
+
+Set up the business:
+- A cafe owner can find Settings quickly.
+- The form asks for business name, support email, phone, timezone, language, and currency.
+- The current production controls feel technical. Timezone/language/currency should be selects with
+  explanations, not raw text fields.
+
+Add products:
+- Catalog is findable and has a clear "Nuevo producto" action.
+- The preset options are not cafe-specific. Bakery is close, but a cafe owner should see a cafe preset
+  or guided examples like americano, latte, cold brew, pastry, milk modifiers.
+
+Add employees:
+- Employee management exists in Settings.
+- It feels hidden and technical. Role names should be localized and tied to what each role can do.
+
+Manage inventory:
+- Inventory points back to catalog when nothing is tracked.
+- It needs a guided activation path and cafe examples: "Track milk liters", "Track espresso beans",
+  "Set low-stock alert for cups".
+
+Make a sale:
+- Register is findable and the flow is understandable.
+- Empty catalog blocks value. The app should help create a first cafe product from the register path
+  or show a sample mode that is clearly not production data.
+
+Review business performance:
+- Reports attempt to answer the right questions.
+- The story is not yet strong enough. It needs period comparison, what changed, top drivers, restock
+  suggestions, payment method split, and staffing recommendations as first-class outcomes.
+
+Decide what to do next:
+- Dashboard and reports both have action concepts.
+- The actions need to be tied to real cafe patterns and thresholds, not generic recommendations.
+
+## Top 10 Critical Gaps
+
+1. Gap: Pricing and plan mismatch blocks paid trust.
+Evidence: Landing and billing show $199 MXN/month; audit target and current commercial intent are
+$299 MXN/month. Billing page also says "7 days" and "Prueba expirada" simultaneously.
+Why it matters: Buyers cannot trust a product that contradicts itself at the payment moment.
+User impact: The owner hesitates before entering payment details.
+Business impact: Direct conversion loss and support burden.
+Suggested fix: Centralize Standard Plan price/copy and update all public/app surfaces to the approved
+price, trial language, and plan terms.
+Implementation notes: Inspect `frontend/src/billing/standardPlan.ts`, `frontend/src/routes/Home.tsx`,
+`frontend/src/billing/BillingView.tsx`, backend billing defaults/migrations, and Stripe config.
+Priority: P0
+Effort: S
+Confidence: High
+
+2. Gap: Landing overpromises beyond beta reality.
+Evidence: Landing claims multi-sucursal, impuestos, WhatsApp receipts, tables, commissions, barcode,
+fiado, and broad vertical coverage.
+Why it matters: Premium SaaS trust depends on saying exactly what the product can do today.
+User impact: Cafe owner expects features that may not exist or are not ready.
+Business impact: Higher churn, refund risk, and weak sales demos.
+Suggested fix: Rewrite landing around the real beta promise: sell, record payments, manage catalog,
+track inventory basics, work offline, close shifts, and review simple reports.
+Implementation notes: Update `frontend/src/routes/Home.tsx`; remove dead footer links or replace with
+real pages/contact.
+Priority: P0
+Effort: M
+Confidence: High
+
+3. Gap: Billing state is confusing and partially English.
+Evidence: Billing page says "Manage your subscription and payments", "Tu cuenta esta bloqueada",
+"prueba de 7 days", "Prueba expirada", "0 dias restantes", and "MX$199.00".
+Why it matters: Billing is a trust-critical screen.
+User impact: User does not know whether the account is blocked, expired, in trial, or safe to pay.
+Business impact: Failed activation and payment support requests.
+Suggested fix: Create a single billing state model and copy matrix for active trial, expired trial,
+active subscription, past due, canceled, and missing Stripe config.
+Implementation notes: Inspect `BillingView.tsx`, `BillingBanner.tsx`, `trial.ts`, and backend billing
+schemas. Add BDD for each state.
+Priority: P0
+Effort: M
+Confidence: High
+
+4. Gap: First-use activation is not cafe-specific enough.
+Evidence: Dashboard checklist uses generic/English labels; catalog presets are bakery/retail, not cafe.
+Why it matters: The first value moment should make a cafe owner feel "this was made for me".
+User impact: Owner must infer how to set up cafe products, modifiers, employees, and inventory.
+Business impact: Lower trial activation and lower perceived value.
+Suggested fix: Add a cafe setup path with first product, first modifier, first inventory item, first
+employee, open shift, first sale, first report.
+Implementation notes: Inspect `DashboardView.tsx`, onboarding APIs, `CatalogView.tsx`, and presets.
+Priority: P1
+Effort: M
+Confidence: High
+
+5. Gap: Reports are promising but not yet decisive.
+Evidence: Reports have story sections and recommended actions, but default to an empty current day,
+manual date entry did not reliably apply during audit, and no customer/money-arrival story exists.
+Why it matters: The core promise is clarity/control through insights.
+User impact: Owner sees many empty/reporting sections but not a clear answer.
+Business impact: Weak retention and weak premium justification.
+Suggested fix: Make Reports answer cafe decisions first: what sold, what changed, best daypart/hour,
+payment split, restock risk, slow movers, employee contribution, and next action.
+Implementation notes: Inspect `ReportsView.tsx`, `backend/app/reports/service.py`, report specs, and
+test matrix. Add date filter E2E tests.
+Priority: P1
+Effort: L
+Confidence: High
+
+6. Gap: Locale/i18n polish is inconsistent.
+Evidence: Dashboard shows "Tuesday, May 19"; onboarding labels are English; billing includes English.
+Why it matters: A Mexico-focused paid SaaS must feel native and careful.
+User impact: Product feels unfinished or foreign.
+Business impact: Lower trust at checkout and onboarding.
+Suggested fix: Run an authenticated i18n audit for all user-facing strings and dates.
+Implementation notes: Inspect `frontend/src/i18n/messages.ts`, dashboard/report date formatters, and
+BillingView copy.
+Priority: P1
+Effort: S
+Confidence: High
+
+7. Gap: Production appears behind local/current sprint notes.
+Evidence: Current sprint says logo upload/select controls are done, but production Settings still
+shows raw timezone/language/currency textboxes and URL logo field.
+Why it matters: Deployment drift makes audits unreliable and can hide regressions.
+User impact: User gets less polished controls in production.
+Business impact: Release confidence drops.
+Suggested fix: Add a production smoke checklist that compares current sprint acceptance criteria
+against deployed UI before marking items done.
+Implementation notes: Inspect Vercel deployment, current branch, and `docs/current-sprint.md`.
+Priority: P0
+Effort: S
+Confidence: Medium
+
+8. Gap: Mobile navigation is not clean enough for real operations.
+Evidence: Mobile snapshot showed side navigation open with "Cerrar menu" plus bottom nav on register
+and settings.
+Why it matters: Cafes may use tablets/phones during setup or operations.
+User impact: Smaller screens feel crowded and less professional.
+Business impact: Reduced confidence in "works on phone/tablet" marketing claim.
+Suggested fix: Ensure mobile sidebar is closed by default, bottom nav is the primary surface, and
+billing/update banners do not crowd operational screens.
+Implementation notes: Inspect `AppShell.tsx`, mobile nav state, and responsive tests.
+Priority: P1
+Effort: M
+Confidence: Medium
+
+9. Gap: Customer intelligence is absent from current product promise.
+Evidence: No visible customer capture or customer reporting in audited screens.
+Why it matters: The positioning says "quien lo compra".
+User impact: Owner cannot learn buyer-level patterns.
+Business impact: Marketing claim creates expectation debt.
+Suggested fix: Remove "who buys" messaging for now or explicitly defer customer insights.
+Implementation notes: Do not build customer CRM for beta unless it becomes a P1 spec; adjust copy.
+Priority: P1
+Effort: S
+Confidence: High
+
+10. Gap: Report timezones may produce inconsistent answers.
+Evidence: `business_story` uses tenant timezone bounds, while `sales_by_hour` and older endpoints use
+UTC bounds and UTC hour extraction.
+Why it matters: Mexico cafe owners care about morning/afternoon/evening performance; wrong hour
+buckets destroy trust.
+User impact: Owner may staff or prep based on wrong time-window insight.
+Business impact: Analytics credibility risk.
+Suggested fix: Normalize every report endpoint to tenant timezone for date bounds and grouping.
+Implementation notes: Inspect `backend/app/reports/service.py`; add timezone golden tests and BDD.
+Priority: P1
+Effort: M
+Confidence: High
+
+## Reports and Business Intelligence Review
+
+Kova's reporting model is better than raw KPI cards in code, but production does not yet deliver the
+full owner-level story. The backend has a `business-story` endpoint that combines sales by day,
+daypart, peak hour, product drivers, payment mix, operational signals, employee sales, refunds, and
+recommended actions. That is the right architecture direction.
+
+Current gaps:
+- The default report period can show an empty current day even when the tenant has recent historical
+  orders, making the product look inactive.
+- The reports UI shows many empty sections instead of one focused "what to do next" path.
+- Period comparison is not strong enough as the main story.
+- Inventory restock and slow-mover recommendations are not first-class in production reports.
+- Payment method mix exists, but "when money arrives" is not answered.
+- Employee reporting exists, but it needs cafe-useful interpretation: rush coverage, average ticket,
+  void/refund risk, and shift contribution.
+- Customer reporting is absent.
+
+Good report direction:
+- "Sales increased/decreased vs previous period because of X product and Y daypart."
+- "Afternoons drove most cafe sales; prep more cold drinks before 4 PM."
+- "Latte is the top product, but milk stock is below threshold."
+- "Cash is 80% of payments; reconcile cash drawer before close."
+
+Bad report direction to avoid:
+- More KPI cards without recommendations.
+- Generic charts that do not tie to staffing, prep, inventory, or cashier coaching.
+
+## Conversion and Monetization Review
+
+Kova does not currently earn the right to charge $299 MXN/month from the public experience alone.
+The buyer sees an attractive brand but not enough proof. The price is wrong, the plan copy is
+inconsistent, and the app's first authenticated experience starts with expired billing pressure
+instead of a guided "get to first sale" moment.
+
+What would justify $299/month:
+- One clear plan at $299 MXN/month everywhere.
+- A cafe-specific setup path completed in under 10 minutes.
+- First sale completed without support.
+- First report that explains what sold and what to do next.
+- Visible offline reliability and recoverability.
+- Trust cues: real support, privacy/terms, status, security copy, and honest beta scope.
+
+## UI/UX and Premium Feel Review
+
+Strengths:
+- Brand direction is modern and more premium than a generic admin template.
+- Sidebar navigation is clear on desktop.
+- Register has a practical POS layout.
+- Reports have a useful information architecture concept.
+- Empty states exist in core modules.
+
+Weaknesses:
+- Public and app copy overuses abstract brand language before proving concrete value.
+- Dead footer links and placeholder resources make the site feel unfinished.
+- Mixed English/Spanish breaks the premium impression.
+- PWA update prompt appears globally and distracts from landing/login.
+- Settings is too dense and technical.
+- Mobile duplicated navigation state needs cleanup.
+- Production settings controls do not match the local/current sprint polish.
+
+## Technical and Data Risk Review
+
+Positive signals:
+- Backend routes use membership-derived tenant IDs for reports.
+- Reporting endpoints are backed by real order/payment/refund tables.
+- Decimal money helpers are used in report calculations.
+- Auth/session, RLS, audit, idempotency, offline sync, and telemetry foundations exist in code.
+- No console errors were observed during audited navigation.
+
+Risks:
+- Pre-Sprint 1 audit finding: price source of truth was wrong for the target price and backed by
+  `19900` defaults.
+- Report timezone handling is inconsistent between `business_story` and other endpoints.
+- Production UI appears behind current sprint documentation.
+- Landing still contains fake/demo dashboard metrics and placeholder links.
+- Telemetry exists, but conversion/activation dashboards and quality gates are not proven.
+- The test account has historical orders with an empty current catalog, which creates audit/demo
+  data confusion.
+
+## Quick Wins
+
+- Change all Standard Plan surfaces to the approved $299 MXN/month or explicitly re-approve $199 as
+  the commercial model before public sales.
+- Replace landing overclaims with beta-true claims.
+- Remove or fix footer placeholder links.
+- Translate remaining English strings in dashboard, billing, reports, roles, and dates.
+- Hide or soften the global PWA update prompt on landing/login.
+- Create a cafe-specific catalog preset or first-product guide.
+- Collapse report empty states into a single helpful path when there is no data.
+- Add visible privacy/terms/support links on signup and billing.
+- Fix mobile nav default state.
+- Add production smoke checks for current-sprint acceptance criteria.
+
+## Strategic Improvements
+
+- Build a cafe-first onboarding journey that gets to first sale and first report.
+- Reframe reports around business decisions, not just metrics.
+- Normalize all reporting to tenant timezone and add golden tests.
+- Add inventory insight joins: low-stock, velocity, slow movers, and suggested reorder quantities.
+- Add activation telemetry tied to signup, first product, first shift, first sale, first report, and
+  checkout start/completion.
+- Create a production demo/audit tenant policy so test data does not distort product evaluation.
+- Introduce a small design-system QA checklist for spacing, forms, empty states, mobile nav, and
+  i18n before deployment.
+
+## Recommended Product Messaging
+
+Do not use the proposed positioning unchanged yet.
+
+Safer current messaging:
+
+"Kova es un punto de venta simple para cafeterias y comercios pequenos en Mexico. Te ayuda a vender
+en caja, registrar pagos, controlar productos e inventario basico, trabajar aunque falle internet y
+revisar lo mas importante del dia sin hojas de calculo."
+
+Landing hero candidate:
+
+"El POS simple para vender, cerrar caja y entender tu dia."
+
+Supporting copy:
+
+"Crea tu catalogo, cobra en efectivo, transferencia o tarjeta manual, trabaja offline y revisa ventas,
+productos y pagos desde un solo lugar. Hecho para pequenos negocios en Mexico."
+
+Report messaging candidate:
+
+"Tus ventas convertidas en decisiones: que se vendio, en que momento, como pagaron y que conviene
+preparar para el siguiente turno."
+
+Avoid for now:
+- "quien lo compra" until customer data exists.
+- "cuando llega el dinero" until settlement/cash timing is explicit.
+- "sucursales" until multi-location is production-ready.
+- "restaurantes", "salones", "comisiones", "fiado", "WhatsApp receipts", and "impuestos" unless each
+  is backed by production-ready flows.
+
+## Sprint Backlog
+
+### Sprint 1: Trust, Clarity, and Conversion
+
+Objective: Make the product feel credible, clear, and worth trying.
+
+User/business outcome: A first-time buyer understands what Kova does, what it costs, why it is safe
+to try, and what happens after signup.
+
+Tasks:
+- [x] Added from Kova Product/UX Audit: Centralize and correct Standard Plan price/copy to the
+  approved $299 MXN/month, or explicitly re-approve $199 before sales.
+- [x] Added from Kova Product/UX Audit: Rewrite landing claims to beta-true cafe/small food retail
+  value and remove unsupported vertical claims.
+- [x] Added from Kova Product/UX Audit: Replace dead footer links with real privacy, terms, support,
+  status, and contact destinations.
+- [x] Added from Kova Product/UX Audit: Add signup trust cues: trial length, no-card statement,
+  privacy/terms, support email, and password guidance.
+- [ ] Added from Kova Product/UX Audit: Create a billing state copy matrix for active trial, expired
+  trial, active subscription, past due, canceled, and Stripe unavailable.
+- [x] Added from Kova Product/UX Audit: Hide or defer global update prompts on landing/login unless
+  the user is authenticated and operationally safe to update.
+- [x] Added from Kova Product/UX Audit: Translate remaining English billing/dashboard strings and
+  localize date output to Spanish.
+
+Acceptance criteria:
+- Every public and app pricing surface shows the same approved plan price and terms.
+- Landing contains no claims for features that are absent or deferred from beta.
+- Signup includes privacy/terms links and clear trial/payment expectations.
+- Billing page has exactly one clear state message and one primary action.
+- No placeholder `href="#"` links remain on conversion-critical pages.
+- Spanish copy and es-MX date formatting are consistent.
+
+Suggested files/components to inspect or modify:
+- `frontend/src/routes/Home.tsx`
+- `frontend/src/billing/standardPlan.ts`
+- `frontend/src/billing/BillingView.tsx`
+- `frontend/src/billing/BillingBanner.tsx`
+- `frontend/src/auth/AuthView.tsx`
+- `frontend/src/components/PWAUpdatePrompt.tsx`
+- `frontend/src/i18n/messages.ts`
+- `backend/app/billing/service.py`
+- `backend/alembic/versions/0012_billing_foundation.py`
+- Stripe Standard Plan configuration
+
+Risks:
+- Changing price without Stripe alignment can break checkout.
+- Removing overclaims may reduce surface-level excitement, but increases trust.
+
+QA checklist:
+- Visit landing logged out on desktop and mobile.
+- Visit signup/login and confirm no distracting update prompt.
+- Start checkout from expired trial state in staging/sandbox.
+- Verify price in landing, dashboard checklist, billing banner, billing page, and Stripe checkout.
+- Run i18n smoke for all audited strings.
+
+### Sprint 2: Onboarding and First Value Moment
+
+Objective: Help a cafe owner reach value quickly.
+
+User/business outcome: A new cafe tenant can configure the business, add a first sellable product,
+open a shift, create a sale, and see the first report without support.
+
+Tasks:
+- [x] Added from Kova Product/UX Audit: Add cafe-specific setup checklist copy and remove English
+  checklist labels.
+- [x] Added from Kova Product/UX Audit: Add a cafe preset or guided first-product path with examples
+  such as Americano, Latte, Cold Brew, pastry, milk modifier, and cup/bean inventory.
+- [x] Added from Kova Product/UX Audit: Make empty register state offer "Crear primer producto" and
+  "Cargar preset de cafeteria" actions.
+- [x] Added from Kova Product/UX Audit: Make Inventory empty state guide the user to activate stock
+  tracking on a specific product.
+- [x] Added from Kova Product/UX Audit: Add first-use success states after first product, first shift,
+  first sale, and first report.
+- [x] Added from Kova Product/UX Audit: Define demo/sample catalog safety copy so presets are not
+  mistaken for fake production data.
+- [x] Added from Kova Product/UX Audit: Make dashboard checklist links open direct setup actions
+  (`/catalog?new=product`, `/catalog?inventory=activate`) instead of only module landing pages.
+
+Acceptance criteria:
+- Fresh tenant sees a cafe-relevant checklist above dashboard KPIs.
+- First product creation is reachable from dashboard, catalog, and empty register.
+- Preset/sample data requires clear confirmation and is tenant-scoped.
+- After first sale, dashboard and reports show a clear next step.
+- All empty states explain why the module matters and what to do next.
+
+Suggested files/components to inspect or modify:
+- `frontend/src/dashboard/DashboardView.tsx`
+- `frontend/src/catalog/CatalogView.tsx`
+- `frontend/src/register/RegisterView.tsx`
+- `frontend/src/inventory/InventoryView.tsx`
+- `frontend/src/onboarding/FirstUseTour.tsx`
+- `backend/presets/bakery.json`
+- new `backend/presets/cafe.json`
+- onboarding specs and BDD files
+
+Risks:
+- Sample data can pollute real tenants if not clearly controlled.
+- Cafe preset should not expand into deferred restaurant scope.
+
+QA checklist:
+- Create a fresh tenant in staging.
+- Complete first product, first employee, first inventory item, first shift, first sale, first report.
+- Confirm checklist progress updates without manual refresh.
+- Confirm no fake/demo data appears unless explicitly loaded.
+- Verify the cafeteria preset creates only tenant-scoped records after an explicit click.
+
+### Sprint 3: POS, Products, Employees, and Inventory Usability
+
+Objective: Make daily operations fast and reliable.
+
+User/business outcome: A cafe operator can sell during a busy day, while the owner can maintain
+catalog, employees, and inventory without guessing.
+
+Tasks:
+- [ ] Added from Kova Product/UX Audit: Keep split payment behind advanced options until a cart exists
+  and payment context makes it useful.
+- [ ] Added from Kova Product/UX Audit: Reduce register empty-state clutter by hiding payment controls
+  until the cart has items or showing them in a disabled instructional state.
+- [ ] Added from Kova Product/UX Audit: Localize employee roles and explain permissions in Settings.
+- [ ] Added from Kova Product/UX Audit: Move employee management into clearer settings tabs or a
+  dedicated employee section.
+- [ ] Added from Kova Product/UX Audit: Replace production raw timezone/language/currency/logo URL
+  controls with polished selects/upload if those changes are already complete locally.
+- [ ] Added from Kova Product/UX Audit: Add search/filter/sort QA for products, orders, and inventory.
+- [ ] Added from Kova Product/UX Audit: Fix mobile navigation default state and remove duplicated nav
+  surfaces during operational tasks.
+
+Acceptance criteria:
+- Register starts focused on product search/cart and makes "what next" obvious.
+- Payment controls cannot confuse an empty-cart user.
+- Employee roles are Spanish, understandable, and mapped to permission meaning.
+- Settings controls are validated and do not expose raw technical values unnecessarily.
+- Mobile register, catalog, inventory, and settings are usable at 390px width without duplicate nav.
+
+Suggested files/components to inspect or modify:
+- `frontend/src/register/RegisterView.tsx`
+- `frontend/src/catalog/CatalogView.tsx`
+- `frontend/src/settings/SettingsView.tsx`
+- `frontend/src/settings/LogoUploadField.tsx`
+- `frontend/src/inventory/InventoryView.tsx`
+- `frontend/src/layout/AppShell.tsx`
+- `frontend/src/components/ui/select.tsx`
+- `frontend/src/i18n/messages.ts`
+
+Risks:
+- Moving employee UI may require route and permission QA.
+- Mobile nav state can regress desktop sidebar behavior.
+
+QA checklist:
+- Complete a cash sale on desktop and mobile/tablet viewport.
+- Add/edit/deactivate product.
+- Invite employee and verify role display/copy.
+- Activate inventory tracking and verify low-stock state.
+- Keyboard navigate register and settings forms.
+
+### Sprint 4: Reports and Business Storytelling
+
+Objective: Turn raw data into decisions.
+
+User/business outcome: A cafe owner can understand what sold, when it sold, how customers paid, what
+needs restocking, who contributed operationally, what changed, and what to do next.
+
+Tasks:
+- [ ] Added from Kova Product/UX Audit: Normalize all report endpoints to tenant timezone for date
+  bounds, daypart grouping, and hour grouping.
+- [ ] Added from Kova Product/UX Audit: Make report date filters reliable, tested, and easy to use
+  with Today, Week, Month, and custom range presets.
+- [ ] Added from Kova Product/UX Audit: Add previous-period comparison as a first-class story.
+- [ ] Added from Kova Product/UX Audit: Add cafe-useful top/bottom product analysis, growth/decline,
+  and slow-mover logic.
+- [ ] Added from Kova Product/UX Audit: Add inventory restock recommendations that join sales velocity
+  with low-stock thresholds.
+- [ ] Added from Kova Product/UX Audit: Add payment method split story and cash reconciliation prompts.
+- [ ] Added from Kova Product/UX Audit: Add employee contribution story: orders, net sales, refund/void
+  risk, and shift coverage cues.
+- [ ] Added from Kova Product/UX Audit: Collapse no-data reports into one guided empty state instead
+  of many empty chart sections.
+- [ ] Added from Kova Product/UX Audit: Remove "who buys" and "when money arrives" messaging until
+  customer/settlement data exists.
+
+Acceptance criteria:
+- Reports answer: best products today/week/month, best time window, payment split, restock risks,
+  employee contribution, and changed-vs-previous-period.
+- Report empty state has one primary CTA and one secondary CTA.
+- All report dates and time buckets use tenant timezone.
+- Every reporting endpoint is tenant-scoped and covered by timezone/money tests.
+- Recommended actions are threshold-based and explain the business reason.
+
+Suggested files/components to inspect or modify:
+- `frontend/src/reports/ReportsView.tsx`
+- `frontend/src/reports/InteractiveCharts.tsx`
+- `frontend/src/reports/api.ts`
+- `frontend/src/reports/types.ts`
+- `backend/app/reports/service.py`
+- `backend/app/reports/router.py`
+- `backend/app/reports/schemas.py`
+- `docs/test-matrixes/reports.md`
+- `specs/reports/*`
+
+Risks:
+- Business storytelling can become noisy if every metric generates an action.
+- Inventory recommendations need careful handling when stock tracking is incomplete.
+
+QA checklist:
+- Seed controlled staging data across morning/afternoon/evening and previous/current periods.
+- Verify period comparisons and time buckets in America/Mexico_City.
+- Verify refunds/voids and split payments affect net sales and payment mix correctly.
+- Verify no mock/demo numbers appear in authenticated reports.
+
+### Sprint 5: Productization Hardening
+
+Objective: Prepare Kova to be sold confidently.
+
+User/business outcome: The product feels stable, accessible, measurable, secure, and production-ready
+for paid beta tenants.
+
+Tasks:
+- [ ] Added from Kova Product/UX Audit: Add production smoke checks that verify current sprint
+  acceptance criteria against deployed production/staging.
+- [ ] Added from Kova Product/UX Audit: Add activation/conversion telemetry dashboard for landing CTA,
+  signup start/success, first product, first sale, first report, checkout start, and checkout success.
+- [ ] Added from Kova Product/UX Audit: Add accessibility pass for landing, signup, billing, register,
+  dashboard, reports, settings, and mobile nav.
+- [ ] Added from Kova Product/UX Audit: Measure frontend/API p95 for dashboard, register, catalog,
+  reports, and billing.
+- [ ] Added from Kova Product/UX Audit: Define test/audit tenant data policy and cleanup process.
+- [ ] Added from Kova Product/UX Audit: Review reusable components/tokens and reduce one-off visual
+  implementations in marketing and app surfaces.
+- [ ] Added from Kova Product/UX Audit: Add no-placeholder-link and no-unsupported-claim checks to
+  pre-release QA.
+- [ ] Added from Kova Product/UX Audit: Complete tenant isolation tests for every tenant-scoped route
+  before paid beta expansion.
+
+Acceptance criteria:
+- Deployed app matches current sprint acceptance criteria.
+- Zero critical/serious accessibility issues on audited flows.
+- No placeholder links or unsupported marketing claims in production.
+- Key activation/conversion events are tracked and queryable.
+- Dashboard/register/reports p95 targets are documented and monitored.
+- Tenant isolation route coverage is complete for beta-critical endpoints.
+
+Suggested files/components to inspect or modify:
+- `frontend/src/telemetry/funnel.ts`
+- `backend/app/telemetry/router.py`
+- `docs/current-sprint.md`
+- `docs/risk-register.md`
+- `frontend/src/styles.css`
+- `frontend/src/components/ui/*`
+- `backend/app/tests/test_tenant_isolation.py`
+- Playwright/E2E production smoke tests
+
+Risks:
+- Telemetry can collect sensitive data if event payloads are not controlled.
+- Accessibility fixes may expose deeper component API gaps.
+
+QA checklist:
+- Run production smoke after each deploy.
+- Run no-secrets and dependency audit.
+- Run tenant isolation tests.
+- Run accessibility scan and keyboard navigation pass.
+- Review Sentry/logs for billing, auth, reports, and order creation errors.
 
 ## North Star Flow
 
@@ -53,7 +850,7 @@ tenant signup → business setup → catalog setup → open shift → create sal
 |---|---|---|---|
 | Foundation | 0A–0C | ✅ Done | Repo, app skeleton, auth, tenant isolation, BDD harness |
 | Operations | 5–8 | ✅ Done | Refunds, voids, receipts, shifts, inventory, reporting |
-| Billing + App Shell | 9–10 | ✅ Done | $199 MXN plan, Stripe Billing, auth-protected routing, register shell |
+| Billing + App Shell | 9–10 | ✅ Done | $299 MXN plan, Stripe Billing, auth-protected routing, register shell |
 | Core POS | 11–13 | ✅ Done | Catalog, register, cash/manual sale, order creation, offline sync |
 | Beta Hardening | 14 | ✅ Code done — ops pending | Security, monitoring, backup drill, beta support |
 | Modifiers | 15 | ✅ Done | Modifier groups, options, pricing, register modal, receipts |
@@ -63,7 +860,7 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Retail Preset + Adv. Inventory | 19 | 📋 Planned | Retail preset, barcode/SKU input, CSV import, stock history |
 | Restaurant Preset | 20 | 📋 Planned | Restaurant catalog preset, table notes, modifier-heavy menus |
 | GA Hardening | 21 | 📋 Planned | Legal, marketing site, help center, security + load review, accessibility |
-| Closed Beta | — | 🔜 After Sprint 16 + ops | 3 friendly tenants, $199 MXN/month |
+| Closed Beta | — | 🔜 After Sprint 16 + ops | 3 friendly tenants, $299 MXN/month |
 
 ### Core POS Sprint Breakdown
 
@@ -535,7 +1332,7 @@ Owner can understand basic sales performance.
 
 ### Goal
 
-Make the product sellable through a single $199 MXN/month subscription plan.
+Make the product sellable through a single $299 MXN/month subscription plan.
 
 ### Required Specs
 
@@ -559,7 +1356,7 @@ Make the product sellable through a single $199 MXN/month subscription plan.
 - [ ] Add grace period logic.
 - [ ] Add cancellation flow.
 - [ ] Add internal/admin subscription visibility.
-- [ ] Ensure Standard Plan price is $199 MXN/month.
+- [ ] Ensure Standard Plan price is $299 MXN/month.
 - [ ] Remove/defer plan-based feature gates.
 - [ ] Add billing BDD tests.
 
@@ -632,7 +1429,7 @@ Run the product with 3 friendly tenants.
 ### Commercial Beta Model
 
 - 3 friendly tenants.
-- Standard Plan at $199 MXN/month.
+- Standard Plan at $299 MXN/month.
 - Optional temporary beta discount, but official price remains visible.
 - Founder-assisted onboarding is acceptable.
 - Written feedback agreement.
@@ -1119,7 +1916,7 @@ and load test.
 #### Marketing Site
 
 - [ ] Build or deploy marketing site at root domain (separate repo or sub-path).
-- [ ] Pages: Home, Features, Pricing ($199 MXN/month — Standard Plan), FAQ, Contact.
+- [ ] Pages: Home, Features, Pricing ($299 MXN/month — Standard Plan), FAQ, Contact.
 - [ ] Public Stripe Checkout link / embedded button on pricing page.
 - [ ] SEO meta tags and OpenGraph images.
 - [ ] Mobile-responsive.
@@ -1238,7 +2035,7 @@ and load test.
 ### Billing
 
 - [ ] Standard Plan exists in Stripe.
-- [ ] Standard Plan price is $199 MXN/month.
+- [ ] Standard Plan price is $299 MXN/month.
 - [ ] Checkout works.
 - [ ] Webhooks are idempotent.
 - [ ] Active subscription unlocks normal access.
