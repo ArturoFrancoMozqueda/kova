@@ -37,15 +37,15 @@ def upgrade() -> None:
     op.execute(
         """
         DELETE FROM products p
-        WHERE p.sku = 'QA-CON-20260512'
-            OR p.name = 'QA Concha 20260512'
-            OR (
-                p.name = 'Dona'
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM order_items oi
-                    WHERE oi.product_id = p.id
-                )
+        WHERE (
+                p.sku = 'QA-CON-20260512'
+                OR p.name = 'QA Concha 20260512'
+                OR p.name = 'Dona'
+            )
+            AND NOT EXISTS (
+                SELECT 1
+                FROM order_items oi
+                WHERE oi.product_id = p.id
             )
         """
     )
