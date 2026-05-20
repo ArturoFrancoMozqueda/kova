@@ -241,7 +241,7 @@ Billing is subscription billing between the business and us.
 Use one plan:
 
 - Standard Plan
-- $199 MXN/month
+- $299 MXN/month
 - all available features included
 
 Use Stripe Billing / Stripe Checkout.

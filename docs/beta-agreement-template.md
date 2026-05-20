@@ -20,7 +20,7 @@ The beta service currently includes the Standard Plan product experience made av
 
 The beta subscription price is:
 
-- `MX$199` per month
+- `MX$299` per month
 - One Standard Plan only
 - No long-term commitment
 

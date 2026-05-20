@@ -21,7 +21,7 @@ Billing:
 
 - Stripe Billing / Checkout
 - Standard Plan
-- $199 MXN/month
+- $299 MXN/month
 
 POS Payments for beta:
 
