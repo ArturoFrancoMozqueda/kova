@@ -86,10 +86,9 @@ Future sprints will add: session secrets, `SENTRY_DSN`, `STRIPE_*`, and (if/when
 
 1. Tag a release: `git tag vX.Y.Z && git push --tags`.
 2. CI builds the backend image and a frontend bundle.
-3. Deploy backend image to Fly.io (`fly deploy`) with `DATABASE_URL` pointing at the target Supabase project.
-4. Run `alembic upgrade head` once on the backend (Fly.io release command, or one-shot `fly ssh console` invocation).
-5. Deploy frontend bundle to Vercel (auto-deploys from `main` once configured).
-6. Verify:
+3. Deploy backend image to Fly.io (`fly deploy`) with `DATABASE_URL` pointing at the target Supabase project. The `release_command` in `backend/fly.toml` runs `alembic upgrade head` against `DATABASE_URL` automatically before the new version is promoted; if the migration fails the deploy is aborted and the previous version keeps serving traffic. For long-running backfills, skip the auto-migration by deploying with `flyctl deploy --no-release-command` and run the migration manually via `fly ssh console`.
+4. Deploy frontend bundle to Vercel (auto-deploys from `main` once configured).
+5. Verify:
    - `curl https://api.<domain>/health`
    - `curl https://api.<domain>/health/db` — proves the backend can reach Supabase.
    - Browse the frontend domain.
