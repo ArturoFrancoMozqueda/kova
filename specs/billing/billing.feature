@@ -3,7 +3,7 @@ Feature: Standard Plan billing
   Scenario: Tenant owner starts checkout for the Standard Plan
     Given an authenticated tenant owner with billing management permission
     When the owner starts Standard Plan checkout
-    Then a Stripe Checkout URL is returned for the $199 MXN monthly plan
+    Then a Stripe Checkout URL is returned for the $299 MXN monthly plan
 
   Scenario: Tenant returns from successful checkout
     Given an authenticated tenant owner has completed Stripe Checkout

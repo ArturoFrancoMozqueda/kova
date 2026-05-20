@@ -16,8 +16,8 @@ A single paid plan validates willingness to pay while avoiding pricing-tier comp
 ## Functional Requirements
 
 - The only public plan is `Standard Plan`.
-- The price is exactly $199 MXN/month.
-- All user-facing billing, dashboard, onboarding, landing, and checkout copy must show the same $199 MXN/month price.
+- The price is exactly $299 MXN/month.
+- All user-facing billing, dashboard, onboarding, landing, and checkout copy must show the same $299 MXN/month price.
 - The plan includes all currently available features.
 - There are no Basic, Pro, Premium, annual, per-user, per-location, usage-based, or add-on plans in v1.
 - Feature flags may hide unfinished/internal modules but must not create paid tiers.
@@ -79,7 +79,7 @@ A single paid plan validates willingness to pay while avoiding pricing-tier comp
 
 ## Acceptance Criteria
 
-- A tenant owner can see the Standard Plan price as $199 MXN/month.
+- A tenant owner can see the Standard Plan price as $299 MXN/month.
 - A tenant cannot see another tenant's subscription.
 - The system never exposes multiple paid plan choices in v1.
 - Subscription status is updated only through tenant-scoped service logic or verified Stripe webhooks.

@@ -17,7 +17,7 @@ Stripe Checkout gives the beta a sellable billing path while keeping payment col
 - A tenant owner with `billing.manage` can start checkout from the billing settings page.
 - Checkout uses the configured Stripe Price for Standard Plan.
 - Checkout mode is `subscription`.
-- Checkout currency and amount must correspond to $199 MXN/month.
+- Checkout currency and amount must correspond to $299 MXN/month.
 - Launch-ready public checkout must use live Stripe keys, a live Stripe Price, and a live Checkout Session.
 - Test-mode Checkout Sessions are allowed in local, CI, staging-like validation environments, and
   explicitly approved pre-launch production demos.

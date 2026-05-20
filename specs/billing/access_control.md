@@ -15,7 +15,7 @@ or valid trial exists.
 
 ## Business Value
 
-Commercial access control makes the $199 MXN/month Standard Plan enforceable while still allowing
+Commercial access control makes the $299 MXN/month Standard Plan enforceable while still allowing
 owners to recover billing without losing operational visibility.
 
 ## Functional Requirements
