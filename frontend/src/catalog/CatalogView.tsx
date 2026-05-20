@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   CATALOG_CREATE_PERMISSION,
@@ -53,6 +53,7 @@ import {
   Sparkles,
   Loader2,
   BarChart2,
+  Search,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,8 @@ type Modal =
   | { type: "category-edit"; category: Category }
   | { type: "product-create"; defaultTrackInventory?: boolean }
   | { type: "product-edit"; product: Product };
+
+type ProductSort = "name_asc" | "price_desc" | "price_asc" | "stock_first";
 
 export default function CatalogView() {
   const canCreate = usePermission(CATALOG_CREATE_PERMISSION);
@@ -85,6 +88,8 @@ export default function CatalogView() {
   const [showModifiers, setShowModifiers] = useState(false);
   const [presetApplying, setPresetApplying] = useState(false);
   const [storyProduct, setStoryProduct] = useState<Product | null>(null);
+  const [productSearch, setProductSearch] = useState("");
+  const [productSort, setProductSort] = useState<ProductSort>("name_asc");
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -138,12 +143,27 @@ export default function CatalogView() {
     }
   };
 
-  const visibleProducts =
-    loadState.status === "ready"
-      ? selectedCategoryId
-        ? loadState.products.filter((p) => p.category_id === selectedCategoryId)
-        : loadState.products
-      : [];
+  const visibleProducts = useMemo(() => {
+    if (loadState.status !== "ready") return [];
+    const query = productSearch.trim().toLowerCase();
+    const filtered = loadState.products.filter((product) => {
+      const matchesCategory = selectedCategoryId ? product.category_id === selectedCategoryId : true;
+      const matchesSearch = query
+        ? [product.name, product.sku ?? "", product.description ?? ""]
+            .some((value) => value.toLowerCase().includes(query))
+        : true;
+      return matchesCategory && matchesSearch;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (productSort === "price_desc") return Number(b.price_amount) - Number(a.price_amount);
+      if (productSort === "price_asc") return Number(a.price_amount) - Number(b.price_amount);
+      if (productSort === "stock_first") {
+        if (a.track_inventory !== b.track_inventory) return a.track_inventory ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name, "es-MX");
+    });
+  }, [loadState, productSearch, productSort, selectedCategoryId]);
 
   /* ---- Loading state ---- */
   if (loadState.status === "loading") {
@@ -405,6 +425,37 @@ export default function CatalogView() {
             )}
           </CardHeader>
           <CardContent>
+            <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Label className="sr-only" htmlFor="catalog-product-search">
+                  {copy.catalog.searchProducts}
+                </Label>
+                <Input
+                  id="catalog-product-search"
+                  value={productSearch}
+                  onChange={(event) => setProductSearch(event.target.value)}
+                  placeholder={copy.catalog.searchProductsPlaceholder}
+                  className="pl-9"
+                />
+              </div>
+              <div>
+                <Label className="sr-only" htmlFor="catalog-product-sort">
+                  {copy.catalog.sortProducts}
+                </Label>
+                <Select
+                  id="catalog-product-sort"
+                  value={productSort}
+                  onChange={(event) => setProductSort(event.target.value as ProductSort)}
+                  aria-label={copy.catalog.sortProducts}
+                >
+                  <option value="name_asc">{copy.catalog.sortNameAsc}</option>
+                  <option value="price_desc">{copy.catalog.sortPriceDesc}</option>
+                  <option value="price_asc">{copy.catalog.sortPriceAsc}</option>
+                  <option value="stock_first">{copy.catalog.sortInventoryFirst}</option>
+                </Select>
+              </div>
+            </div>
             {visibleProducts.length === 0 && !modal ? (
               <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-lg border border-[color:var(--kova-border)] bg-[color:var(--kova-mist)]/40 px-6 py-10 text-center">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-[color:var(--kova-blue)]">
