@@ -40,6 +40,8 @@ Feature: Sales reports
     When the owner opens the reports page
     Then the report shows previous-period comparison and restock guidance
     And the decision brief shows no more than three recommended actions
+    And detailed KPI and chart sections are collapsed until the owner opens detailed analysis
+    And the detailed analysis prioritizes timing, product inventory, payment operations, and meaningful employee comparison
 
   Scenario: Manager views an empty business story report
     Given an authenticated manager without completed sales

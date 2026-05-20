@@ -751,6 +751,11 @@ Tasks:
   comparison, restock guidance, and no more than three recommended actions.
 - [x] Added from Kova Product/UX Audit: Add previous-period comparison as a first-class story in
   the owner-facing report brief.
+- [x] Added from Kova Product/UX Audit: Collapse detailed KPI/chart/payment/employee sections behind
+  one `Ver análisis detallado` control so the first report screen stays digestible.
+- [x] Added from Kova Product/UX Audit: Replace duplicate KPI-card detail with decision-oriented
+  analysis sections: timing, product inventory, payment operations, and meaningful employee
+  comparison.
 - [ ] Added from Kova Product/UX Audit: Add cafe-useful top/bottom product analysis, growth/decline,
   and slow-mover logic.
 - [ ] Added from Kova Product/UX Audit: Add backend-backed inventory restock recommendations that join
@@ -771,6 +776,10 @@ Acceptance criteria:
 - Every reporting endpoint is tenant-scoped and covered by timezone/money tests.
 - Recommended actions are threshold-based, explain the business reason, and are capped so the first
   report screen does not overwhelm the owner.
+- Detailed charts and secondary operational analysis stay available without dominating the initial
+  report view.
+- Detailed analysis uses charts and tables only when they answer an admin decision: when to prepare,
+  what to restock, how payments affect operations, and whether staff comparison has enough data.
 
 Suggested files/components to inspect or modify:
 - `frontend/src/reports/ReportsView.tsx`

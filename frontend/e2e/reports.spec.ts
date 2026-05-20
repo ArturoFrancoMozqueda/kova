@@ -237,17 +237,23 @@ test("reports page displays business storytelling layout", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
   await expect(page.getByText(/resumen ejecutivo/i)).toBeVisible();
   await expect(page.getByText(/Kova gener[oó] \$231\.00 en ventas netas/i)).toBeVisible();
-  await expect(page.locator(".data-card").filter({ hasText: /ventas netas/i }).getByText(/\$231\.00/)).toBeVisible();
-  await expect(page.locator(".data-card").filter({ hasText: /producto top/i }).getByText("Dona", { exact: true })).toBeVisible();
-  await expect(page.getByText(/ventas por d[ií]a/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /17 may: \$88\.00/i })).toBeVisible();
-  await expect(page.getByText(/ventas por momento del d[ií]a/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Noche: \$160\.00/i })).toBeVisible();
-  await expect(page.getByText(/Dentro del mejor bloque, tu pico fue de 20:00-21:00/i)).toBeVisible();
   await expect(page.getByText("+28% vs. periodo anterior.")).toBeVisible();
   await expect(page.getByText(/Reabastece Dona/i)).toBeVisible();
   await expect(page.getByText(/Refuerza operación en noche/i)).toBeVisible();
   await expect(page.getByTestId("owner-brief-action")).toHaveCount(3);
+  await expect(page.getByText(/ventas por d[ií]a/i)).not.toBeVisible();
+
+  await page.getByText(/ver análisis detallado/i).click();
+
+  await expect(page.getByText(/ventas en el tiempo/i)).toBeVisible();
+  await expect(page.getByText(/qu[eé] d[ií]as vendes m[aá]s/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /17 may: \$88\.00/i })).toBeVisible();
+  await expect(page.getByText(/productos e inventario/i)).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Dona", exact: true })).toBeVisible();
+  await expect(page.getByText("Reabastecer", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /pagos y operación/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Noche: \$160\.00/i })).toBeVisible();
+  await expect(page.getByText(/Hora pico del periodo: 20:00-21:00/i)).toBeVisible();
 });
 
 test("reports shows useful empty state without demo data", async ({ page }) => {

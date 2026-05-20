@@ -683,6 +683,36 @@ export const copy = {
     emptyStorySecondaryCta: "Cambiar rango",
     firstReportMilestoneTitle: "Primer reporte listo",
     firstReportMilestoneBody: "Este reporte ya usa ventas reales para explicar qué pasó, cuándo se vendió y qué conviene revisar después.",
+    detailToggleTitle: "Ver análisis detallado",
+    detailToggleBody: "Abre solo si quieres revisar horarios, productos, inventario, pagos y operación con más detalle.",
+    timingAnalysisTitle: "Ventas en el tiempo",
+    timingAnalysisDescription:
+      "Úsalo para decidir cuándo preparar más producto, caja y personal: primero días, luego bloques y hora pico.",
+    productInventoryTitle: "Productos e inventario",
+    productInventoryDescription:
+      "Prioriza qué vender, proteger o reabastecer conectando ventas, unidades, participación y stock disponible.",
+    paymentOperationsTitle: "Pagos y operación",
+    paymentOperationsDescription:
+      "Revisa si la mezcla de pagos o las incidencias pueden afectar conciliación, efectivo o velocidad de caja.",
+    employeeAnalysisDescription:
+      "Compara desempeño solo cuando hay más de una persona vendiendo; con un solo usuario no hay benchmark útil.",
+    productColumn: "Producto",
+    salesColumn: "Ventas",
+    unitsColumn: "Unidades",
+    stockColumn: "Stock",
+    suggestedActionColumn: "Acción sugerida",
+    noTrackedStock: "Sin stock ligado",
+    stockStatus: (stock: number, threshold: number | null, daysUntilOut: string | null) =>
+      `${stock} disponible${threshold === null ? "" : ` / umbral ${threshold}`}${daysUntilOut === null ? "" : ` / ${daysUntilOut} días estimados`}`,
+    actionRestock: "Reabastecer",
+    actionRestockDetail: (name: string) => `${name} ya vende y está bajo umbral. Revisa compra o preparación antes del siguiente pico.`,
+    actionPrepare: "Preparar compra",
+    actionPrepareDetail: (name: string, days: number) =>
+      `${name} puede agotarse en ${days} día${days === 1 ? "" : "s"} si mantiene este ritmo.`,
+    actionProtect: "Proteger disponibilidad",
+    actionProtectDetail: (name: string) => `${name} pesa mucho en la venta. Evita quedarte sin disponibilidad en horas fuertes.`,
+    actionMonitor: "Monitorear",
+    actionMonitorDetail: (name: string) => `${name} se mueve, pero aún no exige una acción urgente.`,
     noDailySales: "Sin ventas por día en este rango.",
     noDaypartSales: "Sin ventas por bloque en este rango.",
     noOperationalSignals: "Sin señales operativas para este rango.",

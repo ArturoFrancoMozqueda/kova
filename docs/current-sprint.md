@@ -115,6 +115,11 @@ Sprint 4 is in progress, focused on report clarity without overwhelming the owne
 - [x] Reports now use a compact owner decision brief instead of repeating a longer action list.
 - [x] The owner brief deduplicates recommendations and caps them at three actions.
 - [x] Restock-risk guidance is prioritized before general report recommendations.
+- [x] Detailed KPI, chart, payment, operations, and employee sections are collapsed behind
+      `Ver análisis detallado` so the first report screen is not saturated.
+- [x] Detailed analysis was recut around admin decisions instead of duplicate KPI cards:
+      timing, products plus inventory, payments plus operations, and employee comparison only when
+      there is enough staff data.
 - [x] Previous-period comparison, restock guidance, and the three-action cap are covered in E2E.
 - [x] Reports spec, Gherkin scenario, and test matrix now document the compact decision brief.
 
@@ -124,7 +129,7 @@ Sprint 4 is in progress, focused on report clarity without overwhelming the owne
 - [x] Frontend lint: `npm run lint`
 - [x] Frontend production build: `npm run build`
 - [x] Frontend unit tests: `npm test -- --run` (13 passed)
-- [x] Focused reports E2E:
+- [x] Focused reports E2E after saturation reduction:
       `npm run test:e2e -- e2e/reports.spec.ts --project=chromium` (2 passed)
 - [x] Full frontend E2E: `npm run test:e2e -- --project=chromium` (49 passed, 3 skipped)
 

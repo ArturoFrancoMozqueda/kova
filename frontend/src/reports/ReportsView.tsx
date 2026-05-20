@@ -1,5 +1,4 @@
 import {
-  type ComponentType,
   FormEvent,
   type HTMLAttributes,
   type ReactNode,
@@ -29,10 +28,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
-  CalendarDays,
+  ChevronDown,
   Clock3,
   CreditCard,
-  DollarSign,
   Filter,
   Package,
   RefreshCw,
@@ -40,9 +38,7 @@ import {
   ShieldOff,
   ShoppingCart,
   Sparkles,
-  TrendingUp,
   Users,
-  XCircle,
 } from "lucide-react";
 
 type LoadState =
@@ -386,7 +382,6 @@ function ReportsStory({
   }
   return (
     <div className="space-y-6">
-      <FirstReportMilestone />
       <ExecutiveSummary story={story} />
       <SmartInsights
         story={story}
@@ -396,38 +391,12 @@ function ReportsStory({
         lowStock={lowStock}
         velocity={velocity}
       />
-      <KpiGrid story={story} />
-
-      <StorySection
-        kicker={copy.reportsView.whenItHappened}
-        title={copy.reportsView.salesByDayTitle}
-        description={dailyInsight(story)}
-      >
-        <SalesByDayChart story={story} />
-      </StorySection>
-
-      <StorySection
-        kicker={copy.reportsView.whenItHappened}
-        title={copy.reportsView.daypartSalesTitle}
-        description={daypartInsight(story)}
-      >
-        <SalesByDaypartChart story={story} />
-      </StorySection>
-
-      <StorySection
-        kicker={copy.reportsView.hourlyDrilldownKicker}
-        title={copy.reportsView.hourlySales}
-        description={peakHourInsight(story)}
-      >
-        <HourlyChart rows={hourly} story={story} />
-      </StorySection>
-
-      <section className="grid gap-6 xl:grid-cols-2">
-        <SalesDrivers story={story} />
-        <PaymentMix story={story} />
-        <OperationsSignals story={story} />
+      <ReportDetails>
+        <TimingAnalysis story={story} hourly={hourly} />
+        <ProductInventoryAnalysis story={story} lowStock={lowStock} velocity={velocity} />
+        <PaymentOperationsAnalysis story={story} />
         <EmployeeCoaching rows={story.sales_by_employee} />
-      </section>
+      </ReportDetails>
     </div>
   );
 }
@@ -719,21 +688,20 @@ function strongestWindowDetail(
   return copy.reportsView.compareNoPrevious;
 }
 
-function FirstReportMilestone() {
+function ReportDetails({ children }: { children: ReactNode }) {
   return (
-    <Card className="border-kova-growth/20 bg-kova-growth/[0.04]">
-      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
-          <Sparkles className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">{copy.reportsView.firstReportMilestoneTitle}</p>
+    <details className="group rounded-xl border bg-card text-card-foreground shadow-sm">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 marker:hidden">
+        <div className="min-w-0">
+          <p className="font-semibold">{copy.reportsView.detailToggleTitle}</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {copy.reportsView.firstReportMilestoneBody}
+            {copy.reportsView.detailToggleBody}
           </p>
         </div>
-      </CardContent>
-    </Card>
+        <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="space-y-6 border-t p-5">{children}</div>
+    </details>
   );
 }
 
@@ -808,122 +776,13 @@ function EmptyBusinessState({ onPickToday }: { onPickToday?: () => void }) {
   );
 }
 
-function KpiGrid({ story }: { story: BusinessStoryReport }) {
-  const bestDay = bestDayRow(story);
-  const bestDaypart = bestDaypartRow(story);
-  return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={copy.reportsView.title}>
-      <KpiCard
-        icon={TrendingUp}
-        label={copy.reportsView.netSales}
-        value={formatMoney(story.summary.net_sales)}
-        microcopy={copy.reportsView.kpiNetSales(story.summary.completed_orders)}
-        accent="text-kova-blue"
-      />
-      <KpiCard
-        icon={ShoppingCart}
-        label={copy.reportsView.completedOrders}
-        value={String(story.summary.completed_orders)}
-        microcopy={copy.reportsView.kpiOrders(story.summary.completed_orders)}
-        accent="text-kova-ink"
-      />
-      <KpiCard
-        icon={DollarSign}
-        label={copy.reportsView.avgTicket}
-        value={formatMoney(story.summary.average_ticket)}
-        microcopy={copy.reportsView.kpiAverageTicket(formatMoney(story.summary.average_ticket))}
-        accent="text-kova-growth"
-      />
-      <KpiCard
-        icon={Package}
-        label={copy.reportsView.topProduct}
-        value={story.top_product_by_sales?.product_name ?? copy.reportsView.noData}
-        microcopy={
-          story.top_product_by_sales
-            ? copy.reportsView.kpiTopProduct(
-                story.top_product_by_sales.product_name,
-                story.top_product_by_sales.sales_share_pct,
-              )
-            : copy.reportsView.kpiTopProductEmpty
-        }
-        accent="text-kova-growth"
-      />
-      <KpiCard
-        icon={CalendarDays}
-        label={copy.reportsView.bestDay}
-        value={bestDay ? dateLabel(bestDay.date) : copy.reportsView.noData}
-        microcopy={
-          bestDay
-            ? copy.reportsView.kpiBestDay(dateLabel(bestDay.date), bestDay.sales_share_pct)
-            : copy.reportsView.kpiBestDayEmpty
-        }
-        accent="text-kova-blue"
-      />
-      <KpiCard
-        icon={Clock3}
-        label={copy.reportsView.bestDaypart}
-        value={bestDaypart ? bestDaypart.label : copy.reportsView.noData}
-        microcopy={
-          bestDaypart
-            ? copy.reportsView.kpiBestDaypart(bestDaypart.label, bestDaypart.sales_share_pct)
-            : copy.reportsView.kpiBestDaypartEmpty
-        }
-        accent="text-kova-blue-light"
-      />
-      <KpiCard
-        icon={RotateCcw}
-        label={copy.reportsView.refunds}
-        value={String(story.summary.refund_count)}
-        microcopy={copy.reportsView.kpiRefunds(story.summary.refund_count)}
-        accent="text-destructive"
-      />
-      <KpiCard
-        icon={XCircle}
-        label={copy.reportsView.voids}
-        value={String(story.summary.cancellation_count)}
-        microcopy={copy.reportsView.kpiCancellations(story.summary.cancellation_count)}
-        accent="text-warning"
-      />
-    </section>
-  );
-}
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  microcopy,
-  accent,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  microcopy: string;
-  accent?: string;
-}) {
-  return (
-    <Card className="data-card">
-      <CardContent className="p-5">
-        <div className="mb-2 flex items-center gap-2">
-          <Icon className={cn("h-4 w-4", accent ?? "text-muted-foreground")} />
-          <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-        </div>
-        <p className="min-h-8 break-words text-2xl font-bold tracking-tight tabular-nums">
-          {value}
-        </p>
-        <p className="mt-2 text-sm leading-5 text-muted-foreground">{microcopy}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function StorySection({
-  kicker,
+function DecisionSection({
+  icon,
   title,
   description,
   children,
 }: {
-  kicker: string;
+  icon: ReactNode;
   title: string;
   description: string;
   children: ReactNode;
@@ -931,8 +790,10 @@ function StorySection({
   return (
     <Card>
       <CardHeader>
-        <p className="text-xs font-semibold uppercase text-kova-blue">{kicker}</p>
-        <CardTitle>{title}</CardTitle>
+        <div className="flex items-center gap-2">
+          {icon}
+          <CardTitle>{title}</CardTitle>
+        </div>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent>{children}</CardContent>
@@ -1008,39 +869,144 @@ function HourlyChart({ rows, story }: { rows: SalesByHourRow[]; story: BusinessS
   );
 }
 
-function SalesDrivers({ story }: { story: BusinessStoryReport }) {
-  const top = story.top_product_by_sales;
-  const rows: ChartRow[] = story.product_drivers.map((product) => ({
-      id: product.product_id,
-      label: product.product_name,
-      value: Number(product.gross_sales),
-      valueLabel: formatMoney(product.gross_sales),
-      meta: [
-        { label: copy.reportsView.chartUnits, value: String(product.quantity_sold) },
-        { label: copy.reportsView.chartShareLabel, value: pctLabel(product.sales_share_pct) },
-      ],
-      accentClassName: "bg-kova-growth",
-  }));
+function TimingAnalysis({ story, hourly }: { story: BusinessStoryReport; hourly: SalesByHourRow[] }) {
+  return (
+    <DecisionSection
+      icon={<ClockIcon />}
+      title={copy.reportsView.timingAnalysisTitle}
+      description={copy.reportsView.timingAnalysisDescription}
+    >
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <SalesByDayChart story={story} />
+        <SalesByDaypartChart story={story} />
+        <div className="xl:col-span-2">
+          <HourlyChart rows={hourly} story={story} />
+        </div>
+      </div>
+    </DecisionSection>
+  );
+}
+
+function ClockIcon() {
+  return <Clock3 className="h-5 w-5 text-muted-foreground" />;
+}
+
+function ProductInventoryAnalysis({
+  story,
+  lowStock,
+  velocity,
+}: {
+  story: BusinessStoryReport;
+  lowStock: StockItem[];
+  velocity: InventoryVelocityItem[];
+}) {
+  const lowStockByProduct = new Map(lowStock.map((item) => [item.product_id, item]));
+  const velocityByProduct = new Map(velocity.map((item) => [item.product_id, item]));
+  const rows = story.product_drivers.map((product) => {
+    const stock = lowStockByProduct.get(product.product_id);
+    const velocityItem = velocityByProduct.get(product.product_id);
+    return {
+      product,
+      stock,
+      velocity: velocityItem,
+      action: productInventoryAction(product, stock, velocityItem),
+    };
+  });
 
   return (
-    <DriverCard icon={Package} title={copy.reportsView.salesDriversTitle}>
-      <InteractiveRankChart
-        title={copy.reportsView.productsQuestion}
-        insight={
-          top
-            ? copy.reportsView.productDriverInsight(
-                top.product_name,
-                top.sales_share_pct,
-              )
-            : undefined
-        }
-        rows={rows}
-        emptyLabel={copy.reportsView.noProducts}
-        ariaLabel={copy.reportsView.salesDriversTitle}
-        {...chartCopy()}
-      />
-    </DriverCard>
+    <DecisionSection
+      icon={<Package className="h-5 w-5 text-muted-foreground" />}
+      title={copy.reportsView.productInventoryTitle}
+      description={copy.reportsView.productInventoryDescription}
+    >
+      {rows.length === 0 ? (
+        <p className="rounded-lg border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
+          {copy.reportsView.noProducts}
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.productColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.salesColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.unitsColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.stockColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.suggestedActionColumn}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map(({ product, stock, velocity: velocityItem, action }) => (
+                <tr key={product.product_id} className="align-top">
+                  <td className="px-4 py-3 font-medium">{product.product_name}</td>
+                  <td className="px-4 py-3 tabular-nums">
+                    {formatMoney(product.gross_sales)}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {pctLabel(product.sales_share_pct)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 tabular-nums">{product.quantity_sold}</td>
+                  <td className="px-4 py-3">
+                    {stock || velocityItem ? (
+                      <span>
+                        {copy.reportsView.stockStatus(
+                          stock?.stock_on_hand ?? velocityItem?.stock_on_hand ?? 0,
+                          stock?.low_stock_threshold ?? null,
+                          velocityItem?.days_until_out ?? null,
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">{copy.reportsView.noTrackedStock}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={action.variant}>{action.label}</Badge>
+                    <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">
+                      {action.detail}
+                    </p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </DecisionSection>
   );
+}
+
+function productInventoryAction(
+  product: BusinessStoryReport["product_drivers"][number],
+  stock: StockItem | undefined,
+  velocity: InventoryVelocityItem | undefined,
+) {
+  const daysUntilOut = velocity?.days_until_out === null ? null : Number(velocity?.days_until_out);
+  if (stock?.is_low_stock) {
+    return {
+      label: copy.reportsView.actionRestock,
+      detail: copy.reportsView.actionRestockDetail(product.product_name),
+      variant: "destructive" as const,
+    };
+  }
+  if (daysUntilOut !== null && Number.isFinite(daysUntilOut) && daysUntilOut <= 7) {
+    return {
+      label: copy.reportsView.actionPrepare,
+      detail: copy.reportsView.actionPrepareDetail(product.product_name, daysUntilOut),
+      variant: "secondary" as const,
+    };
+  }
+  if (product.sales_share_pct >= 40) {
+    return {
+      label: copy.reportsView.actionProtect,
+      detail: copy.reportsView.actionProtectDetail(product.product_name),
+      variant: "secondary" as const,
+    };
+  }
+  return {
+    label: copy.reportsView.actionMonitor,
+    detail: copy.reportsView.actionMonitorDetail(product.product_name),
+    variant: "outline" as const,
+  };
 }
 
 function PaymentMix({ story }: { story: BusinessStoryReport }) {
@@ -1057,7 +1023,7 @@ function PaymentMix({ story }: { story: BusinessStoryReport }) {
     accentClassName: "bg-kova-blue",
   }));
   return (
-    <DriverCard icon={CreditCard} title={copy.reportsView.paymentBreakdown}>
+    <div>
       <InteractiveRankChart
         title={copy.reportsView.paymentQuestion}
         insight={
@@ -1070,14 +1036,14 @@ function PaymentMix({ story }: { story: BusinessStoryReport }) {
         ariaLabel={copy.reportsView.paymentBreakdown}
         {...chartCopy()}
       />
-    </DriverCard>
+    </div>
   );
 }
 
 function OperationsSignals({ story }: { story: BusinessStoryReport }) {
   const signals = story.operational_signals;
   return (
-    <DriverCard icon={RotateCcw} title={copy.reportsView.operationsTitle}>
+    <div>
       {signals.length === 0 ? (
         <p className="rounded-lg border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
           {copy.reportsView.noOperationalSignals}
@@ -1092,7 +1058,28 @@ function OperationsSignals({ story }: { story: BusinessStoryReport }) {
           ))}
         </div>
       )}
-    </DriverCard>
+    </div>
+  );
+}
+
+function PaymentOperationsAnalysis({ story }: { story: BusinessStoryReport }) {
+  return (
+    <DecisionSection
+      icon={<CreditCard className="h-5 w-5 text-muted-foreground" />}
+      title={copy.reportsView.paymentOperationsTitle}
+      description={copy.reportsView.paymentOperationsDescription}
+    >
+      <div className="grid gap-6 xl:grid-cols-2">
+        <PaymentMix story={story} />
+        <div>
+          <div className="mb-4 flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">{copy.reportsView.operationsTitle}</h3>
+          </div>
+          <OperationsSignals story={story} />
+        </div>
+      </div>
+    </DecisionSection>
   );
 }
 
@@ -1109,45 +1096,40 @@ function EmployeeCoaching({ rows }: { rows: SalesByEmployeeRow[] }) {
     ],
     accentClassName: "bg-kova-blue",
   }));
+
+  if (rows.length <= 1) {
+    return (
+      <DecisionSection
+        icon={<Users className="h-5 w-5 text-muted-foreground" />}
+        title={copy.reportsView.employeePerformance}
+        description={copy.reportsView.employeeAnalysisDescription}
+      >
+        <p className="rounded-lg border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
+          {rows.length === 1
+            ? copy.reportsView.employeeSingleInsight(rows[0].display_name)
+            : copy.reportsView.noEmployeeSales}
+        </p>
+      </DecisionSection>
+    );
+  }
+
   return (
-    <DriverCard icon={Users} title={copy.reportsView.employeePerformance}>
+    <DecisionSection
+      icon={<Users className="h-5 w-5 text-muted-foreground" />}
+      title={copy.reportsView.employeePerformance}
+      description={copy.reportsView.employeeAnalysisDescription}
+    >
       <InteractiveBarChart
         title={copy.reportsView.employeeQuestion}
         insight={
-          rows.length > 1 && topEmployee
-            ? copy.reportsView.employeeStoryInsight(topEmployee.display_name)
-            : rows.length === 1
-              ? copy.reportsView.employeeSingleInsight(rows[0].display_name)
-              : undefined
+          topEmployee ? copy.reportsView.employeeStoryInsight(topEmployee.display_name) : undefined
         }
         rows={chartRows}
         emptyLabel={copy.reportsView.noEmployeeSales}
         ariaLabel={copy.reportsView.employeePerformance}
         {...chartCopy()}
       />
-    </DriverCard>
-  );
-}
-
-function DriverCard({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Icon className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>{title}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
-    </Card>
+    </DecisionSection>
   );
 }
 
@@ -1249,29 +1231,4 @@ function executiveSummaryCopy(story: BusinessStoryReport): string {
       ? copy.reportsView.executiveCleanOps
       : copy.reportsView.executiveOpsRisk,
   ].filter(Boolean).join(" ");
-}
-
-function dailyInsight(story: BusinessStoryReport): string {
-  const best = bestDayRow(story);
-  if (!best) return copy.reportsView.dailyInsightEmpty;
-  if (story.sales_by_day.length < 2) {
-    return copy.reportsView.dailyInsightSingle(dateLabel(best.date), formatMoney(best.net_sales));
-  }
-  return copy.reportsView.dailyInsightBest(dateLabel(best.date), best.sales_share_pct);
-}
-
-function daypartInsight(story: BusinessStoryReport): string {
-  const best = bestDaypartRow(story);
-  if (!best) return copy.reportsView.daypartInsightEmpty;
-  return copy.reportsView.daypartInsightBest(
-    best.label,
-    formatMoney(best.net_sales),
-    best.order_count,
-    best.sales_share_pct,
-  );
-}
-
-function peakHourInsight(story: BusinessStoryReport): string {
-  if (!story.peak_hour) return copy.reportsView.peakHourEmpty;
-  return copy.reportsView.peakHourStory(story.peak_hour.label);
 }

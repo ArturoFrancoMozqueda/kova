@@ -25,6 +25,10 @@ Clearer reports increase retention by making the subscription feel like operatio
   recommended actions.
 - Rank recommendations by operational urgency: restock risks first, then backend story actions,
   then secondary operational prompts.
+- Keep detailed KPIs and charts available but collapsed behind a single analysis disclosure so the
+  first report view does not feel overwhelming.
+- Prefer decision-oriented analysis over metric cards: time patterns, product/inventory priority,
+  payment/operations risk, and employee comparison only when there is enough staff data.
 - Keep all empty states honest; do not show demo or fabricated insights.
 
 ## Data Model Impact
@@ -55,5 +59,10 @@ No offline behavior changes.
 - If a top-selling product is low in stock, the report recommends restocking that product.
 - If velocity indicates a product may run out soon, the report shows a risk recommendation.
 - If multiple recommendations exist, the UI shows no more than three so the owner is not overwhelmed.
+- If there are sales, the first report view shows summary and decisions first; detailed KPI/chart
+  sections are available after opening the detailed analysis control.
+- Detailed analysis avoids duplicate KPI cards and organizes charts around business questions:
+  when to prepare, what to restock/protect, how payments affect operations, and whether employee
+  comparison is meaningful.
 - If there are no sales, the report stays empty/honest and does not invent comparisons.
 - Existing tests, typecheck, lint, and build pass.
