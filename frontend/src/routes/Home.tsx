@@ -976,12 +976,12 @@ function Footer() {
   return (
     <footer style={{ padding: "80px 32px 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: 48 }} className="lp-footer-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 48, alignItems: "start" }} className="lp-footer-grid">
           <div>
             <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>
               <Logo size={24} circuitColor="currentColor" wordmarkColor="currentColor" coreColor="var(--accent)" />
             </span>
-            <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 280, marginTop: 16, lineHeight: 1.55 }}>
+            <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 320, marginTop: 16, lineHeight: 1.55 }}>
               Punto de venta multi-tenant, offline-first, para PyMEs en México.
             </p>
             <div style={{ marginTop: 24, display: "flex", gap: 6, alignItems: "center" }}>
@@ -989,43 +989,30 @@ function Footer() {
               <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Todos los sistemas operando con normalidad</span>
             </div>
           </div>
-          <FooterCol title="Producto" links={["Punto de venta", "Catálogo", "Inventario", "Reportes", "PWA"]} />
-          <FooterCol title="Soluciones" links={["Cafeterías", "Restaurantes", "Tiendas", "Panaderías", "Food trucks"]} />
-          <FooterCol title="Compañía" links={["Sobre kova", "Blog", "Empleo", "Contacto"]} />
-          <FooterCol title="Recursos" links={["Documentación", "API", "Estatus", "Seguridad"]} />
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
+              Contacto
+            </div>
+            <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16, lineHeight: 1.55, maxWidth: 360 }}>
+              Si quieres una demo, reportar un problema o validar si Kova es para tu negocio, escríbenos directo.
+            </p>
+            <a
+              href="mailto:posprojectsupport@gmail.com"
+              style={{ display: "inline-flex", marginTop: 16, fontSize: 14, fontWeight: 500, color: "var(--page-fg)", textDecoration: "none", borderBottom: "1px solid var(--hairline-color)" }}
+            >
+              posprojectsupport@gmail.com
+            </a>
+          </div>
         </div>
         <div style={{ marginTop: 64, paddingTop: 24, borderTop: "0.5px solid var(--hairline-color)", display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-tertiary)", flexWrap: "wrap", gap: 16 }}>
           <span>© 2026 kova · hecho en México 🇲🇽</span>
-          <div style={{ display: "flex", gap: 24 }}>
-            <a href="#" style={footerLinkStyle}>Privacidad</a>
-            <a href="#" style={footerLinkStyle}>Términos</a>
-            <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>Soporte</a>
-          </div>
+          <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>Soporte</a>
         </div>
       </div>
     </footer>
   );
 }
 const footerLinkStyle: CSSProperties = { color: "var(--text-tertiary)", textDecoration: "none" };
-
-function FooterCol({ title, links }: { title: string; links: string[] }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>{title}</div>
-      <ul style={{ listStyle: "none", padding: 0, margin: "16px 0 0", display: "flex", flexDirection: "column", gap: 10 }}>
-        {links.map((l) => (
-          <li key={l}>
-            <a href="#" style={{ fontSize: 14, color: "var(--text-muted)", textDecoration: "none", transition: "color 150ms" }}
-               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--page-fg)")}
-               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
-              {l}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 /* ─── Responsive helper ──────────────────────────────────────────────────── */
 const RESPONSIVE_STYLES = `

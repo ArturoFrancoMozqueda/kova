@@ -56,8 +56,10 @@ shipped and reviewed. Highlights:
 - [x] Mezcla de pagos / Productos top empty states collapse into a single explainer when both are empty
   (DashboardView middle row).
 - Dashboard comparison label becomes dynamic (vs ayer / vs semana / vs mes).
-- Hide `Pago dividido` toggle behind an "Opciones avanzadas" disclosure until a payment method is
-  chosen.
+- [x] Hide `Pago dividido` toggle behind an "Opciones avanzadas" disclosure
+  ([RegisterView.tsx](../frontend/src/register/RegisterView.tsx)). Disclosure auto-opens when split is active.
+- [x] Landing footer: replace 4 columns of dead `href="#"` links with a single honest contact card
+  pointing to `posprojectsupport@gmail.com` ([Home.tsx](../frontend/src/routes/Home.tsx)). Sprint 3 `S3-07`.
 - Employees role select uses the styled `Select` primitive instead of the native one.
 - [x] Time-zone-aware greeting (`getGreeting()`) — now reads tenant timezone from
   `BusinessProfile.timezone`; `todayLabel` follows the same zone.

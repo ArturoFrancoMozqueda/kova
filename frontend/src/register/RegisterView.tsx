@@ -758,18 +758,6 @@ export default function RegisterView() {
                   </div>
                 )}
 
-                {/* Split toggle */}
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={splitPaymentsEnabled}
-                    onChange={(event) => toggleSplitPayments(event.target.checked)}
-                    className="rounded border-input text-primary focus:ring-primary"
-                  />
-                  <SplitSquareHorizontal className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{copy.register.splitPayment}</span>
-                </label>
-
                 {splitPaymentsEnabled ? (
                   <div className="space-y-3">
                     {splitPayments.map((payment, index) => (
@@ -938,6 +926,31 @@ export default function RegisterView() {
 
                   </div>
                 )}
+
+                {/* Advanced options — split payment lives behind a disclosure */}
+                <details
+                  className="rounded-[var(--radius-md)] border border-[color:var(--kova-border)] px-3 py-2 text-sm [&[open]>summary]:mb-2"
+                  open={splitPaymentsEnabled}
+                >
+                  <summary className="cursor-pointer list-none text-sm font-medium text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)] [&::-webkit-details-marker]:hidden">
+                    <span className="inline-flex items-center gap-2">
+                      <SplitSquareHorizontal className="h-4 w-4" />
+                      {copy.register.advancedOptions}
+                    </span>
+                  </summary>
+                  <label className="flex items-start gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={splitPaymentsEnabled}
+                      onChange={(event) => toggleSplitPayments(event.target.checked)}
+                      className="mt-0.5 rounded border-input text-primary focus:ring-primary"
+                    />
+                    <span className="space-y-0.5">
+                      <span className="block text-sm font-medium">{copy.register.splitPayment}</span>
+                      <span className="block text-xs text-muted-foreground">{copy.register.splitPaymentHint}</span>
+                    </span>
+                  </label>
+                </details>
 
                 {/* Submit */}
                 <Button

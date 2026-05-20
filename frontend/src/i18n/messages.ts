@@ -797,6 +797,8 @@ export const copy = {
     bankTransfer: "Transferencia",
     manualCard: "Tarjeta manual",
     splitPayment: "Pago dividido",
+    advancedOptions: "Opciones avanzadas",
+    splitPaymentHint: "Combina efectivo, transferencia y tarjeta en una misma venta.",
     addPayment: "Agregar pago",
     removePayment: "Quitar pago",
     paymentNumber: (n: number) => `Pago ${n}`,
