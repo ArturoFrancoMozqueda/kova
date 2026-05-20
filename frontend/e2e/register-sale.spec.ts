@@ -115,6 +115,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
   await page.goto("/register");
   await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
   await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByText(/opciones avanzadas/i).click();
   await page.getByLabel(/pago dividido/i).check();
   await page.getByLabel(/^monto$/i).first().fill("10.00");
   await page.getByLabel(/efectivo recibido/i).fill("10.00");
