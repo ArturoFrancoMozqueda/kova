@@ -1,4 +1,12 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   CATALOG_CREATE_PERMISSION,
@@ -19,12 +27,14 @@ import {
   deactivateModifierGroup,
   deactivateModifierOption,
   deactivateProduct,
+  deleteProductImage,
   listCategories,
   listModifierGroups,
   listProducts,
   setProductModifierGroups,
   updateCategory,
   updateProduct,
+  uploadProductImage,
 } from "./api";
 import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
@@ -54,6 +64,8 @@ import {
   Loader2,
   BarChart2,
   Search,
+  ImagePlus,
+  X as XIcon,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { cn } from "@/lib/utils";
@@ -493,6 +505,18 @@ export default function CatalogView() {
                     )}
                     onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}
                   >
+                    <div className="mb-3 flex aspect-video w-full items-center justify-center overflow-hidden rounded-md bg-[color:var(--kova-mist)]">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={copy.catalog.productImageAlt(product.name)}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <Package className="h-8 w-8 text-muted-foreground/60" />
+                      )}
+                    </div>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-sm truncate">{product.name}</h3>
@@ -656,8 +680,10 @@ export default function CatalogView() {
             onSubmit={async (values) => {
               setPending(true);
               try {
+                let productId: string;
                 if (modal.type === "product-create") {
                   const product = await createProduct(values);
+                  productId = product.id;
                   await setProductModifierGroups(product.id, values.modifier_group_ids);
                   trackFunnelEventOnce("first_product", "first_product_created", {
                     product_id: product.id,
@@ -665,8 +691,23 @@ export default function CatalogView() {
                   showNotice(copy.catalog.productCreated);
                 } else {
                   await updateProduct(modal.product.id, values);
+                  productId = modal.product.id;
                   await setProductModifierGroups(modal.product.id, values.modifier_group_ids);
                   showNotice(copy.catalog.productUpdated);
+                }
+                if (values.image_remove && modal.type === "product-edit") {
+                  try {
+                    await deleteProductImage(productId);
+                  } catch {
+                    showNotice(copy.catalog.productImageUploadError, "error");
+                  }
+                }
+                if (values.image_file) {
+                  try {
+                    await uploadProductImage(productId, values.image_file);
+                  } catch {
+                    showNotice(copy.catalog.productImageUploadError, "error");
+                  }
                 }
                 setModal(null);
                 await load();
@@ -986,7 +1027,12 @@ type ProductFormValues = {
   track_inventory: boolean;
   low_stock_threshold: number | null;
   modifier_group_ids: string[];
+  image_file: File | null;
+  image_remove: boolean;
 };
+
+const PRODUCT_IMAGE_MAX_BYTES = 1024 * 1024;
+const PRODUCT_IMAGE_ALLOWED = ["image/png", "image/jpeg", "image/webp"];
 
 function ProductForm({
   initial,
@@ -1023,11 +1069,39 @@ function ProductForm({
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
     initial?.modifier_groups?.map((g) => g.id) ?? [],
   );
+  const { toast } = useToast();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(initial?.image_url ?? null);
+  const [imageRemoved, setImageRemoved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleGroup = (groupId: string) => {
     setSelectedGroupIds((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId],
     );
+  };
+
+  const handleImagePick = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file) return;
+    if (!PRODUCT_IMAGE_ALLOWED.includes(file.type)) {
+      toast(copy.catalog.productImageInvalidType, "error");
+      return;
+    }
+    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+      toast(copy.catalog.productImageTooLarge, "error");
+      return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setImageRemoved(false);
+  };
+
+  const handleImageRemove = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageRemoved(true);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -1041,11 +1115,57 @@ function ProductForm({
       track_inventory: trackInventory,
       low_stock_threshold: trackInventory && threshold ? Number(threshold) : null,
       modifier_group_ids: selectedGroupIds,
+      image_file: imageFile,
+      image_remove: imageRemoved && !imageFile,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} aria-label="Product form" className="space-y-4">
+      <div className="space-y-2">
+        <Label>{copy.catalog.productImage}</Label>
+        <div className="flex items-start gap-3">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-[color:var(--kova-mist)]">
+            {imagePreview ? (
+              <img src={imagePreview} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <ImagePlus className="h-6 w-6 text-muted-foreground/60" />
+            )}
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImagePlus className="mr-1 h-4 w-4" />
+                {copy.catalog.productImageUpload}
+              </Button>
+              {imagePreview && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleImageRemove}
+                >
+                  <XIcon className="mr-1 h-4 w-4" />
+                  {copy.catalog.productImageRemove}
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">{copy.catalog.productImageHint}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handleImagePick}
+          />
+        </div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="prod-name">{copy.catalog.productName}</Label>

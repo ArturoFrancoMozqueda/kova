@@ -38,6 +38,7 @@ export type Product = {
   price_amount: string;
   track_inventory: boolean;
   low_stock_threshold: number | null;
+  image_url: string | null;
   is_active: boolean;
   modifier_groups: ModifierGroup[];
 };

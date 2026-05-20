@@ -90,6 +90,31 @@ export function deactivateProduct(id: string): Promise<Product> {
   });
 }
 
+export async function uploadProductImage(
+  productId: string,
+  file: File,
+): Promise<{ image_url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(`/api/v1/catalog/products/${productId}/image`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new ApiError(await response.text(), response.status);
+  }
+  return (await response.json()) as { image_url: string };
+}
+
+export async function deleteProductImage(productId: string): Promise<void> {
+  const response = await fetch(`/api/v1/catalog/products/${productId}/image`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new ApiError(await response.text(), response.status);
+  }
+}
+
 // ─── Modifier groups ─────────────────────────────────────────────────────────
 
 export function listModifierGroups(): Promise<ModifierGroup[]> {

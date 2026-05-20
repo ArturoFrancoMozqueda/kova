@@ -65,5 +65,6 @@ class ProductResponse(BaseModel):
     price_amount: Decimal
     track_inventory: bool
     low_stock_threshold: int | None
+    image_url: str | None = None
     is_active: bool
     modifier_groups: list = Field(default_factory=list)
