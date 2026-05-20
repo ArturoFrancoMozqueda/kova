@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,9 +24,11 @@ import {
   type Employee,
   type Invitation,
 } from "./api";
+import { cn } from "@/lib/utils";
 
 type LoadState = "loading" | "ready" | "error";
 type Role = "owner" | "manager" | "cashier";
+type SettingsTab = "profile" | "receipt" | "employees" | "advanced";
 
 const roleOptions: { value: Role; label: string }[] = [
   { value: "owner", label: copy.settings.roleOwner },
@@ -56,11 +59,26 @@ const timezoneOptions = [
   { value: "America/Bahia_Banderas", label: "Bahía de Banderas (Nayarit)" },
 ];
 
+const settingsTabs: { id: SettingsTab; label: string; to: string }[] = [
+  { id: "profile", label: copy.settings.tabProfile, to: "/settings/business-profile" },
+  { id: "receipt", label: copy.settings.tabReceipt, to: "/settings/receipt" },
+  { id: "employees", label: copy.settings.tabEmployees, to: "/settings/employees" },
+  { id: "advanced", label: copy.settings.tabAdvanced, to: "/settings/advanced" },
+];
+
+function tabFromPath(pathname: string): SettingsTab {
+  if (pathname.endsWith("/receipt")) return "receipt";
+  if (pathname.endsWith("/employees")) return "employees";
+  if (pathname.endsWith("/advanced")) return "advanced";
+  return "profile";
+}
+
 function roleLabel(role: Role | string): string {
   return roleOptions.find((option) => option.value === role)?.label ?? role;
 }
 
 export default function SettingsView() {
+  const location = useLocation();
   const { state } = useAuth();
   const { toast } = useToast();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
@@ -85,6 +103,7 @@ export default function SettingsView() {
     email: "",
     role: "cashier",
   });
+  const activeTab = tabFromPath(location.pathname);
 
   const load = useCallback(async () => {
     setLoadState("loading");
@@ -185,6 +204,27 @@ export default function SettingsView() {
         <p className="text-sm text-muted-foreground">{copy.settings.subtitle}</p>
       </div>
 
+      <nav
+        aria-label={copy.settings.tabsLabel}
+        className="flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border bg-card p-1"
+      >
+        {settingsTabs.map((tab) => (
+          <Link
+            key={tab.id}
+            to={tab.to}
+            className={cn(
+              "shrink-0 rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors",
+              activeTab === tab.id
+                ? "bg-kova-ink text-white"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+
+      {activeTab === "profile" && (
       <Card>
         <CardHeader><CardTitle>{copy.settings.businessProfile}</CardTitle></CardHeader>
         <CardContent>
@@ -192,29 +232,13 @@ export default function SettingsView() {
             <Field label={copy.settings.publicName} value={business.public_name} onChange={(value) => setBusiness((x) => ({ ...x, public_name: value }))} required />
             <Field label={copy.settings.supportEmail} value={business.support_email} onChange={(value) => setBusiness((x) => ({ ...x, support_email: value }))} />
             <Field label={copy.settings.supportPhone} value={business.support_phone} onChange={(value) => setBusiness((x) => ({ ...x, support_phone: value }))} />
-            <SelectField
-              label={copy.settings.timezone}
-              value={business.timezone}
-              options={timezoneOptions}
-              onChange={(value) => setBusiness((x) => ({ ...x, timezone: value }))}
-            />
-            <SelectField
-              label={copy.settings.locale}
-              value={business.locale}
-              options={localeOptions}
-              onChange={(value) => setBusiness((x) => ({ ...x, locale: value }))}
-            />
-            <SelectField
-              label={copy.settings.currency}
-              value={business.currency}
-              options={currencyOptions}
-              onChange={(value) => setBusiness((x) => ({ ...x, currency: value }))}
-            />
             <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveBusiness}</Button>
           </form>
         </CardContent>
       </Card>
+      )}
 
+      {activeTab === "receipt" && (
       <Card>
         <CardHeader><CardTitle>{copy.settings.receiptSettings}</CardTitle></CardHeader>
         <CardContent>
@@ -230,7 +254,9 @@ export default function SettingsView() {
           </div>
         </CardContent>
       </Card>
+      )}
 
+      {activeTab === "employees" && (
       <Card>
         <CardHeader><CardTitle>{copy.settings.employees}</CardTitle></CardHeader>
         <CardContent className="space-y-5">
@@ -279,6 +305,41 @@ export default function SettingsView() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {activeTab === "advanced" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{copy.settings.advanced}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitBusiness}>
+              <SelectField
+                label={copy.settings.timezone}
+                value={business.timezone}
+                options={timezoneOptions}
+                onChange={(value) => setBusiness((x) => ({ ...x, timezone: value }))}
+              />
+              <SelectField
+                label={copy.settings.locale}
+                value={business.locale}
+                options={localeOptions}
+                onChange={(value) => setBusiness((x) => ({ ...x, locale: value }))}
+              />
+              <SelectField
+                label={copy.settings.currency}
+                value={business.currency}
+                options={currencyOptions}
+                onChange={(value) => setBusiness((x) => ({ ...x, currency: value }))}
+              />
+              <p className="text-sm leading-6 text-muted-foreground sm:col-span-2">
+                {copy.settings.advancedHint}
+              </p>
+              <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveBusiness}</Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }
