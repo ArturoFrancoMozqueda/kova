@@ -82,3 +82,63 @@ test("settings receipt logo upload updates the preview", async ({ page }) => {
   await expect(page.locator('img[alt="Logo del recibo"]').first()).toBeVisible();
   await expect(page.getByText(/logo del recibo actualizado/i)).toBeVisible();
 });
+
+test("settings employees explains role permissions before inviting staff", async ({ page }) => {
+  await mockAuthAsOwner(page);
+
+  await page.route("**/api/v1/settings/business-profile", async (route) => {
+    await route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        public_name: "Bakery",
+        support_email: null,
+        support_phone: null,
+        timezone: "America/Mexico_City",
+        locale: "es-MX",
+        currency: "MXN",
+      },
+    });
+  });
+  await page.route("**/api/v1/settings/receipt", async (route) => {
+    await route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        receipt_business_name: "Bakery",
+        footer: null,
+        tax_contact_text: null,
+        logo_url: null,
+      },
+    });
+  });
+  await page.route("**/api/v1/employees", async (route) => {
+    await route.fulfill({
+      json: [
+        {
+          membership_id: "membership-1",
+          email: "cashier@bakery.com",
+          role: "cashier",
+          is_active: true,
+        },
+      ],
+    });
+  });
+  await page.route("**/api/v1/employees/invitations", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: {
+        subscription: null,
+        access: { status: "trial_active", reason: "trial_active" },
+      },
+    });
+  });
+
+  await page.goto("/settings/employees");
+
+  await expect(page.getByRole("heading", { name: /empleados/i })).toBeVisible();
+  await expect(page.getByText(/control total/i)).toBeVisible();
+  await expect(page.getByText(/opera el negocio/i)).toBeVisible();
+  await expect(page.getByText(/uso diario/i).first()).toBeVisible();
+  await expect(page.getByText("cashier@bakery.com")).toBeVisible();
+});

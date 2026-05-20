@@ -93,6 +93,20 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   expect(report.hasOverflow, JSON.stringify(report, null, 2)).toBe(false);
 }
 
+async function expectMobileSidebarClosed(page: import("@playwright/test").Page) {
+  await page.waitForFunction(() => Boolean(document.querySelector("aside, [role='complementary']")));
+  const sidebar = await page.evaluate(() => {
+    const aside = document.querySelector("aside, [role='complementary']");
+    const rect = aside?.getBoundingClientRect();
+    return rect
+      ? { left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) }
+      : null;
+  });
+
+  expect(sidebar, "App shell sidebar should exist").not.toBeNull();
+  expect(sidebar?.right, JSON.stringify(sidebar, null, 2)).toBeLessThanOrEqual(1);
+}
+
 test("public landing fits common phone and tablet widths", async ({ page }) => {
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
 
@@ -173,6 +187,9 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
     await page.goto(path);
     if (path === "/dashboard") {
       await expect(page.getByText("Primer producto listo")).toBeVisible();
+    }
+    if (path !== "/settings/billing") {
+      await expectMobileSidebarClosed(page);
     }
     await expectNoHorizontalOverflow(page);
   }
