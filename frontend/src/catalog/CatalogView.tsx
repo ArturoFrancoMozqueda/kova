@@ -1,4 +1,5 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   CATALOG_CREATE_PERMISSION,
   CATALOG_DELETE_PERMISSION,
@@ -65,7 +66,7 @@ type Modal =
   | null
   | { type: "category-create" }
   | { type: "category-edit"; category: Category }
-  | { type: "product-create" }
+  | { type: "product-create"; defaultTrackInventory?: boolean }
   | { type: "product-edit"; product: Product };
 
 export default function CatalogView() {
@@ -76,6 +77,8 @@ export default function CatalogView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
+  const [searchParams] = useSearchParams();
+  const handledSetupParam = useRef<string | null>(null);
   const [pending, setPending] = useState(false);
   const { toast } = useToast();
 
@@ -98,6 +101,21 @@ export default function CatalogView() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!canCreate || loadState.status !== "ready" || modal) return;
+    const setupParam = searchParams.get("new") === "product"
+      ? "new=product"
+      : searchParams.get("inventory") === "activate"
+        ? "inventory=activate"
+        : null;
+    if (!setupParam || handledSetupParam.current === setupParam) return;
+    handledSetupParam.current = setupParam;
+    setModal({
+      type: "product-create",
+      defaultTrackInventory: setupParam === "inventory=activate",
+    });
+  }, [canCreate, loadState.status, modal, searchParams]);
 
   const showNotice = (msg: string, variant: "success" | "error" = "success") => {
     toast(msg, variant);
@@ -215,6 +233,7 @@ export default function CatalogView() {
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {([
+              { preset: "cafe" as PresetName, label: copy.onboarding.presetCafe, desc: copy.onboarding.presetCafeDesc },
               { preset: "bakery" as PresetName, label: copy.onboarding.presetBakery, desc: copy.onboarding.presetBakeryDesc },
               { preset: "retail" as PresetName, label: copy.onboarding.presetRetail, desc: copy.onboarding.presetRetailDesc },
             ] as const).map(({ preset, label, desc }) => (
@@ -229,12 +248,6 @@ export default function CatalogView() {
                 <p className="text-xs text-muted-foreground mt-1">{desc}</p>
               </button>
             ))}
-            <button
-              type="button"
-              disabled={presetApplying}
-              onClick={() => void handleApplyPreset("bakery").then(() => {/* no-op, user dismissed */}).catch(() => undefined)}
-              className="hidden" // blank option is handled by not clicking any preset
-            />
             {/* Blank / dismiss */}
             <div className="flex flex-col rounded-xl border-2 border-dashed border-border bg-background p-4 text-left">
               <p className="font-semibold text-sm text-muted-foreground">{copy.onboarding.presetBlank}</p>
@@ -410,7 +423,7 @@ export default function CatalogView() {
                       size="sm"
                       variant="outline"
                       disabled={presetApplying}
-                      onClick={() => void handleApplyPreset("bakery")}
+                      onClick={() => void handleApplyPreset("cafe")}
                     >
                       <Sparkles className="h-4 w-4" />
                       {copy.catalog.emptyProductsPreset}
@@ -583,6 +596,7 @@ export default function CatalogView() {
         {(modal?.type === "product-create" || modal?.type === "product-edit") && (
           <ProductForm
             initial={modal.type === "product-edit" ? modal.product : undefined}
+            defaultTrackInventory={modal.type === "product-create" ? modal.defaultTrackInventory : undefined}
             categories={categories}
             availableModifierGroups={loadState.status === "ready" ? loadState.modifierGroups : []}
             defaultCategoryId={selectedCategoryId}
@@ -925,6 +939,7 @@ type ProductFormValues = {
 
 function ProductForm({
   initial,
+  defaultTrackInventory = false,
   categories,
   availableModifierGroups,
   defaultCategoryId,
@@ -934,6 +949,7 @@ function ProductForm({
   onDeactivate,
 }: {
   initial?: Product;
+  defaultTrackInventory?: boolean;
   categories: Category[];
   availableModifierGroups: ModifierGroup[];
   defaultCategoryId: string | null;
@@ -949,9 +965,9 @@ function ProductForm({
   const [categoryId, setCategoryId] = useState(
     initial?.category_id ?? defaultCategoryId ?? "",
   );
-  const [trackInventory, setTrackInventory] = useState(initial?.track_inventory ?? false);
+  const [trackInventory, setTrackInventory] = useState(initial?.track_inventory ?? defaultTrackInventory);
   const [threshold, setThreshold] = useState(
-    initial?.low_stock_threshold != null ? String(initial.low_stock_threshold) : "",
+    initial?.low_stock_threshold != null ? String(initial.low_stock_threshold) : defaultTrackInventory ? "5" : "",
   );
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(
     initial?.modifier_groups?.map((g) => g.id) ?? [],

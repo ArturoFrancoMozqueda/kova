@@ -115,7 +115,30 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
               {mode === "signup" && (
                 <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
                   <p>{copy.auth.signupTrustLine}</p>
-                  <p className="mt-1">{copy.auth.signupLegalLine}</p>
+                  <p className="mt-1">
+                    {copy.auth.signupLegalPrefix}{" "}
+                    <a
+                      href="mailto:posprojectsupport@gmail.com?subject=Privacidad%20Kova"
+                      className="font-medium text-kova-blue hover:underline"
+                    >
+                      {copy.auth.privacy}
+                    </a>
+                    {" "}y{" "}
+                    <a
+                      href="mailto:posprojectsupport@gmail.com?subject=Terminos%20Kova"
+                      className="font-medium text-kova-blue hover:underline"
+                    >
+                      {copy.auth.terms}
+                    </a>
+                    . {copy.auth.signupSupportLine}{" "}
+                    <a
+                      href="mailto:posprojectsupport@gmail.com"
+                      className="font-medium text-kova-blue hover:underline"
+                    >
+                      posprojectsupport@gmail.com
+                    </a>
+                    .
+                  </p>
                 </div>
               )}
 

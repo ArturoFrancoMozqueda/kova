@@ -1,4 +1,4 @@
-export type PresetName = "bakery" | "retail";
+export type PresetName = "cafe" | "bakery" | "retail";
 
 export type PresetApplyResponse = {
   preset: string;

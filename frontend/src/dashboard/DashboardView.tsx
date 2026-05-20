@@ -288,6 +288,65 @@ function OnboardingChecklist({
   );
 }
 
+function FirstValueMilestone({ onboarding }: { onboarding: OnboardingState | null }) {
+  if (!onboarding) return null;
+  const completed = new Set(
+    onboarding.steps.filter((step) => step.completed).map((step) => step.key),
+  );
+  const milestones = [
+    {
+      key: "first_sale",
+      title: copy.dashboard.milestoneFirstSaleTitle,
+      body: copy.dashboard.milestoneFirstSaleBody,
+      cta: copy.dashboard.milestoneFirstSaleCta,
+      to: "/reports",
+    },
+    {
+      key: "open_shift",
+      title: copy.dashboard.milestoneShiftTitle,
+      body: copy.dashboard.milestoneShiftBody,
+      cta: copy.dashboard.milestoneShiftCta,
+      to: "/register",
+    },
+    {
+      key: "inventory",
+      title: copy.dashboard.milestoneInventoryTitle,
+      body: copy.dashboard.milestoneInventoryBody,
+      cta: copy.dashboard.milestoneInventoryCta,
+      to: "/shifts",
+    },
+    {
+      key: "first_product",
+      title: copy.dashboard.milestoneProductTitle,
+      body: copy.dashboard.milestoneProductBody,
+      cta: copy.dashboard.milestoneProductCta,
+      to: "/catalog?inventory=activate",
+    },
+  ];
+  const milestone = milestones.find((item) => completed.has(item.key));
+  if (!milestone) return null;
+
+  return (
+    <Card className="border-kova-growth/20 bg-kova-growth/[0.04]">
+      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
+          <CheckCircle2 className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{milestone.title}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{milestone.body}</p>
+        </div>
+        <Link to={milestone.to} className="shrink-0">
+          <Button size="sm" variant="outline">
+            {milestone.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
 const kpiCards = [
   { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "text-kova-growth bg-kova-growth/10" },
   { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "text-kova-blue bg-kova-blue/10" },
@@ -439,6 +498,8 @@ export default function DashboardView() {
             hasActiveSubscription={loadState.hasActiveSubscription}
             onboarding={loadState.onboarding}
           />
+
+          <FirstValueMilestone onboarding={loadState.onboarding} />
 
           {loadState.lowStockCount > 0 && (
             <Link
