@@ -24,6 +24,7 @@ import { LogoMark } from "@/components/brand/Logo";
 import { BillingBanner } from "@/billing/BillingBanner";
 import { TrialChip } from "@/billing/TrialChip";
 import { formatTenantName } from "@/lib/formatTenantName";
+import { FirstUseTour } from "@/onboarding/FirstUseTour";
 import { flushFunnelEvents } from "@/telemetry/funnel";
 
 type NavItem = {
@@ -219,6 +220,7 @@ export default function AppShell() {
           <BillingBanner />
           <Outlet />
         </div>
+        <FirstUseTour />
 
         {/* Bottom navigation — mobile only */}
         <nav
