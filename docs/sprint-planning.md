@@ -692,17 +692,17 @@ User/business outcome: A cafe operator can sell during a busy day, while the own
 catalog, employees, and inventory without guessing.
 
 Tasks:
-- [ ] Added from Kova Product/UX Audit: Keep split payment behind advanced options until a cart exists
+- [x] Added from Kova Product/UX Audit: Keep split payment behind advanced options until a cart exists
   and payment context makes it useful.
-- [ ] Added from Kova Product/UX Audit: Reduce register empty-state clutter by hiding payment controls
+- [x] Added from Kova Product/UX Audit: Reduce register empty-state clutter by hiding payment controls
   until the cart has items or showing them in a disabled instructional state.
-- [ ] Added from Kova Product/UX Audit: Localize employee roles and explain permissions in Settings.
-- [ ] Added from Kova Product/UX Audit: Move employee management into clearer settings tabs or a
+- [x] Added from Kova Product/UX Audit: Localize employee roles and explain permissions in Settings.
+- [x] Added from Kova Product/UX Audit: Move employee management into clearer settings tabs or a
   dedicated employee section.
-- [ ] Added from Kova Product/UX Audit: Replace production raw timezone/language/currency/logo URL
+- [x] Added from Kova Product/UX Audit: Replace production raw timezone/language/currency/logo URL
   controls with polished selects/upload if those changes are already complete locally.
 - [ ] Added from Kova Product/UX Audit: Add search/filter/sort QA for products, orders, and inventory.
-- [ ] Added from Kova Product/UX Audit: Fix mobile navigation default state and remove duplicated nav
+- [x] Added from Kova Product/UX Audit: Fix mobile navigation default state and remove duplicated nav
   surfaces during operational tasks.
 
 Acceptance criteria:

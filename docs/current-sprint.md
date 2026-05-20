@@ -14,8 +14,8 @@ Last updated: 2026-05-20
 
 Kova Product/UX Audit execution.
 
-Sprint 1 is mostly complete. Sprint 2 is functionally complete. The next recommended execution target
-is Sprint 3: POS, Products, Employees, and Inventory Usability.
+Sprint 1 is mostly complete. Sprint 2 is functionally complete. Sprint 3 is now in progress with the
+highest-risk register, employee, and mobile navigation clarity items implemented.
 
 ## Completed From Kova Audit Sprint 1: Trust, Clarity, and Conversion
 
@@ -72,18 +72,42 @@ is Sprint 3: POS, Products, Employees, and Inventory Usability.
       (183 passed, 1 skipped)
 - [x] Diff hygiene: `git diff --check`
 
+## Sprint 3 Verification Completed 2026-05-20
+
+- [x] Frontend typecheck: `npm run typecheck`
+- [x] Frontend lint: `npm run lint`
+- [x] Frontend production build: `npm run build`
+- [x] Frontend unit tests: `npm test -- --run` (13 passed)
+- [x] Focused E2E:
+      `npm run test:e2e -- e2e/register-sale.spec.ts e2e/settings.spec.ts e2e/mobile.spec.ts --project=chromium`
+      (11 passed)
+- [x] Diff hygiene: `git diff --check`
+
+## Completed From Kova Audit Sprint 3: POS, Products, Employees, and Inventory Usability
+
+- [x] Register payment controls are replaced by an instructional state until the cart has products.
+- [x] Split payment remains behind advanced options and is hidden until a sale has cart context.
+- [x] Employee roles are localized and now include business-language permission descriptions.
+- [x] Employee management remains in the Settings employees tab, with clearer role guidance before
+      inviting staff.
+- [x] Mobile regression coverage now confirms the sidebar is closed on fresh mobile app loads while
+      bottom navigation remains available.
+- [x] Employee setup spec updated to reflect role-description UX acceptance criteria.
+
+## Left From Sprint 3
+
+- [ ] Add focused product/order/inventory search, filter, and sort QA beyond current mobile overflow
+      coverage.
+- [ ] Complete hands-on mobile QA for creating/editing products, activating inventory, and employee
+      invite/deactivate flows at 390px.
+- [ ] Decide whether employee management should graduate from Settings tab to a first-class nav item
+      after beta usage data.
+- [ ] Add BDD/E2E coverage for employee invitation submit, role change, and deactivation once the
+      invitation acceptance path is finalized.
+
 ## Next Sprint Recommendation
 
-Sprint 3: POS, Products, Employees, and Inventory Usability.
-
-Highest-priority remaining items:
-
-- [ ] Reduce register empty-state clutter by hiding payment controls until cart/products exist.
-- [ ] Keep split payment behind advanced options until cart exists and the user needs it.
-- [ ] Localize employee role labels and explain permissions in Settings.
-- [ ] Make employee management easier to find or move it into clearer settings tabs.
-- [ ] QA product/order/inventory search, filter, and sort behavior on mobile.
-- [ ] Confirm mobile navigation does not duplicate sidebar and bottom nav on fresh app load.
+Continue Sprint 3 verification and close the remaining operational QA items before starting Sprint 4.
 
 ## Carried Over From Older Production-Review Backlog
 
