@@ -1,4 +1,5 @@
 import { type Page, expect, test } from "@playwright/test";
+import { markFirstUseToursSeen } from "./helpers";
 
 async function mockAuthAs(page: Page, role: string) {
   await page.route("**/api/v1/auth/session", async (route) => {
@@ -46,6 +47,7 @@ async function mockCatalogApis(page: Page, catList = categories, prodList = prod
 }
 
 test("catalog page loads categories and products for owner", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
   await mockCatalogApis(page);
 
@@ -59,6 +61,7 @@ test("catalog page loads categories and products for owner", async ({ page }) =>
 });
 
 test("catalog page lets owner create a category", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
   let categoryList = [...categories];
   await page.route("**/api/v1/catalog/categories", async (route) => {
@@ -86,6 +89,7 @@ test("catalog page lets owner create a category", async ({ page }) => {
 });
 
 test("catalog page hides edit controls for cashier", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await mockAuthAs(page, "cashier");
   await mockCatalogApis(page);
 

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { markFirstUseToursSeen } from "./helpers";
 
 const CASHIER_SESSION = {
   authenticated: true,
@@ -45,14 +46,8 @@ function makeSyncResponse(orderId: string, total: string) {
   };
 }
 
-async function dismissFirstUseTour(page: import("@playwright/test").Page) {
-  const skipTour = page.getByRole("button", { name: /omitir/i });
-  if (await skipTour.isVisible().catch(() => false)) {
-    await skipTour.click();
-  }
-}
-
 test("cashier completes a cash sale from the register", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -78,7 +73,6 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
 
   await page.goto("/register");
   await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
-  await dismissFirstUseTour(page);
   await expect(page.getByText("Concha")).toBeVisible();
   await expect(page.getByText(/primero agrega productos al carrito/i)).toBeVisible();
   await expect(page.getByText(/opciones avanzadas/i)).toBeHidden();
@@ -98,6 +92,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
 });
 
 test("cashier completes a split cash and bank transfer sale", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -125,7 +120,6 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
 
   await page.goto("/register");
   await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
-  await dismissFirstUseTour(page);
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByText(/opciones avanzadas/i).click();
   await page.getByLabel(/pago dividido/i).check();
@@ -145,6 +139,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
 });
 
 test("sale is queued when sync endpoint is unavailable (offline)", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -158,7 +153,6 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
 
   await page.goto("/register");
   await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
-  await dismissFirstUseTour(page);
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await page.getByRole("button", { name: /^cobrar$/i }).click();

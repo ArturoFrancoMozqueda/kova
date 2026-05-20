@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { markFirstUseToursSeen } from "./helpers";
 
 const OWNER_SESSION = {
   authenticated: true,
@@ -45,6 +46,7 @@ const productNoModifiers = {
 };
 
 test("register shows modifier selection modal for products with modifier groups", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: OWNER_SESSION }),
   );
@@ -71,6 +73,7 @@ test("register shows modifier selection modal for products with modifier groups"
 });
 
 test("add to cart is disabled until required modifier is selected", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: OWNER_SESSION }),
   );
@@ -98,6 +101,7 @@ test("add to cart is disabled until required modifier is selected", async ({ pag
 });
 
 test("selecting a modifier adds it to cart with effective price", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: OWNER_SESSION }),
   );
@@ -142,6 +146,7 @@ test("selecting a modifier adds it to cart with effective price", async ({ page 
 });
 
 test("products without modifier groups are added directly to cart", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: OWNER_SESSION }),
   );

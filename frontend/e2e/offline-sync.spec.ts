@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { markFirstUseToursSeen } from "./helpers";
 
 const CASHIER_SESSION = {
   authenticated: true,
@@ -72,6 +73,7 @@ test("sync queue view shows empty state when no offline sales exist", async ({ p
 test("network-error sale appears in pending sync and clears after manual sync", async ({
   page,
 }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -121,6 +123,7 @@ test("network-error sale appears in pending sync and clears after manual sync", 
 });
 
 test("server-error sale appears in dead letter and succeeds on retry", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -172,6 +175,7 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
 });
 
 test("duplicate sync of same client_uuid returns same order (idempotency)", async ({ page }) => {
+  await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
