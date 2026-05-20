@@ -25,22 +25,32 @@ Feature: First sale onboarding
     Given an owner has no products
     When they create their first active product
     Then the checklist should mark catalog setup as completed on next load
+    And the dashboard should show a first-product success state with the inventory action
+
+  Scenario: Cafe preset is explicit and tenant scoped
+    Given an owner has an empty catalog
+    When they choose the cafeteria preset from catalog setup
+    Then cafe products are created only for that tenant
+    And no preset data appears before the owner chooses it
 
   Scenario: Activating inventory completes the optional inventory step
     Given an owner has at least one product
-    When they enable inventory tracking on any product
+    When they follow the checklist action for inventory setup
+    Then product creation should open with inventory tracking enabled
+    And when they save a tracked product
     Then the checklist should mark inventory activation as completed on next load
 
   Scenario: Opening a shift completes the shift step
     Given an owner has products and inventory
     When they open a shift on the register
     Then the checklist should mark shift opened as completed on next load
+    And the dashboard should show a shift-opened success state with the sale action
 
   Scenario: Completing the first sale marks first sale complete
     Given an owner has products and an open shift
     When they complete the first sale
     Then the checklist should mark first sale as completed on next load
-    And the dashboard should celebrate the milestone
+    And the dashboard should celebrate the milestone with a report action
 
   Scenario: Billing step reflects subscription or trial state
     Given an owner is still inside the signup trial

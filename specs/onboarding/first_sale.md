@@ -2,11 +2,11 @@
 
 ## Status
 
-Draft for Sprint PB-2.
+Implemented foundation; Sprint 2 refinement in progress.
 
 ## Problem
 
-A new bakery or small food retail tenant signs up but has no guided path from account creation to
+A new cafe, bakery, or small food retail tenant signs up but has no guided path from account creation to
 first real sale. Setup state (business profile, products, shift, sale, billing) is implicit and
 scattered across modules. Owners cannot tell what is left to do or where to do it.
 
@@ -34,6 +34,10 @@ scattered across modules. Owners cannot tell what is left to do or where to do i
   6. Complete the first sale.
   7. Review billing (start checkout or confirm trial status).
 - Each checklist step links directly to the action that completes it, not just the module.
+- Cafe tenants can explicitly load a tenant-scoped cafe preset with common products such as
+  americano, latte, cold brew, pan dulce, sandwiches, and bottled drinks.
+- The inventory checklist action opens product creation with inventory tracking enabled when the
+  tenant has no tracked products yet.
 - Completion is derived from real backend data wherever possible:
   - Business profile: tenant settings record exists and required fields are non-empty.
   - Receipt settings: receipt settings record exists.
@@ -44,6 +48,8 @@ scattered across modules. Owners cannot tell what is left to do or where to do i
   - Billing: subscription is active, trialing, or in past_due grace, OR user has opened the billing
     page at least once during the trial.
 - Steps not yet completed remain visible. Completed steps render in a collapsed/checked state.
+- After first product, inventory activation, shift opening, first sale, and first report, the UI
+  shows a positive milestone state with the next useful action.
 - The checklist must be permission-aware: cashiers see only steps they can act on; owners and
   managers see all steps.
 - The checklist must not block the rest of the dashboard.
@@ -117,9 +123,12 @@ scattered across modules. Owners cannot tell what is left to do or where to do i
 - A new tenant who has just verified email can identify the next setup action within 5 seconds of
   landing on the dashboard.
 - Completing each step from its checklist link advances the checklist on next load.
+- Completed first-value milestones show a success state instead of only changing a checkbox.
 - Reaching "First sale" complete also marks the tenant ready for billing.
 - The checklist works on mobile (390px) and respects cashier/manager/owner permissions.
 - No checklist step depends on data the backend cannot return.
+- Preset data is never inserted automatically; it is only created after the user explicitly clicks a
+  preset option.
 
 ## Test Matrix
 

@@ -11,7 +11,7 @@ Feature: Premium SaaS POS experience
   Scenario: Visitor sees one simple subscription plan
     Given a visitor is comparing pricing
     When they reach the pricing section
-    Then the app should show one Standard Plan at $199 MXN/month
+    Then the app should show one Standard Plan at $299 MXN/month
     And the app should not show multiple pricing tiers
 
   Scenario: User registers

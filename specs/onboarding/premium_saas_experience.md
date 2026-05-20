@@ -18,13 +18,13 @@ New visitors and beta tenants need to understand the product quickly, see one si
 
 - Increase visitor confidence and signup conversion.
 - Reduce first-sale setup friction.
-- Make the $199 MXN/month Standard Plan feel concrete and valuable.
+- Make the $299 MXN/month Standard Plan feel concrete and valuable.
 - Help owners understand performance from real operational data.
 
 ## Functional Requirements
 
 - The public landing page must explain what the POS does, who it is for, why it matters, and what is included in the Standard Plan.
-- The pricing section must show exactly one plan: Standard Plan, $199 MXN/month.
+- The pricing section must show exactly one plan: Standard Plan, $299 MXN/month.
 - The signup/login flow must preserve the clear path from account creation to subscription and setup.
 - The in-app setup experience must focus on currently supported POS core setup: products/catalog, inventory, active subscription, and first sale.
 - Logo and employee setup must not be presented as completed product flows until backend support exists.
@@ -89,7 +89,7 @@ No new mutations in this pass, so no new audit events.
 
 - Public root route presents a premium landing page instead of redirecting unauthenticated visitors to login.
 - Authenticated owners and managers still have a clear path to the dashboard.
-- Pricing is a single Standard Plan at $199 MXN/month.
+- Pricing is a single Standard Plan at $299 MXN/month.
 - Dashboard and reports use real report APIs only.
 - Dashboard setup recommendations are derived from real product, inventory, order, and billing state.
 - The UI does not claim logo or employee management is complete until backend support exists.
@@ -100,7 +100,7 @@ No new mutations in this pass, so no new audit events.
 | Scenario ID | Gherkin File | Scenario Name | Layer | Test File | Required By | Automation Status | Notes |
 |---|---|---|---|---|---|---|---|
 | SAAS-001 | `specs/onboarding/premium_saas_experience.feature` | Visitor understands the product | E2E | `frontend/e2e/app-shell.spec.ts` | Beta | Planned | Root route should be landing page. |
-| SAAS-002 | `specs/onboarding/premium_saas_experience.feature` | Visitor sees one plan | E2E | `frontend/e2e/app-shell.spec.ts` | Beta | Planned | Exactly one $199 MXN/month pricing section. |
+| SAAS-002 | `specs/onboarding/premium_saas_experience.feature` | Visitor sees one plan | E2E | `frontend/e2e/app-shell.spec.ts` | Beta | Planned | Exactly one $299 MXN/month pricing section. |
 | SAAS-003 | `specs/onboarding/premium_saas_experience.feature` | User registers | E2E | `frontend/e2e/auth.spec.ts` | Beta | Existing | Signup and verification. |
 | SAAS-004 | `specs/onboarding/premium_saas_experience.feature` | User pays | E2E | `frontend/e2e/billing.spec.ts` | Beta | Existing | Stripe Checkout redirect. |
 | SAAS-005 | `specs/onboarding/premium_saas_experience.feature` | User enters onboarding | Component/E2E | TBD | Beta | Planned | Derived setup checklist. |
