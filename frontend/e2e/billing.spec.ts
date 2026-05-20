@@ -2,7 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 const plan = {
   name: "Standard Plan",
-  amount_minor_units: 19900,
+  amount_minor_units: 29900,
   currency: "MXN",
   interval: "month",
 };
@@ -22,7 +22,7 @@ const activeSubscription = {
   status: "active",
   plan_name: "Standard Plan",
   currency: "MXN",
-  amount_minor_units: 19900,
+  amount_minor_units: 29900,
   current_period_start: "2026-05-01T00:00:00Z",
   current_period_end: "2026-06-01T00:00:00Z",
   trial_ends_at: null,
@@ -57,7 +57,7 @@ test("billing page displays the Standard Plan and active subscription", async ({
 
   await expect(page.getByRole("heading", { name: /facturaci[óo]n/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /plan standard/i })).toBeVisible();
-  await expect(page.getByText(/\$199\.00/).first()).toBeVisible();
+  await expect(page.getByText(/\$299\.00/).first()).toBeVisible();
   await expect(page.getByText(/activo/i).first()).toBeVisible();
 });
 

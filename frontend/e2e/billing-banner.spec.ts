@@ -14,7 +14,7 @@ const AUTHED_SESSION = {
 
 const STANDARD_PLAN = {
   name: "Standard Plan",
-  amount_minor_units: 19900,
+  amount_minor_units: 29900,
   currency: "MXN",
   interval: "month",
 };
