@@ -23,7 +23,7 @@ class Subscription(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="incomplete")
     plan_name: Mapped[str] = mapped_column(String(100), nullable=False, default="Standard Plan")
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="MXN")
-    amount_minor_units: Mapped[int] = mapped_column(Integer, nullable=False, default=19_900)
+    amount_minor_units: Mapped[int] = mapped_column(Integer, nullable=False, default=29_900)
     current_period_start: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

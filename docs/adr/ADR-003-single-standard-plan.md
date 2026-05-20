@@ -1,4 +1,4 @@
-# ADR-003: Single Standard Plan at $199 MXN/month
+# ADR-003: Single Standard Plan at $299 MXN/month
 
 ## Status
 
@@ -15,7 +15,7 @@ Multiple plans would introduce complexity in product packaging, billing, UI, fea
 Launch v1 / beta with one plan:
 
 - Standard Plan
-- $199 MXN/month
+- $299 MXN/month
 - all currently available features included
 
 No Basic / Pro / Premium tiers in v1.

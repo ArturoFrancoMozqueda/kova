@@ -26,7 +26,7 @@ from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request
 
 STANDARD_PLAN_NAME = "Standard Plan"
-STANDARD_PLAN_AMOUNT_MINOR_UNITS = 19_900
+STANDARD_PLAN_AMOUNT_MINOR_UNITS = 29_900
 STANDARD_PLAN_CURRENCY = "MXN"
 STANDARD_PLAN_INTERVAL = "month"
 

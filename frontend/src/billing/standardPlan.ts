@@ -1,6 +1,6 @@
 export const STANDARD_PLAN = {
   name: "Plan Standard",
-  amountMinorUnits: 19_900,
+  amountMinorUnits: 29_900,
   currency: "MXN",
   interval: "month",
 } as const;
