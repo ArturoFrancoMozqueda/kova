@@ -30,10 +30,22 @@ type LoadState = "loading" | "ready" | "error";
 type Role = "owner" | "manager" | "cashier";
 type SettingsTab = "profile" | "receipt" | "employees" | "advanced";
 
-const roleOptions: { value: Role; label: string }[] = [
-  { value: "owner", label: copy.settings.roleOwner },
-  { value: "manager", label: copy.settings.roleManager },
-  { value: "cashier", label: copy.settings.roleCashier },
+const roleOptions: { value: Role; label: string; description: string }[] = [
+  {
+    value: "owner",
+    label: copy.settings.roleOwner,
+    description: copy.settings.roleOwnerDescription,
+  },
+  {
+    value: "manager",
+    label: copy.settings.roleManager,
+    description: copy.settings.roleManagerDescription,
+  },
+  {
+    value: "cashier",
+    label: copy.settings.roleCashier,
+    description: copy.settings.roleCashierDescription,
+  },
 ];
 
 const localeOptions = [
@@ -75,6 +87,10 @@ function tabFromPath(pathname: string): SettingsTab {
 
 function roleLabel(role: Role | string): string {
   return roleOptions.find((option) => option.value === role)?.label ?? role;
+}
+
+function roleDescription(role: Role | string): string {
+  return roleOptions.find((option) => option.value === role)?.description ?? "";
 }
 
 export default function SettingsView() {
@@ -258,9 +274,21 @@ export default function SettingsView() {
 
       {activeTab === "employees" && (
       <Card>
-        <CardHeader><CardTitle>{copy.settings.employees}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>{copy.settings.employees}</CardTitle>
+          <p className="text-sm text-muted-foreground">{copy.settings.inviteHelp}</p>
+        </CardHeader>
         <CardContent className="space-y-5">
-          <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={submitInvite}>
+          <div className="grid gap-3 md:grid-cols-3">
+            {roleOptions.map((option) => (
+              <div key={option.value} className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-sm font-medium">{option.label}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-start" onSubmit={submitInvite}>
             <div className="flex-1">
               <Label>{copy.settings.employeeEmail}</Label>
               <Input type="email" value={invite.email} onChange={(e) => setInvite((x) => ({ ...x, email: e.target.value }))} required />
@@ -272,8 +300,11 @@ export default function SettingsView() {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </Select>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {roleDescription(invite.role)}
+              </p>
             </div>
-            <Button type="submit">{copy.settings.invite}</Button>
+            <Button className="sm:mt-6" type="submit">{copy.settings.invite}</Button>
           </form>
 
           <div className="space-y-2">
@@ -281,7 +312,12 @@ export default function SettingsView() {
               <div key={employee.membership_id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center">
                 <div className="flex-1">
                   <p className="font-medium">{employee.email}</p>
-                  <p className="text-xs text-muted-foreground">{employee.is_active ? copy.settings.active : copy.settings.inactive}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {employee.is_active ? copy.settings.active : copy.settings.inactive}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {roleDescription(employee.role)}
+                  </p>
                 </div>
                 <Select className="sm:w-44" value={employee.role} disabled={!employee.is_active} onChange={(e) => void updateEmployeeRole(employee.membership_id, e.target.value as Role).then(load)}>
                   {roleOptions.map((option) => (
