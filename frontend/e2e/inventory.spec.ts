@@ -23,6 +23,36 @@ const stockItem = {
   is_low_stock: true,
 };
 
+const stockItems = [
+  {
+    product_id: "product-1",
+    product_name: "Leche Entera",
+    sku: "LEC-1",
+    track_inventory: true,
+    stock_on_hand: 2,
+    low_stock_threshold: 5,
+    is_low_stock: true,
+  },
+  {
+    product_id: "product-2",
+    product_name: "Cafe Grano",
+    sku: "CAF-1",
+    track_inventory: true,
+    stock_on_hand: 12,
+    low_stock_threshold: 4,
+    is_low_stock: false,
+  },
+  {
+    product_id: "product-3",
+    product_name: "Vasos",
+    sku: "VAS-1",
+    track_inventory: true,
+    stock_on_hand: 50,
+    low_stock_threshold: 20,
+    is_low_stock: false,
+  },
+];
+
 test("inventory page supports adjustment, stock take, and threshold UI", async ({ page }) => {
   await mockAuthAs(page, "owner");
   let stock = [stockItem];
@@ -86,4 +116,37 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
   await page.getByRole("spinbutton", { name: /umbral/i }).fill("2");
   await page.getByRole("button", { name: /guardar/i }).click();
   await expect(page.getByText(/umbral de stock bajo actualizado/i)).toBeVisible();
+});
+
+test("inventory supports search filter and sort at mobile width", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockAuthAs(page, "owner");
+
+  await page.route("**/api/v1/inventory/stock", async (route) => {
+    await route.fulfill({ json: stockItems });
+  });
+  await page.route("**/api/v1/inventory/low-stock", async (route) => {
+    await route.fulfill({ json: stockItems.filter((item) => item.is_low_stock) });
+  });
+  await page.route("**/api/v1/inventory/velocity", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+
+  await page.goto("/inventory");
+  await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+
+  await page.getByLabel(/buscar inventario/i).fill("leche");
+  await expect(page.getByRole("heading", { name: "Leche Entera" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cafe Grano" })).not.toBeVisible();
+
+  await page.getByLabel(/buscar inventario/i).clear();
+  await page.getByLabel(/filtrar inventario/i).selectOption("low");
+  await expect(page.getByRole("heading", { name: "Leche Entera" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Vasos" })).not.toBeVisible();
+
+  await page.getByLabel(/filtrar inventario/i).selectOption("all");
+  await page.getByLabel(/ordenar inventario/i).selectOption("stock_desc");
+  await expect(page.locator("h3").nth(1)).toHaveText("Vasos");
+  await expect(page.locator("h3").nth(2)).toHaveText("Cafe Grano");
+  await expect(page.locator("h3").nth(3)).toHaveText("Leche Entera");
 });
