@@ -168,16 +168,16 @@ def get_onboarding_state(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
     steps = [
         (
             "business_profile",
-            "Business profile",
+            "Personaliza tu negocio",
             business_profile_completed,
             "/settings/business-profile",
         ),
-        ("receipt_settings", "Receipt settings", receipt_settings_completed, "/settings/receipt"),
-        ("first_product", "Create product", first_product_completed, "/catalog?new=product"),
-        ("inventory", "Activate inventory", inventory_completed, "/inventory"),
-        ("open_shift", "Open shift", shift_opened_completed, "/shifts"),
-        ("first_sale", "First sale", first_sale_completed, "/register"),
-        ("billing", "Billing", billing_completed, "/settings/billing"),
+        ("receipt_settings", "Configura el recibo", receipt_settings_completed, "/settings/receipt"),
+        ("first_product", "Agrega tu primer producto", first_product_completed, "/catalog?new=product"),
+        ("inventory", "Activa inventario", inventory_completed, "/catalog?inventory=activate"),
+        ("open_shift", "Abre turno", shift_opened_completed, "/shifts"),
+        ("first_sale", "Haz tu primera venta", first_sale_completed, "/register"),
+        ("billing", "Activa el plan", billing_completed, "/settings/billing"),
     ]
     return {
         "tenant_id": str(tenant_id),
