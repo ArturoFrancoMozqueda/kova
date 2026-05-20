@@ -32,7 +32,7 @@ async function mockCommon(page: import("@playwright/test").Page) {
   await page.route("**/api/v1/billing/subscription", (route) =>
     route.fulfill({
       json: {
-        plan: { name: "Standard Plan", amount_minor_units: 19900, currency: "MXN", interval: "month" },
+        plan: { name: "Standard Plan", amount_minor_units: 29900, currency: "MXN", interval: "month" },
         subscription: null,
         access: {
           allowed: true,
@@ -52,9 +52,9 @@ async function mockCommon(page: import("@playwright/test").Page) {
         completed_count: 1,
         total_count: 7,
         steps: [
-          { key: "business_profile", label: "Business profile", completed: false, action_path: "/settings/business-profile" },
-          { key: "first_product", label: "Create product", completed: true, action_path: "/catalog?new=product" },
-          { key: "open_shift", label: "Open shift", completed: false, action_path: "/shifts" },
+          { key: "business_profile", label: "Confirma los datos de tu cafetería", completed: false, action_path: "/settings/business-profile" },
+          { key: "first_product", label: "Agrega tu primer producto vendible", completed: true, action_path: "/catalog?new=product" },
+          { key: "open_shift", label: "Abre tu primer turno de caja", completed: false, action_path: "/shifts" },
         ],
       },
     }),
@@ -171,6 +171,9 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
 
   for (const path of ["/register", "/dashboard", "/reports", "/settings/billing"]) {
     await page.goto(path);
+    if (path === "/dashboard") {
+      await expect(page.getByText("Primer producto listo")).toBeVisible();
+    }
     await expectNoHorizontalOverflow(page);
   }
 });
@@ -185,7 +188,7 @@ test("catalog fits at 390px with category and product visible", async ({ page })
   await page.route("**/api/v1/catalog/modifier-groups", (route) => route.fulfill({ json: [] }));
 
   await page.goto("/catalog");
-  await expect(page.getByRole("heading", { name: /cat[áa]logo/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Catálogo", exact: true })).toBeVisible();
   await expect(page.getByText("Concha")).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });

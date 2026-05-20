@@ -86,7 +86,7 @@ function meResponse(role: string) {
 }
 
 const billingAllowedResponse = {
-  plan: { name: "Standard Plan", amount_minor_units: 19900, currency: "MXN", interval: "month" },
+  plan: { name: "Standard Plan", amount_minor_units: 29900, currency: "MXN", interval: "month" },
   subscription: null,
   access: {
     allowed: true,

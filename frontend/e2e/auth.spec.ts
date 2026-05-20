@@ -61,7 +61,7 @@ test("login posts credentials and navigates owners to the dashboard", async ({ p
   await page.route("**/api/v1/billing/subscription", async (route) => {
     await route.fulfill({
       json: {
-        plan: { name: "Standard Plan", amount_minor_units: 19900, currency: "MXN" },
+        plan: { name: "Standard Plan", amount_minor_units: 29900, currency: "MXN" },
         subscription: null,
       },
     });

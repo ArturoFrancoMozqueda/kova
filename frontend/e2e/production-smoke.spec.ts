@@ -49,17 +49,17 @@ test("landing, login, dashboard, and billing are production healthy", async ({ p
   await page.goto("/");
   const landingText = await page.locator("body").innerText();
   expect(landingText).toMatch(/kova|tu negocio|crear cuenta|create account/i);
-  expect(landingText).toContain("199");
-  expect(landingText).not.toContain("299");
+  expect(landingText).toContain("299");
+  expect(landingText).not.toContain("199");
 
   await login(page);
   await expect(page.getByRole("heading")).toBeVisible();
 
   await page.goto("/settings/billing");
   await expect(page.getByRole("heading", { name: /billing|facturaci.n/i })).toBeVisible();
-  await expect(page.locator("body")).toContainText(/MX\$199\.00|199/, { timeout: 15_000 });
+  await expect(page.locator("body")).toContainText(/MX\$299\.00|299/, { timeout: 15_000 });
   const billingText = await page.locator("body").innerText();
-  expect(billingText).not.toContain("299");
+  expect(billingText).not.toContain("199");
 
   await expectNoConsoleErrors(consoleErrors);
 });
