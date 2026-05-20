@@ -53,6 +53,10 @@ lives in.
 Tracked in `docs/ux-review-2026-05-19.md` §B Medium + §B Low. Pull in once the items above are
 shipped and reviewed. Highlights:
 
+- [x] Sprint 3 UX review: onboarding tour overlays on `/register`, `/catalog`, and `/reports`;
+  Settings tabs (Perfil / Recibo / Empleados / Avanzado); dashboard contextual actions replacing
+  duplicate quick actions; landing theme toggle removed until authenticated dark mode exists;
+  tenant-scoped funnel telemetry; usage-based trial upgrade nudges.
 - [x] Mezcla de pagos / Productos top empty states collapse into a single explainer when both are empty
   (DashboardView middle row).
 - [x] Dashboard comparison label becomes dynamic (vs ayer / vs semana / vs mes). Added period selector
