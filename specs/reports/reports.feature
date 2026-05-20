@@ -35,6 +35,12 @@ Feature: Sales reports
     When the manager requests the business story report
     Then daily sales, daypart sales, peak hour, product share, payment share, and recommended actions are calculated from real data
 
+  Scenario: Owner sees a compact decision brief
+    Given an authenticated owner with current sales, previous-period sales, and a low-stock top product
+    When the owner opens the reports page
+    Then the report shows previous-period comparison and restock guidance
+    And the decision brief shows no more than three recommended actions
+
   Scenario: Manager views an empty business story report
     Given an authenticated manager without completed sales
     When the manager requests the business story report

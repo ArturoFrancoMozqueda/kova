@@ -14,3 +14,4 @@
 | RPT-010 | specs/reports/reports.feature | Manager views the business story report | Backend BDD | backend/app/tests/bdd/test_reports.py | @reports @money | Beta | Automated | Endpoint: `GET /api/v1/reports/business-story?start=&end=` |
 | RPT-011 | specs/reports/reports.feature | Manager views an empty business story report | Backend BDD | backend/app/tests/bdd/test_reports.py | @reports | Beta | Automated | No demo data or invented insights |
 | RPT-012 | frontend/e2e/reports.spec.ts | reports page displays business storytelling layout | E2E | frontend/e2e/reports.spec.ts | @ui @reports | Beta | Automated | Mocked business-story API |
+| RPT-013 | specs/reports/reports.feature | Owner sees a compact decision brief | E2E | frontend/e2e/reports.spec.ts | @ui @reports @insights | Beta | Automated | Verifies previous-period comparison, low-stock restock guidance, and max 3 actions |

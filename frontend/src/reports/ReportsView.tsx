@@ -1,4 +1,12 @@
-import { type ComponentType, FormEvent, type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  type ComponentType,
+  FormEvent,
+  type HTMLAttributes,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import {
   REPORTS_VIEW_ALL_PERMISSION,
   usePermission,
@@ -420,8 +428,6 @@ function ReportsStory({
         <OperationsSignals story={story} />
         <EmployeeCoaching rows={story.sales_by_employee} />
       </section>
-
-      <RecommendedActions story={story} />
     </div>
   );
 }
@@ -449,7 +455,11 @@ function SmartInsights({
 }) {
   const comparisons = comparativeInsights(story, previousStory, hourly, previousHourly);
   const inventoryActions = inventoryAwareActions(story, lowStock, velocity);
-  const actions = [...inventoryActions, ...advancedRecommendations(story, previousStory, hourly)];
+  const actions = ownerBriefActions(
+    inventoryActions,
+    story.recommended_actions,
+    advancedRecommendations(story, previousStory, hourly),
+  );
 
   return (
     <Card>
@@ -490,9 +500,13 @@ function SmartInsights({
           ))}
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
           {actions.map((action) => (
-            <InsightCard key={`${action.title}-${action.detail}`} type={action.type}>
+            <InsightCard
+              key={`${action.title}-${action.detail}`}
+              type={action.type}
+              data-testid="owner-brief-action"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{copy.reportsView.actionType(action.type)}</Badge>
                 <p className="font-semibold">{action.title}</p>
@@ -512,6 +526,22 @@ function SmartInsights({
       </CardContent>
     </Card>
   );
+}
+
+function ownerBriefActions(
+  inventoryActions: SmartAction[],
+  storyActions: SmartAction[],
+  advancedActions: SmartAction[],
+): SmartAction[] {
+  const seen = new Set<string>();
+  return [...inventoryActions, ...storyActions, ...advancedActions]
+    .filter((action) => {
+      const key = `${action.title}:${action.detail}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
 }
 
 function comparativeInsights(
@@ -1150,12 +1180,14 @@ function RecommendedActions({ story }: { story: BusinessStoryReport }) {
 function InsightCard({
   type,
   children,
+  ...props
 }: {
   type: "opportunity" | "risk" | "good_signal" | "operational_improvement";
   children: ReactNode;
-}) {
+} & HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      {...props}
       className={cn(
         "rounded-lg border p-4",
         type === "risk"
@@ -1163,6 +1195,7 @@ function InsightCard({
           : type === "good_signal"
             ? "border-kova-growth/30 bg-kova-growth/5"
             : "border-kova-blue/20 bg-kova-blue/5",
+        props.className,
       )}
     >
       {children}

@@ -148,27 +148,91 @@ function storyPayload(overrides = {}) {
   };
 }
 
-async function mockReports(page: Page, payload = storyPayload()) {
+async function mockReports(
+  page: Page,
+  payload = storyPayload(),
+  options: {
+    previousPayload?: ReturnType<typeof storyPayload>;
+    lowStock?: unknown[];
+    velocity?: unknown[];
+  } = {},
+) {
   await page.route("**/api/v1/reports/business-story**", async (route) => {
-    await route.fulfill({ json: payload });
+    const url = new URL(route.request().url());
+    const start = url.searchParams.get("start");
+    await route.fulfill({
+      json:
+        options.previousPayload && start === options.previousPayload.summary.start_date
+          ? options.previousPayload
+          : payload,
+    });
   });
   await page.route("**/api/v1/reports/sales-by-hour**", async (route) => {
+    const url = new URL(route.request().url());
+    const start = url.searchParams.get("start");
     await route.fulfill({
       json: Array.from({ length: 24 }, (_, hour) => ({
         hour,
-        net_sales: hour === 20 ? "90.00" : hour === 21 ? "70.00" : "0.00",
-        order_count: hour === 20 ? 3 : hour === 21 ? 2 : 0,
+        net_sales:
+          start === options.previousPayload?.summary.start_date
+            ? hour === 18 ? "60.00" : "0.00"
+            : hour === 20 ? "90.00" : hour === 21 ? "70.00" : "0.00",
+        order_count:
+          start === options.previousPayload?.summary.start_date
+            ? hour === 18 ? 2 : 0
+            : hour === 20 ? 3 : hour === 21 ? 2 : 0,
       })),
     });
+  });
+  await page.route("**/api/v1/inventory/low-stock", async (route) => {
+    await route.fulfill({ json: options.lowStock ?? [] });
+  });
+  await page.route("**/api/v1/inventory/velocity", async (route) => {
+    await route.fulfill({ json: options.velocity ?? [] });
   });
 }
 
 test("reports page displays business storytelling layout", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
-  await mockReports(page);
+  await mockReports(page, storyPayload(), {
+    previousPayload: storyPayload({
+      summary: {
+        start_date: "2026-05-06",
+        end_date: "2026-05-12",
+        timezone: "America/Mexico_City",
+        gross_sales: "180.00",
+        refund_total: "0.00",
+        net_sales: "180.00",
+        completed_orders: 5,
+        average_ticket: "36.00",
+        refund_count: 0,
+        cancellation_count: 0,
+      },
+      sales_by_daypart: [
+        { key: "madrugada", label: "Madrugada", start_hour: 0, end_hour: 5, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+        { key: "manana", label: "Mañana", start_hour: 6, end_hour: 11, net_sales: "80.00", order_count: 2, average_ticket: "40.00", sales_share_pct: 44 },
+        { key: "tarde", label: "Tarde", start_hour: 12, end_hour: 17, net_sales: "100.00", order_count: 3, average_ticket: "33.33", sales_share_pct: 56 },
+        { key: "noche", label: "Noche", start_hour: 18, end_hour: 23, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+      ],
+    }),
+    lowStock: [
+      {
+        product_id: "product-1",
+        product_name: "Dona",
+        sku: "DONA",
+        track_inventory: true,
+        stock_on_hand: 2,
+        low_stock_threshold: 6,
+        is_low_stock: true,
+      },
+    ],
+  });
 
   await page.goto("/reports");
+  await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
+  await page.getByLabel(/fecha final/i).fill("2026-05-19");
+  await page.getByRole("button", { name: /aplicar/i }).click();
 
   await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
   await expect(page.getByText(/resumen ejecutivo/i)).toBeVisible();
@@ -180,8 +244,10 @@ test("reports page displays business storytelling layout", async ({ page }) => {
   await expect(page.getByText(/ventas por momento del d[ií]a/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /Noche: \$160\.00/i })).toBeVisible();
   await expect(page.getByText(/Dentro del mejor bloque, tu pico fue de 20:00-21:00/i)).toBeVisible();
-  await expect(page.getByText("Cash representa 83% de los cobros.", { exact: true })).toBeVisible();
+  await expect(page.getByText("+28% vs. periodo anterior.")).toBeVisible();
+  await expect(page.getByText(/Reabastece Dona/i)).toBeVisible();
   await expect(page.getByText(/Refuerza operación en noche/i)).toBeVisible();
+  await expect(page.getByTestId("owner-brief-action")).toHaveCount(3);
 });
 
 test("reports shows useful empty state without demo data", async ({ page }) => {

@@ -21,6 +21,10 @@ Clearer reports increase retention by making the subscription feel like operatio
 - Connect low-stock inventory to products sold in the selected period.
 - Surface inventory velocity when available, especially products at risk of running out.
 - Generate actionable recommendations from real data only.
+- Keep the owner-facing decision block compact: show three comparison facts and at most three
+  recommended actions.
+- Rank recommendations by operational urgency: restock risks first, then backend story actions,
+  then secondary operational prompts.
 - Keep all empty states honest; do not show demo or fabricated insights.
 
 ## Data Model Impact
@@ -50,5 +54,6 @@ No offline behavior changes.
 - If the previous comparable period has data, the report shows clear positive/negative/neutral comparisons.
 - If a top-selling product is low in stock, the report recommends restocking that product.
 - If velocity indicates a product may run out soon, the report shows a risk recommendation.
+- If multiple recommendations exist, the UI shows no more than three so the owner is not overwhelmed.
 - If there are no sales, the report stays empty/honest and does not invent comparisons.
 - Existing tests, typecheck, lint, and build pass.

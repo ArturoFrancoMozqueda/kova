@@ -747,11 +747,14 @@ Tasks:
   bounds, daypart grouping, and hour grouping.
 - [ ] Added from Kova Product/UX Audit: Make report date filters reliable, tested, and easy to use
   with Today, Week, Month, and custom range presets.
-- [ ] Added from Kova Product/UX Audit: Add previous-period comparison as a first-class story.
+- [x] Added from Kova Product/UX Audit: Add a compact owner decision brief with previous-period
+  comparison, restock guidance, and no more than three recommended actions.
+- [x] Added from Kova Product/UX Audit: Add previous-period comparison as a first-class story in
+  the owner-facing report brief.
 - [ ] Added from Kova Product/UX Audit: Add cafe-useful top/bottom product analysis, growth/decline,
   and slow-mover logic.
-- [ ] Added from Kova Product/UX Audit: Add inventory restock recommendations that join sales velocity
-  with low-stock thresholds.
+- [ ] Added from Kova Product/UX Audit: Add backend-backed inventory restock recommendations that join
+  sales velocity with low-stock thresholds.
 - [ ] Added from Kova Product/UX Audit: Add payment method split story and cash reconciliation prompts.
 - [ ] Added from Kova Product/UX Audit: Add employee contribution story: orders, net sales, refund/void
   risk, and shift coverage cues.
@@ -766,7 +769,8 @@ Acceptance criteria:
 - Report empty state has one primary CTA and one secondary CTA.
 - All report dates and time buckets use tenant timezone.
 - Every reporting endpoint is tenant-scoped and covered by timezone/money tests.
-- Recommended actions are threshold-based and explain the business reason.
+- Recommended actions are threshold-based, explain the business reason, and are capped so the first
+  report screen does not overwhelm the owner.
 
 Suggested files/components to inspect or modify:
 - `frontend/src/reports/ReportsView.tsx`

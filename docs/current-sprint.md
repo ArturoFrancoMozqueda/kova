@@ -15,7 +15,7 @@ Last updated: 2026-05-20
 Kova Product/UX Audit execution.
 
 Sprint 1 is mostly complete. Sprint 2 is functionally complete. Sprint 3 is functionally complete.
-The next recommended execution target is Sprint 4: Reports and Business Storytelling.
+Sprint 4 is in progress, focused on report clarity without overwhelming the owner.
 
 ## Completed From Kova Audit Sprint 1: Trust, Clarity, and Conversion
 
@@ -110,9 +110,39 @@ The next recommended execution target is Sprint 4: Reports and Business Storytel
       after beta usage data.
 - [ ] Add invitation acceptance-path E2E once that separate acceptance flow is finalized.
 
+## Completed From Kova Audit Sprint 4: Reports and Business Storytelling
+
+- [x] Reports now use a compact owner decision brief instead of repeating a longer action list.
+- [x] The owner brief deduplicates recommendations and caps them at three actions.
+- [x] Restock-risk guidance is prioritized before general report recommendations.
+- [x] Previous-period comparison, restock guidance, and the three-action cap are covered in E2E.
+- [x] Reports spec, Gherkin scenario, and test matrix now document the compact decision brief.
+
+## Sprint 4 Verification Completed 2026-05-20
+
+- [x] Frontend typecheck: `npm run typecheck`
+- [x] Frontend lint: `npm run lint`
+- [x] Frontend production build: `npm run build`
+- [x] Frontend unit tests: `npm test -- --run` (13 passed)
+- [x] Focused reports E2E:
+      `npm run test:e2e -- e2e/reports.spec.ts --project=chromium` (2 passed)
+- [x] Full frontend E2E: `npm run test:e2e -- --project=chromium` (49 passed, 3 skipped)
+
+## Left From Sprint 4
+
+- [ ] Normalize all report endpoints to tenant timezone for date bounds, daypart grouping, and hour
+      grouping.
+- [ ] Add deeper cafe product trends: best/worst products by week/month, growth/decline, and slow
+      movers.
+- [ ] Strengthen inventory recommendations by joining sales velocity with low-stock thresholds in
+      backend/service logic.
+- [ ] Add employee contribution and staffing cues that stay useful for small teams.
+- [ ] Collapse no-data reports into a single guided empty state with one primary CTA.
+
 ## Next Sprint Recommendation
 
-Start Sprint 4: Reports and Business Storytelling.
+Continue Sprint 4: Reports and Business Storytelling, starting with tenant-timezone consistency and
+backend-backed product/restock trends.
 
 ## Carried Over From Older Production-Review Backlog
 
@@ -153,3 +183,5 @@ Detailed retros live in `docs/sprint-planning.md`.
 - Sprint 16: UX Polish + Onboarding + Mobile Hardening (2026-05-14)
 - Kova Audit Sprint 1: Trust, Clarity, and Conversion (2026-05-20, mostly complete)
 - Kova Audit Sprint 2: Onboarding and First Value Moment (2026-05-20, functionally complete)
+- Kova Audit Sprint 3: POS, Products, Employees, and Inventory Usability (2026-05-20, functionally complete)
+- Kova Audit Sprint 4: Reports and Business Storytelling (2026-05-20, in progress)
