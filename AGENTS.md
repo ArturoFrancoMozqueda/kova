@@ -30,7 +30,7 @@ For v1 and closed beta, use one subscription plan only.
 
 ### Standard Plan
 
-- Price: $199 MXN/month
+- Price: $299 MXN/month
 - Includes all currently available features
 - No Basic / Pro / Premium tiers
 - No per-user pricing
@@ -50,7 +50,7 @@ Keep these concepts separate.
 
 ### Billing / Subscription Payments
 
-The business pays us $199 MXN/month to use the POS.
+The business pays us $299 MXN/month to use the POS.
 
 ### POS Payments
 
@@ -250,7 +250,7 @@ Terraform is preferred. For beta, documented manual setup is acceptable if Terra
 - Cash movements
 - Basic inventory
 - Basic reporting
-- Standard Plan billing at $199 MXN/month
+- Standard Plan billing at $299 MXN/month
 - Audit logs
 - Observability
 - Backups

@@ -2,7 +2,7 @@
 
 ## Beta Model
 
-3 friendly beta tenants. Founder-assisted onboarding. $199 MXN/month (Standard Plan).
+3 friendly beta tenants. Founder-assisted onboarding. $299 MXN/month (Standard Plan).
 
 ## Support Channel
 
@@ -22,7 +22,7 @@
 Before access, each beta tenant signs a 1-page agreement covering:
 - Beta status: software may have bugs
 - Data handling: production data, backed up daily
-- Price: $199 MXN/month (subject to change after beta)
+- Price: $299 MXN/month (subject to change after beta)
 - Feedback commitment: weekly call, written feedback
 - No long-term contract: cancel any time
 - Disclaimer: no SLA during beta
@@ -35,7 +35,7 @@ Template location: `docs/beta-agreement-template.md` (to be created)
 2. Engineering creates tenant account via signup flow
 3. Engineering seeds a small sample catalog (5 categories, 10 products)
 4. Owner walkthrough: login, catalog review, first sale, shift, reports
-5. Billing: Stripe Standard Plan activated at $199 MXN
+5. Billing: Stripe Standard Plan activated at $299 MXN
 6. Support channel established (email or WhatsApp)
 7. Sentry tenant_id noted for log filtering
 

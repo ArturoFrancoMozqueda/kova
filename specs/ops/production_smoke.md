@@ -31,9 +31,9 @@ reports, browser console, and deployment metadata.
   - `/dashboard`
   - `/settings/billing`
   - `/register`
-- Landing page shows one Standard Plan at 199 MXN/month.
-- Dashboard onboarding copy shows 199 MXN/month.
-- Billing API and UI show 199 MXN/month.
+- Landing page shows one Standard Plan at 299 MXN/month.
+- Dashboard onboarding copy shows 299 MXN/month.
+- Billing API and UI show 299 MXN/month.
 - Stripe Checkout opens in the expected mode for the current release phase:
   - `test` while the app is still pre-launch and the web app is incomplete.
   - `live` only after the web app is complete and before public selling.
@@ -62,10 +62,10 @@ committed to the repository.
 
 ## Automated Browser Coverage
 
-- Landing page loads and does not show stale 299 MXN pricing.
+- Landing page loads and does not show stale 199 MXN pricing.
 - Login works with the support smoke account.
 - Dashboard loads after login.
-- Billing page shows the Standard Plan price as 199 MXN/month.
+- Billing page shows the Standard Plan price as 299 MXN/month.
 - Checkout redirects to `checkout.stripe.com`.
 - When `PRODUCTION_SMOKE_STRIPE_MODE=test`, Checkout must expose a `cs_test` session id.
 - When `PRODUCTION_SMOKE_STRIPE_MODE=live`, Checkout must not expose a `cs_test` session id.
