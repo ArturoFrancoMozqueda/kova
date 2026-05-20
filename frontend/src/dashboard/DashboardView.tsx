@@ -8,6 +8,7 @@ import { listLowStock, listStock } from "@/inventory/api";
 import { getBillingSubscription } from "@/billing/api";
 import { getOnboardingState, type OnboardingState } from "@/onboarding/api";
 import { getBusinessProfile } from "@/settings/api";
+import type { BillingSubscription } from "@/billing/types";
 import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
@@ -27,13 +28,14 @@ import {
   BarChart3,
   Clock,
   CreditCard,
-  LayoutGrid,
   Receipt,
   AlertCircle,
   TrendingDown,
   Minus,
   CheckCircle2,
   Circle,
+  Download,
+  Printer,
 } from "lucide-react";
 
 type LoadState =
@@ -51,6 +53,7 @@ type LoadState =
       lowStockCount: number;
       lowStockItems: StockItem[];
       hasActiveSubscription: boolean;
+      billing: BillingSubscription | null;
       onboarding: OnboardingState | null;
       timezone: string;
       compareLabel: string;
@@ -331,6 +334,7 @@ export default function DashboardView() {
         lowStockCount: lowStock.length,
         lowStockItems: lowStock,
         hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
+        billing,
         onboarding,
         timezone: profile?.timezone || DEFAULT_TIMEZONE,
         compareLabel,
@@ -465,6 +469,12 @@ export default function DashboardView() {
             hourly={loadState.hourly}
             topProducts={loadState.topProducts}
             lowStock={loadState.lowStockItems}
+          />
+
+          <UpgradeNudge
+            billing={loadState.billing}
+            orderCount={loadState.summary.order_count}
+            netSales={loadState.summary.net_sales}
           />
 
           {/* KPI Cards */}
@@ -637,18 +647,16 @@ export default function DashboardView() {
           </div>
           )}
 
-          {/* Quick Actions */}
+          {/* Contextual Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>{copy.dashboard.quickActions}</CardTitle>
+              <CardTitle>{copy.dashboard.contextualActions}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-3">
                 {[
-                  { to: "/register", icon: ShoppingCart, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.newSale, desc: copy.dashboard.newSaleDesc },
-                  { to: "/catalog", icon: LayoutGrid, iconClass: "bg-kova-growth/10 text-kova-growth", label: copy.dashboard.manageCatalog, desc: copy.dashboard.manageCatalogDesc },
-                  { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue-light/15 text-kova-blue", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
-                  { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.shifts, desc: copy.dashboard.shiftsDesc },
+                  { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.closeShiftAction, desc: copy.dashboard.closeShiftDesc },
+                  { to: "/reports", icon: Download, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.exportSalesAction, desc: copy.dashboard.exportSalesDesc },
                 ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                   <Link key={to} to={to} className="group">
                     <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
@@ -663,11 +671,67 @@ export default function DashboardView() {
                     </div>
                   </Link>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="group text-left"
+                >
+                  <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
+                      <Printer className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{copy.dashboard.printZAction}</p>
+                      <p className="text-xs text-muted-foreground">{copy.dashboard.printZDesc}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
+                </button>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
     </main>
+  );
+}
+
+function UpgradeNudge({
+  billing,
+  orderCount,
+  netSales,
+}: {
+  billing: BillingSubscription | null;
+  orderCount: number;
+  netSales: string;
+}) {
+  const access = billing?.access;
+  const subscriptionStatus = billing?.subscription?.status;
+  const isTrial =
+    access?.allowed &&
+    (access.reason === "signup_trial" || access.reason === "trialing" || access.trialing) &&
+    subscriptionStatus !== "active";
+  if (!isTrial || orderCount <= 0) return null;
+
+  return (
+    <Card className="border-kova-blue/20 bg-kova-blue/[0.04]">
+      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kova-blue/10 text-kova-blue">
+          <CreditCard className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{copy.dashboard.upgradeNudgeTitle(orderCount)}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {copy.dashboard.upgradeNudgeBody(formatMoney(netSales))}
+          </p>
+        </div>
+        <Link to="/settings/billing" className="shrink-0">
+          <Button size="sm">
+            {copy.dashboard.upgradeNudgeCta}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
   );
 }

@@ -142,6 +142,18 @@ export const copy = {
     noActivityBody: "Cuando registres ventas verás aquí la mezcla de pagos y los productos top del día.",
     noActivityCta: "Registrar primera venta",
     quickActions: "Acciones rápidas",
+    contextualActions: "Acciones contextuales",
+    closeShiftAction: "Cerrar turno",
+    closeShiftDesc: "Ir al corte de caja",
+    exportSalesAction: "Exportar ventas",
+    exportSalesDesc: "Abrir reportes del día",
+    printZAction: "Imprimir Z",
+    printZDesc: "Usar impresión del navegador",
+    upgradeNudgeTitle: (orders: number) =>
+      `Hiciste ${orders} venta${orders === 1 ? "" : "s"} en tu prueba`,
+    upgradeNudgeBody: (amount: string) =>
+      `Activa el plan para conservar ${amount} en ventas, tu catálogo, turnos y reportes.`,
+    upgradeNudgeCta: "Activar plan",
     newSale: "Nueva venta",
     newSaleDesc: "Abrir caja",
     manageCatalog: "Gestionar catálogo",
