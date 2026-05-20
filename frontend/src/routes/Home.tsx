@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { STANDARD_PLAN_AMOUNT, STANDARD_PLAN_PRICE_CADENCE_ES } from "@/billing/standardPlan";
@@ -9,21 +9,6 @@ import { LogoMark } from "@/components/brand/Logo";
 
 /* ─── Theme ──────────────────────────────────────────────────────────────── */
 type Theme = "light" | "dark";
-const THEME_KEY = "kova-landing-theme";
-
-function useLandingTheme(): [Theme, (t: Theme) => void, () => void] {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    const stored = window.localStorage.getItem(THEME_KEY);
-    if (stored === "light" || stored === "dark") return stored;
-    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  });
-  useEffect(() => {
-    try { window.localStorage.setItem(THEME_KEY, theme); } catch { /* quota / private mode */ }
-  }, [theme]);
-  const toggle = () => setTheme((t) => (t === "light" ? "dark" : "light"));
-  return [theme, setTheme, toggle];
-}
 
 function themeVars(theme: Theme): CSSProperties {
   if (theme === "dark") {
@@ -137,48 +122,13 @@ function formatMXN(n: number, opts: { hideCurrency?: boolean } = {}) {
 }
 
 /* ─── ThemeToggle ────────────────────────────────────────────────────────── */
-function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
-      style={{
-        width: 34, height: 34, borderRadius: 8,
-        border: "0.5px solid var(--hairline-color)",
-        background: "var(--surface)",
-        color: "var(--page-fg)",
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        cursor: "pointer",
-        transition: "all 150ms var(--kova-ease-entrance)",
-      }}
-    >
-      {theme === "dark" ? (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-        </svg>
-      ) : (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      )}
-    </button>
-  );
-}
-
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
 function Navbar({
   primaryTarget,
   isAuthenticated,
-  theme,
-  onToggleTheme,
 }: {
   primaryTarget: string;
   isAuthenticated: boolean;
-  theme: Theme;
-  onToggleTheme: () => void;
 }) {
   return (
     <nav
@@ -225,7 +175,6 @@ function Navbar({
         </div>
 
         <div className="lp-nav-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           {!isAuthenticated && (
             <Link
               to="/login"
@@ -1121,14 +1070,14 @@ export default function Home(): ReactNode {
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
-  const [theme, , toggleTheme] = useLandingTheme();
+  const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
 
   return (
     <div className="lp-root" style={rootStyle}>
       <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
-      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} theme={theme} onToggleTheme={toggleTheme} />
+      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
       <main>
         <Hero primaryTarget={primaryTarget} />
         <ThreeNodes />
