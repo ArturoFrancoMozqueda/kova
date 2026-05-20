@@ -134,6 +134,16 @@ export default function RegisterView() {
   const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skuMatches, setSkuMatches] = useState<Product[]>([]);
 
+  const resetSale = useCallback(() => {
+    setCart({});
+    setPaymentMethod("cash");
+    setCashTendered("");
+    setReference("");
+    setSplitPaymentsEnabled(false);
+    setSplitPayments([createPaymentDraft("cash")]);
+    setCompletedOrder(null);
+  }, []);
+
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
     try {
@@ -157,8 +167,7 @@ export default function RegisterView() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedOrder]);
+  }, [completedOrder, resetSale]);
 
   useEffect(() => {
     void load();
@@ -198,35 +207,32 @@ export default function RegisterView() {
   }, [loadState, selectedCategory]);
 
   // SKU/barcode search: debounced, filters across ALL products (ignores category filter)
-  const handleSkuChange = useCallback(
-    (value: string) => {
-      setSkuQuery(value);
-      if (skuDebounceRef.current) clearTimeout(skuDebounceRef.current);
-      skuDebounceRef.current = setTimeout(() => {
-        if (!value.trim() || loadState.status !== "ready") {
-          setSkuMatches([]);
-          return;
-        }
-        const q = value.trim().toLowerCase();
-        const exactSku = loadState.products.filter(
-          (p) => p.sku?.toLowerCase() === q,
-        );
-        if (exactSku.length === 1) {
-          addProduct(exactSku[0]);
-          setSkuQuery("");
-          setSkuMatches([]);
-          return;
-        }
-        const partial = loadState.products.filter(
-          (p) =>
-            p.sku?.toLowerCase().includes(q) ||
-            p.name.toLowerCase().includes(q),
-        );
-        setSkuMatches(partial);
-      }, 150);
-    },
-    [loadState],
-  );
+  const handleSkuChange = (value: string) => {
+    setSkuQuery(value);
+    if (skuDebounceRef.current) clearTimeout(skuDebounceRef.current);
+    skuDebounceRef.current = setTimeout(() => {
+      if (!value.trim() || loadState.status !== "ready") {
+        setSkuMatches([]);
+        return;
+      }
+      const q = value.trim().toLowerCase();
+      const exactSku = loadState.products.filter(
+        (p) => p.sku?.toLowerCase() === q,
+      );
+      if (exactSku.length === 1) {
+        addProduct(exactSku[0]);
+        setSkuQuery("");
+        setSkuMatches([]);
+        return;
+      }
+      const partial = loadState.products.filter(
+        (p) =>
+          p.sku?.toLowerCase().includes(q) ||
+          p.name.toLowerCase().includes(q),
+      );
+      setSkuMatches(partial);
+    }, 150);
+  };
 
   const cartItems = useMemo(() => Object.values(cart), [cart]);
   const totalCents = useMemo(
@@ -354,16 +360,6 @@ export default function RegisterView() {
     setSplitPayments((current) =>
       current.length === 1 ? current : current.filter((payment) => payment.id !== paymentId),
     );
-  };
-
-  const resetSale = () => {
-    setCart({});
-    setPaymentMethod("cash");
-    setCashTendered("");
-    setReference("");
-    setSplitPaymentsEnabled(false);
-    setSplitPayments([createPaymentDraft("cash")]);
-    setCompletedOrder(null);
   };
 
   const submitSale = async (event: FormEvent) => {
@@ -772,7 +768,12 @@ export default function RegisterView() {
                   </div>
                 )}
 
-                {splitPaymentsEnabled ? (
+                {cartItems.length === 0 ? (
+                  <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm">
+                    <p className="font-medium text-foreground">{copy.register.paymentEmptyTitle}</p>
+                    <p className="mt-1 text-muted-foreground">{copy.register.paymentEmptyBody}</p>
+                  </div>
+                ) : splitPaymentsEnabled ? (
                   <div className="space-y-3">
                     {splitPayments.map((payment, index) => (
                       <div key={payment.id} className="rounded-lg border p-3 space-y-2 animate-fade-in">
@@ -942,29 +943,31 @@ export default function RegisterView() {
                 )}
 
                 {/* Advanced options — split payment lives behind a disclosure */}
-                <details
-                  className="rounded-[var(--radius-md)] border border-[color:var(--kova-border)] px-3 py-2 text-sm [&[open]>summary]:mb-2"
-                  open={splitPaymentsEnabled}
-                >
-                  <summary className="cursor-pointer list-none text-sm font-medium text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)] [&::-webkit-details-marker]:hidden">
-                    <span className="inline-flex items-center gap-2">
-                      <SplitSquareHorizontal className="h-4 w-4" />
-                      {copy.register.advancedOptions}
-                    </span>
-                  </summary>
-                  <label className="flex items-start gap-2 cursor-pointer pt-1">
-                    <input
-                      type="checkbox"
-                      checked={splitPaymentsEnabled}
-                      onChange={(event) => toggleSplitPayments(event.target.checked)}
-                      className="mt-0.5 rounded border-input text-primary focus:ring-primary"
-                    />
-                    <span className="space-y-0.5">
-                      <span className="block text-sm font-medium">{copy.register.splitPayment}</span>
-                      <span className="block text-xs text-muted-foreground">{copy.register.splitPaymentHint}</span>
-                    </span>
-                  </label>
-                </details>
+                {cartItems.length > 0 && (
+                  <details
+                    className="rounded-[var(--radius-md)] border border-[color:var(--kova-border)] px-3 py-2 text-sm [&[open]>summary]:mb-2"
+                    open={splitPaymentsEnabled}
+                  >
+                    <summary className="cursor-pointer list-none text-sm font-medium text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)] [&::-webkit-details-marker]:hidden">
+                      <span className="inline-flex items-center gap-2">
+                        <SplitSquareHorizontal className="h-4 w-4" />
+                        {copy.register.advancedOptions}
+                      </span>
+                    </summary>
+                    <label className="flex items-start gap-2 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={splitPaymentsEnabled}
+                        onChange={(event) => toggleSplitPayments(event.target.checked)}
+                        className="mt-0.5 rounded border-input text-primary focus:ring-primary"
+                      />
+                      <span className="space-y-0.5">
+                        <span className="block text-sm font-medium">{copy.register.splitPayment}</span>
+                        <span className="block text-xs text-muted-foreground">{copy.register.splitPaymentHint}</span>
+                      </span>
+                    </label>
+                  </details>
+                )}
 
                 {/* Submit */}
                 <Button
