@@ -1,7 +1,11 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
-import { STANDARD_PLAN_AMOUNT, STANDARD_PLAN_PRICE_CADENCE_ES } from "@/billing/standardPlan";
+import {
+  STANDARD_PLAN_AMOUNT,
+  STANDARD_PLAN_PRICE_LABEL_ES,
+  STANDARD_PLAN_PRICE_CADENCE_ES,
+} from "@/billing/standardPlan";
 import { BILLING_TRIAL_LABEL_ES } from "@/billing/trial";
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
@@ -295,7 +299,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
                 fontWeight: 600, color: "var(--page-fg)",
               }}>
-                Plan único · $199 MXN/mes
+                Plan único · {STANDARD_PLAN_PRICE_LABEL_ES}
               </span>
               <span>Sin comisión por venta · Sin tarjeta para empezar</span>
             </p>
@@ -333,20 +337,20 @@ function ThreeNodes() {
     {
       label: "Negocio",
       title: "Tu catálogo, tus reglas.",
-      body: "Configura productos, modificadores, impuestos y sucursales sin tocar código. Lo que vendes y cómo lo vendes — tú decides.",
-      meta: ["Catálogo", "Modificadores", "Inventario", "Sucursales"],
+      body: "Configura productos, categorías, modificadores e inventario básico sin tocar código. Lo que vendes y cómo lo vendes, tú decides.",
+      meta: ["Catálogo", "Modificadores", "Inventario", "Roles"],
     },
     {
       label: "Cliente",
       title: "Cobra como ellos pagan.",
-      body: "Efectivo, transferencia, tarjeta o split. Cobra una venta en menos de 4 toques. Recibos por correo o WhatsApp.",
+      body: "Efectivo, transferencia, tarjeta manual o split. Cobra rápido y deja cada pago registrado para el cierre.",
       meta: ["Efectivo", "Transferencia", "Tarjeta", "Split"],
     },
     {
       label: "Dinero",
       title: "El flujo, en tiempo real.",
-      body: "KPIs en vivo, cierres de turno automáticos, reportes por sucursal. Lo que entró y lo que falta, sin esperar al cierre.",
-      meta: ["KPIs", "Turnos", "Reportes", "Reembolsos"],
+      body: "Ventas, turnos, productos top y mezcla de pagos desde datos reales. Lo que entró y lo que falta, sin hojas de cálculo.",
+      meta: ["Ventas", "Turnos", "Reportes", "Reembolsos"],
     },
   ];
   return (
@@ -758,9 +762,9 @@ function FeatIcon({ kind }: { kind: FeatKind }) {
 function Features() {
   const feats: { kicker: string; title: string; body: string; kind: FeatKind }[] = [
     { kicker: "Offline-first", title: "Vende aunque se caiga el WiFi.", body: "Cola local en IndexedDB. Cuando vuelve la conexión, todo se sincroniza al backend sin que tú hagas nada.", kind: "offline" },
-    { kicker: "Multi-tenant", title: "Un kova por cada negocio.", body: "Catálogo, impuestos, modificadores, usuarios — aislados por negocio. Multi-sucursal incluida.", kind: "tenant" },
-    { kicker: "Pagos · MX", title: "Efectivo, transferencia, tarjeta.", body: "Cobra como tu cliente prefiera. Split entre métodos. Referencias automáticas para transferencias.", kind: "pay" },
-    { kicker: "Tiempo real", title: "Métricas que laten contigo.", body: "KPIs, top productos, breakdown por método. Sin esperar al cierre del día.", kind: "live" },
+    { kicker: "Multi-tenant", title: "Un kova por cada negocio.", body: "Catálogo, modificadores, usuarios, inventario y ventas aislados por negocio desde el primer día.", kind: "tenant" },
+    { kicker: "Pagos · MX", title: "Efectivo, transferencia, tarjeta.", body: "Registra efectivo, transferencia, tarjeta manual y pagos divididos sin mezclarlo con tu suscripción.", kind: "pay" },
+    { kicker: "Tiempo real", title: "Métricas con datos reales.", body: "Ventas, productos top y mezcla de pagos aparecen cuando hay órdenes reales, no con números inventados.", kind: "live" },
     { kicker: "Turnos & caja", title: "Apertura, cierre, sin Excel.", body: "Movimientos de caja, diferencias, reportes por turno. Tu cajero abre, vende, cierra.", kind: "shift" },
     { kicker: "PWA instalable", title: "Se siente como app, vive en la web.", body: "Ícono en el escritorio o pantalla de inicio. Sin App Store, sin Play Store, sin instalador.", kind: "pwa" },
   ];
@@ -800,12 +804,12 @@ function Features() {
 /* ─── BuiltFor ───────────────────────────────────────────────────────────── */
 function BuiltFor() {
   const types = [
-    { name: "Cafeterías", body: "Latte, americano, modificadores de leche, splits con el cliente. Línea rápida.", tag: "Café Lupita · CDMX" },
-    { name: "Restaurantes", body: "Mesas, comandas, propinas, cocina. Modificadores por platillo.", tag: "Cocina La Doña · Monterrey" },
-    { name: "Tiendas de barrio", body: "SKUs por código de barras, fiado opcional, refresco más cigarro en un toque.", tag: "Abarrotes Don Beto · Puebla" },
-    { name: "Panaderías", body: "Por pieza, por kilo, charolas mixtas. Inventario que respira con el horno.", tag: "Panadería Mateo · Guadalajara" },
-    { name: "Food trucks", body: "Sin internet, sin drama. Vende todo el día, sincroniza al volver a casa.", tag: "Tacos Sobre Ruedas · Tijuana" },
-    { name: "Salones de belleza", body: "Servicios + productos. Comisiones por estilista, propinas, paquetes.", tag: "Salón Aurora · Mérida" },
+    { name: "Cafeterías", body: "Café, bebidas frías, pan dulce y pagos rápidos durante la hora pico.", tag: "Beta ideal" },
+    { name: "Panaderías", body: "Productos por pieza, mostrador ágil, inventario básico y cierre de caja.", tag: "Beta ideal" },
+    { name: "Food trucks", body: "Ventas con conexión inestable y sincronización cuando vuelve internet.", tag: "Beta compatible" },
+    { name: "Tiendas pequeñas", body: "Catálogo simple, pagos manuales e inventario visible para operación diaria.", tag: "Beta compatible" },
+    { name: "Restaurantes", body: "Solo recomendable cuando el flujo no depende de mesas, comandas o cocina.", tag: "Alcance limitado" },
+    { name: "Servicios", body: "Útil si vendes productos y registras cobros simples, no agendas complejas.", tag: "Alcance limitado" },
   ];
   return (
     <section id="comercios" style={{ padding: "120px 32px", background: "var(--kova-ink)", color: "var(--kova-on-ink)", borderTop: "0.5px solid var(--hairline-color)" }}>
@@ -935,7 +939,7 @@ function Footer() {
             </p>
             <div style={{ marginTop: 24, display: "flex", gap: 6, alignItems: "center" }}>
               <span className="lp-live-dot" />
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Todos los sistemas operando con normalidad</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Soporte directo para beta privada</span>
             </div>
           </div>
           <div>

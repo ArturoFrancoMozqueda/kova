@@ -181,9 +181,10 @@ export default function InventoryView() {
       {/* Stock grid */}
       {loadState.stock.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center py-16">
+          <CardContent className="flex flex-col items-center px-6 py-16 text-center">
             <Package className="h-12 w-12 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">{copy.inventoryView.noStock}</p>
+            <p className="font-semibold">{copy.inventoryView.noStock}</p>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">{copy.inventoryView.noStockBody}</p>
             <Link className={cn("mt-4", buttonVariants())} to="/catalog?inventory=activate">
               {copy.inventoryView.activateInventory}
             </Link>

@@ -378,6 +378,7 @@ function ReportsStory({
   }
   return (
     <div className="space-y-6">
+      <FirstReportMilestone />
       <ExecutiveSummary story={story} />
       <SmartInsights
         story={story}
@@ -686,6 +687,24 @@ function strongestWindowDetail(
     return copy.reportsView.compareDaypart(previousDaypart.label);
   }
   return copy.reportsView.compareNoPrevious;
+}
+
+function FirstReportMilestone() {
+  return (
+    <Card className="border-kova-growth/20 bg-kova-growth/[0.04]">
+      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
+          <Sparkles className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{copy.reportsView.firstReportMilestoneTitle}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {copy.reportsView.firstReportMilestoneBody}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function ExecutiveSummary({ story }: { story: BusinessStoryReport }) {

@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/i18n/messages";
 import { RefreshCw, X } from "lucide-react";
 
 export default function PWAUpdatePrompt() {
   const [visible, setVisible] = useState(false);
+  const location = useLocation();
+  const isPublicOrAuthRoute =
+    location.pathname === "/" ||
+    location.pathname === "/login" ||
+    location.pathname === "/signup" ||
+    location.pathname.startsWith("/verify-email");
 
   useEffect(() => {
     const show = () => setVisible(true);
@@ -12,7 +19,7 @@ export default function PWAUpdatePrompt() {
     return () => window.removeEventListener("pos:pwa-update-available", show);
   }, []);
 
-  if (!visible) return null;
+  if (!visible || isPublicOrAuthRoute) return null;
 
   return (
     <div

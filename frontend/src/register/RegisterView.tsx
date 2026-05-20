@@ -46,6 +46,7 @@ import {
   Building2,
   CreditCard,
   Search,
+  Sparkles,
   X,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
@@ -605,11 +606,19 @@ export default function RegisterView() {
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
                   <ShoppingBag className="h-7 w-7 text-muted-foreground" />
                 </div>
-                <p className="font-medium text-muted-foreground">{copy.register.catalogPlaceholder}</p>
+                <p className="font-medium">{copy.register.catalogPlaceholder}</p>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">{copy.register.catalogPlaceholderBody}</p>
                 {canManageCatalog && (
-                  <Link to="/catalog" className={cn(buttonVariants({ variant: "link" }), "mt-2")}>
-                    {copy.register.manageCatalog}
-                  </Link>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Link to="/catalog?new=product" className={cn(buttonVariants({ size: "sm" }))}>
+                      <Plus className="h-4 w-4" />
+                      {copy.register.createFirstProduct}
+                    </Link>
+                    <Link to="/catalog" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <Sparkles className="h-4 w-4" />
+                      {copy.register.loadCafePreset}
+                    </Link>
+                  </div>
                 )}
               </div>
             ) : (
