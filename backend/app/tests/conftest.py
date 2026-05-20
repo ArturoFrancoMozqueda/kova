@@ -25,6 +25,7 @@ import app.orders.models  # noqa: F401
 import app.rbac.models  # noqa: F401
 import app.reports  # noqa: F401
 import app.shifts.models  # noqa: F401
+import app.telemetry.models  # noqa: F401
 import app.tenants.models  # noqa: F401
 from app.config import settings
 from app.db import get_db

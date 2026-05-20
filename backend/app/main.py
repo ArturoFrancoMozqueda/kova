@@ -19,6 +19,7 @@ from app.orders.router import router as orders_router
 from app.reports.router import router as reports_router
 from app.shifts.router import router as shifts_router
 from app.sync.router import router as sync_router
+from app.telemetry.router import router as telemetry_router
 
 _DEFAULT_SECRET_KEY = "change-me-in-production-use-a-long-random-string"
 
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(reports_router)
     app.include_router(shifts_router)
     app.include_router(sync_router)
+    app.include_router(telemetry_router)
 
     @app.get("/")
     def root() -> dict[str, str]:
