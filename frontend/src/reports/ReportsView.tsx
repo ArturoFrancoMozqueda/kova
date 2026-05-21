@@ -1180,32 +1180,6 @@ function EmployeeCoaching({ rows }: { rows: SalesByEmployeeRow[] }) {
   );
 }
 
-function RecommendedActions({ story }: { story: BusinessStoryReport }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>{copy.reportsView.actionTitle}</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 md:grid-cols-2">
-          {story.recommended_actions.map((action) => (
-            <InsightCard key={`${action.title}-${action.detail}`} type={action.type}>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{copy.reportsView.actionType(action.type)}</Badge>
-                <p className="font-semibold">{action.title}</p>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{action.detail}</p>
-            </InsightCard>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function InsightCard({
   type,
   children,
