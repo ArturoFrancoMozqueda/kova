@@ -629,9 +629,24 @@ export default function RegisterView() {
                       type="button"
                       aria-label={`${copy.register.add} ${product.name}`}
                       onClick={() => addProduct(product)}
-                      className="group flex flex-col justify-between rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
+                      className="group flex flex-col justify-between rounded-xl border bg-card p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
                     >
-                      <div className="space-y-1">
+                      <div className="space-y-2">
+                        <div className="aspect-square w-full overflow-hidden rounded-lg bg-muted/50">
+                          {product.image_url ? (
+                            <img
+                              src={product.image_url}
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted-foreground/40 select-none">
+                              {product.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-start justify-between gap-1">
                           <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors flex-1">
                             {product.name}
