@@ -139,8 +139,8 @@ test("owner walks the onboarding path: dashboard → catalog → shift → sale 
 
   // Step 1: dashboard shows the checklist with 0 completed steps.
   await page.goto("/dashboard");
-  await expect(page.getByText(/Crea tu primer producto/i)).toBeVisible();
-  await expect(page.getByText(/Registra la primera venta/i)).toBeVisible();
+  await expect(page.getByText(/Agrega tu primer producto vendible/i)).toBeVisible();
+  await expect(page.getByText(/Cobra la primera venta/i)).toBeVisible();
 
   // Step 2: navigate to catalog (link from checklist).
   await page.goto("/catalog");

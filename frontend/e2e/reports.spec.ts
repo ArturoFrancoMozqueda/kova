@@ -302,6 +302,6 @@ test("reports shows useful empty state without demo data", async ({ page }) => {
   await page.goto("/reports");
 
   await expect(page.getByText(/A[uú]n no hay ventas para contar una historia/i)).toBeVisible();
-  await expect(page.getByText(/Genera la primera venta del periodo/i)).toBeVisible();
+  await expect(page.getByText(/Abrir caja y vender/i)).toBeVisible();
   await expect(page.getByText(/demo/i)).not.toBeVisible();
 });
