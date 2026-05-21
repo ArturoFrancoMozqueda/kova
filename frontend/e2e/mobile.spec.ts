@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
+import { markFirstUseToursSeen } from "./helpers";
 
 const OWNER_SESSION = {
   authenticated: true,
@@ -21,27 +22,185 @@ const PRODUCT = {
   modifier_groups: [],
 };
 
-async function mockCommon(page: import("@playwright/test").Page) {
-  await page.setViewportSize({ width: 390, height: 844 });
+const STOCK_ITEM = {
+  product_id: "product-1",
+  product_name: "Concha",
+  sku: "CON-001",
+  track_inventory: true,
+  stock_on_hand: 2,
+  low_stock_threshold: 6,
+  is_low_stock: true,
+};
+
+const STANDARD_PLAN = {
+  name: "Standard Plan",
+  amount_minor_units: 29900,
+  currency: "MXN",
+  interval: "month",
+};
+
+const ACTIVE_ACCESS = {
+  allowed: true,
+  reason: "signup_trial",
+  trialing: true,
+  trial_ends_at: "2026-05-25T00:00:00Z",
+  blocked_at: null,
+  recovery_path: "/settings/billing",
+};
+
+function makeStoryPayload(overrides = {}) {
+  return {
+    summary: {
+      start_date: "2026-05-13",
+      end_date: "2026-05-19",
+      timezone: "America/Mexico_City",
+      gross_sales: "180.00",
+      refund_total: "0.00",
+      net_sales: "180.00",
+      completed_orders: 6,
+      average_ticket: "30.00",
+      refund_count: 0,
+      cancellation_count: 0,
+    },
+    executive_summary: "",
+    sales_by_day: [
+      { date: "2026-05-13", net_sales: "50.00", order_count: 2, average_ticket: "25.00", sales_share_pct: 28 },
+      { date: "2026-05-14", net_sales: "130.00", order_count: 4, average_ticket: "32.50", sales_share_pct: 72 },
+    ],
+    sales_by_daypart: [
+      { key: "madrugada", label: "Madrugada", start_hour: 0, end_hour: 5, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+      { key: "manana", label: "Manana", start_hour: 6, end_hour: 11, net_sales: "30.00", order_count: 1, average_ticket: "30.00", sales_share_pct: 17 },
+      { key: "tarde", label: "Tarde", start_hour: 12, end_hour: 17, net_sales: "150.00", order_count: 5, average_ticket: "30.00", sales_share_pct: 83 },
+      { key: "noche", label: "Noche", start_hour: 18, end_hour: 23, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+    ],
+    peak_hour: {
+      hour: 15,
+      label: "15:00-16:00",
+      daypart_key: "tarde",
+      net_sales: "90.00",
+      order_count: 3,
+      sales_share_pct: 50,
+    },
+    top_product_by_sales: {
+      product_id: "product-1",
+      product_name: "Concha",
+      quantity_sold: 10,
+      gross_sales: "180.00",
+      sales_share_pct: 100,
+    },
+    top_product_by_units: {
+      product_id: "product-1",
+      product_name: "Concha",
+      quantity_sold: 10,
+      gross_sales: "180.00",
+      sales_share_pct: 100,
+    },
+    product_drivers: [
+      {
+        product_id: "product-1",
+        product_name: "Concha",
+        quantity_sold: 10,
+        gross_sales: "180.00",
+        sales_share_pct: 100,
+      },
+    ],
+    dominant_payment: {
+      method: "cash",
+      amount: "180.00",
+      payment_count: 6,
+      sales_share_pct: 100,
+    },
+    payment_mix: [
+      {
+        method: "cash",
+        amount: "180.00",
+        payment_count: 6,
+        sales_share_pct: 100,
+      },
+    ],
+    operational_signals: [],
+    recommended_actions: [
+      {
+        type: "opportunity",
+        title: "Refuerza operacion en tarde",
+        detail: "Este bloque concentra 83% de tus ventas del periodo.",
+      },
+    ],
+    sales_by_employee: [
+      {
+        user_id: "user-1",
+        display_name: "owner",
+        order_count: 6,
+        net_sales: "180.00",
+        refund_count: 0,
+      },
+    ],
+    refunds_by_reason: [],
+    ...overrides,
+  };
+}
+
+function makeSyncResponse(orderId: string, total: string) {
+  return {
+    results: [
+      {
+        client_uuid: "00000000-0000-4000-8000-000000000001",
+        status: "synced",
+        order_id: orderId,
+        order: {
+          id: orderId,
+          tenant_id: "tenant-1",
+          status: "completed",
+          subtotal_amount: total,
+          total_amount: total,
+          items: [],
+          payments: [],
+        },
+        error: null,
+      },
+    ],
+  };
+}
+
+async function mockCommon(
+  page: Page,
+  options: {
+    viewport?: { width: number; height: number };
+    billingAccess?: Record<string, unknown>;
+    subscription?: Record<string, unknown> | null;
+    stock?: unknown[];
+    lowStock?: unknown[];
+  } = {},
+) {
+  await page.setViewportSize(options.viewport ?? { width: 390, height: 844 });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: OWNER_SESSION }));
   await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: [PRODUCT] }));
   await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/v1/inventory/stock", (route) => route.fulfill({ json: [] }));
-  await page.route("**/api/v1/inventory/low-stock", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/inventory/stock", (route) => route.fulfill({ json: options.stock ?? [] }));
+  await page.route("**/api/v1/inventory/low-stock", (route) => route.fulfill({ json: options.lowStock ?? [] }));
+  await page.route("**/api/v1/inventory/velocity", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/inventory/movements**", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/shifts/current", (route) => route.fulfill({ json: null }));
+  await page.route("**/api/v1/telemetry/events", (route) => route.fulfill({ json: { ok: true } }));
+  await page.route("**/api/v1/settings/business-profile", (route) =>
+    route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        public_name: "Bakery",
+        support_email: "owner@bakery.com",
+        support_phone: null,
+        timezone: "America/Mexico_City",
+        locale: "es-MX",
+        currency: "MXN",
+      },
+    }),
+  );
   await page.route("**/api/v1/billing/subscription", (route) =>
     route.fulfill({
       json: {
-        plan: { name: "Standard Plan", amount_minor_units: 29900, currency: "MXN", interval: "month" },
-        subscription: null,
-        access: {
-          allowed: true,
-          reason: "signup_trial",
-          trialing: true,
-          trial_ends_at: "2026-05-25T00:00:00Z",
-          blocked_at: null,
-          recovery_path: "/settings/billing",
-        },
+        plan: STANDARD_PLAN,
+        subscription: options.subscription ?? null,
+        access: options.billingAccess ?? ACTIVE_ACCESS,
       },
     }),
   );
@@ -93,7 +252,7 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   expect(report.hasOverflow, JSON.stringify(report, null, 2)).toBe(false);
 }
 
-async function expectMobileSidebarClosed(page: import("@playwright/test").Page) {
+async function expectMobileSidebarClosed(page: Page) {
   await page.waitForFunction(() => Boolean(document.querySelector("aside, [role='complementary']")));
   const sidebar = await page.evaluate(() => {
     const aside = document.querySelector("aside, [role='complementary']");
@@ -105,6 +264,26 @@ async function expectMobileSidebarClosed(page: import("@playwright/test").Page) 
 
   expect(sidebar, "App shell sidebar should exist").not.toBeNull();
   expect(sidebar?.right, JSON.stringify(sidebar, null, 2)).toBeLessThanOrEqual(1);
+}
+
+async function expectMobileTaskNavigation(page: Page) {
+  await expect(page.getByRole("navigation", { name: /navegaci/i }).last()).toBeVisible();
+  await expectMobileSidebarClosed(page);
+}
+
+async function mockReports(page: Page) {
+  await page.route("**/api/v1/reports/business-story**", (route) =>
+    route.fulfill({ json: makeStoryPayload() }),
+  );
+  await page.route("**/api/v1/reports/sales-by-hour**", (route) =>
+    route.fulfill({
+      json: Array.from({ length: 24 }, (_, hour) => ({
+        hour,
+        net_sales: hour === 15 ? "90.00" : hour === 16 ? "60.00" : "0.00",
+        order_count: hour === 15 ? 3 : hour === 16 ? 2 : 0,
+      })),
+    }),
+  );
 }
 
 test("public landing fits common phone and tablet widths", async ({ page }) => {
@@ -155,6 +334,7 @@ test("orders render as cards at 390px without horizontal overflow", async ({ pag
 
 test("register dashboard and billing fit at 390px", async ({ page }) => {
   await mockCommon(page);
+  await mockReports(page);
   await page.route("**/api/v1/reports/sales-summary**", (route) =>
     route.fulfill({
       json: {
@@ -191,6 +371,105 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
     if (path !== "/settings/billing") {
       await expectMobileSidebarClosed(page);
     }
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
+test("billing banner stays visible and usable on phone and tablet", async ({ page }) => {
+  await mockCommon(page, {
+    billingAccess: {
+      allowed: false,
+      reason: "trial_expired",
+      trialing: false,
+      trial_ends_at: "2026-01-01T00:00:00Z",
+      blocked_at: "2026-05-01T00:00:00Z",
+      recovery_path: "/settings/billing",
+    },
+  });
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/register");
+
+    const banner = page.getByTestId("billing-banner");
+    await expect(banner).toBeVisible();
+    await expect(banner.getByRole("link", { name: /administrar facturaci/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
+    await expectMobileTaskNavigation(page);
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
+test("reports filters fit mobile and keep the primary CTA visible", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockCommon(page);
+  await mockReports(page);
+
+  await page.goto("/reports");
+  await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /aplicar/i })).toBeVisible();
+  await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
+  await page.getByLabel(/fecha final/i).fill("2026-05-19");
+  await page.getByRole("button", { name: /aplicar/i }).click();
+
+  await expect(page.getByText(/resumen ejecutivo/i)).toBeVisible();
+  await expect(page.getByText(/Tarde/).first()).toBeVisible();
+  await expectMobileTaskNavigation(page);
+  await expectNoHorizontalOverflow(page);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await expect(page.getByRole("button", { name: /aplicar/i })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test("register quick sale keeps CTAs above mobile navigation", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockCommon(page);
+  await page.route("**/api/v1/sync/offline-sales", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    await route.fulfill({ json: makeSyncResponse("order-mobile", "18.50") });
+  });
+
+  await page.goto("/register");
+  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+
+  const stickyCheckout = page.locator("button", { hasText: /cobrar/i }).first();
+  await expect(stickyCheckout).toBeVisible();
+  await expect(page.getByLabel(/efectivo recibido/i)).toBeVisible();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await expect(page.getByRole("button", { name: /^cobrar$/i })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
+  await expect(page.getByRole("dialog", { name: /venta completada/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /nueva venta/i })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
+test("inventory low-stock workflow fits phone and tablet", async ({ page }) => {
+  await mockCommon(page, {
+    stock: [STOCK_ITEM],
+    lowStock: [STOCK_ITEM],
+  });
+
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 768, height: 1024 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/inventory");
+
+    await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+    await expect(page.getByText(/stock bajo/i).first()).toBeVisible();
+    await expect(page.getByText("Concha: 2")).toBeVisible();
+    await expect(page.getByRole("button", { name: /ajustar/i })).toBeVisible();
+    await page.getByLabel(/filtrar inventario/i).selectOption("low");
+    await expect(page.getByText("Concha", { exact: true })).toBeVisible();
+    await expectMobileTaskNavigation(page);
     await expectNoHorizontalOverflow(page);
   }
 });
