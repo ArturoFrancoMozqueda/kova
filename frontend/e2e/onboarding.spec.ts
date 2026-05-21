@@ -163,7 +163,7 @@ test("owner walks the onboarding path: dashboard → catalog → shift → sale 
 
   // Step 3: return to dashboard — first product is now checked.
   await page.goto("/dashboard");
-  await expect(page.getByText(/Registra la primera venta/i)).toBeVisible();
+  await expect(page.getByText(/Cobra la primera venta/i)).toBeVisible();
   await expect(page.locator('[data-billing-reason]')).toHaveCount(0).catch(() => null);
 
   // Step 4: open a shift (simulated).
@@ -179,5 +179,5 @@ test("owner walks the onboarding path: dashboard → catalog → shift → sale 
   // Step 7: return to dashboard — checklist hidden because all steps complete.
   await page.goto("/dashboard");
   // OnboardingChecklist returns null when allDone, so the title should not be present.
-  await expect(page.getByText(/Crea tu primer producto/i)).toHaveCount(0);
+  await expect(page.getByText(/Agrega tu primer producto vendible/i)).toHaveCount(0);
 });
