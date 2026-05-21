@@ -947,7 +947,45 @@ function ProductInventoryAnalysis({
           {copy.reportsView.noProducts}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <>
+        {/* Mobile: stacked cards (more readable than scrolling a 5-col table) */}
+        <div className="sm:hidden space-y-3">
+          {rows.map(({ product, stock, velocity: velocityItem, action }) => (
+            <div key={product.product_id} className="rounded-lg border bg-card p-4 space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-medium text-sm leading-snug flex-1">{product.product_name}</p>
+                <Badge variant={action.variant} className="shrink-0">{action.label}</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <div>
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">{copy.reportsView.salesColumn}</p>
+                  <p className="font-semibold tabular-nums">{formatMoney(product.gross_sales)}</p>
+                  <p className="text-muted-foreground text-[11px]">{pctLabel(product.sales_share_pct)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">{copy.reportsView.unitsColumn}</p>
+                  <p className="font-semibold tabular-nums">{product.quantity_sold}</p>
+                </div>
+              </div>
+              <div className="text-xs">
+                <p className="text-muted-foreground uppercase tracking-wide text-[10px]">{copy.reportsView.stockColumn}</p>
+                <p>
+                  {stock || velocityItem ? copy.reportsView.stockStatus(
+                    stock?.stock_on_hand ?? velocityItem?.stock_on_hand ?? 0,
+                    stock?.low_stock_threshold ?? null,
+                    velocityItem?.days_until_out ?? null,
+                  ) : (
+                    <span className="text-muted-foreground">{copy.reportsView.noTrackedStock}</span>
+                  )}
+                </p>
+              </div>
+              <p className="text-xs leading-5 text-muted-foreground border-t pt-2">{action.detail}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: tabular layout */}
+        <div className="hidden sm:block overflow-x-auto rounded-lg border">
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
@@ -993,6 +1031,7 @@ function ProductInventoryAnalysis({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </DecisionSection>
   );
