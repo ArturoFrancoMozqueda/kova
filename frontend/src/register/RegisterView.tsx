@@ -626,7 +626,7 @@ export default function RegisterView() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {filteredProducts.map((product) => {
                   const stock = stockMap.get(product.id);
                   const isOut = stock?.track_inventory && stock.stock_on_hand === 0;
@@ -637,10 +637,10 @@ export default function RegisterView() {
                       type="button"
                       aria-label={`${copy.register.add} ${product.name}`}
                       onClick={() => addProduct(product)}
-                      className="group flex flex-col justify-between rounded-xl border bg-card p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97] min-h-[120px]"
+                      className="group flex sm:flex-col items-stretch sm:justify-between gap-3 sm:gap-0 rounded-xl border bg-card p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97]"
                     >
-                      <div className="space-y-2">
-                        <div className="aspect-square w-full overflow-hidden rounded-lg bg-muted/50">
+                      <div className="flex sm:block items-center gap-3 sm:gap-0 sm:space-y-2 flex-1 min-w-0">
+                        <div className="aspect-square w-16 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50">
                           {product.image_url ? (
                             <img
                               src={product.image_url}
@@ -677,8 +677,8 @@ export default function RegisterView() {
                           </p>
                         )}
                       </div>
-                      <div className="flex items-center justify-between mt-3">
-                        <span className="text-base font-bold text-primary">
+                      <div className="flex items-center gap-2 sm:justify-between sm:mt-3 shrink-0">
+                        <span className="text-base font-bold text-primary tabular-nums">
                           {formatMoney(product.price_amount)}
                         </span>
                         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-60 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
