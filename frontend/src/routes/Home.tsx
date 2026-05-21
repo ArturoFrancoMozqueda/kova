@@ -959,7 +959,11 @@ function Footer() {
         </div>
         <div style={{ marginTop: 64, paddingTop: 24, borderTop: "0.5px solid var(--hairline-color)", display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-tertiary)", flexWrap: "wrap", gap: 16 }}>
           <span>© 2026 kova · hecho en México 🇲🇽</span>
-          <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>Soporte</a>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            <Link to="/privacy" style={footerLinkStyle}>Privacidad</Link>
+            <Link to="/terms" style={footerLinkStyle}>Términos</Link>
+            <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>Soporte</a>
+          </div>
         </div>
       </div>
     </footer>

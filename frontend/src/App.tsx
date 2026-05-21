@@ -18,6 +18,7 @@ import AppShell from "./layout/AppShell";
 import { ToastProvider } from "./components/ui/toast";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import Home from "./routes/Home";
+import LegalPage from "./routes/LegalPage";
 import LogoPreview from "./routes/LogoPreview";
 import ComponentsPreview from "./routes/ComponentsPreview";
 import IntroPreview from "./routes/dev/IntroPreview";
@@ -35,6 +36,8 @@ export default function App() {
             <Route path="/verify-email" element={<VerifyEmailView />} />
 
             <Route path="/" element={<Home />} />
+            <Route path="/privacy" element={<LegalPage variant="privacy" />} />
+            <Route path="/terms" element={<LegalPage variant="terms" />} />
 
             {import.meta.env.DEV ? (
               <Route path="/dev/logo-preview" element={<LogoPreview />} />

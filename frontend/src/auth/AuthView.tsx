@@ -118,14 +118,18 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   <p className="mt-1">
                     {copy.auth.signupLegalPrefix}{" "}
                     <a
-                      href="mailto:posprojectsupport@gmail.com?subject=Privacidad%20Kova"
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="font-medium text-kova-blue hover:underline"
                     >
                       {copy.auth.privacy}
                     </a>
                     {" "}y{" "}
                     <a
-                      href="mailto:posprojectsupport@gmail.com?subject=Terminos%20Kova"
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="font-medium text-kova-blue hover:underline"
                     >
                       {copy.auth.terms}
