@@ -627,10 +627,10 @@ function TabletPreview() {
         <div style={{ padding: "14px 14px 10px", borderBottom: "0.5px solid var(--kova-border)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>
-              Hoy · May 17
+              Vista previa · ejemplo
             </div>
             <div style={{ fontSize: 10, color: "var(--kova-muted)", display: "flex", gap: 4, alignItems: "center" }}>
-              <span className="lp-live-dot" /> Vivo
+              <span className="lp-live-dot" /> Demo
             </div>
           </div>
           <div className="tabular" style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.04em", marginTop: 4 }}>

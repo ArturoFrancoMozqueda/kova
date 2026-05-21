@@ -390,7 +390,6 @@ function ReportsStory({
     return (
       <div className="space-y-6">
         <EmptyBusinessState onPickToday={onResetRange} />
-        <RecommendedActions story={story} />
       </div>
     );
   }

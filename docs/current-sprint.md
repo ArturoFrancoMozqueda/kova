@@ -32,9 +32,10 @@ Sprint 4 is in progress, focused on report clarity without overwhelming the owne
 
 ## Left From Sprint 1
 
-- [ ] Create a formal billing state copy matrix for active trial, expired trial, active subscription,
-      past due, canceled, and Stripe unavailable.
-- [ ] Add real privacy/terms pages or hosted documents instead of mailto request links.
+- [x] Billing state copy matrix landed at `docs/billing-state-copy-matrix.md`. Single source of truth
+      for every reason surfaced in `BillingBanner`.
+- [x] Real privacy and terms pages at `/privacy` and `/terms`; signup and footer now link to them
+      instead of mailto request links.
 - [ ] Replace remaining audit-era historical references in `docs/ux-review-2026-05-19.md` only if
       that file is no longer treated as historical evidence.
 
@@ -54,8 +55,8 @@ Sprint 4 is in progress, focused on report clarity without overwhelming the owne
 
 ## Left From Sprint 2
 
-- [ ] Add a dedicated full-path E2E: signup -> checklist visible -> first product -> open shift ->
-      first sale -> first report -> checklist/milestones update.
+- [x] Full-path onboarding E2E landed at `frontend/e2e/onboarding.spec.ts`: dashboard checklist ->
+      first product -> shift -> sale -> first report -> checklist hidden when complete.
 - [ ] Add first employee setup as a first-value path once employee management is clearer in Sprint 3.
 - [ ] Decide whether the cafe preset should include modifier groups for milk/size, or keep modifiers
       as a later usability pass to avoid expanding beta scope.
@@ -135,26 +136,32 @@ Sprint 4 is in progress, focused on report clarity without overwhelming the owne
 
 ## Left From Sprint 4
 
-- [ ] Normalize all report endpoints to tenant timezone for date bounds, daypart grouping, and hour
-      grouping.
-- [ ] Add deeper cafe product trends: best/worst products by week/month, growth/decline, and slow
-      movers.
-- [ ] Strengthen inventory recommendations by joining sales velocity with low-stock thresholds in
-      backend/service logic.
-- [ ] Add employee contribution and staffing cues that stay useful for small teams.
-- [ ] Collapse no-data reports into a single guided empty state with one primary CTA.
+- [x] All report endpoints (sales-summary, payment-breakdown, top-products, sales-by-hour,
+      sales-by-employee, refunds-by-reason) now compute date bounds in the tenant timezone, and
+      hour bucketing reflects local business hours.
+- [x] Generic product trends (growing/declining/slow movers) added to `business-story` via
+      previous-period comparison. Applies to every tenant, not just cafes.
+- [x] Inventory recommendations strengthened: `restock_alerts` joins 7-day sales velocity with
+      low-stock thresholds; critical alerts surface in `recommended_actions` first.
+- [x] Employee contribution cues added: `employee_contribution.rows` with `sales_share_pct` and an
+      `even_distribution` flag for small-team staffing.
+- [x] Reports no-data path now renders a single `EmptyBusinessState` card with one primary CTA; the
+      duplicate `RecommendedActions` block was removed.
 
 ## Next Sprint Recommendation
 
-Continue Sprint 4: Reports and Business Storytelling, starting with tenant-timezone consistency and
-backend-backed product/restock trends.
+Frontend consumption of the new `product_trends`, `restock_alerts`, and `employee_contribution`
+fields on the reports view. Backend already returns them; UI work remains.
 
 ## Carried Over From Older Production-Review Backlog
 
 - [ ] Clean up the stray Vercel `frontend` project after confirming it is unused.
-- [ ] Tenant isolation tests for every tenant-scoped route.
-- [ ] Analytics credibility: replace fake-looking landing metrics, add real backend-driven dashboard
-      trend comparison, and revisit richer report endpoints before Tax/Discounts work.
+- [x] Tenant isolation tests for every tenant-scoped route landed in
+      `backend/app/tests/test_tenant_isolation_routes.py`. Covers catalog, orders, reports,
+      inventory, business-settings, employees, shifts, modifiers, and billing.
+- [x] Landing tablet preview now labels itself as a demo (`Vista previa · ejemplo`) so the numbers
+      cannot be mistaken for live tenant metrics. Real backend-driven dashboard trend comparisons
+      and richer report endpoints remain a follow-up before Tax/Discounts work.
 
 ## Pre-Beta Ops Checklist
 

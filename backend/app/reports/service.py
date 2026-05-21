@@ -949,10 +949,11 @@ def _recommended_actions(
             }
         ]
     actions = []
-    for alert in (restock_alerts or [])[:2]:
+    critical_restock = [a for a in (restock_alerts or []) if a["severity"] == "critical"][:1]
+    for alert in critical_restock:
         actions.append(
             {
-                "type": "risk" if alert["severity"] == "critical" else "operational_improvement",
+                "type": "risk",
                 "title": f"Reabastece {alert['product_name']}",
                 "detail": alert["detail"],
             }
