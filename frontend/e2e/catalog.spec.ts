@@ -12,6 +12,17 @@ async function mockAuthAs(page: Page, role: string) {
       },
     });
   });
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: {
+        subscription: { status: "active" },
+        access: { allowed: true, reason: "active", trialing: false, recovery_path: "/settings/billing" },
+      },
+    });
+  });
+  await page.route("**/api/v1/telemetry/events", async (route) => {
+    await route.fulfill({ status: 204, body: "" });
+  });
 }
 
 const categories = [
@@ -213,4 +224,56 @@ test("catalog product create edit and inventory activation work at mobile width"
   await page.getByRole("button", { name: /guardar producto/i }).click();
   await expect(page.getByText(/producto actualizado/i)).toBeVisible();
   await expect(page.getByText("$58.00")).toBeVisible();
+});
+
+test("catalog product create shows billing recovery when access is blocked", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: {
+        subscription: null,
+        access: {
+          allowed: false,
+          reason: "trial_expired",
+          trialing: false,
+          trial_ends_at: "2026-05-01T00:00:00Z",
+          blocked_at: "2026-05-21T20:15:03Z",
+          recovery_path: "/settings/billing",
+        },
+      },
+    });
+  });
+  await page.route("**/api/v1/catalog/categories", async (route) => {
+    await route.fulfill({ json: categories });
+  });
+  await page.route("**/api/v1/catalog/products", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ json: products });
+      return;
+    }
+    await route.fulfill({
+      status: 402,
+      json: {
+        detail: {
+          message: "Billing access is required to continue using this POS feature",
+          reason: "trial_expired",
+          recovery_path: "/settings/billing",
+        },
+      },
+    });
+  });
+  await page.route("**/api/v1/catalog/modifier-groups", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+
+  await page.goto("/catalog");
+  await page.getByRole("button", { name: /nuevo producto/i }).click();
+  await page.getByLabel(/nombre del producto/i).fill("Galleta New York");
+  await page.getByLabel(/precio/i).fill("45");
+  await page.getByRole("button", { name: /guardar producto/i }).click();
+
+  await expect(page.getByText(/activa el plan para guardar cambios en el cat[áa]logo/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /ver facturaci[óo]n/i })).toBeVisible();
+  await expect(page.getByText(/algo sali[óo] mal/i)).not.toBeVisible();
 });

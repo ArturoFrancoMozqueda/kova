@@ -1052,6 +1052,8 @@ export const copy = {
     productCreated: "Producto creado.",
     productUpdated: "Producto actualizado.",
     productDeactivated: "Producto desactivado.",
+    billingRequired: "Tu prueba terminó o la facturación necesita atención. Activa el plan para guardar cambios en el catálogo.",
+    billingRequiredCta: "Ver facturación",
     operationError: "Algo salió mal. Inténtalo de nuevo.",
     cancel: "Cancelar",
     modifiers: "Grupos de modificadores",

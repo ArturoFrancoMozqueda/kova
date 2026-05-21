@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CATALOG_CREATE_PERMISSION,
   CATALOG_DELETE_PERMISSION,
@@ -35,6 +35,7 @@ import {
   updateCategory,
   updateProduct,
   uploadProductImage,
+  ApiError,
 } from "./api";
 import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
@@ -97,6 +98,7 @@ export default function CatalogView() {
   const handledSetupParam = useRef<string | null>(null);
   const [pending, setPending] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [showModifiers, setShowModifiers] = useState(false);
   const [presetApplying, setPresetApplying] = useState(false);
@@ -139,6 +141,21 @@ export default function CatalogView() {
     toast(msg, variant);
   };
 
+  const showCatalogError = (error: unknown) => {
+    if (error instanceof ApiError && error.status === 402) {
+      toast(copy.catalog.billingRequired, {
+        variant: "error",
+        durationMs: 8000,
+        action: {
+          label: copy.catalog.billingRequiredCta,
+          onAction: () => navigate("/settings/billing"),
+        },
+      });
+      return;
+    }
+    showNotice(copy.catalog.operationError, "error");
+  };
+
   const handleApplyPreset = async (preset: PresetName) => {
     setPresetApplying(true);
     try {
@@ -149,8 +166,8 @@ export default function CatalogView() {
         showNotice(copy.onboarding.presetApplied(result.products_created));
         await load();
       }
-    } catch {
-      showNotice(copy.catalog.operationError, "error");
+    } catch (error) {
+      showCatalogError(error);
     } finally {
       setPresetApplying(false);
     }
@@ -398,8 +415,8 @@ export default function CatalogView() {
                           showNotice(copy.catalog.categoryDeactivated);
                           if (selectedCategoryId === cat.id) setSelectedCategoryId(null);
                           await load();
-                        } catch {
-                          showNotice(copy.catalog.operationError, "error");
+                        } catch (error) {
+                          showCatalogError(error);
                         } finally {
                           setPending(false);
                         }
@@ -595,7 +612,7 @@ export default function CatalogView() {
                 canDelete={canDelete}
                 onReload={load}
                 onNotice={(msg) => showNotice(msg)}
-                onError={(msg) => showNotice(msg, "error")}
+                onError={(error) => showCatalogError(error)}
               />
             </CardContent>
           )}
@@ -634,8 +651,8 @@ export default function CatalogView() {
                 }
                 setModal(null);
                 await load();
-              } catch {
-                showNotice(copy.catalog.operationError, "error");
+              } catch (error) {
+                showCatalogError(error);
               } finally {
                 setPending(false);
               }
@@ -712,8 +729,8 @@ export default function CatalogView() {
                 }
                 setModal(null);
                 await load();
-              } catch {
-                showNotice(copy.catalog.operationError, "error");
+              } catch (error) {
+                showCatalogError(error);
               } finally {
                 setPending(false);
               }
@@ -727,8 +744,8 @@ export default function CatalogView() {
                       showNotice(copy.catalog.productDeactivated);
                       setModal(null);
                       await load();
-                    } catch {
-                      showNotice(copy.catalog.operationError, "error");
+                    } catch (error) {
+                      showCatalogError(error);
                     } finally {
                       setPending(false);
                     }
@@ -759,7 +776,7 @@ function ModifierGroupsPanel({
   canDelete: boolean;
   onReload: () => Promise<void>;
   onNotice: (msg: string) => void;
-  onError: (msg: string) => void;
+  onError: (error: unknown) => void;
 }) {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupRequired, setNewGroupRequired] = useState(false);
@@ -776,8 +793,8 @@ function ModifierGroupsPanel({
       setNewGroupName("");
       setNewGroupRequired(false);
       await onReload();
-    } catch {
-      onError(copy.catalog.operationError);
+    } catch (error) {
+      onError(error);
     } finally {
       setAddingGroup(false);
     }
@@ -791,8 +808,8 @@ function ModifierGroupsPanel({
       onNotice(copy.catalog.optionAdded);
       setNewOptions((prev) => ({ ...prev, [groupId]: { name: "", delta: "" } }));
       await onReload();
-    } catch {
-      onError(copy.catalog.operationError);
+    } catch (error) {
+      onError(error);
     }
   };
 
@@ -823,8 +840,8 @@ function ModifierGroupsPanel({
                     await deactivateModifierGroup(group.id);
                     onNotice(copy.catalog.modifierGroupDeactivated);
                     await onReload();
-                  } catch {
-                    onError(copy.catalog.operationError);
+                  } catch (error) {
+                    onError(error);
                   }
                 }}
               >
@@ -856,8 +873,8 @@ function ModifierGroupsPanel({
                         await deactivateModifierOption(group.id, opt.id);
                         onNotice(copy.catalog.optionDeactivated);
                         await onReload();
-                      } catch {
-                        onError(copy.catalog.operationError);
+                      } catch (error) {
+                        onError(error);
                       }
                     }}
                   >
