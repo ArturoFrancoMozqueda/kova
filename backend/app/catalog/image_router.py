@@ -1,8 +1,10 @@
+import io
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
+from PIL import Image
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -18,6 +20,27 @@ router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
 
 ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
 MAX_IMAGE_BYTES = 1024 * 1024  # 1 MB
+ALLOWED_RESIZE_WIDTHS = {160, 320, 400, 800}
+
+
+def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
+    """Resize image to target_width preserving aspect ratio, output as WebP.
+    Returns original bytes if image is already smaller, or on any error."""
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            if img.width <= target_width:
+                return data, content_type
+            ratio = target_width / img.width
+            target_height = max(1, int(img.height * ratio))
+            mode = "RGB" if img.mode in ("P", "RGBA", "LA") else img.mode
+            resized = img.convert(mode).resize(
+                (target_width, target_height), Image.Resampling.LANCZOS
+            )
+            buf = io.BytesIO()
+            resized.save(buf, format="WEBP", quality=82, method=4)
+            return buf.getvalue(), "image/webp"
+    except Exception:
+        return data, content_type
 
 
 class ProductImageUploadResponse(BaseModel):
@@ -178,7 +201,11 @@ def delete_product_image(
 
 
 @router.get("/products/{product_id}/image")
-def get_product_image(product_id: UUID, db: Session = Depends(get_db)):
+def get_product_image(
+    product_id: UUID,
+    db: Session = Depends(get_db),
+    w: int | None = Query(default=None, description="Optional resize width (160, 320, 400, 800)"),
+):
     image = (
         db.query(ProductImageFile)
         .filter(ProductImageFile.product_id == product_id)
@@ -186,8 +213,14 @@ def get_product_image(product_id: UUID, db: Session = Depends(get_db)):
     )
     if image is None:
         raise not_found("Product image not found")
+
+    body = image.bytes_data
+    media_type = image.content_type
+    if w is not None and w in ALLOWED_RESIZE_WIDTHS:
+        body, media_type = _resize_to_width(body, media_type, w)
+
     return Response(
-        content=image.bytes_data,
-        media_type=image.content_type,
+        content=body,
+        media_type=media_type,
         headers={"Cache-Control": "public, max-age=86400"},
     )

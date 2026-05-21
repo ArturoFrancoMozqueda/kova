@@ -250,7 +250,7 @@ test("reports page displays business storytelling layout", async ({ page }) => {
   await expect(page.getByRole("button", { name: /17 may: \$88\.00/i })).toBeVisible();
   await expect(page.getByText(/productos e inventario/i)).toBeVisible();
   await expect(page.getByRole("cell", { name: "Dona", exact: true })).toBeVisible();
-  await expect(page.getByText("Reabastecer", { exact: true })).toBeVisible();
+  await expect(page.getByRole("table").getByText("Reabastecer", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: /pagos y operación/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /Noche: \$160\.00/i })).toBeVisible();
   await expect(page.getByText(/Hora pico del periodo: 20:00-21:00/i)).toBeVisible();

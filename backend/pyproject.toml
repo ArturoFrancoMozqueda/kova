@@ -16,6 +16,7 @@ dependencies = [
     "email-validator>=2.2",
     "sentry-sdk[fastapi]>=2.19",
     "resend>=2.0",
+    "Pillow>=11.0",
 ]
 
 [dependency-groups]

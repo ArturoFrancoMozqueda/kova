@@ -234,6 +234,11 @@ export default function RegisterView() {
   };
 
   const cartItems = useMemo(() => Object.values(cart), [cart]);
+  // Auto-open the mobile cart sheet on the first item added; closes when cart empties.
+  useEffect(() => {
+    if (cartItems.length > 0) setCartSheetOpen(true);
+    else setCartSheetOpen(false);
+  }, [cartItems.length]);
   const totalCents = useMemo(
     () =>
       cartItems.reduce(
@@ -708,8 +713,6 @@ export default function RegisterView() {
             "scroll-mt-4",
             cartSheetOpen ? "translate-y-0" : "translate-y-[calc(100%-5rem)]",
           )}
-          role="region"
-          aria-label={copy.register.cart}
         >
           {/* Peek handle — mobile only */}
           <button
