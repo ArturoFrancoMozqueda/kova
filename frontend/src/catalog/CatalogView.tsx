@@ -38,6 +38,7 @@ import {
 } from "./api";
 import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
+import { compressImage } from "./compressImage";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1031,7 +1032,6 @@ type ProductFormValues = {
   image_remove: boolean;
 };
 
-const PRODUCT_IMAGE_MAX_BYTES = 1024 * 1024;
 const PRODUCT_IMAGE_ALLOWED = ["image/png", "image/jpeg", "image/webp"];
 
 function ProductForm({
@@ -1081,7 +1081,7 @@ function ProductForm({
     );
   };
 
-  const handleImagePick = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleImagePick = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     event.target.value = "";
     if (!file) return;
@@ -1089,12 +1089,14 @@ function ProductForm({
       toast(copy.catalog.productImageInvalidType, "error");
       return;
     }
-    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
-      toast(copy.catalog.productImageTooLarge, "error");
-      return;
+    let prepared = file;
+    try {
+      prepared = await compressImage(file);
+    } catch {
+      // fall back to original; backend still enforces a size cap
     }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    setImageFile(prepared);
+    setImagePreview(URL.createObjectURL(prepared));
     setImageRemoved(false);
   };
 

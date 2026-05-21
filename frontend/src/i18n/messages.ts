@@ -634,6 +634,7 @@ export const copy = {
         : `${pct > 0 ? "+" : ""}${pct}% vs. ${label}.`,
     comparePeakHour: (hour: string) => `Antes el pico fue ${hour}.`,
     compareDaypart: (daypart: string) => `Antes el bloque fuerte fue ${daypart}.`,
+    currentPeakHour: (hour: string) => `Hora pico del bloque ganador: ${hour}.`,
     inventoryRestockTitle: (name: string) => `Reabastece ${name}`,
     inventoryRestockDetail: (
       name: string,
@@ -1030,7 +1031,7 @@ export const copy = {
     productCategory: "Categoría",
     productDescription: "Descripción",
     productImage: "Imagen del producto",
-    productImageHint: "PNG, JPG o WebP. Máx. 1 MB.",
+    productImageHint: "PNG, JPG o WebP. La optimizamos automáticamente.",
     productImageUpload: "Subir imagen",
     productImageRemove: "Quitar imagen",
     productImageSaveFirst: "Guarda el producto antes de subir una imagen.",
