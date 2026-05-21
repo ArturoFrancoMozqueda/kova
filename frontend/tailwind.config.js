@@ -104,12 +104,17 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.6" },
         },
+        "slide-up": {
+          from: { transform: "translateY(100%)" },
+          to: { transform: "translateY(0)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.2s ease-out",
         "slide-in-right": "slide-in-right 0.2s ease-out",
         "scale-in": "scale-in 0.15s ease-out",
         "pulse-soft": "pulse-soft 1.5s ease-in-out infinite",
+        "slide-up": "slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
       },
     },
   },
