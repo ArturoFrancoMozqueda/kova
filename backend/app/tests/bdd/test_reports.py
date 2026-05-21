@@ -96,8 +96,11 @@ def _set_role(db, signup: dict, role: str) -> None:
 
 
 def _set_order_hour(db, order_id: str, hour: int) -> None:
+    """Pin an order's created_at to the given hour in the tenant timezone."""
     order = db.query(Order).filter(Order.id == UUID(order_id)).one()
-    order.created_at = order.created_at.replace(hour=hour, minute=0, second=0, microsecond=0)
+    tz = ZoneInfo("America/Mexico_City")
+    local_today = datetime.now(tz).replace(hour=hour, minute=0, second=0, microsecond=0)
+    order.created_at = local_today.astimezone(UTC)
     db.commit()
 
 

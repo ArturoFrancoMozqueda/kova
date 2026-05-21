@@ -24,14 +24,18 @@ DAYPARTS = (
 )
 
 
-def _default_range() -> tuple[date, date]:
-    today = datetime.now(UTC).date()
+def _default_range(tz: ZoneInfo | None = None) -> tuple[date, date]:
+    today = datetime.now(tz or UTC).date()
     return today, today
 
 
-def _normalize_range(start_date: date | None, end_date: date | None) -> tuple[date, date]:
+def _normalize_range(
+    start_date: date | None,
+    end_date: date | None,
+    tz: ZoneInfo | None = None,
+) -> tuple[date, date]:
     if start_date is None and end_date is None:
-        start_date, end_date = _default_range()
+        start_date, end_date = _default_range(tz)
     elif start_date is None:
         start_date = end_date
     elif end_date is None:
@@ -160,8 +164,11 @@ def _void_count(
 def sales_summary(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> dict:
-    start_date, end_date = _normalize_range(start_date, end_date)
-    orders = _completed_orders(db, tenant_id=tenant_id, start_date=start_date, end_date=end_date)
+    tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
+    orders = _completed_orders(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
+    )
     order_ids = [order.id for order in orders]
     gross_sales = calculator.money(sum((order.total_amount for order in orders), Decimal("0.00")))
 
@@ -184,7 +191,7 @@ def sales_summary(
         "order_count": len(orders),
         "refund_count": len(refunds),
         "void_count": _void_count(
-            db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
+            db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
         ),
     }
 
@@ -192,8 +199,11 @@ def sales_summary(
 def payment_breakdown(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> dict:
-    start_date, end_date = _normalize_range(start_date, end_date)
-    orders = _completed_orders(db, tenant_id=tenant_id, start_date=start_date, end_date=end_date)
+    tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
+    orders = _completed_orders(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
+    )
     order_ids = [order.id for order in orders]
     totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
     counts: dict[str, int] = defaultdict(int)
@@ -232,10 +242,13 @@ def top_products(
     end_date: date | None,
     limit: int,
 ) -> dict:
-    start_date, end_date = _normalize_range(start_date, end_date)
+    tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
     if limit < 1 or limit > 50:
         raise bad_request("Limit must be between 1 and 50")
-    orders = _completed_orders(db, tenant_id=tenant_id, start_date=start_date, end_date=end_date)
+    orders = _completed_orders(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
+    )
     order_ids = [order.id for order in orders]
     product_totals: dict[UUID, dict] = {}
 
@@ -284,8 +297,8 @@ def _refunds_by_order_subquery(db: Session, *, tenant_id: UUID):
 def sales_by_hour(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> list[dict]:
-    start_date, end_date = _normalize_range(start_date, end_date)
     tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
     orders = _completed_orders(
         db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
     )
@@ -318,8 +331,8 @@ def sales_by_hour(
 def sales_by_employee(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> list[dict]:
-    start_date, end_date = _normalize_range(start_date, end_date)
     tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
     start, end = _local_bounds(start_date, end_date, tz)
     refunds_by_order = _refunds_by_order_subquery(db, tenant_id=tenant_id)
 
@@ -364,8 +377,8 @@ def sales_by_employee(
 def refunds_by_reason(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> list[dict]:
-    start_date, end_date = _normalize_range(start_date, end_date)
     tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
     start, end = _local_bounds(start_date, end_date, tz)
     rows = (
         db.query(
@@ -397,8 +410,8 @@ def refunds_by_reason(
 def business_story(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> dict:
-    start_date, end_date = _normalize_range(start_date, end_date)
     tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start_date, end_date = _normalize_range(start_date, end_date, tz)
     start, end = _local_bounds(start_date, end_date, tz)
     orders = _completed_orders_between(db, tenant_id=tenant_id, start=start, end=end)
     order_ids = [order.id for order in orders]

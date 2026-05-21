@@ -40,7 +40,7 @@ def _two_tenants():
     return a, b
 
 
-def test_catalog_isolation():
+def test_catalog_isolation(db):  # noqa: ARG001 — db fixture wires the DB override
     a, b = _two_tenants()
     try:
         # Tenant A creates a product.
@@ -68,7 +68,7 @@ def test_catalog_isolation():
         b.__exit__(None, None, None)
 
 
-def test_orders_and_reports_isolation():
+def test_orders_and_reports_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
         # Tenant A creates a product and a paid order.
@@ -115,7 +115,7 @@ def test_orders_and_reports_isolation():
         b.__exit__(None, None, None)
 
 
-def test_inventory_isolation():
+def test_inventory_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
         a.post(
@@ -140,7 +140,7 @@ def test_inventory_isolation():
         b.__exit__(None, None, None)
 
 
-def test_business_settings_isolation():
+def test_business_settings_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
         # Each tenant should only see their own business profile.
@@ -154,7 +154,7 @@ def test_business_settings_isolation():
         b.__exit__(None, None, None)
 
 
-def test_employees_isolation():
+def test_employees_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
         r_a = a.get("/api/v1/employees")
@@ -169,7 +169,7 @@ def test_employees_isolation():
         b.__exit__(None, None, None)
 
 
-def test_shifts_isolation():
+def test_shifts_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
         # Tenant A opens a shift.
@@ -191,7 +191,7 @@ def test_shifts_isolation():
         b.__exit__(None, None, None)
 
 
-def test_modifiers_isolation():
+def test_modifiers_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
         r_a = a.get("/api/v1/catalog/modifier-groups")
@@ -206,7 +206,7 @@ def test_modifiers_isolation():
         b.__exit__(None, None, None)
 
 
-def test_billing_subscription_isolation():
+def test_billing_subscription_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
         r_a = a.get("/api/v1/billing/subscription")
