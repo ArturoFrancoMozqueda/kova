@@ -910,6 +910,8 @@ export const copy = {
   register: {
     title: "Caja",
     logout: "Cerrar sesión",
+    expandCart: "Ver carrito",
+    collapseCart: "Cerrar carrito",
     catalog: "Catálogo",
     catalogPlaceholder: "Aún no hay productos activos en la caja.",
     catalogPlaceholderBody: "Crea un producto real o carga el menú base de cafetería para poder cobrar en minutos.",

@@ -48,6 +48,7 @@ import {
   Search,
   Sparkles,
   X,
+  ChevronUp,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 
@@ -123,14 +124,12 @@ export default function RegisterView() {
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const successPrimaryRef = useRef<HTMLButtonElement | null>(null);
 
-  const scrollToPayment = () => {
-    paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
   const [hasOpenShift, setHasOpenShift] = useState<boolean | null>(null);
   const [skuQuery, setSkuQuery] = useState("");
+  const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skuMatches, setSkuMatches] = useState<Product[]>([]);
 
@@ -497,6 +496,15 @@ export default function RegisterView() {
         </div>
       )}
 
+      {/* Mobile cart sheet backdrop */}
+      {cartSheetOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
+          onClick={() => setCartSheetOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
         {/* Product Grid */}
         <Card className="overflow-hidden">
@@ -685,10 +693,57 @@ export default function RegisterView() {
           </CardContent>
         </Card>
 
-        {/* Cart + Payment */}
-        <div ref={paymentSectionRef} className="space-y-4 scroll-mt-4">
-          <Card aria-label={copy.register.cart}>
-            <CardHeader className="pb-3 border-b">
+        {/* Cart + Payment — bottom sheet on mobile, sidebar on desktop */}
+        <div
+          ref={paymentSectionRef}
+          className={cn(
+            // Desktop: normal sidebar column
+            "lg:relative lg:bottom-auto lg:inset-x-auto lg:z-auto lg:max-h-none lg:overflow-visible lg:bg-transparent lg:border-0 lg:rounded-none lg:shadow-none lg:translate-y-0 lg:transition-none lg:flex-none lg:block",
+            // Mobile: fixed bottom sheet above bottom nav
+            "fixed inset-x-0 bottom-14 z-40 flex flex-col",
+            "max-h-[calc(100dvh-7rem)] overflow-hidden",
+            "bg-card border-t border-kova-border rounded-t-2xl",
+            "shadow-[0_-12px_40px_-12px_rgba(15,17,23,0.25)]",
+            "transition-transform duration-300 ease-out",
+            "scroll-mt-4",
+            cartSheetOpen ? "translate-y-0" : "translate-y-[calc(100%-5rem)]",
+          )}
+          role="region"
+          aria-label={copy.register.cart}
+        >
+          {/* Peek handle — mobile only */}
+          <button
+            type="button"
+            onClick={() => setCartSheetOpen((v) => !v)}
+            aria-expanded={cartSheetOpen}
+            aria-label={cartSheetOpen ? copy.register.collapseCart : copy.register.expandCart}
+            className="lg:hidden relative flex items-center justify-between w-full h-20 px-4 border-b border-kova-border bg-card shrink-0"
+          >
+            <span className="absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-kova-border" aria-hidden="true" />
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <ShoppingCart className="h-6 w-6 text-kova-ink" />
+                {cartItems.length > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-[20px] h-5 rounded-full bg-kova-blue text-white text-[11px] font-bold flex items-center justify-center px-1.5 tabular-nums">
+                    {cartItems.reduce((s, i) => s + i.quantity, 0)}
+                  </span>
+                )}
+              </div>
+              <span className="text-sm text-kova-muted">
+                {cartItems.length === 0 ? copy.register.cartPlaceholder : copy.register.cart}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold tabular-nums text-kova-ink">{formatMoney(totalAmount)}</span>
+              <ChevronUp className={cn("h-5 w-5 text-kova-muted transition-transform", cartSheetOpen && "rotate-180")} aria-hidden="true" />
+            </div>
+          </button>
+
+          {/* Scrollable content (cart + payment) — fills sheet on mobile, normal stack on desktop */}
+          <div className="flex-1 overflow-y-auto overscroll-contain lg:overflow-visible lg:flex-none">
+            <div className="space-y-4 p-3 lg:p-0">
+          <Card aria-label={copy.register.cart} className="lg:block">
+            <CardHeader className="hidden lg:block pb-3 border-b">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4" />
@@ -1032,6 +1087,8 @@ export default function RegisterView() {
               </CardContent>
             </Card>
           )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1101,29 +1158,6 @@ export default function RegisterView() {
         </div>
       )}
 
-      {/* Sticky bottom cart bar (mobile only) */}
-      {cartItems.length > 0 && !completedOrder && (
-        <div
-          className="fixed inset-x-0 bottom-14 z-40 border-t border-kova-border bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_16px_-4px_rgba(15,17,23,0.08)] lg:hidden animate-fade-in"
-        >
-          <button
-            type="button"
-            onClick={scrollToPayment}
-            className="flex w-full items-center justify-between gap-3 rounded-kova-md bg-kova-ink px-4 py-3 text-white shadow-sm transition-transform active:scale-[0.98]"
-          >
-            <span className="flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                {copy.register.itemCount(cartItems.reduce((s, i) => s + i.quantity, 0))}
-              </span>
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="text-base font-semibold tabular-nums">{formatMoney(totalAmount)}</span>
-              <span className="text-xs opacity-80">{copy.register.completeSale} →</span>
-            </span>
-          </button>
-        </div>
-      )}
     </main>
   );
 }
