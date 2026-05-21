@@ -1,14 +1,17 @@
 from collections import defaultdict
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import Integer, cast, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.business_settings.models import BusinessProfile
+from app.catalog.models import Product
+from app.inventory.models import InventoryMovement
+from app.inventory.repository import stock_on_hand
 from app.orders.models import Order, OrderItem, Payment, Refund, Void
 from app.pricing import calculator
 from app.shared.exceptions import bad_request
@@ -110,9 +113,16 @@ def _hour_label(hour: int) -> str:
 
 
 def _completed_orders(
-    db: Session, *, tenant_id: UUID, start_date: date, end_date: date
+    db: Session,
+    *,
+    tenant_id: UUID,
+    start_date: date,
+    end_date: date,
+    tz: ZoneInfo | None = None,
 ) -> list[Order]:
-    start, end = _bounds(start_date, end_date)
+    if tz is None:
+        tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start, end = _local_bounds(start_date, end_date, tz)
     return (
         db.query(Order)
         .filter(
@@ -125,8 +135,17 @@ def _completed_orders(
     )
 
 
-def _void_count(db: Session, *, tenant_id: UUID, start_date: date, end_date: date) -> int:
-    start, end = _bounds(start_date, end_date)
+def _void_count(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    start_date: date,
+    end_date: date,
+    tz: ZoneInfo | None = None,
+) -> int:
+    if tz is None:
+        tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start, end = _local_bounds(start_date, end_date, tz)
     return (
         db.query(Void)
         .filter(
@@ -266,54 +285,42 @@ def sales_by_hour(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> list[dict]:
     start_date, end_date = _normalize_range(start_date, end_date)
-    start, end = _bounds(start_date, end_date)
-    refunds_by_order = _refunds_by_order_subquery(db, tenant_id=tenant_id)
-    hour_expr = cast(func.extract("hour", Order.created_at), Integer)
-
-    rows = (
-        db.query(
-            hour_expr.label("hour"),
-            func.coalesce(
-                func.sum(
-                    Order.total_amount
-                    - func.coalesce(refunds_by_order.c.refund_total, Decimal("0.00"))
-                ),
-                Decimal("0.00"),
-            ).label("net_sales"),
-            func.count(Order.id).label("order_count"),
-        )
-        .outerjoin(refunds_by_order, refunds_by_order.c.order_id == Order.id)
-        .filter(
-            Order.tenant_id == tenant_id,
-            Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
-        )
-        .group_by(hour_expr)
-        .all()
+    tz = _tenant_timezone(db, tenant_id=tenant_id)
+    orders = _completed_orders(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
     )
-    buckets = {
-        int(row.hour): {
-            "hour": int(row.hour),
-            "net_sales": calculator.money(row.net_sales or Decimal("0.00")),
-            "order_count": int(row.order_count or 0),
-        }
-        for row in rows
-    }
-    return [
-        buckets.get(
-            hour,
-            {"hour": hour, "net_sales": Decimal("0.00"), "order_count": 0},
-        )
+    order_ids = [order.id for order in orders]
+    refunds_by_order: dict[UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
+    if order_ids:
+        for refund in (
+            db.query(Refund)
+            .filter(Refund.tenant_id == tenant_id, Refund.order_id.in_(order_ids))
+            .all()
+        ):
+            refunds_by_order[refund.order_id] = calculator.money(
+                refunds_by_order[refund.order_id] + refund.refunded_amount
+            )
+
+    buckets: dict[int, dict] = {
+        hour: {"hour": hour, "net_sales": Decimal("0.00"), "order_count": 0}
         for hour in range(24)
-    ]
+    }
+    for order in orders:
+        hour = order.created_at.astimezone(tz).hour
+        net = calculator.money(
+            order.total_amount - refunds_by_order.get(order.id, Decimal("0.00"))
+        )
+        buckets[hour]["net_sales"] = calculator.money(buckets[hour]["net_sales"] + net)
+        buckets[hour]["order_count"] += 1
+    return [buckets[hour] for hour in range(24)]
 
 
 def sales_by_employee(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> list[dict]:
     start_date, end_date = _normalize_range(start_date, end_date)
-    start, end = _bounds(start_date, end_date)
+    tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start, end = _local_bounds(start_date, end_date, tz)
     refunds_by_order = _refunds_by_order_subquery(db, tenant_id=tenant_id)
 
     rows = (
@@ -358,7 +365,8 @@ def refunds_by_reason(
     db: Session, *, tenant_id: UUID, start_date: date | None, end_date: date | None
 ) -> list[dict]:
     start_date, end_date = _normalize_range(start_date, end_date)
-    start, end = _bounds(start_date, end_date)
+    tz = _tenant_timezone(db, tenant_id=tenant_id)
+    start, end = _local_bounds(start_date, end_date, tz)
     rows = (
         db.query(
             Refund.reason.label("reason"),
@@ -520,6 +528,7 @@ def business_story(
         void_count=void_count,
         completed_orders=completed_orders,
     )
+    restock_for_actions = _restock_alerts(db, tenant_id=tenant_id)
     recommended_actions = _recommended_actions(
         net_sales=net_sales,
         completed_orders=completed_orders,
@@ -528,6 +537,7 @@ def business_story(
         dominant_payment=dominant_payment,
         refund_count=len(refunds),
         void_count=void_count,
+        restock_alerts=restock_for_actions,
     )
 
     executive_summary = _executive_summary(
@@ -544,6 +554,16 @@ def business_story(
         refund_count=len(refunds),
         void_count=void_count,
     )
+
+    product_trends = _product_trends(
+        db, tenant_id=tenant_id, tz=tz, start_date=start_date, end_date=end_date
+    )
+    restock_alerts = restock_for_actions
+
+    employees = sales_by_employee(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
+    )
+    employee_contribution = _employee_contribution(employees, net_sales=net_sales)
 
     return {
         "summary": {
@@ -565,17 +585,245 @@ def business_story(
         "top_product_by_sales": top_product_by_sales,
         "top_product_by_units": top_product_by_units,
         "product_drivers": product_rows,
+        "product_trends": product_trends,
+        "restock_alerts": restock_alerts,
         "dominant_payment": dominant_payment,
         "payment_mix": payment_rows,
         "operational_signals": operational_signals,
         "recommended_actions": recommended_actions,
-        "sales_by_employee": sales_by_employee(
-            db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
-        ),
+        "sales_by_employee": employees,
+        "employee_contribution": employee_contribution,
         "refunds_by_reason": refunds_by_reason(
             db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
         ),
     }
+
+
+def _employee_contribution(
+    employees: list[dict], *, net_sales: Decimal
+) -> dict:
+    if not employees:
+        return {"top": None, "rows": [], "even_distribution": True}
+    rows: list[dict] = []
+    for emp in employees:
+        share = _pct(emp["net_sales"], net_sales) if net_sales > Decimal("0.00") else 0
+        rows.append(
+            {
+                "user_id": emp["user_id"],
+                "display_name": emp["display_name"],
+                "order_count": emp["order_count"],
+                "net_sales": emp["net_sales"],
+                "refund_count": emp["refund_count"],
+                "sales_share_pct": share,
+            }
+        )
+    rows.sort(key=lambda row: (row["net_sales"], row["order_count"]), reverse=True)
+    top = rows[0]
+    even_distribution = len(rows) <= 1 or top["sales_share_pct"] < 70
+    return {"top": top, "rows": rows, "even_distribution": even_distribution}
+
+
+def _previous_period(start_date: date, end_date: date) -> tuple[date, date]:
+    days = (end_date - start_date).days + 1
+    prev_end = start_date - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=days - 1)
+    return prev_start, prev_end
+
+
+def _product_units_in_window(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    start: datetime,
+    end: datetime,
+) -> dict[UUID, dict]:
+    rows = (
+        db.query(
+            OrderItem.product_id.label("product_id"),
+            OrderItem.product_name.label("product_name"),
+            func.coalesce(func.sum(OrderItem.quantity), 0).label("units"),
+            func.coalesce(func.sum(OrderItem.line_total_amount), Decimal("0.00")).label("gross"),
+        )
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(
+            Order.tenant_id == tenant_id,
+            Order.status == "completed",
+            Order.created_at >= start,
+            Order.created_at <= end,
+        )
+        .group_by(OrderItem.product_id, OrderItem.product_name)
+        .all()
+    )
+    return {
+        row.product_id: {
+            "product_id": row.product_id,
+            "product_name": row.product_name,
+            "units": int(row.units or 0),
+            "gross": calculator.money(row.gross or Decimal("0.00")),
+        }
+        for row in rows
+    }
+
+
+def _product_trends(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    tz: ZoneInfo,
+    start_date: date,
+    end_date: date,
+) -> dict:
+    current_start, current_end = _local_bounds(start_date, end_date, tz)
+    current = _product_units_in_window(
+        db, tenant_id=tenant_id, start=current_start, end=current_end
+    )
+
+    prev_start_date, prev_end_date = _previous_period(start_date, end_date)
+    prev_start, prev_end = _local_bounds(prev_start_date, prev_end_date, tz)
+    previous = _product_units_in_window(
+        db, tenant_id=tenant_id, start=prev_start, end=prev_end
+    )
+
+    product_ids = set(current.keys()) | set(previous.keys())
+    rows: list[dict] = []
+    for product_id in product_ids:
+        cur = current.get(product_id)
+        prev = previous.get(product_id)
+        product_name = (cur or prev or {}).get("product_name", "Producto")
+        cur_units = cur["units"] if cur else 0
+        prev_units = prev["units"] if prev else 0
+        cur_gross = cur["gross"] if cur else Decimal("0.00")
+        prev_gross = prev["gross"] if prev else Decimal("0.00")
+        delta_units = cur_units - prev_units
+        if prev_units > 0:
+            pct = int(round(((cur_units - prev_units) / prev_units) * 100))
+        elif cur_units > 0:
+            pct = 100
+        else:
+            pct = 0
+        if prev_units == 0 and cur_units > 0:
+            trend = "new"
+        elif cur_units == 0 and prev_units > 0:
+            trend = "lost"
+        elif pct >= 15:
+            trend = "growing"
+        elif pct <= -15:
+            trend = "declining"
+        else:
+            trend = "stable"
+        rows.append(
+            {
+                "product_id": product_id,
+                "product_name": product_name,
+                "current_units": cur_units,
+                "previous_units": prev_units,
+                "delta_units": delta_units,
+                "delta_pct": pct,
+                "current_gross": cur_gross,
+                "previous_gross": prev_gross,
+                "trend": trend,
+            }
+        )
+
+    growing = sorted(
+        [r for r in rows if r["trend"] in ("growing", "new") and r["current_units"] > 0],
+        key=lambda r: (r["delta_pct"], r["current_units"]),
+        reverse=True,
+    )[:5]
+    declining = sorted(
+        [r for r in rows if r["trend"] in ("declining", "lost") and r["previous_units"] > 0],
+        key=lambda r: (r["delta_pct"], -r["previous_units"]),
+    )[:5]
+    slow_movers = sorted(
+        [r for r in rows if r["current_units"] > 0 and r["current_units"] <= 2],
+        key=lambda r: (r["current_units"], r["current_gross"]),
+    )[:5]
+    return {
+        "growing": growing,
+        "declining": declining,
+        "slow_movers": slow_movers,
+    }
+
+
+def _restock_alerts(
+    db: Session,
+    *,
+    tenant_id: UUID,
+) -> list[dict]:
+    since = datetime.now(UTC) - timedelta(days=7)
+    sales_rows = (
+        db.query(
+            InventoryMovement.product_id,
+            func.coalesce(func.sum(InventoryMovement.quantity_delta), 0).label("units"),
+        )
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.movement_type == "sale",
+            InventoryMovement.created_at >= since,
+        )
+        .group_by(InventoryMovement.product_id)
+        .all()
+    )
+    sold_by_product = {row.product_id: abs(int(row.units or 0)) for row in sales_rows}
+
+    alerts: list[dict] = []
+    tracked_products = (
+        db.query(Product)
+        .filter(
+            Product.tenant_id == tenant_id,
+            Product.is_active.is_(True),
+            Product.track_inventory.is_(True),
+        )
+        .all()
+    )
+    for product in tracked_products:
+        stock = stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+        sold = sold_by_product.get(product.id, 0)
+        units_per_day = (Decimal(sold) / Decimal("7")).quantize(Decimal("0.01"))
+        days_until_out: Decimal | None = None
+        if units_per_day > 0:
+            days_until_out = (Decimal(stock) / units_per_day).quantize(Decimal("0.1"))
+
+        threshold = product.low_stock_threshold or 0
+        is_low = stock <= threshold and threshold > 0
+        is_running_out = days_until_out is not None and days_until_out <= Decimal("3.0")
+        if not (is_low or is_running_out):
+            continue
+        if is_low and is_running_out:
+            severity = "critical"
+            detail = (
+                f"Stock {stock} bajo el umbral {threshold} y se agota en "
+                f"{days_until_out} día(s) al ritmo actual."
+            )
+        elif is_low:
+            severity = "warning"
+            detail = f"Stock {stock} por debajo del umbral {threshold}."
+        else:
+            severity = "warning"
+            detail = (
+                f"Al ritmo actual ({units_per_day}/día), el stock alcanza "
+                f"para {days_until_out} día(s)."
+            )
+        alerts.append(
+            {
+                "product_id": product.id,
+                "product_name": product.name,
+                "stock_on_hand": stock,
+                "low_stock_threshold": threshold,
+                "units_per_day_7d": units_per_day,
+                "days_until_out": days_until_out,
+                "severity": severity,
+                "detail": detail,
+            }
+        )
+    alerts.sort(
+        key=lambda row: (
+            row["severity"] != "critical",
+            row["days_until_out"] is None,
+            row["days_until_out"] if row["days_until_out"] is not None else Decimal("999"),
+        )
+    )
+    return alerts[:10]
 
 
 def _product_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> list[dict]:
@@ -687,6 +935,7 @@ def _recommended_actions(
     dominant_payment: dict | None,
     refund_count: int,
     void_count: int,
+    restock_alerts: list[dict] | None = None,
 ) -> list[dict]:
     if completed_orders == 0:
         return [
@@ -700,6 +949,14 @@ def _recommended_actions(
             }
         ]
     actions = []
+    for alert in (restock_alerts or [])[:2]:
+        actions.append(
+            {
+                "type": "risk" if alert["severity"] == "critical" else "operational_improvement",
+                "title": f"Reabastece {alert['product_name']}",
+                "detail": alert["detail"],
+            }
+        )
     if best_daypart["net_sales"] > Decimal("0.00"):
         actions.append(
             {

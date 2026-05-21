@@ -134,6 +134,49 @@ export type BusinessStoryReport = {
     title: string;
     detail: string;
   }>;
+  product_trends?: {
+    growing: ProductTrendRow[];
+    declining: ProductTrendRow[];
+    slow_movers: ProductTrendRow[];
+  };
+  restock_alerts?: RestockAlertRow[];
   sales_by_employee: SalesByEmployeeRow[];
+  employee_contribution?: {
+    top: EmployeeContributionRow | null;
+    rows: EmployeeContributionRow[];
+    even_distribution: boolean;
+  };
   refunds_by_reason: RefundsByReasonRow[];
+};
+
+export type ProductTrendRow = {
+  product_id: string;
+  product_name: string;
+  current_units: number;
+  previous_units: number;
+  delta_units: number;
+  delta_pct: number;
+  current_gross: string;
+  previous_gross: string;
+  trend: "growing" | "declining" | "stable" | "new" | "lost";
+};
+
+export type RestockAlertRow = {
+  product_id: string;
+  product_name: string;
+  stock_on_hand: number;
+  low_stock_threshold: number;
+  units_per_day_7d: string;
+  days_until_out: string | null;
+  severity: "critical" | "warning";
+  detail: string;
+};
+
+export type EmployeeContributionRow = {
+  user_id: string | null;
+  display_name: string;
+  order_count: number;
+  net_sales: string;
+  refund_count: number;
+  sales_share_pct: number;
 };

@@ -6,6 +6,50 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+class ProductTrendRow(BaseModel):
+    product_id: UUID
+    product_name: str
+    current_units: int
+    previous_units: int
+    delta_units: int
+    delta_pct: int
+    current_gross: Decimal
+    previous_gross: Decimal
+    trend: Literal["growing", "declining", "stable", "new", "lost"]
+
+
+class ProductTrends(BaseModel):
+    growing: list[ProductTrendRow]
+    declining: list[ProductTrendRow]
+    slow_movers: list[ProductTrendRow]
+
+
+class RestockAlertRow(BaseModel):
+    product_id: UUID
+    product_name: str
+    stock_on_hand: int
+    low_stock_threshold: int
+    units_per_day_7d: Decimal
+    days_until_out: Decimal | None
+    severity: Literal["critical", "warning"]
+    detail: str
+
+
+class EmployeeContributionRow(BaseModel):
+    user_id: UUID | None
+    display_name: str
+    order_count: int
+    net_sales: Decimal
+    refund_count: int
+    sales_share_pct: int
+
+
+class EmployeeContribution(BaseModel):
+    top: EmployeeContributionRow | None
+    rows: list[EmployeeContributionRow]
+    even_distribution: bool
+
+
 class SalesSummaryResponse(BaseModel):
     start_date: date
     end_date: date
@@ -139,9 +183,12 @@ class BusinessStoryReportResponse(BaseModel):
     top_product_by_sales: BusinessStoryProductDriver | None
     top_product_by_units: BusinessStoryProductDriver | None
     product_drivers: list[BusinessStoryProductDriver]
+    product_trends: ProductTrends
+    restock_alerts: list[RestockAlertRow]
     dominant_payment: BusinessStoryPaymentDriver | None
     payment_mix: list[BusinessStoryPaymentDriver]
     operational_signals: list[BusinessStorySignal]
     recommended_actions: list[BusinessStoryAction]
     sales_by_employee: list[SalesByEmployeeRow]
+    employee_contribution: EmployeeContribution
     refunds_by_reason: list[RefundsByReasonRow]
