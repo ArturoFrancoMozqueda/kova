@@ -10,9 +10,8 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.business_settings.models import BusinessProfile
 from app.catalog.models import Product
-from app.inventory.models import InventoryMovement
 from app.inventory.repository import stock_on_hand
-from app.orders.models import Order, OrderItem, Payment, Refund, Void
+from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, Void
 from app.pricing import calculator
 from app.shared.exceptions import bad_request
 
