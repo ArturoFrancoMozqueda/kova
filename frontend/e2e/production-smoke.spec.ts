@@ -64,6 +64,24 @@ test("landing, login, dashboard, and billing are production healthy", async ({ p
   await expectNoConsoleErrors(consoleErrors);
 });
 
+test("receipt settings load and save in production", async ({ page }) => {
+  const consoleErrors = watchConsole(page);
+  await login(page);
+
+  await page.goto("/settings/receipt");
+  await expect(page.getByRole("heading", { name: /ajustes del recibo|receipt settings/i })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(/no configurado|not configured/i);
+
+  const receiptName = page.locator("form input").first();
+  await expect(receiptName).toBeVisible();
+  const currentName = await receiptName.inputValue();
+  await receiptName.fill(currentName || "Kova Smoke Receipt");
+  await page.getByRole("button", { name: /guardar recibo|save receipt/i }).click();
+  await expect(page.getByText(/guardado|saved/i)).toBeVisible();
+
+  await expectNoConsoleErrors(consoleErrors);
+});
+
 test("production checkout redirects to the expected Stripe Checkout mode", async ({ page }) => {
   const consoleErrors = watchConsole(page);
   await login(page);

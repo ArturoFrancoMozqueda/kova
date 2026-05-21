@@ -144,6 +144,11 @@ def test_inventory_isolation(db):  # noqa: ARG001
 def test_business_settings_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
+        # Fresh tenants get usable initial settings instead of setup-screen 404s.
+        r_initial = a.get("/api/v1/settings/receipt")
+        assert r_initial.status_code == 200
+        assert r_initial.json()["receipt_business_name"] == "Iso Tenant A"
+
         # Each tenant configures their own profile, then reads it back.
         assert a.put(
             "/api/v1/settings/business-profile",
@@ -153,6 +158,14 @@ def test_business_settings_isolation(db):  # noqa: ARG001
             "/api/v1/settings/business-profile",
             json={"public_name": "Negocio B"},
         ).status_code == 200
+        assert a.put(
+            "/api/v1/settings/receipt",
+            json={"receipt_business_name": "Recibo A", "footer": "Gracias"},
+        ).status_code == 200
+        assert b.put(
+            "/api/v1/settings/receipt",
+            json={"receipt_business_name": "Recibo B", "footer": "Vuelva pronto"},
+        ).status_code == 200
 
         r_a = a.get("/api/v1/settings/business-profile")
         r_b = b.get("/api/v1/settings/business-profile")
@@ -161,6 +174,14 @@ def test_business_settings_isolation(db):  # noqa: ARG001
         assert r_a.json()["tenant_id"] != r_b.json()["tenant_id"]
         assert r_a.json()["public_name"] == "Negocio A"
         assert r_b.json()["public_name"] == "Negocio B"
+
+        receipt_a = a.get("/api/v1/settings/receipt")
+        receipt_b = b.get("/api/v1/settings/receipt")
+        assert receipt_a.status_code == 200
+        assert receipt_b.status_code == 200
+        assert receipt_a.json()["tenant_id"] != receipt_b.json()["tenant_id"]
+        assert receipt_a.json()["receipt_business_name"] == "Recibo A"
+        assert receipt_b.json()["receipt_business_name"] == "Recibo B"
     finally:
         a.__exit__(None, None, None)
         b.__exit__(None, None, None)
