@@ -49,7 +49,6 @@ type LoadState =
       story: BusinessStoryReport;
       hourly: SalesByHourRow[];
       previousStory: BusinessStoryReport | null;
-      previousHourly: SalesByHourRow[];
       lowStock: StockItem[];
       velocity: InventoryVelocityItem[];
     };
@@ -153,9 +152,8 @@ export default function ReportsView() {
         getSalesByHour(startDate, endDate).catch(() => []),
       ]);
       const previousRange = previousComparableRange(startDate, endDate);
-      const [previousStory, previousHourly, lowStock, velocity] = await Promise.all([
+      const [previousStory, lowStock, velocity] = await Promise.all([
         getBusinessStory(previousRange.startDate, previousRange.endDate).catch(() => null),
-        getSalesByHour(previousRange.startDate, previousRange.endDate).catch(() => []),
         listLowStock().catch(() => []),
         listVelocity().catch(() => []),
       ]);
@@ -164,7 +162,6 @@ export default function ReportsView() {
         story,
         hourly,
         previousStory,
-        previousHourly,
         lowStock,
         velocity,
       });
@@ -235,7 +232,6 @@ export default function ReportsView() {
           story={loadState.story}
           hourly={loadState.hourly}
           previousStory={loadState.previousStory}
-          previousHourly={loadState.previousHourly}
           lowStock={loadState.lowStock}
           velocity={loadState.velocity}
           onResetRange={() => {
@@ -372,7 +368,6 @@ function ReportsStory({
   story,
   hourly,
   previousStory,
-  previousHourly,
   lowStock,
   velocity,
   onResetRange,
@@ -380,7 +375,6 @@ function ReportsStory({
   story: BusinessStoryReport;
   hourly: SalesByHourRow[];
   previousStory: BusinessStoryReport | null;
-  previousHourly: SalesByHourRow[];
   lowStock: StockItem[];
   velocity: InventoryVelocityItem[];
   onResetRange?: () => void;
@@ -399,8 +393,6 @@ function ReportsStory({
       <SmartInsights
         story={story}
         previousStory={previousStory}
-        hourly={hourly}
-        previousHourly={previousHourly}
         lowStock={lowStock}
         velocity={velocity}
       />
@@ -423,24 +415,20 @@ type SmartAction = {
 function SmartInsights({
   story,
   previousStory,
-  hourly,
-  previousHourly,
   lowStock,
   velocity,
 }: {
   story: BusinessStoryReport;
   previousStory: BusinessStoryReport | null;
-  hourly: SalesByHourRow[];
-  previousHourly: SalesByHourRow[];
   lowStock: StockItem[];
   velocity: InventoryVelocityItem[];
 }) {
-  const comparisons = comparativeInsights(story, previousStory, hourly, previousHourly);
+  const comparisons = comparativeInsights(story, previousStory);
   const inventoryActions = inventoryAwareActions(story, lowStock, velocity);
   const actions = ownerBriefActions(
     inventoryActions,
     story.recommended_actions,
-    advancedRecommendations(story, previousStory, hourly),
+    advancedRecommendations(story, previousStory),
   );
 
   return (
@@ -529,8 +517,6 @@ function ownerBriefActions(
 function comparativeInsights(
   story: BusinessStoryReport,
   previousStory: BusinessStoryReport | null,
-  hourly: SalesByHourRow[],
-  previousHourly: SalesByHourRow[],
 ) {
   const previousHasSales = (previousStory?.summary.completed_orders ?? 0) > 0;
   const netSalesChange = previousHasSales
@@ -539,8 +525,6 @@ function comparativeInsights(
   const orderChange = previousHasSales
     ? pctChange(story.summary.completed_orders, previousStory?.summary.completed_orders ?? 0)
     : null;
-  const currentBestHour = bestHourlyRow(hourly);
-  const previousBestHour = bestHourlyRow(previousHourly);
   const currentBestDaypart = bestDaypartRow(story);
   const previousBestDaypart = previousStory ? bestDaypartRow(previousStory) : null;
 
@@ -565,8 +549,8 @@ function comparativeInsights(
     },
     {
       label: copy.reportsView.compareStrongestWindow,
-      value: currentBestHour ? hourLabel(currentBestHour.hour) : currentBestDaypart?.label ?? copy.reportsView.noData,
-      detail: strongestWindowDetail(currentBestHour, previousBestHour, currentBestDaypart, previousBestDaypart),
+      value: currentBestDaypart?.label ?? copy.reportsView.noData,
+      detail: strongestWindowDetail(currentBestDaypart, previousBestDaypart, story.peak_hour),
       tone: "neutral" as const,
     },
   ];
@@ -619,14 +603,12 @@ function inventoryAwareActions(
 function advancedRecommendations(
   story: BusinessStoryReport,
   previousStory: BusinessStoryReport | null,
-  hourly: SalesByHourRow[],
 ): SmartAction[] {
   const actions: SmartAction[] = [];
   const netSalesChange =
     previousStory && previousStory.summary.completed_orders > 0
       ? pctChange(Number(story.summary.net_sales), Number(previousStory.summary.net_sales))
       : null;
-  const bestHour = bestHourlyRow(hourly);
 
   if (netSalesChange !== null && netSalesChange <= -10) {
     actions.push({
@@ -636,14 +618,14 @@ function advancedRecommendations(
     });
   }
 
-  if (bestHour && bestHour.order_count >= 3) {
+  if (story.peak_hour && story.peak_hour.order_count >= 3) {
     actions.push({
       type: "opportunity",
-      title: copy.reportsView.peakHourActionTitle(hourLabel(bestHour.hour)),
+      title: copy.reportsView.peakHourActionTitle(story.peak_hour.label),
       detail: copy.reportsView.peakHourActionDetail(
-        hourLabel(bestHour.hour),
-        bestHour.order_count,
-        formatMoney(bestHour.net_sales),
+        story.peak_hour.label,
+        story.peak_hour.order_count,
+        formatMoney(story.peak_hour.net_sales),
       ),
     });
   }
@@ -667,15 +649,6 @@ function advancedRecommendations(
   return actions.slice(0, 4);
 }
 
-function bestHourlyRow(rows: SalesByHourRow[]) {
-  const row = [...rows].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
-  return row && Number(row.net_sales) > 0 ? row : null;
-}
-
-function hourLabel(hour: number): string {
-  return `${String(hour).padStart(2, "0")}:00`;
-}
-
 function pctChange(current: number, previous: number): number | null {
   if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
   return Math.round(((current - previous) / previous) * 100);
@@ -687,16 +660,18 @@ function toneFromDelta(delta: number | null): "up" | "down" | "neutral" {
 }
 
 function strongestWindowDetail(
-  currentHour: SalesByHourRow | null,
-  previousHour: SalesByHourRow | null,
   currentDaypart: ReturnType<typeof bestDaypartRow>,
   previousDaypart: ReturnType<typeof bestDaypartRow>,
+  peakHour: BusinessStoryReport["peak_hour"],
 ): string {
-  if (currentHour && previousHour) {
-    return copy.reportsView.comparePeakHour(hourLabel(previousHour.hour));
-  }
   if (currentDaypart && previousDaypart) {
-    return copy.reportsView.compareDaypart(previousDaypart.label);
+    const previousDetail = copy.reportsView.compareDaypart(previousDaypart.label);
+    return peakHour && peakHour.daypart_key === currentDaypart.key
+      ? `${previousDetail} ${copy.reportsView.currentPeakHour(peakHour.label)}`
+      : previousDetail;
+  }
+  if (currentDaypart && peakHour && peakHour.daypart_key === currentDaypart.key) {
+    return copy.reportsView.currentPeakHour(peakHour.label);
   }
   return copy.reportsView.compareNoPrevious;
 }
@@ -719,6 +694,7 @@ function ReportDetails({ children }: { children: ReactNode }) {
 }
 
 function ExecutiveSummary({ story }: { story: BusinessStoryReport }) {
+  const bestDaypart = bestDaypartRow(story);
   return (
     <Card className="border-kova-blue/20 bg-kova-blue/5">
       <CardContent className="grid gap-5 p-5 lg:grid-cols-[1.5fr_1fr]">
@@ -740,7 +716,7 @@ function ExecutiveSummary({ story }: { story: BusinessStoryReport }) {
           />
           <SummaryFact
             label={copy.reportsView.bestMoment}
-            value={story.sales_by_daypart.find((row) => row.net_sales !== "0.00")?.label ?? copy.reportsView.noData}
+            value={bestDaypart?.label ?? copy.reportsView.noData}
           />
           <SummaryFact
             label={copy.reportsView.timezone}

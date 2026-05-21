@@ -256,6 +256,88 @@ test("reports page displays business storytelling layout", async ({ page }) => {
   await expect(page.getByText(/Hora pico del periodo: 20:00-21:00/i)).toBeVisible();
 });
 
+test("reports aligns best moment and strongest block when afternoon leads sales", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  await mockReports(page, storyPayload({
+    summary: {
+      start_date: "2026-05-13",
+      end_date: "2026-05-19",
+      timezone: "America/Mexico_City",
+      gross_sales: "200.00",
+      refund_total: "0.00",
+      net_sales: "200.00",
+      completed_orders: 5,
+      average_ticket: "40.00",
+      refund_count: 0,
+      cancellation_count: 0,
+    },
+    sales_by_daypart: [
+      { key: "madrugada", label: "Madrugada", start_hour: 0, end_hour: 5, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+      { key: "manana", label: "Mañana", start_hour: 6, end_hour: 11, net_sales: "80.00", order_count: 2, average_ticket: "40.00", sales_share_pct: 40 },
+      { key: "tarde", label: "Tarde", start_hour: 12, end_hour: 17, net_sales: "120.00", order_count: 3, average_ticket: "40.00", sales_share_pct: 60 },
+      { key: "noche", label: "Noche", start_hour: 18, end_hour: 23, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+    ],
+    peak_hour: {
+      hour: 15,
+      label: "15:00-16:00",
+      daypart_key: "tarde",
+      net_sales: "70.00",
+      order_count: 3,
+      sales_share_pct: 35,
+    },
+    recommended_actions: [
+      {
+        type: "opportunity",
+        title: "Refuerza operación en tarde",
+        detail: "Este bloque concentra 60% de tus ventas del periodo.",
+      },
+    ],
+  }), {
+    previousPayload: storyPayload({
+      summary: {
+        start_date: "2026-05-06",
+        end_date: "2026-05-12",
+        timezone: "America/Mexico_City",
+        gross_sales: "100.00",
+        refund_total: "0.00",
+        net_sales: "100.00",
+        completed_orders: 3,
+        average_ticket: "33.33",
+        refund_count: 0,
+        cancellation_count: 0,
+      },
+      sales_by_daypart: [
+        { key: "madrugada", label: "Madrugada", start_hour: 0, end_hour: 5, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+        { key: "manana", label: "Mañana", start_hour: 6, end_hour: 11, net_sales: "70.00", order_count: 2, average_ticket: "35.00", sales_share_pct: 70 },
+        { key: "tarde", label: "Tarde", start_hour: 12, end_hour: 17, net_sales: "30.00", order_count: 1, average_ticket: "30.00", sales_share_pct: 30 },
+        { key: "noche", label: "Noche", start_hour: 18, end_hour: 23, net_sales: "0.00", order_count: 0, average_ticket: "0.00", sales_share_pct: 0 },
+      ],
+      peak_hour: {
+        hour: 9,
+        label: "09:00-10:00",
+        daypart_key: "manana",
+        net_sales: "40.00",
+        order_count: 2,
+        sales_share_pct: 40,
+      },
+    }),
+  });
+
+  await page.goto("/reports");
+
+  const bestMoment = page.getByText("Mejor momento", { exact: true }).locator("..").last();
+  await expect(bestMoment).toContainText("Tarde");
+
+  const strongestBlock = page.getByText("Horario fuerte", { exact: true }).locator("..").last();
+  await expect(strongestBlock).toContainText("Tarde");
+  await expect(strongestBlock).toContainText("Hora pico del bloque ganador: 15:00-16:00");
+
+  await expect(page.getByText(/El mejor momento fue Tarde, especialmente entre 15:00-16:00/i)).toBeVisible();
+  await expect(page.getByText(/Refuerza operación en tarde/i)).toBeVisible();
+  await expect(page.getByText(/Refuerza operación en noche/i)).not.toBeVisible();
+});
+
 test("reports shows useful empty state without demo data", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");

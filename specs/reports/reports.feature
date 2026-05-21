@@ -43,6 +43,12 @@ Feature: Sales reports
     And detailed KPI and chart sections are collapsed until the owner opens detailed analysis
     And the detailed analysis prioritizes timing, product inventory, payment operations, and meaningful employee comparison
 
+  Scenario: Owner sees consistent strongest time block
+    Given an authenticated owner with afternoon sales higher than morning sales
+    When the owner opens the reports page
+    Then the executive summary, decision brief, and timing detail all show afternoon as the strongest block
+    And the peak hour shown belongs to the afternoon block
+
   Scenario: Manager views an empty business story report
     Given an authenticated manager without completed sales
     When the manager requests the business story report
