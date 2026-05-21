@@ -40,6 +40,7 @@ import {
 import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { compressImage } from "./compressImage";
+import { productImageSrc, productImageSrcSet } from "./imageUrl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -526,10 +527,13 @@ export default function CatalogView() {
                     <div className="mb-3 flex aspect-video w-full items-center justify-center overflow-hidden rounded-md bg-[color:var(--kova-mist)]">
                       {product.image_url ? (
                         <img
-                          src={product.image_url}
+                          src={productImageSrc(product.image_url, 400)}
+                          srcSet={productImageSrcSet(product.image_url)}
+                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
                           alt={copy.catalog.productImageAlt(product.name)}
                           className="h-full w-full object-cover"
                           loading="lazy"
+                          decoding="async"
                         />
                       ) : (
                         <Package className="h-8 w-8 text-muted-foreground/60" />

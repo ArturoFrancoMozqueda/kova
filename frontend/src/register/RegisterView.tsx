@@ -51,6 +51,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
+import { productImageSrc, productImageSrcSet } from "@/catalog/imageUrl";
 
 type LoadState =
   | { status: "loading" }
@@ -648,7 +649,9 @@ export default function RegisterView() {
                         <div className="aspect-square w-16 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50">
                           {product.image_url ? (
                             <img
-                              src={product.image_url}
+                              src={productImageSrc(product.image_url, 400)}
+                              srcSet={productImageSrcSet(product.image_url)}
+                              sizes="(max-width: 640px) 64px, (max-width: 1024px) 33vw, 200px"
                               alt=""
                               loading="lazy"
                               decoding="async"
