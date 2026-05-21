@@ -144,12 +144,23 @@ def test_inventory_isolation(db):  # noqa: ARG001
 def test_business_settings_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
-        # Each tenant should only see their own business profile.
+        # Each tenant configures their own profile, then reads it back.
+        assert a.put(
+            "/api/v1/settings/business-profile",
+            json={"public_name": "Negocio A"},
+        ).status_code == 200
+        assert b.put(
+            "/api/v1/settings/business-profile",
+            json={"public_name": "Negocio B"},
+        ).status_code == 200
+
         r_a = a.get("/api/v1/settings/business-profile")
         r_b = b.get("/api/v1/settings/business-profile")
         assert r_a.status_code == 200
         assert r_b.status_code == 200
         assert r_a.json()["tenant_id"] != r_b.json()["tenant_id"]
+        assert r_a.json()["public_name"] == "Negocio A"
+        assert r_b.json()["public_name"] == "Negocio B"
     finally:
         a.__exit__(None, None, None)
         b.__exit__(None, None, None)
