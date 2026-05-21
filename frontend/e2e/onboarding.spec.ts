@@ -33,7 +33,7 @@ const EMPTY_SUMMARY = {
   refund_amount: "0.00",
 };
 
-const EMPTY_PAYMENTS = { breakdown: [] };
+const EMPTY_PAYMENTS = { payments: [] };
 const EMPTY_HOURLY: never[] = [];
 const EMPTY_TOP = { products: [] };
 
