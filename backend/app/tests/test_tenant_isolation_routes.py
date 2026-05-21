@@ -60,6 +60,7 @@ def test_catalog_isolation(db):  # noqa: ARG001 — db fixture wires the DB over
         # Tenant B cannot patch A's product (404 because lookup is tenant-scoped).
         r_b_patch = b.patch(
             f"/api/v1/catalog/products/{product_a['id']}",
+            headers={"Idempotency-Key": uuid4().hex},
             json={"name": "Hijack"},
         )
         assert r_b_patch.status_code in (403, 404)
