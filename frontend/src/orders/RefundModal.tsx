@@ -68,6 +68,7 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
                   min="0"
                   max={item.quantity}
                   type="number"
+                  inputMode="numeric"
                   value={quantities[item.id] ?? 0}
                   onChange={(event) =>
                     setQuantities((current) => ({

@@ -117,6 +117,24 @@
   textarea {
     touch-action: manipulation;
   }
+
+  /* Prevent iOS Safari zoom when focusing inputs with font-size < 16px */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+/* Touch devices: ensure hidden-on-hover affordances stay visible.
+   Hover-only reveals fail on touch — keep interactive controls discoverable. */
+@media (hover: none) {
+  .group:hover .group-hover\:opacity-100,
+  .group\/opt:hover .group-hover\/opt\:opacity-100 {
+    opacity: 1;
+  }
 }
 
 /* Smooth scrollbar */

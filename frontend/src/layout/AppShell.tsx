@@ -116,7 +116,7 @@ export default function AppShell() {
           type="button"
           onClick={closeSidebar}
           aria-label={copy.app.closeMenu}
-          className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors lg:hidden"
+          className="ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors lg:hidden"
         >
           <X className="h-4 w-4" />
         </button>
@@ -200,7 +200,7 @@ export default function AppShell() {
             onClick={() => setSidebarOpen(true)}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -234,7 +234,7 @@ export default function AppShell() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "flex h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
+                  "flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors",
                   isActive
                     ? "text-kova-blue"
                     : "text-kova-muted hover:text-kova-ink",
@@ -249,7 +249,7 @@ export default function AppShell() {
             type="button"
             onClick={() => setSidebarOpen(true)}
             aria-label={copy.app.openMenu}
-            className="flex h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium text-kova-muted hover:text-kova-ink transition-colors"
+            className="flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium text-kova-muted hover:text-kova-ink transition-colors"
           >
             <Menu className="h-5 w-5" />
             <span>{copy.app.more ?? "Más"}</span>

@@ -390,23 +390,23 @@ export default function CatalogView() {
                 >
                   {cat.name}
                 </button>
-                <div className="flex items-center gap-0.5 pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-0.5 pr-1 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity">
                   {canUpdate && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-10 w-10 lg:h-8 lg:w-8"
                       aria-label={`Edit ${cat.name}`}
                       onClick={() => setModal({ type: "category-edit", category: cat })}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                   )}
                   {canDelete && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      className="h-10 w-10 lg:h-8 lg:w-8 text-destructive hover:text-destructive"
                       aria-label={`Deactivate ${cat.name}`}
                       onClick={async () => {
                         setPending(true);
@@ -422,7 +422,7 @@ export default function CatalogView() {
                         }
                       }}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
@@ -542,31 +542,31 @@ export default function CatalogView() {
                           <p className="text-xs text-muted-foreground mt-0.5">{product.sku}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <div className="flex items-center gap-0.5 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-10 w-10 lg:h-8 lg:w-8"
                           aria-label={copy.productStory.storyButton}
                           onClick={(e) => {
                             e.stopPropagation();
                             setStoryProduct(product);
                           }}
                         >
-                          <BarChart2 className="h-3.5 w-3.5" />
+                          <BarChart2 className="h-4 w-4" />
                         </Button>
                         {canUpdate && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-10 w-10 lg:h-8 lg:w-8"
                             aria-label={`Edit ${product.name}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               setModal({ type: "product-edit", product });
                             }}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
@@ -867,7 +867,7 @@ function ModifierGroupsPanel({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 opacity-0 group-hover/opt:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                    className="h-9 w-9 lg:h-7 lg:w-7 opacity-100 lg:opacity-60 lg:group-hover/opt:opacity-100 lg:focus-within:opacity-100 transition-opacity text-destructive hover:text-destructive"
                     onClick={async () => {
                       try {
                         await deactivateModifierOption(group.id, opt.id);
@@ -902,6 +902,7 @@ function ModifierGroupsPanel({
               />
               <Input
                 type="number"
+                inputMode="decimal"
                 placeholder={copy.catalog.priceDelta}
                 step="0.01"
                 min="0"
@@ -1015,6 +1016,7 @@ function CategoryForm({
         <Input
           id="cat-sort"
           type="number"
+          inputMode="numeric"
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value)}
           min={0}
@@ -1203,6 +1205,7 @@ function ProductForm({
           <Input
             id="prod-price"
             type="number"
+            inputMode="decimal"
             step="0.01"
             min="0"
             value={price}
@@ -1264,6 +1267,7 @@ function ProductForm({
             <Input
               id="prod-threshold"
               type="number"
+              inputMode="numeric"
               min="0"
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}

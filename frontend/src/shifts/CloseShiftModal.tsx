@@ -129,6 +129,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
             <Input
               id="actual-cash"
               type="number"
+              inputMode="decimal"
               step="0.01"
               min="0"
               value={actualCash}

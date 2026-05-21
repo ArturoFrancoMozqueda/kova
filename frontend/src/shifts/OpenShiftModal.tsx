@@ -49,6 +49,7 @@ export function OpenShiftModal({ pending, onSubmit, onCancel }: OpenShiftModalPr
             <Input
               id="opening-cash"
               type="number"
+              inputMode="decimal"
               step="0.01"
               min="0"
               value={amount}

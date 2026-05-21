@@ -673,7 +673,7 @@ export default function RegisterView() {
                         <span className="text-base font-bold text-primary">
                           {formatMoney(product.price_amount)}
                         </span>
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-60 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                           <Plus className="h-3.5 w-3.5" />
                         </span>
                       </div>
@@ -826,6 +826,7 @@ export default function RegisterView() {
                             min="0"
                             step="0.01"
                             type="number"
+                            inputMode="decimal"
                             placeholder={copy.register.amount}
                             value={payment.amount}
                             onChange={(event) =>
@@ -841,6 +842,7 @@ export default function RegisterView() {
                               min="0"
                               step="0.01"
                               type="number"
+                              inputMode="decimal"
                               placeholder={copy.register.amountTendered}
                               value={payment.amountTendered}
                               onChange={(event) =>
@@ -925,6 +927,7 @@ export default function RegisterView() {
                           min="0"
                           step="0.01"
                           type="number"
+                          inputMode="decimal"
                           placeholder={copy.register.amountTendered}
                           value={cashTendered}
                           onChange={(event) => setCashTendered(event.target.value)}
