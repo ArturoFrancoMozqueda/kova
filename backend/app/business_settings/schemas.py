@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -13,7 +14,7 @@ class BusinessProfileUpsert(BaseModel):
 
 
 class BusinessProfileResponse(BusinessProfileUpsert):
-    tenant_id: str
+    tenant_id: UUID
     created_at: datetime
     updated_at: datetime
 
@@ -28,7 +29,7 @@ class ReceiptSettingsUpsert(BaseModel):
 
 
 class ReceiptSettingsResponse(ReceiptSettingsUpsert):
-    tenant_id: str
+    tenant_id: UUID
     created_at: datetime
     updated_at: datetime
 
