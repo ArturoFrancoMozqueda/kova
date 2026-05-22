@@ -167,7 +167,7 @@ behavior changes beyond what each task explicitly calls out; no schema changes.
 
 ### Progress Snapshot (2026-05-22)
 
-Seven batches landed against this sprint:
+Eleven batches landed against this sprint:
 
 - `b00c058` — BUG-001 (frontend), 003/012, 004, 006, 007, 011, 014 + i18n base
 - `773afd4` — BUG-008 (60s SWR cache), 009 (param normalization), 010
@@ -183,7 +183,13 @@ Seven batches landed against this sprint:
 - `7ec035f` — BUG-002 backend OUT_OF_STOCK guard on order creation,
   test updates + new positive coverage, `backfill_skus.py`,
   `clamp_negative_stock.py`
-- new — `routing.spec.ts` E2E covering NotFound and Spanish slug redirects
+- `94aecd7` — `routing.spec.ts` E2E covering NotFound and Spanish slug redirects
+- `41a996e` — reports view consumes product_trends, restock_alerts,
+  employee_contribution
+- `dd0517b` — out-of-stock E2E branch in register-sale.spec.ts,
+  refund-qty E2E in orders.spec.ts, pre-React paint skeleton
+- `77129f4` — BUG-005 fix (refresh on 401 + global fetch interceptor),
+  GitHub Actions uptime workflow
 
 Still pending in this sprint (genuinely needs more than the current
 sandbox can provide):
@@ -198,13 +204,14 @@ sandbox can provide):
   the auth endpoints themselves, to avoid recursion).
 - Catalog skeleton on first paint (would require inline HTML/CSS in
   `index.html` to render before React mounts).
-- Sin-stock branch in `register-sale.spec.ts` and invalid-qty refund in
-  `orders.spec.ts` — Playwright run gate; tests authored only for
-  `routing.spec.ts` so far.
 - Final verification gate: `UV_PROJECT_ENVIRONMENT=.venv-win uv run
   pytest` failed locally because `alembic upgrade head` could not
-  connect to a Postgres in this sandbox. Run on CI / a dev environment
-  with a healthy `DATABASE_URL` to close the gate.
+  connect to a Postgres in this sandbox (no local DB and no `.env`
+  with a working `DATABASE_URL`). Run on CI / a dev environment with
+  Docker Compose `db` up to close the gate.
+- Full Playwright pass — the new specs (routing / out-of-stock /
+  refund-qty) only ran in typecheck here; need a Playwright run in CI
+  against the standard `PLAYWRIGHT_BASE_URL`.
 
 ### P0 · Blockers (data integrity, money, sessions)
 
