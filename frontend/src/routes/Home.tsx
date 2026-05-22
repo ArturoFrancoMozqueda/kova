@@ -217,35 +217,18 @@ function Navbar({
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ primaryTarget }: { primaryTarget: string }) {
   return (
-    <section className="lp-hero-section" style={{ position: "relative", padding: "72px 32px 100px", overflow: "hidden" }}>
+    <section className="lp-hero-section" style={{ position: "relative", padding: "56px 32px 56px", overflow: "hidden" }}>
       <div className="lp-grid-bg" />
       <div style={{ position: "relative", maxWidth: 1280, margin: "0 auto" }}>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
-            gap: 64, alignItems: "center", marginTop: 40,
+            gap: 64, alignItems: "start", marginTop: 16,
           }}
           className="lp-hero-grid"
         >
           <div>
-            <span
-              className="lp-hero-eyebrow"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                fontSize: 12, fontWeight: 500,
-                letterSpacing: "0.14em", textTransform: "uppercase",
-                color: "var(--text-muted)",
-                padding: "6px 12px", borderRadius: 999,
-                background: "var(--surface)",
-                border: "0.5px solid var(--hairline-color)",
-                marginBottom: 20,
-              }}
-            >
-              <span className="lp-live-dot" />
-              Para cafeterías y negocios pequeños en México
-            </span>
-
             <h1
               className="lp-hero-title"
               style={{
@@ -257,7 +240,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 color: "var(--page-fg)",
               }}
             >
-              Lleva tu cafetería{" "}
+              Lleva tu emprendimiento{" "}
               <span style={{ position: "relative", whiteSpace: "nowrap" }}>
                 con orden
                 <svg
@@ -327,7 +310,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             <div
               className="lp-hero-stats"
               style={{
-                marginTop: 56, display: "flex", alignItems: "center", gap: 24,
+                marginTop: 32, display: "flex", alignItems: "center", gap: 24,
                 fontSize: 12, color: "var(--text-muted)", paddingTop: 24,
                 borderTop: "0.5px solid var(--hairline-color)", flexWrap: "wrap",
               }}
@@ -374,7 +357,7 @@ function ThreeNodes() {
     },
   ];
   return (
-    <section id="como-funciona" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
+    <section id="como-funciona" style={{ padding: "80px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
@@ -782,7 +765,7 @@ function FeatIcon({ kind }: { kind: FeatKind }) {
 function Features() {
   const feats: { kicker: string; title: string; body: string; kind: FeatKind }[] = [
     { kicker: "Sin internet, sin problema", title: "Sigue cobrando aunque se vaya el WiFi.", body: "En la mayoría de los locales el internet falla. Con Kova el cajero sigue trabajando como si nada — y cuando vuelve la señal, todas las ventas se suben solas. No pierdes una sola.", kind: "offline" },
-    { kicker: "Tu negocio, tus reglas", title: "Personaliza Kova para tu cafetería.", body: "Carga tu logo, tus productos, tus precios y los extras (tamaños, leches, modificadores). Cada negocio queda con su propio espacio aislado y seguro.", kind: "tenant" },
+    { kicker: "Tu negocio, tus reglas", title: "Personaliza Kova para tu negocio.", body: "Carga tu logo, tus productos, tus precios y los extras (tamaños, leches, modificadores). Cada negocio queda con su propio espacio aislado y seguro.", kind: "tenant" },
     { kicker: "Cobra como te paguen", title: "Efectivo, transferencia o tarjeta — todo cuenta.", body: "Acepta el método que el cliente prefiera y déjalos registrados por separado. Al cerrar el día sabes cuánto entró por cada uno, sin sumar a mano.", kind: "pay" },
     { kicker: "Datos del día, en vivo", title: "Mira tu negocio desde donde estés.", body: "Aunque no estés en el local, ves cuánto se ha vendido, qué se está moviendo y cómo va el turno. Sin llamar al cajero, sin pedir reportes.", kind: "live" },
     { kicker: "Cierre de caja sin estrés", title: "Apertura, cierre y cuadre, en automático.", body: "Tu cajero abre el turno con un monto inicial, cobra durante el día y cierra con un click. Kova calcula la diferencia, sin Excel ni discusiones.", kind: "shift" },
@@ -1292,8 +1275,8 @@ const RESPONSIVE_STYLES = `
     .lp-4cols > div:nth-last-child(2) { border-bottom: none !important; }
     .lp-4cols > div:nth-child(odd) { border-right: 0.5px solid var(--hairline-color) !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
-    .lp-hero-section { padding: 56px 24px 80px !important; }
-    .lp-hero-grid { gap: 44px !important; margin-top: 24px !important; }
+    .lp-hero-section { padding: 48px 24px 48px !important; }
+    .lp-hero-grid { gap: 32px !important; margin-top: 16px !important; }
     .lp-hero-title {
       font-size: 46px !important;
       letter-spacing: 0 !important;
@@ -1336,7 +1319,7 @@ const RESPONSIVE_STYLES = `
       padding: 9px 12px !important;
       white-space: nowrap !important;
     }
-    .lp-hero-section { padding: 42px 20px 68px !important; }
+    .lp-hero-section { padding: 36px 20px 40px !important; }
     .lp-hero-title { font-size: 42px !important; }
     .lp-hero-actions {
       display: grid !important;
