@@ -165,7 +165,7 @@ behavior changes beyond what each task explicitly calls out; no schema changes.
 
 ### Progress Snapshot (2026-05-22)
 
-Four batches landed against this sprint:
+Seven batches landed against this sprint:
 
 - `b00c058` — BUG-001 (frontend), 003/012, 004, 006, 007, 011, 014 + i18n base
 - `773afd4` — BUG-008 (60s SWR cache), 009 (param normalization), 010
@@ -175,22 +175,28 @@ Four batches landed against this sprint:
   fallback, CSP allow-listed Stripe
 - `342c185` — HTML sanitize on product name (frontend + Pydantic),
   reports SWR cache (45s), centralized `formatDate` / `formatDateTime`
+- `54874f1` — Mexican TZ map, offline QA checklist doc
+- `2a7dddb` — dashboard onboarding auto-mark from live signals,
+  `fix_category_accents.py` maintenance script
+- `7ec035f` — BUG-002 backend OUT_OF_STOCK guard on order creation,
+  test updates + new positive coverage, `backfill_skus.py`,
+  `clamp_negative_stock.py`
+- new — `routing.spec.ts` E2E covering NotFound and Spanish slug redirects
 
-Still pending in this sprint:
+Still pending in this sprint (genuinely needs more than the current
+sandbox can provide):
 
-- BUG-002 backend repository clamp + maintenance script — needs a working
-  Postgres locally (alembic upgrade head fails in this environment, so
-  test fixture-backed verification cannot run here).
-- BUG-005 session-loss audit between `/reports` and `/settings` — needs
-  runtime reproduction with DevTools network capture.
-- Category accent backfill script for existing tenants
-  (`backend/scripts/fix_category_accents.py`).
-- Onboarding 5/7 auto-completion (mark "Activa el plan Standard" + recibo
-  steps based on subscription/logo state).
-- Catalog skeleton on first paint (replace white screen).
-- E2E additions: `routing.spec.ts`, sin-stock branch in
-  `register-sale.spec.ts`, invalid-qty refund in `orders.spec.ts`.
-- Final verification gate (full pytest + playwright pass).
+- BUG-005 session-loss audit — needs DevTools network capture against a
+  real backend to confirm root cause.
+- Catalog skeleton on first paint (would require inline HTML/CSS in
+  `index.html` to render before React mounts).
+- Sin-stock branch in `register-sale.spec.ts` and invalid-qty refund in
+  `orders.spec.ts` — Playwright run gate; tests authored only for
+  `routing.spec.ts` so far.
+- Final verification gate: `UV_PROJECT_ENVIRONMENT=.venv-win uv run
+  pytest` failed locally because `alembic upgrade head` could not
+  connect to a Postgres in this sandbox. Run on CI / a dev environment
+  with a healthy `DATABASE_URL` to close the gate.
 
 ### P0 · Blockers (data integrity, money, sessions)
 
