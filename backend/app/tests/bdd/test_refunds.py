@@ -303,6 +303,11 @@ def error_400(refund_context):
     assert refund_context["refund_response"].status_code == 400
 
 
+@then("a 422 error is returned")
+def error_422(refund_context):
+    assert refund_context["refund_response"].status_code == 422
+
+
 @then("a 403 error is returned")
 def error_403(refund_context):
     assert refund_context["refund_response"].status_code == 403

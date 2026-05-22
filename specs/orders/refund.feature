@@ -16,7 +16,7 @@ Feature: Refund items from a completed order
   Scenario: Cannot refund more than available quantity
     Given an authenticated manager with a completed order
     When the manager attempts to refund more items than ordered
-    Then a 400 error is returned
+    Then a 422 error is returned
     And no refund is created
 
   Scenario: Cannot refund a voided order
