@@ -422,6 +422,9 @@ export default function RegisterView() {
           order_id: result.order.id,
           total_amount: result.order.total_amount,
         });
+        // Toast is retained as the accessible status announcement
+        // (aria-live region) for screen readers — visual de-duplication with
+        // the success card is left for a future polish pass.
         toast(copy.register.saleComplete, "success");
       } else {
         toast(copy.register.saleQueued, "warning");
@@ -675,8 +678,8 @@ export default function RegisterView() {
                               className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-muted-foreground/40 select-none">
-                              {product.name.charAt(0).toUpperCase()}
+                            <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
+                              <ShoppingBag className="h-7 w-7" aria-hidden="true" />
                             </div>
                           )}
                         </div>

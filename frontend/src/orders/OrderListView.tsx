@@ -255,8 +255,8 @@ export default function OrderListView() {
                           <CheckCircle2 className="h-3 w-3" />
                         )}
                         {order.status === "voided"
-                          ? copy.orderList.filterVoided
-                          : copy.orderList.filterCompleted}
+                          ? copy.orderList.statusVoided
+                          : copy.orderList.statusCompleted}
                       </Badge>
                     </div>
                     <div className="text-right">
@@ -303,8 +303,8 @@ export default function OrderListView() {
                             <CheckCircle2 className="h-3 w-3" />
                           )}
                           {order.status === "voided"
-                            ? copy.orderList.filterVoided
-                            : copy.orderList.filterCompleted}
+                            ? copy.orderList.statusVoided
+                            : copy.orderList.statusCompleted}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold">

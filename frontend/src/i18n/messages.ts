@@ -908,6 +908,8 @@ export const copy = {
     allStatuses: "Todas",
     filterCompleted: "Completadas",
     filterVoided: "Canceladas",
+    statusCompleted: "Completada",
+    statusVoided: "Cancelada",
     filterStartDate: "Desde",
     filterEndDate: "Hasta",
     clearFilters: "Limpiar",
@@ -1148,6 +1150,8 @@ export const copy = {
     redirecting: "Redirigiendo",
     cancel: "Cancelar suscripción",
     canceling: "Cancelando",
+    cancelConfirm:
+      "¿Cancelar tu suscripción? Perderás acceso a Kova al final del periodo pagado actual.",
     checkoutSuccess: "Pago completado. Actualizando el estado de la suscripción.",
     checkoutCanceled: "El pago fue cancelado. Puedes reintentarlo cuando quieras.",
     operationError: "No se pudo completar la operación de facturación.",

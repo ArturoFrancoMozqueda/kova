@@ -358,7 +358,11 @@ export default function BillingView() {
                       loadState.billing.subscription.status === "canceled" ||
                       actionState === "cancel"
                     }
-                    onClick={() => void requestCancel()}
+                    onClick={() => {
+                      if (window.confirm(copy.billingView.cancelConfirm)) {
+                        void requestCancel();
+                      }
+                    }}
                   >
                     {actionState === "cancel" ? (
                       <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.canceling}</>
