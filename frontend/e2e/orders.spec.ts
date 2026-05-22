@@ -63,3 +63,86 @@ test("orders support status filters and amount sorting at mobile width", async (
   await expect(page.locator("a[href='/orders/order-1']").first()).toContainText("42.00");
   await expect(page.locator("a[href='/orders/order-3']").first()).toContainText("95.00");
 });
+
+test("refund exceeding available qty shows specific error toast", async ({ page }) => {
+  await mockAuthAsOwner(page);
+
+  const orderDetail = {
+    id: "order-r1",
+    tenant_id: "tenant-1",
+    status: "completed",
+    subtotal_amount: "50.00",
+    total_amount: "50.00",
+    items: [
+      {
+        id: "item-r1",
+        product_id: "product-r1",
+        product_name: "Concha",
+        quantity: 1,
+        unit_price_amount: "50.00",
+        line_total_amount: "50.00",
+        modifiers: [],
+      },
+    ],
+    payments: [],
+  };
+  const receipt = {
+    order_id: "order-r1",
+    receipt_number: "ABC123",
+    tenant_name: "Bakery",
+    created_at: "2026-05-20T10:00:00Z",
+    status: "completed",
+    items: [
+      {
+        product_name: "Concha",
+        quantity: 1,
+        unit_price_amount: "50.00",
+        line_total_amount: "50.00",
+        modifiers: [],
+      },
+    ],
+    subtotal_amount: "50.00",
+    total_amount: "50.00",
+    payments: [
+      {
+        method: "cash",
+        amount_amount: "50.00",
+        amount_tendered_amount: "50.00",
+        change_due_amount: "0.00",
+        reference: null,
+      },
+    ],
+    total_tendered: "50.00",
+    total_change: "0.00",
+    refunds: [],
+    void: null,
+  };
+
+  await page.route("**/api/v1/orders/order-r1/receipt", (route) =>
+    route.fulfill({ json: receipt }),
+  );
+  await page.route("**/api/v1/orders/order-r1", (route) =>
+    route.fulfill({ json: orderDetail }),
+  );
+  await page.route("**/api/v1/orders/order-r1/refunds", (route) =>
+    route.fulfill({
+      status: 422,
+      json: {
+        detail: {
+          code: "REFUND_QTY_EXCEEDS_AVAILABLE",
+          available: 1,
+          requested: 2,
+          message: "La cantidad excede lo disponible para devolución (máx. 1).",
+        },
+      },
+    }),
+  );
+
+  await page.goto("/orders/order-r1");
+  await page.getByRole("button", { name: /devolver/i }).click();
+  // Force qty > available by typing into the qty input.
+  await page.getByLabel(/Concha Cantidad/i).fill("2");
+  await page.getByRole("button", { name: /registrar devoluci[oó]n/i }).click();
+
+  await expect(page.getByRole("status")).toContainText(/excede lo disponible/i);
+});

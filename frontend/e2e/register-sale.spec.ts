@@ -159,3 +159,47 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
 
   await expect(page.getByRole("status")).toContainText(/en cola/i);
 });
+
+test("out-of-stock product cannot be added to the cart", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  const tracked = {
+    ...CATALOG[0],
+    id: "product-out",
+    name: "OutOfStockItem",
+    track_inventory: true,
+    low_stock_threshold: 5,
+  };
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: CASHIER_SESSION }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) =>
+    route.fulfill({ json: [tracked] }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/inventory/stock", (route) =>
+    route.fulfill({
+      json: [
+        {
+          product_id: "product-out",
+          product_name: "OutOfStockItem",
+          sku: "OUT-001",
+          track_inventory: true,
+          stock_on_hand: 0,
+          low_stock_threshold: 5,
+          is_low_stock: true,
+        },
+      ],
+    }),
+  );
+
+  await page.goto("/register");
+  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  const card = page.getByRole("button", {
+    name: /OutOfStockItem.*sin stock/i,
+  });
+  await expect(card).toHaveAttribute("aria-disabled", "true");
+  await card.click({ force: true });
+  await expect(page.getByRole("status")).toContainText(/sin stock/i);
+});

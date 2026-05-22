@@ -8,6 +8,26 @@
     <meta name="description" content="Kova es la app con la que cafeterías y negocios pequeños en México cobran ventas, controlan inventario y entienden qué se vende — sin libretas ni Excel. Funciona aunque se vaya el internet." />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>kova · lleva tu cafetería con orden</title>
+    <style>
+      /* Pre-React paint: keep the page from flashing white before the JS
+         bundle hydrates. Removed automatically once <div id="root"> renders. */
+      html, body { margin: 0; background: #F5F6FA; }
+      #root:empty::before {
+        content: "";
+        position: fixed; inset: 0;
+        background:
+          radial-gradient(120px 120px at 50% 38%, #E2E6EF 0%, #F5F6FA 70%) no-repeat,
+          #F5F6FA;
+        animation: kovaPulse 1.4s ease-in-out infinite;
+      }
+      @keyframes kovaPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #root:empty::before { animation: none; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
