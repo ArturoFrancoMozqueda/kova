@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   CATALOG_CREATE_PERMISSION,
   CATALOG_DELETE_PERMISSION,
@@ -88,6 +89,7 @@ type Modal =
 type ProductSort = "name_asc" | "price_desc" | "price_asc" | "stock_first";
 
 export default function CatalogView() {
+  useDocumentTitle("Catálogo");
   const canCreate = usePermission(CATALOG_CREATE_PERMISSION);
   const canUpdate = usePermission(CATALOG_UPDATE_PERMISSION);
   const canDelete = usePermission(CATALOG_DELETE_PERMISSION);

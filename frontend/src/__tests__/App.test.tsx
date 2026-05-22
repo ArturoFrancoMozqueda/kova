@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { invalidateBillingSubscription } from "@/billing/api";
 
 // ─── Offline module mocks (no IndexedDB in jsdom) ────────────────────────────
 
@@ -133,6 +134,7 @@ function setupFetchMock(routes: Record<string, FetchMockHandler[]>) {
 }
 
 afterEach(() => {
+  invalidateBillingSubscription();
   vi.restoreAllMocks();
   window.history.pushState(null, "", "/");
 });

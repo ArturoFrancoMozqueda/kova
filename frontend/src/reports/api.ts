@@ -40,10 +40,10 @@ function query(startDate: string, endDate: string): string {
 function rangeQuery(startDate: string, endDate: string): string {
   const params = new URLSearchParams();
   if (startDate) {
-    params.set("start", startDate);
+    params.set("start_date", startDate);
   }
   if (endDate) {
-    params.set("end", endDate);
+    params.set("end_date", endDate);
   }
   const value = params.toString();
   return value ? `?${value}` : "";

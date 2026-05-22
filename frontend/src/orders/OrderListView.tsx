@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { copy } from "../i18n/messages";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { listOrders } from "./api";
 import type { OrderFilters } from "./api";
 import { formatMoney } from "./format";
@@ -24,6 +25,7 @@ type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
 
 export default function OrderListView() {
+  useDocumentTitle("Órdenes");
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [startDate, setStartDate] = useState("");

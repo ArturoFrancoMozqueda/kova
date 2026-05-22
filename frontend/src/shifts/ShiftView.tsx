@@ -5,6 +5,7 @@ import {
   usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   closeShift,
   getOpenShift,
@@ -46,6 +47,7 @@ type LoadState =
 type ActiveModal = null | "open" | "close" | "movement";
 
 export default function ShiftView() {
+  useDocumentTitle("Turnos");
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [operationPending, setOperationPending] = useState(false);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatMoney } from "@/orders/format";
 import { getSalesByHour, getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
 import { listProducts } from "@/catalog/api";
@@ -355,6 +356,7 @@ const kpiCards = [
 ] as const;
 
 export default function DashboardView() {
+  useDocumentTitle("Panel");
   const { state } = useAuth();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });

@@ -594,6 +594,7 @@ export const copy = {
     daysUntilOut: (name: string, days: number) =>
       `${name} se agotará en ~${days} días con el ritmo actual.`,
     reorderSuggestion: "Sugerencia: preparar reabasto.",
+    alreadyOut: "Ya agotado",
   },
   inventoryModal: {
     adjustmentTitle: "Ajustar stock",
@@ -704,6 +705,8 @@ export const copy = {
     paymentOperationsTitle: "Pagos y operación",
     paymentOperationsDescription:
       "Revisa si la mezcla de pagos o las incidencias pueden afectar conciliación, efectivo o velocidad de caja.",
+    grossVsNetNote:
+      "Las ventas netas (arriba) ya descuentan devoluciones; los pagos muestran el bruto cobrado.",
     employeeAnalysisDescription:
       "Compara desempeño solo cuando hay más de una persona vendiendo; con un solo usuario no hay benchmark útil.",
     productColumn: "Producto",

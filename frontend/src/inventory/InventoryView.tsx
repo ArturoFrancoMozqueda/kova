@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
 import type { InventoryVelocityItem, MovementHistoryItem, StockItem } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ type StockFilter = "all" | "low" | "healthy";
 type StockSort = "name_asc" | "stock_asc" | "stock_desc" | "threshold_asc";
 
 export default function InventoryView() {
+  useDocumentTitle("Inventario");
   const canAdjust = usePermission(INVENTORY_ADJUST_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);
@@ -173,20 +175,25 @@ export default function InventoryView() {
               {loadState.velocity
                 .filter((item) => item.days_until_out !== null)
                 .slice(0, 3)
-                .map((item) => (
-                  <div key={item.product_id} className="rounded-lg border bg-background p-3">
-                    <p className="text-sm font-semibold">{item.product_name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {copy.inventoryView.daysUntilOut(
-                        item.product_name,
-                        Math.ceil(Number(item.days_until_out)),
-                      )}
-                    </p>
-                    <p className="mt-2 text-xs font-medium text-kova-blue">
-                      {copy.inventoryView.reorderSuggestion}
-                    </p>
-                  </div>
-                ))}
+                .map((item) => {
+                  const alreadyOut = item.stock_on_hand <= 0;
+                  return (
+                    <div key={item.product_id} className="rounded-lg border bg-background p-3">
+                      <p className="text-sm font-semibold">{item.product_name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {alreadyOut
+                          ? copy.inventoryView.alreadyOut
+                          : copy.inventoryView.daysUntilOut(
+                              item.product_name,
+                              Math.ceil(Number(item.days_until_out)),
+                            )}
+                      </p>
+                      <p className="mt-2 text-xs font-medium text-kova-blue">
+                        {copy.inventoryView.reorderSuggestion}
+                      </p>
+                    </div>
+                  );
+                })}
             </div>
           </CardContent>
         </Card>

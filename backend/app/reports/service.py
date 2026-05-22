@@ -1036,7 +1036,18 @@ def _recommended_actions(
                 "detail": "Revisa motivos de devolución o cancelación antes de cerrar el periodo.",
             }
         )
-    return actions[:5]
+    # Dedupe: collapse entries with the same normalized title (case-insensitive).
+    # Restock alerts and top-product suggestions can both reference the same
+    # product; the first-seen entry wins.
+    seen: set[str] = set()
+    deduped: list[dict] = []
+    for action in actions:
+        key = (action.get("title") or "").strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(action)
+    return deduped[:5]
 
 
 def _executive_summary(

@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,6 +95,7 @@ function roleDescription(role: Role | string): string {
 }
 
 export default function SettingsView() {
+  useDocumentTitle("Configuración");
   const location = useLocation();
   const { state, refresh } = useAuth();
   const { toast } = useToast();

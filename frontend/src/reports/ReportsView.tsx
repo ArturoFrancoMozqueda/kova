@@ -11,6 +11,7 @@ import {
   usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { listLowStock, listVelocity } from "../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
 import { formatMoney, reasonLabel } from "../orders/format";
@@ -135,6 +136,7 @@ function chartCopy() {
 }
 
 export default function ReportsView() {
+  useDocumentTitle("Reportes");
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const [startDate, setStartDate] = useState(today());
   const [endDate, setEndDate] = useState(today());
@@ -1132,7 +1134,12 @@ function PaymentOperationsAnalysis({ story }: { story: BusinessStoryReport }) {
       description={copy.reportsView.paymentOperationsDescription}
     >
       <div className="grid gap-6 xl:grid-cols-2">
-        <PaymentMix story={story} />
+        <div>
+          <PaymentMix story={story} />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {copy.reportsView.grossVsNetNote}
+          </p>
+        </div>
         <div>
           <div className="mb-4 flex items-center gap-2">
             <RotateCcw className="h-4 w-4 text-muted-foreground" />

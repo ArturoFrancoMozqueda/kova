@@ -38,8 +38,10 @@ def sales_summary(
 
 @router.get("/business-story", response_model=BusinessStoryReportResponse)
 def business_story(
-    start: date | None = None,
-    end: date | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    start: date | None = None,  # deprecated alias
+    end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_permission(Permission.REPORTS_VIEW_ALL)
@@ -47,7 +49,10 @@ def business_story(
 ):
     _, membership, _ = ctx
     return service.business_story(
-        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
+        db,
+        tenant_id=membership.tenant_id,
+        start_date=start_date or start,
+        end_date=end_date or end,
     )
 
 
@@ -88,8 +93,10 @@ def top_products(
 
 @router.get("/sales-by-hour", response_model=list[SalesByHourRow])
 def sales_by_hour(
-    start: date | None = None,
-    end: date | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    start: date | None = None,  # deprecated alias
+    end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_permission(Permission.REPORTS_VIEW_ALL)
@@ -97,14 +104,19 @@ def sales_by_hour(
 ):
     _, membership, _ = ctx
     return service.sales_by_hour(
-        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
+        db,
+        tenant_id=membership.tenant_id,
+        start_date=start_date or start,
+        end_date=end_date or end,
     )
 
 
 @router.get("/sales-by-employee", response_model=list[SalesByEmployeeRow])
 def sales_by_employee(
-    start: date | None = None,
-    end: date | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    start: date | None = None,  # deprecated alias
+    end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_permission(Permission.REPORTS_VIEW_ALL)
@@ -112,14 +124,19 @@ def sales_by_employee(
 ):
     _, membership, _ = ctx
     return service.sales_by_employee(
-        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
+        db,
+        tenant_id=membership.tenant_id,
+        start_date=start_date or start,
+        end_date=end_date or end,
     )
 
 
 @router.get("/refunds-by-reason", response_model=list[RefundsByReasonRow])
 def refunds_by_reason(
-    start: date | None = None,
-    end: date | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    start: date | None = None,  # deprecated alias
+    end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_permission(Permission.REPORTS_VIEW_ALL)
@@ -127,5 +144,8 @@ def refunds_by_reason(
 ):
     _, membership, _ = ctx
     return service.refunds_by_reason(
-        db, tenant_id=membership.tenant_id, start_date=start, end_date=end
+        db,
+        tenant_id=membership.tenant_id,
+        start_date=start_date or start,
+        end_date=end_date or end,
     )

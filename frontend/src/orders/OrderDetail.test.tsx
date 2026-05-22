@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
+import { invalidateBillingSubscription } from "@/billing/api";
 
 const order = {
   id: "order-1",
@@ -129,6 +130,7 @@ function mockInitialLoad(currentReceipt: unknown = receipt, role = "cashier") {
 }
 
 afterEach(() => {
+  invalidateBillingSubscription();
   vi.restoreAllMocks();
   window.localStorage.clear();
   window.history.pushState(null, "", "/");

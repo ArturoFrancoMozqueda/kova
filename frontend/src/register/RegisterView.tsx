@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { productImageSrc, productImageSrcSet } from "@/catalog/imageUrl";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type LoadState =
   | { status: "loading" }
@@ -105,6 +106,7 @@ const paymentMethodOptions: { value: PaymentMethod; label: string; icon: React.R
 ];
 
 export default function RegisterView() {
+  useDocumentTitle("Caja");
   const { state } = useAuth();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
@@ -906,7 +908,9 @@ export default function RegisterView() {
                             placeholder={copy.register.amount}
                             value={payment.amount}
                             onChange={(event) =>
-                              updateSplitPayment(payment.id, { amount: event.target.value })
+                              updateSplitPayment(payment.id, {
+                                amount: event.target.value.replace(/^-/, ""),
+                              })
                             }
                           />
                         </div>
@@ -922,7 +926,9 @@ export default function RegisterView() {
                               placeholder={copy.register.amountTendered}
                               value={payment.amountTendered}
                               onChange={(event) =>
-                                updateSplitPayment(payment.id, { amountTendered: event.target.value })
+                                updateSplitPayment(payment.id, {
+                                  amountTendered: event.target.value.replace(/^-/, ""),
+                                })
                               }
                             />
                           </div>
@@ -1006,7 +1012,9 @@ export default function RegisterView() {
                           inputMode="decimal"
                           placeholder={copy.register.amountTendered}
                           value={cashTendered}
-                          onChange={(event) => setCashTendered(event.target.value)}
+                          onChange={(event) =>
+                            setCashTendered(event.target.value.replace(/^-/, ""))
+                          }
                         />
                         <div className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
                           <span className="text-muted-foreground">{copy.register.changeDue}</span>
