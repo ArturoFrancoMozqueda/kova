@@ -14,7 +14,6 @@ from app.catalog.schemas import CategoryCreate, CategoryUpdate, ProductCreate, P
 from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request, not_found
 
-
 _SKU_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 

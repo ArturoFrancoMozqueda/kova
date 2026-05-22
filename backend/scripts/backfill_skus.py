@@ -21,7 +21,6 @@ from collections import defaultdict
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-
 _SKU_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 
@@ -60,7 +59,9 @@ def main() -> int:
     with engine.begin() as conn:
         existing = {
             row.sku
-            for row in conn.execute(text("SELECT sku FROM products WHERE sku IS NOT NULL AND sku <> ''"))
+            for row in conn.execute(
+                text("SELECT sku FROM products WHERE sku IS NOT NULL AND sku <> ''")
+            )
         }
         rows = conn.execute(
             text(

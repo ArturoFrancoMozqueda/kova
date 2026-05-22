@@ -4,9 +4,8 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy.orm import Session
-
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.idempotency import service as idempotency_service

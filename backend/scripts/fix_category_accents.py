@@ -14,11 +14,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Iterable
+from collections.abc import Iterable
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-
 
 # Known cafe-preset categories whose names lost their accents in the
 # original preset. Extend deliberately — do NOT machine-translate.
