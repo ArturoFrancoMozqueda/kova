@@ -163,6 +163,34 @@ Audit covered Panel, Caja, Catálogo, Órdenes, Inventario, Turnos, Reportes, Co
 Goal: close blocker UX/data-integrity bugs before onboarding more cafe tenants. No backend
 behavior changes beyond what each task explicitly calls out; no schema changes.
 
+### Progress Snapshot (2026-05-22)
+
+First execution pass landed (commit `b00c058`). Items shipped:
+
+- BUG-001 (frontend disable + warning toast; backend OUT_OF_STOCK + soft override pending)
+- BUG-003 / BUG-012 (receipt "Efectivo recibido" rename, hide for non-cash)
+- BUG-004 (NotFound page + Spanish slug redirects + catch-all)
+- BUG-006 (product price client validation)
+- BUG-007 (refund qty REFUND_QTY_EXCEEDS_AVAILABLE code + mapped toast)
+- BUG-011 (refresh AuthContext after profile save)
+- BUG-014 (backend SKU auto-generation + frontend helper text)
+- Localization quick wins: `<html lang="es-MX">`, "All" → "Todos",
+  refund reasons in Spanish, accent fixes in `messages.ts` and `cafe.json`
+
+Still pending in this sprint (see checklist below for details):
+
+- BUG-002 negative-stock clamp + maintenance script
+- BUG-005 session-loss audit (needs runtime reproduction)
+- BUG-008 dedupe `/billing/subscription` via context
+- BUG-009 reports query-param normalization (`start_date` / `end_date`)
+- BUG-010 dedupe `recommended_actions`
+- BUG-013 gross vs neto labels in reports
+- BUG-015 (`min=0` already present, audit submit handler)
+- Per-route document titles, date formatter, TZ map, plural "Completada"
+- Category accent backfill script for existing tenants
+- All P2 (UX polish, CSP, offline doc, cache, skeletons)
+- E2E additions and full verification gate
+
 ### P0 · Blockers (data integrity, money, sessions)
 
 - [ ] **BUG-001 · Bloquear venta de productos sin stock.**
