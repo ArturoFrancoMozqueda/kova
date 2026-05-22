@@ -125,8 +125,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install
         run: npm ci
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
       - name: Wait for Vercel deployment
         run: npx wait-on ${{ secrets.VERCEL_URL }} --timeout 120000
       - name: E2E smoke against deployed app
