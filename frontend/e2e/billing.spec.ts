@@ -34,6 +34,13 @@ const activeSubscription = {
   updated_at: "2026-05-01T00:00:00Z",
 };
 
+const expiredAccess = {
+  ...activeAccess,
+  allowed: false,
+  reason: "trial_expired",
+  blocked_at: "2026-05-08T00:00:00Z",
+};
+
 async function mockAuthAs(page: Page, role: string) {
   await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({
@@ -59,12 +66,15 @@ test("billing page displays the Standard Plan and active subscription", async ({
   await expect(page.getByRole("heading", { name: /plan standard/i })).toBeVisible();
   await expect(page.getByText(/\$299\.00/).first()).toBeVisible();
   await expect(page.getByText(/activo/i).first()).toBeVisible();
+  await expect(page.getByText(/tu suscripcion esta activa/i)).toBeVisible();
+  await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
 });
 
 test("billing page redirects to checkout and handles cancellation", async ({ page }) => {
   await mockAuthAs(page, "owner");
   await page.route("**/api/v1/billing/subscription", async (route) => {
-    await route.fulfill({ json: { plan, subscription: activeSubscription, access: activeAccess } });
+    await route.fulfill({ json: { plan, subscription: null, access: expiredAccess } });
   });
   await page.route("**/api/v1/billing/checkout", async (route) => {
     await route.fulfill({
@@ -82,6 +92,56 @@ test("billing page redirects to checkout and handles cancellation", async ({ pag
   await page.goto("/settings/billing");
   await page.getByRole("button", { name: /activar por/i }).click();
   await expect(page).toHaveURL("https://checkout.stripe.test/session/cs_test_123");
+});
+
+test("billing page hides checkout for a Stripe trialing subscription", async ({ page }) => {
+  await mockAuthAs(page, "owner");
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: {
+        plan,
+        subscription: {
+          ...activeSubscription,
+          status: "trialing",
+          trial_ends_at: "2026-05-25T00:00:00Z",
+        },
+        access: { ...activeAccess, reason: "active", trialing: true },
+      },
+    });
+  });
+
+  await page.goto("/settings/billing");
+
+  await expect(page.getByText(/tu suscripcion esta en prueba/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /cancelar suscripci[óo]n/i })).toBeEnabled();
+});
+
+test("billing page recovers when checkout reports an already active subscription", async ({ page }) => {
+  await mockAuthAs(page, "owner");
+  let checkoutAttempted = false;
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: checkoutAttempted
+        ? { plan, subscription: activeSubscription, access: activeAccess }
+        : { plan, subscription: null, access: expiredAccess },
+    });
+  });
+  await page.route("**/api/v1/billing/checkout", async (route) => {
+    checkoutAttempted = true;
+    await route.fulfill({
+      status: 400,
+      body: JSON.stringify({ detail: "Tenant already has an active subscription" }),
+      contentType: "application/json",
+    });
+  });
+
+  await page.goto("/settings/billing");
+  await page.getByRole("button", { name: /activar por/i }).click();
+
+  await expect(page.getByText(/tu suscripcion ya esta activa/i)).toBeVisible();
+  await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
 });
 
 test("billing page shows past due recovery and return states", async ({ page }) => {

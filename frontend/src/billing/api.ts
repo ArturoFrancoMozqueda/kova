@@ -1,6 +1,6 @@
 import type { BillingSubscription, CheckoutSession } from "./types";
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,

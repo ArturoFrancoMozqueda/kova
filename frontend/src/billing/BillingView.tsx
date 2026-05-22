@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
-import { getBillingSubscription, startCheckout, cancelSubscription } from "./api";
+import { ApiError, getBillingSubscription, startCheckout, cancelSubscription } from "./api";
 import { STANDARD_PLAN } from "./standardPlan";
 import type { BillingSubscription } from "./types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -65,6 +65,10 @@ function accessStatusLabel(billing: BillingSubscription): string {
   return copy.billingView.noSubscription;
 }
 
+function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean {
+  return billing.subscription?.status === "active" || billing.subscription?.status === "trialing";
+}
+
 export default function BillingView() {
   const location = useLocation();
   const checkoutReturnState = location.pathname.endsWith("/success")
@@ -95,12 +99,22 @@ export default function BillingView() {
   }, [checkoutReturnState, toast]);
 
   const beginCheckout = async () => {
+    if (loadState.status === "loaded" && hasCheckoutBlockingSubscription(loadState.billing)) {
+      toast(copy.billingView.checkoutAlreadyActive, "info");
+      return;
+    }
     setActionState("checkout");
     void trackFunnelEvent("checkout_started");
     try {
       const session = await startCheckout();
       window.location.assign(session.checkout_url);
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 400) {
+        await load();
+        toast(copy.billingView.checkoutAlreadyActive, "info");
+        setActionState("idle");
+        return;
+      }
       setActionState("error");
       toast(copy.billingView.operationError, "error");
     }
@@ -169,6 +183,24 @@ export default function BillingView() {
 
       {loadState.status === "loaded" && (
         <div className="space-y-6">
+          {hasCheckoutBlockingSubscription(loadState.billing) && (
+            <div className="flex items-center gap-3 rounded-lg border border-kova-growth/30 bg-kova-growth/10 px-4 py-3 text-sm animate-fade-in">
+              <CheckCircle2 className="h-5 w-5 text-kova-growth shrink-0" />
+              <div>
+                <p className="font-medium">
+                  {loadState.billing.subscription?.status === "trialing"
+                    ? copy.billingView.subscriptionTrialingTitle
+                    : copy.billingView.subscriptionActiveTitle}
+                </p>
+                <p className="text-muted-foreground">
+                  {loadState.billing.subscription?.status === "trialing"
+                    ? copy.billingView.subscriptionTrialingBody
+                    : copy.billingView.subscriptionActiveBody}
+                </p>
+              </div>
+            </div>
+          )}
+
           {loadState.billing.access.reason === "signup_trial" && (
             <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm animate-fade-in">
               <Clock className="h-5 w-5 text-primary shrink-0" />
@@ -304,13 +336,20 @@ export default function BillingView() {
               </div>
               {canManageBilling ? (
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button onClick={() => void beginCheckout()} disabled={actionState === "checkout"}>
-                    {actionState === "checkout" ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
-                    ) : (
-                      <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout}</>
-                    )}
-                  </Button>
+                  {!hasCheckoutBlockingSubscription(loadState.billing) ? (
+                    <Button onClick={() => void beginCheckout()} disabled={actionState === "checkout"}>
+                      {actionState === "checkout" ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
+                      ) : (
+                        <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout}</>
+                      )}
+                    </Button>
+                  ) : (
+                    <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-kova-growth" />
+                      {copy.billingView.checkoutNotNeeded}
+                    </p>
+                  )}
                   <Button
                     variant="outline"
                     disabled={
