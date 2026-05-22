@@ -188,8 +188,14 @@ Seven batches landed against this sprint:
 Still pending in this sprint (genuinely needs more than the current
 sandbox can provide):
 
-- BUG-005 session-loss audit — needs DevTools network capture against a
-  real backend to confirm root cause.
+- ~~BUG-005 session-loss audit~~ — Fixed in commit following batch 10. Root cause:
+  the access_token JWT has a 15-minute TTL but the frontend had no refresh logic,
+  so navigating between modules after the JWT expired triggered
+  `getSession() -> { authenticated: false } -> RequireAuth -> /login`. Fix:
+  `AuthContext.refresh()` now retries via `/api/v1/auth/refresh` before
+  declaring the user logged out, and a global `window.fetch` interceptor
+  attempts a single refresh + retry whenever any API call returns 401 (except
+  the auth endpoints themselves, to avoid recursion).
 - Catalog skeleton on first paint (would require inline HTML/CSS in
   `index.html` to render before React mounts).
 - Sin-stock branch in `register-sale.spec.ts` and invalid-qty refund in
@@ -487,7 +493,11 @@ Still required before onboarding the first beta tenant.
 - [x] Sentry: backend and frontend DSNs configured, alert rules active.
 - [x] Backups: GitHub Actions `db-backup.yml` daily `pg_dump` (artifact 30 d).
       Pro plan upgrade and managed backups deferred to pre-GA.
-- [ ] Uptime monitor: add UptimeRobot on `https://pos-project-backend.fly.dev/health` with email alert.
+- [x] Uptime monitor: GitHub Actions cron workflow `.github/workflows/uptime.yml`
+      hits `https://pos-project-backend.fly.dev/health` every 10 minutes (3-retry
+      backoff) and fails the run on non-200, which triggers GitHub's standard
+      workflow-failure notification email to repo admins. Promote to a hosted
+      UptimeRobot or Better Stack monitor pre-GA if email cadence is insufficient.
 - [x] Support channel: `posprojectsupport@gmail.com` active.
 - [x] Beta agreement template: `docs/beta-agreement-template.md`.
 - [x] Production deployment Sprint 14: security headers verified in production.

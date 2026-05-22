@@ -65,3 +65,11 @@ export function getMe(): Promise<MeResponse> {
 export function getSession(): Promise<SessionProbeResponse> {
   return requestJson<SessionProbeResponse>("/api/v1/auth/session");
 }
+
+export async function refreshSession(): Promise<boolean> {
+  const response = await fetch("/api/v1/auth/refresh", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
+  return response.ok;
+}
