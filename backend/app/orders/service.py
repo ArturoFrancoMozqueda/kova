@@ -6,8 +6,11 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException
+
 from app.audit import service as audit_service
 from app.idempotency import service as idempotency_service
+from app.inventory import repository as inventory_repo
 from app.modifiers import service as modifier_service
 from app.modifiers.models import OrderItemModifier
 from app.orders import repository as repo
@@ -160,6 +163,10 @@ def create_order(
             return 200, _order_body(db, tenant_id=tenant_id, order=existing)
 
     priced_items = []
+    # Aggregate requested quantities per product so multiple cart lines
+    # for the same product (e.g. with different modifiers) collectively
+    # validate against current on-hand.
+    quantity_by_product: dict[UUID, int] = {}
     for item in body.items:
         product = repo.get_active_product_for_update(
             db, tenant_id=tenant_id, product_id=item.product_id
@@ -175,6 +182,30 @@ def create_order(
         priced_items.append(
             (product, item.quantity, effective_price, line_total, modifier_snapshots)
         )
+        if product.track_inventory:
+            quantity_by_product[product.id] = (
+                quantity_by_product.get(product.id, 0) + item.quantity
+            )
+
+    # Out-of-stock guard: prevent selling tracked products below zero.
+    for product_id, requested_qty in quantity_by_product.items():
+        on_hand = inventory_repo.stock_on_hand(
+            db, tenant_id=tenant_id, product_id=product_id
+        )
+        if requested_qty > on_hand:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "OUT_OF_STOCK",
+                    "product_id": str(product_id),
+                    "available": on_hand,
+                    "requested": requested_qty,
+                    "message": (
+                        "No hay stock suficiente para vender este producto. "
+                        "Actualiza inventario antes de cobrar."
+                    ),
+                },
+            )
 
     subtotal = calculator.order_total([lt for _, _, _, lt, _ in priced_items])
     total = subtotal
@@ -378,7 +409,6 @@ def create_refund(
 
         if refunded_qty + refund_item.quantity > order_item.quantity:
             available = order_item.quantity - refunded_qty
-            from fastapi import HTTPException
             raise HTTPException(
                 status_code=422,
                 detail={

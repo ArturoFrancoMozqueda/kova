@@ -39,6 +39,17 @@ def _create_product(
     return response.json()
 
 
+def _seed_stock(client: TestClient, product_id: str, qty: int = 10) -> None:
+    """Add `qty` units of on-hand stock so tracked-product sales can pass
+    the OUT_OF_STOCK guard (Sprint 5 BUG-002)."""
+    response = client.post(
+        f"/api/v1/inventory/products/{product_id}/adjustments",
+        headers={"Idempotency-Key": f"seed-{product_id}"},
+        json={"quantity_delta": qty, "reason": "Seed stock for tests"},
+    )
+    assert response.status_code == 201, response.text
+
+
 def _create_cash_order(client: TestClient, product_id: str, key: str = "order-cash") -> object:
     return client.post(
         "/api/v1/orders",
@@ -138,6 +149,7 @@ def test_order_idempotency_reuse_with_different_body_returns_400(client):
 def test_tracked_product_creates_inventory_sale_movement(client, db):
     signup = _signup_verify_login(client, "order-inventory@example.com", "Inventory Bakery")
     product = _create_product(client, track_inventory=True)
+    _seed_stock(client, product["id"], qty=10)
 
     response = _create_cash_order(client, product["id"], key="order-inventory")
 
@@ -147,11 +159,26 @@ def test_tracked_product_creates_inventory_sale_movement(client, db):
         .filter(
             InventoryMovement.tenant_id == UUID(signup["tenant_id"]),
             InventoryMovement.product_id == UUID(product["id"]),
+            InventoryMovement.movement_type == "sale",
         )
         .one()
     )
-    assert movement.movement_type == "sale"
     assert movement.quantity_delta == -2
+
+
+def test_out_of_stock_tracked_product_rejected(client, db):
+    _signup_verify_login(client, "order-oos@example.com", "OOS Bakery")
+    product = _create_product(client, name="OOSItem", track_inventory=True)
+    # No stock seeded -> on_hand == 0.
+    response = _create_cash_order(client, product["id"], key="order-oos")
+
+    assert response.status_code == 422, response.text
+    body = response.json()
+    detail = body.get("detail") if isinstance(body, dict) else None
+    assert isinstance(detail, dict)
+    assert detail.get("code") == "OUT_OF_STOCK"
+    assert detail.get("available") == 0
+    assert detail.get("requested") == 2
 
 
 def test_untracked_product_does_not_create_inventory_movement(client, db):

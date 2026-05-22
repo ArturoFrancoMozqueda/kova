@@ -156,7 +156,16 @@ def _create_product(client, *, name: str, price: str) -> dict:
         json={"name": name, "price_amount": price, "track_inventory": True},
     )
     assert response.status_code == 201, response.text
-    return response.json()
+    product = response.json()
+    # Seed enough stock for downstream sales to pass the OUT_OF_STOCK guard
+    # (Sprint 5 BUG-002). 1000 units is plenty for any report scenario.
+    seed = client.post(
+        f"/api/v1/inventory/products/{product['id']}/adjustments",
+        headers={"Idempotency-Key": f"reports-seed-{uuid4().hex}"},
+        json={"quantity_delta": 1000, "reason": "Seed stock for test"},
+    )
+    assert seed.status_code == 201, seed.text
+    return product
 
 
 def _create_order(
