@@ -26,6 +26,36 @@ async function forceReload() {
   window.location.reload();
 }
 
+// Routes where a forced reload would destroy in-flight work (e.g. an open
+// cart in the register). On those, we skip the reload and let the next safe
+// navigation pick up the new bundle.
+function isReloadSafePath(pathname: string): boolean {
+  if (pathname.startsWith("/register")) return false;
+  return true;
+}
+
+// One-shot version probe at boot. Fetches the deploy-time version.json
+// (NetworkOnly via the SW runtime route) and compares to the hash baked into
+// this bundle. If they differ, the user is running stale JS served by the
+// previous SW — unregister it, wipe caches, and reload.
+async function checkVersionAndReloadIfStale() {
+  try {
+    const res = await fetch("/version.json", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as { hash?: string };
+    if (!data?.hash || data.hash === __BUILD_HASH__) return;
+    if (!isReloadSafePath(window.location.pathname)) return;
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    void forceReload();
+  } catch {
+    // network errors are non-fatal — we'll just check again next boot
+  }
+}
+void checkVersionAndReloadIfStale();
+
 const updateSW = registerSW({
   immediate: true,
   onRegisteredSW(_swUrl, registration) {
@@ -50,9 +80,13 @@ const updateSW = registerSW({
 });
 
 // Fallback: if the new SW activates via clientsClaim before we hooked
-// updatefound, reload on controller change.
+// updatefound, reload on controller change. Only fire when an existing
+// controller is being replaced — not on the first install of a fresh page,
+// which would cause an unexpected reload loop in tests and on first visit.
 if ("serviceWorker" in navigator) {
+  const hadInitialController = navigator.serviceWorker.controller !== null;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadInitialController) return;
     void forceReload();
   });
 }
