@@ -13,7 +13,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "prompt",
+      registerType: "autoUpdate",
       devOptions: { enabled: false },
       manifest: {
         name: "Kova",
@@ -30,11 +30,23 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Cache the app shell (HTML, JS, CSS) and static assets
+        // App shell (HTML + hashed assets) is precached so authenticated POS
+        // routes work offline-first. Marketing/auth routes are excluded from the
+        // navigation fallback below — they always hit the network, so pricing
+        // and landing copy can never be served stale.
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [
+          /^\/$/,
+          /^\/login/,
+          /^\/signup/,
+          /^\/verify-email/,
+          /^\/billing/,
+          /^\/api\//,
+        ],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        // Network-first for API calls — never serve stale API responses from cache
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^\/api\//,

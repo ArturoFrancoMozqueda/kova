@@ -6,7 +6,11 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import "./observability/sentry";
 import "./styles.css";
 
-// Check for service worker updates early; the user-facing prompt applies them safely.
+// autoUpdate mode: new service workers skip waiting and claim clients
+// immediately, so updated assets apply on the next navigation without a manual
+// prompt. Marketing/auth routes ("/", "/login", "/signup", "/verify-email",
+// "/billing") are denylisted from the SW navigation fallback in vite.config.ts,
+// so returning users always get fresh landing/pricing copy from the network.
 const updateSW = registerSW({
   immediate: true,
   onRegisteredSW(_swUrl, registration) {
@@ -15,9 +19,6 @@ const updateSW = registerSW({
     window.setInterval(() => {
       void registration.update();
     }, 60 * 60 * 1000);
-  },
-  onNeedRefresh() {
-    window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
   },
 });
 

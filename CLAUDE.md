@@ -95,6 +95,17 @@ Item lifecycle: `pending → syncing → synced | failed`. Network errors retry 
 
 Sync triggers on `window.online` and via `useSyncQueue().syncNow`. `useSyncQueue` subscribes to Dexie `liveQuery` so the pending count updates reactively. The `client_uuid` is sent as `Idempotency-Key`; the backend's `idempotency_keys` table memoizes the response to prevent duplicate orders on retry.
 
+### Service worker / PWA cache strategy
+
+PWA config lives in `frontend/vite.config.ts` under `VitePWA({ workbox: ... })`. Two non-obvious rules govern what gets cached vs. always fetched:
+
+- **`registerType: "autoUpdate"` + `skipWaiting: true` + `clientsClaim: true`** — new SWs activate silently on the next navigation. There is no user-facing "Nueva versión disponible" prompt; the existing `PWAUpdatePrompt` component is kept for legacy event hooks but won't fire under autoUpdate.
+- **`navigateFallbackDenylist`** — `/`, `/login`, `/signup`, `/verify-email/*`, `/billing/*`, and `/api/*` are excluded from the SW's SPA navigation fallback, so they always hit the network. **This is load-bearing for trust:** the landing page (pricing, plan claims) and billing screens must never serve a stale `index.html` from a previous deploy. Authenticated POS routes (`/dashboard`, `/register-sale`, `/inventory`, …) keep the cached `index.html` so they work offline-first.
+
+When adding a new public/marketing route or any screen where stale copy would be a commercial risk, add it to `navigateFallbackDenylist`. When adding an internal authenticated route, do nothing — it inherits offline-first by default.
+
+API requests are `NetworkOnly` (`/api/*` runtime route). Static assets (JS/CSS/SVG/fonts) are content-hashed and precached.
+
 ### Billing gate
 
 `require_commercial_access(permission)` (`app/billing/access.py`) is a FastAPI dependency that composes RBAC + billing checks. Access is allowed when:
