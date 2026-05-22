@@ -232,7 +232,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             <h1
               className="lp-hero-title"
               style={{
-                fontSize: "clamp(44px, 6.4vw, 88px)",
+                fontSize: "clamp(36px, 5.2vw, 72px)",
                 fontWeight: 600,
                 letterSpacing: "-0.035em",
                 lineHeight: 0.98,
@@ -1278,7 +1278,7 @@ const RESPONSIVE_STYLES = `
     .lp-hero-section { padding: 48px 24px 48px !important; }
     .lp-hero-grid { gap: 32px !important; margin-top: 16px !important; }
     .lp-hero-title {
-      font-size: 46px !important;
+      font-size: 38px !important;
       letter-spacing: 0 !important;
       line-height: 1 !important;
     }
@@ -1320,7 +1320,7 @@ const RESPONSIVE_STYLES = `
       white-space: nowrap !important;
     }
     .lp-hero-section { padding: 36px 20px 40px !important; }
-    .lp-hero-title { font-size: 42px !important; }
+    .lp-hero-title { font-size: 34px !important; }
     .lp-hero-actions {
       display: grid !important;
       grid-template-columns: 1fr !important;
@@ -1352,7 +1352,7 @@ const RESPONSIVE_STYLES = `
   }
   @media (max-width: 360px) {
     .lp-nav-primary { padding: 9px 10px !important; font-size: 12px !important; }
-    .lp-hero-title { font-size: 38px !important; }
+    .lp-hero-title { font-size: 30px !important; }
     .lp-hero-copy { font-size: 16px !important; }
   }
 `;

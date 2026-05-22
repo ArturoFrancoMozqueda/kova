@@ -39,9 +39,9 @@
   gap: 20px;
 }
 .embedded .svgWrap {
-  width: 80%;
-  max-width: 340px;
-  min-width: 200px;
+  width: 72%;
+  max-width: 300px;
+  min-width: 180px;
 }
 .embedded .wordmark {
   font-size: 60px;
