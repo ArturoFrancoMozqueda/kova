@@ -201,5 +201,5 @@ test("out-of-stock product cannot be added to the cart", async ({ page }) => {
   });
   await expect(card).toHaveAttribute("aria-disabled", "true");
   await card.click({ force: true });
-  await expect(page.getByRole("status")).toContainText(/sin stock/i);
+  await expect(page.getByRole("status")).toContainText(/no tiene stock/i);
 });
