@@ -150,8 +150,10 @@ Sprint 4 is in progress, focused on report clarity without overwhelming the owne
 
 ## Next Sprint Recommendation
 
-Frontend consumption of the new `product_trends`, `restock_alerts`, and `employee_contribution`
-fields on the reports view. Backend already returns them; UI work remains.
+~~Frontend consumption of the new `product_trends`, `restock_alerts`, and `employee_contribution`
+fields on the reports view.~~ Landed in commit following Sprint 5 batch 8: restock alerts
+panel and trends panel rendered inside the product/inventory section; employee contribution
+panel appended to the employee coaching section.
 
 ## Kova Audit Sprint 5: QA Bug Fixes (2026-05-22)
 

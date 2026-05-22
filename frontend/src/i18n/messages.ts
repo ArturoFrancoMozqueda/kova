@@ -707,6 +707,18 @@ export const copy = {
       "Revisa si la mezcla de pagos o las incidencias pueden afectar conciliación, efectivo o velocidad de caja.",
     grossVsNetNote:
       "Las ventas netas (arriba) ya descuentan devoluciones; los pagos muestran el bruto cobrado.",
+    restockAlertsTitle: "Alertas de reabasto",
+    restockSeverityCritical: "Crítica",
+    restockSeverityWarning: "Atención",
+    trendsGrowingTitle: "Productos creciendo",
+    trendsDecliningTitle: "Productos bajando",
+    trendsNoGrowing: "Aún no hay productos con crecimiento confiable.",
+    trendsNoDeclining: "Ningún producto cayó respecto al periodo anterior.",
+    employeeContributionTitle: "Contribución por empleado",
+    employeeContributionEven:
+      "El equipo aporta de forma pareja; sin un solo punto crítico.",
+    employeeContributionTop: (name: string, share: number) =>
+      `${name} aporta el ${share}% de las ventas netas del periodo.`,
     employeeAnalysisDescription:
       "Compara desempeño solo cuando hay más de una persona vendiendo; con un solo usuario no hay benchmark útil.",
     productColumn: "Producto",

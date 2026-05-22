@@ -404,6 +404,7 @@ function ReportsStory({
         <ProductInventoryAnalysis story={story} lowStock={lowStock} velocity={velocity} />
         <PaymentOperationsAnalysis story={story} />
         <EmployeeCoaching rows={story.sales_by_employee} />
+        <EmployeeContributionPanel story={story} />
       </ReportDetails>
     </div>
   );
@@ -1036,7 +1037,113 @@ function ProductInventoryAnalysis({
         </div>
         </>
       )}
+      <RestockAlertsPanel story={story} />
+      <ProductTrendsPanel story={story} />
     </DecisionSection>
+  );
+}
+
+function RestockAlertsPanel({ story }: { story: BusinessStoryReport }) {
+  const alerts = story.restock_alerts ?? [];
+  if (alerts.length === 0) return null;
+  return (
+    <div className="mt-6 rounded-lg border bg-card p-4">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+        <Package className="h-4 w-4 text-muted-foreground" />
+        {copy.reportsView.restockAlertsTitle}
+      </h3>
+      <div className="space-y-2">
+        {alerts.slice(0, 5).map((alert) => (
+          <div
+            key={alert.product_id}
+            className={cn(
+              "rounded-lg border px-3 py-2 text-sm",
+              alert.severity === "critical"
+                ? "border-destructive/30 bg-destructive/5"
+                : "border-warning/30 bg-warning/5",
+            )}
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="font-medium">{alert.product_name}</p>
+              <Badge variant={alert.severity === "critical" ? "destructive" : "warning"}>
+                {alert.severity === "critical"
+                  ? copy.reportsView.restockSeverityCritical
+                  : copy.reportsView.restockSeverityWarning}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{alert.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProductTrendsPanel({ story }: { story: BusinessStoryReport }) {
+  const trends = story.product_trends;
+  if (!trends) return null;
+  const growing = trends.growing.slice(0, 3);
+  const declining = trends.declining.slice(0, 3);
+  if (growing.length === 0 && declining.length === 0) return null;
+  return (
+    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+      <TrendList
+        title={copy.reportsView.trendsGrowingTitle}
+        tone="growth"
+        rows={growing}
+        emptyLabel={copy.reportsView.trendsNoGrowing}
+      />
+      <TrendList
+        title={copy.reportsView.trendsDecliningTitle}
+        tone="risk"
+        rows={declining}
+        emptyLabel={copy.reportsView.trendsNoDeclining}
+      />
+    </div>
+  );
+}
+
+function TrendList({
+  title,
+  tone,
+  rows,
+  emptyLabel,
+}: {
+  title: string;
+  tone: "growth" | "risk";
+  rows: BusinessStoryReport["product_trends"] extends infer T
+    ? T extends { growing: infer R }
+      ? R extends Array<infer Row>
+        ? Row[]
+        : never
+      : never
+    : never;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{emptyLabel}</p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((row) => (
+            <li key={row.product_id} className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-medium truncate">{row.product_name}</span>
+              <span
+                className={cn(
+                  "tabular-nums text-xs font-semibold",
+                  tone === "growth" ? "text-[color:var(--kova-growth)]" : "text-destructive",
+                )}
+              >
+                {row.delta_pct > 0 ? "+" : ""}
+                {row.delta_pct}%
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -1200,6 +1307,42 @@ function EmployeeCoaching({ rows }: { rows: SalesByEmployeeRow[] }) {
         {...chartCopy()}
       />
     </DecisionSection>
+  );
+}
+
+function EmployeeContributionPanel({ story }: { story: BusinessStoryReport }) {
+  const contribution = story.employee_contribution;
+  if (!contribution || contribution.rows.length === 0) return null;
+  return (
+    <div className="rounded-lg border bg-card p-4 mt-2">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+        <Users className="h-4 w-4 text-muted-foreground" />
+        {copy.reportsView.employeeContributionTitle}
+      </h3>
+      <p className="text-xs text-muted-foreground">
+        {contribution.even_distribution
+          ? copy.reportsView.employeeContributionEven
+          : contribution.top
+            ? copy.reportsView.employeeContributionTop(
+                contribution.top.display_name,
+                contribution.top.sales_share_pct,
+              )
+            : null}
+      </p>
+      <ul className="mt-3 space-y-1.5">
+        {contribution.rows.map((row) => (
+          <li
+            key={row.user_id ?? row.display_name}
+            className="flex items-center justify-between text-sm"
+          >
+            <span className="truncate">{row.display_name}</span>
+            <span className="tabular-nums text-xs text-muted-foreground">
+              {row.sales_share_pct}% · {formatMoney(row.net_sales)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
