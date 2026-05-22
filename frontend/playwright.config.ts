@@ -18,12 +18,13 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      // Mobile project scoped to mobile.spec.ts only — the other suites assume
+      // desktop layout and viewport-specific affordances (sidebars, table cells)
+      // that intentionally collapse on phones. Add new mobile-targeted tests to
+      // e2e/mobile.spec.ts to have them covered here.
       name: "mobile-chrome",
       use: { ...devices["Pixel 5"] },
-    },
-    {
-      name: "mobile-safari",
-      use: { ...devices["iPhone 13"] },
+      testMatch: /mobile\.spec\.ts/,
     },
   ],
   // Only spin up the dev server when running against localhost
