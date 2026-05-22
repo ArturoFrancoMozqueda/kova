@@ -165,10 +165,11 @@ function Navbar({
 
         <div className="lp-desktop-nav" style={{ display: "flex", gap: 28, fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>
           {[
-            { label: "Producto", href: "#producto" },
             { label: "Cómo funciona", href: "#como-funciona" },
+            { label: "Así se ve", href: "#producto" },
+            { label: "¿Es para mí?", href: "#comercios" },
+            { label: "Preguntas", href: "#faq" },
             { label: "Precio", href: "#precio" },
-            { label: "Comercios", href: "#comercios" },
           ].map((l) => (
             <a key={l.label} href={l.href} style={{ color: "inherit", textDecoration: "none", transition: "color 150ms" }}
                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--page-fg)")}
@@ -228,21 +229,37 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
           className="lp-hero-grid"
         >
           <div>
+            <span
+              className="lp-hero-eyebrow"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                fontSize: 12, fontWeight: 500,
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                color: "var(--text-muted)",
+                padding: "6px 12px", borderRadius: 999,
+                background: "var(--surface)",
+                border: "0.5px solid var(--hairline-color)",
+                marginBottom: 20,
+              }}
+            >
+              <span className="lp-live-dot" />
+              Para cafeterías y negocios pequeños en México
+            </span>
+
             <h1
               className="lp-hero-title"
               style={{
-                fontSize: "clamp(48px, 7vw, 96px)",
+                fontSize: "clamp(44px, 6.4vw, 88px)",
                 fontWeight: 600,
                 letterSpacing: "-0.035em",
-                lineHeight: 0.96,
+                lineHeight: 0.98,
                 margin: 0,
                 color: "var(--page-fg)",
               }}
             >
-              Tu negocio,<br />
-              en flujo{" "}
+              Lleva tu cafetería{" "}
               <span style={{ position: "relative", whiteSpace: "nowrap" }}>
-                constante
+                con orden
                 <svg
                   viewBox="0 0 200 14" preserveAspectRatio="none"
                   style={{ position: "absolute", bottom: "-0.06em", left: 0, width: "100%", height: "0.18em" }}
@@ -250,12 +267,15 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 >
                   <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
                 </svg>
-              </span>.
+              </span>,<br />
+              sin libretas ni Excel.
             </h1>
 
-            <p className="lp-hero-copy" style={{ fontSize: 19, lineHeight: 1.5, color: "var(--text-muted)", marginTop: 24, maxWidth: 480 }}>
-              El punto de venta para PyMEs en México. Ventas, inventario y pagos
-              orquestados desde un solo lugar — incluso sin internet.
+            <p className="lp-hero-copy" style={{ fontSize: 19, lineHeight: 1.55, color: "var(--text-muted)", marginTop: 24, maxWidth: 520 }}>
+              Kova es la app que usas en la caja para cobrar ventas,
+              controlar tu inventario, organizar a tu equipo y ver qué se
+              vende — todo desde una sola pantalla. Funciona aunque se vaya
+              el internet.
             </p>
 
             <div className="lp-hero-actions" style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
@@ -268,7 +288,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                   display: "inline-flex", alignItems: "center", gap: 8,
                 }}
               >
-                Empezar gratis
+                Pruébalo gratis 7 días
                 <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                   <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -282,7 +302,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                   border: "0.5px solid var(--hairline-color)",
                 }}
               >
-                Ver el POS en vivo →
+                Ver cómo funciona →
               </a>
             </div>
 
@@ -299,9 +319,9 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
                 fontWeight: 600, color: "var(--page-fg)",
               }}>
-                Plan único · {STANDARD_PLAN_PRICE_LABEL_ES}
+                {STANDARD_PLAN_PRICE_LABEL_ES} · todo incluido
               </span>
-              <span>Sin comisión por venta · Sin tarjeta para empezar</span>
+              <span>Sin tarjeta para empezar · Cancela cuando quieras</span>
             </p>
 
             <div
@@ -313,12 +333,12 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               }}
             >
               <span style={{ fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
-                Hecho en México · es-MX
+                Hecho en México 🇲🇽
               </span>
               <span>·</span>
-              <span>Beta privada para negocios reales</span>
+              <span>Sin comisión por venta</span>
               <span>·</span>
-              <span>Offline-first real</span>
+              <span>Funciona sin internet</span>
             </div>
           </div>
 
@@ -335,22 +355,22 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
 function ThreeNodes() {
   const items = [
     {
-      label: "Negocio",
-      title: "Tu catálogo, tus reglas.",
-      body: "Configura productos, categorías, modificadores e inventario básico sin tocar código. Lo que vendes y cómo lo vendes, tú decides.",
-      meta: ["Catálogo", "Modificadores", "Inventario", "Roles"],
+      label: "Cobra",
+      title: "Caja rápida, sin errores de cuenta.",
+      body: "Tu cajero toca el producto, elige cómo pagó el cliente y listo. Efectivo, transferencia, tarjeta o pago dividido — todo queda registrado para que el cierre del día cuadre solo.",
+      meta: ["Caja simple", "Pago dividido", "Recibos", "Devoluciones"],
     },
     {
-      label: "Cliente",
-      title: "Cobra como ellos pagan.",
-      body: "Efectivo, transferencia, tarjeta manual o split. Cobra rápido y deja cada pago registrado para el cierre.",
-      meta: ["Efectivo", "Transferencia", "Tarjeta", "Split"],
+      label: "Controla",
+      title: "Inventario claro, sin contar a mano.",
+      body: "Mira cuántos cafés, panes o productos te quedan sin abrir el almacén. Kova te avisa cuando algo está por acabarse, para que reabastezcas a tiempo y no pierdas ventas.",
+      meta: ["Inventario", "Alertas de stock", "Movimientos", "Ajustes"],
     },
     {
-      label: "Dinero",
-      title: "El flujo, en tiempo real.",
-      body: "Ventas, turnos, productos top y mezcla de pagos desde datos reales. Lo que entró y lo que falta, sin hojas de cálculo.",
-      meta: ["Ventas", "Turnos", "Reportes", "Reembolsos"],
+      label: "Entiende",
+      title: "Reportes que cualquiera lee.",
+      body: "Ve qué días vendes más, qué productos te dejan mejor resultado y a qué hora se llena tu local. Toma decisiones con datos reales — no con corazonadas ni hojas de cálculo.",
+      meta: ["Ventas del día", "Productos top", "Horas pico", "Cierre de turno"],
     },
   ];
   return (
@@ -358,16 +378,16 @@ function ThreeNodes() {
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            Cómo funciona
+            Lo que cambia en tu día a día
           </span>
         </div>
         <h2 style={{ fontSize: "clamp(36px, 4.4vw, 60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
-          Tres nodos. Un circuito. Cero fricción.
+          Tres cosas que se vuelven simples desde el primer día.
         </h2>
-        <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 580, lineHeight: 1.5 }}>
-          Cada venta es un pulso que viaja entre tu <em>negocio</em>, tu{" "}
-          <em>cliente</em> y tu <em>dinero</em>. Kova mantiene los tres
-          conectados, incluso cuando se cae el internet.
+        <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 620, lineHeight: 1.5 }}>
+          Olvídate de libretas, calculadora y hojas de Excel.{" "}
+          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>Kova reemplaza eso</strong>{" "}
+          con una app que tu cajero y tú pueden usar sin entrenamiento.
         </p>
 
         <div
@@ -405,7 +425,7 @@ function NodeCard({ index, label, title, body, meta }: { index: number; label: s
             }}
           />
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            Nodo · {label}
+            {label}
           </span>
         </div>
         <span className="mono" style={{ fontSize: 11, color: "var(--text-tertiary)" }}>0{index + 1}</span>
@@ -680,16 +700,16 @@ function POSShowcase() {
     <section id="producto" className="lp-product-section" style={{ padding: "120px 32px", background: "var(--surface)", borderTop: "0.5px solid var(--hairline-color)", borderBottom: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>El producto</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Así se ve</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.6fr)", gap: 56, alignItems: "end", marginBottom: 56 }} className="lp-showcase-head">
           <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0 }}>
-            Hecho para vender,<br />no para configurar.
+            Cobra desde donde<br />estés trabajando.
           </h2>
           <p style={{ fontSize: 16, color: "var(--text-muted)", margin: 0, lineHeight: 1.55, paddingBottom: 8 }}>
-            Abre la caja, escanea, cobra. Funciona idéntico en laptop, tablet o
-            teléfono — y sigue funcionando sin internet. Cuando vuelve la señal,
-            todo se sincroniza solo.
+            Úsalo en tu computadora, tablet o teléfono. No necesitas comprar
+            una máquina especial. Y si se cae el internet en tu local, Kova
+            sigue cobrando — todo se sube solo cuando vuelve la señal.
           </p>
         </div>
 
@@ -761,22 +781,26 @@ function FeatIcon({ kind }: { kind: FeatKind }) {
 
 function Features() {
   const feats: { kicker: string; title: string; body: string; kind: FeatKind }[] = [
-    { kicker: "Offline-first", title: "Vende aunque se caiga el WiFi.", body: "Cola local en IndexedDB. Cuando vuelve la conexión, todo se sincroniza al backend sin que tú hagas nada.", kind: "offline" },
-    { kicker: "Multi-tenant", title: "Un kova por cada negocio.", body: "Catálogo, modificadores, usuarios, inventario y ventas aislados por negocio desde el primer día.", kind: "tenant" },
-    { kicker: "Pagos · MX", title: "Efectivo, transferencia, tarjeta.", body: "Registra efectivo, transferencia, tarjeta manual y pagos divididos sin mezclarlo con tu suscripción.", kind: "pay" },
-    { kicker: "Tiempo real", title: "Métricas con datos reales.", body: "Ventas, productos top y mezcla de pagos aparecen cuando hay órdenes reales, no con números inventados.", kind: "live" },
-    { kicker: "Turnos & caja", title: "Apertura, cierre, sin Excel.", body: "Movimientos de caja, diferencias, reportes por turno. Tu cajero abre, vende, cierra.", kind: "shift" },
-    { kicker: "PWA instalable", title: "Se siente como app, vive en la web.", body: "Ícono en el escritorio o pantalla de inicio. Sin App Store, sin Play Store, sin instalador.", kind: "pwa" },
+    { kicker: "Sin internet, sin problema", title: "Sigue cobrando aunque se vaya el WiFi.", body: "En la mayoría de los locales el internet falla. Con Kova el cajero sigue trabajando como si nada — y cuando vuelve la señal, todas las ventas se suben solas. No pierdes una sola.", kind: "offline" },
+    { kicker: "Tu negocio, tus reglas", title: "Personaliza Kova para tu cafetería.", body: "Carga tu logo, tus productos, tus precios y los extras (tamaños, leches, modificadores). Cada negocio queda con su propio espacio aislado y seguro.", kind: "tenant" },
+    { kicker: "Cobra como te paguen", title: "Efectivo, transferencia o tarjeta — todo cuenta.", body: "Acepta el método que el cliente prefiera y déjalos registrados por separado. Al cerrar el día sabes cuánto entró por cada uno, sin sumar a mano.", kind: "pay" },
+    { kicker: "Datos del día, en vivo", title: "Mira tu negocio desde donde estés.", body: "Aunque no estés en el local, ves cuánto se ha vendido, qué se está moviendo y cómo va el turno. Sin llamar al cajero, sin pedir reportes.", kind: "live" },
+    { kicker: "Cierre de caja sin estrés", title: "Apertura, cierre y cuadre, en automático.", body: "Tu cajero abre el turno con un monto inicial, cobra durante el día y cierra con un click. Kova calcula la diferencia, sin Excel ni discusiones.", kind: "shift" },
+    { kicker: "Sin instalaciones complicadas", title: "Funciona en lo que ya tienes.", body: "No compres una máquina especial ni bajes nada de la App Store. Abre Kova en tu computadora, tablet o teléfono y listo: caja lista para vender.", kind: "pwa" },
   ];
   return (
     <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Capacidades</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Lo que vas a notar</span>
         </div>
-        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 700 }}>
-          Lo que hace posible el flujo.
+        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
+          Hecho para usarse, no para configurarse.
         </h2>
+        <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 620, lineHeight: 1.5 }}>
+          Cada función está pensada para resolver un problema real del mostrador.
+          Nada de palabras técnicas: solo cosas que te ahorran tiempo, dinero y dolores de cabeza.
+        </p>
 
         <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0, border: "0.5px solid var(--hairline-color)", borderRadius: 14, overflow: "hidden", background: "var(--surface)" }} className="lp-3cols">
           {feats.map((f, i) => (
@@ -801,25 +825,161 @@ function Features() {
   );
 }
 
+/* ─── FirstDay ───────────────────────────────────────────────────────────── */
+function FirstDay({ primaryTarget }: { primaryTarget: string }) {
+  const steps = [
+    {
+      n: "01",
+      title: "Crea tu cuenta",
+      time: "≈ 1 min",
+      body: "Solo tu correo y el nombre de tu negocio. No te pedimos tarjeta para empezar.",
+    },
+    {
+      n: "02",
+      title: "Sube tu logo y tus productos",
+      time: "≈ 10 min",
+      body: "Carga lo que vendes con sus precios. Si tienes muchos productos, te ayudamos a hacerlo en bloque.",
+    },
+    {
+      n: "03",
+      title: "Abre la caja y cobra",
+      time: "Mismo día",
+      body: "Tu cajero toca el producto, elige el método de pago y listo. Sin manual, sin curso, sin instalaciones.",
+    },
+    {
+      n: "04",
+      title: "Revisa tu primer reporte",
+      time: "Al cerrar",
+      body: "Al final del día ves cuánto entró, qué se vendió más y cómo cuadra tu caja. Sin sumar tickets a mano.",
+    },
+  ];
+  return (
+    <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            Qué pasa cuando empiezas
+          </span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.7fr)", gap: 56, alignItems: "end", marginBottom: 64 }} className="lp-showcase-head">
+          <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0 }}>
+            De registrarte a cobrar tu<br />primera venta, en un día.
+          </h2>
+          <p style={{ fontSize: 16, color: "var(--text-muted)", margin: 0, lineHeight: 1.55, paddingBottom: 8 }}>
+            No necesitas saber de tecnología. Si sabes usar WhatsApp,
+            sabes usar Kova. Si te trabas, te ayudamos por correo o WhatsApp directo.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 0,
+            border: "0.5px solid var(--hairline-color)",
+            borderRadius: 14,
+            overflow: "hidden",
+            background: "var(--surface)",
+          }}
+          className="lp-4cols"
+        >
+          {steps.map((s, i) => (
+            <div
+              key={s.n}
+              style={{
+                padding: "28px 24px",
+                borderRight: i < steps.length - 1 ? "0.5px solid var(--hairline-color)" : "none",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                minHeight: 220,
+                position: "relative",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span className="mono" style={{ fontSize: 12, fontWeight: 500, color: "var(--accent)", letterSpacing: "0.08em" }}>
+                  {s.n}
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 500, padding: "3px 8px", borderRadius: 999, background: "var(--chip-bg)", color: "var(--text-muted)", letterSpacing: "0.06em" }}>
+                  {s.time}
+                </span>
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1.25, margin: "8px 0 0" }}>
+                {s.title}
+              </h3>
+              <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--text-muted)", margin: 0 }}>
+                {s.body}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div
+          style={{
+            marginTop: 40,
+            padding: "24px 28px",
+            borderRadius: 14,
+            background: "var(--accent-soft)",
+            border: "0.5px solid var(--hairline-color)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 24,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: "1 1 360px" }}>
+            <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>
+              7 días gratis
+            </div>
+            <p style={{ fontSize: 16, lineHeight: 1.5, margin: "6px 0 0", color: "var(--page-fg)" }}>
+              Prueba Kova una semana completa con tu negocio real. Si no te
+              hace la vida más fácil, cancelas y no pagas nada.
+            </p>
+          </div>
+          <Link
+            to={primaryTarget}
+            style={{
+              background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
+              padding: "12px 20px", borderRadius: 10,
+              fontWeight: 600, fontSize: 14, textDecoration: "none",
+              display: "inline-flex", alignItems: "center", gap: 8,
+            }}
+          >
+            Crear mi cuenta
+            <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+              <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── BuiltFor ───────────────────────────────────────────────────────────── */
 function BuiltFor() {
   const types = [
-    { name: "Cafeterías", body: "Café, bebidas frías, pan dulce y pagos rápidos durante la hora pico.", tag: "Beta ideal" },
-    { name: "Panaderías", body: "Productos por pieza, mostrador ágil, inventario básico y cierre de caja.", tag: "Beta ideal" },
-    { name: "Food trucks", body: "Ventas con conexión inestable y sincronización cuando vuelve internet.", tag: "Beta compatible" },
-    { name: "Tiendas pequeñas", body: "Catálogo simple, pagos manuales e inventario visible para operación diaria.", tag: "Beta compatible" },
-    { name: "Restaurantes", body: "Solo recomendable cuando el flujo no depende de mesas, comandas o cocina.", tag: "Alcance limitado" },
-    { name: "Servicios", body: "Útil si vendes productos y registras cobros simples, no agendas complejas.", tag: "Alcance limitado" },
+    { name: "Cafeterías", body: "Café, bebidas frías, pan dulce. Cobros rápidos en la hora pico, con extras como leches o tamaños sin batallar.", tag: "Recomendado" },
+    { name: "Panaderías", body: "Productos por pieza, mostrador ágil, inventario claro y cierre de caja sin sumar tickets a mano.", tag: "Recomendado" },
+    { name: "Food trucks", body: "Vende aunque el internet esté flojo. Cuando vuelves a tener señal, las ventas se suben solas.", tag: "Compatible" },
+    { name: "Tiendas pequeñas", body: "Catálogo simple, varios métodos de pago e inventario a la vista. Ideal para misceláneas, abarrotes o concept stores.", tag: "Compatible" },
+    { name: "Restaurantes", body: "Funciona si tu flujo es de mostrador (no de mesas con comandas a cocina). Para barra, pollería, taquería, fonda — sí.", tag: "Caso por caso" },
+    { name: "Servicios", body: "Útil si cobras productos o servicios sueltos. No reemplaza una agenda completa de citas o turnos por hora.", tag: "Caso por caso" },
   ];
   return (
     <section id="comercios" style={{ padding: "120px 32px", background: "var(--kova-ink)", color: "var(--kova-on-ink)", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>Para quién</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>¿Es para mí?</span>
         </div>
-        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 800, color: "var(--kova-on-ink)" }}>
-          De la caja al cierre,<br />sin importar qué vendas.
+        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 820, color: "var(--kova-on-ink)" }}>
+          Pensado para cafeterías.<br />Útil para negocios que se parecen.
         </h2>
+        <p style={{ marginTop: 20, fontSize: 17, color: "rgba(240,244,255,0.65)", maxWidth: 620, lineHeight: 1.55 }}>
+          Si tu negocio cobra de mostrador, lleva un catálogo de productos y
+          quieres dejar de hacer cuentas a mano, Kova te queda como anillo al dedo.
+        </p>
 
         <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden", border: "0.5px solid rgba(255,255,255,0.08)" }} className="lp-3cols">
           {types.map((t, i) => (
@@ -844,17 +1004,146 @@ function BuiltFor() {
   );
 }
 
+/* ─── FAQ ────────────────────────────────────────────────────────────────── */
+function FAQ() {
+  const [open, setOpen] = useState<number | null>(0);
+  const items = [
+    {
+      q: "¿Tengo que saber de tecnología para usarlo?",
+      a: "No. Si sabes usar WhatsApp o el cajero de un banco, sabes usar Kova. Está hecho para que cualquier persona del mostrador la use sin curso. Si te trabas, te ayudamos por correo o WhatsApp.",
+    },
+    {
+      q: "¿Necesito comprar una máquina especial?",
+      a: "No. Funciona en lo que ya tienes: laptop, computadora de escritorio, tablet o teléfono. Si quieres conectar una impresora térmica de tickets, también funciona, pero no es obligatorio para empezar.",
+    },
+    {
+      q: "¿Y si en mi local se va el internet?",
+      a: "Kova sigue cobrando como si nada. Las ventas se guardan en tu dispositivo y cuando vuelve la señal se suben solas. No pierdes ventas ni tienes que volver a capturarlas a mano.",
+    },
+    {
+      q: "¿Cobran comisión por cada venta?",
+      a: "No. Solo pagas la mensualidad de $299. Lo que cobres en efectivo, transferencia o tarjeta es tuyo — Kova no se queda con nada de cada venta.",
+    },
+    {
+      q: "¿Qué pasa si no me gusta o no es para mi negocio?",
+      a: "Tienes 7 días gratis para probarlo con tu negocio real. Si no te hace la vida más fácil, cancelas con un click y no pagas nada. Sin penalizaciones ni preguntas.",
+    },
+    {
+      q: "¿Puedo tener varios cajeros o empleados?",
+      a: "Sí. Puedes crear cuentas para cada empleado con su propio rol (cajero, gerente, dueño) y ver quién hizo qué en cada turno. Sin cobro extra por usuario.",
+    },
+    {
+      q: "¿Mi información está segura?",
+      a: "Sí. Cada negocio tiene su propio espacio aislado. Nadie fuera de tu equipo ve tus ventas, productos ni clientes. Los datos viven en servidores en la nube con respaldo automático.",
+    },
+    {
+      q: "¿Sirve para mi taquería / pollería / lonchería / fonda?",
+      a: "Si cobras de mostrador (no de mesas con comandas a cocina), sí. Si tienes dudas sobre tu caso específico, escríbenos y te decimos honestamente si te conviene.",
+    },
+  ];
+
+  return (
+    <section id="faq" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 1080, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            Preguntas frecuentes
+          </span>
+        </div>
+        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
+          Resolvemos las dudas comunes antes del primer cobro.
+        </h2>
+
+        <div style={{ marginTop: 56, borderTop: "0.5px solid var(--hairline-color)" }}>
+          {items.map((it, i) => {
+            const isOpen = open === i;
+            return (
+              <div key={i} style={{ borderBottom: "0.5px solid var(--hairline-color)" }}>
+                <button
+                  type="button"
+                  onClick={() => setOpen(isOpen ? null : i)}
+                  aria-expanded={isOpen}
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    padding: "22px 4px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    color: "var(--page-fg)",
+                    textAlign: "left",
+                  }}
+                >
+                  <span style={{ fontSize: 17, fontWeight: 500, letterSpacing: "-0.01em", lineHeight: 1.35 }}>
+                    {it.q}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      flexShrink: 0,
+                      width: 22, height: 22, borderRadius: 999,
+                      border: "0.5px solid var(--hairline-color)",
+                      background: isOpen ? "var(--accent)" : "var(--surface)",
+                      color: isOpen ? "#fff" : "var(--page-fg)",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 180ms var(--kova-ease-entrance)",
+                      transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
+                    }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                      <path d="M6 1.5V10.5M1.5 6H10.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                </button>
+                {isOpen && (
+                  <div
+                    style={{
+                      padding: "0 4px 24px",
+                      fontSize: 15,
+                      lineHeight: 1.6,
+                      color: "var(--text-muted)",
+                      maxWidth: 760,
+                      animation: "lp-feed-in 240ms var(--kova-ease-entrance)",
+                    }}
+                  >
+                    {it.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <p style={{ marginTop: 40, fontSize: 14, color: "var(--text-muted)", textAlign: "center" }}>
+          ¿Tienes otra duda?{" "}
+          <a
+            href="mailto:posprojectsupport@gmail.com"
+            style={{ color: "var(--accent)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--accent-soft)" }}
+          >
+            Escríbenos directo
+          </a>{" "}
+          y te contestamos.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing({ primaryTarget }: { primaryTarget: string }) {
   const feats = [
-    "Ventas en efectivo, transferencia y tarjeta manual",
-    "Modo offline con sincronización automática",
-    "Control de turnos con apertura y cierre",
-    "Inventario por movimiento",
-    "Reportes de ventas y productos",
-    "Gestión de empleados con roles",
-    "Logo y personalización del POS",
-    "Historial de auditoría",
+    "Cobros en efectivo, transferencia, tarjeta y pagos divididos",
+    "Sigue cobrando aunque se vaya el internet",
+    "Apertura, cierre y cuadre de caja automático",
+    "Inventario claro con avisos cuando algo se está acabando",
+    "Reportes de qué se vende, cuándo y a qué hora",
+    "Empleados con roles (cajero, gerente, dueño)",
+    "Tu logo y tus reglas en cada recibo",
+    "Historial completo de cada venta",
   ];
   return (
     <section id="precio" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
@@ -863,10 +1152,12 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Precio</span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, textAlign: "center" }}>
-          Un solo plan. Sin letra chica.
+          Menos que un café diario.<br />Todo tu negocio bajo control.
         </h2>
-        <p style={{ marginTop: 16, fontSize: 17, color: "var(--text-muted)", maxWidth: 540, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
-          Todo incluido. Sin comisiones por venta. Sin cobro por empleado. Cancela cuando quieras.
+        <p style={{ marginTop: 16, fontSize: 17, color: "var(--text-muted)", maxWidth: 580, textAlign: "center", marginLeft: "auto", marginRight: "auto", lineHeight: 1.55 }}>
+          Un solo plan, todo incluido.{" "}
+          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>Sin comisiones por venta. Sin cobro extra por empleado.</strong>{" "}
+          Cancela cuando quieras, sin penalización ni preguntas.
         </p>
 
         <div style={{ marginTop: 56, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
@@ -880,8 +1171,8 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-blue-light)" }}>Estándar</div>
-              <div style={{ fontSize: 13, marginTop: 6, color: "rgba(240,244,255,0.6)" }}>Para PyMEs en operación</div>
+              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-blue-light)" }}>Plan Kova</div>
+              <div style={{ fontSize: 13, marginTop: 6, color: "rgba(240,244,255,0.6)" }}>Todo lo que necesitas para operar, sin extras</div>
             </div>
 
             <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -934,12 +1225,13 @@ function Footer() {
             <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>
               <Logo size={24} circuitColor="currentColor" wordmarkColor="currentColor" coreColor="var(--accent)" />
             </span>
-            <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 320, marginTop: 16, lineHeight: 1.55 }}>
-              Punto de venta multi-tenant, offline-first, para PyMEs en México.
+            <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 340, marginTop: 16, lineHeight: 1.55 }}>
+              La app con la que cafeterías y negocios pequeños en México cobran,
+              controlan su inventario y entienden qué se vende — sin libretas.
             </p>
             <div style={{ marginTop: 24, display: "flex", gap: 6, alignItems: "center" }}>
               <span className="lp-live-dot" />
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Soporte directo para beta privada</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Atendido por humanos, no por bots</span>
             </div>
           </div>
           <div>
@@ -947,7 +1239,7 @@ function Footer() {
               Contacto
             </div>
             <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16, lineHeight: 1.55, maxWidth: 360 }}>
-              Si quieres una demo, reportar un problema o validar si Kova es para tu negocio, escríbenos directo.
+              ¿Tienes dudas o quieres ver Kova funcionando con productos como los tuyos? Escríbenos y te contestamos por correo (o WhatsApp si lo pides).
             </p>
             <a
               href="mailto:posprojectsupport@gmail.com"
@@ -993,6 +1285,12 @@ const RESPONSIVE_STYLES = `
       grid-template-columns: 1fr !important;
     }
     .lp-3cols { grid-template-columns: 1fr !important; }
+    .lp-4cols { grid-template-columns: 1fr 1fr !important; }
+    .lp-4cols > div { border-right: none !important; border-bottom: 0.5px solid var(--hairline-color) !important; }
+    .lp-4cols > div:nth-child(2n) { border-right: none !important; }
+    .lp-4cols > div:last-child { border-bottom: none !important; }
+    .lp-4cols > div:nth-last-child(2) { border-bottom: none !important; }
+    .lp-4cols > div:nth-child(odd) { border-right: 0.5px solid var(--hairline-color) !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
     .lp-hero-section { padding: 56px 24px 80px !important; }
     .lp-hero-grid { gap: 44px !important; margin-top: 24px !important; }
@@ -1065,6 +1363,9 @@ const RESPONSIVE_STYLES = `
       padding: 12px !important;
     }
     .lp-footer-grid { grid-template-columns: 1fr !important; }
+    .lp-4cols { grid-template-columns: 1fr !important; }
+    .lp-4cols > div { border-right: none !important; border-bottom: 0.5px solid var(--hairline-color) !important; }
+    .lp-4cols > div:last-child { border-bottom: none !important; }
   }
   @media (max-width: 360px) {
     .lp-nav-primary { padding: 9px 10px !important; font-size: 12px !important; }
@@ -1091,7 +1392,9 @@ export default function Home(): ReactNode {
         <ThreeNodes />
         <POSShowcase />
         <Features />
+        <FirstDay primaryTarget={primaryTarget} />
         <BuiltFor />
+        <FAQ />
         <Pricing primaryTarget={primaryTarget} />
       </main>
       <Footer />
