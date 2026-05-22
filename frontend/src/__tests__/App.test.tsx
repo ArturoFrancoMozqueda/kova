@@ -145,8 +145,8 @@ describe("App shell", () => {
       new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
     );
     render(<App />);
-    expect(await screen.findByRole("heading", { name: /en flujo constante/i })).toBeInTheDocument();
-    expect(screen.getByText("Un solo plan. Sin letra chica.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /lleva tu/i })).toBeInTheDocument();
+    expect(screen.getByText("Plan Kova")).toBeInTheDocument();
   });
 
   it("lands on register after a successful login", async () => {
