@@ -220,13 +220,29 @@ function OnboardingChecklist({
     },
   ];
   const steps = onboarding
-    ? onboarding.steps.map((step) => ({
-        label: copy.dashboard.onboardingStepLabel(step.key) ?? step.label,
-        desc: copy.dashboard.onboardingStepDesc(step.key),
-        done: step.completed,
-        action: copy.dashboard.onboardingStepAction(step.key),
-        actionTo: step.action_path,
-      }))
+    ? onboarding.steps.map((step) => {
+        // Frontend overrides: the backend snapshot can lag behind the
+        // billing event, so trust the live subscription state for the
+        // plan/billing step and the local signals for the rest.
+        let done = step.completed;
+        const key = step.key.toLowerCase();
+        if (key.includes("plan") || key.includes("subscription") || key.includes("billing")) {
+          done = done || hasActiveSubscription;
+        } else if (key.includes("product")) {
+          done = done || hasProducts;
+        } else if (key.includes("sale") || key.includes("order")) {
+          done = done || orderCount > 0;
+        } else if (key.includes("inventory") || key.includes("stock")) {
+          done = done || trackedInventoryCount > 0;
+        }
+        return {
+          label: copy.dashboard.onboardingStepLabel(step.key) ?? step.label,
+          desc: copy.dashboard.onboardingStepDesc(step.key),
+          done,
+          action: copy.dashboard.onboardingStepAction(step.key),
+          actionTo: step.action_path,
+        };
+      })
     : fallbackSteps;
 
   const allDone = steps.every((s) => s.done);
