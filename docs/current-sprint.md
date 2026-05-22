@@ -165,31 +165,32 @@ behavior changes beyond what each task explicitly calls out; no schema changes.
 
 ### Progress Snapshot (2026-05-22)
 
-First execution pass landed (commit `b00c058`). Items shipped:
+Four batches landed against this sprint:
 
-- BUG-001 (frontend disable + warning toast; backend OUT_OF_STOCK + soft override pending)
-- BUG-003 / BUG-012 (receipt "Efectivo recibido" rename, hide for non-cash)
-- BUG-004 (NotFound page + Spanish slug redirects + catch-all)
-- BUG-006 (product price client validation)
-- BUG-007 (refund qty REFUND_QTY_EXCEEDS_AVAILABLE code + mapped toast)
-- BUG-011 (refresh AuthContext after profile save)
-- BUG-014 (backend SKU auto-generation + frontend helper text)
-- Localization quick wins: `<html lang="es-MX">`, "All" → "Todos",
-  refund reasons in Spanish, accent fixes in `messages.ts` and `cafe.json`
+- `b00c058` — BUG-001 (frontend), 003/012, 004, 006, 007, 011, 014 + i18n base
+- `773afd4` — BUG-008 (60s SWR cache), 009 (param normalization), 010
+  (dedupe by title), 013 (gross/net note), 015 (strip leading "-"),
+  BUG-002 frontend "Ya agotado", per-route document titles
+- `f22ca9a` — order list pluralization, cancel-sub confirm, register image
+  fallback, CSP allow-listed Stripe
+- `342c185` — HTML sanitize on product name (frontend + Pydantic),
+  reports SWR cache (45s), centralized `formatDate` / `formatDateTime`
 
-Still pending in this sprint (see checklist below for details):
+Still pending in this sprint:
 
-- BUG-002 negative-stock clamp + maintenance script
-- BUG-005 session-loss audit (needs runtime reproduction)
-- BUG-008 dedupe `/billing/subscription` via context
-- BUG-009 reports query-param normalization (`start_date` / `end_date`)
-- BUG-010 dedupe `recommended_actions`
-- BUG-013 gross vs neto labels in reports
-- BUG-015 (`min=0` already present, audit submit handler)
-- Per-route document titles, date formatter, TZ map, plural "Completada"
+- BUG-002 backend repository clamp + maintenance script — needs a working
+  Postgres locally (alembic upgrade head fails in this environment, so
+  test fixture-backed verification cannot run here).
+- BUG-005 session-loss audit between `/reports` and `/settings` — needs
+  runtime reproduction with DevTools network capture.
 - Category accent backfill script for existing tenants
-- All P2 (UX polish, CSP, offline doc, cache, skeletons)
-- E2E additions and full verification gate
+  (`backend/scripts/fix_category_accents.py`).
+- Onboarding 5/7 auto-completion (mark "Activa el plan Standard" + recibo
+  steps based on subscription/logo state).
+- Catalog skeleton on first paint (replace white screen).
+- E2E additions: `routing.spec.ts`, sin-stock branch in
+  `register-sale.spec.ts`, invalid-qty refund in `orders.spec.ts`.
+- Final verification gate (full pytest + playwright pass).
 
 ### P0 · Blockers (data integrity, money, sessions)
 

@@ -12,6 +12,7 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { timezoneLabel } from "@/i18n/timezones";
 import { listLowStock, listVelocity } from "../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
 import { formatMoney, reasonLabel } from "../orders/format";
@@ -722,7 +723,7 @@ function ExecutiveSummary({ story }: { story: BusinessStoryReport }) {
           />
           <SummaryFact
             label={copy.reportsView.timezone}
-            value={story.summary.timezone}
+            value={timezoneLabel(story.summary.timezone)}
           />
         </div>
       </CardContent>
