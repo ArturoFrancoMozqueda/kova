@@ -32,7 +32,14 @@ def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple
                 return data, content_type
             ratio = target_width / img.width
             target_height = max(1, int(img.height * ratio))
-            mode = "RGB" if img.mode in ("P", "RGBA", "LA") else img.mode
+            # WebP supports alpha — preserve transparency for PNG/RGBA/LA/P sources
+            # so transparent product photos don't get a black fill.
+            if img.mode in ("RGBA", "LA", "P"):
+                mode = "RGBA"
+            elif img.mode == "RGB":
+                mode = "RGB"
+            else:
+                mode = "RGBA" if "A" in img.mode else "RGB"
             resized = img.convert(mode).resize(
                 (target_width, target_height), Image.Resampling.LANCZOS
             )
