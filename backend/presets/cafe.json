@@ -1,24 +1,24 @@
 {
   "name": "cafe",
-  "label": "Cafeteria",
+  "label": "Cafetería",
   "categories": [
-    { "name": "Cafe caliente", "description": "Bebidas calientes de barra", "sort_order": 0 },
-    { "name": "Bebidas frias", "description": "Bebidas preparadas frias", "sort_order": 1 },
+    { "name": "Café caliente", "description": "Bebidas calientes de barra", "sort_order": 0 },
+    { "name": "Bebidas frías", "description": "Bebidas preparadas frías", "sort_order": 1 },
     { "name": "Pan dulce", "description": "Piezas para vitrina y mostrador", "sort_order": 2 },
-    { "name": "Alimentos", "description": "Opciones simples para acompanar", "sort_order": 3 }
+    { "name": "Alimentos", "description": "Opciones simples para acompañar", "sort_order": 3 }
   ],
   "products": [
     {
       "name": "Americano chico",
-      "category": "Cafe caliente",
+      "category": "Café caliente",
       "price_amount": "38.00",
       "sku": "CAF-001",
-      "description": "Cafe americano 240 ml",
+      "description": "Café americano 240 ml",
       "track_inventory": false
     },
     {
       "name": "Latte mediano",
-      "category": "Cafe caliente",
+      "category": "Café caliente",
       "price_amount": "58.00",
       "sku": "CAF-002",
       "description": "Espresso con leche vaporizada 355 ml",
@@ -26,7 +26,7 @@
     },
     {
       "name": "Capuchino mediano",
-      "category": "Cafe caliente",
+      "category": "Café caliente",
       "price_amount": "56.00",
       "sku": "CAF-003",
       "description": "Espresso, leche vaporizada y espuma 355 ml",
@@ -34,27 +34,27 @@
     },
     {
       "name": "Cold brew",
-      "category": "Bebidas frias",
+      "category": "Bebidas frías",
       "price_amount": "62.00",
       "sku": "FRI-001",
-      "description": "Cafe frio preparado en casa 355 ml",
+      "description": "Café frío preparado en casa 355 ml",
       "track_inventory": true,
       "low_stock_threshold": 6
     },
     {
       "name": "Iced latte",
-      "category": "Bebidas frias",
+      "category": "Bebidas frías",
       "price_amount": "64.00",
       "sku": "FRI-002",
       "description": "Espresso con leche y hielo 455 ml",
       "track_inventory": false
     },
     {
-      "name": "Chocolate frio",
-      "category": "Bebidas frias",
+      "name": "Chocolate frío",
+      "category": "Bebidas frías",
       "price_amount": "55.00",
       "sku": "FRI-003",
-      "description": "Bebida fria de chocolate 455 ml",
+      "description": "Bebida fría de chocolate 455 ml",
       "track_inventory": false
     },
     {
@@ -89,7 +89,7 @@
       "category": "Alimentos",
       "price_amount": "89.00",
       "sku": "ALI-001",
-      "description": "Sandwich frio preparado",
+      "description": "Sandwich frío preparado",
       "track_inventory": true,
       "low_stock_threshold": 4
     },
@@ -98,13 +98,13 @@
       "category": "Alimentos",
       "price_amount": "68.00",
       "sku": "ALI-002",
-      "description": "Porcion individual refrigerada",
+      "description": "Porción individual refrigerada",
       "track_inventory": true,
       "low_stock_threshold": 5
     },
     {
       "name": "Agua mineral",
-      "category": "Bebidas frias",
+      "category": "Bebidas frías",
       "price_amount": "32.00",
       "sku": "FRI-004",
       "description": "Botella 355 ml",

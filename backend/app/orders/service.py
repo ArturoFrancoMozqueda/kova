@@ -377,9 +377,19 @@ def create_refund(
         )
 
         if refunded_qty + refund_item.quantity > order_item.quantity:
-            raise bad_request(
-                f"Cannot refund {refund_item.quantity} units; "
-                f"{order_item.quantity - refunded_qty} remaining"
+            available = order_item.quantity - refunded_qty
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "REFUND_QTY_EXCEEDS_AVAILABLE",
+                    "available": available,
+                    "requested": refund_item.quantity,
+                    "message": (
+                        f"La cantidad excede lo disponible para devolución "
+                        f"(máx. {available})."
+                    ),
+                },
             )
 
         line_total = calculator.line_total(order_item.unit_price_amount, refund_item.quantity)

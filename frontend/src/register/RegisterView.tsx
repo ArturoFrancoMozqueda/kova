@@ -590,7 +590,7 @@ export default function RegisterView() {
                   )}
                   type="button"
                 >
-                  All
+                  {copy.register.allCategories}
                 </button>
                 {categoriesInUse.map((catId) => (
                   <button
@@ -641,9 +641,24 @@ export default function RegisterView() {
                     <button
                       key={product.id}
                       type="button"
-                      aria-label={`${copy.register.add} ${product.name}`}
-                      onClick={() => addProduct(product)}
-                      className="group flex sm:flex-col items-stretch sm:justify-between gap-3 sm:gap-0 rounded-xl border bg-card p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97]"
+                      aria-label={
+                        isOut
+                          ? `${product.name} — sin stock. Actualiza inventario para vender.`
+                          : `${copy.register.add} ${product.name}`
+                      }
+                      aria-disabled={isOut ? "true" : undefined}
+                      title={isOut ? "Sin stock — actualiza inventario para vender" : undefined}
+                      onClick={() => {
+                        if (isOut) {
+                          toast(copy.register.outOfStockBlocked(product.name), "warning");
+                          return;
+                        }
+                        addProduct(product);
+                      }}
+                      className={cn(
+                        "group flex sm:flex-col items-stretch sm:justify-between gap-3 sm:gap-0 rounded-xl border bg-card p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97]",
+                        isOut && "opacity-60 cursor-not-allowed hover:border-border hover:shadow-none active:scale-100",
+                      )}
                     >
                       <div className="flex sm:block items-center gap-3 sm:gap-0 sm:space-y-2 flex-1 min-w-0">
                         <div className="aspect-square w-16 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50">

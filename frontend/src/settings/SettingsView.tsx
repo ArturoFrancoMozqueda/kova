@@ -95,7 +95,7 @@ function roleDescription(role: Role | string): string {
 
 export default function SettingsView() {
   const location = useLocation();
-  const { state } = useAuth();
+  const { state, refresh } = useAuth();
   const { toast } = useToast();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -170,6 +170,7 @@ export default function SettingsView() {
       });
       toast(copy.settings.saved, "success");
       void load();
+      void refresh();
     } catch {
       toast(copy.settings.saveError, "error");
     }

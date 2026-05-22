@@ -49,7 +49,7 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
           <Select value={reason} onChange={(event) => setReason(event.target.value)}>
             {refundReasons.map((option) => (
               <option key={option} value={option}>
-                {option.replaceAll("_", " ")}
+                {copy.refundModal.reasons[option as keyof typeof copy.refundModal.reasons]}
               </option>
             ))}
           </Select>
@@ -60,7 +60,7 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
             <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{item.product_name}</p>
-                <p className="text-xs text-muted-foreground">Max: {item.quantity}</p>
+                <p className="text-xs text-muted-foreground">Máximo: {item.quantity}</p>
               </div>
               <div className="w-20">
                 <Input

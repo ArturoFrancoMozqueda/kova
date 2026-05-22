@@ -1129,8 +1129,21 @@ function ProductForm({
     setImageRemoved(true);
   };
 
+  const priceNum = Number(price);
+  const priceError =
+    price.trim() === ""
+      ? null
+      : Number.isNaN(priceNum)
+        ? copy.catalog.productPriceInvalid
+        : priceNum < 0
+          ? copy.catalog.productPriceNegative
+          : null;
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (price.trim() === "" || Number.isNaN(priceNum) || priceNum < 0) {
+      return;
+    }
     void onSubmit({
       name: name.trim(),
       description: description.trim() || null,
@@ -1213,9 +1226,16 @@ function ProductForm({
             step="0.01"
             min="0"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => setPrice(e.target.value.replace(/^-/, ""))}
+            aria-invalid={priceError ? "true" : undefined}
+            aria-describedby={priceError ? "prod-price-error" : undefined}
             required
           />
+          {priceError && (
+            <p id="prod-price-error" className="text-xs text-destructive">
+              {priceError}
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="prod-cat">{copy.catalog.productCategory}</Label>
@@ -1240,7 +1260,13 @@ function ProductForm({
             value={sku}
             onChange={(e) => setSku(e.target.value)}
             maxLength={100}
+            aria-describedby="prod-sku-help"
           />
+          {!sku.trim() && (
+            <p id="prod-sku-help" className="text-xs text-muted-foreground">
+              {copy.catalog.productSkuAutoHint}
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="prod-desc">{copy.catalog.productDescription}</Label>

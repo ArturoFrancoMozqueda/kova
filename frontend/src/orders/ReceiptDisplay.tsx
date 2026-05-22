@@ -12,7 +12,6 @@ type ReceiptDisplayProps = {
 
 export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
   const itemNames = new Map(order.items.map((item) => [item.id, item.product_name]));
-  const totalPaid = receipt.payments.reduce((sum, payment) => sum + Number(payment.amount_amount), 0);
   const hasCashPayment = receipt.payments.some((payment) => payment.method === "cash");
   const showCashSettlement = hasCashPayment && Number(receipt.total_tendered) > 0;
 
@@ -36,15 +35,17 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
             <p className="text-muted-foreground text-xs">{copy.orderDetail.total}</p>
             <p className="font-bold text-primary">{formatMoney(receipt.total_amount)}</p>
           </div>
-          <div className="rounded-lg bg-muted/50 p-3">
-            <p className="text-muted-foreground text-xs">{copy.orderDetail.totalPaid}</p>
-            <p className="font-semibold">{formatMoney(totalPaid.toFixed(2))}</p>
-          </div>
           {showCashSettlement ? (
-            <div className="rounded-lg bg-muted/50 p-3">
-              <p className="text-muted-foreground text-xs">{copy.orderDetail.change}</p>
-              <p className="font-semibold">{formatMoney(receipt.total_change)}</p>
-            </div>
+            <>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-muted-foreground text-xs">{copy.orderDetail.totalTendered}</p>
+                <p className="font-semibold">{formatMoney(receipt.total_tendered)}</p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-muted-foreground text-xs">{copy.orderDetail.change}</p>
+                <p className="font-semibold">{formatMoney(receipt.total_change)}</p>
+              </div>
+            </>
           ) : null}
         </div>
 

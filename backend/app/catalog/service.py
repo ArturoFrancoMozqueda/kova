@@ -1,5 +1,7 @@
 import hashlib
 import json
+import re
+import secrets
 from typing import Any
 from uuid import UUID
 
@@ -11,6 +13,29 @@ from app.catalog.models import Category, Product
 from app.catalog.schemas import CategoryCreate, CategoryUpdate, ProductCreate, ProductUpdate
 from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request, not_found
+
+
+_SKU_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _category_prefix(db: Session, *, tenant_id: UUID, category_id: UUID | None) -> str:
+    if category_id:
+        category = repo.get_category(db, tenant_id=tenant_id, category_id=category_id)
+        if category and category.name:
+            letters = re.sub(r"[^A-Z]", "", category.name.upper())
+            if len(letters) >= 3:
+                return letters[:3]
+    return "PRD"
+
+
+def _generate_sku(db: Session, *, tenant_id: UUID, category_id: UUID | None) -> str:
+    prefix = _category_prefix(db, tenant_id=tenant_id, category_id=category_id)
+    for _ in range(8):
+        suffix = "".join(secrets.choice(_SKU_ALPHABET) for _ in range(5))
+        candidate = f"{prefix}-{suffix}"
+        if not repo.get_product_by_sku(db, tenant_id=tenant_id, sku=candidate):
+            return candidate
+    raise bad_request("Could not generate a unique SKU; please specify one")
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
@@ -243,13 +268,16 @@ def create_product(
     _ensure_category(db, tenant_id=tenant_id, category_id=body.category_id)
     if body.sku and repo.get_product_by_sku(db, tenant_id=tenant_id, sku=body.sku):
         raise bad_request("Product SKU already exists")
+    sku = body.sku
+    if not sku or not sku.strip():
+        sku = _generate_sku(db, tenant_id=tenant_id, category_id=body.category_id)
     product = repo.create_product(
         db,
         tenant_id=tenant_id,
         category_id=body.category_id,
         name=body.name,
         description=body.description,
-        sku=body.sku,
+        sku=sku,
         price_amount=body.price_amount,
         track_inventory=body.track_inventory,
         low_stock_threshold=body.low_stock_threshold,

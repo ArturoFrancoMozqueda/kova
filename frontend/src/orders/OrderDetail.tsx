@@ -61,8 +61,18 @@ export default function OrderDetail() {
       setActiveModal(null);
       toast(copy.orderDetail.refundSuccess, "success");
       await load();
-    } catch {
-      toast(copy.orderDetail.operationError, "error");
+    } catch (err) {
+      let mapped: string | null = null;
+      try {
+        const body = JSON.parse((err as Error).message);
+        const detail = body?.detail;
+        if (detail && typeof detail === "object" && detail.code === "REFUND_QTY_EXCEEDS_AVAILABLE") {
+          mapped = copy.orderDetail.refundQtyExceeds(detail.available ?? 0);
+        }
+      } catch {
+        // not JSON — fall through
+      }
+      toast(mapped ?? copy.orderDetail.operationError, "error");
     } finally {
       setOperationPending(false);
     }

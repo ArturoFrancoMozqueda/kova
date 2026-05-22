@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import RequireAuth from "./auth/RequireAuth";
 import AuthView from "./auth/AuthView";
@@ -22,6 +22,7 @@ import LegalPage from "./routes/LegalPage";
 import LogoPreview from "./routes/LogoPreview";
 import ComponentsPreview from "./routes/ComponentsPreview";
 import IntroPreview from "./routes/dev/IntroPreview";
+import NotFound from "./routes/NotFound";
 
 export default function App() {
   return (
@@ -73,7 +74,18 @@ export default function App() {
               <Route path="/settings/advanced" element={<SettingsView />} />
               <Route path="/settings" element={<SettingsView />} />
               <Route path="/sync-queue" element={<SyncQueueView />} />
+              {/* Spanish slug aliases */}
+              <Route path="/caja" element={<Navigate to="/register" replace />} />
+              <Route path="/ordenes" element={<Navigate to="/orders" replace />} />
+              <Route path="/inventario" element={<Navigate to="/inventory" replace />} />
+              <Route path="/configuracion" element={<Navigate to="/settings" replace />} />
+              <Route path="/reportes" element={<Navigate to="/reports" replace />} />
+              <Route path="/catalogo" element={<Navigate to="/catalog" replace />} />
+              <Route path="/turnos" element={<Navigate to="/shifts" replace />} />
+              <Route path="/panel" element={<Navigate to="/dashboard" replace />} />
             </Route>
+            {/* Catch-all 404 (after all real routes) */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </ToastProvider>
       </AuthProvider>
