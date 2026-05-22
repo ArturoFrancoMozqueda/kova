@@ -1049,6 +1049,7 @@ export const copy = {
     productPrice: "Precio",
     productPriceNegative: "El precio no puede ser negativo",
     productPriceInvalid: "Ingresa un precio válido",
+    productNameNoHtml: "El nombre no puede contener etiquetas HTML",
     productCategory: "Categoría",
     productDescription: "Descripción",
     productImage: "Imagen del producto",

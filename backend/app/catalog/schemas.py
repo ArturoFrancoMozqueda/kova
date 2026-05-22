@@ -1,11 +1,23 @@
+import re
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 if TYPE_CHECKING:
     pass
+
+
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _reject_html(value: str | None) -> str | None:
+    if value is None:
+        return value
+    if _HTML_TAG_RE.search(value):
+        raise ValueError("El nombre no puede contener etiquetas HTML")
+    return value
 
 
 class CategoryCreate(BaseModel):
@@ -41,6 +53,11 @@ class ProductCreate(BaseModel):
     track_inventory: bool = False
     low_stock_threshold: int | None = Field(default=None, ge=0)
 
+    @field_validator("name")
+    @classmethod
+    def _name_no_html(cls, value: str) -> str:
+        return _reject_html(value) or value
+
 
 class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=160)
@@ -51,6 +68,11 @@ class ProductUpdate(BaseModel):
     track_inventory: bool | None = None
     low_stock_threshold: int | None = Field(default=None, ge=0)
     is_active: bool | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _name_no_html(cls, value: str | None) -> str | None:
+        return _reject_html(value)
 
 
 class ProductResponse(BaseModel):

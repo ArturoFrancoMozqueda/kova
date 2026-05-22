@@ -4,7 +4,7 @@ import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { listOrders } from "./api";
 import type { OrderFilters } from "./api";
-import { formatMoney } from "./format";
+import { formatMoney, formatDateTime } from "./format";
 import type { OrderListItem } from "./types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -287,10 +287,7 @@ export default function OrderListView() {
                       className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                     >
                       <td className="px-4 py-3 text-muted-foreground">
-                        {new Intl.DateTimeFormat("es-MX", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        }).format(new Date(order.created_at))}
+                        {formatDateTime(order.created_at)}
                       </td>
                       <td className="px-4 py-3">
                         <Badge

@@ -1146,6 +1146,9 @@ function ProductForm({
     if (price.trim() === "" || Number.isNaN(priceNum) || priceNum < 0) {
       return;
     }
+    if (/<[^>]+>/.test(name)) {
+      return;
+    }
     void onSubmit({
       name: name.trim(),
       description: description.trim() || null,
@@ -1217,7 +1220,14 @@ function ProductForm({
             required
             maxLength={160}
             autoFocus
+            aria-invalid={/<[^>]+>/.test(name) ? "true" : undefined}
+            aria-describedby={/<[^>]+>/.test(name) ? "prod-name-error" : undefined}
           />
+          {/<[^>]+>/.test(name) && (
+            <p id="prod-name-error" className="text-xs text-destructive">
+              {copy.catalog.productNameNoHtml}
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="prod-price">{copy.catalog.productPrice}</Label>
