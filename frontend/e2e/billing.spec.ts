@@ -66,7 +66,7 @@ test("billing page displays the Standard Plan and active subscription", async ({
   await expect(page.getByRole("heading", { name: /plan standard/i })).toBeVisible();
   await expect(page.getByText(/\$299\.00/).first()).toBeVisible();
   await expect(page.getByText(/activo/i).first()).toBeVisible();
-  await expect(page.getByText(/tu suscripcion esta activa/i)).toBeVisible();
+  await expect(page.getByText(/tu suscripci[oó]n est[aá] activa/i)).toBeVisible();
   await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
 });
@@ -186,6 +186,7 @@ test("billing page lets owners request subscription cancellation", async ({ page
     });
   });
 
+  page.on("dialog", (dialog) => void dialog.accept());
   await page.goto("/settings/billing");
   await page.getByRole("button", { name: /cancelar suscripci[óo]n/i }).click();
 

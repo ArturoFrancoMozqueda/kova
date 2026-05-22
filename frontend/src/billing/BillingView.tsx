@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
-import { ApiError, getBillingSubscription, startCheckout, cancelSubscription } from "./api";
+import { ApiError, getBillingSubscription, invalidateBillingSubscription, startCheckout, cancelSubscription } from "./api";
 import { STANDARD_PLAN } from "./standardPlan";
 import type { BillingSubscription } from "./types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -110,6 +110,7 @@ export default function BillingView() {
       window.location.assign(session.checkout_url);
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
+        invalidateBillingSubscription();
         await load();
         toast(copy.billingView.checkoutAlreadyActive, "info");
         setActionState("idle");

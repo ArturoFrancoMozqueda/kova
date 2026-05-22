@@ -159,7 +159,7 @@ async function mockReports(
 ) {
   await page.route("**/api/v1/reports/business-story**", async (route) => {
     const url = new URL(route.request().url());
-    const start = url.searchParams.get("start");
+    const start = url.searchParams.get("start_date") ?? url.searchParams.get("start");
     await route.fulfill({
       json:
         options.previousPayload && start === options.previousPayload.summary.start_date
@@ -169,7 +169,7 @@ async function mockReports(
   });
   await page.route("**/api/v1/reports/sales-by-hour**", async (route) => {
     const url = new URL(route.request().url());
-    const start = url.searchParams.get("start");
+    const start = url.searchParams.get("start_date") ?? url.searchParams.get("start");
     await route.fulfill({
       json: Array.from({ length: 24 }, (_, hour) => ({
         hour,

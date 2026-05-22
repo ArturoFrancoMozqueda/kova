@@ -58,7 +58,7 @@ test("orders support status filters and amount sorting at mobile width", async (
   await expect(page.locator("a[href='/orders/order-3']")).not.toBeVisible();
 
   await page.getByRole("button", { name: /todas/i }).click();
-  await page.getByLabel(/ordenar ordenes/i).selectOption("amount_asc");
+  await page.getByLabel(/ordenar [oó]rdenes/i).selectOption("amount_asc");
   await expect(page.locator("a[href='/orders/order-2']").first()).toContainText("18.50");
   await expect(page.locator("a[href='/orders/order-1']").first()).toContainText("42.00");
   await expect(page.locator("a[href='/orders/order-3']").first()).toContainText("95.00");
