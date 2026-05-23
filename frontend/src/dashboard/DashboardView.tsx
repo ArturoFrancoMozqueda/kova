@@ -36,8 +36,6 @@ import {
   Minus,
   CheckCircle2,
   Circle,
-  Download,
-  Printer,
 } from "lucide-react";
 
 type LoadState =
@@ -759,7 +757,7 @@ export default function DashboardView() {
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
                   { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.closeShiftAction, desc: copy.dashboard.closeShiftDesc },
-                  { to: "/reports", icon: Download, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.exportSalesAction, desc: copy.dashboard.exportSalesDesc },
+                  { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.exportSalesAction, desc: copy.dashboard.exportSalesDesc },
                 ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                   <Link key={to} to={to} className="group">
                     <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
@@ -777,7 +775,7 @@ export default function DashboardView() {
                 <Link to="/shifts" className="group">
                   <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
-                      <Printer className="h-4 w-4" />
+                      <Receipt className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">{copy.dashboard.printZAction}</p>

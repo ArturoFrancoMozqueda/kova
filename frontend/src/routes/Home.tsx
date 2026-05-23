@@ -957,7 +957,7 @@ function BuiltFor() {
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>¿Es para mí?</span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 820, color: "var(--kova-on-ink)" }}>
-          Pensado para cafeterías.<br />Útil para negocios que se parecen.
+          Pensado para cualquier emprendimiento.
         </h2>
         <p style={{ marginTop: 20, fontSize: 17, color: "rgba(240,244,255,0.65)", maxWidth: 620, lineHeight: 1.55 }}>
           Si tu negocio cobra de mostrador, lleva un catálogo de productos y
