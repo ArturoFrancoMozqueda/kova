@@ -423,8 +423,10 @@ export default function RegisterView() {
           order_id: result.order.id,
           total_amount: result.order.total_amount,
         });
-        // Success is announced via the inline card; we skip the toast to avoid
-        // the duplicate flash. The card itself is the actionable surface.
+        // Toast is retained as the accessible status announcement
+        // (aria-live region) for screen readers — visual de-duplication with
+        // the success card is left for a future polish pass.
+        toast(copy.register.saleComplete, "success");
       } else {
         toast(copy.register.saleQueued, "warning");
       }
