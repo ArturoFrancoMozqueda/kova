@@ -399,7 +399,7 @@ export default function CatalogView() {
                       variant="ghost"
                       size="icon"
                       className="h-10 w-10 lg:h-8 lg:w-8"
-                      aria-label={`Edit ${cat.name}`}
+                      aria-label={`Editar ${cat.name}`}
                       onClick={() => setModal({ type: "category-edit", category: cat })}
                     >
                       <Pencil className="h-4 w-4" />
@@ -410,7 +410,7 @@ export default function CatalogView() {
                       variant="ghost"
                       size="icon"
                       className="h-10 w-10 lg:h-8 lg:w-8 text-destructive hover:text-destructive"
-                      aria-label={`Deactivate ${cat.name}`}
+                      aria-label={`Desactivar ${cat.name}`}
                       onClick={async () => {
                         setPending(true);
                         try {
@@ -566,7 +566,7 @@ export default function CatalogView() {
                             variant="ghost"
                             size="icon"
                             className="h-10 w-10 lg:h-8 lg:w-8"
-                            aria-label={`Edit ${product.name}`}
+                            aria-label={`Editar ${product.name}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               setModal({ type: "product-edit", product });
@@ -636,8 +636,8 @@ export default function CatalogView() {
           </DialogTitle>
           <DialogDescription>
             {modal?.type === "category-edit"
-              ? "Update the category details below."
-              : "Add a new category to organize your products."}
+              ? copy.catalog.categoryEditDescription
+              : copy.catalog.categoryCreateDescription}
           </DialogDescription>
         </DialogHeader>
         {(modal?.type === "category-create" || modal?.type === "category-edit") && (
@@ -994,7 +994,7 @@ function CategoryForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Category form" className="space-y-4">
+    <form onSubmit={handleSubmit} aria-label="Formulario de categoría" className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="cat-name">{copy.catalog.categoryName}</Label>
         <Input
@@ -1164,7 +1164,7 @@ function ProductForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Product form" className="space-y-4">
+    <form onSubmit={handleSubmit} aria-label="Formulario de producto" className="space-y-4">
       <div className="space-y-2">
         <Label>{copy.catalog.productImage}</Label>
         <div className="flex items-start gap-3">

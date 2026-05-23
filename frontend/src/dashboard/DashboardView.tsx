@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
+import { formatTenantName } from "@/lib/formatTenantName";
 import { CountUp, LivePulse } from "@/components/brand/RealTime";
 import {
   DollarSign,
@@ -60,20 +61,41 @@ type LoadState =
       compareLabel: string;
     };
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const DEFAULT_TIMEZONE = "America/Mexico_City";
 
-function yesterdayISO(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
-
-function isoOffset(days: number): string {
+// Returns YYYY-MM-DD for `now + days` in the given IANA timezone. Without this,
+// `toISOString()` reports UTC and at >=18:00 CDMX the dashboard would query
+// "tomorrow" for the operator who still sees today.
+function isoInTimezone(days: number, timezone: string = DEFAULT_TIMEZONE): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: timezone,
+    }).formatToParts(d);
+    const year = parts.find((p) => p.type === "year")?.value;
+    const month = parts.find((p) => p.type === "month")?.value;
+    const day = parts.find((p) => p.type === "day")?.value;
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch {
+    /* fall through to UTC slice */
+  }
   return d.toISOString().slice(0, 10);
+}
+
+function todayISO(timezone?: string): string {
+  return isoInTimezone(0, timezone);
+}
+
+function yesterdayISO(timezone?: string): string {
+  return isoInTimezone(-1, timezone);
+}
+
+function isoOffset(days: number, timezone?: string): string {
+  return isoInTimezone(days, timezone);
 }
 
 type Period = "day" | "week" | "month";
@@ -84,30 +106,28 @@ type PeriodRange = {
   compareLabel: string;
 };
 
-function periodRanges(period: Period): PeriodRange {
-  const today = todayISO();
+function periodRanges(period: Period, timezone: string = DEFAULT_TIMEZONE): PeriodRange {
+  const today = todayISO(timezone);
   if (period === "day") {
     return {
       current: { start: today, end: today },
-      previous: { start: yesterdayISO(), end: yesterdayISO() },
+      previous: { start: yesterdayISO(timezone), end: yesterdayISO(timezone) },
       compareLabel: copy.dashboard.vsYesterday,
     };
   }
   if (period === "week") {
     return {
-      current: { start: isoOffset(-6), end: today },
-      previous: { start: isoOffset(-13), end: isoOffset(-7) },
+      current: { start: isoOffset(-6, timezone), end: today },
+      previous: { start: isoOffset(-13, timezone), end: isoOffset(-7, timezone) },
       compareLabel: copy.dashboard.vsLastWeek,
     };
   }
   return {
-    current: { start: isoOffset(-29), end: today },
-    previous: { start: isoOffset(-59), end: isoOffset(-30) },
+    current: { start: isoOffset(-29, timezone), end: today },
+    previous: { start: isoOffset(-59, timezone), end: isoOffset(-30, timezone) },
     compareLabel: copy.dashboard.vsLastMonth,
   };
 }
-
-const DEFAULT_TIMEZONE = "America/Mexico_City";
 
 function hourInTimezone(timezone: string): number {
   try {
@@ -374,16 +394,20 @@ const kpiCards = [
 export default function DashboardView() {
   useDocumentTitle("Panel");
   const { state } = useAuth();
-  const tenantName = state.status === "authenticated" ? state.tenantName : "";
+  const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [period, setPeriod] = useState<Period>("day");
 
   const load = useCallback(async (selected: Period) => {
     setLoadState({ status: "loading" });
     try {
-      const { current, previous, compareLabel } = periodRanges(selected);
+      // Fetch the tenant timezone first so date ranges are computed against the
+      // operator's local day, not UTC. Falls back to America/Mexico_City.
+      const profileEarly = await getBusinessProfile().catch(() => null);
+      const tz = profileEarly?.timezone || DEFAULT_TIMEZONE;
+      const { current, previous, compareLabel } = periodRanges(selected, tz);
 
-      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, previousSummary, profile] = await Promise.all([
+      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, previousSummary] = await Promise.all([
         getSalesSummary(current.start, current.end),
         getPaymentBreakdown(current.start, current.end),
         getSalesByHour(current.start, current.end).catch(() => [] as SalesByHourRow[]),
@@ -394,8 +418,8 @@ export default function DashboardView() {
         getBillingSubscription().catch(() => null),
         getOnboardingState().catch(() => null),
         getSalesSummary(previous.start, previous.end).catch(() => null),
-        getBusinessProfile().catch(() => null),
       ]);
+      const profile = profileEarly;
 
       const subscriptionStatus = billing?.subscription?.status;
 
@@ -521,7 +545,7 @@ export default function DashboardView() {
 
           {loadState.lowStockCount > 0 && (
             <Link
-              to="/inventory"
+              to="/inventory?filter=low"
               className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground transition-colors hover:bg-warning/15"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -750,11 +774,7 @@ export default function DashboardView() {
                     </div>
                   </Link>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="group text-left"
-                >
+                <Link to="/shifts" className="group">
                   <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
                       <Printer className="h-4 w-4" />
@@ -765,7 +785,7 @@ export default function DashboardView() {
                     </div>
                     <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
-                </button>
+                </Link>
               </div>
             </CardContent>
           </Card>

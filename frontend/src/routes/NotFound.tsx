@@ -3,8 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "@/components/brand/Logo";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function NotFound() {
+  useDocumentTitle("Página no encontrada");
   return (
     <main className="min-h-[100dvh] flex items-center justify-center p-6 bg-[color:var(--kova-mist)]">
       <Card className="max-w-md w-full">

@@ -507,10 +507,15 @@ function ownerBriefActions(
   storyActions: SmartAction[],
   advancedActions: SmartAction[],
 ): SmartAction[] {
+  // Dedupe by title only: when the backend story and the local inventory
+  // signals both surface "Reabastece X" for the same product with different
+  // detail strings, we still want a single card. The earlier action wins so
+  // the inventory signal (which has the threshold/velocity context) keeps
+  // priority over the generic backend recommendation.
   const seen = new Set<string>();
   return [...inventoryActions, ...storyActions, ...advancedActions]
     .filter((action) => {
-      const key = `${action.title}:${action.detail}`.toLowerCase();
+      const key = action.title.trim().toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -580,6 +585,10 @@ function inventoryAwareActions(
     .sort((a, b) => Number(a.days_until_out) - Number(b.days_until_out))
     .slice(0, 2);
 
+  // velocityRisks already filters out lowStockIds, so the two arrays cannot
+  // duplicate the same product_id — but the backend story_actions may still
+  // collide with these titles. Final cross-source dedupe lives in
+  // ownerBriefActions (by title).
   return [
     ...soldLowStock.map(({ stock, sold }) => ({
       type: "risk" as const,

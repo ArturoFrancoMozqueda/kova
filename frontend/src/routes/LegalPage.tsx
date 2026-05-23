@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/brand/Logo";
 
@@ -125,6 +126,22 @@ const content: Record<LegalPageProps["variant"], { title: string; intro: string;
 
 export default function LegalPage({ variant }: LegalPageProps) {
   const data = content[variant];
+
+  // Match body bg to legal-page bg so wide viewports don't show a seam.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.background;
+    const prevBody = body.style.background;
+    const legalBg = "#FBFBFD";
+    html.style.background = legalBg;
+    body.style.background = legalBg;
+    return () => {
+      html.style.background = prevHtml;
+      body.style.background = prevBody;
+    };
+  }, []);
+
   return (
     <main
       style={{

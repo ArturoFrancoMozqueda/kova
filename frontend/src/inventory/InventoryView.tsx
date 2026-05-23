@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -37,8 +37,12 @@ export default function InventoryView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);
   const [pending, setPending] = useState(false);
+  const [searchParams] = useSearchParams();
   const [stockSearch, setStockSearch] = useState("");
-  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  const [stockFilter, setStockFilter] = useState<StockFilter>(() => {
+    const initial = searchParams.get("filter");
+    return initial === "low" || initial === "healthy" ? initial : "all";
+  });
   const [stockSort, setStockSort] = useState<StockSort>("name_asc");
   const { toast } = useToast();
 
@@ -210,7 +214,10 @@ export default function InventoryView() {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {loadState.lowStock.map((item) => (
-                <Badge key={item.product_id} variant="warning">
+                <Badge
+                  key={item.product_id}
+                  variant={item.stock_on_hand <= 0 ? "destructive" : "warning"}
+                >
                   {item.product_name}: {item.stock_on_hand}
                 </Badge>
               ))}
@@ -358,7 +365,11 @@ function StockCard({
             <h3 className="font-semibold text-sm">{item.product_name}</h3>
             <p className="text-xs text-muted-foreground">{item.sku ?? copy.inventoryView.noSku}</p>
           </div>
-          {item.is_low_stock && <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>}
+          {item.stock_on_hand <= 0 ? (
+            <Badge variant="destructive">{copy.inventoryView.outBadge}</Badge>
+          ) : item.is_low_stock ? (
+            <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>
+          ) : null}
         </div>
         <div className="flex items-baseline gap-2 mb-2">
           <span className="text-3xl font-bold">{item.stock_on_hand}</span>

@@ -17,6 +17,7 @@ import { CashMovementModal } from "./CashMovementModal";
 import { CloseShiftModal } from "./CloseShiftModal";
 import { OpenShiftModal } from "./OpenShiftModal";
 import type { CashMovementPayload, Shift, ShiftClosePayload, ShiftOpenPayload } from "./types";
+import { formatDateTime } from "../orders/format";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -183,16 +184,16 @@ export default function ShiftView() {
               <Clock className="h-5 w-5 text-primary" />
               <CardTitle>{copy.shiftView.activeShift}</CardTitle>
             </div>
-            <Badge variant="success">Open</Badge>
+            <Badge variant="success">{copy.shiftView.badgeOpen}</Badge>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {copy.shiftView.openedAt}
                 </p>
                 <p className="text-sm font-medium mt-1">
-                  {new Date(currentShift.opened_at).toLocaleString()}
+                  {formatDateTime(currentShift.opened_at)}
                 </p>
               </div>
               {currentShift.opening_cash_amount && (
@@ -205,6 +206,43 @@ export default function ShiftView() {
                   </p>
                 </div>
               )}
+              {(() => {
+                // Roll up the open shift's cash flow so the cashier can see at a
+                // glance what's expected in the drawer without waiting for the
+                // close-shift modal. Opening balance is its own row above; here
+                // we only count cash_in / cash_out movements logged during the
+                // shift.
+                const cashIn = currentShift.movements
+                  .filter((m) => m.type === "cash_in")
+                  .reduce((sum, m) => sum + parseFloat(m.amount), 0);
+                const cashOut = currentShift.movements
+                  .filter((m) => m.type === "cash_out")
+                  .reduce((sum, m) => sum + parseFloat(m.amount), 0);
+                const opening = currentShift.opening_cash_amount
+                  ? parseFloat(currentShift.opening_cash_amount)
+                  : 0;
+                const expected = opening + cashIn - cashOut;
+                return (
+                  <>
+                    <div className="rounded-lg bg-kova-growth/10 p-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {copy.shiftView.totalCashIn}
+                      </p>
+                      <p className="text-sm font-bold mt-1 text-kova-growth">
+                        +${cashIn.toFixed(2)} / −${cashOut.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-primary/5 p-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {copy.shiftView.expectedCashShort}
+                      </p>
+                      <p className="text-sm font-bold mt-1 text-primary">
+                        ${expected.toFixed(2)}
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Movements */}
@@ -226,10 +264,10 @@ export default function ShiftView() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-muted-foreground uppercase">
-                          {m.type}
+                          {copy.shiftView.movementTypeLabel(m.type)}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {m.reason}
+                          {copy.shiftView.movementReasonLabel(m.reason)}
                         </p>
                       </div>
                       <span className="text-sm font-semibold tabular-nums">
@@ -319,12 +357,10 @@ export default function ShiftView() {
                       className="border-b last:border-0 hover:bg-muted/50 transition-colors"
                     >
                       <td className="py-3 px-4">
-                        {new Date(shift.opened_at).toLocaleString()}
+                        {formatDateTime(shift.opened_at)}
                       </td>
                       <td className="py-3 px-4">
-                        {shift.closed_at
-                          ? new Date(shift.closed_at).toLocaleString()
-                          : "-"}
+                        {shift.closed_at ? formatDateTime(shift.closed_at) : "-"}
                       </td>
                       <td className="py-3 px-4">
                         {shift.reconciliation_status ? (
@@ -335,10 +371,10 @@ export default function ShiftView() {
                                 : "warning"
                             }
                           >
-                            {shift.reconciliation_status}
+                            {copy.shiftView.reconStatusLabel(shift.reconciliation_status)}
                           </Badge>
                         ) : (
-                          <Badge variant="secondary">closed</Badge>
+                          <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>
                         )}
                       </td>
                     </tr>

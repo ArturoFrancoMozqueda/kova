@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { ApiError, getBillingSubscription, invalidateBillingSubscription, startCheckout, cancelSubscription } from "./api";
@@ -70,6 +72,7 @@ function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean 
 }
 
 export default function BillingView() {
+  useDocumentTitle("Facturación");
   const location = useLocation();
   const checkoutReturnState = location.pathname.endsWith("/success")
     ? "success"
@@ -80,6 +83,7 @@ export default function BillingView() {
   const canManageBilling = usePermission(BILLING_MANAGE_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [actionState, setActionState] = useState<ActionState>("idle");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -336,6 +340,7 @@ export default function BillingView() {
                 </div>
               </div>
               {canManageBilling ? (
+                <>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   {!hasCheckoutBlockingSubscription(loadState.billing) ? (
                     <Button onClick={() => void beginCheckout()} disabled={actionState === "checkout"}>
@@ -352,18 +357,14 @@ export default function BillingView() {
                     </p>
                   )}
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     disabled={
                       !loadState.billing.subscription ||
                       loadState.billing.subscription.cancel_at_period_end ||
                       loadState.billing.subscription.status === "canceled" ||
                       actionState === "cancel"
                     }
-                    onClick={() => {
-                      if (window.confirm(copy.billingView.cancelConfirm)) {
-                        void requestCancel();
-                      }
-                    }}
+                    onClick={() => setCancelDialogOpen(true)}
                   >
                     {actionState === "cancel" ? (
                       <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.canceling}</>
@@ -372,6 +373,36 @@ export default function BillingView() {
                     )}
                   </Button>
                 </div>
+                <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)}>
+                  <DialogHeader>
+                    <DialogTitle>{copy.billingView.cancelDialogTitle}</DialogTitle>
+                    <DialogDescription>{copy.billingView.cancelDialogBody}</DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCancelDialogOpen(false)}
+                      disabled={actionState === "cancel"}
+                    >
+                      {copy.billingView.cancelDialogKeep}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      disabled={actionState === "cancel"}
+                      onClick={() => {
+                        setCancelDialogOpen(false);
+                        void requestCancel();
+                      }}
+                    >
+                      {actionState === "cancel" ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.canceling}</>
+                      ) : (
+                        <>{copy.billingView.cancelDialogConfirm}</>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </Dialog>
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">{copy.billingView.manageHidden}</p>
               )}

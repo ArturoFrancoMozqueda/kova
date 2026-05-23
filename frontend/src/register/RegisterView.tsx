@@ -22,6 +22,7 @@ import { getOpenShift } from "@/shifts/api";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatTenantName } from "@/lib/formatTenantName";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -108,7 +109,7 @@ const paymentMethodOptions: { value: PaymentMethod; label: string; icon: React.R
 export default function RegisterView() {
   useDocumentTitle("Caja");
   const { state } = useAuth();
-  const tenantName = state.status === "authenticated" ? state.tenantName : "";
+  const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
   const { toast } = useToast();
@@ -422,10 +423,8 @@ export default function RegisterView() {
           order_id: result.order.id,
           total_amount: result.order.total_amount,
         });
-        // Toast is retained as the accessible status announcement
-        // (aria-live region) for screen readers — visual de-duplication with
-        // the success card is left for a future polish pass.
-        toast(copy.register.saleComplete, "success");
+        // Success is announced via the inline card; we skip the toast to avoid
+        // the duplicate flash. The card itself is the actionable surface.
       } else {
         toast(copy.register.saleQueued, "warning");
       }
@@ -1019,10 +1018,26 @@ export default function RegisterView() {
                             setCashTendered(event.target.value.replace(/^-/, ""))
                           }
                         />
-                        <div className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
-                          <span className="text-muted-foreground">{copy.register.changeDue}</span>
-                          <span className="font-bold text-primary">{formatMoney(centsToMoney(changeDueCents))}</span>
-                        </div>
+                        {(() => {
+                          const shortfallCents =
+                            tenderedCents > 0 && tenderedCents < totalCents
+                              ? totalCents - tenderedCents
+                              : 0;
+                          if (shortfallCents > 0) {
+                            return (
+                              <div className="flex justify-between rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm">
+                                <span className="text-destructive">{copy.register.cashShortfall}</span>
+                                <span className="font-bold text-destructive">{formatMoney(centsToMoney(shortfallCents))}</span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
+                              <span className="text-muted-foreground">{copy.register.changeDue}</span>
+                              <span className="font-bold text-primary">{formatMoney(centsToMoney(changeDueCents))}</span>
+                            </div>
+                          );
+                        })()}
                         {!cashIsValid && cartItems.length > 0 && (
                           <p className="flex items-center gap-1.5 text-xs text-destructive">
                             <AlertCircle className="h-3.5 w-3.5" />

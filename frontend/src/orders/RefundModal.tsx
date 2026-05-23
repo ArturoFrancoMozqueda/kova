@@ -70,12 +70,14 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
                   type="number"
                   inputMode="numeric"
                   value={quantities[item.id] ?? 0}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const raw = Number(event.target.value);
+                    const clamped = Math.max(0, Math.min(item.quantity, Number.isFinite(raw) ? raw : 0));
                     setQuantities((current) => ({
                       ...current,
-                      [item.id]: Number(event.target.value),
-                    }))
-                  }
+                      [item.id]: clamped,
+                    }));
+                  }}
                   className="text-center"
                 />
               </div>

@@ -1,4 +1,5 @@
 import { copy } from "../i18n/messages";
+import { formatDateTime } from "../orders/format";
 import { useIsOnline, useSyncQueue } from "./useSyncQueue";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,7 @@ export default function SyncQueueView() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">
-                      {new Date(entry.updated_at).toLocaleString()}
+                      {formatDateTime(entry.updated_at)}
                     </p>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {copy.syncQueue.attemptCount(entry.attempt_count)}

@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import {
@@ -1365,6 +1365,23 @@ export default function Home(): ReactNode {
   const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
+
+  // Paint html/body with the same landing background while this view is mounted.
+  // Prevents the white body bg from showing on viewports wider than the natural
+  // .lp-root width (was the right-side white strip on >=1440px monitors).
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.background;
+    const prevBody = body.style.background;
+    const landingBg = "#0F1117"; // matches dark theme --page-bg
+    html.style.background = landingBg;
+    body.style.background = landingBg;
+    return () => {
+      html.style.background = prevHtml;
+      body.style.background = prevBody;
+    };
+  }, []);
 
   return (
     <div className="lp-root" style={rootStyle}>

@@ -1,5 +1,6 @@
 import { copy } from "../i18n/messages";
-import { formatMoney, reasonLabel } from "./format";
+import { formatMoney, formatDateTime, reasonLabel } from "./format";
+import { formatTenantName } from "@/lib/formatTenantName";
 import type { Order, Receipt } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,13 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
   const hasCashPayment = receipt.payments.some((payment) => payment.method === "cash");
   const showCashSettlement = hasCashPayment && Number(receipt.total_tendered) > 0;
 
+  const refundedTotal = receipt.refunds.reduce(
+    (sum, refund) => sum + Number(refund.refunded_amount),
+    0,
+  );
+  const showNet = refundedTotal > 0 && receipt.status !== "voided";
+  const netAmount = Math.max(0, Number(receipt.total_amount) - refundedTotal);
+
   return (
     <Card>
       <CardHeader>
@@ -22,7 +30,8 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
           <ReceiptIcon className="h-4 w-4" />
           {copy.orderDetail.receipt}
         </CardTitle>
-        <p className="text-xs text-muted-foreground">{receipt.tenant_name} &middot; {receipt.receipt_number}</p>
+        <p className="text-xs text-muted-foreground">{formatTenantName(receipt.tenant_name)} &middot; {receipt.receipt_number}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{formatDateTime(receipt.created_at)}</p>
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Summary */}
@@ -47,6 +56,18 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
               </div>
             </>
           ) : null}
+          {showNet && (
+            <>
+              <div className="rounded-lg bg-destructive/5 p-3">
+                <p className="text-destructive text-xs">{copy.orderDetail.refundedAmount}</p>
+                <p className="font-semibold text-destructive">−{formatMoney(refundedTotal.toFixed(2))}</p>
+              </div>
+              <div className="rounded-lg bg-kova-growth/10 p-3">
+                <p className="text-muted-foreground text-xs">{copy.orderDetail.netAmount}</p>
+                <p className="font-bold">{formatMoney(netAmount.toFixed(2))}</p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Items */}

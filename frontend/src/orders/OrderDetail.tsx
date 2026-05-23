@@ -18,8 +18,9 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { AlertCircle, RotateCcw, Ban, ArrowLeft, Package } from "lucide-react";
+import { AlertCircle, RotateCcw, Ban, ArrowLeft, Package, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type LoadState =
   | { status: "loading" }
@@ -27,6 +28,7 @@ type LoadState =
   | { status: "loaded"; order: Order; receipt: Receipt };
 
 export default function OrderDetail() {
+  useDocumentTitle("Detalle de orden");
   const { orderId } = useParams();
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<"refund" | "void" | null>(null);
@@ -124,6 +126,27 @@ export default function OrderDetail() {
   const { order, receipt } = loadState;
   const isVoided = receipt.status === "voided";
 
+  // Aggregate refunded quantity per line item so we can annotate "x (n devuelta)"
+  // and decide whether to surface a partial/full-refund badge alongside the
+  // primary status pill.
+  const refundedQtyByItem = new Map<string, number>();
+  for (const refund of receipt.refunds) {
+    for (const refundItem of refund.items) {
+      refundedQtyByItem.set(
+        refundItem.order_item_id,
+        (refundedQtyByItem.get(refundItem.order_item_id) ?? 0) + refundItem.quantity,
+      );
+    }
+  }
+  const totalOrderedQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalRefundedQty = Array.from(refundedQtyByItem.values()).reduce((sum, n) => sum + n, 0);
+  const refundState: "none" | "partial" | "full" =
+    totalRefundedQty === 0
+      ? "none"
+      : totalRefundedQty >= totalOrderedQty
+        ? "full"
+        : "partial";
+
   return (
     <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       {/* Header */}
@@ -135,9 +158,17 @@ export default function OrderDetail() {
           <h1 className="text-2xl font-bold tracking-tight">{copy.orderDetail.title}</h1>
           <p className="text-sm text-muted-foreground font-mono">{orderId?.slice(0, 8)}</p>
         </div>
-        <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">
-          {isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}
-        </Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">
+            {isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}
+          </Badge>
+          {!isVoided && refundState === "partial" && (
+            <Badge variant="warning" className="text-sm">{copy.orderDetail.refundedPartial}</Badge>
+          )}
+          {!isVoided && refundState === "full" && (
+            <Badge variant="destructive" className="text-sm">{copy.orderDetail.refundedFull}</Badge>
+          )}
+        </div>
       </div>
 
       {isVoided && (
@@ -157,21 +188,31 @@ export default function OrderDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {order.items.map((item) => (
-              <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{item.product_name}</p>
-                  {item.modifiers?.map((m) => (
-                    <p key={`${m.modifier_group_name}-${m.modifier_option_name}`} className="text-xs text-muted-foreground mt-0.5 pl-2">
-                      + {m.modifier_option_name}
-                      {parseFloat(m.price_delta_amount) > 0 && ` (+MX$${parseFloat(m.price_delta_amount).toFixed(2)})`}
+            {order.items.map((item) => {
+              const refundedQty = refundedQtyByItem.get(item.id) ?? 0;
+              return (
+                <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{item.product_name}</p>
+                    {item.modifiers?.map((m) => (
+                      <p key={`${m.modifier_group_name}-${m.modifier_option_name}`} className="text-xs text-muted-foreground mt-0.5 pl-2">
+                        + {m.modifier_option_name}
+                        {parseFloat(m.price_delta_amount) > 0 && ` (+MX$${parseFloat(m.price_delta_amount).toFixed(2)})`}
+                      </p>
+                    ))}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      x{item.quantity}
+                      {refundedQty > 0 && (
+                        <span className="ml-1 text-destructive">
+                          {" "}({copy.orderDetail.refundedQty(refundedQty)})
+                        </span>
+                      )}
                     </p>
-                  ))}
-                  <p className="text-xs text-muted-foreground mt-1">x{item.quantity}</p>
+                  </div>
+                  <span className="text-sm font-semibold">{formatMoney(item.line_total_amount)}</span>
                 </div>
-                <span className="text-sm font-semibold">{formatMoney(item.line_total_amount)}</span>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -182,6 +223,10 @@ export default function OrderDetail() {
               <CardTitle>{copy.orderDetail.actions}</CardTitle>
             </CardHeader>
             <CardContent className="flex gap-2">
+              <Button variant="outline" onClick={() => window.print()}>
+                <Printer className="h-4 w-4" />
+                {copy.orderDetail.printTicket}
+              </Button>
               {(canRefund || canVoid) && !isVoided ? (
                 <>
                   {canRefund && (

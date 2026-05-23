@@ -52,7 +52,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
           onClick={onClose}
           className="absolute right-3 top-3 flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-sm text-kova-ink opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-kova-blue focus:ring-offset-2"
           type="button"
-          aria-label="Close"
+          aria-label="Cerrar"
         >
           <X className="h-4 w-4" />
         </button>
