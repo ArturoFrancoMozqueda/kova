@@ -36,6 +36,8 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         className={cn(
           // Mobile: bottom sheet — full width, slides up, capped height, rounded top corners
           "relative w-full max-h-[90dvh] overflow-y-auto overscroll-contain",

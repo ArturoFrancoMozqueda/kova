@@ -112,7 +112,7 @@ test("billing page hides checkout for a Stripe trialing subscription", async ({ 
 
   await page.goto("/settings/billing");
 
-  await expect(page.getByText(/tu suscripcion esta en prueba/i)).toBeVisible();
+  await expect(page.getByText(/tu suscripci[óo]n est[áa] en prueba/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /cancelar suscripci[óo]n/i })).toBeEnabled();
 });
@@ -139,7 +139,7 @@ test("billing page recovers when checkout reports an already active subscription
   await page.goto("/settings/billing");
   await page.getByRole("button", { name: /activar por/i }).click();
 
-  await expect(page.getByText(/tu suscripcion ya esta activa/i)).toBeVisible();
+  await expect(page.getByText(/tu suscripci[óo]n ya est[áa] activa/i)).toBeVisible();
   await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
 });
@@ -186,9 +186,12 @@ test("billing page lets owners request subscription cancellation", async ({ page
     });
   });
 
-  page.on("dialog", (dialog) => void dialog.accept());
   await page.goto("/settings/billing");
   await page.getByRole("button", { name: /cancelar suscripci[óo]n/i }).click();
+
+  const cancelDialog = page.getByRole("dialog");
+  await expect(cancelDialog).toBeVisible();
+  await cancelDialog.getByRole("button", { name: /^cancelar suscripci[óo]n$/i }).click();
 
   await expect(page.getByText(/se cancela al final del periodo/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /cancelar suscripci[óo]n/i })).toBeDisabled();
