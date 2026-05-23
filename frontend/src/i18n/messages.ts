@@ -147,8 +147,8 @@ export const copy = {
     closeShiftDesc: "Ir al corte de caja",
     exportSalesAction: "Exportar ventas",
     exportSalesDesc: "Abrir reportes del día",
-    printZAction: "Imprimir Z",
-    printZDesc: "Usar impresión del navegador",
+    printZAction: "Reporte del turno",
+    printZDesc: "Ver y reimprimir el corte del turno",
     upgradeNudgeTitle: (orders: number) =>
       `Hiciste ${orders} venta${orders === 1 ? "" : "s"} en tu prueba`,
     upgradeNudgeBody: (amount: string) =>
@@ -249,7 +249,7 @@ export const copy = {
     storyPaymentDominant: (method: string, pct: number) =>
       `${pct}% del cobro entró por ${method}.`,
     storyRefundsFlag: (n: number) =>
-      `${n} devolución${n === 1 ? "" : "es"} hoy — revisa si hubo un problema operativo.`,
+      `${n} ${n === 1 ? "devolución" : "devoluciones"} hoy — revisa si hubo un problema operativo.`,
     storyLowStockOne: (name: string) => `${name} está por agotarse.`,
     storyLowStockMany: (n: number) => `${n} productos están en riesgo de agotarse.`,
     nextActionsTitle: "Qué hacer ahora",
@@ -258,7 +258,7 @@ export const copy = {
     actionRestockCta: "Abrir inventario",
     actionReviewRefundsTitle: "Revisa devoluciones",
     actionReviewRefundsDesc: (n: number) =>
-      `${n} devolución${n === 1 ? "" : "es"} hoy. Confirma motivo y si afecta el turno.`,
+      `${n} ${n === 1 ? "devolución" : "devoluciones"} hoy. Confirma motivo y si afecta el turno.`,
     actionReviewRefundsCta: "Ver reportes",
     actionStartSellingTitle: "Abre la primera venta",
     actionStartSellingDesc: "El turno está listo pero aún no hay cobros registrados.",
@@ -318,7 +318,7 @@ export const copy = {
     receiptFooter: "Pie del recibo",
     taxContact: "Texto fiscal o de contacto",
     logoUploadLabel: "Logo del recibo",
-    logoUploadTitle: "Arrastra el logo o subelo desde tu equipo",
+    logoUploadTitle: "Arrastra el logo o súbelo desde tu equipo",
     logoUploadHint: "PNG, JPG, WebP o SVG. Máximo 512 KB.",
     logoUploadButton: "Subir archivo",
     logoRemoveButton: "Quitar logo",
@@ -326,7 +326,7 @@ export const copy = {
     logoTooLarge: "El logo debe pesar 512 KB o menos.",
     logoUploaded: "Logo del recibo actualizado.",
     logoRemoved: "Logo del recibo eliminado.",
-    logoUploadError: "No se pudo subir el logo. Revisa el archivo e intentalo de nuevo.",
+    logoUploadError: "No se pudo subir el logo. Revisa el archivo e inténtalo de nuevo.",
     logoRemoveError: "No se pudo quitar el logo. Intentalo de nuevo.",
     receiptPreviewLogoAlt: "Logo del recibo",
     saveBusiness: "Guardar perfil del negocio",
@@ -345,15 +345,15 @@ export const copy = {
     roleOwner: "Propietario",
     roleManager: "Gerente",
     roleCashier: "Cajero",
-    roleOwnerDescription: "Control total: configuracion, facturacion, empleados, reportes y ventas.",
-    roleManagerDescription: "Opera el negocio: caja, catalogo, inventario, turnos, reportes y empleados.",
-    roleCashierDescription: "Uso diario: caja, ordenes y turnos sin acceso a facturacion ni configuracion critica.",
-    roleHelpTitle: "Que puede hacer cada rol",
-    inviteHelp: "Invita solo a personas que trabajan en el negocio. Puedes cambiar su rol o desactivar su acceso despues.",
+    roleOwnerDescription: "Control total: configuración, facturación, empleados, reportes y ventas.",
+    roleManagerDescription: "Opera el negocio: caja, catálogo, inventario, turnos, reportes y empleados.",
+    roleCashierDescription: "Uso diario: caja, órdenes y turnos sin acceso a facturación ni configuración crítica.",
+    roleHelpTitle: "Qué puede hacer cada rol",
+    inviteHelp: "Invita solo a personas que trabajan en el negocio. Puedes cambiar su rol o desactivar su acceso después.",
     invite: "Invitar empleado",
     inviteSent: "Invitación de empleado creada.",
     saved: "Cambios guardados.",
-    saveError: "No se pudieron guardar los cambios. Revisa los campos e intentalo de nuevo.",
+    saveError: "No se pudieron guardar los cambios. Revisa los campos e inténtalo de nuevo.",
     active: "Acceso activo",
     inactive: "Acceso desactivado",
     deactivate: "Desactivar",
@@ -407,6 +407,30 @@ export const copy = {
     verifyEmail: "Verificar correo",
     verified: "Correo verificado. Ya puedes iniciar sesión.",
     operationError: "No se pudo completar la operación.",
+    loginInvalidCredentials: "Correo o contraseña incorrectos.",
+    loginRateLimited: "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+    forgotPassword: "¿Olvidaste tu contraseña?",
+    forgotPasswordTitle: "Recupera tu acceso",
+    forgotPasswordSubtitle: "Ingresa el correo con el que abriste tu cuenta y te enviaremos un enlace para crear una contraseña nueva.",
+    forgotPasswordSubmit: "Enviar instrucciones",
+    forgotPasswordSent: "Si la cuenta existe, te enviamos un correo con instrucciones para restablecer la contraseña.",
+    backToLogin: "Volver a iniciar sesión",
+    devResetReady: "Token de prueba (solo entorno local)",
+    devResetOpen: "Abrir pantalla de restablecimiento",
+    resetPasswordTitle: "Crea tu nueva contraseña",
+    resetPasswordSubtitle: "Elige una contraseña que no uses en otro servicio. Cerraremos las sesiones abiertas al guardar.",
+    resetPasswordNew: "Nueva contraseña",
+    resetPasswordConfirm: "Confirma la contraseña",
+    resetPasswordPlaceholder: "Mínimo 8 caracteres",
+    resetPasswordSubmit: "Guardar contraseña",
+    resetPasswordSuccess: "Listo. Tu contraseña se actualizó. Te llevamos al inicio de sesión.",
+    resetPasswordMismatch: "Las contraseñas no coinciden.",
+    resetPasswordTooShort: "Usa al menos 8 caracteres.",
+    resetTokenInvalid: "El enlace ya expiró o no es válido. Solicita uno nuevo desde Olvidé mi contraseña.",
+    resetTokenMissingTitle: "Enlace incompleto",
+    resetTokenMissingBody: "Este enlace no tiene un token válido.",
+    resetTokenMissingHint: "Es posible que el correo se haya recortado al abrirlo. Pide un nuevo enlace e intenta otra vez.",
+    resetTokenRequestAgain: "Pedir un enlace nuevo",
     loginSubtitle: "Inicia sesión y mantén tu negocio en flujo.",
     signupSubtitle: `Prueba ${BILLING_TRIAL_LABEL} sin tarjeta. Después, ${STANDARD_PLAN_PRICE_LABEL}.`,
     tenantNamePlaceholder: "Nombre de tu negocio",
@@ -450,6 +474,12 @@ export const copy = {
     operationError: "No se pudo completar la operación.",
     refundQtyExceeds: (max: number) =>
       `La cantidad excede lo disponible para devolución (máx. ${max}).`,
+    printTicket: "Imprimir ticket",
+    refundedPartial: "Devuelta parcial",
+    refundedFull: "Devuelta total",
+    refundedQty: (qty: number) => `${qty} devuelta${qty === 1 ? "" : "s"}`,
+    refundedAmount: "Devuelto",
+    netAmount: "Neto",
   },
   refundModal: {
     title: "Devolver productos",
@@ -495,6 +525,32 @@ export const copy = {
     closeSuccess: "Turno cerrado correctamente.",
     movementSuccess: "Movimiento de efectivo registrado.",
     operationError: "No se pudo completar la operación.",
+    badgeOpen: "Abierto",
+    badgeClosed: "Cerrado",
+    totalCashIn: "Movimientos",
+    expectedCashShort: "Efectivo esperado",
+    movementTypeLabel: (type: string) => {
+      const normalized = type?.toString().toLowerCase();
+      if (normalized === "opening_balance") return "Apertura de caja";
+      if (normalized === "cash_in") return "Entrada de efectivo";
+      if (normalized === "cash_out") return "Salida de efectivo";
+      return type;
+    },
+    movementReasonLabel: (reason: string) => {
+      const normalized = reason?.toString().toLowerCase();
+      if (normalized === "opening balance" || normalized === "opening_balance") {
+        return "Saldo inicial";
+      }
+      return reason;
+    },
+    reconStatusLabel: (status: "balanced" | "overage" | "shortage" | null) =>
+      status === "balanced"
+        ? "Balanceado"
+        : status === "overage"
+          ? "Sobrante"
+          : status === "shortage"
+            ? "Faltante"
+            : "Cerrado",
   },
   openShiftModal: {
     title: "Abrir turno",
@@ -759,9 +815,13 @@ export const copy = {
       `${daypart} concentró ${pct}% de las ventas.`,
     kpiBestDaypartEmpty: "Aparece cuando existan ventas por bloque.",
     kpiRefunds: (count: number) =>
-      count === 0 ? "Sin devoluciones en este periodo." : `${count} devolución${count === 1 ? "" : "es"} registrada${count === 1 ? "" : "s"}.`,
+      count === 0
+        ? "Sin devoluciones en este periodo."
+        : `${count} ${count === 1 ? "devolución registrada" : "devoluciones registradas"}.`,
     kpiCancellations: (count: number) =>
-      count === 0 ? "Sin cancelaciones en este periodo." : `${count} cancelación${count === 1 ? "" : "es"} registrada${count === 1 ? "" : "s"}.`,
+      count === 0
+        ? "Sin cancelaciones en este periodo."
+        : `${count} ${count === 1 ? "cancelación registrada" : "cancelaciones registradas"}.`,
     executiveEmpty: (start: string, end: string) =>
       `Del ${start} al ${end}, no hay ventas completadas en este periodo. El reporte se llenará cuando existan transacciones reales.`,
     executiveIntro: (start: string, end: string, amount: string, orders: number, avg: string) =>
@@ -872,7 +932,7 @@ export const copy = {
     employeeQuestion: "¿Dónde hay oportunidad de coaching?",
     noEmployeeSales: "Sin ventas por empleado en este rango.",
     employeeStats: (orders: number, refunds: number) =>
-      `${orders} orden${orders === 1 ? "" : "es"} · ${refunds} devolución${refunds === 1 ? "" : "es"}`,
+      `${orders} ${orders === 1 ? "orden" : "órdenes"} · ${refunds} ${refunds === 1 ? "devolución" : "devoluciones"}`,
     coachingOpportunity: (name: string) =>
       `Oportunidad de coaching: revisa con ${name} si necesita apoyo en caja, producto o flujo de cobro.`,
     refundsByReason: "Motivos de devolución",
@@ -980,6 +1040,7 @@ export const copy = {
     salePending: "Procesando venta",
     permissionHidden: "Creación de órdenes no disponible para tu rol.",
     cashTooLow: "El efectivo recibido debe cubrir el total de la orden.",
+    cashShortfall: "Faltan",
     splitTotalMismatch: "Los pagos divididos deben igualar el total de la orden.",
     saleError: "No se pudo completar la venta.",
     saleComplete: "Venta completada.",
@@ -1037,7 +1098,7 @@ export const copy = {
     emptyCategories: "Aún no hay categorías.",
     products: "Productos",
     searchProducts: "Buscar productos",
-    searchProductsPlaceholder: "Buscar por producto, SKU o descripcion...",
+    searchProductsPlaceholder: "Buscar por producto, SKU o descripción...",
     sortProducts: "Ordenar productos",
     sortNameAsc: "Nombre A-Z",
     sortPriceDesc: "Mayor precio",
@@ -1055,6 +1116,8 @@ export const copy = {
     editProduct: "Editar producto",
     productCreateDescription: "Agrega un producto y revisa cómo aparecerá en la caja.",
     productEditDescription: "Actualiza precio, SKU, categoría, inventario y modificadores.",
+    categoryCreateDescription: "Agrega una nueva categoría para organizar tus productos.",
+    categoryEditDescription: "Actualiza el nombre, descripción y orden de la categoría.",
     productName: "Nombre del producto",
     productSku: "SKU",
     productSkuAutoHint: "Se generará automáticamente",
@@ -1069,7 +1132,7 @@ export const copy = {
     productImageUpload: "Subir imagen",
     productImageRemove: "Quitar imagen",
     productImageSaveFirst: "Guarda el producto antes de subir una imagen.",
-    productImageUploadError: "No se pudo subir la imagen. Revisa el archivo e intentalo de nuevo.",
+    productImageUploadError: "No se pudo subir la imagen. Revisa el archivo e inténtalo de nuevo.",
     productImageTooLarge: "La imagen debe pesar 1 MB o menos.",
     productImageInvalidType: "Formato no permitido. Usa PNG, JPG o WebP.",
     productImageAlt: (name: string) => `Imagen de ${name}`,
@@ -1155,16 +1218,21 @@ export const copy = {
     pastDueBanner: "Pago vencido. Recupera la facturación para mantener acceso sin interrupciones.",
     subscriptionActiveTitle: "Tu suscripción está activa",
     subscriptionActiveBody: "El plan ya está aplicado a este negocio. No necesitas iniciar otro checkout.",
-    subscriptionTrialingTitle: "Tu suscripcion esta en prueba",
-    subscriptionTrialingBody: "Stripe ya tiene una suscripcion en prueba para este negocio. Puedes administrar la renovacion aqui.",
+    subscriptionTrialingTitle: "Tu suscripción está en prueba",
+    subscriptionTrialingBody: "Stripe ya tiene una suscripción en prueba para este negocio. Puedes administrar la renovación aquí.",
     startCheckout: `Activar por ${STANDARD_PLAN_PRICE_LABEL}`,
     checkoutNotNeeded: "Checkout no necesario: la suscripción ya está activa.",
-    checkoutAlreadyActive: "Tu suscripcion ya esta activa. Actualizamos el estado de facturacion.",
+    checkoutAlreadyActive: "Tu suscripción ya está activa. Actualizamos el estado de facturación.",
     redirecting: "Redirigiendo",
     cancel: "Cancelar suscripción",
     canceling: "Cancelando",
     cancelConfirm:
       "¿Cancelar tu suscripción? Perderás acceso a Kova al final del periodo pagado actual.",
+    cancelDialogTitle: "¿Cancelar tu suscripción?",
+    cancelDialogBody:
+      "Perderás acceso a Kova al final del periodo pagado actual. Tu catálogo, órdenes y reportes se conservan por si decides regresar.",
+    cancelDialogConfirm: "Cancelar suscripción",
+    cancelDialogKeep: "Conservar suscripción",
     checkoutSuccess: "Pago completado. Actualizando el estado de la suscripción.",
     checkoutCanceled: "El pago fue cancelado. Puedes reintentarlo cuando quieras.",
     operationError: "No se pudo completar la operación de facturación.",

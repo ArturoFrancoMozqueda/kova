@@ -7,7 +7,7 @@ import type {
   SignupResponse,
 } from "./types";
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
@@ -72,4 +72,21 @@ export async function refreshSession(): Promise<boolean> {
     headers: { "content-type": "application/json" },
   });
   return response.ok;
+}
+
+export function requestPasswordReset(email: string): Promise<MessageResponse & { dev_reset_token?: string | null }> {
+  return requestJson<MessageResponse & { dev_reset_token?: string | null }>(
+    "/api/v1/auth/password-reset/request",
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+  );
+}
+
+export function confirmPasswordReset(token: string, newPassword: string): Promise<MessageResponse> {
+  return requestJson<MessageResponse>("/api/v1/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
 }

@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import RequireAuth from "./auth/RequireAuth";
 import AuthView from "./auth/AuthView";
+import ForgotPasswordView from "./auth/ForgotPasswordView";
+import ResetPasswordView from "./auth/ResetPasswordView";
 import VerifyEmailView from "./auth/VerifyEmailView";
 import BillingView from "./billing/BillingView";
 import CatalogView from "./catalog/CatalogView";
@@ -34,6 +36,8 @@ export default function App() {
             {/* Public */}
             <Route path="/login" element={<AuthView mode="login" />} />
             <Route path="/signup" element={<AuthView mode="signup" />} />
+            <Route path="/forgot-password" element={<ForgotPasswordView />} />
+            <Route path="/reset-password" element={<ResetPasswordView />} />
             <Route path="/verify-email" element={<VerifyEmailView />} />
 
             <Route path="/" element={<Home />} />

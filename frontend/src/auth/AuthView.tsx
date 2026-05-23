@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { copy } from "../i18n/messages";
-import { login, signup, verifyEmail } from "./api";
+import { login, signup, verifyEmail, ApiError } from "./api";
 import { useAuth } from "./useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   const [tenantName, setTenantName] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
   const [state, setState] = useState<ActionState>("idle");
+  const [errorMessage, setErrorMessage] = useState<string>(copy.auth.operationError);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -40,7 +41,18 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       });
       setVerificationToken(response.dev_verification_token ?? "");
       setState("created");
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 401 || err.status === 403) {
+          setErrorMessage(copy.auth.loginInvalidCredentials);
+        } else if (err.status === 429) {
+          setErrorMessage(copy.auth.loginRateLimited);
+        } else {
+          setErrorMessage(copy.auth.operationError);
+        }
+      } else {
+        setErrorMessage(copy.auth.operationError);
+      }
       setState("error");
     }
   };
@@ -100,7 +112,17 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">{copy.auth.password}</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">{copy.auth.password}</Label>
+                  {mode === "login" && (
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs font-medium text-kova-blue hover:underline underline-offset-4"
+                    >
+                      {copy.auth.forgotPassword}
+                    </Link>
+                  )}
+                </div>
                 <Input
                   id="password"
                   required
@@ -164,7 +186,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             {state === "error" && (
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                {copy.auth.operationError}
+                {errorMessage}
               </div>
             )}
 
