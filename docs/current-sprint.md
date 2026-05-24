@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-05-20
+Last updated: 2026-05-24
 
 ## Source-of-truth rules
 
@@ -12,10 +12,93 @@ Last updated: 2026-05-20
 
 ## Active Focus
 
-Kova Product/UX Audit execution.
+Kova commercial-readiness execution from `docs/ux-qa-review-2026-05-23.md` and
+`docs/sprint-planning.md`.
 
-Sprint 1 is mostly complete. Sprint 2 is functionally complete. Sprint 3 is functionally complete.
-Sprint 4 is in progress, focused on report clarity without overwhelming the owner.
+Kova Audit Sprints 1-5 are closed or substantially landed. The next execution target is
+Kova Audit Sprint 6: Trust Lock + Day-1 Operations.
+
+### Current Execution Target: Kova Audit Sprint 6
+
+Goal: make the product safe to charge for in controlled paid beta by removing the trust-breaking
+issues a cafe owner will discover in the first 1-7 days of real usage.
+
+Next unblocked implementation target: deploy/run the corrected stock clamp script and resolve
+blocked backend BDD verification for KOV-S6-06. All other Sprint 6 product items are closed.
+
+Must-fix before Stripe live broad selling:
+
+- [x] KOV-S6-01: Timezone-safe date defaults in Reports, ProductStoryCard, and order/report filters.
+- [x] KOV-S6-02: Localize `/shifts` enum labels and date/time formatting.
+- [ ] KOV-S6-03: Run and document production hygiene scripts:
+      `clamp_negative_stock.py`, `fix_category_accents.py`, and `backfill_skus.py`.
+      `fix_category_accents.py` and `backfill_skus.py` applied on Fly production.
+      `clamp_negative_stock.py` dry-run found 2 products, but apply is blocked until the
+      corrected script (`movement_type='adjustment'`) is available in the production image.
+      Runbook/results recorded in `docs/deployment.md`.
+- [x] KOV-S6-04: Inventory renders `Agotado` for tracked stock `<= 0`.
+- [x] KOV-S6-05: Reprint real receipts from order detail with a shared receipt component.
+- [ ] KOV-S6-06: Cash refunds generate a shift cash movement and affect reconciliation.
+      Implementation complete; backend BDD blocked locally because Postgres is not reachable.
+- [x] KOV-S6-07: TrialValueRecap shows concrete value delivered during trial.
+- [x] KOV-S6-08: Dashboard insight comparison labels follow the selected period.
+- [x] KOV-S6-09: Business-story recommended actions dedupe before the cap.
+- [x] KOV-S6-10: Register supports basic cashier hotkeys.
+
+Parallel ops gates:
+
+- [ ] Stripe live checkout full-flow verified before broad selling.
+- [ ] Post-checkout and trial-ending emails verified against real inbox providers.
+- [ ] Backup restore drill completed in staging.
+- [ ] Beta agreement signed by first paid tenants.
+- [ ] Domain/support path and `/seguridad` plan confirmed.
+
+### Sprint 6 Verification Log
+
+- [x] 2026-05-23 KOV-S6-01 focused unit test:
+      `npm test -- --run src/i18n/date.test.ts` (3 passed).
+- [x] 2026-05-23 KOV-S6-02 focused unit test:
+      `npm test -- --run src/shifts/format.test.ts` (4 passed).
+- [x] 2026-05-23 KOV-S6-02 focused E2E:
+      `npm run test:e2e -- e2e/shifts.spec.ts --project=chromium` (5 passed).
+- [x] 2026-05-23 KOV-S6-04 focused E2E:
+      `npm run test:e2e -- e2e/inventory.spec.ts --project=chromium` (3 passed).
+- [x] 2026-05-23 KOV-S6-05 focused unit test:
+      `npm test -- --run src/orders/OrderDetail.test.tsx` (4 passed).
+- [x] 2026-05-24 KOV-S6-06 static backend verification:
+      `.venv-win\Scripts\python.exe -m compileall app\orders app\shifts -q`.
+- [ ] 2026-05-24 KOV-S6-06 focused backend BDD:
+      `.venv-win\Scripts\python.exe -m pytest app\tests\bdd\test_refunds.py -q -x`
+      blocked because Alembic cannot connect to Postgres on `localhost:5432`.
+- [x] 2026-05-24 KOV-S6-06 frontend regression test:
+      `npm test -- --run src/orders/OrderDetail.test.tsx` (4 passed).
+- [x] 2026-05-23 frontend typecheck: `npm run typecheck`.
+- [x] 2026-05-23 frontend lint: `npm run lint`.
+- [x] 2026-05-23 frontend production build: `npm run build`.
+- [x] 2026-05-23 diff hygiene: `git diff --check`.
+- [x] 2026-05-24 frontend typecheck: `npm run typecheck`.
+- [x] 2026-05-24 frontend lint: `npm run lint`.
+- [x] 2026-05-24 frontend production build: `npm run build`.
+- [x] 2026-05-24 diff hygiene: `git diff --check`.
+- [x] 2026-05-24 KOV-S6-07 frontend typecheck: `npm run typecheck`.
+- [x] 2026-05-24 KOV-S6-07 frontend lint: `npm run lint`.
+- [x] 2026-05-24 KOV-S6-07 frontend production build: `npm run build`.
+- [x] 2026-05-24 KOV-S6-07 diff hygiene: `git diff --check`.
+- [x] 2026-05-24 KOV-S6-08 code inspection:
+      KPI cards pass `loadState.compareLabel` from `periodRanges()` into `DeltaBadge`.
+- [x] 2026-05-24 KOV-S6-09 code inspection:
+      `ownerBriefActions()` dedupes merged recommendations before applying `.slice(0, 3)`.
+- [x] 2026-05-24 KOV-S6-10 frontend typecheck: `npm run typecheck`.
+- [x] 2026-05-24 KOV-S6-10 frontend lint: `npm run lint`.
+- [x] 2026-05-24 KOV-S6-10 frontend production build: `npm run build`.
+- [x] 2026-05-24 KOV-S6-10 diff hygiene: `git diff --check`.
+- [x] 2026-05-24 KOV-S6-03 Fly production dry-runs:
+      clamp found 2 negative-stock products; category accents found 2 rows; SKU backfill found 3 products.
+- [x] 2026-05-24 KOV-S6-03 Fly production applies:
+      `fix_category_accents.py` updated 2 rows and `backfill_skus.py` assigned 3 SKUs.
+- [ ] 2026-05-24 KOV-S6-03 remaining apply:
+      `clamp_negative_stock.py` apply blocked because production image still used invalid
+      `movement_type='stock_adjustment'`; repo script fixed to use `adjustment`.
 
 ## Completed From Kova Audit Sprint 1: Trust, Clarity, and Conversion
 

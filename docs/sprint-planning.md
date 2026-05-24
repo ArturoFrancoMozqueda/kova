@@ -2,11 +2,12 @@
 
 ## Status
 
-**Current:** Sprints 9–16 complete. Pre-beta sprints PB-1..PB-5 and PB-7 closed. PB-6 (analytics
-credibility) carry-overs and a new UX trust backlog (`docs/ux-review-2026-05-19.md`) are the
-active focus, tracked in `docs/current-sprint.md`.
+**Current:** Sprints 9-16 complete. Kova audit Sprints 1-5 closed or substantially landed. The
+active planning target is the commercial-readiness path from `docs/ux-qa-review-2026-05-23.md`:
+Kova Audit Sprint 6 (trust lock + day-1 operations), then Sprint 7 (conversion + operational pro),
+with Stripe live and pre-GA ops gates running in parallel.
 
-**Last updated:** 2026-05-19
+**Last updated:** 2026-05-23
 
 This document defines the roadmap and task structure.
 
@@ -17,6 +18,109 @@ Active scope lives in `docs/current-sprint.md`.
 Deferred scope lives in `docs/deferred-scope.md`.
 
 Risks live in `docs/risk-register.md`.
+
+## Commercial Readiness Plan (2026-05-23)
+
+Source: `docs/ux-qa-review-2026-05-23.md`, based on code review plus live navigation of
+`https://point-of-sale-ochre.vercel.app/`.
+
+### Verdict
+
+Kova is close to paid beta, but not yet ready for broad self-serve selling. Current readiness is
+estimated at **7.6/10**, with a realistic path to **8.5/10 after Sprint 6**. The target is not to
+add broad POS scope; it is to remove the bugs and operational gaps a cafe owner will discover in
+the first 1-7 days of real usage.
+
+### Four-Week Path To Sellable
+
+| Week | Focus | Outcome |
+|---|---|---|
+| Week 1 | Kova Audit Sprint 6 + Stripe/domain/security-page kickoff | Product stops breaking trust during first real usage. |
+| Week 2 | Kova Audit Sprint 7 + first white-glove paid onboarding | Conversion and support surfaces feel like a real SaaS business. |
+| Week 3 | Stripe live with 5-10 real tenants | Monitor checkout, trial, support, refunds, shifts, and reports daily. |
+| Week 4 | Iterate from tenant signal | Open broader acquisition only if signup -> trial -> paid is working. |
+
+### Sprint 6 - Trust Lock + Day-1 Operations
+
+Goal: before charging the first live $299 MXN subscription, a new tenant can sell from morning to
+closing without seeing a trust-breaking timezone, localization, receipt, refund, or data-hygiene
+failure.
+
+Required specs before implementation: update or create specs for reports date behavior,
+shifts localization, receipt reprint/preview, refund cash movement behavior, and trial value recap.
+BDD is required for P0/P1 user-facing behavior.
+
+| ID | Priority | Work | Scope / Acceptance Notes |
+|---|---|---|---|
+| KOV-S6-01 | P0 | Timezone-safe date defaults | Centralize `todayInTimezone`, `yesterdayInTimezone`, and `daysAgoInTimezone`; use them in Reports, ProductStoryCard, and order/report date defaults. Add regression coverage for CDMX after 18:00. |
+| KOV-S6-02 | P0 | Localize Shifts | Map backend enum codes to es-MX labels in the frontend: `Open` -> `Abierto`, `OPENING_BALANCE` -> `Apertura de caja`, `balanced` -> `Caja cuadrada`; use centralized date/time formatting. |
+| KOV-S6-03 | P0 | Production data hygiene | Run `clamp_negative_stock.py`, `fix_category_accents.py`, and `backfill_skus.py` against production; document operator, date, dry-run/result counts, and rollback notes. |
+| KOV-S6-04 | P1 | Inventory sold-out badge | Render `Agotado` with destructive styling when tracked stock is `<= 0`; keep low-stock warning only for `0 < stock <= threshold`. |
+| KOV-S6-05 | P0 | Reprint receipt + shared receipt component | Add an `Imprimir ticket` action on order detail. Reuse one receipt component between order detail print and receipt settings preview. Include print-only CSS and tests. |
+| KOV-S6-06 | P1 | Refunds affect active shift cash | Refund flow asks how money was returned. Cash refunds create a negative `cash_movement` linked to the active shift and order; shift close reflects it. |
+| KOV-S6-07 | P0 | TrialValueRecap | Dashboard shows concrete trial value while trialing: sales count, amount collected, catalog count, active employees, closed shifts, best day. This supports day-13 conversion. |
+| KOV-S6-08 | P1 | Dynamic comparison labels | `InsightStrip` and `BusinessHealthCard` use the selected dashboard period and `previousPeriod` labels instead of hard-coded "yesterday" language. |
+| KOV-S6-09 | P2 | Recommended-action dedupe | Deduplicate business-story recommended actions by `(action_type, target_id)` before the cap is applied. |
+| KOV-S6-10 | P1 | Register keyboard shortcuts | Add basic hotkeys for cashier speed: focus search/SKU, submit charge, close success, and clear transient UI. |
+
+Sprint 6 exit gate:
+
+- No open P0s from the 2026-05-23 review.
+- Reports "Hoy" and ProductStoryCard use tenant-local dates in CDMX regression tests.
+- Shifts has no raw backend enum labels or US date strings in visible UI.
+- Cash refund during an open shift changes the shift reconciliation story.
+- Receipt can be reprinted from a real order.
+- Trial tenants see a value recap with real tenant data.
+- Production hygiene scripts have been run and documented.
+
+### Sprint 7 - Conversion + Operational Pro
+
+Goal: make Kova feel worth paying for, not merely functional, once the first operational blockers
+are closed.
+
+| ID | Priority | Work | Scope / Acceptance Notes |
+|---|---|---|---|
+| KOV-S7-01 | P1 | Manual line discount | Add line discount amount/percent plus reason, permission-gated for owner/manager by default; update receipts, reports, audit logs, and money tests. |
+| KOV-S7-02 | P1 | Richer InsightStrip | Add actionable insights for zombie products, quiet hours, and employee standout where enough data exists. |
+| KOV-S7-03 | P1 | Receipt live preview | Receipt settings shows a live preview using the same component as order reprint. |
+| KOV-S7-04 | P2 | Reports CSV export | Export selected range with order id, timestamp, items, payment methods, refunds, discounts, gross, and net totals. |
+| KOV-S7-05 | P2 | In-app Help drawer | AppShell exposes Help with WhatsApp, support email, status link, tenant/user context, and expected SLA. |
+| KOV-S7-06 | P2 | Duplicate product | Catalog can duplicate a product without copying SKU. |
+| KOV-S7-07 | P2 | Mobile dashboard density | KPI cards use a 2x2 mobile grid and preserve readable spacing. |
+| KOV-S7-08 | P2 | Register mobile keyboard handling | `cashTendered` focus keeps the submit action reachable when the mobile keyboard is open. |
+| KOV-S7-09 | P2 | Business health action cleanup | Remove, disable, or clarify dashboard actions that route to dead-end flows. |
+
+### Parallel Pre-GA / Sellable Ops Gates
+
+These are not all product-code tasks, but they block calling the product "ready to sell" beyond a
+controlled paid beta.
+
+- Stripe live keys configured and verified with a full real-card flow: checkout, webhook,
+  active subscription, retry/past-due, grace period, cancel, and resume if supported.
+- Email post-checkout and welcome flow tested against Gmail, Outlook, and Hotmail.
+- Trial-ending reminder email sent 3 days before trial end.
+- Restore drill completed from a real production backup into staging; result documented.
+- Public status page or hosted monitor exists for frontend, API, database, and Stripe dependency.
+- Beta agreement is signed by the first paid tenants.
+- Data retention and export/offboarding policy is documented for cancellation.
+- Domain and support trust improved: move from `posprojectsupport@gmail.com` toward
+  `soporte@kova.mx` after domain purchase.
+- `/seguridad` page explains tenant isolation, HttpOnly cookies, backups, uptime monitoring, and
+  support expectations.
+
+### Explicitly Deferred Until After Signal
+
+Do not pull these into Sprint 6 unless a real tenant blocks on them:
+
+- SSO with Google.
+- Bulk CSV import.
+- Dark mode in the authenticated app.
+- Full restaurant/table/KDS production support.
+- Stripe Terminal.
+- WhatsApp receipt sending.
+- Multi-location.
+- Advanced report builder.
+- Public API/webhooks.
 
 ## Executive Summary
 
@@ -870,12 +974,14 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Beta Hardening | 14 | ✅ Code done — ops pending | Security, monitoring, backup drill, beta support |
 | Modifiers | 15 | ✅ Done | Modifier groups, options, pricing, register modal, receipts |
 | UX Polish + Onboarding | 16 | ✅ Done | Mobile sidebar, category names, payment picker, onboarding checklist, orders filter, stock badges, i18n audit |
+| Kova Audit Sprints 1-5 | Audit 1-5 | ✅ Substantially landed | Trust, onboarding, first value, reports storytelling, QA bug fixes |
+| Commercial Readiness | Audit 6-7 | 🔜 Active next | Trust lock, day-1 operations, trial conversion, support surface, Stripe-live readiness |
 | Tax Engine | 17 | 📋 Planned | Tax rates, tax-inclusive/exclusive, receipt line tax |
 | Discounts | 18 | 📋 Planned | Per-line and per-order discounts, reason tracking |
 | Retail Preset + Adv. Inventory | 19 | 📋 Planned | Retail preset, barcode/SKU input, CSV import, stock history |
 | Restaurant Preset | 20 | 📋 Planned | Restaurant catalog preset, table notes, modifier-heavy menus |
 | GA Hardening | 21 | 📋 Planned | Legal, marketing site, help center, security + load review, accessibility |
-| Closed Beta | — | 🔜 After Sprint 16 + ops | 3 friendly tenants, $299 MXN/month |
+| Closed Paid Beta | — | 🔜 After Sprint 6 + live ops gates | 10-20 cafe/small food retail tenants, $299 MXN/month |
 
 ### Core POS Sprint Breakdown
 
@@ -2028,9 +2134,13 @@ and load test.
 - [ ] Offline sales are not lost.
 - [ ] Failed offline sales are recoverable.
 - [ ] Refunds/voids are available.
+- [ ] Cash refunds affect active shift reconciliation through a `cash_movement`.
 - [ ] Inventory decrement works.
 - [ ] Shifts can be closed.
 - [ ] Owner can see daily/range sales.
+- [ ] Reports use tenant-local dates for "today" and related presets.
+- [ ] Order detail can reprint a real receipt.
+- [ ] Trial tenants see a concrete value recap before conversion.
 - [ ] No known P0 bugs open.
 
 ### Technical
@@ -2042,6 +2152,8 @@ and load test.
 - [ ] Write endpoint invariants pass.
 - [ ] Money golden tests pass.
 - [ ] Offline sync tests pass.
+- [ ] Reports timezone regression tests pass for Mexico City after business close.
+- [ ] Shift localization regression covers enum labels and es-MX date/time display.
 - [ ] No committed secrets.
 - [ ] No critical/high vulnerabilities.
 - [ ] Structured logs exist.
@@ -2057,17 +2169,24 @@ and load test.
 - [ ] past_due behavior works.
 - [ ] Grace period works.
 - [ ] Cancellation works.
+- [ ] Stripe live checkout is verified end-to-end before broad selling.
+- [ ] Trial-ending reminder email is verified.
+- [ ] Post-checkout welcome/billing email is verified against Gmail, Outlook, and Hotmail.
 
 ### Data
 
 - [ ] Backups configured.
 - [ ] Restore drill completed.
+- [ ] Production hygiene scripts for negative stock, category accents, and missing SKUs have been run and documented.
 - [ ] Audit logs are append-only or protected.
 - [ ] Tenant data export plan documented.
+- [ ] Data retention after cancellation is documented.
 
 ### Support
 
 - [ ] Support email/channel ready.
+- [ ] In-app Help path exists or the interim support path is visible from authenticated screens.
+- [ ] Domain-support path is planned or active (`soporte@kova.mx` preferred over generic Gmail).
 - [ ] Basic runbooks exist.
 - [ ] Feedback process exists.
 - [ ] Beta agreement ready.
@@ -2080,6 +2199,8 @@ and load test.
 - [ ] Error states exist.
 - [ ] Offline states exist.
 - [ ] Locale formatting verified for es-MX.
+- [ ] `/shifts` has no raw English backend enum labels in visible UI.
+- [ ] Landing/footer trust links do not point to placeholders.
 
 ## GA-Ready Checklist
 
