@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented. Updated for P0 production fix on 2026-05-21.
+Implemented. Updated for Sprint 6 shared receipt preview on 2026-05-23.
 
 ## Problem
 
@@ -21,6 +21,7 @@ initial state so the owner can review and save the first receipt configuration.
 - If the tenant has no receipt settings row, the endpoint returns a valid initial tenant-scoped
   response using the tenant name as `receipt_business_name`.
 - Owner or manager can save receipt business name, footer, tax/contact text, and logo URL.
+- The receipt settings preview uses the same receipt template as order detail reprints.
 - Receipt settings remain scoped to the authenticated tenant.
 
 ## Data Model Impact
@@ -55,5 +56,5 @@ No offline queue changes. Settings are online-only for beta.
 - Opening `/settings/receipt` does not produce console errors from missing receipt settings.
 - Fresh tenants see either real receipt settings or a valid initial state.
 - Saving receipt settings persists the values and writes an audit log.
+- Previewing receipt settings renders through the shared receipt template used by `/orders/{id}`.
 - Tenant A cannot read or overwrite Tenant B receipt settings.
-

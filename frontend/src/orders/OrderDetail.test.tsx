@@ -245,4 +245,18 @@ describe("OrderDetail", () => {
     ));
     expect(await screen.findByText(/orden cancelada/i)).toBeInTheDocument();
   });
+
+  it("reprints the shared receipt from order detail", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => undefined);
+    mockInitialLoad(receipt, "owner");
+    window.history.pushState(null, "", "/orders/order-1");
+
+    render(<App />);
+
+    expect(await screen.findByText("ABC123")).toBeInTheDocument();
+    expect(screen.getByText(/Latte/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /imprimir ticket/i }));
+
+    expect(printSpy).toHaveBeenCalledOnce();
+  });
 });

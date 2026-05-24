@@ -183,3 +183,37 @@
 .toast-exit {
   animation: toast-slide-out 0.2s ease-in forwards;
 }
+
+@media print {
+  @page {
+    margin: 6mm;
+    size: 80mm auto;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-receipt-root,
+  .print-receipt-root * {
+    visibility: visible;
+  }
+
+  .print-receipt-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 72mm;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

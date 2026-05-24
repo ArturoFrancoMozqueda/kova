@@ -1,4 +1,4 @@
-# Receipt Spec (Sprint 5)
+# Receipt Spec (Sprint 5, Updated Sprint 6)
 
 ## Problem Statement
 
@@ -26,6 +26,8 @@ Receipts are legally required for retail transactions, build customer trust, and
 - The receipt includes a short order ID (last 8 chars of UUID, uppercase) for easy reference.
 - Refund receipts show the refund reason and refunded amount.
 - Receipt data is immutable once generated (snapshot of state at retrieval time).
+- The order detail page exposes an `Imprimir ticket` action for completed or corrected orders.
+- The print action uses the same receipt template rendered on screen, so reprints match the receipt preview.
 
 ## Non-Functional Requirements
 
@@ -102,7 +104,7 @@ Reason: operator_error
 
 - PDF rendering
 - Email delivery
-- Print formatting (hardware printer SDK)
+- Hardware printer SDK
 - QR code
 - Folio number
 - Receipt history/archival
@@ -115,4 +117,6 @@ Reason: operator_error
 - Receipt displays refunds (if any) with reason.
 - Receipt displays void status (if voided).
 - Receipt formatted for 80-character terminal display.
+- Clicking `Imprimir ticket` from `/orders/{id}` opens the browser print dialog.
+- Browser print output isolates the receipt content and hides surrounding app chrome/actions.
 - Tenant B cannot retrieve Tenant A's receipts.
