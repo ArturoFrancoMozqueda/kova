@@ -24,6 +24,8 @@ the commercial model enforceable.
 - Stripe `trialing` subscription status is also treated as allowed access.
 - The billing status API must return whether the tenant is `allowed`, `trialing`, and/or `blocked`.
 - The billing status API must include `trial_ends_at` for no-subscription trial tenants.
+- During active trial, the dashboard shows a value recap with sales count, collected amount,
+  active catalog count, active team count, closed shifts, and best sales day.
 - Trial expiry blocks paid write-heavy business flows until billing is recovered.
 - Owners can still open billing and start checkout when trial access has expired.
 - Read-only operational recovery remains available for receipts, reports, order history, and billing.
@@ -96,5 +98,6 @@ the commercial model enforceable.
 ## Acceptance Criteria
 
 - New tenants can use the POS during the trial without manual support intervention.
+- Trialing tenants can see what Kova has already captured for the business before activating billing.
 - Trial expiry produces a clear billing recovery state.
 - No tenant can use paid write flows indefinitely without trial, grace, or active subscription.

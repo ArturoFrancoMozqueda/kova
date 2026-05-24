@@ -51,6 +51,10 @@ Basic range reporting helps beta tenants understand daily sales and catch operat
 - Money calculations use Decimal.
 - Timestamps are stored in UTC.
 - Business storytelling date, day, daypart, and hour buckets use the tenant business profile timezone when configured and default to `America/Mexico_City`.
+- Frontend report presets and related product story date ranges must derive `today`,
+  `yesterday`, current month, and relative ranges from the tenant/default timezone, not
+  `Date.toISOString()` UTC slices. In Mexico City, after 18:00 local time, "Hoy" must still
+  request the local business date.
 
 ## Permissions
 
@@ -85,3 +89,5 @@ Basic range reporting helps beta tenants understand daily sales and catch operat
 - Sales by daypart is the primary time-of-day insight and hourly sales remains drill-down detail.
 - Recommended actions have a type of `opportunity`, `risk`, `good_signal`, or `operational_improvement`.
 - Recommended actions are specific to the period data and are omitted when no supporting data exists.
+- The Reports "Hoy" preset and ProductStoryCard 30-day ranges do not jump to tomorrow when UTC
+  has advanced but the tenant's local business day has not.

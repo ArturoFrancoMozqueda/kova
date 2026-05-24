@@ -2,15 +2,22 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import {
+  DEFAULT_TIMEZONE,
+  daysAgoInTimezone,
+  todayInTimezone,
+  yesterdayInTimezone,
+} from "@/i18n/date";
 import { formatMoney } from "@/orders/format";
-import { getSalesByHour, getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
+import { getBusinessStory, getSalesByHour, getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
 import { listProducts } from "@/catalog/api";
 import { listLowStock, listStock } from "@/inventory/api";
 import { getBillingSubscription } from "@/billing/api";
 import { getOnboardingState, type OnboardingState } from "@/onboarding/api";
-import { getBusinessProfile } from "@/settings/api";
+import { getBusinessProfile, listEmployees } from "@/settings/api";
+import { listClosedShifts } from "@/shifts/api";
 import type { BillingSubscription } from "@/billing/types";
-import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
+import type { BusinessStoryReport, SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
@@ -52,49 +59,16 @@ type LoadState =
       trackedInventoryCount: number;
       lowStockCount: number;
       lowStockItems: StockItem[];
+      activeCatalogCount: number;
+      activeEmployeeCount: number;
+      closedShiftCount: number;
       hasActiveSubscription: boolean;
       billing: BillingSubscription | null;
       onboarding: OnboardingState | null;
+      story: BusinessStoryReport | null;
       timezone: string;
       compareLabel: string;
     };
-
-const DEFAULT_TIMEZONE = "America/Mexico_City";
-
-// Returns YYYY-MM-DD for `now + days` in the given IANA timezone. Without this,
-// `toISOString()` reports UTC and at >=18:00 CDMX the dashboard would query
-// "tomorrow" for the operator who still sees today.
-function isoInTimezone(days: number, timezone: string = DEFAULT_TIMEZONE): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      timeZone: timezone,
-    }).formatToParts(d);
-    const year = parts.find((p) => p.type === "year")?.value;
-    const month = parts.find((p) => p.type === "month")?.value;
-    const day = parts.find((p) => p.type === "day")?.value;
-    if (year && month && day) return `${year}-${month}-${day}`;
-  } catch {
-    /* fall through to UTC slice */
-  }
-  return d.toISOString().slice(0, 10);
-}
-
-function todayISO(timezone?: string): string {
-  return isoInTimezone(0, timezone);
-}
-
-function yesterdayISO(timezone?: string): string {
-  return isoInTimezone(-1, timezone);
-}
-
-function isoOffset(days: number, timezone?: string): string {
-  return isoInTimezone(days, timezone);
-}
 
 type Period = "day" | "week" | "month";
 
@@ -105,24 +79,24 @@ type PeriodRange = {
 };
 
 function periodRanges(period: Period, timezone: string = DEFAULT_TIMEZONE): PeriodRange {
-  const today = todayISO(timezone);
+  const today = todayInTimezone(timezone);
   if (period === "day") {
     return {
       current: { start: today, end: today },
-      previous: { start: yesterdayISO(timezone), end: yesterdayISO(timezone) },
+      previous: { start: yesterdayInTimezone(timezone), end: yesterdayInTimezone(timezone) },
       compareLabel: copy.dashboard.vsYesterday,
     };
   }
   if (period === "week") {
     return {
-      current: { start: isoOffset(-6, timezone), end: today },
-      previous: { start: isoOffset(-13, timezone), end: isoOffset(-7, timezone) },
+      current: { start: daysAgoInTimezone(timezone, 6), end: today },
+      previous: { start: daysAgoInTimezone(timezone, 13), end: daysAgoInTimezone(timezone, 7) },
       compareLabel: copy.dashboard.vsLastWeek,
     };
   }
   return {
-    current: { start: isoOffset(-29, timezone), end: today },
-    previous: { start: isoOffset(-59, timezone), end: isoOffset(-30, timezone) },
+    current: { start: daysAgoInTimezone(timezone, 29), end: today },
+    previous: { start: daysAgoInTimezone(timezone, 59), end: daysAgoInTimezone(timezone, 30) },
     compareLabel: copy.dashboard.vsLastMonth,
   };
 }
@@ -405,7 +379,21 @@ export default function DashboardView() {
       const tz = profileEarly?.timezone || DEFAULT_TIMEZONE;
       const { current, previous, compareLabel } = periodRanges(selected, tz);
 
-      const [summary, payments, hourly, topProducts, productsResult, stock, lowStock, billing, onboarding, previousSummary] = await Promise.all([
+      const [
+        summary,
+        payments,
+        hourly,
+        topProducts,
+        productsResult,
+        stock,
+        lowStock,
+        billing,
+        onboarding,
+        previousSummary,
+        employees,
+        closedShifts,
+        story,
+      ] = await Promise.all([
         getSalesSummary(current.start, current.end),
         getPaymentBreakdown(current.start, current.end),
         getSalesByHour(current.start, current.end).catch(() => [] as SalesByHourRow[]),
@@ -416,6 +404,9 @@ export default function DashboardView() {
         getBillingSubscription().catch(() => null),
         getOnboardingState().catch(() => null),
         getSalesSummary(previous.start, previous.end).catch(() => null),
+        listEmployees().catch(() => [] as Awaited<ReturnType<typeof listEmployees>>),
+        listClosedShifts().catch(() => [] as Awaited<ReturnType<typeof listClosedShifts>>),
+        getBusinessStory(current.start, current.end).catch(() => null),
       ]);
       const profile = profileEarly;
 
@@ -432,9 +423,13 @@ export default function DashboardView() {
         trackedInventoryCount: stock.length,
         lowStockCount: lowStock.length,
         lowStockItems: lowStock,
+        activeCatalogCount: productsResult.filter((p) => p.is_active).length,
+        activeEmployeeCount: employees.filter((employee) => employee.is_active).length,
+        closedShiftCount: closedShifts.length,
         hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
         billing,
         onboarding,
+        story,
         timezone: profile?.timezone || DEFAULT_TIMEZONE,
         compareLabel,
       });
@@ -572,10 +567,14 @@ export default function DashboardView() {
             lowStock={loadState.lowStockItems}
           />
 
-          <UpgradeNudge
+          <TrialValueRecap
             billing={loadState.billing}
             orderCount={loadState.summary.order_count}
             netSales={loadState.summary.net_sales}
+            activeCatalogCount={loadState.activeCatalogCount}
+            activeEmployeeCount={loadState.activeEmployeeCount}
+            closedShiftCount={loadState.closedShiftCount}
+            story={loadState.story}
           />
 
           {/* KPI Cards */}
@@ -793,14 +792,22 @@ export default function DashboardView() {
   );
 }
 
-function UpgradeNudge({
+function TrialValueRecap({
   billing,
   orderCount,
   netSales,
+  activeCatalogCount,
+  activeEmployeeCount,
+  closedShiftCount,
+  story,
 }: {
   billing: BillingSubscription | null;
   orderCount: number;
   netSales: string;
+  activeCatalogCount: number;
+  activeEmployeeCount: number;
+  closedShiftCount: number;
+  story: BusinessStoryReport | null;
 }) {
   const access = billing?.access;
   const subscriptionStatus = billing?.subscription?.status;
@@ -808,27 +815,60 @@ function UpgradeNudge({
     access?.allowed &&
     (access.reason === "signup_trial" || access.reason === "trialing" || access.trialing) &&
     subscriptionStatus !== "active";
-  if (!isTrial || orderCount <= 0) return null;
+  if (!isTrial) return null;
+
+  const bestDay = bestTrialDay(story);
+  const metrics = [
+    { label: copy.dashboard.trialRecapSales, value: String(orderCount) },
+    { label: copy.dashboard.trialRecapCollected, value: formatMoney(netSales) },
+    { label: copy.dashboard.trialRecapCatalog, value: String(activeCatalogCount) },
+    { label: copy.dashboard.trialRecapEmployees, value: String(activeEmployeeCount) },
+    { label: copy.dashboard.trialRecapClosedShifts, value: String(closedShiftCount) },
+    { label: copy.dashboard.trialRecapBestDay, value: bestDay },
+  ];
 
   return (
     <Card className="border-kova-blue/20 bg-kova-blue/[0.04]">
-      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kova-blue/10 text-kova-blue">
-          <CreditCard className="h-5 w-5" />
+      <CardContent className="space-y-4 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kova-blue/10 text-kova-blue">
+            <CreditCard className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">{copy.dashboard.trialRecapTitle}</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              {copy.dashboard.trialRecapBody(formatMoney(netSales))}
+            </p>
+          </div>
+          <Link to="/settings/billing" className="shrink-0">
+            <Button size="sm">
+              {copy.dashboard.upgradeNudgeCta}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">{copy.dashboard.upgradeNudgeTitle(orderCount)}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {copy.dashboard.upgradeNudgeBody(formatMoney(netSales))}
-          </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {metrics.map((metric) => (
+            <div key={metric.label} className="rounded-lg border bg-white/70 p-3">
+              <p className="text-xs text-muted-foreground">{metric.label}</p>
+              <p className="mt-1 truncate text-sm font-semibold">{metric.value}</p>
+            </div>
+          ))}
         </div>
-        <Link to="/settings/billing" className="shrink-0">
-          <Button size="sm">
-            {copy.dashboard.upgradeNudgeCta}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
       </CardContent>
     </Card>
+  );
+}
+
+function bestTrialDay(story: BusinessStoryReport | null): string {
+  const best = [...(story?.sales_by_day ?? [])].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
+  if (!best || best.order_count === 0) return copy.dashboard.trialRecapNoBestDay;
+  return copy.dashboard.trialRecapBestDayValue(
+    new Date(`${best.date}T12:00:00`).toLocaleDateString("es-MX", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }),
+    formatMoney(best.net_sales),
   );
 }

@@ -154,6 +154,17 @@ export const copy = {
     upgradeNudgeBody: (amount: string) =>
       `Activa el plan para conservar ${amount} en ventas, tu catálogo, turnos y reportes.`,
     upgradeNudgeCta: "Activar plan",
+    trialRecapTitle: "Lo que Kova ya organizó en tu prueba",
+    trialRecapBody: (amount: string) =>
+      `Tu negocio ya tiene ${amount} registrados con datos listos para seguir operando.`,
+    trialRecapSales: "Ventas",
+    trialRecapCollected: "Cobrado",
+    trialRecapCatalog: "Productos activos",
+    trialRecapEmployees: "Equipo activo",
+    trialRecapClosedShifts: "Turnos cerrados",
+    trialRecapBestDay: "Mejor día",
+    trialRecapNoBestDay: "Sin ventas todavía",
+    trialRecapBestDayValue: (day: string, amount: string) => `${day} · ${amount}`,
     newSale: "Nueva venta",
     newSaleDesc: "Abrir caja",
     manageCatalog: "Gestionar catálogo",

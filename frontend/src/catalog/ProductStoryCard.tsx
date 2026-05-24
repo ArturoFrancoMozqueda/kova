@@ -13,6 +13,7 @@ import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
 import { getTopProducts } from "@/reports/api";
 import { listStock } from "@/inventory/api";
+import { daysAgoInTimezone, todayInTimezone } from "@/i18n/date";
 import type { Product } from "./types";
 import type { StockItem } from "@/inventory/types";
 import {
@@ -43,13 +44,11 @@ type LoadState =
     };
 
 function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return daysAgoInTimezone(undefined, days);
 }
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayInTimezone();
 }
 
 function pctRound(pct: number): number {

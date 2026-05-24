@@ -12,6 +12,11 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import {
+  currentMonthStartInTimezone,
+  daysAgoInTimezone,
+  todayInTimezone,
+} from "@/i18n/date";
 import { timezoneLabel } from "@/i18n/timezones";
 import { listLowStock, listVelocity } from "../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
@@ -55,10 +60,6 @@ type LoadState =
       velocity: InventoryVelocityItem[];
     };
 
-function today(): string {
-  return toISODate(new Date());
-}
-
 function toISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -87,12 +88,11 @@ function previousComparableRange(startDate: string, endDate: string) {
 }
 
 function currentMonthStart(): string {
-  const date = new Date();
-  return toISODate(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)));
+  return currentMonthStartInTimezone();
 }
 
 function lastSevenDaysStart(): string {
-  return addDays(today(), -6);
+  return daysAgoInTimezone(undefined, 6);
 }
 
 function dateLabel(value: string): string {
@@ -139,8 +139,8 @@ function chartCopy() {
 export default function ReportsView() {
   useDocumentTitle("Reportes");
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
-  const [startDate, setStartDate] = useState(today());
-  const [endDate, setEndDate] = useState(today());
+  const [startDate, setStartDate] = useState(todayInTimezone());
+  const [endDate, setEndDate] = useState(todayInTimezone());
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
 
   const load = useCallback(async () => {
@@ -184,17 +184,17 @@ export default function ReportsView() {
 
   const applyPreset = (preset: ReportPreset) => {
     if (preset === "today") {
-      setStartDate(today());
-      setEndDate(today());
+      setStartDate(todayInTimezone());
+      setEndDate(todayInTimezone());
       return;
     }
     if (preset === "seven_days") {
       setStartDate(lastSevenDaysStart());
-      setEndDate(today());
+      setEndDate(todayInTimezone());
       return;
     }
     setStartDate(currentMonthStart());
-    setEndDate(today());
+    setEndDate(todayInTimezone());
   };
 
   if (!canViewReports) {
@@ -238,8 +238,8 @@ export default function ReportsView() {
           lowStock={loadState.lowStock}
           velocity={loadState.velocity}
           onResetRange={() => {
-            setStartDate(today());
-            setEndDate(today());
+            setStartDate(todayInTimezone());
+            setEndDate(todayInTimezone());
           }}
         />
       ) : null}
@@ -250,7 +250,7 @@ export default function ReportsView() {
 type ReportPreset = "today" | "seven_days" | "month";
 
 function activePreset(startDate: string, endDate: string): ReportPreset | null {
-  const currentToday = today();
+  const currentToday = todayInTimezone();
   if (startDate === currentToday && endDate === currentToday) return "today";
   if (startDate === lastSevenDaysStart() && endDate === currentToday) return "seven_days";
   if (startDate === currentMonthStart() && endDate === currentToday) return "month";

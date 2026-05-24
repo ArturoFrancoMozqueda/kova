@@ -49,6 +49,12 @@ Feature: Sales reports
     Then the executive summary, decision brief, and timing detail all show afternoon as the strongest block
     And the peak hour shown belongs to the afternoon block
 
+  Scenario: Owner views today's report after Mexico City business close
+    Given an authenticated owner in the America/Mexico_City timezone
+    And UTC has advanced to the next calendar day while Mexico City is still on the prior business date
+    When the owner applies the Today preset on the reports page
+    Then the report requests the Mexico City business date, not the UTC date
+
   Scenario: Manager views an empty business story report
     Given an authenticated manager without completed sales
     When the manager requests the business story report
