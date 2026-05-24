@@ -3,7 +3,7 @@ zero (Sprint 5 BUG-002) and write a compensating adjustment movement so
 the next snapshot reads zero.
 
 We do NOT mutate historical movements — instead we insert a single
-`stock_adjustment` movement per affected product with the inverse delta
+`adjustment` movement per affected product with the inverse delta
 and a clear reason. Tenants get a per-tenant summary at the end.
 
 Idempotent: re-running after the first clamp is a no-op (no products
@@ -73,7 +73,7 @@ def main() -> int:
                          stock_on_hand_after, created_at)
                     VALUES
                         (gen_random_uuid(), :tenant_id, :product_id, NULL,
-                         'stock_adjustment', :delta,
+                         'adjustment', :delta,
                          'Sprint 5 BUG-002: clamp to 0', NULL, 0, NOW())
                     """,
                 ),

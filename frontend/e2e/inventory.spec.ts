@@ -53,6 +53,44 @@ const stockItems = [
   },
 ];
 
+test("inventory marks zero or negative tracked stock as sold out", async ({ page }) => {
+  await mockAuthAs(page, "owner");
+  const depletedStock = [
+    {
+      ...stockItem,
+      product_name: "Agua mineral",
+      stock_on_hand: -1,
+      is_low_stock: true,
+    },
+  ];
+
+  await page.route("**/api/v1/inventory/stock", async (route) => {
+    await route.fulfill({ json: depletedStock });
+  });
+  await page.route("**/api/v1/inventory/low-stock", async (route) => {
+    await route.fulfill({ json: depletedStock });
+  });
+  await page.route("**/api/v1/inventory/velocity", async (route) => {
+    await route.fulfill({
+      json: [
+        {
+          product_id: "product-1",
+          product_name: "Agua mineral",
+          stock_on_hand: -1,
+          units_per_day_7d: "1.00",
+          days_until_out: "0",
+        },
+      ],
+    });
+  });
+
+  await page.goto("/inventory");
+  await expect(page.getByRole("heading", { name: "Agua mineral" })).toBeVisible();
+  await expect(page.getByText("Agotado", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ya agotado")).toBeVisible();
+  await expect(page.getByText("Bajo", { exact: true })).not.toBeVisible();
+});
+
 test("inventory page supports adjustment, stock take, and threshold UI", async ({ page }) => {
   await mockAuthAs(page, "owner");
   let stock = [stockItem];
