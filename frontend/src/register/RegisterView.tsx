@@ -100,6 +100,12 @@ function centsToMoney(cents: number): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "select" || tag === "textarea" || target.isContentEditable;
+}
+
 const paymentMethodOptions: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
   { value: "cash", label: copy.register.cash, icon: <Banknote className="h-5 w-5" /> },
   { value: "bank_transfer", label: copy.register.bankTransfer, icon: <Building2 className="h-5 w-5" /> },
@@ -125,6 +131,9 @@ export default function RegisterView() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const skuInputRef = useRef<HTMLInputElement | null>(null);
+  const cashTenderedRef = useRef<HTMLInputElement | null>(null);
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const successPrimaryRef = useRef<HTMLButtonElement | null>(null);
 
@@ -275,6 +284,36 @@ export default function RegisterView() {
     cartItems.length > 0 &&
     (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
     !submitting;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (completedOrder || isEditableTarget(event.target)) return;
+      if (event.key === "/" && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        skuInputRef.current?.focus();
+        return;
+      }
+      if (event.key === "F2") {
+        event.preventDefault();
+        paymentSectionRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+        cashTenderedRef.current?.focus();
+        return;
+      }
+      if (event.altKey && !event.ctrlKey && !event.metaKey) {
+        if (event.key === "1" || event.key === "2" || event.key === "3") {
+          event.preventDefault();
+          setSplitPaymentsEnabled(false);
+          setPaymentMethod(event.key === "1" ? "cash" : event.key === "2" ? "bank_transfer" : "manual_card");
+        }
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && canSubmitSale) {
+        event.preventDefault();
+        formRef.current?.requestSubmit();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canSubmitSale, completedOrder]);
 
   const addProduct = (product: Product) => {
     if ((product.modifier_groups ?? []).length > 0) {
@@ -532,6 +571,7 @@ export default function RegisterView() {
             <div className="relative mt-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
+                ref={skuInputRef}
                 type="text"
                 value={skuQuery}
                 onChange={(e) => handleSkuChange(e.target.value)}
@@ -850,7 +890,7 @@ export default function RegisterView() {
 
           {/* Payment section */}
           <Card>
-            <form onSubmit={(event) => void submitSale(event)}>
+            <form ref={formRef} onSubmit={(event) => void submitSale(event)}>
               <CardContent className="p-4 space-y-4">
                 {/* Total */}
                 <div className="flex items-center justify-between py-2 border-b">
@@ -1009,6 +1049,7 @@ export default function RegisterView() {
                       <div className="space-y-2">
                         <Label htmlFor="cashTendered">{copy.register.amountTendered}</Label>
                         <Input
+                          ref={cashTenderedRef}
                           id="cashTendered"
                           min="0"
                           step="0.01"

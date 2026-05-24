@@ -23,6 +23,9 @@ Cash sales are the first transaction path in the north star flow and the smalles
 - Cash payment amount tendered must be greater than or equal to the order total.
 - Cash change due is computed as `amount_tendered - total`.
 - Completed orders are immutable in Sprint 2.
+- Register supports basic cashier hotkeys: `/` focuses product/SKU search, `Alt+1/2/3`
+  selects cash/transfer/manual card, `F2` focuses the payment section, and `Ctrl+Enter`
+  or `Cmd+Enter` submits a valid sale.
 
 ## Non-Functional Requirements
 
@@ -74,6 +77,8 @@ Cash sales are the first transaction path in the north star flow and the smalles
 ## Acceptance Criteria
 
 - A cashier can create an order with a cash payment.
+- A cashier can operate the common sale path with keyboard shortcuts without triggering hotkeys
+  while typing in inputs/selects/textareas.
 - The order total is calculated from server-side product prices.
 - The response includes order items, payment, total, and change due.
 - Tenant B cannot read Tenant A's order.
