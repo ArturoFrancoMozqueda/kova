@@ -232,6 +232,19 @@ def reconciliation_status_is(close_context, status):
     assert close_context["closed_shift"]["reconciliation_status"] == status
 
 
+_RECONCILIATION_UI_LABELS = {
+    "balanced": "Caja cuadrada",
+    "overage": "Sobrante",
+    "shortage": "Faltante",
+}
+
+
+@then(parsers.parse('the UI shows the reconciliation status as "{label}"'))
+def ui_reconciliation_label(close_context, label):
+    status = close_context["closed_shift"]["reconciliation_status"]
+    assert _RECONCILIATION_UI_LABELS[status] == label
+
+
 @then(parsers.parse('the variance amount is "{variance}"'))
 def variance_amount_is(close_context, variance):
     actual = close_context["closed_shift"]["variance_amount"]
