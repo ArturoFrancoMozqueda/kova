@@ -17,8 +17,16 @@
   ],
   "rewrites": [
     {
-      "source": "/api/v1/(.*)",
-      "destination": "https://pos-project-backend.fly.dev/api/v1/$1"
+      "source": "/api/health",
+      "destination": "https://api.kovasuite.com/health"
+    },
+    {
+      "source": "/api/health/db",
+      "destination": "https://api.kovasuite.com/health/db"
+    },
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://api.kovasuite.com/api/v1/:path*"
     },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
