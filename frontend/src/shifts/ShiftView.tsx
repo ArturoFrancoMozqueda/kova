@@ -17,7 +17,13 @@ import { CashMovementModal } from "./CashMovementModal";
 import { CloseShiftModal } from "./CloseShiftModal";
 import { OpenShiftModal } from "./OpenShiftModal";
 import type { CashMovementPayload, Shift, ShiftClosePayload, ShiftOpenPayload } from "./types";
-import { formatDateTime } from "../orders/format";
+import {
+  formatShiftDateTime,
+  isPositiveCashMovement,
+  localizeMovementReason,
+  localizeMovementType,
+  localizeReconciliationStatus,
+} from "./format";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -193,7 +199,7 @@ export default function ShiftView() {
                   {copy.shiftView.openedAt}
                 </p>
                 <p className="text-sm font-medium mt-1">
-                  {formatDateTime(currentShift.opened_at)}
+                  {formatShiftDateTime(currentShift.opened_at)}
                 </p>
               </div>
               {currentShift.opening_cash_amount && (
@@ -257,17 +263,17 @@ export default function ShiftView() {
                       key={m.id}
                       className="flex items-center gap-3 rounded-lg border p-3"
                     >
-                      {m.type === "cash_in" ? (
+                      {isPositiveCashMovement(m.type) ? (
                         <ArrowUpCircle className="h-4 w-4 shrink-0 text-kova-growth" />
                       ) : (
                         <ArrowDownCircle className="h-4 w-4 shrink-0 text-destructive" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-muted-foreground uppercase">
-                          {copy.shiftView.movementTypeLabel(m.type)}
+                          {localizeMovementType(m.type)}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {copy.shiftView.movementReasonLabel(m.reason)}
+                          {localizeMovementReason(m.reason)}
                         </p>
                       </div>
                       <span className="text-sm font-semibold tabular-nums">
@@ -357,10 +363,10 @@ export default function ShiftView() {
                       className="border-b last:border-0 hover:bg-muted/50 transition-colors"
                     >
                       <td className="py-3 px-4">
-                        {formatDateTime(shift.opened_at)}
+                        {formatShiftDateTime(shift.opened_at)}
                       </td>
                       <td className="py-3 px-4">
-                        {shift.closed_at ? formatDateTime(shift.closed_at) : "-"}
+                        {shift.closed_at ? formatShiftDateTime(shift.closed_at) : "-"}
                       </td>
                       <td className="py-3 px-4">
                         {shift.reconciliation_status ? (
@@ -371,7 +377,7 @@ export default function ShiftView() {
                                 : "warning"
                             }
                           >
-                            {copy.shiftView.reconStatusLabel(shift.reconciliation_status)}
+                            {localizeReconciliationStatus(shift.reconciliation_status)}
                           </Badge>
                         ) : (
                           <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>

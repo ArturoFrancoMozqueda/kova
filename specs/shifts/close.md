@@ -73,6 +73,8 @@ Shift closure captures the actual cash in the register, reconciles it against sy
 - A cashier can close an open shift by providing actual cash count.
 - System calculates expected cash correctly.
 - Reconciliation status (`balanced`, `overage`, `shortage`) is determined correctly.
+- The UI renders reconciliation status in business Spanish (`Caja cuadrada`, `Sobrante`,
+  `Faltante`) and never displays raw backend enum values.
 - Variance amount is recorded.
 - Tenant B cannot close Tenant A's shifts.
 - Duplicate close request with same key returns same response.

@@ -535,23 +535,9 @@ export const copy = {
     badgeClosed: "Cerrado",
     totalCashIn: "Movimientos",
     expectedCashShort: "Efectivo esperado",
-    movementTypeLabel: (type: string) => {
-      const normalized = type?.toString().toLowerCase();
-      if (normalized === "opening_balance") return "Apertura de caja";
-      if (normalized === "cash_in") return "Entrada de efectivo";
-      if (normalized === "cash_out") return "Salida de efectivo";
-      return type;
-    },
-    movementReasonLabel: (reason: string) => {
-      const normalized = reason?.toString().toLowerCase();
-      if (normalized === "opening balance" || normalized === "opening_balance") {
-        return "Saldo inicial";
-      }
-      return reason;
-    },
     reconStatusLabel: (status: "balanced" | "overage" | "shortage" | null) =>
       status === "balanced"
-        ? "Balanceado"
+        ? "Caja cuadrada"
         : status === "overage"
           ? "Sobrante"
           : status === "shortage"

@@ -5,6 +5,7 @@ Feature: Close a shift with reconciliation
     When the cashier closes the shift with actual cash "1050.00"
     Then the shift is closed successfully
     And the reconciliation status is "balanced"
+    And the UI shows the reconciliation status as "Caja cuadrada"
     And the variance amount is "0.00"
     And the shift appears in the audit log
 
