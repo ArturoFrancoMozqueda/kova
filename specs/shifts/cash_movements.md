@@ -18,7 +18,8 @@ Cash movements create a complete audit trail of all cash in/out events, enabling
 
 - Only managers and owners with `shifts.open` (or similar) can create cash movements.
 - Cash movements are tied to an open shift.
-- Movement types: `opening_balance`, `cash_in` (customer deposit), `cash_out` (removal), `cash_refund` (from refunded sale).
+- Movement types: `opening_balance`, `cash_in` (customer deposit), `cash_out` (removal), `refund_payout` (cash returned on a refunded sale).
+- Automatic refund payouts are stored as `refund_payout` and subtract from expected cash.
 - Each movement records: shift ID, type, amount, reason/reference, created by user, created at.
 - Cash movements are immutable (no edits after creation).
 - All cash movements in a shift contribute to the expected cash calculation at close.
@@ -65,6 +66,10 @@ Cash movements create a complete audit trail of all cash in/out events, enabling
 - A manager can record cash in/out during an open shift.
 - Cash movements are recorded with type, amount, and reason.
 - Opening balance movement is created when shift is opened with opening cash.
+- The UI renders movement types and reasons in business Spanish (`Apertura de caja`,
+  `Entrada de efectivo`, `Salida de efectivo`, `Saldo inicial`) and never displays raw enum
+  codes like `OPENING_BALANCE`.
 - Tenant B cannot create movements in Tenant A's shift.
 - Cash movements appear in shift reconciliation calculations.
+- Refund payout movements appear in shift reconciliation calculations and cannot be manually created from the cash movement modal.
 - Closed shifts prevent new cash movements.

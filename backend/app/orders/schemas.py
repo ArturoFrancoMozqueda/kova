@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -140,6 +141,7 @@ class RefundItemCreate(BaseModel):
 class RefundCreate(BaseModel):
     items: list[RefundItemCreate] = Field(min_length=1)
     reason: str = Field(pattern="^(customer_return|defective|wrong_item|other)$")
+    refund_payment_method: Literal["cash", "bank_transfer", "manual_card"] | None = None
 
 
 class RefundItemResponse(BaseModel):

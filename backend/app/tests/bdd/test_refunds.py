@@ -50,6 +50,14 @@ def test_tenant_isolation_refund():
     pass
 
 
+@scenario(
+    "../../../../specs/orders/refund.feature",
+    "Cash refund affects active shift reconciliation",
+)
+def test_cash_refund_affects_active_shift_reconciliation():
+    pass
+
+
 def _signup_verify_login(client, email: str, tenant_name: str) -> dict:
     response = client.post(
         "/api/v1/auth/signup",
@@ -128,6 +136,30 @@ def manager_with_order(client):
     return {"client": client, "order": order, "products": products}
 
 
+@given(
+    "an authenticated manager with an open shift and a completed cash order",
+    target_fixture="refund_context",
+)
+def manager_with_open_shift_and_cash_order(client):
+    suffix = uuid4().hex
+    _signup_verify_login(
+        client, f"refund-shift-manager-{suffix}@example.com", "Refund Shift Tenant"
+    )
+    shift_response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"refund-shift-open-{suffix}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert shift_response.status_code == 201, shift_response.text
+    products, order = _create_two_item_order(client)
+    return {
+        "client": client,
+        "order": order,
+        "products": products,
+        "shift": shift_response.json(),
+    }
+
+
 @given("an authenticated manager with a voided order", target_fixture="refund_context")
 def manager_with_voided_order(client):
     suffix = uuid4().hex
@@ -184,6 +216,16 @@ def refund_multiple_items(refund_context, reason):
         {"order_item_id": item["id"], "quantity": 1} for item in refund_context["order"]["items"]
     ]
     _post_refund(refund_context, items, reason)
+
+
+@when(parsers.parse('the manager refunds one item in cash with reason "{reason}"'))
+def refund_one_item_in_cash(refund_context, reason):
+    _post_refund(
+        refund_context,
+        [{"order_item_id": refund_context["order"]["items"][0]["id"], "quantity": 1}],
+        reason,
+        refund_payment_method="cash",
+    )
 
 
 @when("the manager attempts to refund more items than ordered")
@@ -254,12 +296,16 @@ def _post_refund(
     reason: str,
     *,
     key: str | None = None,
+    refund_payment_method: str | None = None,
 ) -> None:
     order = refund_context["order"]
+    payload = {"items": items, "reason": reason}
+    if refund_payment_method:
+        payload["refund_payment_method"] = refund_payment_method
     response = refund_context["client"].post(
         f"/api/v1/orders/{order['id']}/refunds",
         headers={"Idempotency-Key": key or f"refund-{uuid4().hex}"},
-        json={"items": items, "reason": reason},
+        json=payload,
     )
     refund_context["refund_response"] = response
     refund_context["refund"] = response.json() if response.status_code == 201 else None
@@ -290,6 +336,31 @@ def inventory_restored_for_all_items(refund_context):
 @then("the refund appears in the audit log")
 def refund_in_audit_log(refund_context):
     assert refund_context["refund"] is not None
+
+
+@then("a refund payout cash movement is recorded")
+def refund_payout_cash_movement_recorded(refund_context):
+    response = refund_context["client"].get(f"/api/v1/shifts/{refund_context['shift']['id']}")
+    assert response.status_code == 200, response.text
+    shift = response.json()
+    payout = [m for m in shift["movements"] if m["type"] == "refund_payout"]
+    assert len(payout) == 1
+    assert Decimal(payout[0]["amount"]) == Decimal(refund_context["refund"]["refunded_amount"])
+
+
+@then("shift reconciliation subtracts the refund payout")
+def shift_reconciliation_subtracts_refund_payout(refund_context):
+    refund_amount = Decimal(refund_context["refund"]["refunded_amount"])
+    actual_cash = Decimal("100.00") - refund_amount
+    response = refund_context["client"].post(
+        f"/api/v1/shifts/{refund_context['shift']['id']}/close",
+        headers={"Idempotency-Key": f"refund-shift-close-{uuid4().hex}"},
+        json={"actual_cash_amount": str(actual_cash)},
+    )
+    assert response.status_code == 201, response.text
+    closed_shift = response.json()
+    assert Decimal(closed_shift["expected_cash_amount"]) == actual_cash
+    assert closed_shift["reconciliation_status"] == "balanced"
 
 
 @then("the refund amount is calculated correctly")

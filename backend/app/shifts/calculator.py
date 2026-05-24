@@ -12,7 +12,7 @@ def calculate_expected_cash(
     """
     Calculate expected cash amount based on shift movements.
 
-    Expected = sum(opening_balance) + sum(cash_in) - sum(cash_out)
+    Expected = sum(opening_balance) + sum(cash_in) - sum(cash_out) - sum(refund_payout)
     """
     from uuid import UUID
 
@@ -20,9 +20,10 @@ def calculate_expected_cash(
 
     cash_in = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="cash_in")
     cash_out = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="cash_out")
+    refund_payout = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="refund_payout")
     opening = repo.get_cash_movement_sum(db, shift_id=shift_uuid, type="opening_balance")
 
-    expected = money_calc.money(opening + cash_in - cash_out)
+    expected = money_calc.money(opening + cash_in - cash_out - refund_payout)
     return expected
 
 

@@ -16,9 +16,11 @@ type RefundModalProps = {
 };
 
 const refundReasons = ["customer_return", "defective", "wrong_item", "other"];
+const refundPaymentMethods = ["cash", "bank_transfer", "manual_card"] as const;
 
 export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModalProps) {
   const [reason, setReason] = useState(refundReasons[0]);
+  const [refundPaymentMethod, setRefundPaymentMethod] = useState<(typeof refundPaymentMethods)[number]>("cash");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const selectedItems = useMemo(
@@ -50,6 +52,22 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
             {refundReasons.map((option) => (
               <option key={option} value={option}>
                 {copy.refundModal.reasons[option as keyof typeof copy.refundModal.reasons]}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>{copy.refundModal.refundPaymentMethod}</Label>
+          <Select
+            value={refundPaymentMethod}
+            onChange={(event) =>
+              setRefundPaymentMethod(event.target.value as (typeof refundPaymentMethods)[number])
+            }
+          >
+            {refundPaymentMethods.map((option) => (
+              <option key={option} value={option}>
+                {copy.refundModal.paymentMethods[option]}
               </option>
             ))}
           </Select>
@@ -90,7 +108,7 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
         <Button variant="outline" onClick={onCancel}>{copy.refundModal.cancel}</Button>
         <Button
           disabled={!canSubmit}
-          onClick={() => onSubmit({ reason, items: selectedItems })}
+          onClick={() => onSubmit({ reason, refund_payment_method: refundPaymentMethod, items: selectedItems })}
         >
           {copy.refundModal.submit}
         </Button>

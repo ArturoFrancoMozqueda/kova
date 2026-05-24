@@ -484,9 +484,15 @@ export const copy = {
   refundModal: {
     title: "Devolver productos",
     reason: "Motivo",
+    refundPaymentMethod: "Dinero devuelto por",
     quantity: "Cantidad",
     submit: "Registrar devolución",
     cancel: "Cancelar",
+    paymentMethods: {
+      cash: "Efectivo",
+      bank_transfer: "Transferencia",
+      manual_card: "Tarjeta manual",
+    },
     reasons: {
       customer_return: "Devolución de cliente",
       defective: "Defectuoso",

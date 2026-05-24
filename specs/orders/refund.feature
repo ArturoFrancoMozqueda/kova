@@ -7,6 +7,13 @@ Feature: Refund items from a completed order
     And the refunded inventory is restored
     And the refund appears in the audit log
 
+  Scenario: Cash refund affects active shift reconciliation
+    Given an authenticated manager with an open shift and a completed cash order
+    When the manager refunds one item in cash with reason "customer_return"
+    Then the refund is created successfully
+    And a refund payout cash movement is recorded
+    And shift reconciliation subtracts the refund payout
+
   Scenario: Manager refunds multiple items from an order
     Given an authenticated manager with a completed order
     When the manager refunds multiple items with reason "defective"

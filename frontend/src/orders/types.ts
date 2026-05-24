@@ -91,6 +91,7 @@ export type Receipt = {
 
 export type RefundPayload = {
   reason: string;
+  refund_payment_method: "cash" | "bank_transfer" | "manual_card";
   items: Array<{ order_item_id: string; quantity: number }>;
 };
 

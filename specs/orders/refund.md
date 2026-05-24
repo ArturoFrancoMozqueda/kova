@@ -18,6 +18,7 @@ Refunds are core POS operational correctness: returning inventory, crediting cus
 
 - Authenticated users with `orders.refund` can create a refund for an order in their tenant.
 - A refund specifies which order items to refund and the quantity per item.
+- A refund specifies how money was returned to the customer: cash, bank transfer, or manual card.
 - Refund amount is calculated from the refunded item line totals (quantity × unit price).
 - A refund can be partial (some items/quantities) or full (all items).
 - Refund reason is required (e.g., `customer_return`, `defective`, `wrong_item`, `other`).
@@ -27,11 +28,13 @@ Refunds are core POS operational correctness: returning inventory, crediting cus
 - A refund cannot be created for an order that is already voided.
 - Multiple refunds are allowed on the same order until full order quantity is consumed.
 - Completed refunds are immutable.
+- Cash refunds require an open shift and create a `refund_payout` cash movement for the refunded amount.
 
 ## Non-Functional Requirements
 
 - Store money as database decimal/numeric values.
 - Do not use floats in refund calculations.
+- Cash refunds affect shift expected cash as a subtraction from the drawer.
 - Store timestamps in UTC.
 - Every refund and refund item includes `tenant_id`.
 - Every query is scoped by tenant in the service/repository layer.
@@ -51,6 +54,7 @@ Refunds are core POS operational correctness: returning inventory, crediting cus
 ## Audit Log Behavior
 
 - Successful refund creation writes `orders.refund`.
+- Cash refund creation also writes `shifts.cash_movement` for the automatic `refund_payout`.
 - Refund includes reason and refunded amount.
 
 ## Offline Impact
@@ -69,6 +73,7 @@ Refunds are core POS operational correctness: returning inventory, crediting cus
 - Refund exceeds remaining quantity for an item returns `400`.
 - Order is voided returns `400`.
 - Invalid refund reason returns `400`.
+- Cash refund without an open shift returns `400` with a recovery message to open a shift first.
 
 ## Data Model Impact
 
@@ -85,7 +90,9 @@ Refunds are core POS operational correctness: returning inventory, crediting cus
 ## Acceptance Criteria
 
 - A manager can refund one or more items from a completed order.
+- A manager chooses how money was returned before submitting the refund.
 - Refund amount is correctly calculated from refunded items.
+- Cash refunds appear as `refund_payout` movements on the active shift.
 - Inventory is reversed by the refunded quantity.
 - Tenant B cannot refund Tenant A's orders.
 - Duplicate idempotent refund with same key returns same response.

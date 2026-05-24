@@ -17,6 +17,7 @@ from app.orders.models import Order, Payment
 from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
 from app.pricing import calculator
 from app.shared.exceptions import bad_request, not_found
+from app.shifts import repository as shifts_repo
 from app.tenants import repository as tenant_repo
 
 
@@ -425,6 +426,12 @@ def create_refund(
         refund_lines.append((order_item, refund_item.quantity, line_total))
         total_refunded = calculator.money(total_refunded + line_total)
 
+    cash_refund_shift = None
+    if body.refund_payment_method == "cash":
+        cash_refund_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
+        if not cash_refund_shift:
+            raise bad_request("Open a shift before refunding cash from the drawer")
+
     refund = repo.create_refund(
         db,
         tenant_id=tenant_id,
@@ -471,6 +478,35 @@ def create_refund(
         ],
         "created_at": refund.created_at.isoformat(),
     }
+
+    if cash_refund_shift:
+        movement = shifts_repo.create_cash_movement(
+            db,
+            tenant_id=tenant_id,
+            shift_id=cash_refund_shift.id,
+            type="refund_payout",
+            amount=total_refunded,
+            reason="refund_payout",
+            user_id=user_id,
+        )
+        audit_service.log(
+            db,
+            action="shifts.cash_movement",
+            tenant_id=tenant_id,
+            user_id=user_id,
+            resource_type="cash_movement",
+            resource_id=movement.id,
+            changes={
+                "id": str(movement.id),
+                "shift_id": str(movement.shift_id),
+                "type": movement.type,
+                "amount": str(movement.amount),
+                "reason": movement.reason,
+                "refund_id": str(refund.id),
+                "order_id": str(order_id),
+                "created_at": movement.created_at.isoformat(),
+            },
+        )
 
     audit_service.log(
         db,
