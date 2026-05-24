@@ -134,7 +134,7 @@ Record the production run here after execution:
 
 | Date | Operator | Script | Dry-run result | Apply result | Rollback / recovery note |
 |---|---|---|---|---|---|
-| 2026-05-24 | Codex via Fly SSH | `clamp_negative_stock.py` | 2 products for tenant `549477db-0192-49d0-a041-861b750c4215`: `Agua mineral`, `Galleta New York` at `-1`. | Blocked: production image used invalid `movement_type='stock_adjustment'`; script fixed in repo to use `adjustment`, but production image must be updated before apply. | Inserts compensating `adjustment` rows; recover by inserting inverse adjustment if needed. |
+| 2026-05-24 | Codex via Fly SSH | `clamp_negative_stock.py` | Initial dry-run found 2 products for tenant `549477db-0192-49d0-a041-861b750c4215`: `Agua mineral`, `Galleta New York` at `-1`. Post-deploy dry-run of corrected script returned no negative stock. | No apply needed after post-deploy verification; database already had no negative stock remaining. | Inserts compensating `adjustment` rows when needed; recover by inserting inverse adjustment if needed. |
 | 2026-05-24 | Codex via Fly SSH | `fix_category_accents.py` | 2 rows: `Cafe caliente -> Café caliente`, `Bebidas frias -> Bebidas frías`. | Applied: updated 2 rows. Follow-up dry-run: no rows matched. | Updates exact known category names only; recover by renaming rows back if needed. |
 | 2026-05-24 | Codex via Fly SSH | `backfill_skus.py` | 3 SKUs for tenant `549477db-0192-49d0-a041-861b750c4215`. | Applied: assigned 3 SKUs. Follow-up dry-run: no products needed a SKU. | Assigns missing SKUs only; recover by clearing affected generated SKUs if needed. |
 

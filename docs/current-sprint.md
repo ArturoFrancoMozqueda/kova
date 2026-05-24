@@ -23,23 +23,22 @@ Kova Audit Sprint 6: Trust Lock + Day-1 Operations.
 Goal: make the product safe to charge for in controlled paid beta by removing the trust-breaking
 issues a cafe owner will discover in the first 1-7 days of real usage.
 
-Next unblocked implementation target: deploy/run the corrected stock clamp script and resolve
-blocked backend BDD verification for KOV-S6-06. All other Sprint 6 product items are closed.
+Next unblocked implementation target: Sprint 6 product work is closed. Remaining work is parallel
+ops gates before broad selling.
 
 Must-fix before Stripe live broad selling:
 
 - [x] KOV-S6-01: Timezone-safe date defaults in Reports, ProductStoryCard, and order/report filters.
 - [x] KOV-S6-02: Localize `/shifts` enum labels and date/time formatting.
-- [ ] KOV-S6-03: Run and document production hygiene scripts:
+- [x] KOV-S6-03: Run and document production hygiene scripts:
       `clamp_negative_stock.py`, `fix_category_accents.py`, and `backfill_skus.py`.
       `fix_category_accents.py` and `backfill_skus.py` applied on Fly production.
-      `clamp_negative_stock.py` dry-run found 2 products, but apply is blocked until the
-      corrected script (`movement_type='adjustment'`) is available in the production image.
+      `clamp_negative_stock.py` post-deploy dry-run found no remaining negative stock.
       Runbook/results recorded in `docs/deployment.md`.
 - [x] KOV-S6-04: Inventory renders `Agotado` for tracked stock `<= 0`.
 - [x] KOV-S6-05: Reprint real receipts from order detail with a shared receipt component.
-- [ ] KOV-S6-06: Cash refunds generate a shift cash movement and affect reconciliation.
-      Implementation complete; backend BDD blocked locally because Postgres is not reachable.
+- [x] KOV-S6-06: Cash refunds generate a shift cash movement and affect reconciliation.
+      Implementation verified by successful CI backend workflow after merge.
 - [x] KOV-S6-07: TrialValueRecap shows concrete value delivered during trial.
 - [x] KOV-S6-08: Dashboard insight comparison labels follow the selected period.
 - [x] KOV-S6-09: Business-story recommended actions dedupe before the cap.
@@ -96,9 +95,12 @@ Parallel ops gates:
       clamp found 2 negative-stock products; category accents found 2 rows; SKU backfill found 3 products.
 - [x] 2026-05-24 KOV-S6-03 Fly production applies:
       `fix_category_accents.py` updated 2 rows and `backfill_skus.py` assigned 3 SKUs.
-- [ ] 2026-05-24 KOV-S6-03 remaining apply:
-      `clamp_negative_stock.py` apply blocked because production image still used invalid
-      `movement_type='stock_adjustment'`; repo script fixed to use `adjustment`.
+- [x] 2026-05-24 KOV-S6-03 remaining apply:
+      No apply needed after corrected post-deploy dry-run; negative-stock set was already empty.
+- [x] 2026-05-24 KOV-S6-03 post-deploy Fly verification:
+      `clamp_negative_stock.py --dry-run` returned `No products had negative stock. Nothing to do.`
+- [x] 2026-05-24 KOV-S6-06 CI verification:
+      GitHub workflow completed successfully after merge, covering backend BDD with Postgres.
 
 ## Completed From Kova Audit Sprint 1: Trust, Clarity, and Conversion
 
