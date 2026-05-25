@@ -59,4 +59,26 @@ def db(apply_migrations):  # noqa: ARG001
 
 @pytest.fixture
 def client(db):
-    return TestClient(fastapi_app, raise_server_exceptions=True)
+    test_client = TestClient(fastapi_app, raise_server_exceptions=True)
+
+    # Auto-echo the CSRF cookie into the X-CSRF-Token header for state-changing
+    # requests. Real browsers don't do this — our SPA wires it explicitly — but
+    # in tests we want existing POST/PUT/PATCH/DELETE specs to keep working
+    # without rewriting every call site. Negative CSRF tests construct their
+    # own TestClient or pass `headers={"x-csrf-token": "..."}` explicitly to
+    # override.
+    original_request = test_client.request
+    unsafe_methods = {"POST", "PUT", "PATCH", "DELETE"}
+
+    def request_with_csrf(method, url, **kwargs):
+        if method.upper() in unsafe_methods:
+            token = test_client.cookies.get("csrf_token")
+            if token:
+                headers = dict(kwargs.get("headers") or {})
+                if not any(k.lower() == "x-csrf-token" for k in headers):
+                    headers["x-csrf-token"] = token
+                kwargs["headers"] = headers
+        return original_request(method, url, **kwargs)
+
+    test_client.request = request_with_csrf  # type: ignore[method-assign]
+    return test_client

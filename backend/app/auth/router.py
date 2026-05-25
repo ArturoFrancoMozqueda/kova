@@ -15,6 +15,7 @@ from app.auth.schemas import (
 )
 from app.config import settings
 from app.db import get_db
+from app.middleware.csrf import clear_csrf_cookie, set_csrf_cookie
 from app.middleware.rate_limit import rate_limit
 from app.shared.dependencies import get_current_session
 
@@ -33,11 +34,13 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
         httponly=True, secure=secure, samesite="lax",
         max_age=settings.refresh_token_ttl_seconds, path="/api/v1/auth",
     )
+    set_csrf_cookie(response)
 
 
 def _clear_auth_cookies(response: Response) -> None:
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/api/v1/auth")
+    clear_csrf_cookie(response)
 
 
 @router.post(
@@ -145,13 +148,22 @@ def me(db: Session = Depends(get_db), ctx=Depends(get_current_session)):
 
 
 @router.get("/session", response_model=SessionProbeResponse)
-def session_probe(request: Request, db: Session = Depends(get_db)):
+def session_probe(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     try:
         user, membership, _ = get_current_session(request, db)
     except HTTPException as exc:
         if exc.status_code in {401, 403}:
             return SessionProbeResponse(authenticated=False)
         raise
+
+    # Lazily issue a CSRF token for authenticated sessions that don't have one
+    # yet (e.g. users whose session predates the CSRF rollout).
+    if not request.cookies.get("csrf_token"):
+        set_csrf_cookie(response)
 
     me_response = service.get_me(db, user=user, membership=membership)
     return SessionProbeResponse(

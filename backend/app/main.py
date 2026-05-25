@@ -11,6 +11,7 @@ from app.config import settings
 from app.employees.router import router as employees_router
 from app.health.router import router as health_router
 from app.inventory.router import router as inventory_router
+from app.middleware.csrf import csrf_middleware
 from app.middleware.security_headers import security_headers_middleware
 from app.modifiers.router import router as modifiers_router
 from app.observability.logging import configure_logging, request_context_middleware
@@ -52,9 +53,15 @@ def create_app() -> FastAPI:
         allow_origins=[settings.frontend_url],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Content-Type", "Idempotency-Key", "X-Internal-Key"],
+        allow_headers=[
+            "Content-Type",
+            "Idempotency-Key",
+            "X-Internal-Key",
+            "X-CSRF-Token",
+        ],
     )
     app.middleware("http")(security_headers_middleware)
+    app.middleware("http")(csrf_middleware)
     app.middleware("http")(request_context_middleware)
 
     app.include_router(health_router)
