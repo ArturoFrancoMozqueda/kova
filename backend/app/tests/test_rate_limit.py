@@ -10,11 +10,8 @@ call when validating the wrapper logic.
 import time
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.config import settings
 from app.middleware import rate_limit as rl
-
 
 # ── In-memory backend ──────────────────────────────────────────────────────
 

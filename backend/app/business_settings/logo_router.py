@@ -7,10 +7,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
-from app.middleware.rate_limit import rate_limit
 from app.auth.models import Membership, User, UserSession
 from app.business_settings.models import ReceiptSettings, TenantLogoFile
 from app.db import get_db
+from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.dependencies import require_permission
 from app.shared.exceptions import bad_request, not_found
