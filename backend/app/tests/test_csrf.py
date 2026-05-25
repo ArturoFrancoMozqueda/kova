@@ -28,7 +28,9 @@ def _login(c: TestClient, email: str = "csrf@example.com") -> None:
 
 def _raw_client(db) -> TestClient:  # noqa: ARG001 — db fixture ensures rollback
     """A TestClient that does NOT auto-inject CSRF — the middleware sees raw."""
-    return TestClient(fastapi_app, raise_server_exceptions=True)
+    client = TestClient(fastapi_app, raise_server_exceptions=True)
+    client._disable_auto_csrf = True
+    return client
 
 
 # ── Login issues a CSRF cookie ─────────────────────────────────────────────

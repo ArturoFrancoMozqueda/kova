@@ -35,6 +35,30 @@ _engine = create_engine(settings.database_url, pool_pre_ping=True)
 _TestSession = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
 
 
+def _install_auto_csrf(test_client: TestClient) -> TestClient:
+    """Echo the CSRF cookie for normal test clients."""
+    if getattr(test_client, "_auto_csrf_installed", False):
+        return test_client
+
+    original_request = test_client.request
+    unsafe_methods = {"POST", "PUT", "PATCH", "DELETE"}
+
+    def request_with_csrf(method, url, **kwargs):
+        if not getattr(test_client, "_disable_auto_csrf", False):
+            if method.upper() in unsafe_methods:
+                token = test_client.cookies.get("csrf_token")
+                if token:
+                    headers = dict(kwargs.get("headers") or {})
+                    if not any(k.lower() == "x-csrf-token" for k in headers):
+                        headers["x-csrf-token"] = token
+                    kwargs["headers"] = headers
+        return original_request(method, url, **kwargs)
+
+    test_client.request = request_with_csrf  # type: ignore[method-assign]
+    test_client._auto_csrf_installed = True
+    return test_client
+
+
 @pytest.fixture(scope="session", autouse=True)
 def apply_migrations():
     subprocess.run(["alembic", "upgrade", "head"], check=True, cwd=".")
@@ -55,6 +79,18 @@ def db(apply_migrations):  # noqa: ARG001
     session.close()
     transaction.rollback()
     connection.close()
+
+
+@pytest.fixture(autouse=True)
+def auto_csrf_for_test_clients(monkeypatch):
+    """Make ad-hoc TestClient(app) instances behave like the shared fixture."""
+    original_init = TestClient.__init__
+
+    def init_with_auto_csrf(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        _install_auto_csrf(self)
+
+    monkeypatch.setattr(TestClient, "__init__", init_with_auto_csrf)
 
 
 @pytest.fixture
