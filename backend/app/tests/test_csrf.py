@@ -5,8 +5,6 @@ so that the middleware actually sees missing or mismatched tokens.
 
 See `docs/security/cookie-csrf-threat-model.md`.
 """
-from __future__ import annotations
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -55,10 +53,8 @@ def test_logout_clears_csrf_cookie(db):
     _login(c)
     token = c.cookies.get("csrf_token")
     assert token
-    # Provide header explicitly since this raw client doesn't auto-inject.
     r = c.post("/api/v1/auth/logout", headers={"x-csrf-token": token})
     assert r.status_code == 204, r.text
-    # httpx applies Set-Cookie clears, so the jar should no longer have the token
     assert not c.cookies.get("csrf_token")
 
 
@@ -69,7 +65,6 @@ def test_post_without_csrf_header_is_rejected(db):
     c = _raw_client(db)
     _signup_and_verify(c)
     _login(c)
-    # No X-CSRF-Token header at all
     r = c.post("/api/v1/catalog/categories", json={"name": "Drinks"})
     assert r.status_code == 403
     assert r.json()["detail"] == "CSRF validation failed"
@@ -107,8 +102,6 @@ def test_refund_endpoint_requires_csrf(db):
     c = _raw_client(db)
     _signup_and_verify(c)
     _login(c)
-    # Use a fabricated order id — CSRF check should reject before reaching
-    # business logic, so we get 403 not 404.
     r = c.post(
         "/api/v1/orders/00000000-0000-0000-0000-000000000000/refunds",
         json={"reason": "x", "items": [], "method": "cash"},
@@ -133,7 +126,6 @@ def test_refresh_endpoint_requires_csrf(db):
     c = _raw_client(db)
     _signup_and_verify(c)
     _login(c)
-    # refresh uses the refresh_token cookie — middleware should still enforce CSRF
     r = c.post("/api/v1/auth/refresh")
     assert r.status_code == 403
 
@@ -195,8 +187,6 @@ def test_signup_without_csrf_succeeds(db):
 def test_stripe_webhook_without_csrf_succeeds(db):
     """Stripe webhooks authenticate via signature, not CSRF."""
     c = _raw_client(db)
-    # No auth cookies, no CSRF, no Stripe signature — we expect 4xx from the
-    # webhook handler itself (e.g. bad signature), NOT 403 from CSRF middleware.
     r = c.post(
         "/api/v1/billing/webhooks/stripe",
         content=b"{}",
@@ -207,19 +197,14 @@ def test_stripe_webhook_without_csrf_succeeds(db):
 
 def test_internal_key_bypasses_csrf(db, monkeypatch):
     """Endpoints called with a valid X-Internal-Key bypass CSRF entirely."""
-    # Force an internal key so the bypass branch is exercised.
     monkeypatch.setattr(settings, "internal_api_key", "test-internal-key")
     c = _raw_client(db)
     _signup_and_verify(c, email="internal@example.com")
     _login(c)
-    # Even though the cookies are present, passing the internal key should
-    # let a non-existent state-changing path bypass CSRF (we'll get whatever
-    # the route returns — 404 or 405 — but not 403 from CSRF).
     r = c.post(
         "/api/v1/billing/cancel",
         headers={"x-internal-key": "test-internal-key"},
     )
-    # Either reached the handler (200/4xx that isn't "CSRF validation failed")
     assert not (
         r.status_code == 403 and r.json().get("detail") == "CSRF validation failed"
     )
@@ -228,7 +213,6 @@ def test_internal_key_bypasses_csrf(db, monkeypatch):
 def test_unauthenticated_post_does_not_require_csrf(db):
     """A POST with no auth cookies should be evaluated by the route, not blocked by CSRF."""
     c = _raw_client(db)
-    # No login; hitting a protected endpoint should yield 401 from auth, not 403 from CSRF.
     r = c.post("/api/v1/catalog/categories", json={"name": "x"})
     assert r.status_code == 401
 
