@@ -38,6 +38,7 @@ jobs:
         env:
           RAW_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          set -euo pipefail
           if [ -z "$RAW_URL" ]; then
             echo "::error::SUPABASE_DB_URL secret is empty."
             exit 1
@@ -54,7 +55,38 @@ jobs:
           echo "::add-mask::$NORMALIZED"
           echo "PGDUMP_URL=$NORMALIZED" >> "$GITHUB_ENV"
 
+      - name: Validate backup configuration
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET PGDUMP_URL; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::${name} is empty. Check the matching GitHub Actions secret."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          if echo "$PGDUMP_URL" | grep -qE ':6543/'; then
+            echo "::error::SUPABASE_DB_URL appears to use the transaction pooler on port 6543. pg_dump must use the session pooler or direct connection on port 5432."
+            exit 1
+          fi
+          if ! echo "$PGDUMP_URL" | grep -qE '(sslmode=require|sslmode=verify-full)'; then
+            echo "::error::SUPABASE_DB_URL must require SSL for GitHub-hosted pg_dump."
+            exit 1
+          fi
+          aws s3api list-objects-v2 \
+            --bucket "$R2_BUCKET" \
+            --prefix "${R2_PREFIX}/" \
+            --max-items 1 \
+            --endpoint-url "$R2_ENDPOINT" \
+            --output text >/dev/null
+          echo "Backup configuration validated."
+
       - name: Dump database
+        env:
+          PGCONNECT_TIMEOUT: "20"
         run: |
           set -euo pipefail
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
