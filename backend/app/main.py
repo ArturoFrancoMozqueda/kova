@@ -24,6 +24,7 @@ from app.sync.router import router as sync_router
 from app.telemetry.router import router as telemetry_router
 
 _DEFAULT_SECRET_KEY = "change-me-in-production-use-a-long-random-string"
+_DEFAULT_EMAIL_FROM = "onboarding@resend.dev"
 
 
 def _is_stripe_test_key(value: str | None) -> bool:
@@ -41,6 +42,17 @@ def _validate_config() -> None:
         and not settings.stripe_allow_test_mode_in_production
     ):
         raise RuntimeError("STRIPE_SECRET_KEY must use live mode in production")
+    if settings.app_env == "production":
+        if not settings.resend_api_key:
+            raise RuntimeError(
+                "RESEND_API_KEY must be set in production — lifecycle emails "
+                "(verification, password reset, welcome) cannot be silently skipped"
+            )
+        if settings.email_from == _DEFAULT_EMAIL_FROM:
+            raise RuntimeError(
+                "EMAIL_FROM must be configured with a verified domain in production "
+                "(default 'onboarding@resend.dev' is not allowed)"
+            )
 
 
 def create_app() -> FastAPI:

@@ -35,6 +35,32 @@ def send_verification_email(*, to: str, token: str) -> None:
         logger.exception("email.error to=%s type=verification", to)
 
 
+def send_welcome_email(*, to: str) -> None:
+    if not _enabled():
+        logger.info("email.skip reason=no_api_key to=%s type=welcome", to)
+        return
+    dashboard_url = f"{settings.frontend_url}/dashboard"
+    billing_url = f"{settings.frontend_url}/settings/billing"
+    resend.api_key = settings.resend_api_key
+    try:
+        resend.Emails.send({
+            "from": settings.email_from,
+            "to": to,
+            "subject": "Tu plan Kova está activo",
+            "html": (
+                "<p>¡Bienvenido a Kova! Tu plan está activo y ya puedes vender sin "
+                "interrupciones.</p>"
+                f'<p><a href="{dashboard_url}">Ir al panel</a></p>'
+                "<p>Si necesitas ver tus datos de facturación o cambiar tu método de pago, "
+                f'puedes hacerlo en <a href="{billing_url}">Configuración &gt; Facturación</a>.</p>'
+                "<p>Gracias por confiar en Kova para tu negocio.</p>"
+            ),
+        })
+        logger.info("email.sent to=%s type=welcome", to)
+    except Exception:
+        logger.exception("email.error to=%s type=welcome", to)
+
+
 def send_password_reset_email(*, to: str, token: str) -> None:
     if not _enabled():
         logger.info("email.skip reason=no_api_key to=%s type=password_reset", to)

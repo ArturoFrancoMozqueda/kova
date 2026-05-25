@@ -112,17 +112,31 @@ before broad self-serve selling or explicitly accepted as controlled-beta risks 
       `billing/checkout`, and image/logo uploads. Frontend handles 429 (auth message in `AuthView`,
       offline sync re-queues to pending). Threat model and operator checklist in
       `docs/security/rate-limiting.md`. Tests in `backend/app/tests/test_rate_limit.py`.
-- [ ] Fix onboarding billing completion logic:
-      verify `GET /api/v1/onboarding/state` marks billing complete when the tenant has `active`,
-      `trialing`, or allowed paid/grace subscription access; add regression tests for active
-      subscription, signup trial, expired trial, and past_due grace; confirm the dashboard checklist
-      no longer asks an already-paid tenant to activate the plan.
+- [x] Fix onboarding billing completion logic:
+      `GET /api/v1/onboarding/state` now marks the billing step complete when
+      `get_billing_access_status` returns `active`, `trialing`, or `past_due_grace` (the prior
+      check used reason strings — `active_subscription`, `subscription_trial` — that the access
+      helper never emits, so the step never completed even for paying tenants). Signup-trial and
+      expired-trial states keep prompting the user to activate the plan. Regression coverage in
+      `backend/app/tests/test_onboarding_billing.py` exercises active subscription, trialing
+      subscription, past_due within grace, signup trial, and expired trial.
 - [ ] Make email delivery a production gate:
-      ensure production cannot silently skip required auth/billing lifecycle emails when Resend (or
-      the chosen provider) is missing; add health or startup validation for required email config;
-      implement/verify verification, password reset, welcome/post-checkout, billing receipt or
-      billing confirmation, and trial-ending reminder flows; test Gmail and Outlook/Hotmail inboxes,
-      spam placement, links, sender identity, and Spanish copy.
+      Partial progress:
+      - [x] Startup gate: `_validate_config` in `app/main.py` now fails to boot when
+            `APP_ENV=production` and `RESEND_API_KEY` is missing, or when `EMAIL_FROM` is left at the
+            default `onboarding@resend.dev` sandbox sender. Lifecycle emails can no longer be
+            silently skipped in prod. Covered by `app/tests/test_email_gate.py`.
+      - [x] Welcome / post-checkout email: `send_welcome_email` added in `app/email/service.py`
+            (Spanish copy, links to dashboard and `/settings/billing`). Wired into the Stripe
+            `checkout.session.completed` webhook handler in `app/billing/service.py`; resolves the
+            tenant owner via `Membership.role = 'owner'`. Idempotent because the webhook handler
+            already short-circuits on duplicate event IDs. Covered by
+            `app/tests/test_welcome_email.py`.
+      - [ ] Billing receipt / billing confirmation email on `invoice.payment_succeeded`.
+      - [ ] Trial-ending reminder (cron or scheduled job a few days before signup-trial expiry).
+      - [ ] Manual deliverability QA: Gmail + Outlook/Hotmail inboxing, spam placement,
+            SPF/DKIM/DMARC for the Kova sending domain, link rendering, sender identity, Spanish
+            copy review across all five lifecycle emails.
 - [ ] Add frontend performance follow-up:
       review the production bundle warning (~692 kB minified main chunk); decide whether code
       splitting is required before broad selling; if required, split public/auth/app routes and

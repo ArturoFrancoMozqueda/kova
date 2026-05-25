@@ -10,9 +10,11 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.auth.models import Membership, User
 from app.billing import repository
 from app.billing.access import get_billing_access_status, serialize_billing_access
 from app.billing.models import Subscription, WebhookEvent
+from app.email import service as email_service
 from app.billing.stripe_client import (
     StripeCheckoutClient,
     StripeCheckoutError,
@@ -364,6 +366,24 @@ def _upsert_subscription_from_stripe_object(
     return subscription
 
 
+def _send_welcome_email_for_tenant(db: Session, *, tenant_id: UUID) -> None:
+    owner = (
+        db.query(User)
+        .join(Membership, Membership.user_id == User.id)
+        .filter(
+            Membership.tenant_id == tenant_id,
+            Membership.role == "owner",
+            Membership.is_active.is_(True),
+            User.is_active.is_(True),
+        )
+        .order_by(Membership.created_at.asc())
+        .first()
+    )
+    if owner is None:
+        return
+    email_service.send_welcome_email(to=owner.email)
+
+
 def _tenant_id_from_event_object(stripe_object: dict[str, Any]) -> UUID | None:
     metadata = stripe_object.get("metadata") or {}
     tenant_id = metadata.get("tenant_id")
@@ -440,6 +460,7 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
             )
             if event_type == "checkout.session.completed":
                 action = "billing.subscription_activated"
+                _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
             elif event_type == "customer.subscription.deleted":
                 action = "billing.subscription_canceled"
             else:
