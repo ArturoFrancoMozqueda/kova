@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.middleware.rate_limit import rate_limit
 from app.auth.models import Membership, User, UserSession
 from app.business_settings.models import ReceiptSettings, TenantLogoFile
 from app.db import get_db
@@ -82,7 +83,11 @@ def _logo_url(tenant_id: UUID, updated_at: datetime) -> str:
     return f"/api/v1/settings/receipt/logo/{tenant_id}?v={epoch}"
 
 
-@router.post("/receipt/logo", response_model=LogoUploadResponse)
+@router.post(
+    "/receipt/logo",
+    response_model=LogoUploadResponse,
+    dependencies=[Depends(rate_limit(10, key="settings-logo-upload"))],
+)
 async def upload_receipt_logo(
     request: Request,
     db: Session = Depends(get_db),
@@ -136,7 +141,11 @@ async def upload_receipt_logo(
     return LogoUploadResponse(logo_url=settings.logo_url)
 
 
-@router.delete("/receipt/logo", status_code=204)
+@router.delete(
+    "/receipt/logo",
+    status_code=204,
+    dependencies=[Depends(rate_limit(10, key="settings-logo-delete"))],
+)
 def delete_receipt_logo(
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(

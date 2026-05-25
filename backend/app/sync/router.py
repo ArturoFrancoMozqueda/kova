@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import Membership, User, UserSession
 from app.billing.access import require_commercial_access
 from app.db import get_db
+from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.sync import service
 from app.sync.schemas import OfflineSaleSyncRequest, OfflineSaleSyncResponse
@@ -11,7 +12,11 @@ from app.sync.schemas import OfflineSaleSyncRequest, OfflineSaleSyncResponse
 router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
 
 
-@router.post("/offline-sales", response_model=OfflineSaleSyncResponse)
+@router.post(
+    "/offline-sales",
+    response_model=OfflineSaleSyncResponse,
+    dependencies=[Depends(rate_limit(60, key="sync-offline-sales"))],
+)
 def sync_offline_sales(
     body: OfflineSaleSyncRequest,
     db: Session = Depends(get_db),

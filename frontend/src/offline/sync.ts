@@ -44,6 +44,22 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
     });
 
     if (!response.ok) {
+      // 429: server rate-limited us. Don't dead-letter the sales — mark them
+      // back to pending so the next sync attempt retries within the same
+      // queue. Any other 4xx/5xx is a real failure and goes to dead letter.
+      if (response.status === 429) {
+        for (const item of items) {
+          await markOfflineSaleStatus(item.client_uuid, "pending");
+        }
+        const message = "Rate limited; will retry on next sync.";
+        return items.map((item) => ({
+          client_uuid: item.client_uuid,
+          status: "failed" as const,
+          order_id: null,
+          order: null,
+          error: message,
+        }));
+      }
       const message = `Sync failed with status ${response.status}`;
       await Promise.all(items.map((item) => markOfflineSaleFailed(item.client_uuid, message)));
       return items.map((item) => ({

@@ -71,6 +71,9 @@ Readiness snapshot:
       in `backend/app/middleware/csrf.py`, frontend wired via `frontend/src/lib/csrf.ts`,
       negative tests in `backend/app/tests/test_csrf.py` and `frontend/src/lib/csrf.test.ts`,
       Stripe webhooks and `X-Internal-Key` paths verified as exempt.
+- [x] Rate limiting moved to a pluggable backend (Upstash Redis sliding window in prod,
+      in-memory fallback in dev); coverage extended to sync, uploads, and checkout;
+      docs at `docs/security/rate-limiting.md`.
 
 ## Active Release Gates
 
@@ -102,11 +105,13 @@ controlled tenants.
 These are detailed follow-ups from the 2026-05-25 sellability review. They should either be closed
 before broad self-serve selling or explicitly accepted as controlled-beta risks by the founder.
 
-- [ ] Make production rate limiting deployment-safe:
-      replace or front the current single-instance in-memory limiter with a production-safe option
-      such as provider/WAF limits or shared Redis-style limits; cover login, signup, password reset,
-      sync, uploads, billing checkout, and webhook abuse cases; document limits, user-facing 429
-      copy, and alerting expectations.
+- [x] Rate limiting hardened with pluggable backend (2026-05-25):
+      `backend/app/middleware/rate_limit.py` now selects an Upstash Redis sliding-window backend
+      when `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set, falling back to in-memory
+      otherwise. Coverage extended from auth-only to also include `sync/offline-sales`,
+      `billing/checkout`, and image/logo uploads. Frontend handles 429 (auth message in `AuthView`,
+      offline sync re-queues to pending). Threat model and operator checklist in
+      `docs/security/rate-limiting.md`. Tests in `backend/app/tests/test_rate_limit.py`.
 - [ ] Fix onboarding billing completion logic:
       verify `GET /api/v1/onboarding/state` marks billing complete when the tenant has `active`,
       `trialing`, or allowed paid/grace subscription access; add regression tests for active

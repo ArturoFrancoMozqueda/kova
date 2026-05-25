@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     billing_grace_period_days: int = 7
     internal_api_key: str | None = None
     resend_api_key: str | None = None
+    # Rate limiting — when both are set, the limiter uses Upstash Redis; otherwise
+    # it falls back to a single-process in-memory limiter (tolerable for local dev
+    # and single-instance deploys but unsafe across replicas).
+    upstash_redis_rest_url: str | None = None
+    upstash_redis_rest_token: str | None = None
     email_from: str = "onboarding@resend.dev"
 
     @property

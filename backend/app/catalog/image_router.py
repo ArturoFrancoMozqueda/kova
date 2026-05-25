@@ -8,7 +8,8 @@ from PIL import Image
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.audit import service as audit_service
+from app.audit import service as audit_service
+from app.middleware.rate_limit import rate_limit
 from app.auth.models import Membership, User, UserSession
 from app.catalog.models import Product, ProductImageFile
 from app.db import get_db
@@ -122,7 +123,11 @@ def _load_product(db: Session, *, tenant_id: UUID, product_id: UUID) -> Product:
     return product
 
 
-@router.post("/products/{product_id}/image", response_model=ProductImageUploadResponse)
+@router.post(
+    "/products/{product_id}/image",
+    response_model=ProductImageUploadResponse,
+    dependencies=[Depends(rate_limit(30, key="catalog-image-upload"))],
+)
 async def upload_product_image(
     product_id: UUID,
     request: Request,
@@ -175,7 +180,11 @@ async def upload_product_image(
     return ProductImageUploadResponse(image_url=product.image_url)
 
 
-@router.delete("/products/{product_id}/image", status_code=204)
+@router.delete(
+    "/products/{product_id}/image",
+    status_code=204,
+    dependencies=[Depends(rate_limit(30, key="catalog-image-delete"))],
+)
 def delete_product_image(
     product_id: UUID,
     db: Session = Depends(get_db),

@@ -10,6 +10,7 @@ from app.billing.schemas import (
 )
 from app.config import settings
 from app.db import get_db
+from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.dependencies import require_permission
 from app.shared.exceptions import bad_request, forbidden
@@ -34,7 +35,12 @@ def subscription_status(
     return service.get_subscription_status(db, tenant_id=membership.tenant_id)
 
 
-@router.post("/checkout", response_model=CheckoutSessionResponse, status_code=201)
+@router.post(
+    "/checkout",
+    response_model=CheckoutSessionResponse,
+    status_code=201,
+    dependencies=[Depends(rate_limit(5, key="billing-checkout"))],
+)
 def create_checkout_session(
     response: Response,
     db: Session = Depends(get_db),
