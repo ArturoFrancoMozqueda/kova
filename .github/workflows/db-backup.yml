@@ -1,46 +1,137 @@
-name: Daily database backup
+name: Supabase database backup
 
 on:
   schedule:
-    # 3:00 AM UTC every day
-    - cron: "0 3 * * *"
-  workflow_dispatch: # allow manual trigger
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
 
 jobs:
   backup:
-    name: pg_dump → artifact
+    name: pg_dump → Cloudflare R2
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_EC2_METADATA_DISABLED: "true"
+      R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+      R2_PREFIX: supabase/postgres
+      RETENTION_DAYS: "7"
 
     steps:
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 16 client
         run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y --no-install-recommends postgresql-client-16
+          pg_dump --version
+
+      - name: Normalize SUPABASE_DB_URL for pg_dump
+        env:
+          RAW_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$RAW_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is empty."
+            exit 1
+          fi
+          # Strip SQLAlchemy driver hint (postgresql+psycopg://) — pg_dump rejects it.
+          NORMALIZED="${RAW_URL//postgresql+psycopg:\/\//postgresql://}"
+          # Force sslmode=require if absent.
+          case "$NORMALIZED" in
+            *sslmode=*) : ;;
+            *\?*)       NORMALIZED="${NORMALIZED}&sslmode=require" ;;
+            *)          NORMALIZED="${NORMALIZED}?sslmode=require" ;;
+          esac
+          # Mask the full URL in logs.
+          echo "::add-mask::$NORMALIZED"
+          echo "PGDUMP_URL=$NORMALIZED" >> "$GITHUB_ENV"
 
       - name: Dump database
-        env:
-          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
-          FILENAME="pos-backup-${TIMESTAMP}.sql.gz"
-          pg_dump "$DATABASE_URL" \
+          FILENAME="kova-${TIMESTAMP}.dump"
+          pg_dump "$PGDUMP_URL" \
             --no-owner \
             --no-acl \
-            --format=plain \
-            | gzip > "$FILENAME"
+            --format=custom \
+            --compress=9 \
+            --file="$FILENAME" \
+            --verbose 2>/tmp/pgdump.log \
+            || { tail -20 /tmp/pgdump.log; exit 1; }
+          SIZE=$(du -h "$FILENAME" | cut -f1)
+          echo "Backup written: $FILENAME ($SIZE)"
           echo "BACKUP_FILE=$FILENAME" >> "$GITHUB_ENV"
-          echo "Backup complete: $FILENAME ($(du -sh $FILENAME | cut -f1))"
+          echo "BACKUP_KEY=${R2_PREFIX}/${FILENAME}" >> "$GITHUB_ENV"
 
-      - name: Upload backup artifact
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: db-backup-${{ github.run_id }}
-          path: ${{ env.BACKUP_FILE }}
-          retention-days: 30
-          if-no-files-found: error
+      - name: Upload to Cloudflare R2
+        run: |
+          set -euo pipefail
+          aws s3 cp "$BACKUP_FILE" "s3://${R2_BUCKET}/${BACKUP_KEY}" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --no-progress \
+            --only-show-errors
+          echo "Uploaded: s3://${R2_BUCKET}/${BACKUP_KEY}"
 
-      - name: Notify on failure
+      - name: Verify upload
+        run: |
+          set -euo pipefail
+          aws s3api head-object \
+            --bucket "$R2_BUCKET" \
+            --key "$BACKUP_KEY" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --query '{size:ContentLength,etag:ETag}' \
+            --output table
+
+      - name: Prune backups older than ${{ env.RETENTION_DAYS }} days
+        run: |
+          set -euo pipefail
+          CUTOFF_EPOCH=$(date -u -d "${RETENTION_DAYS} days ago" +%s)
+          echo "Cutoff: $(date -u -d "@${CUTOFF_EPOCH}" -Iseconds) — anything older will be deleted."
+
+          aws s3api list-objects-v2 \
+            --bucket "$R2_BUCKET" \
+            --prefix "${R2_PREFIX}/" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --query 'Contents[].[Key,LastModified]' \
+            --output text > /tmp/objects.txt || true
+
+          if [ ! -s /tmp/objects.txt ] || grep -q "^None" /tmp/objects.txt; then
+            echo "No existing backups to evaluate."
+            exit 0
+          fi
+
+          DELETED=0
+          KEPT=0
+          while IFS=$'\t' read -r KEY LASTMOD; do
+            [ -z "$KEY" ] && continue
+            OBJ_EPOCH=$(date -u -d "$LASTMOD" +%s)
+            if [ "$OBJ_EPOCH" -lt "$CUTOFF_EPOCH" ]; then
+              aws s3 rm "s3://${R2_BUCKET}/${KEY}" \
+                --endpoint-url "$R2_ENDPOINT" \
+                --only-show-errors
+              DELETED=$((DELETED + 1))
+              echo "Deleted: $KEY (LastModified: $LASTMOD)"
+            else
+              KEPT=$((KEPT + 1))
+            fi
+          done < /tmp/objects.txt
+          echo "Retention summary: deleted=${DELETED}, kept=${KEPT}"
+
+      - name: Cleanup local dump
+        if: always()
+        run: |
+          rm -f "${BACKUP_FILE:-}" /tmp/pgdump.log /tmp/objects.txt || true
+
+      - name: Failure notice
         if: failure()
         run: |
-          echo "::error::Database backup failed. Check Supabase connection and BACKUP_DATABASE_URL secret."
+          echo "::error::Supabase backup failed. Verify SUPABASE_DB_URL points at the session pooler (port 5432) or direct connection, and that R2 credentials (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, CLOUDFLARE_ACCOUNT_ID, R2_BUCKET_NAME) are correct."
