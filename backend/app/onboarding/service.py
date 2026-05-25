@@ -149,7 +149,11 @@ def get_onboarding_state(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
         db.query(Order).filter(Order.tenant_id == tenant_id).limit(1).count() > 0
     )
     billing_access = get_billing_access_status(db, tenant_id=tenant_id)
-    billing_completed = billing_access.reason in {"active_subscription", "subscription_trial"}
+    billing_completed = billing_access.allowed and billing_access.reason in {
+        "active",
+        "trialing",
+        "past_due_grace",
+    }
 
     updates = {
         "business_profile_completed": business_profile_completed,

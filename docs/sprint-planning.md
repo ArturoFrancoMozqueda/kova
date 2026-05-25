@@ -2212,7 +2212,7 @@ and load test.
       endpoints or the controlled-beta risk is explicitly accepted.
 - [ ] Rate limiting covers auth, password reset, sync, uploads, and billing abuse paths with a
       production-safe strategy or an explicitly accepted controlled-beta limitation.
-- [ ] Onboarding billing checklist state correctly reflects active/trialing/paid-grace access.
+- [x] Onboarding billing checklist state correctly reflects active/trialing/paid-grace access.
 
 ### Billing
 
