@@ -1,10 +1,10 @@
 """Negative CSRF tests for cookie-authenticated state-changing endpoints (Sprint Audit)."""
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app as fastapi_app
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
