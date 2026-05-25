@@ -20,7 +20,7 @@ This document tracks the highest-risk areas of the POS SaaS project.
 | Poor beta onboarding | Medium | Medium | bakery preset, onboarding checklist, founder-assisted onboarding | Product |
 | Support overload | Medium | Medium | limit beta tenants, support runbooks, Sentry/logs/request_id | Product/Support |
 | Legal/compliance gaps | Medium | Medium | beta agreement, privacy notice, legal review before GA | Product |
-| Infrastructure fragility | High | Low/Medium | GitHub Actions pg_dump daily backup (artifact 30d), restore drill before GA, staging, rollback plan | Engineering |
+| Infrastructure fragility | High | Low/Medium | GitHub Actions PostgreSQL 17 `pg_dump` daily backup to Cloudflare R2 with 7-day retention, restore drill before broad paid beta, staging, rollback plan | Engineering |
 | Performance issues | Medium | Medium | indexes, p95 targets, load tests before GA | Engineering |
 | Stripe dependency | Medium | Low | accept for v1, isolate billing adapter | Engineering |
 | Offline UX confusion | Medium | Medium | clear sync indicator, dead-letter UX, user recovery actions | Design/Engineering |

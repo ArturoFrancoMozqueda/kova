@@ -37,7 +37,7 @@ kova-db-backups/
 
 - Format: PostgreSQL **custom** (`pg_dump --format=custom --compress=9`).
 - Retention: 7 days (older files are pruned automatically by the workflow).
-- Cadence: every 6 hours plus on-demand via **Actions → Supabase database backup → Run workflow**.
+- Cadence: daily at 09:00 UTC plus on-demand via **Actions → Supabase database backup → Run workflow**.
 
 ---
 
@@ -131,7 +131,8 @@ psql "$RESTORE_URL" -c "select count(*) as orders from orders;"
 psql "$RESTORE_URL" -c "select max(created_at) as latest_order from orders;"
 ```
 
-Cross-check the `latest_order` timestamp against the backup filename — they should be within the 6-hour cadence window.
+Cross-check the `latest_order` timestamp against the backup filename. For an active tenant, it
+should be reasonably close to the daily backup window unless there were no recent orders.
 
 Optional but recommended:
 

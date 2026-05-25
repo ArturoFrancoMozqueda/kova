@@ -2,14 +2,15 @@
 
 ## Status
 
-**Current:** Sprints 9-16 complete. Kova audit Sprints 1-5 closed or substantially landed. The
-active planning target is the commercial-readiness path from `docs/ux-qa-review-2026-05-23.md`:
-Kova Audit Sprint 6 (trust lock + day-1 operations), then Sprint 7 (conversion + operational pro),
-with Stripe live and pre-GA ops gates running in parallel.
+**Current:** Sprints 9-16 complete. Kova audit Sprints 1-6 are product-complete enough for
+controlled paid beta preparation. The active execution target is no longer a product sprint; it is
+the paid-beta readiness gate in `docs/current-sprint.md`: live Stripe verification, email
+deliverability, restore drill, support/domain trust, `/seguridad`, and final production smoke on the
+custom domain.
 
-**Last updated:** 2026-05-23
+**Last updated:** 2026-05-25
 
-This document defines the roadmap and task structure.
+This document defines the roadmap, historical sprint record, and future backlog.
 
 Permanent rules live in `CLAUDE.md`.
 
@@ -18,6 +19,22 @@ Active scope lives in `docs/current-sprint.md`.
 Deferred scope lives in `docs/deferred-scope.md`.
 
 Risks live in `docs/risk-register.md`.
+
+## Unified Planning Map
+
+Use these documents as the planning source of truth:
+
+| Document | Purpose |
+|---|---|
+| `docs/current-sprint.md` | Active execution board and release gates only. |
+| `docs/sprint-planning.md` | Historical sprint record, completed audit findings, and future roadmap. |
+| `docs/deferred-scope.md` | Explicitly deferred scope. |
+| `docs/risk-register.md` | Product, technical, commercial, and operational risks. |
+| `docs/runbooks/` | Production operating procedures. |
+
+Kova Audit Sprint 6 product work is closed. Sprint 7 work should not start until the active
+commercial/ops gates in `docs/current-sprint.md` are either closed or explicitly accepted as
+controlled-beta risks.
 
 ## Commercial Readiness Plan (2026-05-23)
 
@@ -974,8 +991,8 @@ tenant signup → business setup → catalog setup → open shift → create sal
 | Beta Hardening | 14 | ✅ Code done — ops pending | Security, monitoring, backup drill, beta support |
 | Modifiers | 15 | ✅ Done | Modifier groups, options, pricing, register modal, receipts |
 | UX Polish + Onboarding | 16 | ✅ Done | Mobile sidebar, category names, payment picker, onboarding checklist, orders filter, stock badges, i18n audit |
-| Kova Audit Sprints 1-5 | Audit 1-5 | ✅ Substantially landed | Trust, onboarding, first value, reports storytelling, QA bug fixes |
-| Commercial Readiness | Audit 6-7 | 🔜 Active next | Trust lock, day-1 operations, trial conversion, support surface, Stripe-live readiness |
+| Kova Audit Sprints 1-6 | Audit 1-6 | Done / ops gates active | Trust, onboarding, first value, reports storytelling, QA bug fixes, trust lock, day-1 operations |
+| Commercial Readiness Ops | Paid beta gates | Active now | Live Stripe, email deliverability, restore drill, support/domain trust, production smoke |
 | Tax Engine | 17 | 📋 Planned | Tax rates, tax-inclusive/exclusive, receipt line tax |
 | Discounts | 18 | 📋 Planned | Per-line and per-order discounts, reason tracking |
 | Retail Preset + Adv. Inventory | 19 | 📋 Planned | Retail preset, barcode/SKU input, CSV import, stock history |

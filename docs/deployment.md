@@ -76,9 +76,9 @@ Mirror [.env.example](../.env.example), but supply real values via the hosting p
 
 Local-only `POSTGRES_*` variables and the `db` Docker service are **not** used in staging/production.
 
-The frontend build needs:
-
-- `VITE_API_BASE_URL` — public URL of the backend
+The frontend uses same-origin relative API paths (`/api/v1/...`). Production routing is handled by
+`frontend/vercel.json`, which rewrites those paths to the Fly backend. No `VITE_API_BASE_URL` is
+required for current API calls.
 
 Future sprints will add: session secrets, `SENTRY_DSN`, `STRIPE_*`, and (if/when adopted) `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
 
@@ -101,13 +101,39 @@ Future sprints will add: session secrets, `SENTRY_DSN`, `STRIPE_*`, and (if/when
 
 ## Backups
 
-Supabase manages physical backups for the project. Before beta, document and execute a **restore drill**:
+Supabase manages provider-side physical backups, but Kova also keeps an application-owned logical
+backup in Cloudflare R2.
 
-1. Trigger a snapshot/PITR restore into a fresh Supabase project.
-2. Point a throwaway backend instance at the restored DB.
-3. Confirm `/health/db` and a representative read query work.
+Current workflow:
 
-This is a hard gate for beta (per [../CLAUDE.md](../CLAUDE.md) §Hard Gates) and not Sprint 0A scope.
+- Workflow: `.github/workflows/db-backup.yml`
+- Trigger: daily at 09:00 UTC and manual `workflow_dispatch`
+- Source: `SUPABASE_DB_URL` GitHub Actions secret
+- Dump client: PostgreSQL 17 `pg_dump`
+- Format: PostgreSQL custom dump (`--format=custom --compress=9`)
+- Destination: Cloudflare R2 bucket from `R2_BUCKET_NAME`
+- Prefix: `supabase/postgres/`
+- Retention: 7 days
+
+Required GitHub Actions secrets:
+
+- `SUPABASE_DB_URL`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `R2_BUCKET_NAME`
+
+`SUPABASE_DB_URL` for backup must be compatible with `pg_dump`. Prefer the Supabase session pooler
+on port 5432 or direct connection; do not use the transaction pooler on port 6543.
+
+Before broader paid beta, document and execute a **restore drill**:
+
+1. Download the latest R2 dump.
+2. Restore it into a fresh Supabase project.
+3. Point a throwaway backend instance at the restored DB.
+4. Confirm `/health/db` and representative read queries work.
+
+Use `docs/runbooks/restore-supabase-backup.md` for the detailed procedure. This remains a hard gate.
 
 ## Production Data Hygiene Scripts
 
