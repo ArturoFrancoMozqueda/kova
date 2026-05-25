@@ -32,7 +32,8 @@ jobs:
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends postgresql-client-17
-          pg_dump --version
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Normalize SUPABASE_DB_URL for pg_dump
         env:
@@ -91,6 +92,7 @@ jobs:
           set -euo pipefail
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
           FILENAME="kova-${TIMESTAMP}.dump"
+          pg_dump --version
           pg_dump "$PGDUMP_URL" \
             --no-owner \
             --no-acl \
