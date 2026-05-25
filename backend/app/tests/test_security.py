@@ -34,6 +34,8 @@ def test_config_allows_explicit_production_stripe_test_mode(monkeypatch) -> None
     monkeypatch.setattr(settings, "secret_key", "production-secret-key")
     monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_123")
     monkeypatch.setattr(settings, "stripe_allow_test_mode_in_production", True)
+    monkeypatch.setattr(settings, "resend_api_key", "re_test_123")
+    monkeypatch.setattr(settings, "email_from", "hola@kova.example")
 
     _validate_config()
 
