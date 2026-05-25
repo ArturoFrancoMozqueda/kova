@@ -14,7 +14,6 @@ from app.auth.models import Membership, User
 from app.billing import repository
 from app.billing.access import get_billing_access_status, serialize_billing_access
 from app.billing.models import Subscription, WebhookEvent
-from app.email import service as email_service
 from app.billing.stripe_client import (
     StripeCheckoutClient,
     StripeCheckoutError,
@@ -24,6 +23,7 @@ from app.billing.stripe_client import (
     StripeSubscriptionError,
 )
 from app.config import settings
+from app.email import service as email_service
 from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request
 
