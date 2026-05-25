@@ -1,3 +1,4 @@
+import { csrfHeaders } from "../lib/csrf";
 export type BusinessProfile = {
   tenant_id: string;
   public_name: string;
@@ -49,7 +50,7 @@ class ApiError extends Error {
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...csrfHeaders(init?.method), ...init?.headers, },
   });
   if (!response.ok) throw new ApiError(await response.text(), response.status);
   return (await response.json()) as T;
@@ -82,6 +83,7 @@ export async function uploadReceiptLogo(file: File): Promise<LogoUploadResponse>
   formData.append("file", file);
   const response = await fetch("/api/v1/settings/receipt/logo", {
     method: "POST",
+    headers: { ...csrfHeaders("POST") },
     body: formData,
   });
   if (!response.ok) throw new ApiError(await response.text(), response.status);
@@ -89,7 +91,7 @@ export async function uploadReceiptLogo(file: File): Promise<LogoUploadResponse>
 }
 
 export async function deleteReceiptLogo(): Promise<void> {
-  const response = await fetch("/api/v1/settings/receipt/logo", { method: "DELETE" });
+  const response = await fetch("/api/v1/settings/receipt/logo", { method: "DELETE", headers: { ...csrfHeaders("DELETE") } });
   if (!response.ok) throw new ApiError(await response.text(), response.status);
 }
 
@@ -119,6 +121,6 @@ export function updateEmployeeRole(
 }
 
 export async function deactivateEmployee(membershipId: string): Promise<void> {
-  const response = await fetch(`/api/v1/employees/${membershipId}`, { method: "DELETE" });
+  const response = await fetch(`/api/v1/employees/${membershipId}`, { method: "DELETE", headers: { ...csrfHeaders("DELETE") } });
   if (!response.ok) throw new ApiError(await response.text(), response.status);
 }

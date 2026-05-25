@@ -1,3 +1,4 @@
+import { csrfHeaders } from "../lib/csrf";
 import type { Order } from "../orders/types";
 import {
   markOfflineSaleFailed,
@@ -32,7 +33,7 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
   try {
     const response = await fetch("/api/v1/sync/offline-sales", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...csrfHeaders("POST") },
       credentials: "include",
       body: JSON.stringify({
         sales: items.map((item) => ({

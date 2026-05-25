@@ -1,3 +1,4 @@
+import { csrfHeaders } from "../lib/csrf";
 import type { BillingSubscription, CheckoutSession } from "./types";
 
 export class ApiError extends Error {
@@ -10,7 +11,13 @@ export class ApiError extends Error {
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      ...csrfHeaders(init?.method),
+      ...init?.headers,
+    },
+  });
   if (!response.ok) {
     throw new ApiError(await response.text(), response.status);
   }

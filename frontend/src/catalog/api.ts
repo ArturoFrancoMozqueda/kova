@@ -1,3 +1,4 @@
+import { csrfHeaders } from "../lib/csrf";
 import type {
   Category,
   CategoryCreate,
@@ -23,6 +24,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "content-type": "application/json",
+      ...csrfHeaders(init?.method),
       ...init?.headers,
     },
   });
@@ -98,6 +100,7 @@ export async function uploadProductImage(
   formData.append("file", file);
   const response = await fetch(`/api/v1/catalog/products/${productId}/image`, {
     method: "POST",
+    headers: { ...csrfHeaders("POST") },
     body: formData,
   });
   if (!response.ok) {
@@ -109,6 +112,7 @@ export async function uploadProductImage(
 export async function deleteProductImage(productId: string): Promise<void> {
   const response = await fetch(`/api/v1/catalog/products/${productId}/image`, {
     method: "DELETE",
+    headers: { ...csrfHeaders("DELETE") },
   });
   if (!response.ok) {
     throw new ApiError(await response.text(), response.status);

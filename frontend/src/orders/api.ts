@@ -1,3 +1,4 @@
+import { csrfHeaders } from "../lib/csrf";
 import type {
   Order,
   OrderCreatePayload,
@@ -22,6 +23,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...csrfHeaders(init?.method),
       ...(init?.headers ?? {}),
     },
   });

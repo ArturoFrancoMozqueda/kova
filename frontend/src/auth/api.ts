@@ -1,3 +1,4 @@
+import { csrfHeaders } from "../lib/csrf";
 import type {
   LoginRequest,
   MeResponse,
@@ -21,6 +22,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "content-type": "application/json",
+      ...csrfHeaders(init?.method),
       ...init?.headers,
     },
   });
@@ -52,7 +54,10 @@ export function login(body: LoginRequest): Promise<MessageResponse> {
 }
 
 export async function logout(): Promise<void> {
-  const response = await fetch("/api/v1/auth/logout", { method: "POST" });
+  const response = await fetch("/api/v1/auth/logout", {
+    method: "POST",
+    headers: { ...csrfHeaders("POST") },
+  });
   if (!response.ok && response.status !== 401) {
     throw new ApiError(await response.text(), response.status);
   }
@@ -69,7 +74,7 @@ export function getSession(): Promise<SessionProbeResponse> {
 export async function refreshSession(): Promise<boolean> {
   const response = await fetch("/api/v1/auth/refresh", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...csrfHeaders("POST") },
   });
   return response.ok;
 }

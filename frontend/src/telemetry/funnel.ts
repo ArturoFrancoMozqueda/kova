@@ -1,3 +1,5 @@
+import { csrfHeaders } from "../lib/csrf";
+
 const QUEUE_KEY = "kova:funnel-events";
 const CLIENT_ID_KEY = "kova:funnel-client-id";
 
@@ -101,7 +103,7 @@ async function sendEvent(event: FunnelEvent): Promise<boolean> {
   try {
     const response = await fetch("/api/v1/telemetry/events", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...csrfHeaders("POST") },
       credentials: "same-origin",
       keepalive: true,
       body: JSON.stringify(event),

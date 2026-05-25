@@ -1,3 +1,4 @@
+import { csrfHeaders } from "../lib/csrf";
 export type PresetName = "cafe" | "bakery" | "retail";
 
 export type PresetApplyResponse = {
@@ -33,7 +34,7 @@ class ApiError extends Error {
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...csrfHeaders(init?.method), ...init?.headers, },
   });
   if (!response.ok) throw new ApiError(await response.text(), response.status);
   return (await response.json()) as T;
