@@ -1,10 +1,4 @@
-"""Negative CSRF tests for cookie-authenticated state-changing endpoints.
-
-These tests use a raw TestClient (not the auto-CSRF-echo `client` fixture)
-so that the middleware actually sees missing or mismatched tokens.
-
-See `docs/security/cookie-csrf-threat-model.md`.
-"""
+"""Negative CSRF tests for cookie-authenticated state-changing endpoints (Sprint Audit)."""
 import pytest
 from fastapi.testclient import TestClient
 
