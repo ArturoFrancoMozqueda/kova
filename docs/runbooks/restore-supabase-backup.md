@@ -19,7 +19,7 @@ This runbook covers restoring the latest Supabase backup produced by the `Supaba
 - Cloudflare R2 bucket `kova-db-backups` reachable with API credentials.
 - A Supabase account that can create a new project.
 - Locally installed:
-  - PostgreSQL 16 client (`pg_restore`, `psql`).
+  - PostgreSQL 17 client (`pg_restore`, `psql`) — must match the Supabase server major version (currently 17). Older clients refuse to run.
   - AWS CLI v2 configured with R2 credentials (or use a one-shot env-var form, below).
 
 ---
@@ -154,7 +154,7 @@ Optional but recommended:
 |---|---|---|
 | `pg_restore: error: could not connect: FATAL: Tenant or user not found` | Wrong username in `$RESTORE_URL` — must be `postgres.<project-ref>`. | Re-copy from dashboard. |
 | `pg_restore: error: could not connect: prepared statement … does not exist` | Connected to the transaction pooler (port 6543). | Use session pooler (port 5432). |
-| `pg_restore: error: from version "16.x" not supported` | Using an older `pg_restore`. | Install PostgreSQL 16 client. |
+| `pg_dump: error: aborting because of server version mismatch` / `pg_restore: error: unsupported version` | Client major version is older than the Supabase server (currently 17). | Install PostgreSQL 17 client. If Supabase upgrades again, bump `postgresql-client-XX` in the workflow too. |
 | Many `WARNING: extension "<name>" is not available` lines | Supabase manages its own extensions; the dump's `CREATE EXTENSION` statements may reference ones not present yet. | Harmless. The `--no-owner --no-acl` already mitigates most of these. |
 | Restore finishes but `select count(*) from orders` returns 0 | Restored into the wrong database or the dump was empty (e.g., produced against an empty staging DB). | Check the workflow run that produced the backup and confirm size > a few KB. |
 

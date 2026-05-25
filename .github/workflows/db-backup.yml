@@ -2,7 +2,7 @@ name: Supabase database backup
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 9 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -26,12 +26,12 @@ jobs:
       RETENTION_DAYS: "7"
 
     steps:
-      - name: Install PostgreSQL 16 client
+      - name: Install PostgreSQL 17 client
         run: |
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends postgresql-client-16
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
           pg_dump --version
 
       - name: Normalize SUPABASE_DB_URL for pg_dump
