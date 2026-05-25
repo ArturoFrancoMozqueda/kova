@@ -66,6 +66,11 @@ Readiness snapshot:
       and prunes after 7 days.
 - [x] Uptime monitoring moved to UptimeRobot for frontend, API health, and API + DB health.
 - [x] Beta agreement template exists at `docs/beta-agreement-template.md`.
+- [x] CSRF protection hardened (2026-05-25):
+      threat model in `docs/security/cookie-csrf-threat-model.md`, double-submit middleware
+      in `backend/app/middleware/csrf.py`, frontend wired via `frontend/src/lib/csrf.ts`,
+      negative tests in `backend/app/tests/test_csrf.py` and `frontend/src/lib/csrf.test.ts`,
+      Stripe webhooks and `X-Internal-Key` paths verified as exempt.
 
 ## Active Release Gates
 
@@ -88,6 +93,37 @@ controlled tenants.
 - [ ] Production smoke on custom domain completed after the Vercel rewrite deploy:
       login, signup, session refresh, billing subscription fetch, catalog load, register sale,
       reports, settings, `/api/health`, and `/api/health/db`.
+
+## Sellability Audit Follow-Ups
+
+These are detailed follow-ups from the 2026-05-25 sellability review. They should either be closed
+before broad self-serve selling or explicitly accepted as controlled-beta risks by the founder.
+
+- [ ] Make production rate limiting deployment-safe:
+      replace or front the current single-instance in-memory limiter with a production-safe option
+      such as provider/WAF limits or shared Redis-style limits; cover login, signup, password reset,
+      sync, uploads, billing checkout, and webhook abuse cases; document limits, user-facing 429
+      copy, and alerting expectations.
+- [ ] Fix onboarding billing completion logic:
+      verify `GET /api/v1/onboarding/state` marks billing complete when the tenant has `active`,
+      `trialing`, or allowed paid/grace subscription access; add regression tests for active
+      subscription, signup trial, expired trial, and past_due grace; confirm the dashboard checklist
+      no longer asks an already-paid tenant to activate the plan.
+- [ ] Make email delivery a production gate:
+      ensure production cannot silently skip required auth/billing lifecycle emails when Resend (or
+      the chosen provider) is missing; add health or startup validation for required email config;
+      implement/verify verification, password reset, welcome/post-checkout, billing receipt or
+      billing confirmation, and trial-ending reminder flows; test Gmail and Outlook/Hotmail inboxes,
+      spam placement, links, sender identity, and Spanish copy.
+- [ ] Add frontend performance follow-up:
+      review the production bundle warning (~692 kB minified main chunk); decide whether code
+      splitting is required before broad selling; if required, split public/auth/app routes and
+      heavy report/register surfaces; verify first load on mobile 4G and returning PWA browsers.
+- [ ] Improve backend test ergonomics for release gates:
+      make the documented Windows backend test command easy to run with a reachable Postgres;
+      document the fastest local path to start Postgres, apply migrations, and run `uv run pytest`;
+      ensure CI remains the release source of truth and that the exact release commit has green
+      backend tests before live Stripe is enabled.
 
 ## Known Follow-Ups
 
