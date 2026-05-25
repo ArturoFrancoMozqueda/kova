@@ -43,6 +43,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/privacy" element={<LegalPage variant="privacy" />} />
             <Route path="/terms" element={<LegalPage variant="terms" />} />
+            <Route path="/seguridad" element={<LegalPage variant="security" />} />
 
             {import.meta.env.DEV ? (
               <Route path="/dev/logo-preview" element={<LogoPreview />} />

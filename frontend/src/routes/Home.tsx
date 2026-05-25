@@ -1237,6 +1237,7 @@ function Footer() {
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
             <Link to="/privacy" style={footerLinkStyle}>Privacidad</Link>
             <Link to="/terms" style={footerLinkStyle}>Términos</Link>
+            <Link to="/seguridad" style={footerLinkStyle}>Seguridad</Link>
             <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>Soporte</a>
           </div>
         </div>

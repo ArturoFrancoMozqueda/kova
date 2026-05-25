@@ -33,7 +33,7 @@ Readiness snapshot:
 | Deployment | Vercel/Fly custom domains configured; rewrites now match backend paths. |
 | Backups | R2 backup works; restore drill still open. |
 | Monitoring | UptimeRobot covers frontend, API, and API + DB. |
-| Support/legal | Beta agreement exists; branded support and `/seguridad` still open. |
+| Support/legal | Beta agreement exists; `/seguridad` shipped; branded support address still open. |
 
 ## Done
 
@@ -88,8 +88,11 @@ controlled tenants.
 - [ ] Domain/support path confirmed:
       current support is `posprojectsupport@gmail.com`; preferred future path is a branded support
       address once the domain/mailbox decision is final.
-- [ ] `/seguridad` plan or page confirmed, covering tenant isolation, HttpOnly cookies, backups,
-      uptime monitoring, and support expectations.
+- [x] `/seguridad` page shipped at `frontend/src/routes/LegalPage.tsx` (security variant);
+      covers tenant isolation (app + RLS), HttpOnly cookies + CSRF, backups, uptime monitoring,
+      payment separation, beta expectations, and support; linked from the home footer, the legal
+      pages, and the signup trust block; excluded from the SW navigation fallback so deploys
+      never serve a stale copy.
 - [ ] Production smoke on custom domain completed after the Vercel rewrite deploy:
       login, signup, session refresh, billing subscription fetch, catalog load, register sale,
       reports, settings, `/api/health`, and `/api/health/db`.

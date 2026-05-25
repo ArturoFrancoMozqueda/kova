@@ -455,6 +455,7 @@ export const copy = {
     privacy: "privacidad",
     terms: "términos",
     signupSupportLine: "Para revisarlos o pedir soporte, escríbenos a",
+    signupSecurityLink: "Cómo cuidamos tus datos y tu negocio",
     verifyRedirecting: "Redirigiendo al inicio de sesión...",
     verifyMissingToken: "Falta el token de verificación.",
   },

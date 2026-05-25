@@ -165,6 +165,16 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                     </a>
                     .
                   </p>
+                  <p className="mt-1">
+                    <a
+                      href="/seguridad"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-kova-blue hover:underline"
+                    >
+                      {copy.auth.signupSecurityLink}
+                    </a>
+                  </p>
                 </div>
               )}
 
