@@ -30,11 +30,11 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v6
       - name: Install dependencies
         run: uv sync
       - name: Lint
@@ -58,7 +58,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: "npm"
@@ -97,10 +97,10 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v6
       - run: uv sync
       - name: Upgrade
         run: uv run alembic upgrade head
@@ -118,7 +118,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: "npm"
