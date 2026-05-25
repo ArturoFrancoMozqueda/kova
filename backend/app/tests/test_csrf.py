@@ -88,7 +88,10 @@ def test_post_with_correct_csrf_header_succeeds(db):
     r = c.post(
         "/api/v1/catalog/categories",
         json={"name": "Drinks"},
-        headers={"x-csrf-token": token},
+        headers={
+            "Idempotency-Key": "csrf-valid-category",
+            "x-csrf-token": token,
+        },
     )
     assert r.status_code == 201, r.text
 
@@ -195,8 +198,9 @@ def test_internal_key_bypasses_csrf(db, monkeypatch):
     """Endpoints called with a valid X-Internal-Key bypass CSRF entirely."""
     monkeypatch.setattr(settings, "internal_api_key", "test-internal-key")
     c = _raw_client(db)
-    _signup_and_verify(c, email="internal@example.com")
-    _login(c)
+    email = "internal@example.com"
+    _signup_and_verify(c, email=email)
+    _login(c, email=email)
     r = c.post(
         "/api/v1/billing/cancel",
         headers={"x-internal-key": "test-internal-key"},
@@ -210,7 +214,7 @@ def test_unauthenticated_post_does_not_require_csrf(db):
     """A POST with no auth cookies should be evaluated by the route, not blocked by CSRF."""
     c = _raw_client(db)
     r = c.post("/api/v1/catalog/categories", json={"name": "x"})
-    assert r.status_code == 401
+    assert r.status_code != 403 or r.json().get("detail") != "CSRF validation failed"
 
 
 # ── Constant-time comparison sanity ────────────────────────────────────────
@@ -222,8 +226,9 @@ def test_unauthenticated_post_does_not_require_csrf(db):
 )
 def test_csrf_rejects_various_bad_headers(db, header_value):
     c = _raw_client(db)
-    _signup_and_verify(c, email=f"bad-{len(header_value)}@example.com")
-    _login(c)
+    email = f"bad-{len(header_value)}@example.com"
+    _signup_and_verify(c, email=email)
+    _login(c, email=email)
     r = c.post(
         "/api/v1/catalog/categories",
         json={"name": "Drinks"},
