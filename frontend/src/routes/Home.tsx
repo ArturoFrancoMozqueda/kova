@@ -11,6 +11,9 @@ import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import { formatMoney } from "@/orders/format";
+import { copy } from "@/i18n/messages";
+
+const t = copy.landing;
 
 /* ─── Theme ──────────────────────────────────────────────────────────────── */
 type Theme = "light" | "dark";
@@ -160,11 +163,11 @@ function Navbar({
 
         <div className="lp-desktop-nav" style={{ display: "flex", gap: 28, fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>
           {[
-            { label: "Cómo funciona", href: "#como-funciona" },
-            { label: "Así se ve", href: "#producto" },
-            { label: "¿Es para mí?", href: "#comercios" },
-            { label: "Preguntas", href: "#faq" },
-            { label: "Precio", href: "#precio" },
+            { label: t.nav.howItWorks, href: "#como-funciona" },
+            { label: t.nav.whatItLooksLike, href: "#producto" },
+            { label: t.nav.isItForMe, href: "#comercios" },
+            { label: t.nav.questions, href: "#faq" },
+            { label: t.nav.price, href: "#precio" },
           ].map((l) => (
             <a key={l.label} href={l.href} style={{ color: "inherit", textDecoration: "none", transition: "color 150ms" }}
                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--page-fg)")}
@@ -184,7 +187,7 @@ function Navbar({
               }}
               className="hidden sm:inline-flex"
             >
-              Iniciar sesión
+              {t.nav.login}
             </Link>
           )}
           <Link
@@ -197,7 +200,7 @@ function Navbar({
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
           >
-            {isAuthenticated ? "Ir al dashboard" : "Crear cuenta"}
+            {isAuthenticated ? t.nav.goToDashboard : t.nav.createAccount}
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
               <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -235,9 +238,9 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 color: "var(--page-fg)",
               }}
             >
-              Lleva tu emprendimiento{" "}
+              {t.hero.titlePart1}{" "}
               <span style={{ position: "relative", whiteSpace: "nowrap" }}>
-                con orden
+                {t.hero.titleEmphasis}
                 <svg
                   viewBox="0 0 200 14" preserveAspectRatio="none"
                   style={{ position: "absolute", bottom: "-0.06em", left: 0, width: "100%", height: "0.18em" }}
@@ -246,14 +249,11 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                   <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
                 </svg>
               </span>,<br />
-              sin libretas ni Excel.
+              {t.hero.titlePart2}
             </h1>
 
             <p className="lp-hero-copy" style={{ fontSize: 19, lineHeight: 1.55, color: "var(--text-muted)", marginTop: 24, maxWidth: 520 }}>
-              Kova es la app que usas en la caja para cobrar ventas,
-              controlar tu inventario, organizar a tu equipo y ver qué se
-              vende — todo desde una sola pantalla. Funciona aunque se vaya
-              el internet.
+              {t.hero.subtitle}
             </p>
 
             <div className="lp-hero-actions" style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
@@ -266,7 +266,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                   display: "inline-flex", alignItems: "center", gap: 8,
                 }}
               >
-                Pruébalo gratis 7 días
+                {t.hero.ctaPrimary}
                 <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                   <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -280,7 +280,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                   border: "0.5px solid var(--hairline-color)",
                 }}
               >
-                Ver cómo funciona →
+                {t.hero.ctaSecondary}
               </a>
             </div>
 
@@ -297,9 +297,9 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
                 fontWeight: 600, color: "var(--page-fg)",
               }}>
-                {STANDARD_PLAN_PRICE_LABEL_ES} · todo incluido
+                {STANDARD_PLAN_PRICE_LABEL_ES}{t.hero.priceBadgeSuffix}
               </span>
-              <span>Sin tarjeta para empezar · Cancela cuando quieras</span>
+              <span>{t.hero.priceFineprint}</span>
             </p>
 
             <div
@@ -311,12 +311,12 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               }}
             >
               <span style={{ fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
-                Hecho en México 🇲🇽
+                {t.hero.madeInMexico}
               </span>
               <span>·</span>
-              <span>Sin comisión por venta</span>
+              <span>{t.hero.noCommission}</span>
               <span>·</span>
-              <span>Funciona sin internet</span>
+              <span>{t.hero.worksOffline}</span>
             </div>
           </div>
 
@@ -331,41 +331,22 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
 
 /* ─── ThreeNodes ─────────────────────────────────────────────────────────── */
 function ThreeNodes() {
-  const items = [
-    {
-      label: "Cobra",
-      title: "Caja rápida, sin errores de cuenta.",
-      body: "Tu cajero toca el producto, elige cómo pagó el cliente y listo. Efectivo, transferencia, tarjeta o pago dividido — todo queda registrado para que el cierre del día cuadre solo.",
-      meta: ["Caja simple", "Pago dividido", "Recibos", "Devoluciones"],
-    },
-    {
-      label: "Controla",
-      title: "Inventario claro, sin contar a mano.",
-      body: "Mira cuántos cafés, panes o productos te quedan sin abrir el almacén. Kova te avisa cuando algo está por acabarse, para que reabastezcas a tiempo y no pierdas ventas.",
-      meta: ["Inventario", "Alertas de stock", "Movimientos", "Ajustes"],
-    },
-    {
-      label: "Entiende",
-      title: "Reportes que cualquiera lee.",
-      body: "Ve qué días vendes más, qué productos te dejan mejor resultado y a qué hora se llena tu local. Toma decisiones con datos reales — no con corazonadas ni hojas de cálculo.",
-      meta: ["Ventas del día", "Productos top", "Horas pico", "Cierre de turno"],
-    },
-  ];
+  const items = t.threeNodes.items;
   return (
     <section id="como-funciona" style={{ padding: "80px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            Lo que cambia en tu día a día
+            {t.threeNodes.eyebrow}
           </span>
         </div>
         <h2 style={{ fontSize: "clamp(36px, 4.4vw, 60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
-          Tres cosas que se vuelven simples desde el primer día.
+          {t.threeNodes.title}
         </h2>
         <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 620, lineHeight: 1.5 }}>
-          Olvídate de libretas, calculadora y hojas de Excel.{" "}
-          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>Kova reemplaza eso</strong>{" "}
-          con una app que tu cajero y tú pueden usar sin entrenamiento.
+          {t.threeNodes.leadStart}
+          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>{t.threeNodes.leadEmphasis}</strong>
+          {t.threeNodes.leadEnd}
         </p>
 
         <div
@@ -426,12 +407,12 @@ function NodeCard({ index, label, title, body, meta }: { index: number; label: s
 /* ─── DesktopPreview ─────────────────────────────────────────────────────── */
 type Product = { id: string; name: string; price: number; cat: string; icon: string };
 const CATALOG: Product[] = [
-  { id: "p1", name: "Café americano", price: 38, cat: "cafés", icon: "☕" },
-  { id: "p2", name: "Latte 12 oz", price: 52, cat: "cafés", icon: "🥛" },
-  { id: "p3", name: "Capuchino", price: 48, cat: "cafés", icon: "☕" },
-  { id: "p4", name: "Concha", price: 22, cat: "panadería", icon: "🥐" },
-  { id: "p5", name: "Cuernito", price: 28, cat: "panadería", icon: "🥖" },
-  { id: "p6", name: "Galleta avena", price: 18, cat: "panadería", icon: "🍪" },
+  { id: "p1", name: t.desktopPreview.products.americano, price: 38, cat: t.desktopPreview.categoryCoffee, icon: "☕" },
+  { id: "p2", name: t.desktopPreview.products.latte, price: 52, cat: t.desktopPreview.categoryCoffee, icon: "🥛" },
+  { id: "p3", name: t.desktopPreview.products.cappuccino, price: 48, cat: t.desktopPreview.categoryCoffee, icon: "☕" },
+  { id: "p4", name: t.desktopPreview.products.concha, price: 22, cat: t.desktopPreview.categoryBakery, icon: "🥐" },
+  { id: "p5", name: t.desktopPreview.products.croissant, price: 28, cat: t.desktopPreview.categoryBakery, icon: "🥖" },
+  { id: "p6", name: t.desktopPreview.products.oatCookie, price: 18, cat: t.desktopPreview.categoryBakery, icon: "🍪" },
 ];
 
 const qtyBtnStyle: CSSProperties = {
@@ -445,7 +426,7 @@ const qtyBtnStyle: CSSProperties = {
 
 function DesktopPreview() {
   const [cart, setCart] = useState<Record<string, number>>({ p2: 2, p4: 1 });
-  const [filter, setFilter] = useState("todos");
+  const [filter, setFilter] = useState(t.desktopPreview.categoryAll);
   const [pulseId, setPulseId] = useState<string | null>(null);
 
   const items = Object.entries(cart)
@@ -455,7 +436,7 @@ function DesktopPreview() {
     })
     .filter((x): x is Product & { qty: number } => !!x && x.qty > 0);
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const filtered = filter === "todos" ? CATALOG : CATALOG.filter((p) => p.cat === filter);
+  const filtered = filter === t.desktopPreview.categoryAll ? CATALOG : CATALOG.filter((p) => p.cat === filter);
 
   const add = (id: string) => {
     setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
@@ -485,15 +466,15 @@ function DesktopPreview() {
         <div style={{ padding: "16px 20px", borderBottom: "0.5px solid var(--hairline-color)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <LogoMark size={18} circuitColor="var(--page-fg)" coreColor="var(--accent)" />
-            <span style={{ fontSize: 13, fontWeight: 500 }}>Café Lupita · Caja 1</span>
+            <span style={{ fontSize: 13, fontWeight: 500 }}>{t.desktopPreview.shopName}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
-            <span className="lp-live-dot" /> En línea
+            <span className="lp-live-dot" /> {t.desktopPreview.online}
           </div>
         </div>
 
         <div style={{ padding: "10px 20px", display: "flex", gap: 6, borderBottom: "0.5px solid var(--hairline-color)" }}>
-          {["todos", "cafés", "panadería"].map((c) => (
+          {[t.desktopPreview.categoryAll, t.desktopPreview.categoryCoffee, t.desktopPreview.categoryBakery].map((c) => (
             <button
               key={c} onClick={() => setFilter(c)}
               style={{
@@ -561,16 +542,16 @@ function DesktopPreview() {
       <div className="lp-preview-cart" style={{ display: "flex", flexDirection: "column", background: "var(--surface-2)" }}>
         <div style={{ padding: "16px 16px 12px", borderBottom: "0.5px solid var(--hairline-color)" }}>
           <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)", fontWeight: 500 }}>
-            Venta actual
+            {t.desktopPreview.currentSale}
           </div>
           <div style={{ fontSize: 13, marginTop: 4, color: "var(--text-muted)" }}>
-            {items.length} {items.length === 1 ? "artículo" : "artículos"}
+            {t.desktopPreview.itemCount(items.length)}
           </div>
         </div>
         <div style={{ flex: 1, padding: "8px 16px", overflow: "auto" }}>
           {items.length === 0 && (
             <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "20px 0", textAlign: "center" }}>
-              Agrega un producto del catálogo.
+              {t.desktopPreview.emptyCart}
             </div>
           )}
           {items.map((i) => (
@@ -589,7 +570,7 @@ function DesktopPreview() {
         </div>
         <div style={{ padding: 16, borderTop: "0.5px solid var(--hairline-color)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Total</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.desktopPreview.total}</span>
             <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMoney(total)}</span>
           </div>
           <button
@@ -600,7 +581,7 @@ function DesktopPreview() {
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             }}
           >
-            Cobrar {formatMoney(total)}
+            {t.desktopPreview.charge(formatMoney(total))}
           </button>
         </div>
       </div>
@@ -625,20 +606,20 @@ function TabletPreview() {
         <div style={{ padding: "14px 14px 10px", borderBottom: "0.5px solid var(--kova-border)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>
-              Vista previa · ejemplo
+              {t.tabletPreview.label}
             </div>
             <div style={{ fontSize: 10, color: "var(--kova-muted)", display: "flex", gap: 4, alignItems: "center" }}>
-              <span className="lp-live-dot" /> Demo
+              <span className="lp-live-dot" /> {t.tabletPreview.demo}
             </div>
           </div>
           <div className="tabular" style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.04em", marginTop: 4 }}>
-            $8,432<span style={{ fontSize: 14, color: "var(--kova-muted)", marginLeft: 6 }}>MXN</span>
+            $8,432<span style={{ fontSize: 14, color: "var(--kova-muted)", marginLeft: 6 }}>{t.tabletPreview.mxn}</span>
           </div>
-          <div style={{ fontSize: 11, color: "var(--kova-growth)", marginTop: 2 }}>↑ 12% vs. ayer</div>
+          <div style={{ fontSize: 11, color: "var(--kova-growth)", marginTop: 2 }}>{t.tabletPreview.vsYesterday}</div>
         </div>
         <div style={{ padding: "14px 14px 8px" }}>
           <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
-            Ventas por hora
+            {t.tabletPreview.salesByHour}
           </div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60 }}>
             {bars.map((h, i) => (
@@ -648,13 +629,9 @@ function TabletPreview() {
         </div>
         <div style={{ padding: "8px 14px", flex: 1 }}>
           <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
-            Órdenes recientes
+            {t.tabletPreview.recentOrders}
           </div>
-          {[
-            { id: "#A-247", item: "Latte 12 oz · concha", amt: 74, time: "ahora" },
-            { id: "#A-246", item: "2× americano", amt: 76, time: "2 min" },
-            { id: "#A-245", item: "Capuchino · galleta", amt: 66, time: "8 min" },
-          ].map((o, i) => (
+          {t.tabletPreview.orders.map((meta, idx) => ({ ...meta, amt: [74, 76, 66][idx] })).map((o, i) => (
             <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid var(--kova-border)", animation: i === 0 ? "lp-feed-in 280ms var(--kova-ease-entrance)" : undefined }}>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div className="mono" style={{ fontSize: 10, color: "var(--kova-muted)" }}>{o.id}</div>
@@ -678,16 +655,14 @@ function POSShowcase() {
     <section id="producto" className="lp-product-section" style={{ padding: "120px 32px", background: "var(--surface)", borderTop: "0.5px solid var(--hairline-color)", borderBottom: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Así se ve</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>{t.posShowcase.eyebrow}</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.6fr)", gap: 56, alignItems: "end", marginBottom: 56 }} className="lp-showcase-head">
           <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0 }}>
-            Cobra desde donde<br />estés trabajando.
+            {t.posShowcase.titleLine1}<br />{t.posShowcase.titleLine2}
           </h2>
           <p style={{ fontSize: 16, color: "var(--text-muted)", margin: 0, lineHeight: 1.55, paddingBottom: 8 }}>
-            Úsalo en tu computadora, tablet o teléfono. No necesitas comprar
-            una máquina especial. Y si se cae el internet en tu local, Kova
-            sigue cobrando — todo se sube solo cuando vuelve la señal.
+            {t.posShowcase.body}
           </p>
         </div>
 
@@ -758,26 +733,19 @@ function FeatIcon({ kind }: { kind: FeatKind }) {
 }
 
 function Features() {
-  const feats: { kicker: string; title: string; body: string; kind: FeatKind }[] = [
-    { kicker: "Sin internet, sin problema", title: "Sigue cobrando aunque se vaya el WiFi.", body: "En la mayoría de los locales el internet falla. Con Kova el cajero sigue trabajando como si nada — y cuando vuelve la señal, todas las ventas se suben solas. No pierdes una sola.", kind: "offline" },
-    { kicker: "Tu negocio, tus reglas", title: "Personaliza Kova para tu negocio.", body: "Carga tu logo, tus productos, tus precios y los extras (tamaños, leches, modificadores). Cada negocio queda con su propio espacio aislado y seguro.", kind: "tenant" },
-    { kicker: "Cobra como te paguen", title: "Efectivo, transferencia o tarjeta — todo cuenta.", body: "Acepta el método que el cliente prefiera y déjalos registrados por separado. Al cerrar el día sabes cuánto entró por cada uno, sin sumar a mano.", kind: "pay" },
-    { kicker: "Datos del día, en vivo", title: "Mira tu negocio desde donde estés.", body: "Aunque no estés en el local, ves cuánto se ha vendido, qué se está moviendo y cómo va el turno. Sin llamar al cajero, sin pedir reportes.", kind: "live" },
-    { kicker: "Cierre de caja sin estrés", title: "Apertura, cierre y cuadre, en automático.", body: "Tu cajero abre el turno con un monto inicial, cobra durante el día y cierra con un click. Kova calcula la diferencia, sin Excel ni discusiones.", kind: "shift" },
-    { kicker: "Sin instalaciones complicadas", title: "Funciona en lo que ya tienes.", body: "No compres una máquina especial ni bajes nada de la App Store. Abre Kova en tu computadora, tablet o teléfono y listo: caja lista para vender.", kind: "pwa" },
-  ];
+  const featureKinds: FeatKind[] = ["offline", "tenant", "pay", "live", "shift", "pwa"];
+  const feats = t.features.items.map((it, i) => ({ ...it, kind: featureKinds[i] }));
   return (
     <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Lo que vas a notar</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>{t.features.eyebrow}</span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
-          Hecho para usarse, no para configurarse.
+          {t.features.title}
         </h2>
         <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 620, lineHeight: 1.5 }}>
-          Cada función está pensada para resolver un problema real del mostrador.
-          Nada de palabras técnicas: solo cosas que te ahorran tiempo, dinero y dolores de cabeza.
+          {t.features.lead}
         </p>
 
         <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0, border: "0.5px solid var(--hairline-color)", borderRadius: 14, overflow: "hidden", background: "var(--surface)" }} className="lp-3cols">
@@ -805,47 +773,21 @@ function Features() {
 
 /* ─── FirstDay ───────────────────────────────────────────────────────────── */
 function FirstDay({ primaryTarget }: { primaryTarget: string }) {
-  const steps = [
-    {
-      n: "01",
-      title: "Crea tu cuenta",
-      time: "≈ 1 min",
-      body: "Solo tu correo y el nombre de tu negocio. No te pedimos tarjeta para empezar.",
-    },
-    {
-      n: "02",
-      title: "Sube tu logo y tus productos",
-      time: "≈ 10 min",
-      body: "Carga lo que vendes con sus precios. Si tienes muchos productos, te ayudamos a hacerlo en bloque.",
-    },
-    {
-      n: "03",
-      title: "Abre la caja y cobra",
-      time: "Mismo día",
-      body: "Tu cajero toca el producto, elige el método de pago y listo. Sin manual, sin curso, sin instalaciones.",
-    },
-    {
-      n: "04",
-      title: "Revisa tu primer reporte",
-      time: "Al cerrar",
-      body: "Al final del día ves cuánto entró, qué se vendió más y cómo cuadra tu caja. Sin sumar tickets a mano.",
-    },
-  ];
+  const steps = t.firstDay.steps;
   return (
     <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            Qué pasa cuando empiezas
+            {t.firstDay.eyebrow}
           </span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.7fr)", gap: 56, alignItems: "end", marginBottom: 64 }} className="lp-showcase-head">
           <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0 }}>
-            De registrarte a cobrar tu<br />primera venta, en un día.
+            {t.firstDay.titleLine1}<br />{t.firstDay.titleLine2}
           </h2>
           <p style={{ fontSize: 16, color: "var(--text-muted)", margin: 0, lineHeight: 1.55, paddingBottom: 8 }}>
-            No necesitas saber de tecnología. Si sabes usar WhatsApp,
-            sabes usar Kova. Si te trabas, te ayudamos por correo o WhatsApp directo.
+            {t.firstDay.body}
           </p>
         </div>
 
@@ -908,11 +850,10 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
         >
           <div style={{ flex: "1 1 360px" }}>
             <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>
-              7 días gratis
+              {t.firstDay.ctaEyebrow}
             </div>
             <p style={{ fontSize: 16, lineHeight: 1.5, margin: "6px 0 0", color: "var(--page-fg)" }}>
-              Prueba Kova una semana completa con tu negocio real. Si no te
-              hace la vida más fácil, cancelas y no pagas nada.
+              {t.firstDay.ctaBody}
             </p>
           </div>
           <Link
@@ -924,7 +865,7 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
               display: "inline-flex", alignItems: "center", gap: 8,
             }}
           >
-            Crear mi cuenta
+            {t.firstDay.ctaButton}
             <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
               <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -937,32 +878,24 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
 
 /* ─── BuiltFor ───────────────────────────────────────────────────────────── */
 function BuiltFor() {
-  const types = [
-    { name: "Cafeterías", body: "Café, bebidas frías, pan dulce. Cobros rápidos en la hora pico, con extras como leches o tamaños sin batallar.", tag: "Recomendado" },
-    { name: "Panaderías", body: "Productos por pieza, mostrador ágil, inventario claro y cierre de caja sin sumar tickets a mano.", tag: "Recomendado" },
-    { name: "Food trucks", body: "Vende aunque el internet esté flojo. Cuando vuelves a tener señal, las ventas se suben solas.", tag: "Compatible" },
-    { name: "Tiendas pequeñas", body: "Catálogo simple, varios métodos de pago e inventario a la vista. Ideal para misceláneas, abarrotes o concept stores.", tag: "Compatible" },
-    { name: "Restaurantes", body: "Funciona si tu flujo es de mostrador (no de mesas con comandas a cocina). Para barra, pollería, taquería, fonda — sí.", tag: "Caso por caso" },
-    { name: "Servicios", body: "Útil si cobras productos o servicios sueltos. No reemplaza una agenda completa de citas o turnos por hora.", tag: "Caso por caso" },
-  ];
+  const types = t.builtFor.types;
   return (
     <section id="comercios" style={{ padding: "120px 32px", background: "var(--kova-ink)", color: "var(--kova-on-ink)", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>¿Es para mí?</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>{t.builtFor.eyebrow}</span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 820, color: "var(--kova-on-ink)" }}>
-          Pensado para cualquier emprendimiento.
+          {t.builtFor.title}
         </h2>
         <p style={{ marginTop: 20, fontSize: 17, color: "rgba(240,244,255,0.65)", maxWidth: 620, lineHeight: 1.55 }}>
-          Si tu negocio cobra de mostrador, lleva un catálogo de productos y
-          quieres dejar de hacer cuentas a mano, Kova te queda como anillo al dedo.
+          {t.builtFor.body}
         </p>
 
         <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden", border: "0.5px solid rgba(255,255,255,0.08)" }} className="lp-3cols">
-          {types.map((t, i) => (
+          {types.map((type, i) => (
             <div
-              key={t.name}
+              key={type.name}
               style={{ background: "var(--kova-ink)", padding: "28px 24px", display: "flex", flexDirection: "column", gap: 12, minHeight: 200, transition: "background 220ms", cursor: "pointer" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "#1A1D28")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "var(--kova-ink)")}
@@ -971,9 +904,9 @@ function BuiltFor() {
                 <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>0{i + 1}</span>
                 <LogoMark size={22} circuitColor="rgba(255,255,255,0.4)" coreColor="var(--kova-blue-light)" />
               </div>
-              <h3 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.025em", margin: 0, color: "#fff" }}>{t.name}</h3>
-              <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, color: "rgba(240,244,255,0.6)" }}>{t.body}</p>
-              <div className="mono" style={{ marginTop: "auto", fontSize: 11, color: "var(--kova-blue-light)" }}>↳ {t.tag}</div>
+              <h3 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.025em", margin: 0, color: "#fff" }}>{type.name}</h3>
+              <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, color: "rgba(240,244,255,0.6)" }}>{type.body}</p>
+              <div className="mono" style={{ marginTop: "auto", fontSize: 11, color: "var(--kova-blue-light)" }}>↳ {type.tag}</div>
             </div>
           ))}
         </div>
@@ -985,51 +918,18 @@ function BuiltFor() {
 /* ─── FAQ ────────────────────────────────────────────────────────────────── */
 function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
-  const items = [
-    {
-      q: "¿Tengo que saber de tecnología para usarlo?",
-      a: "No. Si sabes usar WhatsApp o el cajero de un banco, sabes usar Kova. Está hecho para que cualquier persona del mostrador la use sin curso. Si te trabas, te ayudamos por correo o WhatsApp.",
-    },
-    {
-      q: "¿Necesito comprar una máquina especial?",
-      a: "No. Funciona en lo que ya tienes: laptop, computadora de escritorio, tablet o teléfono. Si quieres conectar una impresora térmica de tickets, también funciona, pero no es obligatorio para empezar.",
-    },
-    {
-      q: "¿Y si en mi local se va el internet?",
-      a: "Kova sigue cobrando como si nada. Las ventas se guardan en tu dispositivo y cuando vuelve la señal se suben solas. No pierdes ventas ni tienes que volver a capturarlas a mano.",
-    },
-    {
-      q: "¿Cobran comisión por cada venta?",
-      a: "No. Solo pagas la mensualidad de $299. Lo que cobres en efectivo, transferencia o tarjeta es tuyo — Kova no se queda con nada de cada venta.",
-    },
-    {
-      q: "¿Qué pasa si no me gusta o no es para mi negocio?",
-      a: "Tienes 7 días gratis para probarlo con tu negocio real. Si no te hace la vida más fácil, cancelas con un click y no pagas nada. Sin penalizaciones ni preguntas.",
-    },
-    {
-      q: "¿Puedo tener varios cajeros o empleados?",
-      a: "Sí. Puedes crear cuentas para cada empleado con su propio rol (cajero, gerente, dueño) y ver quién hizo qué en cada turno. Sin cobro extra por usuario.",
-    },
-    {
-      q: "¿Mi información está segura?",
-      a: "Sí. Cada negocio tiene su propio espacio aislado. Nadie fuera de tu equipo ve tus ventas, productos ni clientes. Los datos viven en servidores en la nube con respaldo automático.",
-    },
-    {
-      q: "¿Sirve para mi taquería / pollería / lonchería / fonda?",
-      a: "Si cobras de mostrador (no de mesas con comandas a cocina), sí. Si tienes dudas sobre tu caso específico, escríbenos y te decimos honestamente si te conviene.",
-    },
-  ];
+  const items = t.faq.items;
 
   return (
     <section id="faq" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            Preguntas frecuentes
+            {t.faq.eyebrow}
           </span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
-          Resolvemos las dudas comunes antes del primer cobro.
+          {t.faq.title}
         </h2>
 
         <div style={{ marginTop: 56, borderTop: "0.5px solid var(--hairline-color)" }}>
@@ -1097,14 +997,14 @@ function FAQ() {
         </div>
 
         <p style={{ marginTop: 40, fontSize: 14, color: "var(--text-muted)", textAlign: "center" }}>
-          ¿Tienes otra duda?{" "}
+          {t.faq.contactPrefix}
           <a
             href="mailto:posprojectsupport@gmail.com"
             style={{ color: "var(--accent)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--accent-soft)" }}
           >
-            Escríbenos directo
-          </a>{" "}
-          y te contestamos.
+            {t.faq.contactLink}
+          </a>
+          {t.faq.contactSuffix}
         </p>
       </div>
     </section>
@@ -1113,29 +1013,20 @@ function FAQ() {
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing({ primaryTarget }: { primaryTarget: string }) {
-  const feats = [
-    "Cobros en efectivo, transferencia, tarjeta y pagos divididos",
-    "Sigue cobrando aunque se vaya el internet",
-    "Apertura, cierre y cuadre de caja automático",
-    "Inventario claro con avisos cuando algo se está acabando",
-    "Reportes de qué se vende, cuándo y a qué hora",
-    "Empleados con roles (cajero, gerente, dueño)",
-    "Tu logo y tus reglas en cada recibo",
-    "Historial completo de cada venta",
-  ];
+  const feats = t.pricing.features;
   return (
     <section id="precio" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32, justifyContent: "center" }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>Precio</span>
+          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>{t.pricing.eyebrow}</span>
         </div>
         <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, textAlign: "center" }}>
-          Menos que un café diario.<br />Todo tu negocio bajo control.
+          {t.pricing.titleLine1}<br />{t.pricing.titleLine2}
         </h2>
         <p style={{ marginTop: 16, fontSize: 17, color: "var(--text-muted)", maxWidth: 580, textAlign: "center", marginLeft: "auto", marginRight: "auto", lineHeight: 1.55 }}>
-          Un solo plan, todo incluido.{" "}
-          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>Sin comisiones por venta. Sin cobro extra por empleado.</strong>{" "}
-          Cancela cuando quieras, sin penalización ni preguntas.
+          {t.pricing.leadStart}
+          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>{t.pricing.leadEmphasis}</strong>
+          {t.pricing.leadEnd}
         </p>
 
         <div style={{ marginTop: 56, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
@@ -1149,8 +1040,8 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-blue-light)" }}>Plan Kova</div>
-              <div style={{ fontSize: 13, marginTop: 6, color: "rgba(240,244,255,0.6)" }}>Todo lo que necesitas para operar, sin extras</div>
+              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-blue-light)" }}>{t.pricing.planName}</div>
+              <div style={{ fontSize: 13, marginTop: 6, color: "rgba(240,244,255,0.6)" }}>{t.pricing.planSubtitle}</div>
             </div>
 
             <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -1168,10 +1059,10 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
                 textAlign: "center", textDecoration: "none", display: "block",
               }}
             >
-              Empieza {BILLING_TRIAL_LABEL_ES} gratis →
+              {t.pricing.ctaPrefix}{BILLING_TRIAL_LABEL_ES}{t.pricing.ctaSuffix}
             </Link>
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(240,244,255,0.55)", marginTop: -10 }}>
-              Sin tarjeta para empezar. Cancela cuando quieras.
+              {t.pricing.ctaFineprint}
             </div>
 
             <div style={{ height: "0.5px", background: "rgba(255,255,255,0.1)" }} />
@@ -1204,20 +1095,19 @@ function Footer() {
               <Logo size={24} circuitColor="currentColor" wordmarkColor="currentColor" coreColor="var(--accent)" />
             </span>
             <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 340, marginTop: 16, lineHeight: 1.55 }}>
-              La app con la que cafeterías y negocios pequeños en México cobran,
-              controlan su inventario y entienden qué se vende — sin libretas.
+              {t.footer.tagline}
             </p>
             <div style={{ marginTop: 24, display: "flex", gap: 6, alignItems: "center" }}>
               <span className="lp-live-dot" />
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Atendido por humanos, no por bots</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.footer.humansBadge}</span>
             </div>
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
-              Contacto
+              {t.footer.contactHeading}
             </div>
             <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 16, lineHeight: 1.55, maxWidth: 360 }}>
-              ¿Tienes dudas o quieres ver Kova funcionando con productos como los tuyos? Escríbenos y te contestamos por correo (o WhatsApp si lo pides).
+              {t.footer.contactBody}
             </p>
             <a
               href="mailto:posprojectsupport@gmail.com"
@@ -1228,12 +1118,12 @@ function Footer() {
           </div>
         </div>
         <div style={{ marginTop: 64, paddingTop: 24, borderTop: "0.5px solid var(--hairline-color)", display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-tertiary)", flexWrap: "wrap", gap: 16 }}>
-          <span>© 2026 kova · hecho en México 🇲🇽</span>
+          <span>{t.footer.copyright}</span>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-            <Link to="/privacy" style={footerLinkStyle}>Privacidad</Link>
-            <Link to="/terms" style={footerLinkStyle}>Términos</Link>
-            <Link to="/seguridad" style={footerLinkStyle}>Seguridad</Link>
-            <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>Soporte</a>
+            <Link to="/privacy" style={footerLinkStyle}>{t.footer.privacy}</Link>
+            <Link to="/terms" style={footerLinkStyle}>{t.footer.terms}</Link>
+            <Link to="/seguridad" style={footerLinkStyle}>{t.footer.security}</Link>
+            <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>{t.footer.support}</a>
           </div>
         </div>
       </div>
