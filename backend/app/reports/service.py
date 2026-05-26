@@ -4,15 +4,12 @@ from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.auth.models import User
-from app.business_settings.models import BusinessProfile
-from app.catalog.models import Product
 from app.inventory.repository import stock_on_hand
-from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, Void
+from app.orders.models import Order, Refund
 from app.pricing import calculator
+from app.reports import repository
 from app.shared.exceptions import bad_request
 
 DAYPARTS = (
@@ -54,7 +51,7 @@ def _bounds(start_date: date, end_date: date) -> tuple[datetime, datetime]:
 
 
 def _tenant_timezone(db: Session, *, tenant_id: UUID) -> ZoneInfo:
-    profile = db.get(BusinessProfile, tenant_id)
+    profile = repository.get_business_profile(db, tenant_id=tenant_id)
     timezone_name = profile.timezone if profile else "America/Mexico_City"
     try:
         return ZoneInfo(timezone_name)
@@ -75,15 +72,8 @@ def _local_bounds(start_date: date, end_date: date, tz: ZoneInfo) -> tuple[datet
 def _completed_orders_between(
     db: Session, *, tenant_id: UUID, start: datetime, end: datetime
 ) -> list[Order]:
-    return (
-        db.query(Order)
-        .filter(
-            Order.tenant_id == tenant_id,
-            Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
-        )
-        .all()
+    return repository.completed_orders_between(
+        db, tenant_id=tenant_id, start=start, end=end
     )
 
 
@@ -126,15 +116,8 @@ def _completed_orders(
     if tz is None:
         tz = _tenant_timezone(db, tenant_id=tenant_id)
     start, end = _local_bounds(start_date, end_date, tz)
-    return (
-        db.query(Order)
-        .filter(
-            Order.tenant_id == tenant_id,
-            Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
-        )
-        .all()
+    return repository.completed_orders_between(
+        db, tenant_id=tenant_id, start=start, end=end
     )
 
 
@@ -149,14 +132,8 @@ def _void_count(
     if tz is None:
         tz = _tenant_timezone(db, tenant_id=tenant_id)
     start, end = _local_bounds(start_date, end_date, tz)
-    return (
-        db.query(Void)
-        .filter(
-            Void.tenant_id == tenant_id,
-            Void.created_at >= start,
-            Void.created_at <= end,
-        )
-        .count()
+    return repository.void_count_between(
+        db, tenant_id=tenant_id, start=start, end=end
     )
 
 
@@ -171,13 +148,7 @@ def sales_summary(
     order_ids = [order.id for order in orders]
     gross_sales = calculator.money(sum((order.total_amount for order in orders), Decimal("0.00")))
 
-    refunds = []
-    if order_ids:
-        refunds = (
-            db.query(Refund)
-            .filter(Refund.tenant_id == tenant_id, Refund.order_id.in_(order_ids))
-            .all()
-        )
+    refunds = repository.refunds_for_orders(db, tenant_id=tenant_id, order_ids=order_ids)
     refund_total = calculator.money(
         sum((refund.refunded_amount for refund in refunds), Decimal("0.00"))
     )
@@ -207,17 +178,13 @@ def payment_breakdown(
     totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
     counts: dict[str, int] = defaultdict(int)
 
-    if order_ids:
-        payments = (
-            db.query(Payment)
-            .filter(Payment.tenant_id == tenant_id, Payment.order_id.in_(order_ids))
-            .all()
+    for payment in repository.payments_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    ):
+        totals[payment.method] = calculator.money(
+            totals[payment.method] + payment.amount_amount
         )
-        for payment in payments:
-            totals[payment.method] = calculator.money(
-                totals[payment.method] + payment.amount_amount
-            )
-            counts[payment.method] += 1
+        counts[payment.method] += 1
 
     return {
         "start_date": start_date,
@@ -251,24 +218,20 @@ def top_products(
     order_ids = [order.id for order in orders]
     product_totals: dict[UUID, dict] = {}
 
-    if order_ids:
-        items = (
-            db.query(OrderItem)
-            .filter(OrderItem.tenant_id == tenant_id, OrderItem.order_id.in_(order_ids))
-            .all()
+    for item in repository.order_items_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    ):
+        row = product_totals.setdefault(
+            item.product_id,
+            {
+                "product_id": item.product_id,
+                "product_name": item.product_name,
+                "quantity_sold": 0,
+                "gross_sales": Decimal("0.00"),
+            },
         )
-        for item in items:
-            row = product_totals.setdefault(
-                item.product_id,
-                {
-                    "product_id": item.product_id,
-                    "product_name": item.product_name,
-                    "quantity_sold": 0,
-                    "gross_sales": Decimal("0.00"),
-                },
-            )
-            row["quantity_sold"] += item.quantity
-            row["gross_sales"] = calculator.money(row["gross_sales"] + item.line_total_amount)
+        row["quantity_sold"] += item.quantity
+        row["gross_sales"] = calculator.money(row["gross_sales"] + item.line_total_amount)
 
     products = sorted(
         product_totals.values(),
@@ -276,21 +239,6 @@ def top_products(
         reverse=True,
     )[:limit]
     return {"start_date": start_date, "end_date": end_date, "products": products}
-
-
-def _refunds_by_order_subquery(db: Session, *, tenant_id: UUID):
-    return (
-        db.query(
-            Refund.order_id.label("order_id"),
-            func.coalesce(func.sum(Refund.refunded_amount), Decimal("0.00")).label(
-                "refund_total"
-            ),
-            func.count(Refund.id).label("refund_count"),
-        )
-        .filter(Refund.tenant_id == tenant_id)
-        .group_by(Refund.order_id)
-        .subquery()
-    )
 
 
 def sales_by_hour(
@@ -303,15 +251,12 @@ def sales_by_hour(
     )
     order_ids = [order.id for order in orders]
     refunds_by_order: dict[UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
-    if order_ids:
-        for refund in (
-            db.query(Refund)
-            .filter(Refund.tenant_id == tenant_id, Refund.order_id.in_(order_ids))
-            .all()
-        ):
-            refunds_by_order[refund.order_id] = calculator.money(
-                refunds_by_order[refund.order_id] + refund.refunded_amount
-            )
+    for refund in repository.refunds_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    ):
+        refunds_by_order[refund.order_id] = calculator.money(
+            refunds_by_order[refund.order_id] + refund.refunded_amount
+        )
 
     buckets: dict[int, dict] = {
         hour: {"hour": hour, "net_sales": Decimal("0.00"), "order_count": 0}
@@ -333,33 +278,8 @@ def sales_by_employee(
     tz = _tenant_timezone(db, tenant_id=tenant_id)
     start_date, end_date = _normalize_range(start_date, end_date, tz)
     start, end = _local_bounds(start_date, end_date, tz)
-    refunds_by_order = _refunds_by_order_subquery(db, tenant_id=tenant_id)
-
-    rows = (
-        db.query(
-            Order.created_by_user_id.label("user_id"),
-            User.email.label("email"),
-            func.count(Order.id).label("order_count"),
-            func.coalesce(
-                func.sum(
-                    Order.total_amount
-                    - func.coalesce(refunds_by_order.c.refund_total, Decimal("0.00"))
-                ),
-                Decimal("0.00"),
-            ).label("net_sales"),
-            func.coalesce(func.sum(refunds_by_order.c.refund_count), 0).label("refund_count"),
-        )
-        .outerjoin(User, User.id == Order.created_by_user_id)
-        .outerjoin(refunds_by_order, refunds_by_order.c.order_id == Order.id)
-        .filter(
-            Order.tenant_id == tenant_id,
-            Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
-        )
-        .group_by(Order.created_by_user_id, User.email)
-        .order_by(func.sum(Order.total_amount).desc())
-        .all()
+    rows = repository.sales_by_employee_rows(
+        db, tenant_id=tenant_id, start=start, end=end
     )
     return [
         {
@@ -379,22 +299,8 @@ def refunds_by_reason(
     tz = _tenant_timezone(db, tenant_id=tenant_id)
     start_date, end_date = _normalize_range(start_date, end_date, tz)
     start, end = _local_bounds(start_date, end_date, tz)
-    rows = (
-        db.query(
-            Refund.reason.label("reason"),
-            func.count(Refund.id).label("refund_count"),
-            func.coalesce(func.sum(Refund.refunded_amount), Decimal("0.00")).label(
-                "refunded_amount"
-            ),
-        )
-        .filter(
-            Refund.tenant_id == tenant_id,
-            Refund.created_at >= start,
-            Refund.created_at <= end,
-        )
-        .group_by(Refund.reason)
-        .order_by(func.sum(Refund.refunded_amount).desc())
-        .all()
+    rows = repository.refunds_in_window(
+        db, tenant_id=tenant_id, start=start, end=end
     )
     return [
         {
@@ -415,18 +321,14 @@ def business_story(
     orders = _completed_orders_between(db, tenant_id=tenant_id, start=start, end=end)
     order_ids = [order.id for order in orders]
 
-    refunds: list[Refund] = []
+    refunds: list[Refund] = repository.refunds_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    )
     refunds_by_order: dict[UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
-    if order_ids:
-        refunds = (
-            db.query(Refund)
-            .filter(Refund.tenant_id == tenant_id, Refund.order_id.in_(order_ids))
-            .all()
+    for refund in refunds:
+        refunds_by_order[refund.order_id] = calculator.money(
+            refunds_by_order[refund.order_id] + refund.refunded_amount
         )
-        for refund in refunds:
-            refunds_by_order[refund.order_id] = calculator.money(
-                refunds_by_order[refund.order_id] + refund.refunded_amount
-            )
 
     gross_sales = calculator.money(sum((order.total_amount for order in orders), Decimal("0.00")))
     refund_total = calculator.money(
@@ -435,14 +337,8 @@ def business_story(
     net_sales = calculator.money(gross_sales - refund_total)
     completed_orders = len(orders)
 
-    void_count = (
-        db.query(Void)
-        .filter(
-            Void.tenant_id == tenant_id,
-            Void.created_at >= start,
-            Void.created_at <= end,
-        )
-        .count()
+    void_count = repository.void_count_between(
+        db, tenant_id=tenant_id, start=start, end=end
     )
 
     day_totals: dict[date, dict] = {}
@@ -649,22 +545,8 @@ def _product_units_in_window(
     start: datetime,
     end: datetime,
 ) -> dict[UUID, dict]:
-    rows = (
-        db.query(
-            OrderItem.product_id.label("product_id"),
-            OrderItem.product_name.label("product_name"),
-            func.coalesce(func.sum(OrderItem.quantity), 0).label("units"),
-            func.coalesce(func.sum(OrderItem.line_total_amount), Decimal("0.00")).label("gross"),
-        )
-        .join(Order, Order.id == OrderItem.order_id)
-        .filter(
-            Order.tenant_id == tenant_id,
-            Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
-        )
-        .group_by(OrderItem.product_id, OrderItem.product_name)
-        .all()
+    rows = repository.product_units_in_window(
+        db, tenant_id=tenant_id, start=start, end=end
     )
     return {
         row.product_id: {
@@ -763,32 +645,13 @@ def _restock_alerts(
     tenant_id: UUID,
 ) -> list[dict]:
     since = datetime.now(UTC) - timedelta(days=7)
-    sales_rows = (
-        db.query(
-            InventoryMovement.product_id,
-            func.coalesce(func.sum(InventoryMovement.quantity_delta), 0).label("units"),
-        )
-        .filter(
-            InventoryMovement.tenant_id == tenant_id,
-            InventoryMovement.movement_type == "sale",
-            InventoryMovement.created_at >= since,
-        )
-        .group_by(InventoryMovement.product_id)
-        .all()
+    sales_rows = repository.inventory_sales_since(
+        db, tenant_id=tenant_id, since=since
     )
     sold_by_product = {row.product_id: abs(int(row.units or 0)) for row in sales_rows}
 
     alerts: list[dict] = []
-    tracked_products = (
-        db.query(Product)
-        .filter(
-            Product.tenant_id == tenant_id,
-            Product.is_active.is_(True),
-            Product.track_inventory.is_(True),
-        )
-        .all()
-    )
-    for product in tracked_products:
+    for product in repository.tracked_products(db, tenant_id=tenant_id):
         stock = stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
         sold = sold_by_product.get(product.id, 0)
         units_per_day = (Decimal(sold) / Decimal("7")).quantize(Decimal("0.01"))
@@ -840,13 +703,11 @@ def _restock_alerts(
 
 def _product_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> list[dict]:
     product_totals: dict[UUID, dict] = {}
-    if not order_ids:
-        return []
-    items = (
-        db.query(OrderItem)
-        .filter(OrderItem.tenant_id == tenant_id, OrderItem.order_id.in_(order_ids))
-        .all()
+    items = repository.order_items_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
     )
+    if not items:
+        return []
     for item in items:
         row = product_totals.setdefault(
             item.product_id,
@@ -874,13 +735,11 @@ def _product_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> 
 def _payment_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> list[dict]:
     totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0.00"))
     counts: dict[str, int] = defaultdict(int)
-    if not order_ids:
-        return []
-    payments = (
-        db.query(Payment)
-        .filter(Payment.tenant_id == tenant_id, Payment.order_id.in_(order_ids))
-        .all()
+    payments = repository.payments_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
     )
+    if not payments:
+        return []
     for payment in payments:
         totals[payment.method] = calculator.money(totals[payment.method] + payment.amount_amount)
         counts[payment.method] += 1

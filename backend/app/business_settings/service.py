@@ -4,19 +4,19 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.business_settings import repository
 from app.business_settings.models import BusinessProfile, ReceiptSettings
 from app.business_settings.schemas import BusinessProfileUpsert, ReceiptSettingsUpsert
-from app.tenants.models import Tenant
 
 
 def get_business_profile(db: Session, *, tenant_id: UUID) -> BusinessProfile | None:
-    return db.get(BusinessProfile, tenant_id)
+    return repository.get_business_profile(db, tenant_id=tenant_id)
 
 
 def upsert_business_profile(
     db: Session, *, tenant_id: UUID, user_id: UUID, body: BusinessProfileUpsert
 ) -> BusinessProfile:
-    profile = db.get(BusinessProfile, tenant_id)
+    profile = repository.get_business_profile(db, tenant_id=tenant_id)
     now = datetime.now(UTC)
     if profile is None:
         profile = BusinessProfile(tenant_id=tenant_id, created_at=now)
@@ -28,7 +28,7 @@ def upsert_business_profile(
     # consumer reading from `tenant.name` (sidebar, dashboard greeting,
     # receipt fallback) sees the new name immediately. Without this the
     # value stays out of sync until the row is touched by some other path.
-    tenant = db.get(Tenant, tenant_id)
+    tenant = repository.get_tenant(db, tenant_id=tenant_id)
     if tenant is not None and tenant.name != body.public_name:
         tenant.name = body.public_name
     audit_service.log(
@@ -46,13 +46,13 @@ def upsert_business_profile(
 
 
 def get_receipt_settings(db: Session, *, tenant_id: UUID) -> ReceiptSettings | None:
-    return db.get(ReceiptSettings, tenant_id)
+    return repository.get_receipt_settings(db, tenant_id=tenant_id)
 
 
 def upsert_receipt_settings(
     db: Session, *, tenant_id: UUID, user_id: UUID, body: ReceiptSettingsUpsert
 ) -> ReceiptSettings:
-    settings = db.get(ReceiptSettings, tenant_id)
+    settings = repository.get_receipt_settings(db, tenant_id=tenant_id)
     now = datetime.now(UTC)
     if settings is None:
         settings = ReceiptSettings(tenant_id=tenant_id, created_at=now)
