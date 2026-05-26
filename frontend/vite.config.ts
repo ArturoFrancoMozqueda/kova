@@ -109,6 +109,26 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("react") || id.includes("react-router-dom")) return "vendor-react";
+          if (id.includes("dexie")) return "vendor-offline";
+          if (id.includes("lucide-react")) return "vendor-icons";
+          if (
+            id.includes("class-variance-authority") ||
+            id.includes("clsx") ||
+            id.includes("tailwind-merge")
+          ) {
+            return "vendor-ui";
+          }
+          return "vendor";
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: "jsdom",

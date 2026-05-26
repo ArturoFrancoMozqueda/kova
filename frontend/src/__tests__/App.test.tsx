@@ -163,7 +163,7 @@ describe("App shell", () => {
     });
 
     render(<App />);
-    fireEvent.change(screen.getByRole("textbox", { name: /correo/i }), {
+    fireEvent.change(await screen.findByRole("textbox", { name: /correo/i }), {
       target: { value: "owner@example.com" },
     });
     fireEvent.change(screen.getByLabelText(/contrase/i), {
