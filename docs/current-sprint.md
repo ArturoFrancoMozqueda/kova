@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Source Of Truth
 
@@ -78,6 +78,39 @@ Readiness snapshot:
 - [x] Rate limiting moved to a pluggable backend (Upstash Redis sliding window in prod,
       in-memory fallback in dev); coverage extended to sync, uploads, and checkout;
       docs at `docs/security/rate-limiting.md`.
+- [x] Senior code audit follow-ups landed (2026-05-26):
+      - Centralized MXN money formatting: `formatMoney` now accepts `string | number`
+        and a new `formatMoneyDelta` handles signed deltas. Removed the ad-hoc
+        `formatMXN` in `routes/Home.tsx`, the `${n.toFixed(2)}` patterns in
+        `shifts/CloseShiftModal.tsx` and `shifts/ShiftView.tsx`, the `+MX$` deltas
+        in `catalog/CatalogView.tsx`, `register/ModifierSelectionModal.tsx`, and
+        `orders/OrderDetail.tsx`, and the redundant `.toFixed(2)` wrapping in
+        `dashboard/DashboardView.tsx`. `billing/BillingView.formatPlanAmount` is
+        left as-is because it is multi-currency (commit `8353aad`).
+      - i18n sweep: new `documentTitles` and `notFound` namespaces plus
+        `register.online`; migrated the 13 `useDocumentTitle("...")` callsites,
+        `routes/NotFound.tsx`, and `offline/OfflineIndicator.tsx` (commit `a765563`).
+      - Landing page i18n: the stale `landing` namespace in `i18n/messages.ts` is
+        replaced with one that mirrors the current `routes/Home.tsx` sections (nav,
+        hero, threeNodes, posShowcase, desktopPreview, tabletPreview, features,
+        firstDay, builtFor, faq, pricing, footer). All hardcoded Spanish copy in
+        Home.tsx now reads from `copy.landing` (commit `570eace`).
+      - Backend domain layout: `reports/` and `business_settings/` now follow the
+        `{models, repository, service, router, schemas}` convention. Pure SQL
+        queries moved to new `repository.py` modules; `service.py` keeps
+        aggregation, timezone handling, and storytelling. No behavior change
+        (commit `03b3405`).
+      - Trial-reminder window fix (2026-05-26):
+        `app/email/trial_reminders.send_due_trial_reminders` used the window
+        `[now + (LEAD-1)d, now + LEAD d]` = `[now+2d, now+3d]`, which excluded
+        trials ending around 3.5d. The window is now `[now+LEAD, now+(LEAD+1)d]`
+        = `[now+3d, now+4d]`, matching the "send ~3 days before expiry" intent
+        and the test fixtures in `app/tests/test_trial_reminders.py`.
+      - Mega-view splits (ReportsView, CatalogView, RegisterView, >1200 lines
+        each) deliberately deferred — they touch business-critical logic and
+        violate CLAUDE.md's "do not change component APIs" rule without a
+        per-component plan and e2e coverage. To be picked up in a dedicated
+        session.
 
 ## Active Release Gates
 

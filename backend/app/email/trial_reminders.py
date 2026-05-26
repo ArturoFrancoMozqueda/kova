@@ -29,9 +29,9 @@ from app.tenants.models import Tenant
 logger = logging.getLogger(__name__)
 
 REMINDER_LEAD_DAYS = 3
-# Window width: any tenant whose trial ends within
-# [now + (LEAD-1)d, now + LEAD d] gets a reminder. One-day window plus
-# the sent-at idempotency guard means a daily cron is safe.
+# Window: any tenant whose trial ends within [now + LEAD d, now + (LEAD+1) d]
+# gets a reminder. A one-day window plus the sent-at idempotency guard
+# means a daily cron catches every tenant exactly once.
 REMINDER_WINDOW_HOURS = 24
 
 
@@ -68,7 +68,7 @@ def send_due_trial_reminders(db: Session, *, now: datetime | None = None) -> int
     crash mid-batch does not re-spam everyone.
     """
     now = now or datetime.now(UTC)
-    window_start = now + timedelta(days=REMINDER_LEAD_DAYS - 1)
+    window_start = now + timedelta(days=REMINDER_LEAD_DAYS)
     window_end = window_start + timedelta(hours=REMINDER_WINDOW_HOURS)
 
     sent = 0
