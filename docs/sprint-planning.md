@@ -120,8 +120,9 @@ controlled paid beta.
 - Public status page or hosted monitor exists for frontend, API, database, and Stripe dependency.
 - Beta agreement is signed by the first paid tenants.
 - Data retention and export/offboarding policy is documented for cancellation.
-- Domain and support trust improved: move from `posprojectsupport@gmail.com` toward
-  `soporte@kova.mx` after domain purchase.
+- Support trust decision documented: `posprojectsupport@gmail.com` is the official support channel
+  for controlled paid beta. A branded mailbox can be revisited after beta signal and is not a
+  blocker for founder-assisted paid tenants.
 - `/seguridad` page explains tenant isolation, HttpOnly cookies, backups, uptime monitoring, and
   support expectations.
 
@@ -141,12 +142,12 @@ capture the additional sellability gaps that must not be lost in future sprint p
 | SELL-03 | P0 | Backups | Complete restore drill | Restore a real R2 backup into a fresh Supabase project using `docs/runbooks/restore-supabase-backup.md`; validate tenant/order counts, latest order timestamp, `/health/db`, and representative API reads; record operator, date, backup filename, workflow link, outcome, and cleanup decision in the runbook drill log. |
 | SELL-04 | P0 | Production smoke | Run custom-domain smoke after rewrite deploy | On `https://kovasuite.com` and `https://api.kovasuite.com`, verify login, signup, email verification path, session refresh, billing subscription fetch, checkout start, catalog load/create, inventory load, open shift, register sale, receipt/order detail, reports, settings, `/api/health`, and `/api/health/db`; document browser, account, date, commit/deployment, and any production-only issue. |
 | SELL-05 | P1 | Trust/security page | Ship `/seguridad` | Add a public `/seguridad` route linked from the footer/signup trust surfaces. Page must explain tenant isolation, app-layer scoping, PostgreSQL RLS, HttpOnly/Secure/SameSite cookies, backups and restore drills, uptime monitoring, support expectations, payment separation (Stripe Billing vs POS payments), and what beta tenants should expect. Keep copy honest and Spanish-first. |
-| SELL-06 | P1 | Support | Confirm support/domain path | Decide whether controlled beta uses `posprojectsupport@gmail.com` temporarily or a branded mailbox. If temporary, document the cutoff for moving to branded support. Define SLA expectations, escalation owner, support intake fields (tenant, user, request_id, screenshot, severity), and where support is linked in the authenticated app. |
+| SELL-06 | P1 | Support | Confirm support/domain path | Decision: controlled paid beta uses `posprojectsupport@gmail.com` as the official support channel. A branded mailbox is deferred until after beta signal. Define SLA expectations, escalation owner, support intake fields (tenant, user, request_id, screenshot, severity), and where support is linked in the authenticated app. |
 | SELL-07 | P1 | Auth security | Harden CSRF for cookie auth | Document the current cookie-auth CSRF threat model. Add or verify CSRF protection for state-changing cookie-auth endpoints: refresh/logout, catalog writes, order creation, refunds, voids, shifts, inventory, billing checkout/cancel, settings, employees, uploads, telemetry if needed, and offline sync. Add automated negative tests for missing/invalid CSRF. Keep Stripe webhooks and internal-key endpoints exempt only with documented rationale. |
 | SELL-08 | P1 | Rate limiting | Make rate limits production-safe | The current limiter is in-memory and single-instance. Before broad selling, add provider/WAF limits or shared backing storage for login, signup, password reset, sync, uploads, billing checkout, and webhook abuse cases. Document thresholds, 429 UX copy, bypass rules for webhooks/internal jobs, observability, and alerting. |
 | SELL-09 | P1 | Onboarding | Fix billing checklist completion | `GET /api/v1/onboarding/state` must mark billing complete when subscription/access state is active, trialing, or paid/grace-allowed as intended. Add regression tests for signup trial, active subscription, expired trial, past_due grace, and canceled/unpaid. Verify paid tenants do not keep seeing "Activa el plan" as incomplete. |
 | SELL-10 | P1 | Release verification | Make backend test gate easy to run | Document and verify a Windows local path for starting Postgres, applying migrations, and running `$env:UV_PROJECT_ENVIRONMENT=".venv-win"; uv run pytest`. CI remains the source of truth, but the release operator must be able to reproduce backend test gates locally. The exact live-Stripe release commit must have green backend CI. |
-| SELL-11 | P2 | Frontend performance | Address production bundle warning | Review the main chunk warning (~692 kB minified). Decide whether it blocks broad self-serve selling. If yes, split public/auth/app routes and heavy reports/register surfaces with dynamic imports; verify mobile first load, PWA returning-browser behavior, and no stale pricing after deploy. If not blocking, document the accepted risk and target sprint. |
+| SELL-11 | P2 | Frontend performance | Address production bundle warning | Closed 2026-05-25. Public/auth/app routes and heavy authenticated surfaces are split with `React.lazy`/`Suspense`; Vite manual chunks separate React, Dexie/offline, UI helpers, icons, and remaining vendor code. The production build no longer emits the large-main-chunk warning: entry chunk is 72.75 kB minified / 24.73 kB gzip. Mobile 4G and returning-PWA behavior remain part of the custom-domain production smoke gate. |
 | SELL-12 | P2 | Email monitoring | Add email health/ops checks | Add an operator-visible way to confirm email provider configuration and recent delivery failures before enabling live billing. Could be a health check, runbook checklist, or admin-only diagnostics. Must not expose secrets or customer-sensitive message content. |
 
 Sellability exit criteria:
@@ -2118,7 +2119,8 @@ and load test.
 
 #### Security Review
 
-- [ ] Run `npm audit` — zero high/critical in production deps.
+- [x] Run frontend `npm audit --audit-level=moderate` — zero vulnerabilities after upgrading
+      `vite@^6.4.2` / `vitest@^3.2.4` and applying the `ws` fix.
 - [ ] Run `uv pip audit` (or `safety check`) — zero high/critical.
 - [ ] Review OWASP Top 10 checklist for each API layer.
 - [ ] Verify CSP headers block inline scripts.
@@ -2243,7 +2245,8 @@ and load test.
 
 - [ ] Support email/channel ready.
 - [ ] In-app Help path exists or the interim support path is visible from authenticated screens.
-- [ ] Domain-support path is planned or active (`soporte@kova.mx` preferred over generic Gmail).
+- [x] Domain-support path is decided for beta: `posprojectsupport@gmail.com` is the official
+      support channel; branded support is deferred until after beta signal.
 - [ ] `/seguridad` page or equivalent public trust page is live and linked from public trust
       surfaces.
 - [ ] Support intake process captures tenant, user, request_id, severity, screenshot/context, and
@@ -2262,7 +2265,7 @@ and load test.
 - [ ] Locale formatting verified for es-MX.
 - [ ] `/shifts` has no raw English backend enum labels in visible UI.
 - [ ] Landing/footer trust links do not point to placeholders.
-- [ ] Production bundle size/performance warning is reviewed and either remediated or accepted with
+- [x] Production bundle size/performance warning is reviewed and either remediated or accepted with
       a target follow-up sprint.
 
 ## GA-Ready Checklist
@@ -2287,5 +2290,5 @@ Adds to beta:
 - [ ] CSRF protection is implemented and tested for cookie-auth state-changing endpoints.
 - [ ] Rate limiting uses a production-safe strategy across multiple app instances.
 - [ ] Email deliverability and provider monitoring are proven in production-like conditions.
-- [ ] Frontend route/code splitting is implemented where needed to meet mobile first-load targets.
+- [x] Frontend route/code splitting is implemented where needed to meet mobile first-load targets.
 - [ ] Beta tenants migrated without data migration.

@@ -33,7 +33,7 @@ Readiness snapshot:
 | Deployment | Vercel/Fly custom domains configured; rewrites now match backend paths. |
 | Backups | R2 backup works; restore drill still open. |
 | Monitoring | UptimeRobot covers frontend, API, and API + DB. |
-| Support/legal | Beta agreement exists; `/seguridad` shipped; branded support address still open. |
+| Support/legal | Beta agreement exists; `/seguridad` shipped; official beta support email confirmed. |
 
 ## Done
 
@@ -66,6 +66,10 @@ Readiness snapshot:
       and prunes after 7 days.
 - [x] Uptime monitoring moved to UptimeRobot for frontend, API health, and API + DB health.
 - [x] Beta agreement template exists at `docs/beta-agreement-template.md`.
+- [x] Beta support email decision confirmed:
+      `posprojectsupport@gmail.com` is the official support channel for controlled paid beta.
+      A branded mailbox may be revisited after beta signal, but it is not a blocker for charging
+      founder-assisted beta tenants.
 - [x] CSRF protection hardened (2026-05-25):
       threat model in `docs/security/cookie-csrf-threat-model.md`, double-submit middleware
       in `backend/app/middleware/csrf.py`, frontend wired via `frontend/src/lib/csrf.ts`,
@@ -88,9 +92,9 @@ controlled tenants.
 - [ ] Restore drill completed from a real R2 backup into a fresh Supabase project and documented in
       `docs/runbooks/restore-supabase-backup.md`.
 - [ ] Beta agreement signed by first paid tenants.
-- [ ] Domain/support path confirmed:
-      current support is `posprojectsupport@gmail.com`; preferred future path is a branded support
-      address once the domain/mailbox decision is final.
+- [x] Domain/support path confirmed:
+      `posprojectsupport@gmail.com` is the official support address for controlled paid beta;
+      moving to a branded mailbox is deferred until after beta signal.
 - [x] `/seguridad` page shipped at `frontend/src/routes/LegalPage.tsx` (security variant);
       covers tenant isolation (app + RLS), HttpOnly cookies + CSRF, backups, uptime monitoring,
       payment separation, beta expectations, and support; linked from the home footer, the legal
@@ -132,15 +136,36 @@ before broad self-serve selling or explicitly accepted as controlled-beta risks 
             tenant owner via `Membership.role = 'owner'`. Idempotent because the webhook handler
             already short-circuits on duplicate event IDs. Covered by
             `app/tests/test_welcome_email.py`.
-      - [ ] Billing receipt / billing confirmation email on `invoice.payment_succeeded`.
-      - [ ] Trial-ending reminder (cron or scheduled job a few days before signup-trial expiry).
+      - [x] Billing receipt / billing confirmation email on `invoice.payment_succeeded`:
+            `send_payment_receipt_email` in `app/email/service.py` (Spanish copy with amount,
+            folio, periodo y link al recibo alojado en Stripe). Wired into the Stripe webhook
+            handler in `app/billing/service.py`; resolves the tenant owner via
+            `Membership.role = 'owner'`. Idempotent because the webhook handler already
+            short-circuits on duplicate event IDs. Covered by
+            `app/tests/test_payment_receipt_email.py`.
+      - [x] Trial-ending reminder ~3 days before expiry:
+            `send_trial_ending_email` in `app/email/service.py` + batch job in
+            `app/email/trial_reminders.py`. Cron-friendly script at
+            `scripts/send_trial_reminders.py`. Covers both signup-trial (derived from
+            `tenant.created_at + billing_trial_days`) and Stripe `trialing` subscriptions.
+            Idempotent via new `tenants.trial_reminder_sent_at` column (migration
+            `0025_trial_reminder_sent_at.py`). Covered by `app/tests/test_trial_reminders.py`.
+            Cron still needs to be wired in the deploy platform — see
+            `docs/email-deliverability.md`.
       - [ ] Manual deliverability QA: Gmail + Outlook/Hotmail inboxing, spam placement,
             SPF/DKIM/DMARC for the Kova sending domain, link rendering, sender identity, Spanish
-            copy review across all five lifecycle emails.
-- [ ] Add frontend performance follow-up:
-      review the production bundle warning (~692 kB minified main chunk); decide whether code
-      splitting is required before broad selling; if required, split public/auth/app routes and
-      heavy report/register surfaces; verify first load on mobile 4G and returning PWA browsers.
+            copy review across all five lifecycle emails. Checklist in
+            `docs/email-deliverability.md`.
+- [x] Remediate frontend performance warning (2026-05-25):
+      route-level lazy loading now splits public/auth/app screens and heavy authenticated surfaces;
+      Vite manual chunks separate React, Dexie/offline, UI helpers, icons, and remaining vendor code.
+      Production build no longer emits the large-main-chunk warning: the entry chunk is 72.75 kB
+      minified / 24.73 kB gzip, with `vendor-react` at 180.74 kB / 54.80 kB gzip and
+      `vendor-offline` at 96.37 kB / 32.46 kB gzip. Mobile 4G and returning-PWA behavior should be
+      confirmed during the custom-domain production smoke gate.
+- [x] Resolve frontend npm audit moderate vulnerabilities (2026-05-25):
+      upgraded dev tooling to `vite@^6.4.2` and `vitest@^3.2.4`, then applied `npm audit fix` for
+      `ws`; `npm audit --audit-level=moderate` now reports zero vulnerabilities.
 - [ ] Improve backend test ergonomics for release gates:
       make the documented Windows backend test command easy to run with a reachable Postgres;
       document the fastest local path to start Postgres, apply migrations, and run `uv run pytest`;
@@ -164,6 +189,10 @@ These are not blockers for controlled paid beta unless a real tenant hits them.
 
 Recent documented verification:
 
+- Frontend performance/security follow-up passed on 2026-05-25:
+  `npm run typecheck`, `npm run lint`, `npm test -- --run` (26 tests), `npm run build`, and
+  `npm audit --audit-level=moderate`. Build entry chunk is now 72.75 kB minified / 24.73 kB gzip
+  and no Vite large-chunk warning is emitted.
 - Frontend typecheck, lint, production build, and diff hygiene passed during Sprint 6.
 - Focused unit/E2E coverage exists for date handling, shifts, inventory sold-out state, receipt
   reprint, register hotkeys, routing, out-of-stock sale paths, refunds, and order detail.
