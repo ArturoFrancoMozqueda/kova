@@ -366,7 +366,7 @@ def _upsert_subscription_from_stripe_object(
     return subscription
 
 
-def _send_welcome_email_for_tenant(db: Session, *, tenant_id: UUID) -> None:
+def _owner_email_for_tenant(db: Session, *, tenant_id: UUID) -> str | None:
     owner = (
         db.query(User)
         .join(Membership, Membership.user_id == User.id)
@@ -379,9 +379,55 @@ def _send_welcome_email_for_tenant(db: Session, *, tenant_id: UUID) -> None:
         .order_by(Membership.created_at.asc())
         .first()
     )
-    if owner is None:
+    return owner.email if owner else None
+
+
+def _send_welcome_email_for_tenant(db: Session, *, tenant_id: UUID) -> None:
+    email = _owner_email_for_tenant(db, tenant_id=tenant_id)
+    if not email:
         return
-    email_service.send_welcome_email(to=owner.email)
+    email_service.send_welcome_email(to=email)
+
+
+def _send_payment_receipt_for_tenant(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    invoice_object: dict[str, Any],
+) -> None:
+    email = _owner_email_for_tenant(db, tenant_id=tenant_id)
+    if not email:
+        return
+    amount_minor = invoice_object.get("amount_paid")
+    if amount_minor is None:
+        amount_minor = invoice_object.get("amount_due") or 0
+    currency = str(invoice_object.get("currency") or STANDARD_PLAN_CURRENCY).upper()
+    invoice_number = invoice_object.get("number") or invoice_object.get("id")
+    invoice_url = (
+        invoice_object.get("hosted_invoice_url")
+        or invoice_object.get("invoice_pdf")
+    )
+    period_end_ts = invoice_object.get("period_end")
+    if not period_end_ts:
+        lines_data = (invoice_object.get("lines") or {}).get("data") or []
+        if lines_data:
+            period_end_ts = (lines_data[0].get("period") or {}).get("end")
+    period_end_iso: str | None = None
+    if period_end_ts:
+        try:
+            period_end_iso = datetime.fromtimestamp(int(period_end_ts), tz=UTC).strftime(
+                "%Y-%m-%d"
+            )
+        except (TypeError, ValueError):
+            period_end_iso = None
+    email_service.send_payment_receipt_email(
+        to=email,
+        amount_minor_units=int(amount_minor),
+        currency=currency,
+        invoice_number=str(invoice_number) if invoice_number else None,
+        invoice_url=str(invoice_url) if invoice_url else None,
+        period_end_iso=period_end_iso,
+    )
 
 
 def _tenant_id_from_event_object(stripe_object: dict[str, Any]) -> UUID | None:
@@ -489,6 +535,10 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
             elif subscription and event_type == "invoice.payment_succeeded":
                 subscription.status = "active"
                 _clear_subscription_past_due(subscription)
+            if event_type == "invoice.payment_succeeded":
+                _send_payment_receipt_for_tenant(
+                    db, tenant_id=tenant_id, invoice_object=stripe_object
+                )
             action = (
                 "billing.payment_failed"
                 if event_type == "invoice.payment_failed"
