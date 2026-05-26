@@ -10,6 +10,7 @@ import { BILLING_TRIAL_LABEL_ES } from "@/billing/trial";
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
+import { formatMoney } from "@/orders/format";
 
 /* ─── Theme ──────────────────────────────────────────────────────────────── */
 type Theme = "light" | "dark";
@@ -118,12 +119,6 @@ const LANDING_STYLES = `
     }
   }
 `;
-
-/* ─── Money formatter ────────────────────────────────────────────────────── */
-function formatMXN(n: number, opts: { hideCurrency?: boolean } = {}) {
-  return (opts.hideCurrency ? "" : "$") +
-    Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 /* ─── ThemeToggle ────────────────────────────────────────────────────────── */
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
@@ -540,7 +535,7 @@ function DesktopPreview() {
                 <div style={{ fontSize: 18, lineHeight: 1 }}>{p.icon}</div>
                 <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>{p.name}</div>
                 <div className="tabular" style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginTop: "auto" }}>
-                  {formatMXN(p.price)}
+                  {formatMoney(p.price)}
                 </div>
                 {inCart && (
                   <span
@@ -582,7 +577,7 @@ function DesktopPreview() {
             <div key={i.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid var(--hairline-color)" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.name}</div>
-                <div className="tabular" style={{ fontSize: 11, color: "var(--text-muted)" }}>{formatMXN(i.price)} c/u</div>
+                <div className="tabular" style={{ fontSize: 11, color: "var(--text-muted)" }}>{formatMoney(i.price)} c/u</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <button onClick={() => adj(i.id, -1)} style={qtyBtnStyle}>−</button>
@@ -595,7 +590,7 @@ function DesktopPreview() {
         <div style={{ padding: 16, borderTop: "0.5px solid var(--hairline-color)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Total</span>
-            <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMXN(total)}</span>
+            <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMoney(total)}</span>
           </div>
           <button
             style={{
@@ -605,7 +600,7 @@ function DesktopPreview() {
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             }}
           >
-            Cobrar {formatMXN(total)}
+            Cobrar {formatMoney(total)}
           </button>
         </div>
       </div>
@@ -666,7 +661,7 @@ function TabletPreview() {
                 <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.item}</div>
               </div>
               <div style={{ textAlign: "right", marginLeft: 8 }}>
-                <div className="tabular" style={{ fontSize: 12, fontWeight: 600 }}>{formatMXN(o.amt)}</div>
+                <div className="tabular" style={{ fontSize: 12, fontWeight: 600 }}>{formatMoney(o.amt)}</div>
                 <div style={{ fontSize: 9, color: "var(--kova-muted)" }}>{o.time}</div>
               </div>
             </div>

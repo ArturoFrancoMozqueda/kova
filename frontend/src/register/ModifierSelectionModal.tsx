@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ModifierGroup, ModifierOption } from "../catalog/types";
 import { copy } from "../i18n/messages";
+import { formatMoneyDelta } from "../orders/format";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -124,7 +125,7 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
                       <span className="flex-1 text-left font-medium">{option.name}</span>
                       {parseFloat(option.price_delta) > 0 && (
                         <span className="text-xs text-muted-foreground">
-                          +MX${parseFloat(option.price_delta).toFixed(2)}
+                          {formatMoneyDelta(option.price_delta)}
                         </span>
                       )}
                     </label>

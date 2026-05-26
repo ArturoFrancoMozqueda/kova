@@ -16,7 +16,7 @@ import {
   usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
-import { formatMoney } from "../orders/format";
+import { formatMoney, formatMoneyDelta } from "../orders/format";
 import { applyPreset } from "../onboarding/api";
 import type { PresetName } from "../onboarding/api";
 import {
@@ -866,7 +866,7 @@ function ModifierGroupsPanel({
                 <span className="flex-1">{opt.name}</span>
                 {parseFloat(opt.price_delta) > 0 && (
                   <span className="text-xs text-muted-foreground">
-                    +MX${parseFloat(opt.price_delta).toFixed(2)}
+                    {formatMoneyDelta(opt.price_delta)}
                   </span>
                 )}
                 {canDelete && (

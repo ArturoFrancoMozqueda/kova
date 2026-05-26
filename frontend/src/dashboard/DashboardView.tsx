@@ -625,7 +625,7 @@ export default function DashboardView() {
                       <CountUp
                         value={currentNum}
                         format={isMoney
-                          ? (n) => formatMoney(n.toFixed(2))
+                          ? (n) => formatMoney(n)
                           : (n) => String(Math.round(n))}
                       />
                     </p>

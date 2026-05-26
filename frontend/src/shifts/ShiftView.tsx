@@ -5,6 +5,7 @@ import {
   usePermission,
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
+import { formatMoney } from "../orders/format";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   closeShift,
@@ -208,7 +209,7 @@ export default function ShiftView() {
                     {copy.shiftView.openingCash}
                   </p>
                   <p className="text-sm font-bold mt-1">
-                    ${parseFloat(currentShift.opening_cash_amount).toFixed(2)}
+                    {formatMoney(currentShift.opening_cash_amount)}
                   </p>
                 </div>
               )}
@@ -235,7 +236,7 @@ export default function ShiftView() {
                         {copy.shiftView.totalCashIn}
                       </p>
                       <p className="text-sm font-bold mt-1 text-kova-growth">
-                        +${cashIn.toFixed(2)} / −${cashOut.toFixed(2)}
+                        +{formatMoney(cashIn)} / −{formatMoney(cashOut)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-primary/5 p-3">
@@ -243,7 +244,7 @@ export default function ShiftView() {
                         {copy.shiftView.expectedCashShort}
                       </p>
                       <p className="text-sm font-bold mt-1 text-primary">
-                        ${expected.toFixed(2)}
+                        {formatMoney(expected)}
                       </p>
                     </div>
                   </>
@@ -277,7 +278,7 @@ export default function ShiftView() {
                         </p>
                       </div>
                       <span className="text-sm font-semibold tabular-nums">
-                        ${parseFloat(m.amount).toFixed(2)}
+                        {formatMoney(m.amount)}
                       </span>
                     </div>
                   ))}

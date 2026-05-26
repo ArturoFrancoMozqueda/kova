@@ -1,8 +1,18 @@
-export function formatMoney(amount: string): string {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency: "MXN",
-  }).format(Number(amount));
+const _mxnFormatter = new Intl.NumberFormat("es-MX", {
+  style: "currency",
+  currency: "MXN",
+});
+
+export function formatMoney(amount: string | number): string {
+  return _mxnFormatter.format(typeof amount === "number" ? amount : Number(amount));
+}
+
+export function formatMoneyDelta(amount: string | number): string {
+  const n = typeof amount === "number" ? amount : Number(amount);
+  const formatted = formatMoney(Math.abs(n));
+  if (n > 0) return `+${formatted}`;
+  if (n < 0) return `−${formatted}`;
+  return formatted;
 }
 
 const reasonLabels: Record<string, string> = {

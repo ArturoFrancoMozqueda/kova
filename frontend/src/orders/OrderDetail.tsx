@@ -7,7 +7,7 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { createRefund, createVoid, getOrder, getReceipt } from "./api";
-import { formatMoney } from "./format";
+import { formatMoney, formatMoneyDelta } from "./format";
 import { ReceiptDisplay } from "./ReceiptDisplay";
 import { RefundModal } from "./RefundModal";
 import type { Order, Receipt, RefundPayload } from "./types";
@@ -197,7 +197,7 @@ export default function OrderDetail() {
                     {item.modifiers?.map((m) => (
                       <p key={`${m.modifier_group_name}-${m.modifier_option_name}`} className="text-xs text-muted-foreground mt-0.5 pl-2">
                         + {m.modifier_option_name}
-                        {parseFloat(m.price_delta_amount) > 0 && ` (+MX$${parseFloat(m.price_delta_amount).toFixed(2)})`}
+                        {parseFloat(m.price_delta_amount) > 0 && ` (${formatMoneyDelta(m.price_delta_amount)})`}
                       </p>
                     ))}
                     <p className="text-xs text-muted-foreground mt-1">

@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { copy } from "../i18n/messages";
+import { formatMoney } from "../orders/format";
 import type { Shift, ShiftClosePayload } from "./types";
 
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                 {copy.closeShiftModal.openingCash}
               </span>
               <span className="text-sm font-semibold tabular-nums">
-                ${openingCash.toFixed(2)}
+                {formatMoney(openingCash)}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -74,7 +75,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                 {copy.closeShiftModal.expectedCash}
               </span>
               <span className="text-sm font-semibold tabular-nums">
-                ${expectedCash.toFixed(2)}
+                {formatMoney(expectedCash)}
               </span>
             </div>
             {actualCash && (
@@ -84,7 +85,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                     {copy.closeShiftModal.actualCash}
                   </span>
                   <span className="text-sm font-semibold tabular-nums">
-                    ${actualAmount.toFixed(2)}
+                    {formatMoney(actualAmount)}
                   </span>
                 </div>
                 <div className="border-t pt-3">
@@ -109,7 +110,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                             : "text-warning",
                         )}
                       >
-                        ${variance.toFixed(2)}
+                        {formatMoney(variance)}
                       </span>
                       <Badge
                         variant={variance === 0 ? "success" : "warning"}
