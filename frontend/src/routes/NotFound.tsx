@@ -4,9 +4,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LogoMark } from "@/components/brand/Logo";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { copy } from "@/i18n/messages";
 
 export default function NotFound() {
-  useDocumentTitle("Página no encontrada");
+  useDocumentTitle(copy.documentTitles.notFound);
   return (
     <main className="min-h-[100dvh] flex items-center justify-center p-6 bg-[color:var(--kova-mist)]">
       <Card className="max-w-md w-full">
@@ -16,22 +17,21 @@ export default function NotFound() {
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight text-[color:var(--kova-ink)]">
-              Esta página no existe
+              {copy.notFound.heading}
             </h1>
             <p className="text-sm text-[color:var(--kova-muted)]">
-              La dirección que intentas abrir no está disponible. Vuelve al panel para continuar
-              trabajando en tu negocio.
+              {copy.notFound.body}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Link to="/dashboard" className={cn(buttonVariants({ size: "lg" }))}>
-              Volver al panel
+              {copy.notFound.backToDashboard}
             </Link>
             <Link
               to="/register"
               className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
             >
-              Ir a Caja
+              {copy.notFound.goToRegister}
             </Link>
           </div>
         </CardContent>

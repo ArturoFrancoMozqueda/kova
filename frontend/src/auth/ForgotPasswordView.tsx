@@ -13,7 +13,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 type State = "idle" | "submitting" | "sent";
 
 export default function ForgotPasswordView() {
-  useDocumentTitle("Recuperar contraseña");
+  useDocumentTitle(copy.documentTitles.forgotPassword);
   const [email, setEmail] = useState("");
   const [state, setState] = useState<State>("idle");
   const [devToken, setDevToken] = useState<string | null>(null);

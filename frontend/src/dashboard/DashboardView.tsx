@@ -364,7 +364,7 @@ const kpiCards = [
 ] as const;
 
 export default function DashboardView() {
-  useDocumentTitle("Panel");
+  useDocumentTitle(copy.documentTitles.dashboard);
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });

@@ -95,7 +95,7 @@ function roleDescription(role: Role | string): string {
 }
 
 export default function SettingsView() {
-  useDocumentTitle("Configuración");
+  useDocumentTitle(copy.documentTitles.settings);
   const location = useLocation();
   const { state, refresh } = useAuth();
   const { toast } = useToast();

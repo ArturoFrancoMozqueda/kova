@@ -113,7 +113,7 @@ const paymentMethodOptions: { value: PaymentMethod; label: string; icon: React.R
 ];
 
 export default function RegisterView() {
-  useDocumentTitle("Caja");
+  useDocumentTitle(copy.documentTitles.register);
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);

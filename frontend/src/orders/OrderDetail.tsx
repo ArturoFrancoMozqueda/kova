@@ -28,7 +28,7 @@ type LoadState =
   | { status: "loaded"; order: Order; receipt: Receipt };
 
 export default function OrderDetail() {
-  useDocumentTitle("Detalle de orden");
+  useDocumentTitle(copy.documentTitles.orderDetail);
   const { orderId } = useParams();
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<"refund" | "void" | null>(null);

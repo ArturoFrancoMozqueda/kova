@@ -72,7 +72,7 @@ function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean 
 }
 
 export default function BillingView() {
-  useDocumentTitle("Facturación");
+  useDocumentTitle(copy.documentTitles.billing);
   const location = useLocation();
   const checkoutReturnState = location.pathname.endsWith("/success")
     ? "success"

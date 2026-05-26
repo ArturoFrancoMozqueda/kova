@@ -32,7 +32,7 @@ type StockFilter = "all" | "low" | "healthy";
 type StockSort = "name_asc" | "stock_asc" | "stock_desc" | "threshold_asc";
 
 export default function InventoryView() {
-  useDocumentTitle("Inventario");
+  useDocumentTitle(copy.documentTitles.inventory);
   const canAdjust = usePermission(INVENTORY_ADJUST_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);

@@ -25,7 +25,7 @@ type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
 
 export default function OrderListView() {
-  useDocumentTitle("Órdenes");
+  useDocumentTitle(copy.documentTitles.orders);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [startDate, setStartDate] = useState("");

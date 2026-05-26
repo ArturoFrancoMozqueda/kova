@@ -137,7 +137,7 @@ function chartCopy() {
 }
 
 export default function ReportsView() {
-  useDocumentTitle("Reportes");
+  useDocumentTitle(copy.documentTitles.reports);
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const [startDate, setStartDate] = useState(todayInTimezone());
   const [endDate, setEndDate] = useState(todayInTimezone());

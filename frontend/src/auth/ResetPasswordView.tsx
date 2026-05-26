@@ -13,7 +13,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 type State = "idle" | "submitting" | "success" | "error";
 
 export default function ResetPasswordView() {
-  useDocumentTitle("Restablecer contraseña");
+  useDocumentTitle(copy.documentTitles.resetPassword);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = useMemo(() => searchParams.get("token")?.trim() ?? "", [searchParams]);

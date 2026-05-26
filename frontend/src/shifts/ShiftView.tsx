@@ -55,7 +55,7 @@ type LoadState =
 type ActiveModal = null | "open" | "close" | "movement";
 
 export default function ShiftView() {
-  useDocumentTitle("Turnos");
+  useDocumentTitle(copy.documentTitles.shifts);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [operationPending, setOperationPending] = useState(false);

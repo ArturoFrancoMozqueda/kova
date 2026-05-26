@@ -12,7 +12,7 @@ export function OfflineIndicator() {
       {isOnline ? (
         <span className="flex items-center gap-1.5 text-kova-growth">
           <Wifi className="h-3.5 w-3.5" />
-          <span className="text-sidebar-muted">Online</span>
+          <span className="text-sidebar-muted">{copy.register.online}</span>
         </span>
       ) : (
         <span className="flex items-center gap-1.5 text-warning">

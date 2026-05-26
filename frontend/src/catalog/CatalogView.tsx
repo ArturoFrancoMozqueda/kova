@@ -89,7 +89,7 @@ type Modal =
 type ProductSort = "name_asc" | "price_desc" | "price_asc" | "stock_first";
 
 export default function CatalogView() {
-  useDocumentTitle("Catálogo");
+  useDocumentTitle(copy.documentTitles.catalog);
   const canCreate = usePermission(CATALOG_CREATE_PERMISSION);
   const canUpdate = usePermission(CATALOG_UPDATE_PERMISSION);
   const canDelete = usePermission(CATALOG_DELETE_PERMISSION);
