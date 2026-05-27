@@ -272,10 +272,9 @@ def cancel_subscription(
         stripe_subscription.get("cancel_at_period_end", True)
     )
     subscription.status = _subscription_status(stripe_subscription.get("status"))
-    subscription.current_period_start = _timestamp(
-        stripe_subscription.get("current_period_start")
-    )
-    subscription.current_period_end = _timestamp(stripe_subscription.get("current_period_end"))
+    cancel_start, cancel_end = _extract_period(stripe_subscription)
+    subscription.current_period_start = _timestamp(cancel_start)
+    subscription.current_period_end = _timestamp(cancel_end)
     subscription.canceled_at = _timestamp(stripe_subscription.get("canceled_at"))
     audit_service.log(
         db,
@@ -298,6 +297,20 @@ def _timestamp(value: Any) -> Any:
         return None
 
     return datetime.fromtimestamp(int(value), tz=UTC)
+
+
+def _extract_period(stripe_object: dict[str, Any]) -> tuple[Any, Any]:
+    start = stripe_object.get("current_period_start")
+    end = stripe_object.get("current_period_end")
+    if start is None or end is None:
+        items = stripe_object.get("items", {}).get("data", [])
+        if items:
+            first = items[0]
+            if start is None:
+                start = first.get("current_period_start")
+            if end is None:
+                end = first.get("current_period_end")
+    return start, end
 
 
 def _subscription_status(stripe_status: str | None) -> str:
@@ -345,8 +358,9 @@ def _upsert_subscription_from_stripe_object(
         subscription.status = "active"
     else:
         subscription.status = _subscription_status(stripe_object.get("status"))
-    subscription.current_period_start = _timestamp(stripe_object.get("current_period_start"))
-    subscription.current_period_end = _timestamp(stripe_object.get("current_period_end"))
+    period_start, period_end = _extract_period(stripe_object)
+    subscription.current_period_start = _timestamp(period_start)
+    subscription.current_period_end = _timestamp(period_end)
     subscription.trial_ends_at = _timestamp(stripe_object.get("trial_end"))
     subscription.cancel_at_period_end = bool(stripe_object.get("cancel_at_period_end", False))
     subscription.canceled_at = _timestamp(stripe_object.get("canceled_at"))

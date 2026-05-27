@@ -106,6 +106,34 @@ Readiness snapshot:
         trials ending around 3.5d. The window is now `[now+LEAD, now+(LEAD+1)d]`
         = `[now+3d, now+4d]`, matching the "send ~3 days before expiry" intent
         and the test fixtures in `app/tests/test_trial_reminders.py`.
+      - Stripe live-mode go-live fixes (2026-05-26):
+        Initial live `POST /api/v1/billing/checkout` failed with Stripe
+        `url_invalid` because the deployed `STRIPE_CHECKOUT_SUCCESS_URL` /
+        `STRIPE_CHECKOUT_CANCEL_URL` secrets were missing the actual frontend
+        paths — fix was to set them to
+        `https://kovasuite.com/settings/billing/success` and
+        `.../cancel`, which match the `/settings/billing/:returnState` route
+        in `App.tsx` that `BillingView` reads from `location.pathname` to
+        trigger the success/cancel toasts.
+      - Stripe API 2026-04-22.dahlia period field fallback (2026-05-26):
+        The new Stripe API moved `current_period_start` / `current_period_end`
+        off the subscription root and onto each subscription item. The
+        webhook handler in `app/billing/service.py` was reading them from the
+        root only, so after a successful checkout `/settings/billing` showed
+        "Fin del periodo actual: No disponible". Added `_extract_period()`
+        helper that falls back to `items.data[0].current_period_*` when the
+        root fields are absent; applied in both
+        `_upsert_subscription_from_stripe_object` and `cancel_subscription`.
+        Regression test in
+        `app/tests/test_billing_api.test_subscription_webhook_reads_period_from_items_when_root_missing`.
+      - TrialChip stale day counter fix (2026-05-26):
+        `frontend/src/billing/TrialChip.tsx` only fetched the billing status
+        once on `authenticated` flip and never re-rendered, so the
+        "X días restantes" header chip was frozen across an open tab — only
+        a re-login refreshed it. Now ticks every 60s (recomputes
+        `daysUntil(trial_ends_at)`) and refetches on `visibilitychange` /
+        `focus` to catch trial → active transitions that happened in the
+        background.
       - Mega-view splits (ReportsView, CatalogView, RegisterView, >1200 lines
         each) deliberately deferred — they touch business-critical logic and
         violate CLAUDE.md's "do not change component APIs" rule without a

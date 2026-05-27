@@ -506,6 +506,60 @@ def test_subscription_updated_webhook_updates_status(client: TestClient, db: Ses
     assert subscription.amount_minor_units == 29900
 
 
+def test_subscription_webhook_reads_period_from_items_when_root_missing(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """Stripe API version 2026-04-22.dahlia moved current_period_* off the
+    subscription root and onto each subscription item. The webhook handler
+    must fall back to items[0] when the root fields are absent.
+    """
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"webhook-period-items-{uuid4().hex}@example.com", "Webhook Period Items"
+    )
+    payload = _stripe_event(
+        "customer.subscription.updated",
+        {
+            "id": "sub_test_period_items",
+            "object": "subscription",
+            "customer": "cus_test_period_items",
+            "status": "active",
+            "cancel_at_period_end": False,
+            "metadata": {"tenant_id": tenant["tenant_id"]},
+            "items": {
+                "data": [
+                    {
+                        "current_period_start": 1_700_000_000,
+                        "current_period_end": 1_702_592_000,
+                        "price": {
+                            "id": "price_standard_299_mxn",
+                            "unit_amount": 29900,
+                            "currency": "mxn",
+                        },
+                    }
+                ]
+            },
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == UUID(tenant["tenant_id"]))
+        .one()
+    )
+    assert subscription.current_period_start is not None
+    assert subscription.current_period_end is not None
+    assert int(subscription.current_period_start.timestamp()) == 1_700_000_000
+    assert int(subscription.current_period_end.timestamp()) == 1_702_592_000
+
+
 def test_invoice_payment_failed_marks_subscription_past_due(
     client: TestClient, db: Session, monkeypatch
 ) -> None:

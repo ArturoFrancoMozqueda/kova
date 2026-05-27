@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Clock, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
@@ -14,11 +14,23 @@ function daysUntil(iso: string): number {
   return Math.ceil((target - now) / 86_400_000);
 }
 
+const REFRESH_INTERVAL_MS = 60_000;
+
 export function TrialChip({ className }: { className?: string }) {
   const { state } = useAuth();
   const [billing, setBilling] = useState<BillingSubscription | null>(null);
+  const [, setTick] = useState(0);
 
   const authenticated = state.status === "authenticated";
+
+  const fetchBilling = useCallback(async () => {
+    try {
+      const b = await getBillingSubscription();
+      setBilling(b);
+    } catch {
+      setBilling(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!authenticated) {
@@ -26,7 +38,7 @@ export function TrialChip({ className }: { className?: string }) {
       return;
     }
     let cancelled = false;
-    getBillingSubscription()
+    void getBillingSubscription()
       .then((b) => {
         if (!cancelled) setBilling(b);
       })
@@ -37,6 +49,30 @@ export function TrialChip({ className }: { className?: string }) {
       cancelled = true;
     };
   }, [authenticated]);
+
+  // Tick once a minute so daysUntil() is recomputed without needing a refetch.
+  // Without this, a tab left open overnight keeps showing the day count it
+  // had at mount time.
+  useEffect(() => {
+    if (!authenticated) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [authenticated]);
+
+  // Refetch when the tab regains visibility — catches trial → active
+  // transitions that happened while the tab was backgrounded.
+  useEffect(() => {
+    if (!authenticated) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void fetchBilling();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [authenticated, fetchBilling]);
 
   if (!billing) return null;
   const access = billing.access;
