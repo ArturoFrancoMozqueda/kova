@@ -7,7 +7,6 @@ import {
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
 import { BILLING_TRIAL_LABEL_ES } from "@/billing/trial";
-import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import { formatMoney } from "@/orders/format";
@@ -238,7 +237,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 color: "var(--page-fg)",
               }}
             >
-              {t.hero.titlePart1}{" "}
+              {t.hero.titlePart1}<br />
               <span style={{ position: "relative", whiteSpace: "nowrap" }}>
                 {t.hero.titleEmphasis}
                 <svg
@@ -248,7 +247,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 >
                   <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
                 </svg>
-              </span><br />
+              </span>
               {t.hero.titlePart2}
             </h1>
 
@@ -321,11 +320,131 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
           </div>
 
           <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <IntroAnimation embedded skippable={false} />
+            <HeroDemo />
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+/* ─── HeroDemo ───────────────────────────────────────────────────────────── */
+function HeroDemo() {
+  const d = t.hero.demo;
+  const steps: Array<{ label: string; primary: string; meta: string; icon: ReactNode; accent?: boolean }> = [
+    {
+      label: d.step1Label,
+      primary: d.step1Primary,
+      meta: d.step1Meta,
+      accent: true,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      label: d.step2Label,
+      primary: d.step2Primary,
+      meta: d.step2Meta,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 7l8-4 8 4M4 7v10l8 4 8-4V7M4 7l8 4m8-4l-8 4m0 0v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      label: d.step3Label,
+      primary: d.step3Primary,
+      meta: d.step3Meta,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 19V5m0 14h16M8 15v-4m4 4V8m4 7v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+  ];
+  return (
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 440,
+        background: "var(--surface)",
+        border: "0.5px solid var(--hairline-color)",
+        borderRadius: 18,
+        padding: 20,
+        boxShadow: "0 24px 60px -20px rgba(0,0,0,0.55)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          paddingBottom: 12, borderBottom: "0.5px solid var(--hairline-color)",
+        }}
+      >
+        <span
+          className="mono"
+          style={{
+            fontSize: 10, fontWeight: 500, letterSpacing: "0.16em",
+            textTransform: "uppercase", color: "var(--text-tertiary)",
+          }}
+        >
+          {d.eyebrow}
+        </span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
+          <span
+            aria-hidden="true"
+            style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: "var(--kova-growth, #1EBF8A)",
+              boxShadow: "0 0 0 4px rgba(30,191,138,0.18)",
+            }}
+          />
+          {d.livePulse}
+        </span>
+      </div>
+      {steps.map((s, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "12px 14px", borderRadius: 12,
+            background: "var(--surface-2)",
+            border: "0.5px solid var(--hairline-color)",
+          }}
+        >
+          <div
+            aria-hidden="true"
+            style={{
+              width: 32, height: 32, borderRadius: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: s.accent ? "var(--accent-soft)" : "var(--chip-bg)",
+              color: s.accent ? "var(--accent)" : "var(--page-fg)",
+              flexShrink: 0,
+            }}
+          >
+            {s.icon}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: 10, fontWeight: 500, letterSpacing: "0.14em",
+                textTransform: "uppercase", color: "var(--text-tertiary)",
+              }}
+            >
+              {s.label}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--page-fg)", fontVariantNumeric: "tabular-nums" }}>
+              {s.primary}
+            </span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{s.meta}</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
