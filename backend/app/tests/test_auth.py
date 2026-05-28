@@ -8,7 +8,9 @@ from app.catalog.models import Product
 def _signup(client: TestClient, email="owner@example.com", tenant="Acme Bakery") -> dict:
     r = client.post("/api/v1/auth/signup", json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant})
     assert r.status_code == 201, r.text
-    return r.json()
+    body = r.json()
+    assert body["reason"] == "account_created"
+    return body
 
 
 def _verify(client: TestClient, token: str) -> None:
@@ -45,10 +47,45 @@ def test_signup_starts_with_empty_catalog(client, db):
     assert product_count == 0
 
 
-def test_signup_duplicate_email_returns_400(client):
-    _signup(client)
-    r = client.post("/api/v1/auth/signup", json={"email": "owner@example.com", "password": "x", "tenant_name": "X"})
-    assert r.status_code == 400
+def test_signup_existing_verified_user_returns_email_in_use(client):
+    data = _signup(client)
+    _verify(client, data["dev_verification_token"])
+
+    r = client.post(
+        "/api/v1/auth/signup",
+        json={"email": "owner@example.com", "password": "x", "tenant_name": "X"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["reason"] == "email_in_use"
+    # Must not leak tenant identifiers on the in-use branch.
+    assert body["user_id"] is None
+    assert body["tenant_id"] is None
+    assert body["dev_verification_token"] is None
+
+
+def test_signup_existing_unverified_user_resends_verification(client):
+    first = _signup(client)
+    original_token = first["dev_verification_token"]
+
+    r = client.post(
+        "/api/v1/auth/signup",
+        json={"email": "owner@example.com", "password": "S3cur3pass!", "tenant_name": "Acme Bakery"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["reason"] == "verification_resent"
+    new_token = body["dev_verification_token"]
+    assert new_token is not None
+    assert new_token != original_token
+
+    # New token works.
+    v = client.post("/api/v1/auth/verify", json={"token": new_token})
+    assert v.status_code == 200
+
+    # Old token has been invalidated.
+    v_old = client.post("/api/v1/auth/verify", json={"token": original_token})
+    assert v_old.status_code == 400
 
 
 def test_signup_returns_dev_token_in_local_env(client):

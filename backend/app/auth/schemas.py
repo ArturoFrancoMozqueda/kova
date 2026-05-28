@@ -11,8 +11,9 @@ class SignupRequest(BaseModel):
 
 class SignupResponse(BaseModel):
     message: str
-    user_id: UUID
-    tenant_id: UUID
+    reason: str
+    user_id: UUID | None = None
+    tenant_id: UUID | None = None
     dev_verification_token: str | None = None
 
 

@@ -76,6 +76,33 @@ def _unique_slug(db: Session, base: str) -> str:
 
 # ── Signup ────────────────────────────────────────────────────────────────────
 
+class SignupOutcome:
+    """Result of a signup attempt.
+
+    `reason` lets the frontend distinguish the three branches without leaking
+    extra fields. The shape is intentionally identical across branches so the
+    response body cannot be used as an enumeration oracle beyond the reason
+    code itself — which the user already learns from the resulting email.
+    """
+
+    ACCOUNT_CREATED = "account_created"
+    VERIFICATION_RESENT = "verification_resent"
+    EMAIL_IN_USE = "email_in_use"
+
+    def __init__(
+        self,
+        reason: str,
+        *,
+        user: User | None = None,
+        tenant_id: UUID | None = None,
+        verification_token_plain: str | None = None,
+    ) -> None:
+        self.reason = reason
+        self.user = user
+        self.tenant_id = tenant_id
+        self.verification_token_plain = verification_token_plain
+
+
 def signup(
     db: Session,
     *,
@@ -83,10 +110,56 @@ def signup(
     password: str,
     tenant_name: str,
     ip_address: str | None = None,
-) -> tuple[User, UUID, str]:
-    """Returns (user, tenant_id, verification_token_plain)."""
-    if repo.get_user_by_email(db, email):
-        raise bad_request("Email already registered")
+) -> SignupOutcome:
+    """Create a tenant or recover an in-progress signup.
+
+    Three branches, all returning 200 to the caller. Rate limiting on the
+    endpoint bounds enumeration / email-bomb abuse.
+    """
+    existing = repo.get_user_by_email(db, email)
+    if existing is not None:
+        membership = repo.get_membership_by_user(db, existing.id)
+        tenant_id = membership.tenant_id if membership else None
+        if existing.is_email_verified:
+            audit_service.log(
+                db,
+                action="user.signup_blocked_existing",
+                tenant_id=tenant_id,
+                user_id=existing.id,
+                resource_type="user",
+                resource_id=existing.id,
+                ip_address=ip_address,
+            )
+            db.commit()
+            return SignupOutcome(SignupOutcome.EMAIL_IN_USE)
+
+        # Unverified existing user — reissue verification token and resend.
+        repo.invalidate_pending_tokens(
+            db, user_id=existing.id, token_type="email_verification"
+        )
+        plain_token = _generate_token()
+        repo.create_verification_token(
+            db,
+            user_id=existing.id,
+            token_hash=_hash_token(plain_token),
+            token_type="email_verification",
+            expires_at=datetime.now(UTC) + timedelta(seconds=settings.token_ttl_seconds),
+        )
+        audit_service.log(
+            db,
+            action="user.signup_verification_resent",
+            tenant_id=tenant_id,
+            user_id=existing.id,
+            resource_type="user",
+            resource_id=existing.id,
+            ip_address=ip_address,
+        )
+        db.commit()
+        email_service.send_verification_email(to=existing.email, token=plain_token)
+        return SignupOutcome(
+            SignupOutcome.VERIFICATION_RESENT,
+            verification_token_plain=plain_token,
+        )
 
     hashed = hash_password(password)
     user = repo.create_user(db, email=email, hashed_password=hashed)
@@ -116,7 +189,12 @@ def signup(
 
     db.commit()
     email_service.send_verification_email(to=user.email, token=plain_token)
-    return user, tenant.id, plain_token
+    return SignupOutcome(
+        SignupOutcome.ACCOUNT_CREATED,
+        user=user,
+        tenant_id=tenant.id,
+        verification_token_plain=plain_token,
+    )
 
 
 # ── Verify email ──────────────────────────────────────────────────────────────

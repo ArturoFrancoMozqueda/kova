@@ -44,22 +44,40 @@ def _clear_auth_cookies(response: Response) -> None:
 
 
 @router.post(
-    "/signup", status_code=201, response_model=SignupResponse,
+    "/signup", response_model=SignupResponse,
     dependencies=[Depends(rate_limit(10, key="auth-signup"))],
 )
-def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db)):
-    user, tenant_id, token = service.signup(
+def signup(
+    body: SignupRequest, request: Request, response: Response, db: Session = Depends(get_db)
+):
+    outcome = service.signup(
         db,
         email=body.email,
         password=body.password,
         tenant_name=body.tenant_name,
         ip_address=request.client.host if request.client else None,
     )
-    dev_token = token if settings.app_env == "local" else None
+    dev_token = (
+        outcome.verification_token_plain
+        if settings.app_env == "local"
+        else None
+    )
+    messages = {
+        service.SignupOutcome.ACCOUNT_CREATED:
+            "Account created. Verify your email to log in.",
+        service.SignupOutcome.VERIFICATION_RESENT:
+            "Verification email re-sent.",
+        service.SignupOutcome.EMAIL_IN_USE:
+            "Email already has an account. Sign in to continue.",
+    }
+    response.status_code = (
+        201 if outcome.reason == service.SignupOutcome.ACCOUNT_CREATED else 200
+    )
     return SignupResponse(
-        message="Account created. Verify your email to log in.",
-        user_id=user.id,
-        tenant_id=tenant_id,
+        message=messages[outcome.reason],
+        reason=outcome.reason,
+        user_id=outcome.user.id if outcome.user else None,
+        tenant_id=outcome.tenant_id,
         dev_verification_token=dev_token,
     )
 

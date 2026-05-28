@@ -162,3 +162,23 @@ def get_verification_token(
 def mark_token_used(db: Session, vt: VerificationToken) -> None:
     vt.used_at = datetime.now(UTC)
     db.flush()
+
+
+def invalidate_pending_tokens(db: Session, *, user_id: UUID, token_type: str) -> int:
+    """Mark all unused, unexpired tokens of `token_type` for `user_id` as used.
+
+    Used when re-issuing a verification token so the previous link stops working.
+    Returns the number of tokens invalidated.
+    """
+    now = datetime.now(UTC)
+    count = (
+        db.query(VerificationToken)
+        .filter(
+            VerificationToken.user_id == user_id,
+            VerificationToken.token_type == token_type,
+            VerificationToken.used_at.is_(None),
+        )
+        .update({"used_at": now})
+    )
+    db.flush()
+    return count
