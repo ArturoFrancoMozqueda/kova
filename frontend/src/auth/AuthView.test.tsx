@@ -65,6 +65,7 @@ describe("AuthView signup recovery flows", () => {
     fireEvent.change(screen.getByLabelText(/Contraseña/i), {
       target: { value: "S3cur3pass!" },
     });
+    fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
 
     await waitFor(() =>
@@ -110,6 +111,7 @@ describe("AuthView signup recovery flows", () => {
     fireEvent.change(screen.getByLabelText(/Contraseña/i), {
       target: { value: "S3cur3pass!" },
     });
+    fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
 
     await waitFor(() =>
@@ -120,6 +122,23 @@ describe("AuthView signup recovery flows", () => {
     expect(
       screen.getByText(/Te reenviamos el correo de verificación a fatima@example.com/i),
     ).toBeTruthy();
+  });
+
+  it("keeps the submit button disabled until the terms checkbox is checked", async () => {
+    mockFetch(() =>
+      new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    renderAt("/signup");
+
+    const submit = await screen.findByRole("button", { name: /Crear cuenta/i });
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect((submit as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("prefills the login email from the ?email= query string", async () => {

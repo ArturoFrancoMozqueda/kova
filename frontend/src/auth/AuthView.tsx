@@ -37,6 +37,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   }, [mode, searchParams]);
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [verificationToken, setVerificationToken] = useState("");
   const [state, setState] = useState<ActionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>(copy.auth.operationError);
@@ -52,7 +53,12 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
         return;
       }
-      const response = await signup({ email, password, tenant_name: tenantName });
+      const response = await signup({
+        email,
+        password,
+        tenant_name: tenantName,
+        accepted_terms: acceptedTerms,
+      });
       if (response.reason === "email_in_use") {
         setState("email_in_use");
         return;
@@ -161,50 +167,58 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
               </div>
 
               {mode === "signup" && (
-                <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                  <p>{copy.auth.signupTrustLine}</p>
-                  <p className="mt-1">
-                    {copy.auth.signupLegalPrefix}{" "}
-                    <a
-                      href="/privacy"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-kova-blue hover:underline"
-                    >
-                      {copy.auth.privacy}
-                    </a>
-                    {" "}y{" "}
-                    <a
-                      href="/terms"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-kova-blue hover:underline"
-                    >
-                      {copy.auth.terms}
-                    </a>
-                    . {copy.auth.signupSupportLine}{" "}
-                    <a
-                      href="mailto:posprojectsupport@gmail.com"
-                      className="font-medium text-kova-blue hover:underline"
-                    >
-                      posprojectsupport@gmail.com
-                    </a>
-                    .
-                  </p>
-                  <p className="mt-1">
-                    <a
-                      href="/seguridad"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-kova-blue hover:underline"
-                    >
-                      {copy.auth.signupSecurityLink}
-                    </a>
-                  </p>
+                <div className="rounded-lg border bg-muted/40 px-3 py-2.5">
+                  <label className="flex items-start gap-2.5 text-xs leading-5 text-muted-foreground cursor-pointer">
+                    <input
+                      id="acceptedTerms"
+                      type="checkbox"
+                      required
+                      checked={acceptedTerms}
+                      onChange={(event) => setAcceptedTerms(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-[0.5px] border-kova-border accent-kova-blue cursor-pointer"
+                    />
+                    <span>
+                      {copy.auth.acceptTermsPrefix}{" "}
+                      <a
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-kova-blue hover:underline"
+                      >
+                        {copy.auth.privacy}
+                      </a>
+                      {" "}y{" "}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-kova-blue hover:underline"
+                      >
+                        {copy.auth.terms}
+                      </a>
+                      {" "}{copy.auth.acceptTermsOfKova}{" "}
+                      <a
+                        href="/seguridad"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-kova-blue hover:underline"
+                      >
+                        {copy.auth.signupSecurityLink}
+                      </a>
+                      .
+                    </span>
+                  </label>
                 </div>
               )}
 
-              <Button type="submit" className="w-full" size="lg" disabled={state === "submitting"}>
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={
+                  state === "submitting" || (mode === "signup" && !acceptedTerms)
+                }
+              >
                 {state === "submitting" ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />

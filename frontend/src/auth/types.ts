@@ -2,6 +2,7 @@ export type SignupRequest = {
   email: string;
   password: string;
   tenant_name: string;
+  accepted_terms: boolean;
 };
 
 export type SignupReason =

@@ -617,6 +617,8 @@ export const copy = {
     haveAccountPrompt: "¿Ya tienes cuenta?",
     signupTrustLine: `Incluye prueba de ${BILLING_TRIAL_LABEL}, sin tarjeta para empezar. El plan único cuesta ${STANDARD_PLAN_PRICE_LABEL}.`,
     signupLegalPrefix: "Al crear la cuenta aceptas nuestras condiciones de",
+    acceptTermsPrefix: "He leído y acepto el aviso de",
+    acceptTermsOfKova: "de Kova. Conozco también",
     privacy: "privacidad",
     terms: "términos",
     signupSupportLine: "Para revisarlos o pedir soporte, escríbenos a",
