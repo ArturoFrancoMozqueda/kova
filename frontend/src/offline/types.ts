@@ -8,7 +8,11 @@ export type OfflinePaymentDraft = {
 };
 
 export type OfflineSaleDraft = {
-  items: Array<{ product_id: string; quantity: number }>;
+  items: Array<{
+    product_id: string;
+    quantity: number;
+    modifier_option_ids?: string[];
+  }>;
   payments: OfflinePaymentDraft[];
 };
 
