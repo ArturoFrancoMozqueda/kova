@@ -42,7 +42,6 @@ import {
   LayoutGrid,
   AlertCircle,
   ShoppingBag,
-  Tag,
   Banknote,
   Building2,
   CreditCard,
@@ -724,27 +723,19 @@ export default function RegisterView() {
                             </div>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0 space-y-1 sm:space-y-2">
-                          <div className="flex items-start justify-between gap-1">
-                            <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors flex-1 min-w-0">
-                              {product.name}
-                            </p>
-                            {isOut && (
-                              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-muted text-muted-foreground">
-                                {copy.inventoryView.outBadge}
-                              </span>
-                            )}
-                            {isLow && (
-                              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-warning/15 text-warning">
-                                {copy.inventoryView.lowBadge}
-                              </span>
-                            )}
-                          </div>
-                          {product.sku && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-                              <Tag className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{product.sku}</span>
-                            </p>
+                        <div className="flex items-start justify-between gap-1 flex-1 min-w-0">
+                          <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors flex-1 min-w-0">
+                            {product.name}
+                          </p>
+                          {isOut && (
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-muted text-muted-foreground">
+                              {copy.inventoryView.outBadge}
+                            </span>
+                          )}
+                          {isLow && (
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-warning/15 text-warning">
+                              {copy.inventoryView.lowBadge}
+                            </span>
                           )}
                         </div>
                       </div>
