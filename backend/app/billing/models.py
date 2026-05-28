@@ -49,7 +49,10 @@ class Subscription(Base):
             "stripe_subscription_id", name="uq_subscriptions_stripe_subscription_id"
         ),
         CheckConstraint(
-            "status IN ('incomplete','trialing','active','past_due','canceled','unpaid')",
+            "status IN ("
+            "'incomplete','incomplete_expired','trialing',"
+            "'active','past_due','canceled','unpaid'"
+            ")",
             name="ck_subscriptions_status",
         ),
         CheckConstraint("amount_minor_units >= 0", name="ck_subscriptions_amount_non_negative"),
