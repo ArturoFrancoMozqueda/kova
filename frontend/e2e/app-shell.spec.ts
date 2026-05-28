@@ -7,10 +7,10 @@ test("public landing explains the single Standard Plan", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: /lleva tu emprendimiento/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /deja de operar a ciegas/i })).toBeVisible();
   await expect(page.getByText(/299/).first()).toBeVisible();
   await expect(page.getByText(/199/)).toHaveCount(0);
-  await expect(page.getByText(/un solo plan, todo incluido/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /un solo plan/i })).toBeVisible();
 });
 
 test("protected routes redirect unauthenticated users to login", async ({ page }) => {

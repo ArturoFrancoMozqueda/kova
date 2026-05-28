@@ -297,7 +297,7 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /crear cuenta/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /crear mi pos/i })).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     if (viewport.width < 768) {
