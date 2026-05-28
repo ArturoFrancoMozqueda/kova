@@ -498,11 +498,21 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
 
     stripe_object = event_payload.get("data", {}).get("object", {})
     tenant_id = _tenant_id_from_event_object(stripe_object)
-    if tenant_id is None and stripe_object.get("subscription"):
-        subscription = repository.get_subscription_by_stripe_id(
-            db, stripe_subscription_id=str(stripe_object["subscription"])
+    if tenant_id is None:
+        # Stripe API 2026-04-22.dahlia moved the subscription id off the invoice
+        # root and into `parent.subscription_details.subscription`. Fall back
+        # to the new location so invoice events for known subscriptions still
+        # resolve to a tenant.
+        related_subscription_id = stripe_object.get("subscription") or (
+            (stripe_object.get("parent") or {})
+            .get("subscription_details", {})
+            .get("subscription")
         )
-        tenant_id = subscription.tenant_id if subscription else None
+        if related_subscription_id:
+            subscription = repository.get_subscription_by_stripe_id(
+                db, stripe_subscription_id=str(related_subscription_id)
+            )
+            tenant_id = subscription.tenant_id if subscription else None
 
     try:
         if event_type in {
@@ -534,22 +544,49 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
                 changes={"status": subscription.status, "stripe_event_id": stripe_event_id},
             )
             _mark_event(event, status="processed", tenant_id=tenant_id)
-        elif event_type in {"invoice.payment_succeeded", "invoice.payment_failed"}:
+        elif event_type in {
+            "invoice.paid",
+            "invoice.payment_succeeded",
+            "invoice.payment_failed",
+        }:
+            payment_succeeded = event_type in {"invoice.paid", "invoice.payment_succeeded"}
             if tenant_id is None:
                 _mark_event(event, status="ignored", error_reason="Missing subscription mapping")
                 db.commit()
                 return {"status": "ignored"}
             subscription = None
-            if stripe_object.get("subscription"):
+            stripe_subscription_id = stripe_object.get("subscription") or (
+                (stripe_object.get("parent") or {})
+                .get("subscription_details", {})
+                .get("subscription")
+            )
+            if stripe_subscription_id:
                 subscription = repository.get_subscription_by_stripe_id(
-                    db, stripe_subscription_id=str(stripe_object["subscription"])
+                    db, stripe_subscription_id=str(stripe_subscription_id)
                 )
             if subscription and event_type == "invoice.payment_failed":
                 _mark_subscription_past_due(subscription)
-            elif subscription and event_type == "invoice.payment_succeeded":
+            elif subscription and payment_succeeded:
                 subscription.status = "active"
                 _clear_subscription_past_due(subscription)
-            if event_type == "invoice.payment_succeeded":
+                # Stripe API 2026-04-22.dahlia stopped including
+                # current_period_* on the invoice root. Pull the live
+                # subscription so we can sync the renewal date on every
+                # successful payment without depending on a separate
+                # subscription.updated event arriving.
+                if stripe_subscription_id and settings.stripe_secret_key:
+                    try:
+                        live_subscription = subscription_client.retrieve(
+                            secret_key=settings.stripe_secret_key,
+                            stripe_subscription_id=str(stripe_subscription_id),
+                        )
+                    except StripeSubscriptionError:
+                        live_subscription = None
+                    if live_subscription:
+                        period_start, period_end = _extract_period(live_subscription)
+                        subscription.current_period_start = _timestamp(period_start)
+                        subscription.current_period_end = _timestamp(period_end)
+            if payment_succeeded:
                 _send_payment_receipt_for_tenant(
                     db, tenant_id=tenant_id, invoice_object=stripe_object
                 )

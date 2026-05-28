@@ -89,6 +89,32 @@ class StripeCheckoutClient:
 
 
 class StripeSubscriptionClient:
+    def retrieve(
+        self,
+        *,
+        secret_key: str,
+        stripe_subscription_id: str,
+    ) -> dict[str, Any]:
+        subscription_id = quote(stripe_subscription_id, safe="")
+        request = Request(
+            f"https://api.stripe.com/v1/subscriptions/{subscription_id}",
+            headers={"Authorization": f"Bearer {secret_key}"},
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=10) as response:
+                body = response.read().decode()
+        except HTTPError as exc:
+            detail = exc.read().decode(errors="replace")
+            raise StripeSubscriptionError(detail) from exc
+        except URLError as exc:
+            raise StripeSubscriptionError(str(exc.reason)) from exc
+
+        parsed = json.loads(body)
+        if not isinstance(parsed, dict):
+            raise StripeSubscriptionError("Unexpected Stripe response")
+        return parsed
+
     def update_cancel_at_period_end(
         self,
         *,
