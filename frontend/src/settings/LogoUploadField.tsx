@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
+import { compressImage } from "@/lib/compressImage";
 import { cn } from "@/lib/utils";
 
 import { deleteReceiptLogo, getReceiptSettings, uploadReceiptLogo } from "./api";
@@ -18,6 +19,9 @@ type ReceiptDraft = {
 
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
 const MAX_BYTES = 512 * 1024;
+// Generous pre-compression cap. Raster images get compressed to WebP below
+// MAX_BYTES; SVG is sent as-is and validated against MAX_BYTES.
+const MAX_INPUT_BYTES = 10 * 1024 * 1024;
 
 export function LogoUploadField({
   logoUrl,
@@ -31,12 +35,12 @@ export function LogoUploadField({
   const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
 
-  const validate = (file: File): boolean => {
+  const validateInput = (file: File): boolean => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
       toast(copy.settings.logoInvalidType, "error");
       return false;
     }
-    if (file.size > MAX_BYTES) {
+    if (file.size > MAX_INPUT_BYTES) {
       toast(copy.settings.logoTooLarge, "error");
       return false;
     }
@@ -44,10 +48,20 @@ export function LogoUploadField({
   };
 
   const handleFile = async (file: File | undefined) => {
-    if (!file || !validate(file)) return;
+    if (!file || !validateInput(file)) return;
     setIsPending(true);
     try {
-      const response = await uploadReceiptLogo(file);
+      let prepared = file;
+      try {
+        prepared = await compressImage(file);
+      } catch {
+        // fall back to original; backend still enforces a size cap
+      }
+      if (prepared.size > MAX_BYTES) {
+        toast(copy.settings.logoTooLarge, "error");
+        return;
+      }
+      const response = await uploadReceiptLogo(prepared);
       setReceipt((current) => ({ ...current, logo_url: response.logo_url }));
       const refreshed = await getReceiptSettings();
       setReceipt((current) => ({
