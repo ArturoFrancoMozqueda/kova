@@ -20,6 +20,7 @@ test("signup can verify a local dev token", async ({ page }) => {
   await page.getByLabel(/nombre del negocio/i).fill("Bakery Demo");
   await page.getByLabel(/correo/i).fill("owner@example.com");
   await page.getByLabel(/contrase[ñn]a/i).fill("S3cur3pass!");
+  await page.locator("#acceptedTerms").check();
   await page.getByRole("button", { name: /crear cuenta/i }).click();
 
   await expect(page.getByText(/cuenta creada\. el token local de verificaci[óo]n est[áa] listo/i)).toBeVisible();
