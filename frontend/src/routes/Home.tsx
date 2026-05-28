@@ -7,6 +7,7 @@ import {
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
 import { BILLING_TRIAL_LABEL_ES } from "@/billing/trial";
+import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import { formatMoney } from "@/orders/format";
@@ -320,7 +321,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
           </div>
 
           <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <HeroDemo />
+            <IntroAnimation embedded skippable={false} />
           </div>
         </div>
       </div>
@@ -366,17 +367,19 @@ function HeroDemo() {
   ];
   return (
     <div
+      className="lp-hero-demo"
       style={{
         width: "100%",
-        maxWidth: 440,
-        background: "var(--surface)",
+        maxWidth: 320,
+        justifySelf: "center",
+        background: "var(--card-bg)",
         border: "0.5px solid var(--hairline-color)",
-        borderRadius: 18,
-        padding: 20,
-        boxShadow: "0 24px 60px -20px rgba(0,0,0,0.55)",
+        borderRadius: 16,
+        padding: 16,
+        boxShadow: "0 24px 60px -20px rgba(0,0,0,0.5)",
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 10,
       }}
     >
       <div
@@ -708,66 +711,6 @@ function DesktopPreview() {
   );
 }
 
-/* ─── TabletPreview ──────────────────────────────────────────────────────── */
-function TabletPreview() {
-  const bars = [10, 8, 6, 4, 3, 12, 24, 38, 42, 30, 26, 28, 36, 48, 40, 32, 28, 38, 44, 50, 38, 22, 16, 10];
-  return (
-    <div
-      className="lp-tablet-preview"
-      style={{
-        background: "var(--kova-ink)", borderRadius: 24, padding: 10,
-        boxShadow: "0 24px 60px -20px rgba(15,17,23,0.35)",
-        width: 280, height: 420, position: "relative",
-      }}
-    >
-      <div style={{ position: "absolute", top: 18, left: "50%", transform: "translateX(-50%)", width: 6, height: 6, borderRadius: "50%", background: "#2a2d38", zIndex: 2 }} />
-      <div style={{ background: "var(--kova-paper, #FBFBFD)", borderRadius: 16, height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", color: "var(--kova-ink)" }}>
-        <div style={{ padding: "14px 14px 10px", borderBottom: "0.5px solid var(--kova-border)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500 }}>
-              {t.tabletPreview.label}
-            </div>
-            <div style={{ fontSize: 10, color: "var(--kova-muted)", display: "flex", gap: 4, alignItems: "center" }}>
-              <span className="lp-live-dot" /> {t.tabletPreview.demo}
-            </div>
-          </div>
-          <div className="tabular" style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.04em", marginTop: 4 }}>
-            $8,432<span style={{ fontSize: 14, color: "var(--kova-muted)", marginLeft: 6 }}>{t.tabletPreview.mxn}</span>
-          </div>
-          <div style={{ fontSize: 11, color: "var(--kova-growth)", marginTop: 2 }}>{t.tabletPreview.vsYesterday}</div>
-        </div>
-        <div style={{ padding: "14px 14px 8px" }}>
-          <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
-            {t.tabletPreview.salesByHour}
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 60 }}>
-            {bars.map((h, i) => (
-              <div key={i} style={{ flex: 1, height: `${h}%`, background: i === 19 ? "var(--kova-blue)" : "#CDD4E3", borderRadius: 1, minHeight: 2 }} />
-            ))}
-          </div>
-        </div>
-        <div style={{ padding: "8px 14px", flex: 1 }}>
-          <div style={{ fontSize: 10, color: "var(--kova-muted)", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
-            {t.tabletPreview.recentOrders}
-          </div>
-          {t.tabletPreview.orders.map((meta, idx) => ({ ...meta, amt: [74, 76, 66][idx] })).map((o, i) => (
-            <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid var(--kova-border)", animation: i === 0 ? "lp-feed-in 280ms var(--kova-ease-entrance)" : undefined }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="mono" style={{ fontSize: 10, color: "var(--kova-muted)" }}>{o.id}</div>
-                <div style={{ fontSize: 11, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.item}</div>
-              </div>
-              <div style={{ textAlign: "right", marginLeft: 8 }}>
-                <div className="tabular" style={{ fontSize: 12, fontWeight: 600 }}>{formatMoney(o.amt)}</div>
-                <div style={{ fontSize: 9, color: "var(--kova-muted)" }}>{o.time}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── WhyKova ────────────────────────────────────────────────────────────── */
 function WhyKova() {
   return (
@@ -832,7 +775,7 @@ function POSShowcase() {
 
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 32, alignItems: "center" }} className="lp-showcase-row">
           <DesktopPreview />
-          <TabletPreview />
+          <HeroDemo />
         </div>
       </div>
     </section>
