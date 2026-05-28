@@ -131,6 +131,70 @@ def test_active_subscription_allows_order_after_trial_expiry(
     assert response.status_code == 201, response.text
 
 
+def test_expired_trial_blocks_orders_list(client: TestClient, monkeypatch) -> None:
+    _signup_verify_login(client, f"list-blocked-{uuid4().hex}@example.com", "ListBlocked")
+    _expire_trial(monkeypatch)
+
+    response = client.get("/api/v1/orders")
+
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "trial_expired"
+
+
+def test_expired_trial_blocks_sales_summary(client: TestClient, monkeypatch) -> None:
+    _signup_verify_login(client, f"reports-blocked-{uuid4().hex}@example.com", "ReportsBlocked")
+    _expire_trial(monkeypatch)
+
+    response = client.get("/api/v1/reports/sales-summary")
+
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "trial_expired"
+
+
+def test_expired_trial_blocks_business_profile_update(
+    client: TestClient, monkeypatch
+) -> None:
+    _signup_verify_login(client, f"profile-blocked-{uuid4().hex}@example.com", "ProfileBlocked")
+    _expire_trial(monkeypatch)
+
+    response = client.put(
+        "/api/v1/settings/business-profile",
+        json={
+            "public_name": "Blocked Biz",
+            "support_email": None,
+            "support_phone": None,
+            "timezone": "America/Mexico_City",
+            "locale": "es-MX",
+            "currency": "MXN",
+        },
+    )
+
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "trial_expired"
+
+
+def test_canceled_subscription_blocks_orders_list(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    signup = _signup_verify_login(client, f"canceled-{uuid4().hex}@example.com", "Canceled")
+    _expire_trial(monkeypatch)
+    db.add(
+        Subscription(
+            tenant_id=UUID(signup["tenant_id"]),
+            stripe_customer_id=f"cus_{uuid4().hex}",
+            stripe_subscription_id=f"sub_{uuid4().hex}",
+            stripe_price_id="price_standard_299_mxn",
+            status="canceled",
+        )
+    )
+    db.commit()
+
+    response = client.get("/api/v1/orders")
+
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "canceled"
+
+
 def test_blocked_tenant_can_start_billing_recovery(
     client: TestClient, monkeypatch
 ) -> None:

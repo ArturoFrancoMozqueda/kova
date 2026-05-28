@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
+from app.billing.access import require_commercial_access
 from app.business_settings.models import ReceiptSettings, TenantLogoFile
 from app.db import get_db
 from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
-from app.shared.dependencies import require_permission
 from app.shared.exceptions import bad_request, not_found
 from app.tenants.repository import get_by_id as get_tenant_by_id
 
@@ -92,7 +92,7 @@ async def upload_receipt_logo(
     request: Request,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.SETTINGS_MANAGE)
+        require_commercial_access(Permission.SETTINGS_MANAGE)
     ),
 ):
     user, membership, _ = ctx
@@ -149,7 +149,7 @@ async def upload_receipt_logo(
 def delete_receipt_logo(
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.SETTINGS_MANAGE)
+        require_commercial_access(Permission.SETTINGS_MANAGE)
     ),
 ):
     user, membership, _ = ctx

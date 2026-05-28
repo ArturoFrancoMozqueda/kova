@@ -39,7 +39,9 @@ def list_orders(
     start_date: datetime.date | None = Query(default=None),
     end_date: datetime.date | None = Query(default=None),
     db: Session = Depends(get_db),
-    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_commercial_access(Permission.ORDERS_CREATE)
+    ),
 ):
     _, membership, _ = ctx
     filters = dict(status=status, start_date=start_date, end_date=end_date)
@@ -76,7 +78,9 @@ def create_order(
 def get_order(
     order_id: UUID,
     db: Session = Depends(get_db),
-    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_commercial_access(Permission.ORDERS_CREATE)
+    ),
 ):
     _, membership, _ = ctx
     return service.get_order(db, tenant_id=membership.tenant_id, order_id=order_id)

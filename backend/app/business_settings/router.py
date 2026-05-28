@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
+from app.billing.access import require_commercial_access
 from app.business_settings import service
 from app.business_settings.schemas import (
     BusinessProfileResponse,
@@ -13,7 +14,7 @@ from app.business_settings.schemas import (
 )
 from app.db import get_db
 from app.rbac.permissions import Permission
-from app.shared.dependencies import get_current_session, require_permission
+from app.shared.dependencies import get_current_session
 from app.shared.exceptions import not_found
 from app.tenants.repository import get_by_id as get_tenant_by_id
 
@@ -54,7 +55,7 @@ def upsert_business_profile(
     body: BusinessProfileUpsert,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.SETTINGS_MANAGE)
+        require_commercial_access(Permission.SETTINGS_MANAGE)
     ),
 ):
     user, membership, _ = ctx
@@ -88,7 +89,7 @@ def upsert_receipt_settings(
     body: ReceiptSettingsUpsert,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.SETTINGS_MANAGE)
+        require_commercial_access(Permission.SETTINGS_MANAGE)
     ),
 ):
     user, membership, _ = ctx

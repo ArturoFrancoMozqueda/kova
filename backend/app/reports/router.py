@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
+from app.billing.access import require_commercial_access
 from app.db import get_db
 from app.rbac.permissions import Permission
 from app.reports import service
@@ -16,7 +17,6 @@ from app.reports.schemas import (
     SalesSummaryResponse,
     TopProductsResponse,
 )
-from app.shared.dependencies import require_permission
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
@@ -27,7 +27,7 @@ def sales_summary(
     end_date: date | None = None,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.REPORTS_VIEW_ALL)
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
     ),
 ):
     _, membership, _ = ctx
@@ -44,7 +44,7 @@ def business_story(
     end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.REPORTS_VIEW_ALL)
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
     ),
 ):
     _, membership, _ = ctx
@@ -62,7 +62,7 @@ def payment_breakdown(
     end_date: date | None = None,
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.REPORTS_VIEW_ALL)
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
     ),
 ):
     _, membership, _ = ctx
@@ -78,7 +78,7 @@ def top_products(
     limit: int = Query(default=5, ge=1, le=50),
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.REPORTS_VIEW_ALL)
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
     ),
 ):
     _, membership, _ = ctx
@@ -99,7 +99,7 @@ def sales_by_hour(
     end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.REPORTS_VIEW_ALL)
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
     ),
 ):
     _, membership, _ = ctx
@@ -119,7 +119,7 @@ def sales_by_employee(
     end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.REPORTS_VIEW_ALL)
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
     ),
 ):
     _, membership, _ = ctx
@@ -139,7 +139,7 @@ def refunds_by_reason(
     end: date | None = None,  # deprecated alias
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
-        require_permission(Permission.REPORTS_VIEW_ALL)
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
     ),
 ):
     _, membership, _ = ctx
