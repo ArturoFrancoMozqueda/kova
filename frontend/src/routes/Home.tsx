@@ -248,7 +248,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 >
                   <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
                 </svg>
-              </span>,<br />
+              </span><br />
               {t.hero.titlePart2}
             </h1>
 
@@ -646,6 +646,51 @@ function TabletPreview() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── WhyKova ────────────────────────────────────────────────────────────── */
+function WhyKova() {
+  return (
+    <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: 880, margin: "0 auto", textAlign: "center" }}>
+        <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+          {t.whyKova.eyebrow}
+        </span>
+        <h2
+          style={{
+            fontSize: "clamp(28px, 3.6vw, 44px)",
+            fontWeight: 600,
+            letterSpacing: "-0.025em",
+            lineHeight: 1.15,
+            margin: "20px 0 0",
+            color: "var(--page-fg)",
+          }}
+        >
+          {t.whyKova.title}
+        </h2>
+        <p style={{ fontSize: 17, lineHeight: 1.6, color: "var(--text-muted)", marginTop: 24 }}>
+          {t.whyKova.body}
+        </p>
+        <blockquote
+          style={{
+            marginTop: 48,
+            padding: "32px 32px 32px 28px",
+            borderLeft: "2px solid var(--accent)",
+            background: "var(--surface)",
+            borderRadius: "0 14px 14px 0",
+            textAlign: "left",
+            fontSize: 18,
+            lineHeight: 1.55,
+            color: "var(--page-fg)",
+            fontWeight: 500,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {t.whyKova.quote}
+        </blockquote>
+      </div>
+    </section>
   );
 }
 
@@ -1276,6 +1321,7 @@ export default function Home(): ReactNode {
       <main>
         <Hero primaryTarget={primaryTarget} />
         <ThreeNodes />
+        <WhyKova />
         <POSShowcase />
         <Features />
         <FirstDay primaryTarget={primaryTarget} />
