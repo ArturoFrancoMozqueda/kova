@@ -33,3 +33,15 @@ class InvitationResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class InvitationPreview(BaseModel):
+    email: EmailStr
+    role: str
+    tenant_name: str
+    requires_password: bool
+
+
+class InvitationAccept(BaseModel):
+    token: str
+    password: str | None = None

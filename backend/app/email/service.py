@@ -137,6 +137,51 @@ def send_trial_ending_email(*, to: str, trial_ends_iso: str) -> None:
     )
 
 
+_ROLE_LABELS = {
+    "owner": "Propietario",
+    "manager": "Gerente",
+    "cashier": "Cajero",
+}
+
+
+def send_invitation_email(
+    *,
+    to: str,
+    token: str,
+    tenant_name: str,
+    role: str,
+    invited_by_email: str | None = None,
+) -> None:
+    accept_url = f"{settings.frontend_url}/accept-invite?token={token}"
+    role_label = _ROLE_LABELS.get(role, role)
+    intro = p(
+        f"Te invitaron a unirte a <strong>{escape(tenant_name)}</strong> en Kova "
+        f"como <strong>{escape(role_label)}</strong>."
+    )
+    if invited_by_email:
+        intro += muted(f"Invitación enviada por {escape(invited_by_email)}.")
+    html = render_email(
+        preheader=f"Únete a {tenant_name} en Kova como {role_label}.",
+        heading="Te invitaron a Kova",
+        intro_html=intro,
+        cta_label="Aceptar invitación",
+        cta_url=accept_url,
+        body_html=(
+            muted(
+                "O copia este enlace en tu navegador: "
+                f'<span style="word-break: break-all;">{escape(accept_url)}</span>'
+            )
+            + muted("El enlace expira en 7 días.")
+        ),
+    )
+    _send(
+        to=to,
+        subject=f"Te invitaron a {tenant_name} en Kova",
+        html=html,
+        kind="invitation",
+    )
+
+
 def send_password_reset_email(*, to: str, token: str) -> None:
     reset_url = f"{settings.frontend_url}/reset-password?token={token}"
     html = render_email(

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
@@ -9,7 +9,9 @@ from app.employees import service
 from app.employees.schemas import (
     EmployeeResponse,
     EmployeeRoleUpdate,
+    InvitationAccept,
     InvitationCreate,
+    InvitationPreview,
     InvitationResponse,
 )
 from app.rbac.permissions import Permission
@@ -51,6 +53,27 @@ def invite_employee(
     user, membership, _ = ctx
     return service.invite_employee(
         db, tenant_id=membership.tenant_id, user_id=user.id, body=body
+    )
+
+
+@router.get("/invitations/preview", response_model=InvitationPreview)
+def preview_invitation(
+    token: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+):
+    return service.preview_invitation(db, token=token)
+
+
+@router.post("/invitations/accept", response_model=InvitationResponse)
+def accept_invitation(
+    body: InvitationAccept,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    return service.accept_invitation(
+        db,
+        body=body,
+        ip_address=request.client.host if request.client else None,
     )
 
 
