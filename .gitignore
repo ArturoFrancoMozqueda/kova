@@ -233,6 +233,9 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Local scratch / temp files
+.tmp_*
+
 # Playwright MCP session artifacts
 .playwright-mcp/
 
