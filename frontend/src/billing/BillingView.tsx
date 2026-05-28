@@ -300,29 +300,33 @@ export default function BillingView() {
             </Card>
 
             {/* Period */}
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                  {loadState.billing.access.reason === "signup_trial"
-                    ? copy.billingView.trialEnds
-                    : copy.billingView.currentPeriodEnd}
-                </p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm font-medium">
-                  {formatDate(
-                    loadState.billing.access.reason === "signup_trial"
-                      ? loadState.billing.access.trial_ends_at
-                      : loadState.billing.subscription?.current_period_end ?? null
-                  )}
-                </p>
-                {loadState.billing.subscription?.grace_period_ends_at && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {copy.billingView.graceEnds} {formatDate(loadState.billing.subscription.grace_period_ends_at)}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            {(() => {
+              const periodDate =
+                loadState.billing.access.reason === "signup_trial"
+                  ? loadState.billing.access.trial_ends_at
+                  : loadState.billing.subscription?.current_period_end ?? null;
+              const graceDate = loadState.billing.subscription?.grace_period_ends_at ?? null;
+              if (!periodDate && !graceDate) return null;
+              return (
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      {loadState.billing.access.reason === "signup_trial"
+                        ? copy.billingView.trialEnds
+                        : copy.billingView.currentPeriodEnd}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {periodDate && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
+                    {graceDate && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {copy.billingView.graceEnds} {formatDate(graceDate)}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
 
           {/* Actions */}
