@@ -36,7 +36,7 @@
 }
 .embedded .composition {
   padding: 0;
-  gap: 0;
+  gap: 2px;
 }
 .embedded .svgWrap {
   width: 72%;
