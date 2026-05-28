@@ -36,12 +36,15 @@
 }
 .embedded .composition {
   padding: 0;
-  gap: 20px;
+  gap: 0;
 }
 .embedded .svgWrap {
   width: 72%;
   max-width: 300px;
   min-width: 180px;
+}
+.embedded .textBlock {
+  margin-top: -14%;
 }
 .embedded .wordmark {
   font-size: 60px;
