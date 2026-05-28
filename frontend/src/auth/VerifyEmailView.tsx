@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
-import { verifyEmail } from "./api";
+import { verifyEmail, ApiError } from "./api";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { LogoMark } from "@/components/brand/Logo";
 
-type State = "verifying" | "success" | "error" | "missing";
+type State = "verifying" | "success" | "error" | "missing" | "expired";
 
 export default function VerifyEmailView() {
   const [params] = useSearchParams();
@@ -21,7 +22,13 @@ export default function VerifyEmailView() {
         setState("success");
         window.setTimeout(() => navigate("/login"), 2500);
       })
-      .catch(() => setState("error"));
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 400) {
+          setState("expired");
+          return;
+        }
+        setState("error");
+      });
   }, [navigate, params]);
 
   return (
@@ -53,6 +60,19 @@ export default function VerifyEmailView() {
               <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
                 <AlertCircle className="h-10 w-10 text-destructive" />
                 <p className="font-medium text-destructive">{copy.auth.operationError}</p>
+              </div>
+            )}
+            {state === "expired" && (
+              <div className="flex flex-col items-center gap-3 py-4 animate-fade-in">
+                <AlertCircle className="h-10 w-10 text-destructive" />
+                <p className="font-medium text-destructive">{copy.auth.verifyExpiredTitle}</p>
+                <p className="text-xs text-muted-foreground">{copy.auth.verifyExpiredBody}</p>
+                <Link
+                  to="/signup"
+                  className="text-xs font-medium text-kova-blue hover:underline underline-offset-4"
+                >
+                  {copy.auth.verifyExpiredCta}
+                </Link>
               </div>
             )}
             {state === "missing" && (

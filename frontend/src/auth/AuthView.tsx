@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { login, signup, verifyEmail, ApiError } from "./api";
 import { useAuth } from "./useAuth";
@@ -12,12 +12,29 @@ import { LogoMark } from "@/components/brand/Logo";
 import { queueFunnelEvent } from "@/telemetry/funnel";
 
 type AuthMode = "login" | "signup";
-type ActionState = "idle" | "submitting" | "error" | "created" | "verified";
+type ActionState =
+  | "idle"
+  | "submitting"
+  | "error"
+  | "created"
+  | "verified"
+  | "email_in_use"
+  | "verification_resent";
 
 export default function AuthView({ mode }: { mode: AuthMode }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { refresh } = useAuth();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(
+    mode === "login" ? (searchParams.get("email") ?? "") : "",
+  );
+
+  useEffect(() => {
+    if (mode === "login") {
+      const prefill = searchParams.get("email");
+      if (prefill) setEmail(prefill);
+    }
+  }, [mode, searchParams]);
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
@@ -36,6 +53,15 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         return;
       }
       const response = await signup({ email, password, tenant_name: tenantName });
+      if (response.reason === "email_in_use") {
+        setState("email_in_use");
+        return;
+      }
+      if (response.reason === "verification_resent") {
+        setVerificationToken(response.dev_verification_token ?? "");
+        setState("verification_resent");
+        return;
+      }
       queueFunnelEvent("signup_completed", {
         tenant_id: response.tenant_id,
       });
@@ -231,6 +257,72 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success animate-fade-in">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 {copy.auth.verified}
+              </div>
+            )}
+
+            {state === "email_in_use" && (
+              <div className="mt-4 space-y-3 animate-fade-in">
+                <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm">
+                  <p className="font-medium text-foreground">
+                    {copy.auth.signupEmailInUseTitle}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {copy.auth.signupEmailInUseBody}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    className="w-full"
+                    size="lg"
+                    onClick={() =>
+                      navigate(`/login?email=${encodeURIComponent(email)}`)
+                    }
+                  >
+                    {copy.auth.signupEmailInUseCta}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <Link
+                    to="/forgot-password"
+                    className="text-center text-xs font-medium text-kova-blue hover:underline underline-offset-4"
+                  >
+                    {copy.auth.signupEmailInUseForgot}
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {state === "verification_resent" && (
+              <div className="mt-4 space-y-3 animate-fade-in">
+                <div className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">
+                      {copy.auth.signupVerificationResentTitle}
+                    </p>
+                    <p className="mt-1">
+                      {copy.auth.signupVerificationResentBody(email)}
+                    </p>
+                  </div>
+                </div>
+                {verificationToken && (
+                  <div className="space-y-2">
+                    <Label htmlFor="verificationToken">{copy.auth.verificationToken}</Label>
+                    <Input
+                      id="verificationToken"
+                      value={verificationToken}
+                      onChange={(event) => setVerificationToken(event.target.value)}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => void verify()}
+                      disabled={!verificationToken}
+                      className="w-full"
+                    >
+                      {copy.auth.verifyEmail}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 

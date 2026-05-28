@@ -578,6 +578,13 @@ export const copy = {
     operationError: "No se pudo completar la operación.",
     loginInvalidCredentials: "Correo o contraseña incorrectos.",
     loginRateLimited: "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+    signupEmailInUseTitle: "Este correo ya tiene una cuenta en Kova.",
+    signupEmailInUseBody: "Inicia sesión para continuar o usa otro correo para crear una cuenta nueva.",
+    signupEmailInUseCta: "Iniciar sesión",
+    signupEmailInUseForgot: "¿Olvidaste tu contraseña?",
+    signupVerificationResentTitle: "Ya tenías una cuenta sin verificar.",
+    signupVerificationResentBody: (email: string) =>
+      `Te reenviamos el correo de verificación a ${email}. Revisa tu bandeja (y la carpeta de spam).`,
     forgotPassword: "¿Olvidaste tu contraseña?",
     forgotPasswordTitle: "Recupera tu acceso",
     forgotPasswordSubtitle: "Ingresa el correo con el que abriste tu cuenta y te enviaremos un enlace para crear una contraseña nueva.",
@@ -616,6 +623,9 @@ export const copy = {
     signupSecurityLink: "Cómo cuidamos tus datos y tu negocio",
     verifyRedirecting: "Redirigiendo al inicio de sesión...",
     verifyMissingToken: "Falta el token de verificación.",
+    verifyExpiredTitle: "Este enlace ya expiró o no es válido.",
+    verifyExpiredBody: "Solicita uno nuevo desde la pantalla de registro.",
+    verifyExpiredCta: "Volver a registrarme",
   },
   orderDetail: {
     title: "Detalle de la orden",

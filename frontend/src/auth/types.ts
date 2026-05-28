@@ -4,10 +4,16 @@ export type SignupRequest = {
   tenant_name: string;
 };
 
+export type SignupReason =
+  | "account_created"
+  | "verification_resent"
+  | "email_in_use";
+
 export type SignupResponse = {
   message: string;
-  user_id: string;
-  tenant_id: string;
+  reason: SignupReason;
+  user_id: string | null;
+  tenant_id: string | null;
   dev_verification_token: string | null;
 };
 
