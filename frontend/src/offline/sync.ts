@@ -4,6 +4,7 @@ import {
   markOfflineSaleFailed,
   markOfflineSaleStatus,
   markOfflineSaleSynced,
+  rollbackOfflineSaleAttempt,
 } from "./queue";
 import type { OfflineSaleQueueItem } from "./types";
 
@@ -48,10 +49,10 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
       // back to pending so the next sync attempt retries within the same
       // queue. Any other 4xx/5xx is a real failure and goes to dead letter.
       if (response.status === 429) {
-        for (const item of items) {
-          await markOfflineSaleStatus(item.client_uuid, "pending");
-        }
         const message = "Rate limited; will retry on next sync.";
+        for (const item of items) {
+          await rollbackOfflineSaleAttempt(item.client_uuid, message);
+        }
         return items.map((item) => ({
           client_uuid: item.client_uuid,
           status: "failed" as const,

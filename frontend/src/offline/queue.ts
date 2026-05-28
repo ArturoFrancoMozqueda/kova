@@ -43,6 +43,21 @@ export async function markOfflineSaleStatus(
   });
 }
 
+/** Roll back a "syncing" attempt without burning a retry, e.g. on 429. */
+export async function rollbackOfflineSaleAttempt(clientUuid: string, lastError?: string) {
+  const existing = await offlineDb.offline_sales.get(clientUuid);
+  if (!existing) {
+    return;
+  }
+  await offlineDb.offline_sales.put({
+    ...existing,
+    status: "pending",
+    last_error: lastError,
+    attempt_count: Math.max(0, existing.attempt_count - 1),
+    updated_at: nowIso(),
+  });
+}
+
 export async function markOfflineSaleSynced(clientUuid: string, orderId?: string) {
   const existing = await offlineDb.offline_sales.get(clientUuid);
   if (!existing) return;
