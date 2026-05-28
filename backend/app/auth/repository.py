@@ -15,9 +15,23 @@ def get_user_by_id(db: Session, user_id: UUID) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
 
 
-def create_user(db: Session, *, email: str, hashed_password: str) -> User:
+def create_user(
+    db: Session,
+    *,
+    email: str,
+    hashed_password: str,
+    terms_accepted_at: datetime | None = None,
+    terms_accepted_ip: str | None = None,
+) -> User:
     now = datetime.now(UTC)
-    user = User(email=email, hashed_password=hashed_password, created_at=now, updated_at=now)
+    user = User(
+        email=email,
+        hashed_password=hashed_password,
+        terms_accepted_at=terms_accepted_at,
+        terms_accepted_ip=terms_accepted_ip,
+        created_at=now,
+        updated_at=now,
+    )
     db.add(user)
     db.flush()
     return user

@@ -63,7 +63,7 @@ def test_login_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
 def test_signup_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(settings, "app_env", "staging")
     test_ip = "192.0.2.12"
-    payload = {"email": "spam@example.com", "password": "S3cur3pass!", "tenant_name": "Spam"}
+    payload = {"email": "spam@example.com", "password": "S3cur3pass!", "tenant_name": "Spam", "accepted_terms": True}
     for _ in range(10):
         client.post(
             "/api/v1/auth/signup",

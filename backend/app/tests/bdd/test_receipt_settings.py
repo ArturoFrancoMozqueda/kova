@@ -25,7 +25,7 @@ def _signup_verify_login(client, *, tenant_name: str) -> dict:
     email = f"receipt-{uuid4().hex}@example.com"
     response = client.post(
         "/api/v1/auth/signup",
-        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name},
+        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name, "accepted_terms": True},
     )
     assert response.status_code == 201, response.text
     signup = response.json()

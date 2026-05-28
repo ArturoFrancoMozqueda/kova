@@ -24,7 +24,7 @@ def test_payment_sum_mismatch_is_rejected():
 def verified_tenant_owner_with_product(client, price):
     r = client.post(
         "/api/v1/auth/signup",
-        json={"email": "bdd-split@example.com", "password": "S3cur3!", "tenant_name": "Split BDD Bakery"},
+        json={"email": "bdd-split@example.com", "password": "S3cur3!", "tenant_name": "Split BDD Bakery", "accepted_terms": True},
     )
     assert r.status_code == 201, r.text
     token = r.json()["dev_verification_token"]

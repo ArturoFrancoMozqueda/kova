@@ -6,7 +6,15 @@ from app.catalog.models import Product
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _signup(client: TestClient, email="owner@example.com", tenant="Acme Bakery") -> dict:
-    r = client.post("/api/v1/auth/signup", json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant})
+    r = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": email,
+            "password": "S3cur3pass!",
+            "tenant_name": tenant,
+            "accepted_terms": True,
+        },
+    )
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["reason"] == "account_created"
@@ -53,7 +61,12 @@ def test_signup_existing_verified_user_returns_email_in_use(client):
 
     r = client.post(
         "/api/v1/auth/signup",
-        json={"email": "owner@example.com", "password": "x", "tenant_name": "X"},
+        json={
+            "email": "owner@example.com",
+            "password": "x",
+            "tenant_name": "X",
+            "accepted_terms": True,
+        },
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -70,7 +83,12 @@ def test_signup_existing_unverified_user_resends_verification(client):
 
     r = client.post(
         "/api/v1/auth/signup",
-        json={"email": "owner@example.com", "password": "S3cur3pass!", "tenant_name": "Acme Bakery"},
+        json={
+            "email": "owner@example.com",
+            "password": "S3cur3pass!",
+            "tenant_name": "Acme Bakery",
+            "accepted_terms": True,
+        },
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -86,6 +104,31 @@ def test_signup_existing_unverified_user_resends_verification(client):
     # Old token has been invalidated.
     v_old = client.post("/api/v1/auth/verify", json={"token": original_token})
     assert v_old.status_code == 400
+
+
+def test_signup_rejects_without_terms_acceptance(client):
+    r = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "no-consent@example.com",
+            "password": "S3cur3pass!",
+            "tenant_name": "No Consent Bakery",
+            "accepted_terms": False,
+        },
+    )
+    assert r.status_code == 400, r.text
+
+
+def test_signup_persists_terms_consent_timestamp_and_ip(client, db):
+    from app.auth.models import User
+
+    data = _signup(client)
+    user = db.query(User).filter(User.id == data["user_id"]).one()
+    assert user.terms_accepted_at is not None
+    # TestClient uses "testclient" as host; the dependency stores whatever
+    # request.client.host returns. Asserting non-empty is enough to confirm
+    # the value is being threaded through.
+    assert user.terms_accepted_ip is not None
 
 
 def test_signup_returns_dev_token_in_local_env(client):

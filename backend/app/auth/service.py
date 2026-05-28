@@ -109,13 +109,18 @@ def signup(
     email: str,
     password: str,
     tenant_name: str,
+    accepted_terms: bool,
     ip_address: str | None = None,
 ) -> SignupOutcome:
     """Create a tenant or recover an in-progress signup.
 
-    Three branches, all returning 200 to the caller. Rate limiting on the
-    endpoint bounds enumeration / email-bomb abuse.
+    `accepted_terms` is the user's explicit consent to the privacy notice and
+    terms of service. It is required to create a brand new account; the
+    timestamp and IP are persisted on `users` for LFPDPPP / GDPR evidence.
+    Recovery branches (existing account) do not re-record consent.
     """
+    if not accepted_terms:
+        raise bad_request("Terms and privacy notice must be accepted")
     existing = repo.get_user_by_email(db, email)
     if existing is not None:
         membership = repo.get_membership_by_user(db, existing.id)
@@ -162,7 +167,13 @@ def signup(
         )
 
     hashed = hash_password(password)
-    user = repo.create_user(db, email=email, hashed_password=hashed)
+    user = repo.create_user(
+        db,
+        email=email,
+        hashed_password=hashed,
+        terms_accepted_at=datetime.now(UTC),
+        terms_accepted_ip=ip_address,
+    )
 
     slug = _unique_slug(db, _slugify(tenant_name))
     tenant = tenant_repo.create(db, name=tenant_name, slug=slug)

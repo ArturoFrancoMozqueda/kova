@@ -26,6 +26,7 @@ def owner_signs_up(client, auth_context):
             "email": auth_context["email"],
             "password": auth_context["password"],
             "tenant_name": auth_context["tenant_name"],
+            "accepted_terms": True,
         },
     )
     assert response.status_code == 201, response.text

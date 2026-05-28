@@ -38,7 +38,7 @@ def test_tenant_isolation_open_shift():
 def _signup_verify_login(client, email: str, tenant_name: str) -> dict:
     response = client.post(
         "/api/v1/auth/signup",
-        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name},
+        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name, "accepted_terms": True},
     )
     assert response.status_code == 201, response.text
     signup = response.json()

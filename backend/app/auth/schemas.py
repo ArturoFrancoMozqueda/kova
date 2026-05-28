@@ -7,6 +7,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     tenant_name: str
+    accepted_terms: bool = False
 
 
 class SignupResponse(BaseModel):

@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 def _signup_login(client: TestClient, *, email: str, tenant_name: str) -> None:
     r = client.post(
         "/api/v1/auth/signup",
-        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name},
+        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name, "accepted_terms": True},
     )
     assert r.status_code == 201, r.text
     token = r.json()["dev_verification_token"]

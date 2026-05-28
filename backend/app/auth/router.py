@@ -55,6 +55,7 @@ def signup(
         email=body.email,
         password=body.password,
         tenant_name=body.tenant_name,
+        accepted_terms=body.accepted_terms,
         ip_address=request.client.host if request.client else None,
     )
     dev_token = (

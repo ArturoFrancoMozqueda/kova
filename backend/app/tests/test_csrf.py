@@ -12,7 +12,7 @@ from app.main import app as fastapi_app
 def _signup_and_verify(c: TestClient, email: str = "csrf@example.com") -> dict:
     r = c.post(
         "/api/v1/auth/signup",
-        json={"email": email, "password": "S3cur3pass!", "tenant_name": "Acme"},
+        json={"email": email, "password": "S3cur3pass!", "tenant_name": "Acme", "accepted_terms": True},
     )
     assert r.status_code == 201, r.text
     data = r.json()
@@ -178,6 +178,7 @@ def test_signup_without_csrf_succeeds(db):
             "email": "signup-exempt@example.com",
             "password": "S3cur3pass!",
             "tenant_name": "Acme",
+            "accepted_terms": True,
         },
     )
     assert r.status_code == 201

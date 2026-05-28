@@ -52,7 +52,7 @@ def test_modifier_groups_tenant_scoped():
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
     r = client.post(
         "/api/v1/auth/signup",
-        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name},
+        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant_name, "accepted_terms": True},
     )
     assert r.status_code == 201, r.text
     signup = r.json()

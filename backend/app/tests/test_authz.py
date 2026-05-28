@@ -26,7 +26,7 @@ def _test_orders(ctx=Depends(require_permission(Permission.ORDERS_CREATE))):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _signup_login_as(client: TestClient, email: str, tenant: str) -> None:
-    r = client.post("/api/v1/auth/signup", json={"email": email, "password": "S3cur3!", "tenant_name": tenant})
+    r = client.post("/api/v1/auth/signup", json={"email": email, "password": "S3cur3!", "tenant_name": tenant, "accepted_terms": True})
     assert r.status_code == 201
     token = r.json()["dev_verification_token"]
     client.post("/api/v1/auth/verify", json={"token": token})

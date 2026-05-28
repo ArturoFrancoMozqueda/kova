@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 
 def _create_and_login(client: TestClient, email: str, tenant: str) -> None:
-    r = client.post("/api/v1/auth/signup", json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant})
+    r = client.post("/api/v1/auth/signup", json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant, "accepted_terms": True})
     assert r.status_code == 201
     token = r.json()["dev_verification_token"]
     client.post("/api/v1/auth/verify", json={"token": token})
