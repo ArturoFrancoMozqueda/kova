@@ -40,7 +40,7 @@ import {
 } from "./api";
 import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
-import { compressImage } from "./compressImage";
+import { compressImage } from "@/lib/compressImage";
 import { productImageSrc, productImageSrcSet } from "./imageUrl";
 
 import { Button } from "@/components/ui/button";

@@ -4,6 +4,8 @@ const OUTPUT_TYPE = "image/webp";
 
 export async function compressImage(file: File): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
+  // SVG is already small and would lose its vector nature if rasterized.
+  if (file.type === "image/svg+xml") return file;
 
   const bitmap = await loadBitmap(file);
   const { width, height } = scaleToFit(bitmap.width, bitmap.height, MAX_DIMENSION);
