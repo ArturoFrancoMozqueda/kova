@@ -9,6 +9,7 @@ const AuthView = lazy(() => import("./auth/AuthView"));
 const ForgotPasswordView = lazy(() => import("./auth/ForgotPasswordView"));
 const ResetPasswordView = lazy(() => import("./auth/ResetPasswordView"));
 const VerifyEmailView = lazy(() => import("./auth/VerifyEmailView"));
+const AcceptInviteView = lazy(() => import("./auth/AcceptInviteView"));
 const BillingView = lazy(() => import("./billing/BillingView"));
 const CatalogView = lazy(() => import("./catalog/CatalogView"));
 const DashboardView = lazy(() => import("./dashboard/DashboardView"));
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="/forgot-password" element={<ForgotPasswordView />} />
               <Route path="/reset-password" element={<ResetPasswordView />} />
               <Route path="/verify-email" element={<VerifyEmailView />} />
+              <Route path="/accept-invite" element={<AcceptInviteView />} />
 
               <Route path="/" element={<Home />} />
               <Route path="/privacy" element={<LegalPage variant="privacy" />} />

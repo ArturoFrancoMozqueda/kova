@@ -73,6 +73,7 @@ export default defineConfig({
           /^\/login/,
           /^\/signup/,
           /^\/verify-email/,
+          /^\/accept-invite/,
           /^\/forgot-password/,
           /^\/reset-password/,
           /^\/billing/,
