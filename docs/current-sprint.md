@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-05-26
+Last updated: 2026-05-28
 
 ## Source Of Truth
 
@@ -164,6 +164,38 @@ controlled tenants.
 - [ ] Production smoke on custom domain completed after the Vercel rewrite deploy:
       login, signup, session refresh, billing subscription fetch, catalog load, register sale,
       reports, settings, `/api/health`, and `/api/health/db`.
+- [x] Signup "email already registered" recovery path (regression from 2026-05-28 production
+      incident: real prospect hit `POST /api/v1/auth/signup` → 400 twice and only saw the generic
+      "No se pudo completar la operación", so she abandoned signup). Shipped 2026-05-28:
+      - [x] Backend: `signup` in `backend/app/auth/service.py` now returns a `SignupOutcome` with
+            three branches — `account_created`, `verification_resent`, `email_in_use`. Verified
+            existing users get `email_in_use` (no token, no tenant_id leaked). Unverified
+            existing users have prior `email_verification` tokens invalidated via
+            `repo.invalidate_pending_tokens` and a fresh token reissued + resent. Rate limiting
+            stays on the existing `auth-signup` bucket; response body shape is identical across
+            branches except for `reason` and (for `account_created`) `user_id`/`tenant_id`.
+            Audit events `user.signup_blocked_existing` and `user.signup_verification_resent`
+            cover the recovery paths. Endpoint returns 201 only for `account_created`, 200 for
+            the recovery branches.
+      - [x] Frontend: `frontend/src/auth/AuthView.tsx` branches on `response.reason`. New states
+            `email_in_use` (muted info panel + "Iniciar sesión" primary CTA that prefills the
+            login form via `/login?email=…` + secondary "¿Olvidaste tu contraseña?") and
+            `verification_resent` (green success panel: "Ya tenías una cuenta sin verificar. Te
+            reenviamos el correo a {email}…"). Copy in `frontend/src/i18n/messages.ts`
+            (`signupEmailInUse*`, `signupVerificationResent*`).
+      - [x] Audited the rest of the auth surface for blind `operationError` fallbacks.
+            `VerifyEmailView` now distinguishes a 400 (expired/invalid token → dedicated panel
+            with "Volver a registrarme" CTA) from other errors. `ResetPasswordView` already
+            mapped 400/422 to `resetTokenInvalid`. `ForgotPasswordView` intentionally stays
+            generic to avoid email enumeration. Login still maps 401/403 to invalid creds and
+            429 to rate limit.
+      - [x] Tests: backend `test_signup_existing_verified_user_returns_email_in_use` and
+            `test_signup_existing_unverified_user_resends_verification` in
+            `backend/app/tests/test_auth.py` cover both branches and assert that the previous
+            verification token is invalidated. Frontend `frontend/src/auth/AuthView.test.tsx`
+            covers the `email_in_use` panel, the `verification_resent` confirmation, and the
+            `/login?email=…` prefill. Manual Gmail QA pending before the next live deploy —
+            same gate as the rest of the email-deliverability checklist.
 
 ## Sellability Audit Follow-Ups
 
