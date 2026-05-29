@@ -161,9 +161,9 @@ controlled tenants.
       payment separation, beta expectations, and support; linked from the home footer, the legal
       pages, and the signup trust block; excluded from the SW navigation fallback so deploys
       never serve a stale copy.
-- [ ] Production smoke on custom domain completed after the Vercel rewrite deploy:
+- [x] Production smoke on custom domain completed after the Vercel rewrite deploy (2026-05-28):
       login, signup, session refresh, billing subscription fetch, catalog load, register sale,
-      reports, settings, `/api/health`, and `/api/health/db`.
+      reports, settings, `/api/health`, and `/api/health/db` all verified on `kovasuite.com`.
 - [x] Signup "email already registered" recovery path (regression from 2026-05-28 production
       incident: real prospect hit `POST /api/v1/auth/signup` → 400 twice and only saw the generic
       "No se pudo completar la operación", so she abandoned signup). Shipped 2026-05-28:
