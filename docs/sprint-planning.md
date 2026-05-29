@@ -36,10 +36,24 @@ Kova Audit Sprint 6 product work is closed. Sprint 7 work should not start until
 commercial/ops gates in `docs/current-sprint.md` are either closed or explicitly accepted as
 controlled-beta risks.
 
+## Audit History (May 2026)
+
+Three sequential audits informed the Sprint 6 "Trust Lock" backlog below:
+
+| Date | Audit | Verdict | Outcome |
+|---|---|---|---|
+| 2026-05-19 | UX / Product review (senior PO persona) | "Almost, not yet"; landing 8/10, app 6/10 | Defined visual-trust sprint; led to forgot-password, checklist auto-mark, accent fixes. |
+| 2026-05-22 | QA walkthrough exhaustivo | 6 P0, 11 P1, 13 P2 across landing/auth/POS/reports/billing | Verified Sprint 5 backlog status; surfaced TZ bugs in Reports and negative-stock data hygiene. |
+| 2026-05-23 | UX / Producto / QA review (code + live) | 7.6/10 → 8.5/10 path post-Sprint 6 | Produced the Sprint 6 backlog (KOV-S6-01..10) and Sprint 7 plan. |
+
+All P0/P1 findings from these audits were triaged into the Sprint 6 backlog below and are recorded
+as closed in `docs/current-sprint.md` § Done. The original audit files were retired during a docs
+cleanup once their findings were absorbed; recover from git history if a verbatim copy is needed.
+
 ## Commercial Readiness Plan (2026-05-23)
 
-Source: `docs/ux-qa-review-2026-05-23.md`, based on code review plus live navigation of
-`https://point-of-sale-ochre.vercel.app/`.
+Source: 2026-05-23 UX / Producto / QA review (see Audit History above), based on code review plus
+live navigation of `https://point-of-sale-ochre.vercel.app/`.
 
 ### Verdict
 
@@ -1629,8 +1643,8 @@ Sprint 15 (Modifiers) is done and documented in `docs/current-sprint.md`.
 
 Production review on 2026-05-17 created a pre-beta repair backlog (PB-1..PB-7). PB-1..PB-5 and
 PB-7 are closed; PB-6 (analytics credibility) is the only remaining piece. Carry-over items
-are listed in `docs/current-sprint.md`. A second UX review on 2026-05-19
-(`docs/ux-review-2026-05-19.md`) defined the next visual-trust sprint.
+are listed in `docs/current-sprint.md`. A second UX review on 2026-05-19 defined the next
+visual-trust sprint (see Audit History above).
 
 Pre-beta ops tasks (Sentry DSN, backup drill, uptime monitor, support channel) must be completed
 before the first beta tenant is onboarded. They are tracked in `docs/current-sprint.md` and are

@@ -275,8 +275,6 @@ These are not blockers for controlled paid beta unless a real tenant hits them.
 - [ ] Add invitation acceptance-path E2E once that flow is finalized.
 - [ ] Decide whether the cafe preset needs modifier groups for milk/size, or keep modifiers as a
       later usability pass.
-- [ ] Replace remaining audit-era historical references in `docs/ux-review-2026-05-19.md` only if
-      that file stops being treated as historical evidence.
 
 ## Verification Baseline
 
