@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Logo from "@/components/brand/Logo";
 
 type LegalPageProps = {
-  variant: "privacy" | "terms" | "security";
+  variant: "privacy" | "terms" | "security" | "cookies";
 };
 
 type SectionContent = {
@@ -322,6 +322,62 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       },
     ],
   },
+  cookies: {
+    eyebrow: "Legal · Versión 1.0",
+    title: "Política de cookies y tecnologías de rastreo",
+    intro:
+      "Gestión de consentimiento, cookies de terceros y analytics. Kova utiliza cookies y tecnologías similares para permitir el funcionamiento de la plataforma, mantener sesiones activas, recordar preferencias, mejorar la seguridad, analizar el uso del servicio y optimizar la experiencia del usuario.",
+    lastUpdated: "28 de mayo de 2026 (fecha de entrada en vigor)",
+    sections: [
+      {
+        heading: "Qué son las cookies",
+        body: [
+          "Las cookies son pequeños archivos o identificadores que se almacenan en el dispositivo del usuario cuando visita o utiliza una plataforma digital. Además de cookies, Kova puede utilizar tecnologías como almacenamiento local, identificadores de dispositivo, píxeles o herramientas de análisis.",
+        ],
+      },
+      {
+        heading: "Tipos de cookies que podemos utilizar",
+        body: [
+          "Kova puede utilizar las siguientes categorías:",
+          "• Cookies necesarias: permiten funciones básicas como inicio de sesión, seguridad, autenticación y operación de la plataforma. Estas cookies no pueden desactivarse desde Kova, ya que son necesarias para prestar el servicio.",
+          "• Cookies de preferencias: permiten recordar configuraciones del usuario, como idioma, vista, tema visual u otras preferencias de uso.",
+          "• Cookies analíticas: ayudan a entender cómo se utiliza la plataforma, medir rendimiento, detectar errores y mejorar el servicio. Estas cookies pueden provenir de herramientas propias o de terceros.",
+          "• Cookies de marketing: actualmente Kova no utiliza cookies de publicidad personalizada. En caso de implementarlas, se solicitará el consentimiento correspondiente cuando sea requerido por la legislación aplicable.",
+        ],
+      },
+      {
+        heading: "Cookies de terceros",
+        body: [
+          "Kova puede integrar servicios de terceros, como herramientas de analítica, procesamiento de pagos, soporte o monitoreo técnico. Estos proveedores pueden utilizar cookies o tecnologías similares conforme a sus propias políticas de privacidad.",
+        ],
+      },
+      {
+        heading: "Gestión de cookies",
+        body: [
+          "El usuario puede aceptar, rechazar o configurar el uso de cookies no esenciales cuando dicha opción esté disponible en la plataforma. También puede bloquear o eliminar cookies desde la configuración de su navegador.",
+          "La desactivación de cookies necesarias puede afectar el acceso o funcionamiento correcto de Kova.",
+        ],
+      },
+      {
+        heading: "Duración",
+        body: [
+          "Las cookies pueden ser de sesión, eliminándose al cerrar el navegador, o persistentes, conservándose por un periodo determinado según su finalidad o configuración del proveedor correspondiente.",
+        ],
+      },
+      {
+        heading: "Cambios a esta política",
+        body: [
+          "Kova podrá actualizar esta Política de Cookies para reflejar cambios tecnológicos, legales o de proveedores. La versión vigente estará disponible en la plataforma o en el sitio web de Kova.",
+        ],
+      },
+      {
+        heading: "Contacto",
+        body: [
+          "Para dudas relacionadas con el uso de cookies y tecnologías similares, puede contactarnos en: posprojectsupport@gmail.com.",
+        ],
+      },
+    ],
+  },
 };
 
 export default function LegalPage({ variant }: LegalPageProps) {
@@ -447,6 +503,9 @@ export default function LegalPage({ variant }: LegalPageProps) {
           </Link>
           <Link to="/seguridad" style={{ color: "var(--kova-muted)" }}>
             Seguridad
+          </Link>
+          <Link to="/cookies" style={{ color: "var(--kova-muted)" }}>
+            Cookies
           </Link>
           <Link to="/" style={{ color: "var(--kova-muted)", marginLeft: "auto" }}>
             ← Volver al inicio

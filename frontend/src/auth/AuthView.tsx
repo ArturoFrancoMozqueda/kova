@@ -198,7 +198,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                       </a>
                       {" "}{copy.auth.acceptTermsOfKova}{" "}
                       <a
-                        href="/seguridad"
+                        href="/cookies"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-medium text-kova-blue hover:underline"

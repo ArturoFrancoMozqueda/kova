@@ -622,7 +622,7 @@ export const copy = {
     privacy: "privacidad",
     terms: "términos",
     signupSupportLine: "Para revisarlos o pedir soporte, escríbenos a",
-    signupSecurityLink: "Cómo cuidamos tus datos y tu negocio",
+    signupSecurityLink: "Conozco también la política de cookies",
     verifyRedirecting: "Redirigiendo al inicio de sesión...",
     verifyMissingToken: "Falta el token de verificación.",
     verifyExpiredTitle: "Este enlace ya expiró o no es válido.",

@@ -80,6 +80,7 @@ export default defineConfig({
           /^\/seguridad/,
           /^\/privacy/,
           /^\/terms/,
+          /^\/cookies/,
           /^\/api\//,
         ],
         cleanupOutdatedCaches: true,
