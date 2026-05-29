@@ -197,6 +197,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                         {copy.auth.terms}
                       </a>
                       {" "}{copy.auth.acceptTermsOfKova}{" "}
+                      {copy.auth.signupSecurityPrefix}{" "}
                       <a
                         href="/cookies"
                         target="_blank"
