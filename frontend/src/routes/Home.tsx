@@ -6,7 +6,6 @@ import {
   STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
-import { BILLING_TRIAL_LABEL_ES } from "@/billing/trial";
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
@@ -448,6 +447,71 @@ function HeroDemo() {
         </div>
       ))}
     </div>
+  );
+}
+
+/* ─── SocialProof ────────────────────────────────────────────────────────── */
+function SocialProof() {
+  const sp = t.socialProof;
+  return (
+    <section
+      aria-label={sp.eyebrow}
+      style={{
+        padding: "28px 32px",
+        borderTop: "0.5px solid var(--hairline-color)",
+        borderBottom: "0.5px solid var(--hairline-color)",
+        background: "var(--surface-2)",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+            textAlign: "center",
+          }}
+        >
+          {sp.eyebrow}
+        </span>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          {sp.categories.map((c) => (
+            <span
+              key={c}
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                padding: "6px 12px",
+                borderRadius: 999,
+                background: "var(--surface)",
+                border: "0.5px solid var(--hairline-color)",
+                color: "var(--page-fg)",
+              }}
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1166,7 +1230,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
                 textAlign: "center", textDecoration: "none", display: "block",
               }}
             >
-              {t.pricing.ctaPrefix}{BILLING_TRIAL_LABEL_ES}{t.pricing.ctaSuffix}
+              {t.pricing.ctaButton}
             </Link>
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(240,244,255,0.55)", marginTop: -10 }}>
               {t.pricing.ctaFineprint}
@@ -1382,6 +1446,7 @@ export default function Home(): ReactNode {
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
       <main>
         <Hero primaryTarget={primaryTarget} />
+        <SocialProof />
         <ThreeNodes />
         <WhyKova />
         <POSShowcase />

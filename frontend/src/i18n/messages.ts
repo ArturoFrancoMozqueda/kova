@@ -14,13 +14,24 @@ export const copy = {
       price: "Precio",
       login: "Iniciar sesión",
       goToDashboard: "Ir al dashboard",
-      createAccount: "Crear mi POS",
+      createAccount: "Crear mi POS gratis",
+    },
+    socialProof: {
+      eyebrow: "Diseñado para negocios que cobran todos los días",
+      categories: [
+        "Cafeterías",
+        "Panaderías",
+        "Taquerías",
+        "Food trucks",
+        "Tiendas",
+        "Misceláneas",
+      ],
     },
     hero: {
       titlePart1: "Deja de operar a ciegas.",
       titleEmphasis: "Empieza a dirigir",
       titlePart2: " tu negocio.",
-      subtitle: "Kova une caja, inventario, equipo y reportes para que sepas qué se vende, qué se está acabando y cómo va tu operación — desde computadora, tablet o celular, incluso si se va el internet.",
+      subtitle: "Caja, inventario y reportes en una sola app. Mira en vivo qué se vende, qué se acaba y cómo va el día — desde tu celular, tablet o compu.",
       demo: {
         eyebrow: "Vista previa · datos de ejemplo",
         step1Label: "Venta registrada",
@@ -71,8 +82,8 @@ export const copy = {
     },
     whyKova: {
       eyebrow: "Más que un punto de venta",
-      title: "Kova no solo te ayuda a cobrar. Te ayuda a volver a ser dueño de tu negocio.",
-      body: "Creemos que los emprendedores merecen herramientas tan inteligentes como sus negocios. Kova existe para que no sacrifiques claridad por simplicidad, ni velocidad por control.",
+      title: "Otros POS te dejan cobrar. Kova te deja entender.",
+      body: "En la misma app ves qué se vendió, qué se está acabando, quién cobró cada turno y cómo cuadra el día. Sin sumar tickets, sin cruzar Excel, sin llamar al local para preguntar cómo va.",
       quote: "Cuando sabes qué se vende, qué se está acabando y cuándo entra el dinero, dejas de perseguir la operación y empiezas a dirigirla.",
     },
     posShowcase: {
@@ -122,32 +133,32 @@ export const copy = {
         {
           kicker: "Sin internet, sin problema",
           title: "Sigue cobrando aunque se caiga el WiFi.",
-          body: "El internet de tu local va a fallar tarde o temprano. Con Kova tu cajero no se entera: cobra normal y las ventas se sincronizan solas cuando vuelve la señal. No pierdes una sola.",
+          body: "El internet de tu local va a fallar tarde o temprano. Con Kova no pierdes una sola venta: la caja sigue cobrando y todo se sincroniza solo cuando vuelve la señal.",
         },
         {
           kicker: "Tu negocio, tus reglas",
           title: "Cada detalle adaptado a tu marca.",
-          body: "Sube tu logo, tu catálogo, tus precios y los extras que ofreces (tamaños, leches, modificadores). Cada negocio vive en su propio espacio, aislado y seguro.",
+          body: "Sube tu logo, tu catálogo, tus precios y los extras que ofreces (tamaños, leches, modificadores). Tu negocio vive en su propio espacio, aislado y seguro.",
         },
         {
           kicker: "Cobra como te paguen",
           title: "Efectivo, transferencia, tarjeta — todo en orden.",
-          body: "Acepta el método que prefiera tu cliente y queda registrado por separado. Al cerrar el día sabes exactamente cuánto entró por cada uno, sin sumar tickets a mano.",
+          body: "Aceptas el método que prefiera tu cliente y queda registrado por separado. Al cerrar el día sabes exactamente cuánto entró por cada uno, sin sumar tickets a mano.",
         },
         {
           kicker: "Datos del día, en vivo",
           title: "Tu negocio en el bolsillo, en tiempo real.",
-          body: "Aunque no estés en el local ves cuánto se ha vendido, qué se está moviendo y cómo va el turno. Sin llamar al cajero ni pedir reportes por WhatsApp.",
+          body: "Aunque no estés en el local ves cuánto llevas vendido, qué se está moviendo y cómo va el turno. Sin llamar a preguntar ni pedir reportes por WhatsApp.",
         },
         {
           kicker: "Cierre de caja sin estrés",
           title: "Apertura, cierre y cuadre, automáticos.",
-          body: "Tu cajero abre el turno con un monto inicial, cobra durante el día y cierra con un click. Kova calcula la diferencia y te muestra todo claro, sin Excel ni discusiones.",
+          body: "Abres turno con un monto inicial, cobras durante el día y al cierre Kova calcula la diferencia. Ves todo claro: cuánto entró, cuánto debería haber y dónde está el descuadre — sin Excel ni discusiones.",
         },
         {
           kicker: "Cero instalaciones",
           title: "Funciona en lo que ya tienes.",
-          body: "Sin máquinas especiales ni descargas. Abre Kova en tu computadora, tablet o teléfono y empieza a cobrar el mismo día.",
+          body: "Sin invertir en máquinas especiales ni esperar visitas técnicas. Abres Kova en la compu, tablet o teléfono que ya usas y cobras el mismo día.",
         },
       ],
     },
@@ -205,8 +216,7 @@ export const copy = {
       leadEnd: " Prueba gratis y cancela cuando quieras.",
       planName: "Plan Kova",
       planSubtitle: "Todo lo necesario para vender, controlar y entender tu negocio desde una sola app",
-      ctaSuffix: " gratis →",
-      ctaPrefix: "Empieza ",
+      ctaButton: "Crear mi POS gratis →",
       ctaFineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
       features: [
         "Cobros en efectivo, transferencia, tarjeta y pagos divididos",
