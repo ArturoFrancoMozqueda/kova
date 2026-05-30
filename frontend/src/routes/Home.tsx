@@ -450,71 +450,6 @@ function HeroDemo() {
   );
 }
 
-/* ─── SocialProof ────────────────────────────────────────────────────────── */
-function SocialProof() {
-  const sp = t.socialProof;
-  return (
-    <section
-      aria-label={sp.eyebrow}
-      style={{
-        padding: "28px 32px",
-        borderTop: "0.5px solid var(--hairline-color)",
-        borderBottom: "0.5px solid var(--hairline-color)",
-        background: "var(--surface-2)",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1280,
-          margin: "0 auto",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 14,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 500,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "var(--text-muted)",
-            textAlign: "center",
-          }}
-        >
-          {sp.eyebrow}
-        </span>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          {sp.categories.map((c) => (
-            <span
-              key={c}
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                padding: "6px 12px",
-                borderRadius: 999,
-                background: "var(--surface)",
-                border: "0.5px solid var(--hairline-color)",
-                color: "var(--page-fg)",
-              }}
-            >
-              {c}
-            </span>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ─── ThreeNodes ─────────────────────────────────────────────────────────── */
 function ThreeNodes() {
   const items = t.threeNodes.items;
@@ -1446,7 +1381,6 @@ export default function Home(): ReactNode {
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
       <main>
         <Hero primaryTarget={primaryTarget} />
-        <SocialProof />
         <ThreeNodes />
         <WhyKova />
         <POSShowcase />

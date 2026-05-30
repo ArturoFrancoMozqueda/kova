@@ -16,17 +16,6 @@ export const copy = {
       goToDashboard: "Ir al dashboard",
       createAccount: "Crear mi POS gratis",
     },
-    socialProof: {
-      eyebrow: "Diseñado para negocios que cobran todos los días",
-      categories: [
-        "Cafeterías",
-        "Panaderías",
-        "Taquerías",
-        "Food trucks",
-        "Tiendas",
-        "Misceláneas",
-      ],
-    },
     hero: {
       titlePart1: "Deja de operar a ciegas.",
       titleEmphasis: "Empieza a dirigir",
