@@ -32,12 +32,12 @@ def test_no_change_on_exact_cash_payment():
 def _setup(client: TestClient, email: str, tenant: str, price: str = "50.00") -> dict:
     r = client.post(
         "/api/v1/auth/signup",
-        json={"email": email, "password": "S3cur3!", "tenant_name": tenant, "accepted_terms": True},
+        json={"email": email, "password": "S3cur3pass!", "tenant_name": tenant, "accepted_terms": True},
     )
     assert r.status_code == 201, r.text
     signup = r.json()
     client.post("/api/v1/auth/verify", json={"token": signup["dev_verification_token"]})
-    client.post("/api/v1/auth/login", json={"email": email, "password": "S3cur3!"})
+    client.post("/api/v1/auth/login", json={"email": email, "password": "S3cur3pass!"})
     product = client.post(
         "/api/v1/catalog/products",
         headers={"Idempotency-Key": "split-product"},
