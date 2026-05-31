@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.auth.router import router as auth_router
 from app.billing.router import router as billing_router
@@ -59,7 +63,14 @@ def create_app() -> FastAPI:
     configure_logging()
     init_sentry()
     _validate_config()
-    app = FastAPI(title="POS API", version="0.0.1")
+    _hide_docs = settings.app_env == "production"
+    app = FastAPI(
+        title="POS API",
+        version="0.0.1",
+        docs_url=None if _hide_docs else "/docs",
+        redoc_url=None if _hide_docs else "/redoc",
+        openapi_url=None if _hide_docs else "/openapi.json",
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_url],
@@ -75,6 +86,26 @@ def create_app() -> FastAPI:
     app.middleware("http")(security_headers_middleware)
     app.middleware("http")(csrf_middleware)
     app.middleware("http")(request_context_middleware)
+
+    _error_logger = logging.getLogger("app.errors")
+
+    @app.exception_handler(SQLAlchemyError)
+    async def _sqlalchemy_exception_handler(
+        request: Request, exc: SQLAlchemyError
+    ) -> JSONResponse:
+        _error_logger.exception(
+            "database_error", extra={"path": request.url.path, "method": request.method}
+        )
+        return JSONResponse(status_code=500, content={"detail": "Database error"})
+
+    @app.exception_handler(Exception)
+    async def _unhandled_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
+        _error_logger.exception(
+            "unhandled_error", extra={"path": request.url.path, "method": request.method}
+        )
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
     app.include_router(health_router)
     app.include_router(auth_router)

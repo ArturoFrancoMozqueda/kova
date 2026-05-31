@@ -19,8 +19,11 @@ from app.tenants import repository as tenant_repo
 
 # ── Passwords ─────────────────────────────────────────────────────────────────
 
+_BCRYPT_ROUNDS = 12
+
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:

@@ -63,7 +63,7 @@ def test_signup_existing_verified_user_returns_email_in_use(client):
         "/api/v1/auth/signup",
         json={
             "email": "owner@example.com",
-            "password": "x",
+            "password": "S3cur3pass!",
             "tenant_name": "X",
             "accepted_terms": True,
         },

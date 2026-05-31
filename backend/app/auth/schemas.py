@@ -1,13 +1,28 @@
+import re
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+_PASSWORD_MIN_LENGTH = 8
+_PASSWORD_MAX_LENGTH = 128
+
+
+def _validate_password_strength(value: str) -> str:
+    if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
+        raise ValueError("La contraseña debe incluir letras y números")
+    return value
 
 
 class SignupRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=_PASSWORD_MIN_LENGTH, max_length=_PASSWORD_MAX_LENGTH)
     tenant_name: str
     accepted_terms: bool = False
+
+    @field_validator("password")
+    @classmethod
+    def _password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class SignupResponse(BaseModel):
@@ -59,7 +74,12 @@ class PasswordResetRequestBody(BaseModel):
 
 class PasswordResetConfirmBody(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=_PASSWORD_MIN_LENGTH, max_length=_PASSWORD_MAX_LENGTH)
+
+    @field_validator("new_password")
+    @classmethod
+    def _password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
 
 
 class MessageResponse(BaseModel):
