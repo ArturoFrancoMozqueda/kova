@@ -14,7 +14,7 @@ export const copy = {
       price: "Precio",
       login: "Iniciar sesión",
       goToDashboard: "Ir al dashboard",
-      createAccount: "Crear mi POS gratis",
+      createAccount: "Empieza gratis",
     },
     hero: {
       titlePart1: "Deja de operar a ciegas.",
@@ -34,7 +34,7 @@ export const copy = {
         step3Meta: "+18% vs. ayer",
         livePulse: "En vivo",
       },
-      ctaPrimary: "Crear mi POS gratis",
+      ctaPrimary: "Empieza gratis",
       ctaSecondary: "Ver cómo funciona →",
       priceBadgeSuffix: " · todo incluido",
       priceFineprint: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
@@ -164,7 +164,7 @@ export const copy = {
       ],
       ctaEyebrow: `${BILLING_TRIAL_LABEL} gratis`,
       ctaBody: "Prueba Kova una semana completa con tu negocio real, sin tarjeta y sin compromiso. Si no te simplifica la vida, cancelas con un click.",
-      ctaButton: "Crear mi POS gratis",
+      ctaButton: "Empieza gratis",
     },
     builtFor: {
       eyebrow: "¿Es para mí?",
@@ -205,7 +205,7 @@ export const copy = {
       leadEnd: " Prueba gratis y cancela cuando quieras.",
       planName: "Plan Kova",
       planSubtitle: "Todo lo necesario para vender, controlar y entender tu negocio desde una sola app",
-      ctaButton: "Crear mi POS gratis →",
+      ctaButton: "Empieza gratis →",
       ctaFineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
       features: [
         "Cobros en efectivo, transferencia, tarjeta y pagos divididos",

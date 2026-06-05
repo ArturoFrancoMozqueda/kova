@@ -300,12 +300,13 @@ Marcado: **[APLICAR AHORA]** = cambio incluido en esta entrega · **[RECOMENDADO
 - **Copy mejorado:** "Caja, inventario y reportes en una sola app para que sepas exactamente qué pasa en tu negocio. Mira en vivo qué se vende, qué se acaba y cómo va el día — desde tu celular, tablet o compu."
 - **Dónde:** `copy.landing.hero.subtitle`.
 
-### 5.3 CTAs `[RECOMENDADO]`
-- **Actual:** primario "Crear mi POS gratis", secundario "Ver cómo funciona →" (`hero.ctaPrimary`, `nav.createAccount`, etc.)
-- **Qué cambiar (probar A/B):** el primario llama a Kova "POS", reforzando justo lo que queremos desinflar. Probar variantes que mantengan la claridad sin encasillar: "Crear mi cuenta gratis" o "Empieza gratis".
-- **Por qué:** "POS" en el botón más visible ancla la categoría equivocada. Pero es el CTA de mayor conversión — **cambiar solo vía A/B test**, no a ciegas (ver `marketing-skills:ab-testing`).
-- **Copy mejorado (variante a testear):** "Empieza gratis" / "Crear mi cuenta gratis".
-- **Dónde:** `nav.createAccount` (línea 17), `hero.ctaPrimary` (37), `firstDay.ctaButton` (167), `pricing.ctaButton` (208). *No cambiar todos a la vez: testear primero el hero.*
+### 5.3 CTAs `[APLICADO]`
+- **Antes:** primario "Crear mi POS gratis", secundario "Ver cómo funciona →".
+- **Qué cambió:** el primario llamaba a Kova "POS", reforzando justo la categoría que queremos desinflar. Se reemplazó por **"Empieza gratis"** en los 4 CTAs (consistencia de marca).
+- **Por qué:** "POS" en el botón más visible ancla la categoría equivocada; "Empieza gratis" mantiene la claridad y la baja fricción sin encasillar a Kova.
+- **Copy aplicado:** "Empieza gratis" (el de pricing conserva la flecha: "Empieza gratis →").
+- **Dónde (aplicado):** `nav.createAccount` (línea 17), `hero.ctaPrimary` (37), `firstDay.ctaButton` (167), `pricing.ctaButton` (208).
+- **Seguimiento recomendado:** medir conversión del nuevo CTA contra el histórico de "Crear mi POS gratis" cuando haya volumen suficiente, e idealmente formalizar como A/B test (ver `marketing-skills:ab-testing`).
 
 ### 5.4 Sección "Más que un punto de venta" / Why Kova `[OK, amplificar]`
 - **Actual:** "Otros POS te dejan cobrar. Kova te deja entender." (`whyKova.title`, línea 74)
@@ -349,7 +350,7 @@ Marcado: **[APLICAR AHORA]** = cambio incluido en esta entrega · **[RECOMENDADO
 
 ### Semana 2 — Sitio y conversión
 - Revisar y aprobar los cambios `[RECOMENDADO]`: nueva sección de Reportes/Decisiones (§5.6), reencuadre de valor en pricing (§5.7), orden del footer (§5.9).
-- Montar el **A/B test del CTA del hero** ("Crear mi POS gratis" vs "Empieza gratis"). Instrumentar analítica de conversión de la landing (signups, scroll, click en CTA).
+- Instrumentar analítica de conversión de la landing (signups, scroll, click en CTA) para medir el nuevo CTA **"Empieza gratis"** (ya aplicado, §5.3) y, con volumen, formalizar un A/B test.
 - Asegurar que la landing mide correctamente el funnel (ver `specs/marketing/landing_metrics.md`; no mostrar métricas no verificables).
 
 ### Semana 3 — Contenido y lanzamiento
@@ -359,7 +360,7 @@ Marcado: **[APLICAR AHORA]** = cambio incluido en esta entrega · **[RECOMENDADO
 - Documentar el primer caso de éxito de un beta-user (con permiso) como escenario real.
 
 ### Semana 4 — Testing, iteración y sales enablement
-- Leer resultados del A/B test del CTA; quedarse con el ganador.
+- Revisar la conversión del CTA "Empieza gratis"; si hay dudas, formalizar A/B test y quedarse con el ganador.
 - Iterar el contenido según engagement (qué hook/pilar funcionó).
 - Crear material de **sales enablement**: one-pager de Kova, guion de objeciones (§2.11), respuestas tipo para WhatsApp/DM, página comparativa "Kova vs POS genérico".
 - Definir métricas base y metas para el siguiente ciclo (signups → activación → retención de trial).
@@ -370,7 +371,7 @@ Marcado: **[APLICAR AHORA]** = cambio incluido en esta entrega · **[RECOMENDADO
 
 ### Sitio / mensaje
 1. **[Alta]** Nueva sección dedicada a Reportes/Decisiones en la landing (§5.6) — el mayor gap entre lo que el producto hace y lo que el sitio comunica.
-2. **[Alta]** A/B test del CTA del hero para soltar "POS" sin perder conversión (§5.3).
+2. **[Hecho]** CTA cambiado a "Empieza gratis" en los 4 botones para soltar "POS" (§5.3); pendiente medir conversión vs histórico.
 3. **[Media]** Subir la jerarquía de "Otros POS te dejan cobrar. Kova te deja entender" (§5.4).
 4. **[Media]** Reencuadre de valor en pricing ("menos de $10/día") (§5.7).
 5. **[Baja]** Reordenar features para priorizar "Datos del día, en vivo" (§5.5) y el tagline del footer (§5.9).
