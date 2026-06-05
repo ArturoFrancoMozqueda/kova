@@ -97,9 +97,98 @@ const LANDING_STYLES = `
     from { opacity: 0; transform: translateY(-6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  @keyframes lp-hero-drift {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    50%      { transform: translate3d(0, -8px, 0) rotate(-0.4deg); }
+  }
+  @keyframes lp-preview-glow {
+    0%, 100% { opacity: 0.46; transform: translateX(-12%); }
+    50%      { opacity: 0.86; transform: translateX(18%); }
+  }
+  @keyframes lp-cart-pop {
+    0%   { transform: scale(0.85); opacity: 0; }
+    70%  { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
   @keyframes lp-core-pulse {
     0%, 100% { transform: scale(1); }
     50%      { transform: scale(1.18); }
+  }
+
+  .lp-root.lp-motion-ready [data-lp-reveal="true"] {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0) scale(0.985);
+    filter: blur(6px);
+    transition:
+      opacity 640ms var(--kova-ease-entrance),
+      transform 640ms var(--kova-ease-entrance),
+      filter 640ms var(--kova-ease-entrance);
+    transition-delay: var(--lp-reveal-delay, 0ms);
+    will-change: opacity, transform, filter;
+  }
+  .lp-root.lp-motion-ready [data-lp-reveal="true"][data-lp-visible="true"] {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+
+  .lp-root.lp-motion-ready .lp-hero-visual > * {
+    animation: lp-hero-drift 7s ease-in-out infinite;
+  }
+
+  .lp-cta-fill {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    transition:
+      color 220ms var(--kova-ease-entrance),
+      border-color 220ms var(--kova-ease-entrance),
+      transform 180ms var(--kova-ease-entrance),
+      box-shadow 220ms var(--kova-ease-entrance);
+  }
+  .lp-cta-fill::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    z-index: 0;
+    width: 150%;
+    height: 0;
+    border-radius: 50% 50% 0 0;
+    background: var(--accent);
+    transform: translate(-50%, 55%);
+    transition: height 320ms var(--kova-ease-entrance);
+  }
+  .lp-cta-fill > * {
+    position: relative;
+    z-index: 1;
+  }
+  .lp-cta-fill:hover {
+    color: #fff !important;
+    border-color: transparent !important;
+    transform: translateY(-1px);
+    box-shadow: 0 14px 34px -22px rgba(79,126,247,0.9);
+  }
+  .lp-cta-fill:hover::before { height: 320%; }
+  .lp-cta-fill:active { transform: translateY(0) scale(0.98); }
+
+  .lp-desktop-preview {
+    position: relative;
+    isolation: isolate;
+  }
+  .lp-desktop-preview::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(110deg, transparent 18%, rgba(123,167,255,0.18) 45%, transparent 72%);
+    animation: lp-preview-glow 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .lp-preview-main,
+  .lp-preview-cart {
+    position: relative;
+    z-index: 1;
   }
 
   .lp-product-tile:hover {
@@ -112,15 +201,93 @@ const LANDING_STYLES = `
     box-shadow: 0 0 0 1px var(--accent) inset;
   }
   .lp-product-tile:active { transform: scale(0.97); }
+  .lp-product-tile .lp-cart-count {
+    animation: lp-cart-pop 220ms var(--kova-ease-spring);
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .lp-live-dot { animation: none !important; }
+    .lp-root.lp-motion-ready [data-lp-reveal="true"] {
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+    }
     .lp-root *, .lp-root *::before, .lp-root *::after {
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
     }
   }
 `;
+
+function useLandingRevealMotion() {
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>(".lp-root");
+    if (!root) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const revealTargets = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        [
+          ".lp-hero-grid > *",
+          "main > section > div > *",
+          ".lp-3cols > *",
+          ".lp-4cols > *",
+          ".lp-showcase-row > *",
+          ".lp-footer-grid > *",
+        ].join(",")
+      )
+    );
+
+    const seen = new Set<HTMLElement>();
+    revealTargets.forEach((target, index) => {
+      if (seen.has(target)) return;
+      seen.add(target);
+      target.dataset.lpReveal = "true";
+      target.style.setProperty("--lp-reveal-delay", `${Math.min(index % 6, 5) * 70}ms`);
+      if (reduceMotion) target.dataset.lpVisible = "true";
+    });
+
+    root.classList.add("lp-motion-ready");
+
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      seen.forEach((target) => {
+        target.dataset.lpVisible = "true";
+      });
+      return () => {
+        root.classList.remove("lp-motion-ready");
+        seen.forEach((target) => {
+          target.removeAttribute("data-lp-reveal");
+          target.removeAttribute("data-lp-visible");
+          target.style.removeProperty("--lp-reveal-delay");
+        });
+      };
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const target = entry.target as HTMLElement;
+          target.dataset.lpVisible = "true";
+          observer.unobserve(target);
+        });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 }
+    );
+
+    seen.forEach((target) => observer.observe(target));
+
+    return () => {
+      observer.disconnect();
+      root.classList.remove("lp-motion-ready");
+      seen.forEach((target) => {
+        target.removeAttribute("data-lp-reveal");
+        target.removeAttribute("data-lp-visible");
+        target.style.removeProperty("--lp-reveal-delay");
+      });
+    };
+  }, []);
+}
 
 /* ─── ThemeToggle ────────────────────────────────────────────────────────── */
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
@@ -190,7 +357,7 @@ function Navbar({
             </Link>
           )}
           <Link
-            className="lp-nav-primary"
+            className="lp-nav-primary lp-cta-fill"
             to={primaryTarget}
             style={{
               fontSize: 13, fontWeight: 600,
@@ -199,7 +366,7 @@ function Navbar({
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
           >
-            {isAuthenticated ? t.nav.goToDashboard : t.nav.createAccount}
+            <span>{isAuthenticated ? t.nav.goToDashboard : t.nav.createAccount}</span>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
               <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -258,6 +425,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             <div className="lp-hero-actions" style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
               <Link
                 to={primaryTarget}
+                className="lp-cta-fill"
                 style={{
                   background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
                   padding: "14px 22px", borderRadius: 10,
@@ -265,13 +433,14 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                   display: "inline-flex", alignItems: "center", gap: 8,
                 }}
               >
-                {t.hero.ctaPrimary}
+                <span>{t.hero.ctaPrimary}</span>
                 <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                   <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Link>
               <a
                 href="#producto"
+                className="lp-cta-fill"
                 style={{
                   background: "var(--surface)", color: "var(--page-fg)",
                   padding: "14px 22px", borderRadius: 10,
@@ -279,7 +448,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                   border: "0.5px solid var(--hairline-color)",
                 }}
               >
-                {t.hero.ctaSecondary}
+                <span>{t.hero.ctaSecondary}</span>
               </a>
             </div>
 
@@ -624,7 +793,7 @@ function DesktopPreview() {
                 </div>
                 {inCart && (
                   <span
-                    className="tabular"
+                    className="tabular lp-cart-count"
                     style={{
                       position: "absolute", top: 8, right: 8,
                       minWidth: 18, height: 18, borderRadius: 999,
@@ -678,6 +847,7 @@ function DesktopPreview() {
             <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMoney(total)}</span>
           </div>
           <button
+            className="lp-cta-fill"
             style={{
               width: "100%", background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
               border: "none", borderRadius: 8, padding: "10px 12px",
@@ -685,7 +855,7 @@ function DesktopPreview() {
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             }}
           >
-            {t.desktopPreview.charge(formatMoney(total))}
+            <span>{t.desktopPreview.charge(formatMoney(total))}</span>
           </button>
         </div>
       </div>
@@ -947,6 +1117,7 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
           </div>
           <Link
             to={primaryTarget}
+            className="lp-cta-fill"
             style={{
               background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
               padding: "12px 20px", borderRadius: 10,
@@ -954,7 +1125,7 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
               display: "inline-flex", alignItems: "center", gap: 8,
             }}
           >
-            {t.firstDay.ctaButton}
+            <span>{t.firstDay.ctaButton}</span>
             <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
               <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -1141,6 +1312,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
 
             <Link
               to={primaryTarget}
+              className="lp-cta-fill"
               style={{
                 width: "100%", background: "var(--kova-blue)", color: "#fff",
                 padding: "14px 16px", borderRadius: 10, border: "none",
@@ -1148,7 +1320,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
                 textAlign: "center", textDecoration: "none", display: "block",
               }}
             >
-              {t.pricing.ctaButton}
+              <span>{t.pricing.ctaButton}</span>
             </Link>
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(240,244,255,0.55)", marginTop: -10 }}>
               {t.pricing.ctaFineprint}
@@ -1225,7 +1397,7 @@ const footerLinkStyle: CSSProperties = { color: "var(--text-tertiary)", textDeco
 const RESPONSIVE_STYLES = `
   .lp-root {
     width: 100%;
-    min-width: 100vw;
+    min-width: 100%;
     max-width: 100%;
     overflow-x: clip;
     background: var(--page-bg);
@@ -1330,6 +1502,7 @@ export default function Home(): ReactNode {
   const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
+  useLandingRevealMotion();
 
   // Paint html/body with the same landing background while this view is mounted.
   // Prevents the white body bg from showing on viewports wider than the natural
