@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kova Suite — Estrategia de Marketing</title>
+<style>
+  :root{
+    --blue:#4F7EF7; --blue-light:#7BA7FF; --ink:#0F1117; --mist:#F5F6FA;
+    --growth:#1EBF8A; --muted:#6B7A99; --tertiary:#8892A4; --border:#E2E6EF;
+    --danger:#DC2626; --amber:#E8A317; --on-ink:#F0F4FF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:#fff; line-height:1.5; font-size:13px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page{
+    width:210mm; min-height:296mm; padding:18mm 16mm; margin:0 auto;
+    page-break-after:always; position:relative; background:#fff;
+  }
+  .page:last-child{page-break-after:auto;}
+  h1,h2,h3,h4{margin:0; font-weight:700; letter-spacing:-0.01em; line-height:1.2;}
+  h2{font-size:22px; color:var(--ink); margin-bottom:4px;}
+  h3{font-size:15px; color:var(--ink); margin:18px 0 8px;}
+  h4{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;}
+  p{margin:0 0 9px;}
+  .eyebrow{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--blue); margin-bottom:6px;}
+  .lead{font-size:14px; color:#2b3245;}
+  .muted{color:var(--muted);}
+  .small{font-size:11px;}
+  strong{color:var(--ink);}
+  .accent{color:var(--blue);}
+  .green{color:var(--growth);}
+  .sectnum{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:var(--blue); color:#fff; font-size:13px; font-weight:700; margin-right:9px;}
+  .sect-head{display:flex; align-items:center; margin-bottom:14px; border-bottom:2px solid var(--mist); padding-bottom:10px;}
+
+  /* Cover */
+  .cover{background:var(--ink); color:var(--on-ink); display:flex; flex-direction:column; justify-content:space-between;}
+  .cover .mark{display:flex; align-items:center; gap:10px;}
+  .cover .logo{width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--blue),var(--growth)); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:18px;}
+  .cover h1{font-size:46px; line-height:1.05; margin:0 0 14px; color:#fff;}
+  .cover .sub{font-size:17px; color:#aeb9d4; max-width:150mm;}
+  .cover .oneliner{font-size:20px; font-weight:600; color:#fff; border-left:4px solid var(--growth); padding-left:16px; margin-top:30px; max-width:155mm;}
+  .cover .anchor{margin-top:26px; font-size:15px; color:var(--blue-light); font-style:italic;}
+  .cover .foot{display:flex; justify-content:space-between; font-size:12px; color:#7e89a3;}
+  .pill{display:inline-block; background:rgba(79,126,247,.15); color:var(--blue-light); border:1px solid rgba(123,167,255,.3); padding:4px 11px; border-radius:999px; font-size:11px; font-weight:600; margin-right:6px;}
+
+  /* cards / grids */
+  .grid{display:grid; gap:10px;}
+  .g2{grid-template-columns:1fr 1fr;}
+  .g3{grid-template-columns:1fr 1fr 1fr;}
+  .g4{grid-template-columns:1fr 1fr 1fr 1fr;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:13px 14px; background:#fff;}
+  .card.mist{background:var(--mist); border-color:transparent;}
+  .card.ink{background:var(--ink); color:var(--on-ink); border-color:transparent;}
+  .card.ink h4{color:#8c97b5;}
+  .card .big{font-size:26px; font-weight:800; color:var(--blue); line-height:1;}
+  .kpi-label{font-size:11px; color:var(--muted); margin-top:4px;}
+
+  table{width:100%; border-collapse:collapse; font-size:11.5px; margin:6px 0 10px;}
+  th,td{text-align:left; padding:7px 9px; border-bottom:1px solid var(--border); vertical-align:top;}
+  th{background:var(--mist); color:var(--ink); font-weight:700; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em;}
+  tr{page-break-inside:avoid;}
+
+  .badge{display:inline-block; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:700; white-space:nowrap;}
+  .b-green{background:rgba(30,191,138,.14); color:#0f7a59;}
+  .b-amber{background:rgba(232,163,23,.16); color:#9a6a04;}
+  .b-blue{background:rgba(79,126,247,.14); color:#2c52b8;}
+  .b-gray{background:#eef0f5; color:#5a647a;}
+  .b-red{background:rgba(220,38,38,.12); color:#b42121;}
+
+  ul.clean{margin:6px 0 10px; padding-left:18px;}
+  ul.clean li{margin-bottom:5px;}
+  .callout{border-left:4px solid var(--blue); background:var(--mist); padding:11px 14px; border-radius:0 8px 8px 0; margin:10px 0;}
+  .callout.green{border-color:var(--growth);}
+  .callout.amber{border-color:var(--amber);}
+
+  /* flow diagram */
+  .flow{display:flex; flex-direction:column; gap:0;}
+  .flow-step{display:flex; align-items:flex-start; gap:12px; position:relative; padding-bottom:12px;}
+  .flow-step:not(:last-child)::before{content:""; position:absolute; left:15px; top:30px; bottom:0; width:2px; background:var(--border);}
+  .flow-dot{flex:0 0 32px; width:32px; height:32px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; z-index:1;}
+  .flow-step:nth-child(1) .flow-dot{background:var(--danger);}
+  .flow-step:nth-child(2) .flow-dot{background:#c1452f;}
+  .flow-step:nth-child(3) .flow-dot{background:var(--amber);}
+  .flow-step:nth-child(4) .flow-dot{background:var(--blue);}
+  .flow-step:nth-child(5) .flow-dot{background:var(--blue);}
+  .flow-step:nth-child(6) .flow-dot{background:#1aa3a0;}
+  .flow-step:nth-child(7) .flow-dot{background:var(--growth);}
+  .flow-body{flex:1; padding-top:3px;}
+  .flow-body .t{font-weight:700; font-size:13px;}
+
+  /* pyramid */
+  .pyramid{display:flex; flex-direction:column; align-items:center; gap:6px; margin:8px 0;}
+  .tier{color:#fff; border-radius:8px; padding:10px 14px; text-align:center; font-size:11.5px;}
+  .tier .tt{font-weight:700; font-size:12.5px;}
+  .t1{width:55%; background:var(--blue);}
+  .t2{width:70%; background:#5f86d8;}
+  .t3{width:85%; background:#8aa3d0;}
+  .t4{width:100%; background:#b7c2d8; color:var(--ink);}
+
+  /* roadmap */
+  .road{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px;}
+  .road .wk{border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+  .road .wk-h{background:var(--ink); color:#fff; padding:8px 10px; font-weight:700; font-size:11.5px;}
+  .road .wk-h span{display:block; font-size:9.5px; color:#8c97b5; font-weight:600; text-transform:uppercase; letter-spacing:.06em;}
+  .road .wk-b{padding:9px 10px;}
+  .road .wk-b ul{margin:0; padding-left:14px;}
+  .road .wk-b li{font-size:10.5px; margin-bottom:5px;}
+
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; margin-top:10px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:11px; height:11px; border-radius:3px; display:inline-block;}
+
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .vs-box{border-radius:10px; padding:14px;}
+  .vs-old{background:#f4eef0; border:1px solid #e6d3d8;}
+  .vs-new{background:rgba(30,191,138,.08); border:1px solid rgba(30,191,138,.25);}
+  .vs-box h4{color:var(--muted);}
+  .vs-old h4{color:#a05663;}
+  .vs-new h4{color:#0f7a59;}
+  .arrow{font-size:22px; color:var(--growth); text-align:center; align-self:center;}
+
+  .footer-note{position:absolute; bottom:8mm; left:16mm; right:16mm; font-size:9px; color:var(--tertiary); border-top:1px solid var(--border); padding-top:6px; display:flex; justify-content:space-between;}
+  @page{size:A4; margin:0;}
+</style>
+</head>
+<body>
+
+<!-- ░░░ COVER ░░░ -->
+<section class="page cover">
+  <div>
+    <div class="mark"><div class="logo">K</div><div style="font-size:18px;font-weight:700;color:#fff;">Kova Suite</div></div>
+  </div>
+  <div>
+    <div class="eyebrow" style="color:var(--blue-light);">Estrategia de Marketing · 2026</div>
+    <h1>Deja de operar a ciegas.<br>Empieza a dirigir tu negocio.</h1>
+    <div class="sub">Reposicionamiento de Kova: de “un POS más” a la <strong style="color:#fff;">plataforma de control y decisiones</strong> para negocios de mostrador en México.</div>
+    <div class="oneliner">“Kova es la app que te dice exactamente qué pasa en tu negocio — para que dejes de adivinar y empieces a dirigir.”</div>
+    <div class="anchor">Los negocios exitosos no adivinan. Analizan.</div>
+    <div style="margin-top:26px;">
+      <span class="pill">Claridad</span><span class="pill">Control</span><span class="pill">Decisiones con datos</span><span class="pill">Hecho en México</span>
+    </div>
+  </div>
+  <div class="foot">
+    <span>Documento de estrategia, posicionamiento y ejecución</span>
+    <span>Basado en el producto real · es-MX</span>
+  </div>
+</section>
+
+<!-- ░░░ 1. RESUMEN EJECUTIVO ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">1</span><h2>Resumen ejecutivo</h2></div>
+
+  <p class="lead">Kova ya tiene el producto para sostener un posicionamiento más ambicioso. No es solo una caja registradora: junta <strong>caja, inventario, empleados y turnos</strong>, y —lo más importante— traduce cada venta en <strong>decisiones</strong> mediante una capa de analítica real.</p>
+
+  <div class="grid g4" style="margin:14px 0;">
+    <div class="card mist"><div class="big">$299</div><div class="kpi-label">MXN / mes · todo incluido</div></div>
+    <div class="card mist"><div class="big">7</div><div class="kpi-label">días gratis · sin tarjeta</div></div>
+    <div class="card mist"><div class="big">1</div><div class="kpi-label">plan, sin módulos escondidos</div></div>
+    <div class="card mist"><div class="big">0</div><div class="kpi-label">comisión por venta o por empleado</div></div>
+  </div>
+
+  <h3>El problema de posicionamiento</h3>
+  <p>La página vende muy bien la parte de <strong>cobrar</strong> (POS) y subutiliza lo que de verdad diferencia a Kova: convertir las ventas diarias en decisiones. El sitio ya dice <em>“Otros POS te dejan cobrar. Kova te deja entender”</em>, pero el botón principal y la primera pregunta del FAQ aún anclaban a Kova como <em>un POS más</em>.</p>
+
+  <h3>La tesis de reposicionamiento</h3>
+  <div class="callout green">
+    El POS es la <strong>puerta de entrada</strong>. La analítica es el valor que justifica pagar mes a mes. El enemigo no es otro POS — es <strong>operar a ciegas y decidir por corazonada</strong>.
+  </div>
+
+  <h3>Los 3 movimientos de mayor impacto (30 días)</h3>
+  <div class="grid g3">
+    <div class="card"><h4>01 · Mensaje</h4><p class="small" style="margin:0;">Reencuadrar de “POS gratis” a <strong>control y claridad</strong> en hero, FAQ y la sección de reportes.</p></div>
+    <div class="card"><h4>02 · Contenido</h4><p class="small" style="margin:0;">Motor founder-led alrededor de <strong>“no adivines, analiza”</strong>, con datos reales del producto.</p></div>
+    <div class="card"><h4>03 · Adquisición</h4><p class="small" style="margin:0;">Beta por <strong>comunidad y alianzas locales</strong> antes de quemar presupuesto en ads.</p></div>
+  </div>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>1</span></div>
+</section>
+
+<!-- ░░░ 2. EL CAMBIO DE POSICIONAMIENTO ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">2</span><h2>El cambio de posicionamiento</h2></div>
+
+  <div class="two-col" style="grid-template-columns:1fr 50px 1fr; align-items:center;">
+    <div class="vs-box vs-old">
+      <h4>Antes — “un POS más”</h4>
+      <ul class="clean small" style="margin-bottom:0;">
+        <li>Se vende por <strong>cobrar rápido</strong></li>
+        <li>Compite contra otras cajas</li>
+        <li>“Crear mi POS gratis”</li>
+        <li>Categoría: <em>la cajita para cobrar</em></li>
+        <li>Valor difícil de justificar mes a mes</li>
+      </ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="vs-box vs-new">
+      <h4>Ahora — plataforma de control</h4>
+      <ul class="clean small" style="margin-bottom:0;">
+        <li>Se vende por <strong>entender y dirigir</strong></li>
+        <li>Compite contra <em>operar a ciegas</em></li>
+        <li>“Empieza gratis”</li>
+        <li>Categoría: <em>el sistema que me dice qué hacer</em></li>
+        <li>La analítica justifica la suscripción</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>El triángulo de la marca</h3>
+  <div class="grid g3">
+    <div class="card ink"><h4>Enemigo</h4><p style="font-size:16px;font-weight:700;margin:0;color:#fff;">La incertidumbre</p><p class="small" style="color:#aeb9d4;margin:6px 0 0;">Decidir por corazonada, operar sin saber qué pasa.</p></div>
+    <div class="card" style="border-color:var(--blue);"><h4 style="color:var(--blue);">Promesa</h4><p style="font-size:16px;font-weight:700;margin:0;">Sabe exactamente qué pasa en tu negocio.</p></div>
+    <div class="card" style="border-color:var(--growth);"><h4 style="color:var(--growth);">Emoción</h4><p style="font-size:16px;font-weight:700;margin:0;">Control · Claridad · Paz mental</p></div>
+  </div>
+
+  <h3>Statement de posicionamiento</h3>
+  <div class="callout">
+    Para <strong>dueños de negocios de mostrador en México</strong> que operan con libretas, Excel y WhatsApp y <strong>toman decisiones sin saber qué pasa</strong>, Kova une caja, inventario y reportes en un solo lugar y traduce cada venta en información clara y accionable. A diferencia de un POS tradicional —que solo te deja cobrar— Kova te deja <strong>entender y dirigir</strong>.
+  </div>
+
+  <h3>Diferenciadores</h3>
+  <div class="grid g3">
+    <div class="card"><h4>De cobrar a entender</h4><p class="small muted" style="margin:0;">Interpreta las ventas: historia del negocio, recomendaciones, tendencias, hora pico.</p></div>
+    <div class="card"><h4>Precio honesto y plano</h4><p class="small muted" style="margin:0;">$299/mes, todo incluido. Sin comisión, sin cobro por empleado.</p></div>
+    <div class="card"><h4>Funciona sin internet</h4><p class="small muted" style="margin:0;">Sigue cobrando y sincroniza solo al volver la señal.</p></div>
+    <div class="card"><h4>Cero fricción</h4><p class="small muted" style="margin:0;">“Si usas WhatsApp, ya sabes usar Kova.” Cobra el mismo día.</p></div>
+    <div class="card"><h4>Hecho en México + humano</h4><p class="small muted" style="margin:0;">Soporte con personas, no bots. Contexto local real.</p></div>
+    <div class="card"><h4>Multidispositivo</h4><p class="small muted" style="margin:0;">Compu, tablet o teléfono que ya tienes.</p></div>
+  </div>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>2</span></div>
+</section>
+
+<!-- ░░░ 3. CLIENTE Y DOLORES ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">3</span><h2>Cliente ideal y dolores</h2></div>
+
+  <div class="two-col">
+    <div class="card mist">
+      <h4>Perfil de cliente ideal (ICP)</h4>
+      <ul class="clean small" style="margin-bottom:0;">
+        <li><strong>Quién:</strong> dueño-operador de 1–3 locales, 28–50 años, en el mostrador.</li>
+        <li><strong>Hoy opera con:</strong> libreta + calculadora + Excel + WhatsApp.</li>
+        <li><strong>Nivel técnico:</strong> bajo-medio. Si usa WhatsApp, basta.</li>
+        <li><strong>Lo desvela:</strong> no saber si ganó, descuadres, stock-outs, sospecha de mermas.</li>
+        <li><strong>Dispara la compra:</strong> un susto reciente o abrir un 2.º local.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Segmentos objetivo</h4>
+      <table style="margin:0;">
+        <tr><td>Cafeterías</td><td><span class="badge b-green">Punta de lanza</span></td></tr>
+        <tr><td>Panaderías</td><td><span class="badge b-green">Recomendado</span></td></tr>
+        <tr><td>Food trucks</td><td><span class="badge b-blue">Compatible</span></td></tr>
+        <tr><td>Tiendas pequeñas</td><td><span class="badge b-blue">Compatible</span></td></tr>
+        <tr><td>Rest. de mostrador</td><td><span class="badge b-amber">Caso por caso</span></td></tr>
+        <tr><td>Servicios / bazares</td><td><span class="badge b-amber">Caso por caso</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>Cada dolor tiene una solución real en el producto</h3>
+  <table>
+    <thead><tr><th style="width:40%;">Dolor del dueño</th><th>Cómo se vive</th><th>Feature de Kova</th></tr></thead>
+    <tbody>
+      <tr><td><strong>“No sé si gané hoy”</strong></td><td>Cuenta el efectivo en la noche</td><td>KPIs en vivo + comparación vs ayer/semana</td></tr>
+      <tr><td><strong>Descuadres de caja</strong></td><td>Falta dinero y nadie sabe por qué</td><td>Apertura/cierre de turno con cálculo de diferencia</td></tr>
+      <tr><td><strong>Se acaba el producto en hora pico</strong></td><td>Pierde ventas, el cliente se va</td><td>Alertas de stock + velocidad de inventario</td></tr>
+      <tr><td><strong>No sabe qué impulsar</strong></td><td>Promueve por corazonada</td><td>Productos top, tendencias, márgenes</td></tr>
+      <tr><td><strong>No sabe cuándo reforzar al equipo</strong></td><td>Sobra o falta gente</td><td>Hora pico y ventas por franja del día</td></tr>
+      <tr><td><strong>Sospecha de errores del personal</strong></td><td>No tiene pruebas</td><td>Ventas/devoluciones por empleado + roles</td></tr>
+      <tr><td><strong>Se cae el internet</strong></td><td>Caja muerta con fila</td><td>Modo offline con sincronización automática</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Disparadores emocionales</h3>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--blue)"></span><strong>Control</strong> — “Yo mando en mi negocio.”</span>
+    <span><span class="dot" style="background:var(--growth)"></span><strong>Claridad</strong> — “Por fin veo qué pasa.”</span>
+    <span><span class="dot" style="background:var(--amber)"></span><strong>Tranquilidad</strong> — “Puedo salir y seguir sabiendo.”</span>
+  </div>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>3</span></div>
+</section>
+
+<!-- ░░░ 4. PILARES + OBJECIONES ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">4</span><h2>Pilares de mensaje y objeciones</h2></div>
+
+  <h3>4 pilares de mensaje — toda pieza cuelga de uno</h3>
+  <div class="grid g4">
+    <div class="card" style="border-top:4px solid var(--blue);"><h4 style="color:var(--blue);">Claridad</h4><p class="small" style="margin:0;">“Ve qué pasa en tu negocio de un vistazo.”</p></div>
+    <div class="card" style="border-top:4px solid var(--growth);"><h4 style="color:var(--growth);">Control</h4><p class="small" style="margin:0;">“Tu caja, inventario y equipo, bajo control.”</p></div>
+    <div class="card" style="border-top:4px solid var(--amber);"><h4 style="color:#9a6a04;">Decisiones con datos</h4><p class="small" style="margin:0;">“Decide con datos reales, no con corazonadas.”</p></div>
+    <div class="card" style="border-top:4px solid var(--ink);"><h4>Hecho en México + humano</h4><p class="small" style="margin:0;">“Pensado para tu negocio, atendido por personas.”</p></div>
+  </div>
+
+  <h3>Objeciones y cómo rebatirlas</h3>
+  <table>
+    <thead><tr><th style="width:38%;">Objeción</th><th>Cómo rebatir</th></tr></thead>
+    <tbody>
+      <tr><td>“$299 al mes es un gasto.”</td><td>Una sola venta perdida o un descuadre al mes ya cuesta más. <strong>~$10 al día</strong> por dejar de operar a ciegas.</td></tr>
+      <tr><td>“Mi negocio es muy chico.”</td><td>“Justo por eso.” Entre más chico, más duele cada error. Empieza en 1 día, gratis y sin tarjeta.</td></tr>
+      <tr><td>“No sé de tecnología.”</td><td>“Si usas WhatsApp, ya sabes usar Kova.” Soporte humano por WhatsApp.</td></tr>
+      <tr><td>“Ya uso libreta / otro POS.”</td><td>“Cobrar ya lo haces. ¿Pero sabes tu hora pico, qué se acaba y quién cuadró?” Kova le suma cerebro.</td></tr>
+      <tr><td>“¿Y mis datos? (es beta)”</td><td>Respaldo en la nube, datos aislados, modo offline. En beta eres prioridad, no número.</td></tr>
+      <tr><td>“¿Me amarra un contrato?”</td><td>No. Cancelas con un click, sin penalización ni preguntas.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Canales de adquisición — prioridad para etapa beta</h3>
+  <div class="pyramid">
+    <div class="tier t1"><div class="tt">1 · Founder-led + comunidad</div>Contenido del founder, grupos de dueños, onboarding 1:1 → casos reales</div>
+    <div class="tier t2"><div class="tt">2 · Alianzas locales</div>Tostadores, proveedores de panadería, cámaras de comercio · co-marketing</div>
+    <div class="tier t3"><div class="tt">3 · SEO + directorios</div>Comparativas, contenido educativo, directorios de PyMEs</div>
+    <div class="tier t4"><div class="tt">4 · Paid (solo con prueba social)</div>Meta/Google Ads geosegmentados cuando el funnel ya convierta</div>
+  </div>
+  <p class="small muted" style="text-align:center;margin-top:6px;">En beta privada no inventamos prueba social: primero generamos casos reales, luego los amplificamos.</p>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>4</span></div>
+</section>
+
+<!-- ░░░ 5. NARRATIVA DE VENTAS ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">5</span><h2>La narrativa de ventas</h2></div>
+  <p class="lead">La columna vertebral de la landing, los pitches y el contenido largo. Del problema a la acción en 7 pasos.</p>
+
+  <div class="flow" style="margin-top:14px;">
+    <div class="flow-step"><div class="flow-dot">1</div><div class="flow-body"><div class="t">El problema</div><p class="small muted" style="margin:0;">El dueño opera a ciegas: la info vive en libretas, notas y Excel. Sabe cuánto hay en la caja, pero no qué pasó en el día. Decide por corazonada.</p></div></div>
+    <div class="flow-step"><div class="flow-dot">2</div><div class="flow-body"><div class="t">El costo de ignorarlo</div><p class="small muted" style="margin:0;">Ventas perdidas por stock-outs, dinero que “no cuadra”, promos sin margen, personal mal distribuido. Lo más caro: no puedes crecer lo que no entiendes.</p></div></div>
+    <div class="flow-step"><div class="flow-dot">3</div><div class="flow-body"><div class="t">La transformación deseada</div><p class="small muted" style="margin:0;">Abrir el teléfono y ver cómo va el día, qué reabastecer y cómo cuadra la caja. Decidir con datos. Dirigir el negocio en vez de perseguirlo.</p></div></div>
+    <div class="flow-step"><div class="flow-dot">4</div><div class="flow-body"><div class="t">Por qué existe Kova</div><p class="small muted" style="margin:0;">Para que cualquier dueño en México tenga la claridad de las grandes cadenas, sin analistas ni sistemas caros.</p></div></div>
+    <div class="flow-step"><div class="flow-dot">5</div><div class="flow-body"><div class="t">Cómo lo resuelve</div><p class="small muted" style="margin:0;">Una app une caja, inventario, empleados y turnos, y traduce cada venta en reportes en vivo, alertas, hora pico y cuadre automático. Funciona sin internet.</p></div></div>
+    <div class="flow-step"><div class="flow-dot">6</div><div class="flow-body"><div class="t">Por qué ahora</div><p class="small muted" style="margin:0;">Cada día a ciegas es dinero que se escapa. Empezar toma un día y la primera semana es gratis, sin tarjeta.</p></div></div>
+    <div class="flow-step"><div class="flow-dot">7</div><div class="flow-body"><div class="t green">CTA final</div><p class="small" style="margin:0;"><strong>“Empieza gratis y mira qué pasa realmente en tu negocio.”</strong> <span class="muted">7 días gratis · Sin tarjeta · Cancela cuando quieras.</span></p></div></div>
+  </div>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>5</span></div>
+</section>
+
+<!-- ░░░ 6. CONTENIDO ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">6</span><h2>Estrategia de contenido</h2></div>
+
+  <div class="two-col" style="grid-template-columns:200px 1fr; align-items:center;">
+    <div style="text-align:center;">
+      <svg width="180" height="180" viewBox="0 0 200 200">
+        <g transform="rotate(-90 100 100)" fill="none" stroke-width="34">
+          <circle cx="100" cy="100" r="80" stroke="#4F7EF7" stroke-dasharray="201.06 502.65" stroke-dashoffset="0"/>
+          <circle cx="100" cy="100" r="80" stroke="#1EBF8A" stroke-dasharray="150.80 502.65" stroke-dashoffset="-201.06"/>
+          <circle cx="100" cy="100" r="80" stroke="#E8A317" stroke-dasharray="100.53 502.65" stroke-dashoffset="-351.86"/>
+          <circle cx="100" cy="100" r="80" stroke="#0F1117" stroke-dasharray="50.27 502.65" stroke-dashoffset="-452.39"/>
+        </g>
+        <text x="100" y="96" text-anchor="middle" font-size="15" font-weight="700" fill="#0F1117">Mix de</text>
+        <text x="100" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="#0F1117">contenido</text>
+      </svg>
+    </div>
+    <div>
+      <h4>El reparto 40 / 30 / 20 / 10</h4>
+      <div class="legend" style="flex-direction:column;gap:8px;">
+        <span><span class="dot" style="background:#4F7EF7"></span><strong>40% · Problemas comunes</strong> — inventario, ventas, pérdidas, falta de control.</span>
+        <span><span class="dot" style="background:#1EBF8A"></span><strong>30% · Insights con datos</strong> — hora pico, métricas que el dueño no mira.</span>
+        <span><span class="dot" style="background:#E8A317"></span><strong>20% · Casos / escenarios</strong> — reales con permiso o ejemplos marcados.</span>
+        <span><span class="dot" style="background:#0F1117"></span><strong>10% · Venta directa</strong> — producto, precio, prueba gratis.</span>
+      </div>
+      <p class="small muted" style="margin-top:10px;">Regla: en cada semana, una pieza de problema (40%) abre el embudo; la venta (10%) solo aparece tras dar valor.</p>
+    </div>
+  </div>
+
+  <h3>Ganchos que detienen el scroll</h3>
+  <div class="grid g2">
+    <div class="card mist small">“Tu negocio ya te está diciendo qué hacer. ¿Lo estás escuchando?”</div>
+    <div class="card mist small">“Si cuentas el efectivo en la noche para saber cómo te fue… esto es para ti.”</div>
+    <div class="card mist small">“El 90% de los dueños no sabe cuál es su producto más rentable. ¿Y tú?”</div>
+    <div class="card mist small">“Perder una venta por quedarte sin producto cuesta más de lo que crees.”</div>
+  </div>
+
+  <h3>Calendario de ejemplo (4 semanas · IG 3x · LinkedIn 2x · Reels 3x)</h3>
+  <table>
+    <thead><tr><th>Semana</th><th>Lunes</th><th>Miércoles</th><th>Viernes</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1 · Problema</strong></td><td>IG carrusel: “5 señales de que operas a ciegas”</td><td>Reel: “POV: la caja no cuadra”</td><td>LinkedIn: “El problema que todos tenían”</td></tr>
+      <tr><td><strong>2 · Insight</strong></td><td>IG: “La hora más rentable no es la que crees”</td><td>Reel: “Tu producto más rentable en 30s”</td><td>LinkedIn: “Mide o adivina” + educativo</td></tr>
+      <tr><td><strong>3 · Caso</strong></td><td>IG carrusel: “Un día con y sin Kova”</td><td>Reel: “Food truck sin internet”</td><td>LinkedIn: caso de beta-user (con permiso)</td></tr>
+      <tr><td><strong>4 · Venta</strong></td><td>IG: “Todo lo que incluye $299/mes”</td><td>Reel: demo cobrar → reporte</td><td>LinkedIn: “Por qué no cobramos comisión” + CTA</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>6</span></div>
+</section>
+
+<!-- ░░░ 7. AUDITORÍA DEL SITIO ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">7</span><h2>Auditoría de mensajes del sitio</h2></div>
+  <p class="lead">Sección por sección, con el cambio recomendado y su estado. Fuente del copy: <span class="muted">frontend/src/i18n/messages.ts</span>.</p>
+
+  <table style="margin-top:10px;">
+    <thead><tr><th>Sección</th><th>Estado</th><th>Qué cambia y por qué</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Hero — headline</strong></td><td><span class="badge b-green">Conservar</span></td><td>“Deja de operar a ciegas. Empieza a dirigir tu negocio.” Es el activo más fuerte. No tocar.</td></tr>
+      <tr><td><strong>Hero — subtítulo</strong></td><td><span class="badge b-blue">Aplicado</span></td><td>Ahora abre con el resultado (“para que sepas exactamente qué pasa”) antes de la lista de features.</td></tr>
+      <tr><td><strong>CTAs</strong></td><td><span class="badge b-blue">Aplicado</span></td><td>“Crear mi POS gratis” → <strong>“Empieza gratis”</strong> en los 4 botones. Suelta el “POS”.</td></tr>
+      <tr><td><strong>“Más que un POS”</strong></td><td><span class="badge b-green">Amplificar</span></td><td>“Otros POS te dejan cobrar. Kova te deja entender.” Subir su jerarquía en la página.</td></tr>
+      <tr><td><strong>Features</strong></td><td><span class="badge b-green">OK</span></td><td>Sólidas y específicas. Opcional: subir “Datos del día, en vivo”.</td></tr>
+      <tr><td><strong>Reportes / Analítica</strong></td><td><span class="badge b-amber">Mayor oportunidad</span></td><td>Crear sección dedicada que muestre historia del negocio, recomendaciones, hora pico, salud del negocio. Hoy infrarrepresentado.</td></tr>
+      <tr><td><strong>Pricing</strong></td><td><span class="badge b-green">OK</span></td><td>Claro y honesto. No tocar precio/plan. Opcional: “menos de $10 al día”.</td></tr>
+      <tr><td><strong>FAQ #1</strong></td><td><span class="badge b-blue">Aplicado</span></td><td>Ya no abre con “Es un punto de venta en línea…”; lidera con control/decisiones.</td></tr>
+      <tr><td><strong>Footer / CTA final</strong></td><td><span class="badge b-green">OK</span></td><td>Ya incluye “controlan” y “entienden”. Opcional: liderar con ello.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Aplicado en esta entrega:</strong> subtítulo del hero, FAQ #1, y CTA “Empieza gratis” en los 4 botones. El resto queda como recomendación para aprobación explícita (la sección de Reportes requiere diseño/maquetación).
+  </div>
+  <div class="callout amber">
+    <strong>Restricciones respetadas:</strong> precio intacto ($299 MXN/mes), sin testimonios ni métricas inventadas (beta privada), es-MX preservado, cambios de código mínimos.
+  </div>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>7</span></div>
+</section>
+
+<!-- ░░░ 8. ROADMAP + PRÓXIMOS PASOS ░░░ -->
+<section class="page">
+  <div class="sect-head"><span class="sectnum">8</span><h2>Roadmap de 30 días y próximos pasos</h2></div>
+
+  <div class="road">
+    <div class="wk">
+      <div class="wk-h"><span>Semana 1</span>Posicionamiento y mensaje</div>
+      <div class="wk-b"><ul>
+        <li>Socializar statement + pitch</li>
+        <li>Aplicar copy: hero + FAQ + CTA ✓</li>
+        <li>Definir pilares de contenido</li>
+        <li>5–10 charlas con dueños</li>
+      </ul></div>
+    </div>
+    <div class="wk">
+      <div class="wk-h"><span>Semana 2</span>Sitio y conversión</div>
+      <div class="wk-b"><ul>
+        <li>Aprobar sección de Reportes</li>
+        <li>Reencuadre de valor en pricing</li>
+        <li>Instrumentar analítica del funnel</li>
+        <li>Medir el CTA “Empieza gratis”</li>
+      </ul></div>
+    </div>
+    <div class="wk">
+      <div class="wk-h"><span>Semana 3</span>Contenido y lanzamiento</div>
+      <div class="wk-b"><ul>
+        <li>Producir 2 semanas de contenido</li>
+        <li>Lanzar serie founder-led</li>
+        <li>Outreach a comunidades y aliados</li>
+        <li>Documentar 1.er caso real</li>
+      </ul></div>
+    </div>
+    <div class="wk">
+      <div class="wk-h"><span>Semana 4</span>Testing y sales enablement</div>
+      <div class="wk-b"><ul>
+        <li>Leer conversión, iterar contenido</li>
+        <li>One-pager + guion de objeciones</li>
+        <li>Página comparativa vs POS</li>
+        <li>Definir métricas base y metas</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <h3>Próximos cambios recomendados — priorizados</h3>
+  <div class="two-col">
+    <div>
+      <h4>Sitio / mensaje</h4>
+      <table style="margin:0;">
+        <tr><td>Sección dedicada de Reportes/Decisiones</td><td><span class="badge b-red">Alta</span></td></tr>
+        <tr><td>Medir conversión del nuevo CTA</td><td><span class="badge b-red">Alta</span></td></tr>
+        <tr><td>Subir jerarquía de “Kova te deja entender”</td><td><span class="badge b-amber">Media</span></td></tr>
+        <tr><td>Reencuadre de valor en pricing</td><td><span class="badge b-amber">Media</span></td></tr>
+      </table>
+    </div>
+    <div>
+      <h4>Producto (apoyan “decisiones”)</h4>
+      <table style="margin:0;">
+        <tr><td>Resumen ejecutivo compartible (img/PDF)</td><td><span class="badge b-amber">Media</span></td></tr>
+        <tr><td>Resumen diario “Tu día en Kova”</td><td><span class="badge b-amber">Media</span></td></tr>
+        <tr><td>Insight semanal destacado en dashboard</td><td><span class="badge b-gray">Baja</span></td></tr>
+        <tr><td>Analítica de funnel antes de paid</td><td><span class="badge b-red">Alta</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout green" style="margin-top:16px;">
+    <strong>En una línea:</strong> Kova no compite en “cobrar más rápido”. Compite en <strong>saber exactamente qué pasa en tu negocio</strong>. El reposicionamiento sólo pone en el escaparate lo que el producto ya hace por dentro.
+  </div>
+
+  <div class="footer-note"><span>Kova Suite — Estrategia de Marketing</span><span>8</span></div>
+</section>
+
+</body>
+</html>
