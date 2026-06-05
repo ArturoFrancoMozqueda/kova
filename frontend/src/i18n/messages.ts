@@ -20,7 +20,7 @@ export const copy = {
       titlePart1: "Deja de operar a ciegas.",
       titleEmphasis: "Empieza a dirigir",
       titlePart2: " tu negocio.",
-      subtitle: "Caja, inventario y reportes en una sola app. Mira en vivo qué se vende, qué se acaba y cómo va el día — desde tu celular, tablet o compu.",
+      subtitle: "Caja, inventario y reportes en una sola app para que sepas exactamente qué pasa en tu negocio. Mira en vivo qué se vende, qué se acaba y cómo va el día — desde tu celular, tablet o compu.",
       demo: {
         eyebrow: "Vista previa · datos de ejemplo",
         step1Label: "Venta registrada",
@@ -183,7 +183,7 @@ export const copy = {
       eyebrow: "Preguntas frecuentes",
       title: "Lo que la gente nos pregunta antes de empezar.",
       items: [
-        { q: "¿Qué es exactamente Kova?", a: "Es un punto de venta en línea para negocios pequeños y medianos. Te sirve para cobrar, llevar tu inventario, organizar a tu equipo y ver reportes de qué se vende. Todo en una sola app, sin sistemas separados ni hojas de cálculo." },
+        { q: "¿Qué es exactamente Kova?", a: "Es la app para tener tu negocio bajo control: cobras, llevas tu inventario, organizas a tu equipo y entiendes qué se vende, cuándo y cuánto entra. Más que un punto de venta: es donde dejas de adivinar y empiezas a decidir con datos. Todo en una sola app, sin sistemas separados ni hojas de cálculo." },
         { q: "¿Necesito saber de tecnología?", a: "No. Si manejas WhatsApp o el cajero de un banco, manejas Kova. Está pensado para que cualquier persona del mostrador la use sin curso ni capacitación. Si te trabas, te ayudamos por correo o WhatsApp — responde una persona." },
         { q: "¿Funciona para mi tipo de negocio?", a: "Si cobras de mostrador y llevas un catálogo de productos, sí. Lo usan cafeterías, panaderías, tiendas, food trucks, taquerías, fondas y emprendedores. Si no estás seguro, escríbenos con tu caso y te respondemos honestamente." },
         { q: `¿Qué incluye el plan de ${STANDARD_PLAN_PRICE_LABEL}?`, a: "Todo lo necesario para operar: caja, inventario, empleados con roles, reportes en vivo, modo sin internet, recibos con tu logo y respaldo en la nube. No cobramos comisión por venta, no cobramos extra por empleado y no vendemos módulos separados." },
