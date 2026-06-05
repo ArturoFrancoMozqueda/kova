@@ -300,23 +300,6 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               </span>
               <span>{t.hero.priceFineprint}</span>
             </p>
-
-            <div
-              className="lp-hero-stats"
-              style={{
-                marginTop: 32, display: "flex", alignItems: "center", gap: 24,
-                fontSize: 12, color: "var(--text-muted)", paddingTop: 24,
-                borderTop: "0.5px solid var(--hairline-color)", flexWrap: "wrap",
-              }}
-            >
-              <span style={{ fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
-                {t.hero.madeInMexico}
-              </span>
-              <span>·</span>
-              <span>{t.hero.noCommission}</span>
-              <span>·</span>
-              <span>{t.hero.worksOffline}</span>
-            </div>
           </div>
 
           <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1321,16 +1304,6 @@ const RESPONSIVE_STYLES = `
       width: 100% !important;
       justify-content: center !important;
       text-align: center !important;
-    }
-    .lp-hero-stats {
-      gap: 10px !important;
-      align-items: flex-start !important;
-      flex-direction: column !important;
-      margin-top: 40px !important;
-    }
-    .lp-hero-stats > span:nth-child(2),
-    .lp-hero-stats > span:nth-child(4) {
-      display: none !important;
     }
     .lp-product-section { padding: 72px 20px !important; }
     .lp-product-grid {

@@ -38,9 +38,6 @@ export const copy = {
       ctaSecondary: "Ver cómo funciona →",
       priceBadgeSuffix: " · todo incluido",
       priceFineprint: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
-      madeInMexico: "Hecho en México 🇲🇽",
-      noCommission: "Sin comisión por venta",
-      worksOffline: "Funciona sin internet",
     },
     threeNodes: {
       eyebrow: "Lo que cambia en tu operación diaria",
