@@ -85,7 +85,7 @@ export default {
         "kova-xl": "var(--radius-kova-xl)",
       },
       fontFamily: {
-        sans: ["DM Sans", "Geist", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Inter Variable", "Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
       },
       keyframes: {
         "fade-in": {

@@ -4,6 +4,9 @@ import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
 import "./observability/sentry";
+// Self-hosted Inter (variable). Bundled by Vite and precached by the PWA
+// (workbox globPatterns includes woff2), so the brand font works offline too.
+import "@fontsource-variable/inter";
 import "./styles.css";
 
 // autoUpdate mode: new service workers skip waiting and claim clients
