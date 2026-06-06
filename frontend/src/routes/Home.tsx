@@ -104,17 +104,6 @@ const LANDING_STYLES = `
     color: var(--text-muted);
   }
 
-  .lp-grid-bg {
-    position: absolute; inset: 0; pointer-events: none;
-    background-image:
-      linear-gradient(to right, var(--hairline-color) 0.5px, transparent 0.5px),
-      linear-gradient(to bottom, var(--hairline-color) 0.5px, transparent 0.5px);
-    background-size: 80px 80px;
-    opacity: 0.5;
-    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-  }
-
   .lp-live-dot {
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--kova-growth);
@@ -170,32 +159,17 @@ const LANDING_STYLES = `
     animation: lp-hero-drift 7s ease-in-out infinite;
   }
   .lp-hero-visual > * {
-    max-width: min(100%, 440px);
+    max-width: min(100%, 410px);
   }
   .lp-hero-logo {
-    width: min(100%, 420px) !important;
+    width: min(100%, 390px) !important;
   }
 
   .lp-hero-section {
-    min-height: calc(100svh - 61px);
-    display: flex;
-    align-items: center;
+    padding: 74px 32px 60px;
   }
   .lp-hero-shell {
     width: 100%;
-  }
-  .lp-hero-kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 18px;
-    padding: 6px 10px;
-    border: 0.5px solid var(--hairline-color);
-    border-radius: 999px;
-    background: rgba(255,255,255,0.04);
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 600;
   }
   .lp-benefit-strip {
     display: grid;
@@ -489,23 +463,18 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
   ];
 
   return (
-    <section className="lp-hero-section" style={{ position: "relative", padding: "34px 32px 38px", overflow: "hidden" }}>
-      <div className="lp-grid-bg" />
+    <section className="lp-hero-section" style={{ position: "relative", overflow: "hidden" }}>
       <div className="lp-hero-shell lp-section-inner" style={{ position: "relative" }}>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 0.95fr) minmax(320px, 0.9fr)",
-            gap: 56,
+            gap: 52,
             alignItems: "center",
           }}
           className="lp-hero-grid"
         >
           <div>
-            <div className="lp-hero-kicker">
-              <span className="lp-live-dot" />
-              <span>{t.hero.priceFineprint}</span>
-            </div>
             <h1
               className="lp-hero-title"
               style={{
@@ -584,7 +553,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             </p>
           </div>
 
-          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 360 }}>
+          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330 }}>
             <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
           </div>
         </div>
