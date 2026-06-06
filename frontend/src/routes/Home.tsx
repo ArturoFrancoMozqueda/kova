@@ -70,6 +70,40 @@ const LANDING_STYLES = `
   .lp-root .mono { font-family: "DM Mono", ui-monospace, monospace; }
   .lp-root ::selection { background: var(--accent); color: #fff; }
 
+  .lp-section {
+    padding: 88px 32px;
+    border-top: 0.5px solid var(--hairline-color);
+  }
+  .lp-section-compact { padding: 72px 32px; }
+  .lp-section-inner {
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  .lp-section-label {
+    display: inline-flex;
+    margin-bottom: 22px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .lp-section-title {
+    font-size: clamp(32px, 4vw, 54px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.04;
+    margin: 0;
+    color: var(--page-fg);
+  }
+  .lp-section-copy {
+    margin: 16px 0 0;
+    max-width: 620px;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--text-muted);
+  }
+
   .lp-grid-bg {
     position: absolute; inset: 0; pointer-events: none;
     background-image:
@@ -117,8 +151,8 @@ const LANDING_STYLES = `
 
   .lp-root.lp-motion-ready [data-lp-reveal="true"] {
     opacity: 0;
-    transform: translate3d(0, 24px, 0) scale(0.985);
-    filter: blur(6px);
+    transform: translate3d(0, 18px, 0);
+    filter: blur(3px);
     transition:
       opacity 640ms var(--kova-ease-entrance),
       transform 640ms var(--kova-ease-entrance),
@@ -134,6 +168,60 @@ const LANDING_STYLES = `
 
   .lp-root.lp-motion-ready .lp-hero-visual > * {
     animation: lp-hero-drift 7s ease-in-out infinite;
+  }
+  .lp-hero-visual > * {
+    max-width: min(100%, 440px);
+  }
+  .lp-hero-logo {
+    width: min(100%, 420px) !important;
+  }
+
+  .lp-hero-section {
+    min-height: calc(100svh - 61px);
+    display: flex;
+    align-items: center;
+  }
+  .lp-hero-shell {
+    width: 100%;
+  }
+  .lp-hero-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 6px 10px;
+    border: 0.5px solid var(--hairline-color);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .lp-benefit-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .lp-benefit-card {
+    min-height: 96px;
+    padding: 16px;
+    border: 0.5px solid var(--hairline-color);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.035);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .lp-benefit-card strong {
+    color: var(--page-fg);
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .lp-benefit-card span {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.45;
   }
 
   .lp-cta-fill {
@@ -224,16 +312,17 @@ function useLandingRevealMotion() {
     const root = document.querySelector<HTMLElement>(".lp-root");
     if (!root) return;
 
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const revealTargets = Array.from(
       root.querySelectorAll<HTMLElement>(
         [
-          ".lp-hero-grid > *",
-          "main > section > div > *",
-          ".lp-3cols > *",
-          ".lp-4cols > *",
-          ".lp-showcase-row > *",
-          ".lp-footer-grid > *",
+          ".lp-reveal-block",
+          ".lp-hero-grid",
+          ".lp-benefit-strip",
+          ".lp-showcase-row",
+          ".lp-footer-grid",
         ].join(",")
       )
     );
@@ -243,7 +332,7 @@ function useLandingRevealMotion() {
       if (seen.has(target)) return;
       seen.add(target);
       target.dataset.lpReveal = "true";
-      target.style.setProperty("--lp-reveal-delay", `${Math.min(index % 6, 5) * 70}ms`);
+      target.style.setProperty("--lp-reveal-delay", `${Math.min(index % 3, 2) * 80}ms`);
       if (reduceMotion) target.dataset.lpVisible = "true";
     });
 
@@ -380,26 +469,50 @@ function Navbar({
 /* ─── MXN Ticker ─────────────────────────────────────────────────────────── */
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ primaryTarget }: { primaryTarget: string }) {
+  const benefits = [
+    {
+      title: t.threeNodes.items[0].label,
+      body: t.threeNodes.items[0].title,
+    },
+    {
+      title: t.threeNodes.items[1].label,
+      body: t.threeNodes.items[1].title,
+    },
+    {
+      title: t.threeNodes.items[2].label,
+      body: t.threeNodes.items[2].title,
+    },
+    {
+      title: t.features.items[0].kicker,
+      body: t.features.items[0].title,
+    },
+  ];
+
   return (
-    <section className="lp-hero-section" style={{ position: "relative", padding: "56px 32px 56px", overflow: "hidden" }}>
+    <section className="lp-hero-section" style={{ position: "relative", padding: "34px 32px 38px", overflow: "hidden" }}>
       <div className="lp-grid-bg" />
-      <div style={{ position: "relative", maxWidth: 1280, margin: "0 auto" }}>
+      <div className="lp-hero-shell lp-section-inner" style={{ position: "relative" }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 1fr)",
-            gap: 64, alignItems: "start", marginTop: 16,
+            gridTemplateColumns: "minmax(0, 0.95fr) minmax(320px, 0.9fr)",
+            gap: 56,
+            alignItems: "center",
           }}
           className="lp-hero-grid"
         >
           <div>
+            <div className="lp-hero-kicker">
+              <span className="lp-live-dot" />
+              <span>{t.hero.priceFineprint}</span>
+            </div>
             <h1
               className="lp-hero-title"
               style={{
-                fontSize: "clamp(36px, 5.2vw, 72px)",
+                fontSize: "clamp(36px, 4.6vw, 60px)",
                 fontWeight: 600,
-                letterSpacing: "-0.035em",
-                lineHeight: 0.98,
+                letterSpacing: "-0.025em",
+                lineHeight: 1,
                 margin: 0,
                 color: "var(--page-fg)",
               }}
@@ -418,7 +531,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               {t.hero.titlePart2}
             </h1>
 
-            <p className="lp-hero-copy" style={{ fontSize: 19, lineHeight: 1.55, color: "var(--text-muted)", marginTop: 24, maxWidth: 520 }}>
+            <p className="lp-hero-copy" style={{ fontSize: 17, lineHeight: 1.55, color: "var(--text-muted)", marginTop: 20, maxWidth: 560 }}>
               {t.hero.subtitle}
             </p>
 
@@ -455,7 +568,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             <p
               className="lp-hero-pricing"
               style={{
-                marginTop: 18, fontSize: 13, color: "var(--text-muted)",
+                marginTop: 16, fontSize: 13, color: "var(--text-muted)",
                 display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8,
               }}
             >
@@ -467,13 +580,22 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               }}>
                 {STANDARD_PLAN_PRICE_LABEL_ES}{t.hero.priceBadgeSuffix}
               </span>
-              <span>{t.hero.priceFineprint}</span>
+              <span>Sin tarjeta para empezar. Sin comisiones por venta.</span>
             </p>
           </div>
 
-          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <IntroAnimation embedded skippable={false} />
+          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 360 }}>
+            <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
           </div>
+        </div>
+
+        <div className="lp-benefit-strip lp-reveal-block">
+          {benefits.map((benefit) => (
+            <div className="lp-benefit-card" key={benefit.title}>
+              <strong>{benefit.title}</strong>
+              <span>{benefit.body}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -603,80 +725,6 @@ function HeroDemo() {
 }
 
 /* ─── ThreeNodes ─────────────────────────────────────────────────────────── */
-function ThreeNodes() {
-  const items = t.threeNodes.items;
-  return (
-    <section id="como-funciona" style={{ padding: "80px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            {t.threeNodes.eyebrow}
-          </span>
-        </div>
-        <h2 style={{ fontSize: "clamp(36px, 4.4vw, 60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
-          {t.threeNodes.title}
-        </h2>
-        <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 620, lineHeight: 1.5 }}>
-          {t.threeNodes.leadStart}
-          <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>{t.threeNodes.leadEmphasis}</strong>
-          {t.threeNodes.leadEnd}
-        </p>
-
-        <div
-          style={{
-            display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 24, marginTop: 64, position: "relative",
-          }}
-          className="lp-3cols"
-        >
-          {items.map((it, i) => (
-            <NodeCard key={i} index={i} {...it} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function NodeCard({ index, label, title, body, meta }: { index: number; label: string; title: string; body: string; meta: string[] }) {
-  return (
-    <div
-      style={{
-        position: "relative", borderRadius: 14, padding: 28,
-        background: "var(--card-bg)", border: "0.5px solid var(--hairline-color)",
-        display: "flex", flexDirection: "column", gap: 16,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
-            style={{
-              width: 10, height: 10, borderRadius: "50%",
-              background: index === 1 ? "var(--accent)" : "var(--page-fg)",
-              outline: index === 1 ? "4px solid var(--accent-soft)" : "none",
-            }}
-          />
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            {label}
-          </span>
-        </div>
-        <span className="mono" style={{ fontSize: 11, color: "var(--text-tertiary)" }}>0{index + 1}</span>
-      </div>
-
-      <h3 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.15, margin: 0 }}>{title}</h3>
-      <p style={{ fontSize: 15, lineHeight: 1.55, color: "var(--text-muted)", margin: 0 }}>{body}</p>
-
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: "auto", paddingTop: 16, borderTop: "0.5px solid var(--hairline-color)" }}>
-        {meta.map((m) => (
-          <span key={m} style={{ fontSize: 11, fontWeight: 500, padding: "4px 8px", borderRadius: 6, background: "var(--chip-bg)", color: "var(--page-fg)" }}>
-            {m}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* ─── DesktopPreview ─────────────────────────────────────────────────────── */
 type Product = { id: string; name: string; price: number; cat: string; icon: string };
 const CATALOG: Product[] = [
@@ -864,63 +912,19 @@ function DesktopPreview() {
 }
 
 /* ─── WhyKova ────────────────────────────────────────────────────────────── */
-function WhyKova() {
-  return (
-    <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 880, margin: "0 auto", textAlign: "center" }}>
-        <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-          {t.whyKova.eyebrow}
-        </span>
-        <h2
-          style={{
-            fontSize: "clamp(28px, 3.6vw, 44px)",
-            fontWeight: 600,
-            letterSpacing: "-0.025em",
-            lineHeight: 1.15,
-            margin: "20px 0 0",
-            color: "var(--page-fg)",
-          }}
-        >
-          {t.whyKova.title}
-        </h2>
-        <p style={{ fontSize: 17, lineHeight: 1.6, color: "var(--text-muted)", marginTop: 24 }}>
-          {t.whyKova.body}
-        </p>
-        <blockquote
-          style={{
-            marginTop: 48,
-            padding: "32px 32px 32px 28px",
-            borderLeft: "2px solid var(--accent)",
-            background: "var(--surface)",
-            borderRadius: "0 14px 14px 0",
-            textAlign: "left",
-            fontSize: 18,
-            lineHeight: 1.55,
-            color: "var(--page-fg)",
-            fontWeight: 500,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {t.whyKova.quote}
-        </blockquote>
-      </div>
-    </section>
-  );
-}
-
 /* ─── POSShowcase ────────────────────────────────────────────────────────── */
 function POSShowcase() {
   return (
-    <section id="producto" className="lp-product-section" style={{ padding: "120px 32px", background: "var(--surface)", borderTop: "0.5px solid var(--hairline-color)", borderBottom: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 56 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>{t.posShowcase.eyebrow}</span>
+    <section id="producto" className="lp-product-section lp-section lp-reveal-block" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
+      <div className="lp-section-inner">
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 28 }}>
+          <span className="lp-section-label">{t.posShowcase.eyebrow}</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.6fr)", gap: 56, alignItems: "end", marginBottom: 56 }} className="lp-showcase-head">
-          <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.6fr)", gap: 40, alignItems: "end", marginBottom: 36 }} className="lp-showcase-head">
+          <h2 className="lp-section-title">
             {t.posShowcase.titleLine1}<br />{t.posShowcase.titleLine2}
           </h2>
-          <p style={{ fontSize: 16, color: "var(--text-muted)", margin: 0, lineHeight: 1.55, paddingBottom: 8 }}>
+          <p className="lp-section-copy" style={{ margin: 0, paddingBottom: 4 }}>
             {t.posShowcase.body}
           </p>
         </div>
@@ -995,27 +999,27 @@ function Features() {
   const featureKinds: FeatKind[] = ["offline", "tenant", "pay", "live", "shift", "pwa"];
   const feats = t.features.items.map((it, i) => ({ ...it, kind: featureKinds[i] }));
   return (
-    <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>{t.features.eyebrow}</span>
+    <section id="como-funciona" className="lp-section lp-reveal-block">
+      <div className="lp-section-inner">
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
+          <span className="lp-section-label">{t.features.eyebrow}</span>
         </div>
-        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
+        <h2 className="lp-section-title" style={{ maxWidth: 720 }}>
           {t.features.title}
         </h2>
-        <p style={{ marginTop: 20, fontSize: 18, color: "var(--text-muted)", maxWidth: 620, lineHeight: 1.5 }}>
+        <p className="lp-section-copy">
           {t.features.lead}
         </p>
 
-        <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0, border: "0.5px solid var(--hairline-color)", borderRadius: 14, overflow: "hidden", background: "var(--surface)" }} className="lp-3cols">
+        <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0, border: "0.5px solid var(--hairline-color)", borderRadius: 12, overflow: "hidden", background: "var(--surface)" }} className="lp-3cols">
           {feats.map((f, i) => (
             <div
               key={i}
               style={{
-                padding: "32px 28px",
+                padding: "26px 24px",
                 borderRight: i % 3 !== 2 ? "0.5px solid var(--hairline-color)" : "none",
                 borderBottom: i < 3 ? "0.5px solid var(--hairline-color)" : "none",
-                display: "flex", flexDirection: "column", gap: 12, minHeight: 240,
+                display: "flex", flexDirection: "column", gap: 10, minHeight: 205,
               }}
             >
               <div style={{ marginBottom: 8 }}><FeatIcon kind={f.kind} /></div>
@@ -1034,18 +1038,18 @@ function Features() {
 function FirstDay({ primaryTarget }: { primaryTarget: string }) {
   const steps = t.firstDay.steps;
   return (
-    <section style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+    <section className="lp-section lp-reveal-block">
+      <div className="lp-section-inner">
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
+          <span className="lp-section-label">
             {t.firstDay.eyebrow}
           </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.7fr)", gap: 56, alignItems: "end", marginBottom: 64 }} className="lp-showcase-head">
-          <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.72fr)", gap: 40, alignItems: "end", marginBottom: 36 }} className="lp-showcase-head">
+          <h2 className="lp-section-title">
             {t.firstDay.titleLine1}<br />{t.firstDay.titleLine2}
           </h2>
-          <p style={{ fontSize: 16, color: "var(--text-muted)", margin: 0, lineHeight: 1.55, paddingBottom: 8 }}>
+          <p className="lp-section-copy" style={{ margin: 0, paddingBottom: 4 }}>
             {t.firstDay.body}
           </p>
         </div>
@@ -1056,7 +1060,7 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
             gridTemplateColumns: "repeat(4, 1fr)",
             gap: 0,
             border: "0.5px solid var(--hairline-color)",
-            borderRadius: 14,
+            borderRadius: 12,
             overflow: "hidden",
             background: "var(--surface)",
           }}
@@ -1066,12 +1070,12 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
             <div
               key={s.n}
               style={{
-                padding: "28px 24px",
+                padding: "24px 22px",
                 borderRight: i < steps.length - 1 ? "0.5px solid var(--hairline-color)" : "none",
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
-                minHeight: 220,
+                minHeight: 178,
                 position: "relative",
               }}
             >
@@ -1095,9 +1099,9 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
 
         <div
           style={{
-            marginTop: 40,
-            padding: "24px 28px",
-            borderRadius: 14,
+            marginTop: 28,
+            padding: "20px 24px",
+            borderRadius: 12,
             background: "var(--accent-soft)",
             border: "0.5px solid var(--hairline-color)",
             display: "flex",
@@ -1140,23 +1144,23 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
 function BuiltFor() {
   const types = t.builtFor.types;
   return (
-    <section id="comercios" style={{ padding: "120px 32px", background: "var(--kova-ink)", color: "var(--kova-on-ink)", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>{t.builtFor.eyebrow}</span>
+    <section id="comercios" className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
+      <div className="lp-section-inner">
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
+          <span className="lp-section-label" style={{ color: "var(--kova-tertiary)" }}>{t.builtFor.eyebrow}</span>
         </div>
-        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 820, color: "var(--kova-on-ink)" }}>
+        <h2 className="lp-section-title" style={{ maxWidth: 760, color: "var(--kova-on-ink)" }}>
           {t.builtFor.title}
         </h2>
-        <p style={{ marginTop: 20, fontSize: 17, color: "rgba(240,244,255,0.65)", maxWidth: 620, lineHeight: 1.55 }}>
+        <p className="lp-section-copy" style={{ color: "rgba(240,244,255,0.65)" }}>
           {t.builtFor.body}
         </p>
 
-        <div style={{ marginTop: 64, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 14, overflow: "hidden", border: "0.5px solid rgba(255,255,255,0.08)" }} className="lp-3cols">
+        <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 12, overflow: "hidden", border: "0.5px solid rgba(255,255,255,0.08)" }} className="lp-3cols">
           {types.map((type, i) => (
             <div
               key={type.name}
-              style={{ background: "var(--kova-ink)", padding: "28px 24px", display: "flex", flexDirection: "column", gap: 12, minHeight: 200, transition: "background 220ms", cursor: "pointer" }}
+              style={{ background: "var(--kova-ink)", padding: "24px 22px", display: "flex", flexDirection: "column", gap: 10, minHeight: 170, transition: "background 220ms", cursor: "pointer" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "#1A1D28")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "var(--kova-ink)")}
             >
@@ -1181,18 +1185,18 @@ function FAQ() {
   const items = t.faq.items;
 
   return (
-    <section id="faq" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32 }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+    <section id="faq" className="lp-section lp-section-compact lp-reveal-block">
+      <div className="lp-section-inner" style={{ maxWidth: 980 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
+          <span className="lp-section-label">
             {t.faq.eyebrow}
           </span>
         </div>
-        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, maxWidth: 760 }}>
+        <h2 className="lp-section-title" style={{ maxWidth: 720 }}>
           {t.faq.title}
         </h2>
 
-        <div style={{ marginTop: 56, borderTop: "0.5px solid var(--hairline-color)" }}>
+        <div style={{ marginTop: 34, borderTop: "0.5px solid var(--hairline-color)" }}>
           {items.map((it, i) => {
             const isOpen = open === i;
             return (
@@ -1205,7 +1209,7 @@ function FAQ() {
                     width: "100%",
                     background: "transparent",
                     border: "none",
-                    padding: "22px 4px",
+                    padding: "18px 4px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -1240,7 +1244,7 @@ function FAQ() {
                 {isOpen && (
                   <div
                     style={{
-                      padding: "0 4px 24px",
+                      padding: "0 4px 20px",
                       fontSize: 15,
                       lineHeight: 1.6,
                       color: "var(--text-muted)",
@@ -1275,24 +1279,24 @@ function FAQ() {
 function Pricing({ primaryTarget }: { primaryTarget: string }) {
   const feats = t.pricing.features;
   return (
-    <section id="precio" style={{ padding: "120px 32px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 32, justifyContent: "center" }}>
-          <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-muted)" }}>{t.pricing.eyebrow}</span>
+    <section id="precio" className="lp-section lp-reveal-block">
+      <div className="lp-section-inner">
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24, justifyContent: "center" }}>
+          <span className="lp-section-label">{t.pricing.eyebrow}</span>
         </div>
-        <h2 style={{ fontSize: "clamp(36px,4.4vw,60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.02, margin: 0, textAlign: "center" }}>
+        <h2 className="lp-section-title" style={{ textAlign: "center" }}>
           {t.pricing.titleLine1}<br />{t.pricing.titleLine2}
         </h2>
-        <p style={{ marginTop: 16, fontSize: 17, color: "var(--text-muted)", maxWidth: 580, textAlign: "center", marginLeft: "auto", marginRight: "auto", lineHeight: 1.55 }}>
+        <p className="lp-section-copy" style={{ maxWidth: 620, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
           {t.pricing.leadStart}
           <strong style={{ color: "var(--page-fg)", fontWeight: 600 }}>{t.pricing.leadEmphasis}</strong>
           {t.pricing.leadEnd}
         </p>
 
-        <div style={{ marginTop: 56, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
+        <div style={{ marginTop: 34, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
           <div
             style={{
-              borderRadius: 14, padding: 36,
+              borderRadius: 12, padding: 30,
               background: "var(--kova-ink)", color: "var(--kova-on-ink)",
               border: "0.5px solid var(--kova-ink)",
               boxShadow: "0 24px 60px -20px rgba(15,17,23,0.3)",
@@ -1411,18 +1415,22 @@ const RESPONSIVE_STYLES = `
     max-width: 100%;
   }
   @media (max-width: 900px) {
+    .lp-section { padding: 72px 24px !important; }
+    .lp-section-compact { padding: 60px 24px !important; }
+    .lp-section-inner { max-width: 100% !important; }
     .lp-hero-grid, .lp-showcase-row, .lp-showcase-head, .lp-2cols {
       grid-template-columns: 1fr !important;
     }
     .lp-3cols { grid-template-columns: 1fr !important; }
     .lp-4cols { grid-template-columns: 1fr 1fr !important; }
+    .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin-top: 28px !important; }
     .lp-4cols > div { border-right: none !important; border-bottom: 0.5px solid var(--hairline-color) !important; }
     .lp-4cols > div:nth-child(2n) { border-right: none !important; }
     .lp-4cols > div:last-child { border-bottom: none !important; }
     .lp-4cols > div:nth-last-child(2) { border-bottom: none !important; }
     .lp-4cols > div:nth-child(odd) { border-right: 0.5px solid var(--hairline-color) !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
-    .lp-hero-section { padding: 48px 24px 48px !important; }
+    .lp-hero-section { min-height: auto !important; padding: 44px 24px 56px !important; }
     .lp-hero-grid { gap: 32px !important; margin-top: 16px !important; }
     .lp-hero-title {
       font-size: 38px !important;
@@ -1430,7 +1438,7 @@ const RESPONSIVE_STYLES = `
       line-height: 1 !important;
     }
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
-    .lp-hero-visual { max-width: 100% !important; overflow: hidden !important; }
+    .lp-hero-visual { max-width: 100% !important; min-height: 320px !important; overflow: hidden !important; }
     .lp-hero-visual > * { max-width: min(100%, 360px) !important; }
     .lp-product-section { padding: 88px 24px !important; }
     .lp-showcase-row { gap: 24px !important; }
@@ -1451,6 +1459,10 @@ const RESPONSIVE_STYLES = `
     }
   }
   @media (max-width: 640px) {
+    .lp-section { padding: 58px 20px !important; }
+    .lp-section-compact { padding: 52px 20px !important; }
+    .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
+    .lp-section-copy { font-size: 15px !important; }
     .lp-nav-shell {
       padding: 12px 16px !important;
       gap: 12px !important;
@@ -1466,8 +1478,24 @@ const RESPONSIVE_STYLES = `
       padding: 9px 12px !important;
       white-space: nowrap !important;
     }
-    .lp-hero-section { padding: 36px 20px 40px !important; }
-    .lp-hero-title { font-size: 34px !important; }
+    .lp-hero-section { padding: 28px 20px 44px !important; }
+    .lp-hero-title { font-size: 31px !important; }
+    .lp-hero-copy { font-size: 15px !important; margin-top: 14px !important; }
+    .lp-hero-visual { order: -1; min-height: 190px !important; }
+    .lp-hero-visual > * { max-width: min(100%, 220px) !important; }
+    .lp-hero-logo { width: 220px !important; }
+    .lp-hero-logo > div { padding: 0 !important; gap: 0 !important; }
+    .lp-hero-logo > div > div:first-child {
+      width: 150px !important;
+      min-width: 150px !important;
+      max-width: 150px !important;
+    }
+    .lp-hero-logo h1 { font-size: 42px !important; }
+    .lp-hero-logo p { font-size: 12px !important; }
+    .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
+    .lp-benefit-card { min-height: 118px !important; padding: 13px !important; }
+    .lp-benefit-card strong { font-size: 13px !important; }
+    .lp-benefit-card span { font-size: 12px !important; }
     .lp-hero-actions {
       display: grid !important;
       grid-template-columns: 1fr !important;
@@ -1527,14 +1555,12 @@ export default function Home(): ReactNode {
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
       <main>
         <Hero primaryTarget={primaryTarget} />
-        <ThreeNodes />
-        <WhyKova />
         <POSShowcase />
         <Features />
         <FirstDay primaryTarget={primaryTarget} />
         <BuiltFor />
-        <FAQ />
         <Pricing primaryTarget={primaryTarget} />
+        <FAQ />
       </main>
       <Footer />
     </div>
