@@ -24,6 +24,7 @@ type Props = {
   lowStock: StockItem[];
   compareLabel: string;
   suppressLowStock?: boolean;
+  show?: "all" | "banner" | "actions";
 };
 
 type ActionCard = {
@@ -79,6 +80,7 @@ export function InsightStrip({
   lowStock,
   compareLabel,
   suppressLowStock = false,
+  show = "all",
 }: Props) {
   const orderCount = summary.order_count;
   const netSales = Number(summary.net_sales);
@@ -220,8 +222,13 @@ export function InsightStrip({
     bestHour ? formatHourRange(bestHour.hour) : "",
   ];
 
+  const showBanner = show !== "actions";
+  const showActions = show !== "banner" && actions.length > 0;
+  if (!showBanner && !showActions) return null;
+
   return (
     <div className="space-y-4">
+      {showBanner && (
       <Card className="bg-gradient-to-br from-kova-mist/50 to-white border-kova-blue/15">
         <CardContent className="flex items-start gap-2.5 p-4">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-kova-blue" />
@@ -230,8 +237,9 @@ export function InsightStrip({
           </p>
         </CardContent>
       </Card>
+      )}
 
-      {actions.length > 0 && (
+      {showActions && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{copy.dashboard.nextActionsTitle}</CardTitle>
