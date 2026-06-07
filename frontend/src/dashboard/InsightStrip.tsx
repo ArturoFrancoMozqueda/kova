@@ -185,19 +185,11 @@ export function InsightStrip({ summary, yesterday, payments, hourly, topProducts
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
+          {/* One condensed line: headline + the single highest-priority signal.
+              The full breakdown lives in the KPI cards and Reportes. */}
           <p className="text-lg font-semibold tracking-tight text-kova-ink leading-snug">
-            {headline}
+            {[headline, bullets[0]].filter(Boolean).join(" ")}
           </p>
-          {bullets.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
-              {bullets.map((b, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-kova-muted">
-                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-kova-blue/60" />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-          )}
         </CardContent>
       </Card>
 
