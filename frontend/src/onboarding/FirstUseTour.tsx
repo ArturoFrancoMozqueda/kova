@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { ArrowRight, BarChart3, LayoutGrid, ShoppingCart, X } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
+import { listProducts } from "@/catalog/api";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { trackFunnelEvent } from "@/telemetry/funnel";
@@ -51,17 +52,43 @@ export function FirstUseTour() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!storageKey || !key) {
-      setOpen(false);
-      return;
+    let cancelled = false;
+
+    async function decideVisibility() {
+      if (!storageKey || !key) {
+        setOpen(false);
+        return;
+      }
+
+      try {
+        const seen = window.localStorage.getItem(storageKey);
+        if (seen) {
+          setOpen(false);
+          return;
+        }
+
+        if (key === "catalog") {
+          const products = await listProducts().catch(() => []);
+          if (products.some((product) => product.is_active)) {
+            if (!cancelled) setOpen(false);
+            return;
+          }
+        }
+
+        if (!cancelled) {
+          setOpen(true);
+          void trackFunnelEvent("onboarding_tour_viewed", { tour: key });
+        }
+      } catch {
+        if (!cancelled) setOpen(false);
+      }
     }
-    try {
-      const seen = window.localStorage.getItem(storageKey);
-      setOpen(!seen);
-      if (!seen) void trackFunnelEvent("onboarding_tour_viewed", { tour: key });
-    } catch {
-      setOpen(false);
-    }
+
+    void decideVisibility();
+
+    return () => {
+      cancelled = true;
+    };
   }, [key, storageKey]);
 
   if (!key || !open || !storageKey) return null;
@@ -80,12 +107,12 @@ export function FirstUseTour() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-16 z-[80] flex justify-center px-4 py-3 sm:bottom-5 sm:right-5 sm:left-auto sm:block sm:w-[420px] sm:max-w-[calc(100vw-2rem)]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-16 z-[80] flex justify-center px-4 py-3 sm:bottom-5 sm:right-5 sm:left-auto sm:block sm:w-[380px] sm:max-w-[calc(100vw-2rem)]">
       <section
         role="region"
         aria-labelledby="first-use-tour-title"
         className={cn(
-          "pointer-events-auto w-full rounded-[var(--radius-lg)] border bg-card p-5 text-card-foreground shadow-2xl animate-scale-in",
+          "pointer-events-auto w-full rounded-[var(--radius-lg)] border bg-card p-4 text-card-foreground shadow-2xl animate-scale-in sm:p-5",
         )}
       >
         <div className="flex items-start gap-3">
@@ -107,18 +134,18 @@ export function FirstUseTour() {
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 hidden gap-2 sm:grid">
           {tour.bullets.map((item) => (
             <div key={item} className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
               {item}
             </div>
           ))}
         </div>
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => close("dismissed")}>
+        <div className="mt-4 flex gap-2 sm:mt-5 sm:justify-end">
+          <Button type="button" variant="outline" onClick={() => close("dismissed")} className="flex-1 sm:flex-none">
             {copy.tour.skip}
           </Button>
-          <Button type="button" onClick={() => close("started")}>
+          <Button type="button" onClick={() => close("started")} className="flex-1 sm:flex-none">
             {tour.cta}
             <ArrowRight className="h-4 w-4" />
           </Button>

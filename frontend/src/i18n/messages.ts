@@ -247,7 +247,7 @@ export const copy = {
     inventorySummary: "Controla stock, alertas de stock bajo, conteos y ajustes.",
     shiftsSummary: "Abre turnos, registra movimientos de efectivo y cierra la reconciliación.",
     ordersSummary: "Revisa recibos, devoluciones y cancelaciones.",
-    reportsSummary: "Revisa ventas, mezcla de pagos y productos más vendidos.",
+    reportsSummary: "Revisa ventas, cómo te pagaron y productos más vendidos.",
     billingSummary: `Administra la suscripción ${STANDARD_PLAN.name} y recupera la facturación.`,
     settings: "Configuración",
     openMenu: "Abrir menú de navegación",
@@ -560,7 +560,7 @@ export const copy = {
     reportsBody: "Esta vista se llena cuando existen ventas completadas en el rango seleccionado.",
     reportsBullets: [
       "Usa Hoy, 7 días o Mes para cambiar el contexto.",
-      "La mezcla de pagos ayuda a conciliar efectivo y transferencias.",
+      "Cómo te pagaron ayuda a conciliar efectivo y transferencias.",
       "Los productos top sirven para decidir stock y promociones.",
     ],
     reportsCta: "Ver reportes",
@@ -889,7 +889,7 @@ export const copy = {
       "Aún no hay suficientes ventas reales para generar decisiones. Cuando registres ventas, este bloque comparará periodos y conectará inventario con demanda.",
     smartInsightsStableTitle: "Operación estable",
     smartInsightsStableDetail:
-      "No hay alertas fuertes en este rango. Mantente revisando inventario, horario pico y mezcla de pagos conforme crezca la actividad.",
+      "No hay alertas fuertes en este rango. Mantente revisando inventario, horario pico y cómo te pagaron conforme crezca la actividad.",
     compareNetSales: "Ventas vs. periodo anterior",
     compareOrders: "Órdenes vs. periodo anterior",
     compareStrongestWindow: "Horario fuerte",
@@ -1050,7 +1050,7 @@ export const copy = {
     productDriverInsight: (name: string, pct: number) =>
       `${name} generó ${pct}% de tus ventas de producto. Asegura disponibilidad y considera usarlo como producto gancho.`,
     paymentStoryInsight: (method: string, pct: number) =>
-      `${method} representa ${pct}% de los cobros. Usa esta mezcla para anticipar conciliación y manejo de efectivo.`,
+      `${method} representa ${pct}% de los cobros. Usa esta lectura para anticipar conciliación y manejo de efectivo.`,
     employeeStoryInsight: (name: string) =>
       `${name} concentró la mayor venta del periodo. Compara órdenes y ticket promedio para detectar oportunidades de coaching.`,
     employeeSingleInsight: (name: string) =>
@@ -1109,7 +1109,7 @@ export const copy = {
       `Apareció un método nuevo este periodo: ${method}.`,
     paymentInsightLostMethod: (method: string) =>
       `Dejaste de cobrar con ${method} este periodo.`,
-    paymentInsightBalanced: "Mezcla de pagos balanceada — sin alertas por método.",
+    paymentInsightBalanced: "Pagos balanceados — sin alertas por método.",
     hourlySales: "Ventas por hora",
     hourlyQuestion: "¿Cuándo se concentraron las ventas?",
     hourlyTopTitle: "Tus 3 mejores horas",

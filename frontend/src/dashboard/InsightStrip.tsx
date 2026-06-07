@@ -22,6 +22,7 @@ type Props = {
   hourly: SalesByHourRow[];
   topProducts: TopProducts;
   lowStock: StockItem[];
+  suppressLowStock?: boolean;
 };
 
 type ActionCard = {
@@ -68,7 +69,7 @@ function emphasize(text: string, tokens: string[]): ReactNode[] {
     );
 }
 
-export function InsightStrip({ summary, yesterday, payments, hourly, topProducts, lowStock }: Props) {
+export function InsightStrip({ summary, yesterday, payments, hourly, topProducts, lowStock, suppressLowStock = false }: Props) {
   const orderCount = summary.order_count;
   const netSales = Number(summary.net_sales);
   const yNet = yesterday ? Number(yesterday.net_sales) : null;
@@ -127,16 +128,16 @@ export function InsightStrip({ summary, yesterday, payments, hourly, topProducts
     bullets.push(copy.dashboard.storyRefundsFlag(summary.refund_count));
   }
 
-  if (lowStock.length === 1) {
+  if (!suppressLowStock && lowStock.length === 1) {
     bullets.push(copy.dashboard.storyLowStockOne(lowStock[0].product_name));
-  } else if (lowStock.length > 1) {
+  } else if (!suppressLowStock && lowStock.length > 1) {
     bullets.push(copy.dashboard.storyLowStockMany(lowStock.length));
   }
 
   // Recommended actions (rule-based, prioritized)
   const actions: ActionCard[] = [];
 
-  if (lowStock.length > 0) {
+  if (!suppressLowStock && lowStock.length > 0) {
     const names = lowStock
       .slice(0, 3)
       .map((s) => s.product_name)

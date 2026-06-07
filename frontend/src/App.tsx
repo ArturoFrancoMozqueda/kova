@@ -81,6 +81,7 @@ export default function App() {
                 <Route path="/orders/:orderId" element={<OrderDetail />} />
                 <Route path="/reports" element={<ReportsView />} />
                 <Route path="/shifts" element={<ShiftView />} />
+                <Route path="/billing" element={<Navigate to="/settings/billing" replace />} />
                 <Route path="/settings/billing" element={<BillingView />} />
                 <Route path="/settings/billing/:returnState" element={<BillingView />} />
                 <Route path="/settings/business-profile" element={<SettingsView />} />

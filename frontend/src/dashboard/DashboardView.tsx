@@ -665,6 +665,7 @@ export default function DashboardView() {
               hourly={loadState.hourly}
               topProducts={loadState.topProducts}
               lowStock={loadState.lowStockItems}
+              suppressLowStock={loadState.lowStockCount > 0}
             />
           </div>
 
@@ -858,45 +859,46 @@ export default function DashboardView() {
             </>
           )}
 
-          {/* Contextual Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{copy.dashboard.contextualActions}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.closeShiftAction, desc: copy.dashboard.closeShiftDesc },
-                  { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.exportSalesAction, desc: copy.dashboard.exportSalesDesc },
-                ].map(({ to, icon: Icon, iconClass, label, desc }) => (
-                  <Link key={to} to={to} className="group">
-                    <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
-                        <Icon className="h-4 w-4" />
+          {loadState.summary.order_count > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{copy.dashboard.contextualActions}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.closeShiftAction, desc: copy.dashboard.closeShiftDesc },
+                    { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.exportSalesAction, desc: copy.dashboard.exportSalesDesc },
+                  ].map(({ to, icon: Icon, iconClass, label, desc }) => (
+                    <Link key={to} to={to} className="group">
+                      <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
+                        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{label}</p>
+                          <p className="text-xs text-muted-foreground">{desc}</p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{label}</p>
-                        <p className="text-xs text-muted-foreground">{desc}</p>
+                    </Link>
+                  ))}
+                  <Link to="/shifts" className="group">
+                    <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
+                        <Receipt className="h-4 w-4" />
                       </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{copy.dashboard.printZAction}</p>
+                        <p className="text-xs text-muted-foreground">{copy.dashboard.printZDesc}</p>
+                      </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                   </Link>
-                ))}
-                <Link to="/shifts" className="group">
-                  <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
-                      <Receipt className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{copy.dashboard.printZAction}</p>
-                      <p className="text-xs text-muted-foreground">{copy.dashboard.printZDesc}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                  </div>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </main>
