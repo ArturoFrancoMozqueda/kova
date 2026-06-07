@@ -80,13 +80,12 @@ export function FirstUseTour() {
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end bg-black/35 px-4 py-5 backdrop-blur-sm sm:items-center sm:justify-center">
+    <div className="pointer-events-none fixed inset-x-0 bottom-16 z-[80] flex justify-center px-4 py-3 sm:bottom-5 sm:right-5 sm:left-auto sm:block sm:w-[420px] sm:max-w-[calc(100vw-2rem)]">
       <section
-        role="dialog"
-        aria-modal="true"
+        role="region"
         aria-labelledby="first-use-tour-title"
         className={cn(
-          "w-full max-w-lg rounded-[var(--radius-lg)] border bg-card p-5 text-card-foreground shadow-2xl animate-scale-in",
+          "pointer-events-auto w-full rounded-[var(--radius-lg)] border bg-card p-5 text-card-foreground shadow-2xl animate-scale-in",
         )}
       >
         <div className="flex items-start gap-3">

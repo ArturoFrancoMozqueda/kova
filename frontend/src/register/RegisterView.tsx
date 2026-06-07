@@ -537,10 +537,10 @@ export default function RegisterView() {
       </div>
 
       {hasOpenShift === false && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground sm:text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{copy.register.noShiftWarning}</span>
-          <Link to="/shifts" className="ml-auto font-medium text-primary hover:underline">
+          <span className="min-w-0 flex-1">{copy.register.noShiftWarning}</span>
+          <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
             {copy.register.openShift}
           </Link>
         </div>
@@ -1153,9 +1153,17 @@ export default function RegisterView() {
           {completedOrder && (
             <Card className="hidden lg:block border-success/30 bg-success/5 animate-fade-in">
               <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle2 className="h-5 w-5 text-success" />
-                  <span className="font-semibold text-success">{copy.register.saleComplete}</span>
+                <div className="mb-3 flex items-start gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-success">{copy.register.saleComplete}</p>
+                    <p className="mt-1 text-2xl font-bold tabular-nums text-kova-ink">
+                      {formatMoney(completedOrder.total_amount)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{copy.register.saleSuccessSubtitle}</p>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Link to={`/orders/${completedOrder.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>

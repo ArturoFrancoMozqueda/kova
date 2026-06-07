@@ -165,62 +165,52 @@ export default function InventoryView() {
         </div>
       )}
 
-      {/* Low stock alerts */}
-      {loadState.velocity.some((item) => item.days_until_out !== null) && (
-        <Card className="border-kova-blue/20 bg-kova-blue/5 mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Package className="h-4 w-4 text-kova-blue" />
-              {copy.inventoryView.stockVelocity}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {loadState.velocity
-                .filter((item) => item.days_until_out !== null)
-                .slice(0, 3)
-                .map((item) => {
-                  const alreadyOut = item.stock_on_hand <= 0;
-                  return (
-                    <div key={item.product_id} className="rounded-lg border bg-background p-3">
-                      <p className="text-sm font-semibold">{item.product_name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {alreadyOut
-                          ? copy.inventoryView.alreadyOut
-                          : copy.inventoryView.daysUntilOut(
-                              item.product_name,
-                              Math.ceil(Number(item.days_until_out)),
-                            )}
-                      </p>
-                      <p className="mt-2 text-xs font-medium text-kova-blue">
-                        {copy.inventoryView.reorderSuggestion}
-                      </p>
-                    </div>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState.lowStock.length > 0 && (
-        <Card className="border-warning/30 mb-6">
+      {(loadState.lowStock.length > 0 || loadState.velocity.some((item) => item.days_until_out !== null)) && (
+        <Card className="border-warning/30 bg-warning/5 mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              {copy.inventoryView.lowStock}
+              {copy.inventoryView.attentionTitle}
             </CardTitle>
+            <p className="text-sm text-muted-foreground">{copy.inventoryView.attentionBody}</p>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {loadState.lowStock.map((item) => (
-                <Badge
-                  key={item.product_id}
-                  variant={item.stock_on_hand <= 0 ? "destructive" : "warning"}
-                >
-                  {item.product_name}: {item.stock_on_hand}
-                </Badge>
-              ))}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                ...loadState.lowStock.map((item) => ({
+                  id: `low-${item.product_id}`,
+                  title: item.product_name,
+                  detail: copy.inventoryView.lowStockDetail(item.stock_on_hand, item.low_stock_threshold),
+                  tone: item.stock_on_hand <= 0 ? "destructive" as const : "warning" as const,
+                })),
+                ...loadState.velocity
+                  .filter((item) => item.days_until_out !== null)
+                  .map((item) => ({
+                    id: `velocity-${item.product_id}`,
+                    title: item.product_name,
+                    detail: item.stock_on_hand <= 0
+                      ? copy.inventoryView.alreadyOut
+                      : copy.inventoryView.daysUntilOut(
+                          item.product_name,
+                          Math.ceil(Number(item.days_until_out)),
+                        ),
+                    tone: "secondary" as const,
+                  })),
+              ]
+                .filter((item, index, items) => items.findIndex((candidate) => candidate.title === item.title) === index)
+                .slice(0, 3)
+                .map((item) => (
+                  <div key={item.id} className="rounded-lg border bg-background p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold">{item.title}</p>
+                      <Badge variant={item.tone}>{item.tone === "secondary" ? copy.inventoryView.stockVelocity : copy.inventoryView.lowStock}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                    <p className="mt-2 text-xs font-medium text-kova-blue">
+                      {copy.inventoryView.reorderSuggestion}
+                    </p>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>

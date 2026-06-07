@@ -37,6 +37,19 @@ function pctRound(pct: number): number {
   return abs < 1 ? 1 : Math.round(abs);
 }
 
+function plainFactorSummary(factors: Factor[], isEmptyBusinessDay: boolean): string {
+  if (isEmptyBusinessDay) return copy.dashboard.healthSubtitleEmpty;
+  const risks = factors.filter((factor) => factor.status === "down" || factor.status === "warn");
+  const wins = factors.filter((factor) => factor.status === "up" || factor.status === "ok");
+  if (risks.length > 0) {
+    return `${risks[0].detail}. ${copy.dashboard.healthPlainReview}`;
+  }
+  if (wins.length >= 2) {
+    return `${wins[0].detail} y ${wins[1].detail.toLowerCase()}.`;
+  }
+  return factors[0]?.detail ?? copy.dashboard.healthSubtitleWatch;
+}
+
 export function BusinessHealthCard({
   summary,
   yesterday,
@@ -177,7 +190,7 @@ export function BusinessHealthCard({
         : "bg-destructive/10";
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
           <div
@@ -206,6 +219,9 @@ export function BusinessHealthCard({
                     : copy.dashboard.healthBandCritical}
               </span>
             </div>
+            <p className="mt-2 text-base font-semibold leading-6 text-kova-ink">
+              {plainFactorSummary(factors, isEmptyBusinessDay)}
+            </p>
             <p className="text-sm text-kova-muted mt-1">{subtitle}</p>
           </div>
         </div>

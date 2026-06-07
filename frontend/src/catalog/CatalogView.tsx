@@ -251,11 +251,22 @@ export default function CatalogView() {
   const { categories } = loadState;
   const activeProducts = loadState.products.filter((product) => product.is_active);
   const trackedProducts = activeProducts.filter((product) => product.track_inventory);
+  const catalogReady = activeProducts.length > 0;
   const setupNext = activeProducts.length === 0
     ? copy.catalog.setupNextProducts
     : trackedProducts.length === 0
       ? copy.catalog.setupNextInventory
       : copy.catalog.setupNextDone;
+  const statusTitle = activeProducts.length === 0
+    ? copy.catalog.statusNeedsProducts
+    : trackedProducts.length === 0
+      ? copy.catalog.statusReadyNoInventory
+      : copy.catalog.statusReady;
+  const statusBody = activeProducts.length === 0
+    ? copy.catalog.statusNeedsProductsBody
+    : trackedProducts.length === 0
+      ? copy.catalog.statusReadyNoInventoryBody
+      : copy.catalog.statusReadyBody;
 
   return (
     <main className="flex-1 p-6 space-y-6">
@@ -316,20 +327,36 @@ export default function CatalogView() {
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-4">
-        {[
-          copy.catalog.activeProducts(activeProducts.length),
-          copy.catalog.activeCategories(categories.length),
-          copy.catalog.inventoryTracked(trackedProducts.length),
-          setupNext,
-        ].map((item, index) => (
-          <div key={item} className="rounded-lg border bg-card p-4">
-            <p className="text-xs font-medium uppercase text-muted-foreground">
-              {index === 3 ? copy.catalog.setupNext : copy.catalog.title}
-            </p>
-            <p className="mt-2 text-sm font-semibold leading-6">{item}</p>
+      <div className="rounded-xl border bg-card p-5 shadow-kova-card">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center gap-2">
+              <Badge variant={catalogReady ? "success" : "warning"}>
+                {catalogReady ? copy.catalog.statusBadgeReady : copy.catalog.statusBadgeSetup}
+              </Badge>
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                {copy.catalog.setupNext}
+              </p>
+            </div>
+            <p className="text-lg font-semibold tracking-tight">{statusTitle}</p>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{statusBody}</p>
           </div>
-        ))}
+          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">{copy.catalog.products}</p>
+              <p className="mt-1 text-sm font-semibold">{copy.catalog.activeProducts(activeProducts.length)}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">{copy.catalog.categories}</p>
+              <p className="mt-1 text-sm font-semibold">{copy.catalog.activeCategories(categories.length)}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">{copy.catalog.inventory}</p>
+              <p className="mt-1 text-sm font-semibold">{copy.catalog.inventoryTracked(trackedProducts.length)}</p>
+            </div>
+          </div>
+        </div>
+        <p className="mt-4 rounded-lg bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{setupNext}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">

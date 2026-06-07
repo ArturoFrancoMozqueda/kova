@@ -345,7 +345,7 @@ export default function BillingView() {
               </div>
               {canManageBilling ? (
                 <>
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   {!hasCheckoutBlockingSubscription(loadState.billing) ? (
                     <Button onClick={() => void beginCheckout()} disabled={actionState === "checkout"}>
                       {actionState === "checkout" ? (
@@ -360,8 +360,15 @@ export default function BillingView() {
                       {copy.billingView.checkoutNotNeeded}
                     </p>
                   )}
+                </div>
+                <div className="border-t pt-4">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                    {copy.billingView.subscriptionControls}
+                  </p>
                   <Button
-                    variant="destructive"
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
                     disabled={
                       !loadState.billing.subscription ||
                       loadState.billing.subscription.cancel_at_period_end ||

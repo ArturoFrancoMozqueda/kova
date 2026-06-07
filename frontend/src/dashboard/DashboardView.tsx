@@ -305,6 +305,106 @@ const kpiCards = [
   { key: "refunds", label: () => copy.dashboard.refunds, icon: Receipt, iconClass: "text-destructive bg-destructive/10" },
 ] as const;
 
+function bestPaymentMethod(payments: PaymentBreakdown): string | null {
+  const best = [...payments.payments].sort((a, b) => Number(b.amount) - Number(a.amount))[0];
+  return best?.method ? best.method.replace("_", " ") : null;
+}
+
+function BusinessBrief({
+  summary,
+  yesterday,
+  topProducts,
+  lowStockCount,
+  payments,
+  compareLabel,
+}: {
+  summary: SalesSummary;
+  yesterday: SalesSummary | null;
+  topProducts: TopProducts;
+  lowStockCount: number;
+  payments: PaymentBreakdown;
+  compareLabel: string;
+}) {
+  const netSales = Number(summary.net_sales);
+  const yesterdaySales = yesterday ? Number(yesterday.net_sales) : null;
+  const topProduct = topProducts.products[0];
+  const paymentMethod = bestPaymentMethod(payments);
+
+  let status = copy.dashboard.briefStatusEmpty;
+  let support = copy.dashboard.briefSupportEmpty;
+  let metricLabel = copy.dashboard.netSales;
+  let metricValue = formatMoney(summary.net_sales);
+  let actionLabel = copy.dashboard.noActivityCta;
+  let actionTo = "/register";
+  let actionHint = copy.dashboard.briefActionStartHint;
+  let toneClass = "border-kova-blue/20 bg-kova-blue/[0.04]";
+  let iconClass = "bg-kova-blue/10 text-kova-blue";
+  let Icon = ShoppingCart;
+
+  if (summary.order_count > 0) {
+    if (yesterdaySales && yesterdaySales > 0) {
+      const pct = ((netSales - yesterdaySales) / yesterdaySales) * 100;
+      if (pct > 1) status = copy.dashboard.briefStatusUp(Math.round(Math.abs(pct)), compareLabel);
+      else if (pct < -1) status = copy.dashboard.briefStatusDown(Math.round(Math.abs(pct)), compareLabel);
+      else status = copy.dashboard.briefStatusFlat(compareLabel);
+    } else {
+      status = copy.dashboard.briefStatusActive;
+    }
+    support = topProduct
+      ? copy.dashboard.briefSupportTopProduct(topProduct.product_name, topProduct.quantity_sold)
+      : paymentMethod
+        ? copy.dashboard.briefSupportPayment(paymentMethod)
+        : copy.dashboard.briefSupportActive(summary.order_count);
+    actionLabel = copy.dashboard.briefActionReports;
+    actionTo = "/reports";
+    actionHint = copy.dashboard.briefActionReportsHint;
+    Icon = BarChart3;
+  }
+
+  if (lowStockCount > 0) {
+    metricLabel = copy.dashboard.briefMetricAttention;
+    metricValue = String(lowStockCount);
+    actionLabel = copy.dashboard.briefActionInventory;
+    actionTo = "/inventory?filter=low";
+    actionHint = copy.dashboard.lowStockAction(lowStockCount);
+    toneClass = "border-warning/30 bg-warning/10";
+    iconClass = "bg-warning/15 text-warning-foreground";
+    Icon = AlertCircle;
+  }
+
+  return (
+    <Card className={`${toneClass} shadow-kova-card`}>
+      <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_220px_220px] lg:items-center">
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center gap-2">
+            <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass}`}>
+              <Icon className="h-4 w-4" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-kova-tertiary">
+              {copy.dashboard.briefEyebrow}
+            </p>
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight text-kova-ink">{status}</h2>
+          <p className="mt-1 text-sm leading-6 text-kova-muted">{support}</p>
+        </div>
+        <div className="rounded-lg border bg-white/75 p-4">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-kova-tertiary">{metricLabel}</p>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-kova-ink">{metricValue}</p>
+          <p className="mt-1 text-xs text-kova-muted">{copy.dashboard.briefMetricToday}</p>
+        </div>
+        <Link to={actionTo} className="group rounded-lg border bg-white/75 p-4 transition-all hover:border-kova-blue/50 hover:shadow-sm">
+          <p className="text-sm font-semibold text-kova-ink">{actionLabel}</p>
+          <p className="mt-1 text-xs leading-5 text-kova-muted">{actionHint}</p>
+          <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-kova-blue">
+            {copy.dashboard.briefActionCta}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardView() {
   useDocumentTitle(copy.documentTitles.dashboard);
   const { state } = useAuth();
@@ -467,6 +567,15 @@ export default function DashboardView() {
 
       {loadState.status === "ready" && (
         <div className="space-y-6">
+          <BusinessBrief
+            summary={loadState.summary}
+            yesterday={loadState.yesterday}
+            topProducts={loadState.topProducts}
+            lowStockCount={loadState.lowStockCount}
+            payments={loadState.payments}
+            compareLabel={loadState.compareLabel}
+          />
+
           {/* Onboarding checklist — hidden once complete */}
           <OnboardingChecklist
             hasProducts={loadState.hasProducts}
@@ -474,47 +583,6 @@ export default function DashboardView() {
             trackedInventoryCount={loadState.trackedInventoryCount}
             hasActiveSubscription={loadState.hasActiveSubscription}
             onboarding={loadState.onboarding}
-          />
-
-          {loadState.lowStockCount > 0 && (
-            <Link
-              to="/inventory?filter=low"
-              className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground transition-colors hover:bg-warning/15"
-            >
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span className="font-medium">
-                {copy.dashboard.lowStockAction(loadState.lowStockCount)}
-              </span>
-              <ArrowRight className="ml-auto h-4 w-4" />
-            </Link>
-          )}
-
-          {/* Business health composite score */}
-          <BusinessHealthCard
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            payments={loadState.payments}
-            lowStockCount={loadState.lowStockCount}
-          />
-
-          {/* Today's business story — narrative + recommended actions */}
-          <InsightStrip
-            summary={loadState.summary}
-            yesterday={loadState.yesterday}
-            payments={loadState.payments}
-            hourly={loadState.hourly}
-            topProducts={loadState.topProducts}
-            lowStock={loadState.lowStockItems}
-          />
-
-          <TrialValueRecap
-            billing={loadState.billing}
-            orderCount={loadState.summary.order_count}
-            netSales={loadState.summary.net_sales}
-            activeCatalogCount={loadState.activeCatalogCount}
-            activeEmployeeCount={loadState.activeEmployeeCount}
-            closedShiftCount={loadState.closedShiftCount}
-            story={loadState.story}
           />
 
           {/* KPI Cards */}
@@ -582,6 +650,33 @@ export default function DashboardView() {
               );
             })}
           </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <BusinessHealthCard
+              summary={loadState.summary}
+              yesterday={loadState.yesterday}
+              payments={loadState.payments}
+              lowStockCount={loadState.lowStockCount}
+            />
+            <InsightStrip
+              summary={loadState.summary}
+              yesterday={loadState.yesterday}
+              payments={loadState.payments}
+              hourly={loadState.hourly}
+              topProducts={loadState.topProducts}
+              lowStock={loadState.lowStockItems}
+            />
+          </div>
+
+          <TrialValueRecap
+            billing={loadState.billing}
+            orderCount={loadState.summary.order_count}
+            netSales={loadState.summary.net_sales}
+            activeCatalogCount={loadState.activeCatalogCount}
+            activeEmployeeCount={loadState.activeEmployeeCount}
+            closedShiftCount={loadState.closedShiftCount}
+            story={loadState.story}
+          />
 
           {/* Charts — collapse to a single explainer when there's no activity at all */}
           {loadState.payments.payments.length === 0 &&
