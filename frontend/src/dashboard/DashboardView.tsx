@@ -18,6 +18,7 @@ import { getBusinessProfile, listEmployees } from "@/settings/api";
 import { listClosedShifts } from "@/shifts/api";
 import type { BillingSubscription } from "@/billing/types";
 import type { BusinessStoryReport, SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
+import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
@@ -745,6 +746,45 @@ export default function DashboardView() {
               </CardContent>
             </Card>
           </div>
+          )}
+
+          {/* Top hours — read-only summary; the deep hourly analysis lives in Reportes */}
+          {topHoursByNetSales(loadState.hourly, 3).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  {copy.dashboard.topHoursTitle}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {topHoursByNetSales(loadState.hourly, 3).map((h, i) => (
+                    <div key={h.hour} className="flex items-center gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold shrink-0">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium tabular-nums">{formatHourRange(h.hour)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {copy.dashboard.topHoursOrders(h.order_count)}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold shrink-0 tabular-nums">
+                        {formatMoney(h.net_sales)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  to="/reports"
+                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--kova-blue)] hover:underline"
+                >
+                  {copy.dashboard.topHoursViewMore}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </CardContent>
+            </Card>
           )}
 
           {/* Contextual Actions */}
