@@ -9,7 +9,7 @@
   overflow: hidden;
   border-radius: 14px;
   isolation: isolate;
-  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 .toneDark {
@@ -139,7 +139,7 @@
 }
 
 .label {
-  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   font-size: 3.2px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -207,7 +207,7 @@
 }
 
 .wordmark {
-  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   font-size: 48px;
   font-weight: 600;
   letter-spacing: -1.2px;
@@ -221,7 +221,7 @@
 .wordmarkDot { color: var(--kova-blue); }
 
 .tagline {
-  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
   font-weight: 400;
   letter-spacing: 0.2px;
@@ -252,7 +252,7 @@
   animation: intro-pulse-soft 2s ease-in-out infinite;
 }
 .badgeText {
-  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   font-size: 11px;
   color: var(--kova-growth);
   font-weight: 500;

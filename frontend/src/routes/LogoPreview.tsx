@@ -79,7 +79,7 @@ export default function LogoPreview() {
         minHeight: "100vh",
         background: "var(--kova-mist)",
         padding: 48,
-        fontFamily: "DM Sans, ui-sans-serif, system-ui, sans-serif",
+        fontFamily: "'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif",
         color: "var(--kova-ink)",
       }}
     >

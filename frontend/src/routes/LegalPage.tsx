@@ -404,7 +404,7 @@ export default function LegalPage({ variant }: LegalPageProps) {
         minHeight: "100vh",
         background: "var(--kova-paper, #FBFBFD)",
         color: "var(--kova-ink)",
-        fontFamily: "'DM Sans', ui-sans-serif, system-ui, sans-serif",
+        fontFamily: "'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif",
       }}
     >
       <header

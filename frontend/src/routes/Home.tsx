@@ -59,7 +59,7 @@ function themeVars(theme: Theme): CSSProperties {
 /* ─── Landing-scoped CSS ─────────────────────────────────────────────────── */
 const LANDING_STYLES = `
   .lp-root {
-    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
     background: var(--page-bg);
     color: var(--page-fg);
     -webkit-font-smoothing: antialiased;
