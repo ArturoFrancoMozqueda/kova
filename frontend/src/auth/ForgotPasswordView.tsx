@@ -57,7 +57,7 @@ export default function ForgotPasswordView() {
                 {devToken && (
                   <div className="rounded-lg border border-dashed border-warning/40 bg-warning/5 px-3 py-2.5 text-xs space-y-1.5">
                     <p className="font-semibold text-warning-foreground">{copy.auth.devResetReady}</p>
-                    <p className="break-all font-mono text-[11px] text-muted-foreground">{devToken}</p>
+                    <p className="break-all text-[11px] text-muted-foreground">{devToken}</p>
                     <Link
                       to={`/reset-password?token=${encodeURIComponent(devToken)}`}
                       className="inline-flex items-center gap-1 font-medium text-kova-blue hover:underline"

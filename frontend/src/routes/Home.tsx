@@ -67,7 +67,6 @@ const LANDING_STYLES = `
     transition: background 280ms var(--kova-ease-entrance), color 280ms var(--kova-ease-entrance);
   }
   .lp-root .tabular { font-variant-numeric: tabular-nums; }
-  .lp-root .mono { font-family: "DM Mono", ui-monospace, monospace; }
   .lp-root ::selection { background: var(--accent); color: #fff; }
 
   .lp-section {
@@ -631,7 +630,6 @@ function HeroDemo() {
         }}
       >
         <span
-          className="mono"
           style={{
             fontSize: 10, fontWeight: 500, letterSpacing: "0.16em",
             textTransform: "uppercase", color: "var(--text-tertiary)",
@@ -1049,7 +1047,7 @@ function FirstDay({ primaryTarget }: { primaryTarget: string }) {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span className="mono" style={{ fontSize: 12, fontWeight: 500, color: "var(--accent)", letterSpacing: "0.08em" }}>
+                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--accent)", letterSpacing: "0.08em" }}>
                   {s.n}
                 </span>
                 <span style={{ fontSize: 10, fontWeight: 500, padding: "3px 8px", borderRadius: 999, background: "var(--chip-bg)", color: "var(--text-muted)", letterSpacing: "0.06em" }}>
@@ -1139,7 +1137,7 @@ function BuiltFor() {
               </div>
               <h3 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.025em", margin: 0, color: "#fff" }}>{type.name}</h3>
               <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, color: "rgba(240,244,255,0.6)" }}>{type.body}</p>
-              <div className="mono" style={{ marginTop: "auto", fontSize: 11, color: "var(--kova-blue-light)" }}>↳ {type.tag}</div>
+              <div style={{ marginTop: "auto", fontSize: 11, color: "var(--kova-blue-light)" }}>↳ {type.tag}</div>
             </div>
           ))}
         </div>

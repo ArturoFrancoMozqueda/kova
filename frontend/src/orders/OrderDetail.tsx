@@ -156,7 +156,7 @@ export default function OrderDetail() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">{copy.orderDetail.title}</h1>
-          <p className="text-sm text-muted-foreground font-mono">{orderId?.slice(0, 8)}</p>
+          <p className="text-sm text-muted-foreground tabular-nums">{orderId?.slice(0, 8)}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">

@@ -90,7 +90,7 @@ export default function SyncQueueView() {
                         {entry.last_error}
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-2 font-mono">
+                    <p className="text-xs text-muted-foreground mt-2 tabular-nums">
                       {entry.sale.items.map((i) => `${i.quantity}x${i.product_id.slice(0, 8)}`).join(", ")}
                       {" — "}
                       {entry.sale.payments.map((p) => `${p.method}:${p.amount}`).join(" + ")}
