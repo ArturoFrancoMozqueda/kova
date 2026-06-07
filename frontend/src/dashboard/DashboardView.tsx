@@ -18,7 +18,7 @@ import { getBusinessProfile, listEmployees } from "@/settings/api";
 import { listClosedShifts } from "@/shifts/api";
 import type { BillingSubscription } from "@/billing/types";
 import type { BusinessStoryReport, SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
-import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
+import { formatHourRange, topHoursByNetSales, totalNetSales } from "@/reports/hours";
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
@@ -298,65 +298,6 @@ function OnboardingChecklist({
   );
 }
 
-function FirstValueMilestone({ onboarding }: { onboarding: OnboardingState | null }) {
-  if (!onboarding) return null;
-  const completed = new Set(
-    onboarding.steps.filter((step) => step.completed).map((step) => step.key),
-  );
-  const milestones = [
-    {
-      key: "first_sale",
-      title: copy.dashboard.milestoneFirstSaleTitle,
-      body: copy.dashboard.milestoneFirstSaleBody,
-      cta: copy.dashboard.milestoneFirstSaleCta,
-      to: "/reports",
-    },
-    {
-      key: "open_shift",
-      title: copy.dashboard.milestoneShiftTitle,
-      body: copy.dashboard.milestoneShiftBody,
-      cta: copy.dashboard.milestoneShiftCta,
-      to: "/register",
-    },
-    {
-      key: "inventory",
-      title: copy.dashboard.milestoneInventoryTitle,
-      body: copy.dashboard.milestoneInventoryBody,
-      cta: copy.dashboard.milestoneInventoryCta,
-      to: "/shifts",
-    },
-    {
-      key: "first_product",
-      title: copy.dashboard.milestoneProductTitle,
-      body: copy.dashboard.milestoneProductBody,
-      cta: copy.dashboard.milestoneProductCta,
-      to: "/catalog?inventory=activate",
-    },
-  ];
-  const milestone = milestones.find((item) => completed.has(item.key));
-  if (!milestone) return null;
-
-  return (
-    <Card className="border-kova-growth/20 bg-kova-growth/[0.04]">
-      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
-          <CheckCircle2 className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">{milestone.title}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{milestone.body}</p>
-        </div>
-        <Link to={milestone.to} className="shrink-0">
-          <Button size="sm" variant="outline">
-            {milestone.cta}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
-      </CardContent>
-    </Card>
-  );
-}
-
 const kpiCards = [
   { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "text-kova-growth bg-kova-growth/10" },
   { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "text-kova-blue bg-kova-blue/10" },
@@ -457,38 +398,38 @@ export default function DashboardView() {
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm text-muted-foreground mb-1">{getGreeting(tenantTimezone)}</p>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
-            {loadState.status === "ready" && <LivePulse label="En vivo" />}
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
           <p className="text-muted-foreground mt-1">{copy.dashboard.todayActivity(todayLabel)}</p>
         </div>
-        <div
-          role="radiogroup"
-          aria-label={copy.dashboard.periodLabel}
-          className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
-        >
-          {([
-            { value: "day", label: copy.dashboard.periodDay },
-            { value: "week", label: copy.dashboard.periodWeek },
-            { value: "month", label: copy.dashboard.periodMonth },
-          ] as const).map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={period === value}
-              onClick={() => setPeriod(value)}
-              className={cn(
-                "rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors",
-                period === value
-                  ? "bg-[color:var(--kova-ink)] text-white"
-                  : "text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)]",
-              )}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          {loadState.status === "ready" && <LivePulse label="En vivo" />}
+          <div
+            role="radiogroup"
+            aria-label={copy.dashboard.periodLabel}
+            className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
+          >
+            {([
+              { value: "day", label: copy.dashboard.periodDay },
+              { value: "week", label: copy.dashboard.periodWeek },
+              { value: "month", label: copy.dashboard.periodMonth },
+            ] as const).map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={period === value}
+                onClick={() => setPeriod(value)}
+                className={cn(
+                  "rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors",
+                  period === value
+                    ? "bg-[color:var(--kova-ink)] text-white"
+                    : "text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)]",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -534,8 +475,6 @@ export default function DashboardView() {
             hasActiveSubscription={loadState.hasActiveSubscription}
             onboarding={loadState.onboarding}
           />
-
-          <FirstValueMilestone onboarding={loadState.onboarding} />
 
           {loadState.lowStockCount > 0 && (
             <Link
@@ -644,8 +583,10 @@ export default function DashboardView() {
             })}
           </div>
 
-          {/* Middle row — collapse to a single explainer when no activity yet */}
-          {loadState.payments.payments.length === 0 && loadState.topProducts.products.length === 0 ? (
+          {/* Charts — collapse to a single explainer when there's no activity at all */}
+          {loadState.payments.payments.length === 0 &&
+          loadState.topProducts.products.length === 0 &&
+          topHoursByNetSales(loadState.hourly, 3).length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--kova-mist)] text-[color:var(--kova-blue)]">
@@ -665,126 +606,161 @@ export default function DashboardView() {
               </CardContent>
             </Card>
           ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Payment Breakdown */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  {copy.dashboard.paymentBreakdown}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loadState.payments.payments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-6 text-center">
-                    {copy.dashboard.noPaymentsToday}
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {loadState.payments.payments.map((p) => {
-                      const total = loadState.payments.payments.reduce(
-                        (sum, x) => sum + Number(x.amount), 0,
-                      );
-                      const pct = total > 0 ? (Number(p.amount) / total) * 100 : 0;
-                      return (
-                        <div key={p.method}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-medium capitalize">
-                              {p.method.replace("_", " ")}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              {formatMoney(p.amount)} ({p.payment_count})
-                            </span>
-                          </div>
-                          <div className="h-2 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-primary transition-all duration-500"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Top Products */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  {copy.dashboard.topProducts}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loadState.topProducts.products.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-6 text-center">
-                    {copy.dashboard.noSalesToday}
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {loadState.topProducts.products.slice(0, 5).map((p, i) => (
-                      <div key={p.product_id} className="flex items-center gap-3">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold shrink-0">
-                          {i + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{p.product_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {copy.reportsView.soldCount(p.quantity_sold)}
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Top hours — proportional bar + % del día; deep hourly analysis lives in Reportes */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        {copy.dashboard.topHoursTitle}
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {copy.dashboard.topHoursBadge}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const topHours = topHoursByNetSales(loadState.hourly, 3);
+                      if (topHours.length === 0) {
+                        return (
+                          <p className="text-sm text-muted-foreground py-6 text-center">
+                            {copy.dashboard.topHoursEmpty}
                           </p>
-                        </div>
-                        <span className="text-sm font-semibold shrink-0">
-                          {formatMoney(p.gross_sales)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-          )}
+                        );
+                      }
+                      const dayTotal = totalNetSales(loadState.hourly);
+                      const peak = Number(topHours[0].net_sales);
+                      return (
+                        <>
+                          <div className="space-y-4">
+                            {topHours.map((h, i) => {
+                              const net = Number(h.net_sales);
+                              const width = peak > 0 ? Math.max(6, (net / peak) * 100) : 0;
+                              const share = dayTotal > 0 ? Math.round((net / dayTotal) * 100) : 0;
+                              return (
+                                <div key={h.hour} className="flex items-center gap-3">
+                                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold shrink-0">
+                                    {i + 1}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="text-sm font-medium tabular-nums">{formatHourRange(h.hour)}</p>
+                                      <span className="text-sm font-semibold shrink-0 tabular-nums">
+                                        {formatMoney(h.net_sales)}
+                                      </span>
+                                    </div>
+                                    <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
+                                      <div
+                                        className="h-full rounded-full bg-primary transition-all duration-500"
+                                        style={{ width: `${width}%` }}
+                                      />
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                                      <span>{copy.dashboard.topHoursOrders(h.order_count)}</span>
+                                      <span className="tabular-nums">{copy.dashboard.topHoursShareOfDay(share)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <Link
+                            to="/reports"
+                            className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--kova-blue)] hover:underline"
+                          >
+                            {copy.dashboard.topHoursViewMore}
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
 
-          {/* Top hours — read-only summary; the deep hourly analysis lives in Reportes */}
-          {topHoursByNetSales(loadState.hourly, 3).length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  {copy.dashboard.topHoursTitle}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {topHoursByNetSales(loadState.hourly, 3).map((h, i) => (
-                    <div key={h.hour} className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold shrink-0">
-                        {i + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium tabular-nums">{formatHourRange(h.hour)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {copy.dashboard.topHoursOrders(h.order_count)}
-                        </p>
+                {/* Payment Breakdown */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      {copy.dashboard.paymentBreakdown}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loadState.payments.payments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-6 text-center">
+                        {copy.dashboard.noPaymentsToday}
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {loadState.payments.payments.map((p) => {
+                          const total = loadState.payments.payments.reduce(
+                            (sum, x) => sum + Number(x.amount), 0,
+                          );
+                          const pct = total > 0 ? (Number(p.amount) / total) * 100 : 0;
+                          return (
+                            <div key={p.method}>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-sm font-medium capitalize">
+                                  {p.method.replace("_", " ")}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  {formatMoney(p.amount)} ({p.payment_count})
+                                </span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-primary transition-all duration-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <span className="text-sm font-semibold shrink-0 tabular-nums">
-                        {formatMoney(h.net_sales)}
-                      </span>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Top Products — full width below the two-column row */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    {copy.dashboard.topProducts}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadState.topProducts.products.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-6 text-center">
+                      {copy.dashboard.noSalesToday}
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {loadState.topProducts.products.slice(0, 5).map((p, i) => (
+                        <div key={p.product_id} className="flex items-center gap-3">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold shrink-0">
+                            {i + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{p.product_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {copy.reportsView.soldCount(p.quantity_sold)}
+                            </p>
+                          </div>
+                          <span className="text-sm font-semibold shrink-0">
+                            {formatMoney(p.gross_sales)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <Link
-                  to="/reports"
-                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--kova-blue)] hover:underline"
-                >
-                  {copy.dashboard.topHoursViewMore}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {/* Contextual Actions */}
