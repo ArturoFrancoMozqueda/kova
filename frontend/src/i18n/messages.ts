@@ -307,7 +307,7 @@ export const copy = {
     briefStatusUp: (pct: number, label: string) => `Vas ${pct}% arriba ${label}.`,
     briefStatusDown: (pct: number, label: string) => `Vas ${pct}% abajo ${label}.`,
     briefStatusFlat: (label: string) => `Vas estable ${label}.`,
-    briefSupportEmpty: "Cobra la primera venta para activar productos top, pagos y horarios fuertes.",
+    briefSupportEmpty: "Registra una venta real para activar productos top, pagos y horarios fuertes.",
     briefSupportActive: (orders: number) => `${orders} orden${orders === 1 ? "" : "es"} registrada${orders === 1 ? "" : "s"} en el periodo.`,
     briefSupportTopProduct: (name: string, units: number) =>
       `${name} está empujando el día con ${units} ${units === 1 ? "unidad" : "unidades"} vendida${units === 1 ? "" : "s"}.`,

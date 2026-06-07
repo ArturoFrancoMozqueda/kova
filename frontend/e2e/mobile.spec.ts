@@ -366,7 +366,7 @@ test("register dashboard and billing fit at 390px", async ({ page }) => {
   for (const path of ["/register", "/dashboard", "/reports", "/settings/billing"]) {
     await page.goto(path);
     if (path === "/dashboard") {
-      await expect(page.getByText("Primer producto listo")).toBeVisible();
+      await expect(page.getByText(/Agrega tu primer producto vendible|Agrega productos vendibles/i)).toBeVisible();
     }
     if (path !== "/settings/billing") {
       await expectMobileSidebarClosed(page);
@@ -465,10 +465,10 @@ test("inventory low-stock workflow fits phone and tablet", async ({ page }) => {
 
     await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
     await expect(page.getByText(/stock bajo/i).first()).toBeVisible();
-    await expect(page.getByText("Concha: 2")).toBeVisible();
+    await expect(page.getByText("2 disponible, umbral 6.")).toBeVisible();
     await expect(page.getByRole("button", { name: /ajustar/i })).toBeVisible();
     await page.getByLabel(/filtrar inventario/i).selectOption("low");
-    await expect(page.getByText("Concha", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Concha" })).toBeVisible();
     await expectMobileTaskNavigation(page);
     await expectNoHorizontalOverflow(page);
   }
