@@ -478,7 +478,6 @@ export default function DashboardView() {
             show="banner"
             summary={loadState.summary}
             yesterday={loadState.yesterday}
-            payments={loadState.payments}
             hourly={loadState.hourly}
             topProducts={loadState.topProducts}
             lowStock={loadState.lowStockItems}
@@ -571,7 +570,6 @@ export default function DashboardView() {
             show="actions"
             summary={loadState.summary}
             yesterday={loadState.yesterday}
-            payments={loadState.payments}
             hourly={loadState.hourly}
             topProducts={loadState.topProducts}
             lowStock={loadState.lowStockItems}

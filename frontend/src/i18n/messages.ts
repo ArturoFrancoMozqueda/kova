@@ -360,7 +360,7 @@ export const copy = {
     vsLastWeek: "vs semana pasada",
     vsLastMonth: "vs mes pasado",
     deltaNoData: "Sin comparación todavía",
-    deltaWarmingUp: "Aún sin comparación",
+    deltaWarmingUp: "Sin comparación todavía",
     periodDay: "Hoy",
     periodWeek: "Esta semana",
     periodMonth: "Este mes",
@@ -447,6 +447,18 @@ export const copy = {
     actionPromoteTopCta: "Ver catálogo",
     storyPeakHour: (range: string, pct: number) =>
       `${pct}% de las órdenes del periodo se concentraron en ${range}.`,
+    storyBannerEmpty: "Aún sin ventas en el periodo — abre la caja para empezar a leer tu negocio.",
+    storyBannerSalesUpHour: (pct: number, label: string, hour: string) =>
+      `Ventas ${pct}% arriba ${label}, empujadas por tu hora pico (${hour}).`,
+    storyBannerSalesUp: (pct: number, label: string) => `Ventas ${pct}% arriba ${label}. Buen ritmo.`,
+    storyBannerSalesDown: (pct: number, label: string) => `Ventas ${pct}% abajo ${label}. Revisa qué cambió.`,
+    storyBannerStarHour: (name: string, units: number, hour: string) =>
+      `${name} lidera con ${units} ${units === 1 ? "unidad" : "unidades"}; tu mejor hora fue ${hour}.`,
+    storyBannerStar: (name: string, units: number) =>
+      `${name} lidera el periodo con ${units} ${units === 1 ? "unidad" : "unidades"}.`,
+    storyBannerStarLow: (name: string) =>
+      `${name} lidera el periodo y está por agotarse — reabastece para no frenar ventas.`,
+    storyBannerHour: (hour: string) => `Tu mejor hora del periodo fue ${hour}.`,
     healthTitle: "Lectura del periodo",
     healthScoreLabel: "Puntaje",
     healthBandHealthy: "Saludable",
@@ -458,6 +470,19 @@ export const copy = {
     healthSubtitleCritical: "Atiende estos puntos antes de que afecten la operación.",
     healthSubtitleEmpty: "Sin ventas en este periodo para generar una lectura.",
     healthPlainReview: "Conviene revisarlo en este periodo.",
+    healthSummarySalesUp: (pct: number, label: string) => `Ventas ${pct}% arriba ${label}; buen ritmo.`,
+    healthSummarySalesDown: (pct: number, label: string) => `Ventas ${pct}% abajo ${label}; revisa qué cambió.`,
+    healthSummarySalesFlat: (label: string) => `Ventas estables ${label}.`,
+    healthSummarySalesNoData: "Aún no hay periodo para comparar tus ventas.",
+    healthSummaryRefundsRate: (pct: number) =>
+      `Las devoluciones llegaron a ${pct}% de las órdenes; conviene revisarlas.`,
+    healthSummaryRefundsClean: "Sin devoluciones en el periodo — buena señal.",
+    healthSummaryInventoryLow: (n: number) =>
+      `${n} producto${n === 1 ? "" : "s"} en stock bajo; reabastece antes de perder ventas.`,
+    healthSummaryInventoryOk: "Inventario sano: sin productos en stock bajo.",
+    healthSummaryPaymentsCashOnly: "Todo el cobro fue en efectivo; ofrecer tarjeta agiliza la caja.",
+    healthSummaryPaymentsMix: (pct: number) => `Buena mezcla de pagos: ${pct}% no fue en efectivo.`,
+    healthSummaryPaymentsNoData: "Aún sin pagos para leer la mezcla.",
     healthFactorSales: "Tendencia de ventas",
     healthFactorSalesUp: (pct: number, label: string) => `+${pct}% ${label}`,
     healthFactorSalesDown: (pct: number, label: string) => `-${pct}% ${label}`,

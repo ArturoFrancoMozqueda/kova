@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
-import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
+import type { SalesByHourRow, SalesSummary, TopProducts } from "@/reports/types";
 import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
 import type { StockItem } from "@/inventory/types";
 import {
@@ -18,7 +18,6 @@ import {
 type Props = {
   summary: SalesSummary;
   yesterday: SalesSummary | null;
-  payments: PaymentBreakdown;
   hourly: SalesByHourRow[];
   topProducts: TopProducts;
   lowStock: StockItem[];
@@ -36,10 +35,6 @@ type ActionCard = {
   tone: "warn" | "info" | "primary";
   icon: typeof AlertCircle;
 };
-
-function paymentLabel(method: string): string {
-  return method.replace("_", " ");
-}
 
 function pctRound(pct: number): number {
   const abs = Math.abs(pct);
@@ -74,7 +69,6 @@ function emphasize(text: string, tokens: string[]): ReactNode[] {
 export function InsightStrip({
   summary,
   yesterday,
-  payments,
   hourly,
   topProducts,
   lowStock,
@@ -85,66 +79,41 @@ export function InsightStrip({
   const orderCount = summary.order_count;
   const netSales = Number(summary.net_sales);
   const yNet = yesterday ? Number(yesterday.net_sales) : null;
-  const yOrders = yesterday?.order_count ?? null;
-
-  // Headline
-  let headline: string;
-  if (orderCount === 0) {
-    headline = copy.dashboard.storyHeadlineEmpty;
-  } else if (yNet === null || yNet === 0) {
-    headline = copy.dashboard.storyHeadlineNoYesterday;
-  } else {
-    const pct = ((netSales - yNet) / yNet) * 100;
-    if (pct > 1) headline = copy.dashboard.storyHeadlineUp(pctRound(pct), compareLabel);
-    else if (pct < -1) headline = copy.dashboard.storyHeadlineDown(pctRound(pct), compareLabel);
-    else headline = copy.dashboard.storyHeadlineFlat(compareLabel);
-  }
-
-  // Supporting bullets
-  const bullets: string[] = [];
-
   const top = topProducts.products[0];
-  if (top && top.quantity_sold > 0) {
-    bullets.push(copy.dashboard.storyTopProduct(top.product_name, top.quantity_sold));
-  }
-
-  if (orderCount > 0 && yOrders && yOrders > 0 && yNet && yNet > 0) {
-    const avg = netSales / orderCount;
-    const yAvg = yNet / yOrders;
-    if (yAvg > 0) {
-      const pct = ((avg - yAvg) / yAvg) * 100;
-      if (pct > 3) bullets.push(copy.dashboard.storyTicketUp(pctRound(pct)));
-      else if (pct < -3) bullets.push(copy.dashboard.storyTicketDown(pctRound(pct)));
-    }
-  }
-
-  if (payments.payments.length > 0) {
-    const total = payments.payments.reduce((s, p) => s + Number(p.amount), 0);
-    if (total > 0) {
-      const dominant = [...payments.payments].sort(
-        (a, b) => Number(b.amount) - Number(a.amount),
-      )[0];
-      const pct = Math.round((Number(dominant.amount) / total) * 100);
-      if (pct >= 60) {
-        bullets.push(copy.dashboard.storyPaymentDominant(paymentLabel(dominant.method), pct));
-      }
-    }
-  }
-
   const [bestHour] = topHoursByNetSales(hourly, 1);
-  if (bestHour) {
-    bullets.push(copy.dashboard.storyBestHour(formatHourRange(bestHour.hour)));
+  const bestHourLabel = bestHour ? formatHourRange(bestHour.hour) : "";
+
+  // Sales vs previous period — only meaningful when the current period has sales.
+  let salesPct: number | null = null;
+  if (orderCount > 0 && yNet !== null && yNet > 0) {
+    salesPct = ((netSales - yNet) / yNet) * 100;
   }
 
-  if (summary.refund_count > 0) {
-    bullets.push(copy.dashboard.storyRefundsFlag(summary.refund_count));
+  // One concise, prioritized story line (real data only): lead with the most
+  // useful signal, add at most one supporting/implication clause.
+  let story: string;
+  if (orderCount === 0) {
+    story = copy.dashboard.storyBannerEmpty;
+  } else if (salesPct !== null && salesPct > 5) {
+    story = bestHour
+      ? copy.dashboard.storyBannerSalesUpHour(pctRound(salesPct), compareLabel, bestHourLabel)
+      : copy.dashboard.storyBannerSalesUp(pctRound(salesPct), compareLabel);
+  } else if (top && top.quantity_sold > 0) {
+    const isLow = lowStock.some((s) => s.product_id === top.product_id);
+    story = isLow
+      ? copy.dashboard.storyBannerStarLow(top.product_name)
+      : bestHour
+        ? copy.dashboard.storyBannerStarHour(top.product_name, top.quantity_sold, bestHourLabel)
+        : copy.dashboard.storyBannerStar(top.product_name, top.quantity_sold);
+  } else if (salesPct !== null && salesPct < -5) {
+    story = copy.dashboard.storyBannerSalesDown(pctRound(salesPct), compareLabel);
+  } else if (bestHour) {
+    story = copy.dashboard.storyBannerHour(bestHourLabel);
+  } else {
+    story = copy.dashboard.storyHeadlineNoYesterday;
   }
 
-  if (!suppressLowStock && lowStock.length === 1) {
-    bullets.push(copy.dashboard.storyLowStockOne(lowStock[0].product_name));
-  } else if (!suppressLowStock && lowStock.length > 1) {
-    bullets.push(copy.dashboard.storyLowStockMany(lowStock.length));
-  }
+  const emphasisTokens = [top?.product_name ?? "", bestHourLabel];
 
   // Recommended actions (rule-based, prioritized)
   const actions: ActionCard[] = [];
@@ -213,14 +182,6 @@ export function InsightStrip({
   // refund reasons, and stock velocity (days-until-out).
   // Current narrative uses period comparison + top product + payment mix + low-stock
   // — all real data from existing endpoints.
-
-  // One condensed line: headline + the single highest-priority signal. The
-  // data tokens (top product, peak hour) are highlighted; the rest stays plain.
-  const story = [headline, bullets[0]].filter(Boolean).join(" ");
-  const emphasisTokens = [
-    top && top.quantity_sold > 0 ? top.product_name : "",
-    bestHour ? formatHourRange(bestHour.hour) : "",
-  ];
 
   const showBanner = show !== "actions";
   const showActions = show !== "banner" && actions.length > 0;

@@ -28,6 +28,7 @@ type Factor = {
   label: string;
   status: "up" | "down" | "flat" | "ok" | "warn" | "none";
   detail: string;
+  takeaway: string; // self-contained one-line story for the summary
   score: number; // 0..1
   weight: number;
   icon: typeof Activity;
@@ -38,17 +39,13 @@ function pctRound(pct: number): number {
   return abs < 1 ? 1 : Math.round(abs);
 }
 
-function plainFactorSummary(factors: Factor[], isEmptyBusinessDay: boolean): string {
-  if (isEmptyBusinessDay) return copy.dashboard.healthSubtitleEmpty;
-  const risks = factors.filter((factor) => factor.status === "down" || factor.status === "warn");
-  const wins = factors.filter((factor) => factor.status === "up" || factor.status === "ok");
-  if (risks.length > 0) {
-    return `${risks[0].detail}. ${copy.dashboard.healthPlainReview}`;
-  }
-  if (wins.length >= 2) {
-    return `${wins[0].detail} y ${wins[1].detail.toLowerCase()}.`;
-  }
-  return factors[0]?.detail ?? copy.dashboard.healthSubtitleWatch;
+function plainFactorSummary(factors: Factor[]): string {
+  // Lead with the most important risk; otherwise a win; otherwise neutral.
+  const risk = factors.find((f) => f.status === "down" || f.status === "warn");
+  if (risk) return risk.takeaway;
+  const win = factors.find((f) => f.status === "up" || f.status === "ok");
+  if (win) return win.takeaway;
+  return factors[0]?.takeaway ?? copy.dashboard.healthSubtitleWatch;
 }
 
 export function BusinessHealthCard({
@@ -63,7 +60,9 @@ export function BusinessHealthCard({
   // 1) Sales trend (weight 0.40)
   const net = Number(summary.net_sales);
   const yNet = yesterday ? Number(yesterday.net_sales) : null;
-  if (yNet != null && yNet > 0) {
+  // Only compare when the CURRENT period also has sales — otherwise a zero
+  // period would show a misleading "-100%" (the KPI cards already suppress it).
+  if (yNet != null && yNet > 0 && summary.order_count > 0) {
     const pct = ((net - yNet) / yNet) * 100;
     // map -50%..+50% to 0..1, clamp
     const score = Math.max(0, Math.min(1, 0.5 + pct / 100));
@@ -77,6 +76,12 @@ export function BusinessHealthCard({
           : pct < -1
             ? copy.dashboard.healthFactorSalesDown(pctRound(pct), compareLabel)
             : copy.dashboard.healthFactorSalesFlat(compareLabel),
+      takeaway:
+        pct > 1
+          ? copy.dashboard.healthSummarySalesUp(pctRound(pct), compareLabel)
+          : pct < -1
+            ? copy.dashboard.healthSummarySalesDown(pctRound(pct), compareLabel)
+            : copy.dashboard.healthSummarySalesFlat(compareLabel),
       score,
       weight: 0.4,
       icon: TrendingUp,
@@ -87,6 +92,7 @@ export function BusinessHealthCard({
       label: copy.dashboard.healthFactorSales,
       status: "none",
       detail: copy.dashboard.healthFactorSalesNoData,
+      takeaway: copy.dashboard.healthSummarySalesNoData,
       score: 0.6,
       weight: 0.4,
       icon: TrendingUp,
@@ -105,6 +111,10 @@ export function BusinessHealthCard({
         summary.refund_count === 0
           ? copy.dashboard.healthFactorRefundsClean
           : copy.dashboard.healthFactorRefundsRate(Math.round(rate * 100)),
+      takeaway:
+        summary.refund_count === 0
+          ? copy.dashboard.healthSummaryRefundsClean
+          : copy.dashboard.healthSummaryRefundsRate(Math.round(rate * 100)),
       score,
       weight: 0.25,
       icon: RotateCcw,
@@ -120,6 +130,10 @@ export function BusinessHealthCard({
       lowStockCount === 0
         ? copy.dashboard.healthFactorInventoryOk
         : copy.dashboard.healthFactorInventoryLow(lowStockCount),
+    takeaway:
+      lowStockCount === 0
+        ? copy.dashboard.healthSummaryInventoryOk
+        : copy.dashboard.healthSummaryInventoryLow(lowStockCount),
     score: Math.max(0, 1 - lowStockCount / 5),
     weight: 0.15,
     icon: Package,
@@ -139,6 +153,10 @@ export function BusinessHealthCard({
         nonCashPct === 0
           ? copy.dashboard.healthFactorPaymentsCashOnly
           : copy.dashboard.healthFactorPaymentsMix(Math.round(nonCashPct)),
+      takeaway:
+        nonCashPct === 0
+          ? copy.dashboard.healthSummaryPaymentsCashOnly
+          : copy.dashboard.healthSummaryPaymentsMix(Math.round(nonCashPct)),
       score: Math.min(1, nonCashPct / 50),
       weight: 0.2,
       icon: CreditCard,
@@ -149,6 +167,7 @@ export function BusinessHealthCard({
       label: copy.dashboard.healthFactorPayments,
       status: "none",
       detail: copy.dashboard.healthFactorPaymentsNoData,
+      takeaway: copy.dashboard.healthSummaryPaymentsNoData,
       score: 0.5,
       weight: 0.2,
       icon: CreditCard,
@@ -164,7 +183,18 @@ export function BusinessHealthCard({
   const score = Math.round(weighted * 100);
 
   const isEmptyBusinessDay = summary.order_count === 0 && totalPay === 0;
-  const band: Band = isEmptyBusinessDay ? "setup" : score >= 75 ? "healthy" : score >= 50 ? "watch" : "critical";
+  // Only escalate to "critical" with a real sales comparison; with thin data
+  // (no comparable period) cap at "watch" so we don't alarm without signal.
+  const hasSalesComparison = yNet != null && yNet > 0 && summary.order_count > 0;
+  const band: Band = isEmptyBusinessDay
+    ? "setup"
+    : score >= 75
+      ? "healthy"
+      : score >= 50
+        ? "watch"
+        : hasSalesComparison
+          ? "critical"
+          : "watch";
   const subtitle =
     isEmptyBusinessDay
       ? copy.dashboard.healthSubtitleEmpty
@@ -221,9 +251,11 @@ export function BusinessHealthCard({
                     : copy.dashboard.healthBandCritical}
               </span>
             </div>
-            <p className="mt-2 text-base font-semibold leading-6 text-kova-ink">
-              {plainFactorSummary(factors, isEmptyBusinessDay)}
-            </p>
+            {!isEmptyBusinessDay && (
+              <p className="mt-2 text-base font-semibold leading-6 text-kova-ink">
+                {plainFactorSummary(factors)}
+              </p>
+            )}
             <p className="text-sm text-kova-muted mt-1">{subtitle}</p>
           </div>
         </div>
