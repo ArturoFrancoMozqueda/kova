@@ -391,7 +391,6 @@ export const copy = {
       })[key] ?? "Abrir",
     onboardingDone: "¡Listo! Tu POS está listo para vender.",
     lowStockAction: (n: number) => `${n} producto${n === 1 ? "" : "s"} necesita${n === 1 ? "" : "n"} atención de inventario.`,
-    storyTitle: "Hoy en tu negocio",
     storyHeadlineUp: (pct: number) =>
       `Las ventas van ${pct}% arriba comparado con ayer a esta hora.`,
     storyHeadlineDown: (pct: number) =>

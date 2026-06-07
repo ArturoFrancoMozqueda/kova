@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
@@ -40,6 +41,31 @@ function paymentLabel(method: string): string {
 function pctRound(pct: number): number {
   const abs = Math.abs(pct);
   return abs < 1 ? 1 : Math.round(abs);
+}
+
+/**
+ * Render `text` with the given data tokens (product name, hour range) and any
+ * percentage figure highlighted in blue, leaving the surrounding prose plain.
+ */
+function emphasize(text: string, tokens: string[]): ReactNode[] {
+  const escaped = tokens
+    .filter(Boolean)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const patterns = [...escaped, "\\d+%"];
+  const splitter = new RegExp(`(${patterns.join("|")})`, "g");
+  const isMatch = new RegExp(`^(?:${patterns.join("|")})$`);
+  return text
+    .split(splitter)
+    .filter(Boolean)
+    .map((part, i) =>
+      isMatch.test(part) ? (
+        <span key={i} className="font-semibold text-kova-blue">
+          {part}
+        </span>
+      ) : (
+        <span key={i}>{part}</span>
+      ),
+    );
 }
 
 export function InsightStrip({ summary, yesterday, payments, hourly, topProducts, lowStock }: Props) {
@@ -175,20 +201,21 @@ export function InsightStrip({ summary, yesterday, payments, hourly, topProducts
   // Current narrative uses today vs yesterday + top product + payment mix + low-stock
   // — all real data from existing endpoints.
 
+  // One condensed line: headline + the single highest-priority signal. The
+  // data tokens (top product, peak hour) are highlighted; the rest stays plain.
+  const story = [headline, bullets[0]].filter(Boolean).join(" ");
+  const emphasisTokens = [
+    top && top.quantity_sold > 0 ? top.product_name : "",
+    bestHour ? formatHourRange(bestHour.hour) : "",
+  ];
+
   return (
     <div className="space-y-4">
       <Card className="bg-gradient-to-br from-kova-mist/50 to-white border-kova-blue/15">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-4 w-4 text-kova-blue" />
-            {copy.dashboard.storyTitle}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {/* One condensed line: headline + the single highest-priority signal.
-              The full breakdown lives in the KPI cards and Reportes. */}
-          <p className="text-lg font-semibold tracking-tight text-kova-ink leading-snug">
-            {[headline, bullets[0]].filter(Boolean).join(" ")}
+        <CardContent className="flex items-start gap-2.5 p-4">
+          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-kova-blue" />
+          <p className="text-sm leading-relaxed text-kova-ink">
+            {emphasize(story, emphasisTokens)}
           </p>
         </CardContent>
       </Card>
