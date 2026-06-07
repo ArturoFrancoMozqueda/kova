@@ -12,11 +12,7 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import {
-  currentMonthStartInTimezone,
-  daysAgoInTimezone,
-  todayInTimezone,
-} from "@/i18n/date";
+import { daysAgoInTimezone, todayInTimezone } from "@/i18n/date";
 import { timezoneLabel } from "@/i18n/timezones";
 import { listLowStock, listVelocity } from "../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
@@ -87,8 +83,8 @@ function previousComparableRange(startDate: string, endDate: string) {
   return { startDate: previousStart, endDate: previousEnd };
 }
 
-function currentMonthStart(): string {
-  return currentMonthStartInTimezone();
+function lastThirtyDaysStart(): string {
+  return daysAgoInTimezone(undefined, 29);
 }
 
 function lastSevenDaysStart(): string {
@@ -193,7 +189,7 @@ export default function ReportsView() {
       setEndDate(todayInTimezone());
       return;
     }
-    setStartDate(currentMonthStart());
+    setStartDate(lastThirtyDaysStart());
     setEndDate(todayInTimezone());
   };
 
@@ -253,7 +249,7 @@ function activePreset(startDate: string, endDate: string): ReportPreset | null {
   const currentToday = todayInTimezone();
   if (startDate === currentToday && endDate === currentToday) return "today";
   if (startDate === lastSevenDaysStart() && endDate === currentToday) return "seven_days";
-  if (startDate === currentMonthStart() && endDate === currentToday) return "month";
+  if (startDate === lastThirtyDaysStart() && endDate === currentToday) return "month";
   return null;
 }
 
