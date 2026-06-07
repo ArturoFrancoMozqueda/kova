@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatHourRange, topHoursByNetSales } from "./hours";
+import { formatHourRange, topHoursByNetSales, totalNetSales } from "./hours";
 import type { SalesByHourRow } from "./types";
 
 const row = (hour: number, net: string, orders = 1): SalesByHourRow => ({
@@ -32,5 +32,15 @@ describe("topHoursByNetSales", () => {
 
   it("returns empty when no hour has sales", () => {
     expect(topHoursByNetSales([row(1, "0.00"), row(2, "0.00")], 3)).toEqual([]);
+  });
+});
+
+describe("totalNetSales", () => {
+  it("sums net sales across every hour, including zero-sale hours", () => {
+    expect(totalNetSales([row(9, "25.00"), row(13, "60.00"), row(0, "0.00")])).toBe(85);
+  });
+
+  it("returns 0 for an empty set", () => {
+    expect(totalNetSales([])).toBe(0);
   });
 });

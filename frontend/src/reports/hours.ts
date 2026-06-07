@@ -23,3 +23,11 @@ export function topHoursByNetSales(rows: SalesByHourRow[], n: number): SalesByHo
     .sort((a, b) => Number(b.net_sales) - Number(a.net_sales))
     .slice(0, n);
 }
+
+/**
+ * Total net sales across every hour bucket. Used to express a single hour's
+ * "% del día" — its share of the whole day — independent of the top-N ranking.
+ */
+export function totalNetSales(rows: SalesByHourRow[]): number {
+  return rows.reduce((sum, row) => sum + Number(row.net_sales), 0);
+}
