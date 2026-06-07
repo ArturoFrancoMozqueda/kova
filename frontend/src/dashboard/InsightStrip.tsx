@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import type { SalesByHourRow, SalesSummary, PaymentBreakdown, TopProducts } from "@/reports/types";
+import { formatHourRange, topHoursByNetSales } from "@/reports/hours";
 import type { StockItem } from "@/inventory/types";
 import {
   Sparkles,
@@ -91,14 +92,9 @@ export function InsightStrip({ summary, yesterday, payments, hourly, topProducts
     }
   }
 
-  const bestHour = [...hourly].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
-  if (bestHour && Number(bestHour.net_sales) > 0) {
-    const nextHour = (bestHour.hour + 1) % 24;
-    bullets.push(
-      copy.dashboard.storyBestHour(
-        `${String(bestHour.hour).padStart(2, "0")}:00-${String(nextHour).padStart(2, "0")}:00`,
-      ),
-    );
+  const [bestHour] = topHoursByNetSales(hourly, 1);
+  if (bestHour) {
+    bullets.push(copy.dashboard.storyBestHour(formatHourRange(bestHour.hour)));
   }
 
   if (summary.refund_count > 0) {

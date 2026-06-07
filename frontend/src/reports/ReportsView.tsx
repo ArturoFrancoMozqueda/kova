@@ -18,6 +18,7 @@ import { listLowStock, listVelocity } from "../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
 import { formatMoney, reasonLabel } from "../orders/format";
 import { getBusinessStory, getSalesByHour } from "./api";
+import { formatHourRange, topHoursByNetSales } from "./hours";
 import { InteractiveBarChart, InteractiveRankChart, type ChartRow } from "./InteractiveCharts";
 import type { BusinessStoryReport, SalesByEmployeeRow, SalesByHourRow } from "./types";
 
@@ -849,7 +850,7 @@ function SalesByDaypartChart({ story }: { story: BusinessStoryReport }) {
 function HourlyChart({ rows, story }: { rows: SalesByHourRow[]; story: BusinessStoryReport }) {
   const toChartRow = (row: SalesByHourRow, accent: string): ChartRow => ({
     id: String(row.hour),
-    label: `${String(row.hour).padStart(2, "0")}:00`,
+    label: formatHourRange(row.hour),
     value: Number(row.net_sales),
     valueLabel: formatMoney(row.net_sales),
     meta: [{ label: copy.reportsView.chartOrders, value: String(row.order_count) }],
@@ -858,7 +859,7 @@ function HourlyChart({ rows, story }: { rows: SalesByHourRow[]; story: BusinessS
 
   const active = rows.filter((row) => Number(row.net_sales) > 0);
   const sorted = [...active].sort((a, b) => Number(b.net_sales) - Number(a.net_sales));
-  const bestRows = sorted.slice(0, 3).map((row) => toChartRow(row, "bg-kova-growth"));
+  const bestRows = topHoursByNetSales(rows, 3).map((row) => toChartRow(row, "bg-kova-growth"));
   const worstRows = sorted
     .slice(-3)
     .reverse()
