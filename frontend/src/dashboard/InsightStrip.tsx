@@ -22,6 +22,7 @@ type Props = {
   hourly: SalesByHourRow[];
   topProducts: TopProducts;
   lowStock: StockItem[];
+  compareLabel: string;
   suppressLowStock?: boolean;
 };
 
@@ -69,7 +70,16 @@ function emphasize(text: string, tokens: string[]): ReactNode[] {
     );
 }
 
-export function InsightStrip({ summary, yesterday, payments, hourly, topProducts, lowStock, suppressLowStock = false }: Props) {
+export function InsightStrip({
+  summary,
+  yesterday,
+  payments,
+  hourly,
+  topProducts,
+  lowStock,
+  compareLabel,
+  suppressLowStock = false,
+}: Props) {
   const orderCount = summary.order_count;
   const netSales = Number(summary.net_sales);
   const yNet = yesterday ? Number(yesterday.net_sales) : null;
@@ -83,9 +93,9 @@ export function InsightStrip({ summary, yesterday, payments, hourly, topProducts
     headline = copy.dashboard.storyHeadlineNoYesterday;
   } else {
     const pct = ((netSales - yNet) / yNet) * 100;
-    if (pct > 1) headline = copy.dashboard.storyHeadlineUp(pctRound(pct));
-    else if (pct < -1) headline = copy.dashboard.storyHeadlineDown(pctRound(pct));
-    else headline = copy.dashboard.storyHeadlineFlat;
+    if (pct > 1) headline = copy.dashboard.storyHeadlineUp(pctRound(pct), compareLabel);
+    else if (pct < -1) headline = copy.dashboard.storyHeadlineDown(pctRound(pct), compareLabel);
+    else headline = copy.dashboard.storyHeadlineFlat(compareLabel);
   }
 
   // Supporting bullets
@@ -199,7 +209,7 @@ export function InsightStrip({ summary, yesterday, payments, hourly, topProducts
 
   // TODO(backend): richer "why" insights still need per-employee sales in dashboard,
   // refund reasons, and stock velocity (days-until-out).
-  // Current narrative uses today vs yesterday + top product + payment mix + low-stock
+  // Current narrative uses period comparison + top product + payment mix + low-stock
   // — all real data from existing endpoints.
 
   // One condensed line: headline + the single highest-priority signal. The

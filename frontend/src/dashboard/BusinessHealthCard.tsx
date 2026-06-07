@@ -18,6 +18,7 @@ type Props = {
   yesterday: SalesSummary | null;
   payments: PaymentBreakdown;
   lowStockCount: number;
+  compareLabel: string;
 };
 
 type Band = "healthy" | "watch" | "critical" | "setup";
@@ -55,6 +56,7 @@ export function BusinessHealthCard({
   yesterday,
   payments,
   lowStockCount,
+  compareLabel,
 }: Props) {
   const factors: Factor[] = [];
 
@@ -71,10 +73,10 @@ export function BusinessHealthCard({
       status: pct > 1 ? "up" : pct < -1 ? "down" : "flat",
       detail:
         pct > 1
-          ? copy.dashboard.healthFactorSalesUp(pctRound(pct))
+          ? copy.dashboard.healthFactorSalesUp(pctRound(pct), compareLabel)
           : pct < -1
-            ? copy.dashboard.healthFactorSalesDown(pctRound(pct))
-            : copy.dashboard.healthFactorSalesFlat,
+            ? copy.dashboard.healthFactorSalesDown(pctRound(pct), compareLabel)
+            : copy.dashboard.healthFactorSalesFlat(compareLabel),
       score,
       weight: 0.4,
       icon: TrendingUp,

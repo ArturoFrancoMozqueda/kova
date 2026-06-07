@@ -485,12 +485,6 @@ export default function DashboardView() {
   }, [load, period]);
 
   const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
-  const todayLabel = new Date().toLocaleDateString("es-MX", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    timeZone: tenantTimezone,
-  });
 
   return (
     <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
@@ -499,7 +493,7 @@ export default function DashboardView() {
         <div>
           <p className="text-sm text-muted-foreground mb-1">{getGreeting(tenantTimezone)}</p>
           <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
-          <p className="text-muted-foreground mt-1">{copy.dashboard.todayActivity(todayLabel)}</p>
+          <p className="text-muted-foreground mt-1">{copy.dashboard.todayActivity()}</p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           {loadState.status === "ready" && <LivePulse label="En vivo" />}
@@ -657,6 +651,7 @@ export default function DashboardView() {
               yesterday={loadState.yesterday}
               payments={loadState.payments}
               lowStockCount={loadState.lowStockCount}
+              compareLabel={loadState.compareLabel}
             />
             <InsightStrip
               summary={loadState.summary}
@@ -665,6 +660,7 @@ export default function DashboardView() {
               hourly={loadState.hourly}
               topProducts={loadState.topProducts}
               lowStock={loadState.lowStockItems}
+              compareLabel={loadState.compareLabel}
               suppressLowStock={loadState.lowStockCount > 0}
             />
           </div>
@@ -704,7 +700,7 @@ export default function DashboardView() {
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-2">
-                {/* Top hours — proportional bar + % del día; deep hourly analysis lives in Reportes */}
+                {/* Top hours: proportional bar plus period share; deep hourly analysis lives in Reportes */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between gap-2">
