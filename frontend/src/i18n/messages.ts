@@ -304,26 +304,7 @@ export const copy = {
     noActivityTitle: "Todavía no hay ventas para leer este periodo",
     noActivityBody: "Cuando existan ventas, Kova mostrará cómo pagaron tus clientes y qué productos se movieron más.",
     noActivityCta: "Cobrar primera venta",
-    briefEyebrow: "Resumen del negocio",
-    briefStatusEmpty: "Sin ventas registradas en el periodo.",
-    briefStatusActive: "Ventas registradas en el periodo.",
-    briefStatusUp: (pct: number, label: string) => `Vas ${pct}% arriba ${label}.`,
-    briefStatusDown: (pct: number, label: string) => `Vas ${pct}% abajo ${label}.`,
-    briefStatusFlat: (label: string) => `Vas estable ${label}.`,
-    briefSupportEmpty: "Registra una venta real para activar productos top, pagos y horarios fuertes.",
-    briefSupportActive: (orders: number) => `${orders} orden${orders === 1 ? "" : "es"} registrada${orders === 1 ? "" : "s"} en el periodo.`,
-    briefSupportTopProduct: (name: string, units: number) =>
-      `${name} lidera el periodo con ${units} ${units === 1 ? "unidad" : "unidades"} vendida${units === 1 ? "" : "s"}.`,
-    briefSupportPayment: (method: string) => `Método principal de cobro: ${method}.`,
-    briefMetricAttention: "Por revisar",
-    briefMetricToday: "Lectura del periodo seleccionado",
-    briefActionStartHint: "Registra una venta real para activar productos top, pagos y horarios fuertes.",
-    briefActionReports: "Entender ventas",
-    briefActionReportsHint: "Ve al resumen ejecutivo para revisar productos, horarios y pagos.",
-    briefActionInventory: "Revisar inventario",
-    briefActionCta: "Abrir",
     quickActions: "Acciones rápidas",
-    contextualActions: "Qué conviene hacer ahora",
     closeShiftAction: "Cerrar turno",
     closeShiftDesc: "Ir al corte de caja",
     closedShiftsAction: "Turnos cerrados",
@@ -344,14 +325,8 @@ export const copy = {
     trialRecapBestDay: "Mejor día",
     trialRecapNoBestDay: "Sin ventas todavía",
     trialRecapBestDayValue: (day: string, amount: string) => `${day} · ${amount}`,
-    newSale: "Nueva venta",
-    newSaleDesc: "Abrir caja",
-    manageCatalog: "Gestionar catálogo",
-    manageCatalogDesc: "Productos y categorías",
     viewReports: "Ver reportes",
     viewReportsDesc: "Ventas y analítica",
-    shifts: "Turnos",
-    shiftsDesc: "Abrir y cerrar",
     loadError: "No se pudo cargar el panel",
     retry: "Reintentar",
     connectionHint: "Revisa tu conexión e inténtalo de nuevo.",
@@ -410,25 +385,7 @@ export const copy = {
       })[key] ?? "Abrir",
     onboardingDone: "¡Listo! Tu POS está listo para vender.",
     lowStockAction: (n: number) => `${n} producto${n === 1 ? "" : "s"} necesita${n === 1 ? "" : "n"} atención de inventario.`,
-    storyHeadlineUp: (pct: number, label: string) =>
-      `Ventas ${pct}% arriba ${label}.`,
-    storyHeadlineDown: (pct: number, label: string) =>
-      `Ventas ${pct}% abajo ${label}.`,
-    storyHeadlineFlat: (label: string) => `Ventas estables ${label}.`,
     storyHeadlineNoYesterday: "Hay ventas registradas, pero aún no hay periodo comparable.",
-    storyHeadlineEmpty: "Sin ventas en el periodo seleccionado. Abre la caja para empezar.",
-    storyTopProduct: (name: string, units: number) =>
-      `${name} es el más vendido (${units} ${units === 1 ? "unidad" : "unidades"}).`,
-    storyTicketUp: (pct: number) => `El ticket promedio subió ${pct}% por orden.`,
-    storyTicketDown: (pct: number) => `El ticket promedio bajó ${pct}% por orden.`,
-    storyBestHour: (hour: string) =>
-      `Mejor hora del periodo: ${hour}. Ese pico puede explicar parte del crecimiento.`,
-    storyPaymentDominant: (method: string, pct: number) =>
-      `${pct}% del cobro entró por ${method}.`,
-    storyRefundsFlag: (n: number) =>
-      `${n} ${n === 1 ? "devolución" : "devoluciones"} en el periodo. Revisa si hubo un problema operativo.`,
-    storyLowStockOne: (name: string) => `${name} está por agotarse.`,
-    storyLowStockMany: (n: number) => `${n} productos están en riesgo de agotarse.`,
     nextActionsTitle: "Qué hacer ahora",
     actionRestockTitle: "Reabastece pronto",
     actionRestockDesc: (names: string) => `Bajo stock: ${names}.`,
@@ -447,8 +404,6 @@ export const copy = {
     actionStaffPeakTitle: "Refuerza personal en tu hora pico",
     actionStaffPeakDesc: (hour: string) => `${hour} es tu ventana de más venta del periodo.`,
     actionStaffPeakCta: "Ver horas",
-    storyPeakHour: (range: string, pct: number) =>
-      `${pct}% de las órdenes del periodo se concentraron en ${range}.`,
     storyBannerEmpty: "Aún sin ventas en el periodo — abre la caja para empezar a leer tu negocio.",
     storyBannerSalesUpHour: (pct: number, label: string, hour: string) =>
       `Ventas ${pct}% arriba ${label}, empujadas por tu hora pico (${hour}).`,
@@ -458,8 +413,6 @@ export const copy = {
       `${name} lidera con ${units} ${units === 1 ? "unidad" : "unidades"}; tu mejor hora fue ${hour}.`,
     storyBannerStar: (name: string, units: number) =>
       `${name} lidera el periodo con ${units} ${units === 1 ? "unidad" : "unidades"}.`,
-    storyBannerStarLow: (name: string) =>
-      `${name} lidera el periodo y está por agotarse — reabastece para no frenar ventas.`,
     storyBannerHour: (hour: string) => `Tu mejor hora del periodo fue ${hour}.`,
     storyBannerRestockTail: (name: string, units: number) =>
       units <= 0
