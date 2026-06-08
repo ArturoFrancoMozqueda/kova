@@ -39,6 +39,7 @@ import {
   Clock,
   CreditCard,
   Receipt,
+  RotateCcw,
   AlertCircle,
   TrendingDown,
   Minus,
@@ -310,10 +311,10 @@ function OnboardingChecklist({
 }
 
 const kpiCards = [
-  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "text-kova-growth bg-kova-growth/10" },
-  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "text-kova-blue bg-kova-blue/10" },
-  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: TrendingUp, iconClass: "text-kova-ink bg-kova-mist" },
-  { key: "refunds", label: () => copy.dashboard.refunds, icon: Receipt, iconClass: "text-destructive bg-destructive/10" },
+  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "bg-kova-mist text-kova-tertiary" },
+  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "bg-kova-mist text-kova-tertiary" },
+  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: Receipt, iconClass: "bg-kova-mist text-kova-tertiary" },
+  { key: "refunds", label: () => copy.dashboard.refunds, icon: RotateCcw, iconClass: "bg-kova-mist text-kova-tertiary" },
 ] as const;
 
 export default function DashboardView() {
@@ -791,7 +792,7 @@ export default function DashboardView() {
           {loadState.summary.order_count > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>{copy.dashboard.contextualActions}</CardTitle>
+                <CardTitle>{copy.dashboard.quickActions}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-3">
