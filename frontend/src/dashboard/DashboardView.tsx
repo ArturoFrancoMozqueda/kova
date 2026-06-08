@@ -798,7 +798,7 @@ export default function DashboardView() {
                 <div className="grid gap-3 sm:grid-cols-3">
                   {[
                     { to: "/shifts", icon: Clock, iconClass: "bg-kova-mist text-kova-ink", label: copy.dashboard.closeShiftAction, desc: copy.dashboard.closeShiftDesc },
-                    { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.exportSalesAction, desc: copy.dashboard.exportSalesDesc },
+                    { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
                   ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                     <Link key={to} to={to} className="group">
                       <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
@@ -819,8 +819,8 @@ export default function DashboardView() {
                         <Receipt className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">{copy.dashboard.printZAction}</p>
-                        <p className="text-xs text-muted-foreground">{copy.dashboard.printZDesc}</p>
+                        <p className="text-sm font-medium">{copy.dashboard.closedShiftsAction}</p>
+                        <p className="text-xs text-muted-foreground">{copy.dashboard.closedShiftsDesc}</p>
                       </div>
                       <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>

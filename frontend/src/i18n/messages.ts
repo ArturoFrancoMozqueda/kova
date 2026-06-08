@@ -326,10 +326,8 @@ export const copy = {
     contextualActions: "Qué conviene hacer ahora",
     closeShiftAction: "Cerrar turno",
     closeShiftDesc: "Ir al corte de caja",
-    exportSalesAction: "Exportar ventas",
-    exportSalesDesc: "Abrir reportes del periodo",
-    printZAction: "Reporte del turno",
-    printZDesc: "Ver y reimprimir el corte del turno",
+    closedShiftsAction: "Turnos cerrados",
+    closedShiftsDesc: "Revisa tus cortes de caja anteriores",
     upgradeNudgeTitle: (orders: number) =>
       `Hiciste ${orders} venta${orders === 1 ? "" : "s"} en tu prueba`,
     upgradeNudgeBody: (amount: string) =>
