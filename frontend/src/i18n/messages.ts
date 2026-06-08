@@ -295,6 +295,7 @@ export const copy = {
     topProducts: "Productos top",
     noSalesToday: "Sin ventas en el periodo",
     topHoursTitle: "Tus mejores horas",
+    topHoursSubtitle: "Cuándo entra más dinero — refuerza personal e inventario en estas ventanas.",
     topHoursBadge: "Top 3",
     topHoursOrders: (n: number) => `${n} ${n === 1 ? "orden" : "órdenes"}`,
     topHoursShareOfDay: (pct: number) => `${pct}% del periodo`,
@@ -445,6 +446,9 @@ export const copy = {
     actionPromoteTopDesc: (name: string) =>
       `${name} lidera las ventas del periodo. Considera destacarlo o asegurar stock.`,
     actionPromoteTopCta: "Ver catálogo",
+    actionStaffPeakTitle: "Refuerza personal en tu hora pico",
+    actionStaffPeakDesc: (hour: string) => `${hour} es tu ventana de más venta del periodo.`,
+    actionStaffPeakCta: "Ver horas",
     storyPeakHour: (range: string, pct: number) =>
       `${pct}% de las órdenes del periodo se concentraron en ${range}.`,
     storyBannerEmpty: "Aún sin ventas en el periodo — abre la caja para empezar a leer tu negocio.",
@@ -459,6 +463,10 @@ export const copy = {
     storyBannerStarLow: (name: string) =>
       `${name} lidera el periodo y está por agotarse — reabastece para no frenar ventas.`,
     storyBannerHour: (hour: string) => `Tu mejor hora del periodo fue ${hour}.`,
+    storyBannerRestockTail: (name: string, units: number) =>
+      units <= 0
+        ? `Ya se agotó ${name} — reabastece.`
+        : `Te quedan ${units} de ${name}: buen momento para reabastecer.`,
     healthTitle: "Lectura del periodo",
     healthScoreLabel: "Puntaje",
     healthBandHealthy: "Saludable",

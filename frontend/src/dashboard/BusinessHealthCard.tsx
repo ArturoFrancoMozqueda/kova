@@ -4,10 +4,6 @@ import type { PaymentBreakdown, SalesSummary } from "@/reports/types";
 import {
   Activity,
   TrendingUp,
-  TrendingDown,
-  Minus,
-  AlertTriangle,
-  CheckCircle2,
   RotateCcw,
   CreditCard,
   Package,
@@ -220,47 +216,59 @@ export function BusinessHealthCard({
         : band === "setup"
           ? "bg-kova-blue/10"
         : "bg-destructive/10";
+  const barColor =
+    band === "healthy"
+      ? "bg-kova-growth"
+      : band === "watch"
+        ? "bg-warning"
+        : band === "setup"
+          ? "bg-kova-blue"
+        : "bg-destructive";
+  const bandLabel =
+    band === "healthy"
+      ? copy.dashboard.healthBandHealthy
+      : band === "watch"
+        ? copy.dashboard.healthBandWatch
+        : band === "setup"
+          ? copy.dashboard.healthBandSetup
+        : copy.dashboard.healthBandCritical;
 
   return (
     <Card className="h-full">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-4">
-          <div
-            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full ${ringBg}`}
-            aria-hidden="true"
-          >
-            <span className={`text-xl font-bold tabular-nums ${ringClass}`}>
+      <CardContent className="flex h-full flex-col p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-kova-blue" />
+            <p className="text-sm font-semibold text-kova-ink">{copy.dashboard.healthTitle}</p>
+          </div>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ringBg} ${ringClass}`}>
+            {bandLabel}
+          </span>
+        </div>
+
+        <div className="mt-3">
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-3xl font-bold tabular-nums ${ringClass}`}>
               {isEmptyBusinessDay ? "—" : score}
             </span>
+            <span className="text-sm font-medium text-kova-tertiary">/ 100</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Activity className="h-4 w-4 text-kova-blue" />
-              <p className="text-sm font-semibold text-kova-ink">
-                {copy.dashboard.healthTitle}
-              </p>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ringBg} ${ringClass}`}
-              >
-                {band === "healthy"
-                  ? copy.dashboard.healthBandHealthy
-                  : band === "watch"
-                    ? copy.dashboard.healthBandWatch
-                    : band === "setup"
-                      ? copy.dashboard.healthBandSetup
-                    : copy.dashboard.healthBandCritical}
-              </span>
-            </div>
-            {!isEmptyBusinessDay && (
-              <p className="mt-2 text-base font-semibold leading-6 text-kova-ink">
-                {plainFactorSummary(factors)}
-              </p>
-            )}
-            <p className="text-sm text-kova-muted mt-1">{subtitle}</p>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-kova-mist">
+            <div
+              className={`h-full rounded-full ${barColor} transition-all duration-500`}
+              style={{ width: `${isEmptyBusinessDay ? 0 : score}%` }}
+            />
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {!isEmptyBusinessDay && (
+          <p className="mt-3 text-base font-semibold leading-6 text-kova-ink">
+            {plainFactorSummary(factors)}
+          </p>
+        )}
+        <p className="mt-1 text-sm text-kova-muted">{subtitle}</p>
+
+        <div className="mt-4 space-y-0.5">
           {factors.map((f) => {
             const Icon = f.icon;
             const tone =
@@ -269,29 +277,18 @@ export function BusinessHealthCard({
                 : f.status === "down" || f.status === "warn"
                   ? "text-destructive"
                   : "text-kova-muted";
-            const StatusIcon =
-              f.status === "up"
-                ? TrendingUp
-                : f.status === "down"
-                  ? TrendingDown
-                  : f.status === "ok"
-                    ? CheckCircle2
-                    : f.status === "warn"
-                      ? AlertTriangle
-                      : Minus;
             return (
               <div
                 key={f.key}
-                className="flex items-center gap-2 rounded-md border border-kova-border p-2.5"
+                className="flex items-center justify-between gap-3 border-b border-kova-border/60 py-2 last:border-0"
               >
-                <Icon className="h-4 w-4 text-kova-muted shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">
-                    {f.label}
-                  </p>
-                  <p className="text-sm text-kova-ink truncate">{f.detail}</p>
-                </div>
-                <StatusIcon className={`h-4 w-4 shrink-0 ${tone}`} />
+                <span className="flex min-w-0 items-center gap-2 text-sm text-kova-muted">
+                  <Icon className="h-4 w-4 shrink-0 text-kova-tertiary" />
+                  <span className="truncate">{f.label}</span>
+                </span>
+                <span className={`shrink-0 text-sm font-semibold tabular-nums ${tone}`}>
+                  {f.detail}
+                </span>
               </div>
             );
           })}

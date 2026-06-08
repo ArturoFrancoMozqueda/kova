@@ -623,6 +623,7 @@ export default function DashboardView() {
                         {copy.dashboard.topHoursBadge}
                       </span>
                     </CardTitle>
+                    <p className="text-sm text-muted-foreground">{copy.dashboard.topHoursSubtitle}</p>
                   </CardHeader>
                   <CardContent>
                     {(() => {
@@ -697,32 +698,53 @@ export default function DashboardView() {
                         {copy.dashboard.noPaymentsToday}
                       </p>
                     ) : (
-                      <div className="space-y-4">
-                        {loadState.payments.payments.map((p) => {
-                          const total = loadState.payments.payments.reduce(
-                            (sum, x) => sum + Number(x.amount), 0,
-                          );
-                          const pct = total > 0 ? (Number(p.amount) / total) * 100 : 0;
-                          return (
-                            <div key={p.method}>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-sm font-medium capitalize">
-                                  {p.method.replace("_", " ")}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                  {formatMoney(p.amount)} ({p.payment_count})
-                                </span>
-                              </div>
-                              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-primary transition-all duration-500"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
+                      (() => {
+                        const segColors = [
+                          "bg-kova-ink",
+                          "bg-kova-blue",
+                          "bg-kova-growth",
+                          "bg-warning",
+                          "bg-kova-tertiary",
+                        ];
+                        const total = loadState.payments.payments.reduce(
+                          (sum, x) => sum + Number(x.amount), 0,
+                        );
+                        return (
+                          <div className="space-y-4">
+                            {/* Single stacked bar */}
+                            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                              {loadState.payments.payments.map((p, i) => {
+                                const pct = total > 0 ? (Number(p.amount) / total) * 100 : 0;
+                                return (
+                                  <div
+                                    key={p.method}
+                                    className={`h-full ${segColors[i % segColors.length]} transition-all duration-500`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                );
+                              })}
                             </div>
-                          );
-                        })}
-                      </div>
+                            {/* Legend */}
+                            <div className="space-y-2">
+                              {loadState.payments.payments.map((p, i) => {
+                                const pct = total > 0 ? Math.round((Number(p.amount) / total) * 100) : 0;
+                                return (
+                                  <div key={p.method} className="flex items-center justify-between gap-3 text-sm">
+                                    <span className="flex items-center gap-2 capitalize">
+                                      <span className={`h-2.5 w-2.5 rounded-sm ${segColors[i % segColors.length]}`} />
+                                      {p.method.replace("_", " ")}
+                                    </span>
+                                    <span className="flex items-baseline gap-2 tabular-nums">
+                                      <span className="font-semibold text-kova-ink">{pct}%</span>
+                                      <span className="text-xs text-muted-foreground">{formatMoney(p.amount)}</span>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()
                     )}
                   </CardContent>
                 </Card>

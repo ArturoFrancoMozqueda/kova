@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   TrendingUp,
   Package,
+  Clock,
   ArrowRight,
 } from "lucide-react";
 
@@ -89,31 +90,40 @@ export function InsightStrip({
     salesPct = ((netSales - yNet) / yNet) * 100;
   }
 
-  // One concise, prioritized story line (real data only): lead with the most
-  // useful signal, add at most one supporting/implication clause.
-  let story: string;
+  // One concise, prioritized story line (real data only): a strong lead, plus
+  // an optional grounded restock clause when stock data supports it.
+  const lowItem = [...lowStock].sort((a, b) => a.stock_on_hand - b.stock_on_hand)[0];
+  let lead: string;
   if (orderCount === 0) {
-    story = copy.dashboard.storyBannerEmpty;
+    lead = copy.dashboard.storyBannerEmpty;
   } else if (salesPct !== null && salesPct > 5) {
-    story = bestHour
+    lead = bestHour
       ? copy.dashboard.storyBannerSalesUpHour(pctRound(salesPct), compareLabel, bestHourLabel)
       : copy.dashboard.storyBannerSalesUp(pctRound(salesPct), compareLabel);
   } else if (top && top.quantity_sold > 0) {
-    const isLow = lowStock.some((s) => s.product_id === top.product_id);
-    story = isLow
-      ? copy.dashboard.storyBannerStarLow(top.product_name)
-      : bestHour
-        ? copy.dashboard.storyBannerStarHour(top.product_name, top.quantity_sold, bestHourLabel)
-        : copy.dashboard.storyBannerStar(top.product_name, top.quantity_sold);
+    lead = bestHour
+      ? copy.dashboard.storyBannerStarHour(top.product_name, top.quantity_sold, bestHourLabel)
+      : copy.dashboard.storyBannerStar(top.product_name, top.quantity_sold);
   } else if (salesPct !== null && salesPct < -5) {
-    story = copy.dashboard.storyBannerSalesDown(pctRound(salesPct), compareLabel);
+    lead = copy.dashboard.storyBannerSalesDown(pctRound(salesPct), compareLabel);
   } else if (bestHour) {
-    story = copy.dashboard.storyBannerHour(bestHourLabel);
+    lead = copy.dashboard.storyBannerHour(bestHourLabel);
   } else {
-    story = copy.dashboard.storyHeadlineNoYesterday;
+    lead = copy.dashboard.storyHeadlineNoYesterday;
   }
+  // Grounded restock clause (real remaining units) — only when there are sales
+  // to read and a low-stock item exists; never in the empty state.
+  const restockTail =
+    orderCount > 0 && !suppressLowStock && lowItem
+      ? ` ${copy.dashboard.storyBannerRestockTail(lowItem.product_name, lowItem.stock_on_hand)}`
+      : "";
+  const story = lead + restockTail;
 
-  const emphasisTokens = [top?.product_name ?? "", bestHourLabel];
+  const emphasisTokens = [
+    top?.product_name ?? "",
+    bestHourLabel,
+    lowItem?.product_name ?? "",
+  ];
 
   // Recommended actions (rule-based, prioritized)
   const actions: ActionCard[] = [];
@@ -175,6 +185,18 @@ export function InsightStrip({
       to: "/catalog",
       tone: "info",
       icon: TrendingUp,
+    });
+  }
+
+  if (actions.length < 3 && bestHour && bestHour.order_count >= 3) {
+    actions.push({
+      key: "staff",
+      title: copy.dashboard.actionStaffPeakTitle,
+      desc: copy.dashboard.actionStaffPeakDesc(bestHourLabel),
+      cta: copy.dashboard.actionStaffPeakCta,
+      to: "/reports",
+      tone: "info",
+      icon: Clock,
     });
   }
 
