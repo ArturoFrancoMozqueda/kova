@@ -91,9 +91,12 @@
     100% { box-shadow: 0 0 0 0 rgba(30, 191, 138, 0); }
   }
 
+  .kova-live-pulse-dot {
+    animation: kovaLivePulse 1.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .kova-live-pulse-dot,
-    [style*="kovaLivePulse"] {
+    .kova-live-pulse-dot {
       animation: none !important;
     }
   }

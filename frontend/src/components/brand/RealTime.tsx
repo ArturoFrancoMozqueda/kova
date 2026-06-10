@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 const EASE_OUT = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -39,7 +40,7 @@ export function CountUp({ value, duration = 600, format, className }: CountUpPro
     return () => cancelAnimationFrame(raf);
   }, [value, duration]);
 
-  return <span className={className} style={{ fontVariantNumeric: "tabular-nums" }}>{format(display)}</span>;
+  return <span className={cn("tabular-nums", className)}>{format(display)}</span>;
 }
 
 type LivePulseProps = {
@@ -50,29 +51,12 @@ type LivePulseProps = {
 export function LivePulse({ label, className }: LivePulseProps) {
   return (
     <span
-      className={className}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 11,
-        fontWeight: 500,
-        letterSpacing: "0.14em",
-        textTransform: "uppercase",
-        color: "var(--kova-growth)",
-      }}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-kova-growth",
+        className,
+      )}
     >
-      <span
-        aria-hidden
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: "var(--kova-growth)",
-          boxShadow: "0 0 0 0 var(--kova-growth)",
-          animation: "kovaLivePulse 1.5s cubic-bezier(0.16, 1, 0.3, 1) infinite",
-        }}
-      />
+      <span aria-hidden className="kova-live-pulse-dot h-2 w-2 rounded-full bg-kova-growth" />
       {label}
     </span>
   );
