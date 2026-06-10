@@ -1341,7 +1341,11 @@ function ProductForm({
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
               className="w-32"
+              aria-describedby="prod-threshold-help"
             />
+            <p id="prod-threshold-help" className="text-xs text-muted-foreground">
+              {copy.catalog.lowStockThresholdHint}
+            </p>
           </div>
         )}
       </div>

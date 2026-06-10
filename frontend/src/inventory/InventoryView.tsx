@@ -488,7 +488,19 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="inv-amount">{amountLabel}</Label>
-          <Input id="inv-amount" type="number" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} />
+          <Input
+            id="inv-amount"
+            type="number"
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            aria-describedby={modal.type === "threshold" ? "inv-amount-help" : undefined}
+          />
+          {modal.type === "threshold" && (
+            <p id="inv-amount-help" className="text-xs text-muted-foreground">
+              {copy.inventoryModal.thresholdHint}
+            </p>
+          )}
         </div>
         {modal.type !== "threshold" && (
           <div className="space-y-2">

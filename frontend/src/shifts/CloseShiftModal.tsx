@@ -70,13 +70,18 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                 {formatMoney(openingCash)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {copy.closeShiftModal.expectedCash}
-              </span>
-              <span className="text-sm font-semibold tabular-nums">
-                {formatMoney(expectedCash)}
-              </span>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {copy.closeShiftModal.expectedCash}
+                </span>
+                <span className="text-sm font-semibold tabular-nums">
+                  {formatMoney(expectedCash)}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground/80">
+                {copy.closeShiftModal.expectedCashHint}
+              </p>
             </div>
             {actualCash && (
               <>
@@ -119,6 +124,9 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                       </Badge>
                     </div>
                   </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground/80">
+                    {copy.closeShiftModal.varianceHint}
+                  </p>
                 </div>
               </>
             )}

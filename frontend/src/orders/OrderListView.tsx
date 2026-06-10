@@ -213,10 +213,12 @@ export default function OrderListView() {
       {/* Results */}
       {sortedItems.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Inbox className="h-12 w-12 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">{copy.orderList.empty}</p>
-            {hasActiveFilter && (
+            <p className="text-muted-foreground">
+              {hasActiveFilter ? copy.orderList.emptyFiltered : copy.orderList.empty}
+            </p>
+            {hasActiveFilter ? (
               <button
                 type="button"
                 onClick={clearFilters}
@@ -224,6 +226,15 @@ export default function OrderListView() {
               >
                 {copy.orderList.clearFilters}
               </button>
+            ) : (
+              <>
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                  {copy.orderList.emptyBody}
+                </p>
+                <Link to="/register" className={cn("mt-4", buttonVariants())}>
+                  {copy.orderList.emptyCta}
+                </Link>
+              </>
             )}
           </CardContent>
         </Card>

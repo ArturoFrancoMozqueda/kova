@@ -322,6 +322,11 @@ export default function ShiftView() {
             <h2 className="text-lg font-semibold mb-1">
               {copy.shiftView.noOpenShift}
             </h2>
+            <p className="max-w-md text-sm text-muted-foreground">
+              {canOpen
+                ? copy.shiftView.noOpenShiftBody
+                : copy.shiftView.noOpenShiftAskManager}
+            </p>
             {canOpen && (
               <Button
                 className="mt-4"
