@@ -5,6 +5,11 @@ import {
 import { BILLING_TRIAL_LABEL } from "@/billing/trial";
 
 export const copy = {
+  errors: {
+    network: "Parece que no hay conexión. Revisa tu internet e inténtalo de nuevo.",
+    permission: "Tu cuenta no tiene permiso para esto. Pídeselo a tu gerente o al dueño.",
+    server: "Tuvimos un problema de nuestro lado. Espera unos segundos e inténtalo de nuevo.",
+  },
   landing: {
     nav: {
       howItWorks: "Cómo funciona",
@@ -341,6 +346,10 @@ export const copy = {
     periodLabel: "Periodo",
     onboardingTitle: "Deja tu cafetería lista para vender",
     onboardingSubtitle: "Sigue este camino corto: datos del negocio, recibo, menú, inventario y primera venta.",
+    onboardingDoneTitle: "Tu negocio ya está bajo control",
+    onboardingDoneBody: "Listo: caja, menú, inventario y reportes están conectados. A partir de aquí, Kova te muestra qué pasa en tu negocio en tiempo real.",
+    onboardingDoneCta: "Ver mis reportes",
+    onboardingDoneDismiss: "Entendido",
     onboardingStep1Label: `Activa el ${STANDARD_PLAN.name}`,
     onboardingStep1Desc: `Conserva caja, inventario, reportes y ventas offline por ${STANDARD_PLAN_PRICE_LABEL}.`,
     onboardingStep1Action: "Abrir facturación",
@@ -420,6 +429,13 @@ export const copy = {
         : `Te quedan ${units} de ${name}: buen momento para reabastecer.`,
     healthTitle: "Lectura del periodo",
     healthScoreLabel: "Puntaje",
+    healthHowSummary: "¿Cómo se calcula?",
+    healthHowIntro: "El puntaje combina cuatro señales del periodo. Mientras más alto, mejor va tu negocio:",
+    healthHowSales: "Ventas vs. el periodo anterior — la señal de mayor peso.",
+    healthHowRefunds: "Devoluciones — entre menos, mejor.",
+    healthHowPayments: "Pagos que no son en efectivo — más tarjeta y transferencia suman.",
+    healthHowInventory: "Productos en stock bajo — entre menos, mejor.",
+    healthHowWeight: (pct: number) => `${pct}% del puntaje`,
     healthBandHealthy: "Saludable",
     healthBandWatch: "Atención",
     healthBandCritical: "Crítico",
@@ -1228,6 +1244,9 @@ export const copy = {
     paymentNumber: (n: number) => `Pago ${n}`,
     paymentTotal: "Total pagado",
     remaining: "Resta",
+    splitOver: "Sobra",
+    splitBalanced: "Los pagos cuadran con el total.",
+    splitCashShort: "Revisa el efectivo recibido: un pago no cubre su monto.",
     amountTendered: "Efectivo recibido",
     paymentReference: "Referencia",
     optionalReference: "Referencia opcional",

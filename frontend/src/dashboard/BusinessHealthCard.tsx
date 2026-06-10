@@ -7,6 +7,7 @@ import {
   RotateCcw,
   CreditCard,
   Package,
+  ChevronDown,
 } from "lucide-react";
 
 type Props = {
@@ -293,6 +294,33 @@ export function BusinessHealthCard({
             );
           })}
         </div>
+
+        {!isEmptyBusinessDay && (
+          <details className="group mt-3">
+            <summary className="flex cursor-pointer items-center gap-1 text-xs font-medium text-kova-muted hover:text-kova-ink [&::-webkit-details-marker]:hidden">
+              {copy.dashboard.healthHowSummary}
+              <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="mt-2 space-y-1.5 text-xs leading-relaxed text-kova-muted">
+              <p>{copy.dashboard.healthHowIntro}</p>
+              <ul className="space-y-1">
+                {[
+                  { text: copy.dashboard.healthHowSales, weight: 40 },
+                  { text: copy.dashboard.healthHowRefunds, weight: 25 },
+                  { text: copy.dashboard.healthHowPayments, weight: 20 },
+                  { text: copy.dashboard.healthHowInventory, weight: 15 },
+                ].map((row) => (
+                  <li key={row.weight} className="flex items-start justify-between gap-3">
+                    <span className="min-w-0">{row.text}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-kova-tertiary">
+                      {copy.dashboard.healthHowWeight(row.weight)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
+        )}
       </CardContent>
     </Card>
   );

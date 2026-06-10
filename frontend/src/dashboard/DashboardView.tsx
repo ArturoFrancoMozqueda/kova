@@ -5,6 +5,8 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   DEFAULT_TIMEZONE,
   daysAgoInTimezone,
+  formatDayLong,
+  formatDayWithWeekday,
   todayInTimezone,
   yesterdayInTimezone,
 } from "@/i18n/date";
@@ -23,7 +25,7 @@ import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,8 @@ import {
   Minus,
   CheckCircle2,
   Circle,
+  Sparkles,
+  X,
 } from "lucide-react";
 
 type LoadState =
@@ -129,11 +133,7 @@ function getGreeting(timezone: string = DEFAULT_TIMEZONE): string {
 function periodSubtitle(period: Period, timezone: string = DEFAULT_TIMEZONE): string {
   if (period === "week") return copy.dashboard.subtitleWeek;
   if (period === "month") return copy.dashboard.subtitleMonth;
-  const formatted = new Date(`${todayInTimezone(timezone)}T12:00:00`).toLocaleDateString("es-MX", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const formatted = formatDayLong(todayInTimezone(timezone));
   return copy.dashboard.subtitleToday(formatted);
 }
 
@@ -187,12 +187,14 @@ function OnboardingChecklist({
   trackedInventoryCount,
   hasActiveSubscription,
   onboarding,
+  tenantName,
 }: {
   hasProducts: boolean;
   orderCount: number;
   trackedInventoryCount: number;
   hasActiveSubscription: boolean;
   onboarding: OnboardingState | null;
+  tenantName: string;
 }) {
   const fallbackSteps = [
     {
@@ -251,9 +253,64 @@ function OnboardingChecklist({
     : fallbackSteps;
 
   const allDone = steps.every((s) => s.done);
-  if (allDone) return null;
-
   const doneCount = steps.filter((s) => s.done).length;
+
+  // One-time celebration when the checklist is first completed. The flag is
+  // namespaced per business so a shared browser doesn't suppress it for a
+  // second account. A returning, already-celebrated owner sees nothing.
+  const celebratedKey = `kova-onboarding-celebrated:${tenantName || "default"}`;
+  const [celebrationDismissed, setCelebrationDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(celebratedKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (allDone && !celebrationDismissed) {
+      try {
+        localStorage.setItem(celebratedKey, "1");
+      } catch {
+        // ignore — celebration just shows until reload
+      }
+    }
+  }, [allDone, celebrationDismissed, celebratedKey]);
+
+  if (allDone) {
+    if (celebrationDismissed) return null;
+    return (
+      <Card className="border-kova-growth/30 bg-kova-growth/5 animate-fade-in">
+        <CardContent className="flex items-start gap-4 p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-kova-growth/15 text-kova-growth">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-semibold text-kova-ink">
+              {copy.dashboard.onboardingDoneTitle}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {copy.dashboard.onboardingDoneBody}
+            </p>
+            <Link
+              to="/reports"
+              className={cn("mt-3", buttonVariants({ size: "sm" }))}
+            >
+              {copy.dashboard.onboardingDoneCta}
+            </Link>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCelebrationDismissed(true)}
+            aria-label={copy.dashboard.onboardingDoneDismiss}
+            className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-kova-growth/10 hover:text-kova-ink"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-primary/20 bg-primary/3 animate-fade-in">
@@ -492,6 +549,7 @@ export default function DashboardView() {
             trackedInventoryCount={loadState.trackedInventoryCount}
             hasActiveSubscription={loadState.hasActiveSubscription}
             onboarding={loadState.onboarding}
+            tenantName={tenantName}
           />
 
           {/* KPI Cards */}
@@ -907,11 +965,7 @@ function bestTrialDay(story: BusinessStoryReport | null): string {
   const best = [...(story?.sales_by_day ?? [])].sort((a, b) => Number(b.net_sales) - Number(a.net_sales))[0];
   if (!best || best.order_count === 0) return copy.dashboard.trialRecapNoBestDay;
   return copy.dashboard.trialRecapBestDayValue(
-    new Date(`${best.date}T12:00:00`).toLocaleDateString("es-MX", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    }),
+    formatDayWithWeekday(best.date),
     formatMoney(best.net_sales),
   );
 }

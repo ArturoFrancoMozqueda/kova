@@ -993,19 +993,35 @@ export default function RegisterView() {
                         <span className="text-muted-foreground">{copy.register.paymentTotal}</span>
                         <span className="font-semibold">{formatMoney(centsToMoney(splitPaymentTotalCents))}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{copy.register.remaining}</span>
-                        <span className={cn("font-semibold", splitRemainingCents !== 0 && "text-destructive")}>
-                          {formatMoney(centsToMoney(Math.abs(splitRemainingCents)))}
-                        </span>
-                      </div>
+                      {!splitTotalMatches && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {splitRemainingCents > 0 ? copy.register.remaining : copy.register.splitOver}
+                          </span>
+                          <span className="font-semibold text-destructive">
+                            {formatMoney(centsToMoney(Math.abs(splitRemainingCents)))}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    {!splitTotalMatches && cartItems.length > 0 && (
-                      <p className="flex items-center gap-1.5 text-xs text-destructive">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        {copy.register.splitTotalMismatch}
-                      </p>
-                    )}
+                    {/* Live payment status — tells the cashier why they can or can't charge yet. */}
+                    {cartItems.length > 0 &&
+                      (!splitTotalMatches ? (
+                        <p className="flex items-center gap-1.5 text-xs text-destructive">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          {copy.register.splitTotalMismatch}
+                        </p>
+                      ) : !splitCashIsValid ? (
+                        <p className="flex items-center gap-1.5 text-xs text-destructive">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          {copy.register.splitCashShort}
+                        </p>
+                      ) : splitHasPayment ? (
+                        <p className="flex items-center gap-1.5 text-xs text-kova-growth">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                          {copy.register.splitBalanced}
+                        </p>
+                      ) : null)}
                   </div>
                 ) : (
                   <div className="space-y-3">

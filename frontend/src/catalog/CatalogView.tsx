@@ -41,6 +41,7 @@ import {
 import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { compressImage } from "@/lib/compressImage";
+import { resolveApiErrorMessage } from "@/lib/apiError";
 import { productImageSrc, productImageSrcSet } from "./imageUrl";
 
 import { Button } from "@/components/ui/button";
@@ -156,7 +157,7 @@ export default function CatalogView() {
       });
       return;
     }
-    showNotice(copy.catalog.operationError, "error");
+    showNotice(resolveApiErrorMessage(error, copy.catalog.operationError), "error");
   };
 
   const handleApplyPreset = async (preset: PresetName) => {

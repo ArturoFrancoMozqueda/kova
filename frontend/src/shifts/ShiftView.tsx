@@ -6,6 +6,7 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
+import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   closeShift,
@@ -85,8 +86,8 @@ export default function ShiftView() {
       setActiveModal(null);
       toast(copy.shiftView.openSuccess, "success");
       await load();
-    } catch {
-      toast(copy.shiftView.operationError, "error");
+    } catch (err) {
+      toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
       setOperationPending(false);
     }
@@ -102,8 +103,8 @@ export default function ShiftView() {
       setActiveModal(null);
       toast(copy.shiftView.closeSuccess, "success");
       await load();
-    } catch {
-      toast(copy.shiftView.operationError, "error");
+    } catch (err) {
+      toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
       setOperationPending(false);
     }
@@ -119,8 +120,8 @@ export default function ShiftView() {
       setActiveModal(null);
       toast(copy.shiftView.movementSuccess, "success");
       await load();
-    } catch {
-      toast(copy.shiftView.operationError, "error");
+    } catch (err) {
+      toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
       setOperationPending(false);
     }

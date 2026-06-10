@@ -52,3 +52,57 @@ export function currentMonthStartInTimezone(
 ): string {
   return `${todayInTimezone(timezone, date).slice(0, 8)}01`;
 }
+
+/**
+ * Calendar-day label formatters — the single source of truth for showing a
+ * business day (a date-only `YYYY-MM-DD` string) to the user. Date-only strings
+ * are anchored to UTC so the calendar day never shifts with the viewer's
+ * timezone. Transaction timestamps (which carry a time) live in
+ * `orders/format.ts` and stay numeric on purpose.
+ */
+function dayParts(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00Z`);
+}
+
+/** "jueves, 15 de junio" — friendly prose for greetings and summaries. */
+export function formatDayLong(isoDate: string): string {
+  return new Intl.DateTimeFormat("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(dayParts(isoDate));
+}
+
+/** "15 de junio" — day and month without weekday. */
+export function formatDayMonthLong(isoDate: string): string {
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(dayParts(isoDate));
+}
+
+/** "Jue 15 jun" — compact day label with a capitalized weekday. */
+export function formatDayWithWeekday(isoDate: string): string {
+  const date = dayParts(isoDate);
+  const weekday = new Intl.DateTimeFormat("es-MX", { weekday: "short", timeZone: "UTC" })
+    .format(date)
+    .replace(/\.$/, "");
+  const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+  const dm = new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(date);
+  return `${capitalized} ${dm}`;
+}
+
+/** "15 jun" — shortest day label, for dense chart axes. */
+export function formatDayShort(isoDate: string): string {
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(dayParts(isoDate));
+}

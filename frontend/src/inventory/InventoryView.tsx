@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { resolveApiErrorMessage } from "@/lib/apiError";
 import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search } from "lucide-react";
 
 type LoadState =
@@ -109,8 +110,8 @@ export default function InventoryView() {
       }
       setModal(null);
       await load();
-    } catch {
-      toast(copy.inventoryView.operationError, "error");
+    } catch (err) {
+      toast(resolveApiErrorMessage(err, copy.inventoryView.operationError), "error");
     } finally {
       setPending(false);
     }

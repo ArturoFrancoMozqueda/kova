@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   currentMonthStartInTimezone,
   daysAgoInTimezone,
+  formatDayLong,
+  formatDayMonthLong,
+  formatDayShort,
+  formatDayWithWeekday,
   todayInTimezone,
   yesterdayInTimezone,
 } from "./date";
@@ -28,5 +32,27 @@ describe("timezone date helpers", () => {
     expect(currentMonthStartInTimezone("America/Mexico_City", stillAprilInMexico)).toBe(
       "2026-04-01",
     );
+  });
+});
+
+describe("calendar-day label formatters", () => {
+  // 2026-06-15 is a Monday; UTC anchoring must keep it on the 15th regardless
+  // of the runner's local timezone.
+  const day = "2026-06-15";
+
+  it("formats a long prose date with weekday", () => {
+    expect(formatDayLong(day)).toBe("lunes, 15 de junio");
+  });
+
+  it("formats day and month without weekday", () => {
+    expect(formatDayMonthLong(day)).toBe("15 de junio");
+  });
+
+  it("formats a compact label with a capitalized weekday and no trailing dot", () => {
+    expect(formatDayWithWeekday(day)).toBe("Lun 15 jun");
+  });
+
+  it("formats the shortest day label", () => {
+    expect(formatDayShort(day)).toBe("15 jun");
   });
 });

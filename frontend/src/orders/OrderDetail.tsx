@@ -15,6 +15,7 @@ import { VoidModal } from "./VoidModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { resolveApiErrorMessage } from "@/lib/apiError";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
@@ -74,7 +75,7 @@ export default function OrderDetail() {
       } catch {
         // not JSON — fall through
       }
-      toast(mapped ?? copy.orderDetail.operationError, "error");
+      toast(mapped ?? resolveApiErrorMessage(err, copy.orderDetail.operationError), "error");
     } finally {
       setOperationPending(false);
     }
@@ -88,8 +89,8 @@ export default function OrderDetail() {
       setActiveModal(null);
       toast(copy.orderDetail.voidSuccess, "success");
       await load();
-    } catch {
-      toast(copy.orderDetail.operationError, "error");
+    } catch (err) {
+      toast(resolveApiErrorMessage(err, copy.orderDetail.operationError), "error");
     } finally {
       setOperationPending(false);
     }

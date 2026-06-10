@@ -12,7 +12,13 @@ import {
 } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { daysAgoInTimezone, todayInTimezone } from "@/i18n/date";
+import {
+  daysAgoInTimezone,
+  formatDayMonthLong,
+  formatDayShort,
+  formatDayWithWeekday,
+  todayInTimezone,
+} from "@/i18n/date";
 import { timezoneLabel } from "@/i18n/timezones";
 import { listLowStock, listVelocity } from "../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
@@ -92,35 +98,11 @@ function lastSevenDaysStart(): string {
   return daysAgoInTimezone(undefined, 6);
 }
 
-function dateLabel(value: string): string {
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`));
-}
-
-function dateWithWeekdayLabel(value: string): string {
-  const date = new Date(`${value}T00:00:00Z`);
-  const weekday = new Intl.DateTimeFormat("es-MX", { weekday: "short", timeZone: "UTC" })
-    .format(date)
-    .replace(/\.$/, "");
-  const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
-  const dm = new Intl.DateTimeFormat("es-MX", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(date);
-  return `${capitalized} ${dm}`;
-}
-
-function fullDateLabel(value: string): string {
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`));
-}
+// Day-label formatters are centralized in i18n/date.ts so the dashboard,
+// reports, and any future surface render business days identically.
+const dateLabel = formatDayShort;
+const dateWithWeekdayLabel = formatDayWithWeekday;
+const fullDateLabel = formatDayMonthLong;
 
 function pctLabel(value: number): string {
   return `${value}%`;
@@ -504,15 +486,16 @@ function ownerBriefActions(
   storyActions: SmartAction[],
   advancedActions: SmartAction[],
 ): SmartAction[] {
-  // Dedupe by title only: when the backend story and the local inventory
-  // signals both surface "Reabastece X" for the same product with different
-  // detail strings, we still want a single card. The earlier action wins so
-  // the inventory signal (which has the threshold/velocity context) keeps
-  // priority over the generic backend recommendation.
+  // Dedupe by title + detail: only collapse cards that are truly identical.
+  // Two sources can surface the same title with different context (e.g. the
+  // local inventory signal carries threshold/velocity detail the generic
+  // backend recommendation lacks) — keeping both preserves that context. The
+  // earlier action still wins on exact ties, so the richer inventory signal
+  // keeps priority, and the top-3 cap bounds the list.
   const seen = new Set<string>();
   return [...inventoryActions, ...storyActions, ...advancedActions]
     .filter((action) => {
-      const key = action.title.trim().toLowerCase();
+      const key = `${action.title.trim().toLowerCase()}|${action.detail.trim().toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
