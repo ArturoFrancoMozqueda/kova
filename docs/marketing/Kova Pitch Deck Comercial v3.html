@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kova · Pitch Comercial</title>
+
+<!-- Inter Variable font -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+
+<style>
+/* ─── Kova design tokens (embebidos desde styles.css + brand) ─────────────── */
+:root {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Brand colors */
+  --kova-blue:        #4F7EF7;
+  --kova-blue-light:  #7BA7FF;
+  --kova-ink:         #0F1117;
+  --kova-paper:       #FAFBFD;
+  --kova-mist:        #F5F6FA;
+  --kova-growth:      #1EBF8A;
+  --kova-muted:       #6B7A99;
+  --kova-tertiary:    #8892A4;
+  --kova-border:      #E2E6EF;
+  --kova-danger:      #DC2626;
+  --kova-on-ink:      #F0F4FF;
+  --kova-ink-border:  #1E2330;
+
+  /* Ink surface layers */
+  --ink-surface:   #151B2B;
+  --ink-surface-2: #1E2330;
+  --ink-hairline:  rgba(255,255,255,0.055);
+
+  /* Accent soft */
+  --accent-soft: rgba(79,126,247,0.10);
+
+  /* Radii */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   10px;
+  --radius-xl:   14px;
+  --radius-2xl:  20px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px -1px rgba(15,17,23,0.06), 0 1px 1px rgba(15,17,23,0.04);
+  --shadow-hero: 0 24px 60px -20px rgba(15,17,23,0.28);
+
+  /* Easing */
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Deck layout */
+  --type-eyebrow: 24px;
+  --type-title:   62px;
+  --type-lead:    31px;
+  --type-body:    27px;
+  --type-small:   24px;
+  --type-mega:    104px;
+  --pad-y:        84px;
+  --pad-x:        100px;
+}
+
+/* ─── Reset ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+@keyframes kovaLivePulse {
+  0%   { box-shadow: 0 0 0 0   rgba(30,191,138,0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(30,191,138,0); }
+  100% { box-shadow: 0 0 0 0   rgba(30,191,138,0); }
+}
+
+/* ─── Deck stage ──────────────────────────────────────────────────────────── */
+deck-stage:not(:defined){ visibility:hidden; }
+deck-stage { background: #0a0b0f; }
+
+/* ─── Slide base ──────────────────────────────────────────────────────────── */
+section {
+  font-family: var(--font-sans);
+  background: var(--kova-paper);
+  color: var(--kova-ink);
+  padding: var(--pad-y) var(--pad-x) 100px;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  position: relative;
+}
+section.ink {
+  background: var(--kova-ink);
+  color: var(--kova-on-ink);
+}
+
+/* ─── Type helpers ────────────────────────────────────────────────────────── */
+.eyebrow        { font-size: var(--type-eyebrow); font-weight:500; letter-spacing:0.16em; text-transform:uppercase; color:var(--kova-tertiary); margin:0; }
+.accent-eyebrow { color: var(--kova-blue); }
+.s-title        { font-size: var(--type-title); font-weight:600; letter-spacing:-0.028em; line-height:1.04; margin:0; text-wrap:balance; }
+.s-lead         { font-size: var(--type-lead); line-height:1.45; color:var(--kova-muted); margin:0; font-weight:400; max-width:1180px; text-wrap:pretty; }
+.ink .s-lead    { color: rgba(240,244,255,0.62); }
+.blue           { color: var(--kova-blue); }
+.green          { color: var(--kova-growth); }
+.tabular        { font-variant-numeric: tabular-nums; }
+
+/* ─── Layout helpers ──────────────────────────────────────────────────────── */
+.head    { display:flex; flex-direction:column; gap:20px; }
+.fill    { flex:1; min-height:0; display:flex; }
+.two-col { display:grid; gap:64px; flex:1; min-height:0; }
+
+/* ─── Card ────────────────────────────────────────────────────────────────── */
+.card      { background:#fff; border:0.5px solid var(--kova-border); border-radius:var(--radius-xl); box-shadow:var(--shadow-card); }
+.ink .card { background:var(--ink-surface); border-color:var(--kova-ink-border); box-shadow:none; }
+
+/* ─── Brand corner + page number ──────────────────────────────────────────── */
+.foot-brand              { position:absolute; left:var(--pad-x); bottom:42px; display:flex; align-items:center; gap:12px; color:var(--kova-tertiary); }
+.foot-brand .wm          { font-size:24px; font-weight:500; letter-spacing:-0.02em; color:var(--kova-muted); }
+.ink .foot-brand .wm     { color:rgba(240,244,255,0.5); }
+.pagenum                 { position:absolute; right:var(--pad-x); bottom:42px; font-size:24px; font-variant-numeric:tabular-nums; color:var(--kova-tertiary); letter-spacing:0.04em; }
+.ink .pagenum            { color:rgba(240,244,255,0.4); }
+
+/* ─── Misc components ─────────────────────────────────────────────────────── */
+svg.lucide { width:1em; height:1em; stroke-width:1.6; display:block; }
+
+.live-dot { width:11px; height:11px; border-radius:50%; background:var(--kova-growth); display:inline-block; flex-shrink:0; }
+@media (prefers-reduced-motion:no-preference) { .live-dot { animation: kovaLivePulse 1.5s var(--ease-entrance) infinite; } }
+
+.grid-bg {
+  position:absolute; inset:0; pointer-events:none;
+  background-image: linear-gradient(var(--ink-hairline) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--ink-hairline) 1px, transparent 1px);
+  background-size: 80px 80px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 70% 35%, #000 0%, transparent 75%);
+          mask-image: radial-gradient(ellipse 80% 70% at 70% 35%, #000 0%, transparent 75%);
+  opacity:.6;
+}
+
+.chip {
+  display:inline-flex; align-items:center; gap:10px;
+  padding:11px 18px; border-radius:var(--radius-pill);
+  border:0.5px solid var(--kova-border); background:#fff;
+  font-size:var(--type-small); font-weight:500; color:var(--kova-ink);
+  white-space:nowrap; flex-shrink:0;
+}
+.ink .chip { background:rgba(255,255,255,0.04); border-color:var(--kova-ink-border); color:var(--kova-on-ink); }
+
+.ibadge {
+  display:inline-flex; align-items:center; justify-content:center;
+  flex-shrink:0; border-radius:var(--radius-md);
+}
+
+/* ─── Entrance animation ──────────────────────────────────────────────────── */
+@media (prefers-reduced-motion:no-preference) {
+  section[data-deck-active] .rise { animation: rise .6s var(--ease-entrance) both; }
+}
+@keyframes rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+
+/* ─── Print ───────────────────────────────────────────────────────────────── */
+@page { size: 1920px 1080px; margin:0; }
+@media print {
+  html, body { background:#fff; }
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+    animation-delay:-99s !important; animation-duration:.001s !important;
+    animation-iteration-count:1 !important; animation-fill-mode:both !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SLIDE-SPECIFIC STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── S2 fragment chips ──────────────────────────────────────────────────────── */
+.frag { display:flex; align-items:center; gap:16px; padding:22px 24px; border:0.5px solid var(--kova-border); border-radius:var(--radius-lg); background:#fff; font-size:25px; font-weight:500; box-shadow:var(--shadow-card); }
+.frag .ibadge { width:46px; height:46px; background:var(--kova-mist); color:var(--kova-tertiary); font-size:22px; }
+
+/* ── S3 cost grid ───────────────────────────────────────────────────────────── */
+.cost { padding:32px 34px; display:flex; flex-direction:column; gap:11px; border-right:0.5px solid var(--kova-border); border-bottom:0.5px solid var(--kova-border); }
+.cost:nth-child(3n)   { border-right:none; }
+.cost:nth-child(n+4)  { border-bottom:none; }
+.cost .ibadge  { width:50px; height:50px; background:var(--kova-mist); color:var(--kova-ink); font-size:24px; margin-bottom:2px; }
+.cost h3 { margin:0; font-size:27px; font-weight:600; letter-spacing:-0.015em; }
+.cost p  { margin:0; font-size:24px; line-height:1.4; color:var(--kova-muted); }
+
+/* ── S4 question grid ───────────────────────────────────────────────────────── */
+.feat-chip { display:inline-flex; align-items:center; gap:9px; font-size:22px; font-weight:500; color:var(--kova-muted); background:#fff; border:0.5px solid var(--kova-border); border-radius:999px; padding:10px 18px; }
+.feat-chip svg { width:20px; height:20px; color:var(--kova-blue); }
+.qbig { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.q2 { display:flex; align-items:center; gap:18px; font-size:28px; font-weight:600; letter-spacing:-0.015em; color:var(--kova-ink); background:#fff; border:0.5px solid var(--kova-border); border-radius:var(--radius-xl); padding:26px 26px; box-shadow:var(--shadow-card); }
+.q2 .ibadge { width:54px; height:54px; background:var(--accent-soft); color:var(--kova-blue); font-size:25px; flex-shrink:0; }
+.q2.punch { background:var(--kova-ink); border-color:var(--kova-ink); color:var(--kova-on-ink); }
+.q2.punch .ibadge { background:rgba(79,126,247,0.22); color:var(--kova-blue); }
+
+/* ── S5 dashboard ───────────────────────────────────────────────────────────── */
+.dash         { flex:1; background:#fff; border:0.5px solid var(--kova-border); border-radius:var(--radius-2xl); box-shadow:var(--shadow-hero); display:flex; flex-direction:column; overflow:hidden; }
+.dash-top     { display:flex; align-items:center; justify-content:space-between; padding:22px 36px; border-bottom:0.5px solid var(--kova-border); background:linear-gradient(to bottom,#fff,rgba(245,246,250,0.4)); }
+.dash-body    { flex:1; display:flex; flex-direction:column; gap:22px; padding:26px 32px; }
+.kpi-row      { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+.kpi          { background:linear-gradient(to bottom right,#fff,rgba(245,246,250,0.6)); border:0.5px solid var(--kova-border); border-radius:var(--radius-lg); padding:22px 26px; box-shadow:var(--shadow-card); }
+.kpi-top      { display:flex; align-items:center; justify-content:space-between; font-size:20px; font-weight:500; letter-spacing:0.04em; text-transform:uppercase; color:var(--kova-tertiary); }
+.kpi-top .ibadge { width:42px; height:42px; font-size:21px; }
+.blue-i       { background:var(--accent-soft); color:var(--kova-blue); }
+.green-i      { background:rgba(30,191,138,0.12); color:var(--kova-growth); }
+.kpi-num      { font-size:44px; font-weight:700; letter-spacing:-0.03em; margin:12px 0 8px; font-variant-numeric:tabular-nums; }
+.kpi-delta    { display:inline-flex; align-items:center; gap:6px; font-size:21px; font-weight:600; }
+.kpi-delta.up { color:var(--kova-growth); }
+.kpi-delta svg { width:18px; height:18px; }
+.kpi-sub      { font-size:21px; color:var(--kova-muted); }
+.dash-lower   { flex:1; display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:20px; min-height:0; }
+.panel        { background:#fff; border:0.5px solid var(--kova-border); border-radius:var(--radius-lg); padding:28px 30px; box-shadow:var(--shadow-card); display:flex; flex-direction:column; }
+.panel-label  { font-size:21px; font-weight:600; letter-spacing:0.02em; }
+.pv-bar       { display:flex; height:14px; border-radius:999px; overflow:hidden; margin:24px 0 18px; }
+.pv-bar span  { display:block; height:100%; }
+.pv-legend    { display:flex; flex-direction:column; gap:14px; font-size:23px; color:var(--kova-muted); font-variant-numeric:tabular-nums; margin-top:4px; }
+.pv-legend span { display:inline-flex; align-items:center; gap:12px; }
+.pv-legend b  { color:var(--kova-ink); margin-left:auto; }
+.pv-legend .dot { width:13px; height:13px; border-radius:50%; display:inline-block; }
+.star         { display:flex; align-items:center; gap:18px; margin-top:auto; margin-bottom:auto; }
+.panel.alert  { background:linear-gradient(to bottom right,#fffdf8,#fff7ed); border-color:#FCD9A8; }
+.alert-num    { display:flex; align-items:center; gap:16px; margin:18px 0; }
+.alert-items  { display:flex; flex-direction:column; gap:12px; font-size:22px; color:#92400E; font-weight:500; margin-top:auto; }
+.alert-items span { display:inline-flex; align-items:center; gap:10px; }
+.alert-items svg  { width:20px; height:20px; }
+
+/* ── S6 differentiation ─────────────────────────────────────────────────────── */
+.vs         { padding:38px 36px; display:flex; flex-direction:column; gap:18px; }
+.vs-tag     { font-size:21px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--kova-tertiary); }
+.vs-names   { font-size:30px; font-weight:600; letter-spacing:-0.02em; display:flex; align-items:center; gap:14px; }
+.vs-names .ibadge { width:50px; height:50px; background:var(--ink-surface-2); color:rgba(240,244,255,0.7); font-size:24px; }
+.vs p       { margin:0; font-size:24px; line-height:1.5; color:rgba(240,244,255,0.55); }
+.vs.kova    { background:var(--ink-surface); border:1px solid var(--kova-blue); border-radius:var(--radius-xl); padding:38px 36px; display:flex; flex-direction:column; gap:18px; box-shadow: 0 0 0 4px rgba(79,126,247,0.12); }
+.vs-tag.kova-tag { color:var(--kova-on-ink); font-size:28px; text-transform:none; letter-spacing:-0.02em; font-weight:600; display:flex; align-items:center; }
+.kova-points { display:flex; flex-direction:column; gap:16px; margin-top:4px; }
+.kova-points span { display:flex; align-items:flex-start; gap:13px; font-size:24px; font-weight:500; color:var(--kova-on-ink); line-height:1.35; }
+.kova-points svg  { width:26px; height:26px; color:var(--kova-growth); flex-shrink:0; margin-top:3px; }
+
+/* ── S7 pricing ──────────────────────────────────────────────────────────────── */
+.price-f      { display:flex; align-items:center; gap:12px; font-size:25px; font-weight:500; color:var(--kova-ink); }
+.price-f .ck  { width:30px; height:30px; border-radius:50%; background:rgba(30,191,138,0.14); color:var(--kova-growth); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px; }
+.pay-self     { display:flex; align-items:center; gap:14px; font-size:24px; font-weight:500; background:#fff; border:0.5px solid var(--kova-border); border-radius:var(--radius-lg); padding:20px 22px; box-shadow:var(--shadow-card); }
+.pay-self .ibadge { width:46px; height:46px; background:var(--kova-mist); color:var(--kova-ink); font-size:22px; }
+
+/* ── S8 steps ────────────────────────────────────────────────────────────────── */
+.steps    { display:flex; align-items:stretch; gap:8px; }
+.step     { flex:1; background:#fff; border:0.5px solid var(--kova-border); border-radius:var(--radius-xl); padding:32px 26px 30px; display:flex; flex-direction:column; gap:14px; box-shadow:var(--shadow-card); position:relative; }
+.step .ibadge { width:58px; height:58px; background:var(--kova-mist); color:var(--kova-ink); font-size:28px; }
+.step-n   { position:absolute; top:24px; right:26px; font-size:30px; font-weight:700; color:var(--kova-border); font-variant-numeric:tabular-nums; }
+.step h3  { margin:6px 0 0; font-size:27px; font-weight:600; letter-spacing:-0.02em; }
+.step p   { margin:0; font-size:23px; line-height:1.4; color:var(--kova-muted); }
+.step.accent { background:var(--kova-ink); border-color:var(--kova-ink); }
+.step.accent h3 { color:var(--kova-on-ink); }
+.step.accent p  { color:rgba(240,244,255,0.6); }
+.step.accent .ibadge { background:var(--accent-soft); color:var(--kova-blue); }
+.step.accent .step-n { color:rgba(240,244,255,0.25); }
+.step-line { align-self:center; width:30px; height:0.5px; background:var(--kova-border); flex-shrink:0; }
+
+/* ── S8 trust ─────────────────────────────────────────────────────────────────── */
+.trust-line { display:inline-flex; align-items:center; gap:12px; font-size:23px; font-weight:500; color:var(--kova-ink); background:var(--accent-soft); border-radius:999px; padding:12px 22px; align-self:flex-start; }
+.trust-line svg { width:24px; height:24px; color:var(--kova-blue); flex-shrink:0; }
+
+/* ── S9 CTA cards ─────────────────────────────────────────────────────────────── */
+.cta-card     { display:flex; align-items:center; gap:22px; padding:30px 34px; border-radius:var(--radius-xl); border:0.5px solid var(--kova-border); background:#fff; box-shadow:var(--shadow-card); }
+.cta-card .ibadge { width:62px; height:62px; background:var(--kova-mist); color:var(--kova-ink); font-size:28px; flex-shrink:0; }
+.cta-card h3  { margin:0 0 6px; font-size:30px; font-weight:600; letter-spacing:-0.02em; }
+.cta-card p   { margin:0; font-size:24px; line-height:1.4; color:var(--kova-muted); }
+.cta-card.primary { background:var(--kova-ink); border-color:var(--kova-ink); }
+.cta-card.primary h3 { color:var(--kova-on-ink); }
+.cta-card.primary p  { color:rgba(240,244,255,0.6); }
+.cta-card.primary .ibadge { background:var(--accent-soft); color:var(--kova-blue); }
+
+/* ── Conversion blocks (S9 & S10) ─────────────────────────────────────────────── */
+.convert       { display:flex; align-items:center; gap:24px; }
+.qr-box        { width:132px; height:132px; border-radius:var(--radius-lg); background:var(--kova-mist); border:0.5px solid var(--kova-border); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; flex-shrink:0; color:var(--kova-ink); overflow:hidden; }
+.qr-box svg    { width:100px; height:100px; }
+.qr-box span   { font-size:18px; color:var(--kova-tertiary); font-weight:500; }
+.convert-info  { display:flex; flex-direction:column; gap:12px; }
+.weburl        { display:inline-flex; align-items:center; gap:12px; font-size:34px; font-weight:700; letter-spacing:-0.02em; color:var(--kova-ink); text-decoration:none; }
+.weburl svg    { width:30px; height:30px; color:var(--kova-blue); }
+.wapp          { display:inline-flex; align-items:center; gap:12px; font-size:24px; color:var(--kova-muted); font-weight:500; }
+.wapp svg      { width:24px; height:24px; color:var(--kova-growth); }
+.convert-card  { background:#fff; border-radius:var(--radius-2xl); padding:34px 38px; box-shadow:0 24px 60px rgba(0,0,0,0.42); display:flex; flex-direction:column; gap:22px; }
+.convert-card-row { display:flex; align-items:center; gap:24px; }
+.convert-actions  { display:flex; gap:12px; flex-wrap:wrap; }
+.convert-actions span { display:inline-flex; align-items:center; gap:9px; font-size:21px; font-weight:600; color:var(--kova-ink); background:var(--kova-mist); border:0.5px solid var(--kova-border); border-radius:999px; padding:10px 18px; }
+.convert-actions svg { width:20px; height:20px; color:var(--kova-blue); }
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail">
+  <div style="width:100%;height:100%;background:#0F1117;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 64 64" fill="none" style="width:30%;height:30%;">
+      <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+      <circle cx="32" cy="8" r="6" fill="#F0F4FF"/>
+      <circle cx="52.78" cy="44" r="6" fill="#F0F4FF"/>
+      <circle cx="11.22" cy="44" r="6" fill="#F0F4FF"/>
+      <circle cx="32" cy="32" r="6.4" fill="#4F7EF7"/>
+    </svg>
+  </div>
+</template>
+
+<deck-stage width="1920" height="1080">
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     1 · PORTADA
+     ════════════════════════════════════════════════════════════════════════ -->
+<section class="ink" data-label="Portada">
+  <div class="grid-bg"></div>
+  <div style="position:relative; display:flex; flex-direction:column; height:100%;">
+
+    <!-- Wordmark header -->
+    <div style="display:flex; align-items:center; gap:16px;">
+      <svg viewBox="0 0 64 64" fill="none" style="width:44px;height:44px;" aria-hidden="true">
+        <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+        <circle cx="32" cy="8" r="6" fill="#F0F4FF"/>
+        <circle cx="52.78" cy="44" r="6" fill="#F0F4FF"/>
+        <circle cx="11.22" cy="44" r="6" fill="#F0F4FF"/>
+        <circle cx="32" cy="32" r="6.4" fill="#4F7EF7"/>
+      </svg>
+      <span style="font-size:38px; font-weight:500; letter-spacing:-0.02em;">kova</span>
+    </div>
+
+    <!-- Hero body -->
+    <div class="fill" style="display:grid; grid-template-columns:1.12fr 0.88fr; align-items:center; gap:72px;">
+
+      <!-- Left: copy -->
+      <div style="display:flex; flex-direction:column;">
+        <p class="eyebrow rise" style="margin-bottom:26px; display:flex; align-items:center; gap:14px; text-transform:none; letter-spacing:0.005em; font-size:27px; font-weight:400; color:rgba(240,244,255,0.7);">
+          <span style="display:inline-flex; width:34px; height:1px; background:var(--kova-blue); flex-shrink:0;"></span>
+          Son las 9 de la noche. Bajas la cortina.
+        </p>
+        <h1 class="rise" style="font-size:84px; font-weight:600; letter-spacing:-0.04em; line-height:1.0; margin:0; animation-delay:.06s;">
+          ¿Vendiste bien hoy,<br>o solo lo <span style="color:var(--kova-blue);">sientes</span>?
+        </h1>
+        <p class="s-lead rise" style="margin-top:30px; font-size:32px; max-width:780px; animation-delay:.14s;">
+          Kova convierte cada venta en claridad: caja, inventario, equipo y reportes — en una sola app, en tiempo real.
+        </p>
+        <div class="rise" style="display:flex; align-items:center; gap:14px; margin-top:38px; flex-wrap:wrap; animation-delay:.22s;">
+          <span class="chip"><span class="live-dot"></span>Tu negocio bajo control</span>
+          <span class="chip" style="font-weight:700; font-size:26px; padding:12px 22px;">$299 MXN/mes</span>
+          <span class="chip">Sin comisiones por venta</span>
+        </div>
+      </div>
+
+      <!-- Right: hero logo block (dark, branded) -->
+      <div class="rise" style="animation-delay:.2s; background:var(--ink-surface); border-radius:20px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.5); display:flex; flex-direction:column; align-items:center; justify-content:center; height:600px; position:relative;">
+        <!-- subtle grid -->
+        <div style="position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.04) 1px, transparent 1px); background-size:48px 48px; -webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 50%, #000 0%, transparent 100%); mask-image:radial-gradient(ellipse 80% 80% at 50% 50%, #000 0%, transparent 100%);"></div>
+        <!-- blue glow -->
+        <div style="position:absolute; width:320px; height:320px; background:radial-gradient(circle, rgba(79,126,247,0.28) 0%, transparent 70%); top:50%; left:50%; transform:translate(-50%,-58%);"></div>
+        <!-- isotipo grande -->
+        <svg viewBox="0 0 64 64" fill="none" style="width:130px;height:130px;position:relative;z-index:1;" aria-hidden="true">
+          <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+          <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+          <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+          <circle cx="32" cy="8" r="6" fill="#F0F4FF"/>
+          <circle cx="52.78" cy="44" r="6" fill="#F0F4FF"/>
+          <circle cx="11.22" cy="44" r="6" fill="#F0F4FF"/>
+          <circle cx="32" cy="32" r="6.4" fill="#4F7EF7"/>
+        </svg>
+        <!-- wordmark -->
+        <span style="font-size:58px; font-weight:500; letter-spacing:-0.025em; color:#F0F4FF; margin-top:22px; position:relative;z-index:1;">kova</span>
+        <!-- tagline -->
+        <p style="font-size:20px; color:rgba(240,244,255,0.45); margin:12px 0 0; letter-spacing:0.1em; text-transform:uppercase; font-weight:500; position:relative;z-index:1;">Tu negocio bajo control</p>
+        <!-- feature chips at bottom -->
+        <div style="position:absolute; bottom:28px; display:flex; gap:10px; z-index:1; flex-wrap:wrap; justify-content:center; padding:0 24px;">
+          <span style="background:rgba(255,255,255,0.07); border:0.5px solid rgba(255,255,255,0.12); border-radius:999px; padding:8px 16px; font-size:18px; color:rgba(240,244,255,0.55); font-weight:500;">POS</span>
+          <span style="background:rgba(255,255,255,0.07); border:0.5px solid rgba(255,255,255,0.12); border-radius:999px; padding:8px 16px; font-size:18px; color:rgba(240,244,255,0.55); font-weight:500;">Inventario</span>
+          <span style="background:rgba(255,255,255,0.07); border:0.5px solid rgba(255,255,255,0.12); border-radius:999px; padding:8px 16px; font-size:18px; color:rgba(240,244,255,0.55); font-weight:500;">Caja</span>
+          <span style="background:rgba(255,255,255,0.07); border:0.5px solid rgba(255,255,255,0.12); border-radius:999px; padding:8px 16px; font-size:18px; color:rgba(240,244,255,0.55); font-weight:500;">Reportes</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     2 · EL INSIGHT
+     ════════════════════════════════════════════════════════════════════════ -->
+<section data-label="El insight">
+  <div class="two-col" style="grid-template-columns: 1fr 0.92fr; align-items:center;">
+    <div class="head">
+      <p class="eyebrow accent-eyebrow rise">El final del día</p>
+      <h2 class="s-title rise" style="animation-delay:.05s;">Vendiste todo el día.<br>Pero las respuestas<br>no aparecen.</h2>
+      <p class="s-lead rise" style="margin-top:8px; animation-delay:.1s;">
+        Para saber cómo te fue de verdad tienes que juntar la libreta, el Excel, los mensajes de WhatsApp, los tickets y lo que recuerdas. Cuando por fin cuadras todo, ya es de noche.
+      </p>
+      <p class="rise" style="margin:18px 0 0; font-size:33px; line-height:1.28; font-weight:700; letter-spacing:-0.02em; color:var(--kova-ink); max-width:680px; animation-delay:.15s;">
+        Y aun así, te vas a casa con la duda de si te fue <span class="blue">bien</span>.
+      </p>
+    </div>
+
+    <div class="rise" style="animation-delay:.18s;">
+      <p class="eyebrow" style="margin:0 0 22px; font-size:24px;">Hoy tu negocio vive aquí</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+        <div class="frag"><span class="ibadge"><i data-lucide="notebook-pen"></i></span><span>Libreta</span></div>
+        <div class="frag"><span class="ibadge"><i data-lucide="table-2"></i></span><span>Excel</span></div>
+        <div class="frag"><span class="ibadge"><i data-lucide="message-circle"></i></span><span>WhatsApp</span></div>
+        <div class="frag"><span class="ibadge"><i data-lucide="receipt"></i></span><span>Tickets sueltos</span></div>
+        <div class="frag"><span class="ibadge"><i data-lucide="banknote"></i></span><span>Caja</span></div>
+        <div class="frag"><span class="ibadge"><i data-lucide="brain"></i></span><span>Tu memoria</span></div>
+      </div>
+      <p style="margin:24px 0 0; font-size:24px; color:var(--kova-muted); display:flex; align-items:center; gap:10px;">
+        <span style="color:var(--kova-tertiary); display:inline-flex; font-size:24px;"><i data-lucide="unlink"></i></span>
+        Seis lugares distintos. Ninguna respuesta clara.
+      </p>
+    </div>
+  </div>
+  <div class="foot-brand"><span class="wm">kova</span></div>
+  <div class="pagenum">02 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     3 · EL PROBLEMA
+     ════════════════════════════════════════════════════════════════════════ -->
+<section data-label="El problema">
+  <div class="head" style="gap:18px;">
+    <p class="eyebrow accent-eyebrow rise">Lo que esa duda te cuesta</p>
+    <h2 class="s-title rise" style="animation-delay:.05s;">Cada pregunta sin respuesta<br>es dinero que se escapa.</h2>
+  </div>
+
+  <div class="fill" style="margin-top:44px; gap:46px; align-items:stretch;">
+    <!-- 2×3 problem grid -->
+    <div style="flex:1.55; display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:1fr 1fr; border:0.5px solid var(--kova-border); border-radius:var(--radius-xl); overflow:hidden; background:#fff; box-shadow:var(--shadow-card);">
+      <div class="cost"><span class="ibadge"><i data-lucide="scale"></i></span><h3>Caja que no cuadra</h3><p>Falta o sobra dinero y nadie sabe explicar por qué.</p></div>
+      <div class="cost"><span class="ibadge"><i data-lucide="package-x"></i></span><h3>Agotado en hora pico</h3><p>Se acaba lo que más se mueve — pierdes la venta y al cliente.</p></div>
+      <div class="cost"><span class="ibadge"><i data-lucide="shopping-basket"></i></span><h3>Compras mal planeadas</h3><p>Compras de más o de menos por pura corazonada.</p></div>
+      <div class="cost"><span class="ibadge"><i data-lucide="users"></i></span><h3>Empleados sin control</h3><p>Cobran sin que tengas visibilidad clara de cada turno.</p></div>
+      <div class="cost"><span class="ibadge"><i data-lucide="file-question"></i></span><h3>Reportes que no existen</h3><p>O son tan difíciles de leer que nadie los usa.</p></div>
+      <div class="cost"><span class="ibadge"><i data-lucide="store"></i></span><h3>Atado al local</h3><p>Si no estás presente, sientes que pierdes el control.</p></div>
+    </div>
+
+    <!-- Right: key message -->
+    <div style="flex:1; background:var(--kova-ink); color:var(--kova-on-ink); border-radius:var(--radius-xl); padding:48px 46px; display:flex; flex-direction:column; justify-content:center;">
+      <p class="eyebrow" style="color:var(--kova-tertiary); margin:0 0 22px;">Lo importante</p>
+      <p style="font-size:52px; font-weight:700; letter-spacing:-0.035em; line-height:1.04; margin:0;">
+        No son errores pequeños.<br>Son <span class="blue">fugas de control</span>.
+      </p>
+      <p style="font-size:25px; color:rgba(240,244,255,0.6); line-height:1.5; margin:28px 0 0;">
+        Cada una te cuesta dinero, tiempo y tranquilidad — todos los días.
+      </p>
+      <div style="margin-top:32px; display:flex; align-items:center; gap:14px; padding:20px 24px; background:rgba(79,126,247,0.12); border:0.5px solid rgba(79,126,247,0.25); border-radius:var(--radius-lg);">
+        <span style="font-size:40px; font-weight:700; color:var(--kova-blue); letter-spacing:-0.02em; font-variant-numeric:tabular-nums;">$299</span>
+        <span style="font-size:21px; color:rgba(240,244,255,0.6); line-height:1.35;">/mes es lo que cuesta<br>tener todas las respuestas.</span>
+      </div>
+    </div>
+  </div>
+  <div class="foot-brand"><span class="wm">kova</span></div>
+  <div class="pagenum">03 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     4 · LA SOLUCIÓN
+     ════════════════════════════════════════════════════════════════════════ -->
+<section data-label="La solución">
+  <div class="two-col" style="grid-template-columns: 0.82fr 1.18fr; align-items:center; gap:64px;">
+    <div class="head" style="gap:22px;">
+      <p class="eyebrow accent-eyebrow rise">Conoce Kova</p>
+      <h2 class="s-title rise" style="font-size:52px; animation-delay:.05s;">¿Y si cada venta<br>te respondiera sola?</h2>
+      <p class="s-lead rise" style="margin-top:2px; font-size:27px; animation-delay:.09s;">
+        Kova convierte cada venta en claridad operativa — sin sumar tickets ni cruzar Excel.
+      </p>
+      <div class="rise" style="margin-top:12px; animation-delay:.13s;">
+        <p class="eyebrow" style="font-size:21px; margin:0 0 16px;">Todo en una sola app</p>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; max-width:520px;">
+          <span class="feat-chip"><i data-lucide="shopping-cart"></i>Punto de venta</span>
+          <span class="feat-chip"><i data-lucide="package"></i>Inventario</span>
+          <span class="feat-chip"><i data-lucide="banknote"></i>Caja</span>
+          <span class="feat-chip"><i data-lucide="users"></i>Empleados</span>
+          <span class="feat-chip"><i data-lucide="bar-chart-3"></i>Reportes</span>
+          <span class="feat-chip"><i data-lucide="wifi-off"></i>Offline</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rise" style="animation-delay:.18s;">
+      <p class="eyebrow" style="font-size:22px; margin:0 0 22px; color:var(--kova-tertiary);">Las preguntas que hoy no puedes responder — y Kova sí</p>
+      <div class="qbig">
+        <div class="q2"><span class="ibadge"><i data-lucide="dollar-sign"></i></span>¿Cuánto vendí hoy?</div>
+        <div class="q2"><span class="ibadge"><i data-lucide="star"></i></span>¿Qué se vendió más?</div>
+        <div class="q2"><span class="ibadge"><i data-lucide="package-x"></i></span>¿Qué se está acabando?</div>
+        <div class="q2"><span class="ibadge"><i data-lucide="user-check"></i></span>¿Quién cobró?</div>
+        <div class="q2"><span class="ibadge"><i data-lucide="scale"></i></span>¿La caja cuadró?</div>
+        <div class="q2 punch"><span class="ibadge"><i data-lucide="lightbulb"></i></span>¿Qué decido mañana?</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot-brand"><span class="wm">kova</span></div>
+  <div class="pagenum">04 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     5 · PRODUCTO (dashboard protagonista)
+     ════════════════════════════════════════════════════════════════════════ -->
+<section data-label="Producto">
+  <div class="head" style="gap:14px;">
+    <p class="eyebrow accent-eyebrow rise">El producto</p>
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:40px; flex-wrap:wrap;">
+      <h2 class="s-title rise" style="font-size:46px; animation-delay:.05s;">Así se ve cuando dejas de adivinar.</h2>
+      <span class="rise chip" style="animation-delay:.1s; display:flex; align-items:center; gap:8px;"><span class="live-dot"></span>En vivo</span>
+    </div>
+  </div>
+
+  <div class="fill rise" style="margin-top:24px; animation-delay:.14s;">
+    <div class="dash">
+      <!-- top bar -->
+      <div class="dash-top">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <svg viewBox="0 0 64 64" fill="none" style="width:30px;height:30px;" aria-hidden="true">
+            <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="#0F1117" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="#0F1117" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="#0F1117" stroke-width="3.4" stroke-linecap="round"/>
+            <circle cx="32" cy="8" r="6" fill="#0F1117"/>
+            <circle cx="52.78" cy="44" r="6" fill="#0F1117"/>
+            <circle cx="11.22" cy="44" r="6" fill="#0F1117"/>
+            <circle cx="32" cy="32" r="6.4" fill="#4F7EF7"/>
+          </svg>
+          <div>
+            <div style="font-size:26px; font-weight:700; letter-spacing:-0.02em;">Café Lupita</div>
+            <div style="font-size:19px; color:var(--kova-tertiary);">Esto es lo que está pasando hoy</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; font-size:21px; font-weight:600; color:var(--kova-growth);"><span class="live-dot"></span>En vivo</div>
+      </div>
+
+      <!-- body grid -->
+      <div class="dash-body">
+        <!-- KPI row -->
+        <div class="kpi-row">
+          <div class="kpi">
+            <div class="kpi-top"><span>Ventas netas</span><span class="ibadge blue-i"><i data-lucide="dollar-sign"></i></span></div>
+            <p class="kpi-num">$12,840</p>
+            <span class="kpi-delta up"><i data-lucide="trending-up"></i> +18% vs ayer</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top"><span>Órdenes</span><span class="ibadge green-i"><i data-lucide="shopping-cart"></i></span></div>
+            <p class="kpi-num">147</p>
+            <span class="kpi-sub">Ticket promedio $87.35</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top"><span>Estado de caja</span><span class="ibadge green-i"><i data-lucide="scale"></i></span></div>
+            <p class="kpi-num" style="color:var(--kova-growth);">Cuadrada</p>
+            <span class="kpi-sub">Cierre sin diferencias</span>
+          </div>
+          <div class="kpi">
+            <div class="kpi-top"><span>Hora pico</span><span class="ibadge blue-i"><i data-lucide="clock"></i></span></div>
+            <p class="kpi-num">10–11<span style="font-size:26px; color:var(--kova-tertiary); font-weight:600;"> a.m.</span></p>
+            <span class="kpi-sub">El momento más fuerte</span>
+          </div>
+        </div>
+
+        <!-- lower row -->
+        <div class="dash-lower">
+          <!-- payment methods -->
+          <div class="panel">
+            <span class="panel-label">Cómo te pagaron</span>
+            <div class="pv-bar">
+              <span style="width:52%; background:var(--kova-ink);"></span>
+              <span style="width:31%; background:var(--kova-blue);"></span>
+              <span style="width:17%; background:var(--kova-growth);"></span>
+            </div>
+            <div class="pv-legend">
+              <span><i class="dot" style="background:var(--kova-ink);"></i>Efectivo <b>52%</b></span>
+              <span><i class="dot" style="background:var(--kova-blue);"></i>Tarjeta <b>31%</b></span>
+              <span><i class="dot" style="background:var(--kova-growth);"></i>Transfer. <b>17%</b></span>
+            </div>
+          </div>
+          <!-- producto estrella -->
+          <div class="panel">
+            <span class="panel-label">Producto estrella</span>
+            <div class="star">
+              <span class="ibadge blue-i" style="width:54px;height:54px;font-size:26px;"><i data-lucide="star"></i></span>
+              <div>
+                <div style="font-size:28px; font-weight:700; letter-spacing:-0.02em;">Latte 12 oz</div>
+                <div style="font-size:20px; color:var(--kova-muted);">38 vendidos hoy · el que más se mueve</div>
+              </div>
+            </div>
+          </div>
+          <!-- inventory alert -->
+          <div class="panel alert">
+            <span class="panel-label" style="color:#B45309;">Inventario por agotarse</span>
+            <div class="alert-num">
+              <span style="font-size:54px; font-weight:700; letter-spacing:-0.03em;">3</span>
+              <span style="font-size:21px; color:var(--kova-muted);">productos<br>por agotarse</span>
+            </div>
+            <div class="alert-items">
+              <span><i data-lucide="alert-circle"></i>Leche entera</span>
+              <span><i data-lucide="alert-circle"></i>Vaso 12 oz</span>
+              <span><i data-lucide="alert-circle"></i>Pan dulce</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="pagenum">05 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     6 · DIFERENCIACIÓN
+     ════════════════════════════════════════════════════════════════════════ -->
+<section class="ink" data-label="Diferenciación">
+  <div class="head">
+    <p class="eyebrow rise">La diferencia</p>
+    <h2 class="s-title rise" style="animation-delay:.05s;">Cobrar no es lo mismo<br>que tener control.</h2>
+  </div>
+
+  <div class="fill" style="margin-top:46px; align-items:stretch;">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1.12fr; gap:24px; width:100%; align-self:center; align-items:start;">
+      <div class="vs card rise" style="animation-delay:.1s;">
+        <span class="vs-tag">Soluciones de pago</span>
+        <div class="vs-names"><span class="ibadge"><i data-lucide="credit-card"></i></span>Clip · Mercado Pago</div>
+        <p>Más orientadas al cobro y al ecosistema de pagos. No resuelven la operación del negocio.</p>
+      </div>
+      <div class="vs card rise" style="animation-delay:.16s;">
+        <span class="vs-tag">POS globales</span>
+        <div class="vs-names"><span class="ibadge"><i data-lucide="globe"></i></span>Loyverse · Poster POS</div>
+        <p>Más genérico y global, con menos enfoque en el día a día del pequeño negocio mexicano.</p>
+      </div>
+      <div class="vs kova rise" style="animation-delay:.22s;">
+        <span class="vs-tag kova-tag">
+          <svg viewBox="0 0 64 64" fill="none" style="width:22px;height:22px;display:inline-block;vertical-align:-3px;margin-right:6px;" aria-hidden="true">
+            <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="#F0F4FF" stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="#F0F4FF" stroke-width="4.5" stroke-linecap="round"/>
+            <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="#F0F4FF" stroke-width="4.5" stroke-linecap="round"/>
+            <circle cx="32" cy="32" r="9" fill="#4F7EF7"/>
+          </svg>
+          Kova
+        </span>
+        <div class="vs-names" style="color:var(--kova-on-ink);">Control operativo simple, hecho para México</div>
+        <div class="kova-points">
+          <span><i data-lucide="check"></i>Precio fijo — sin comisión por venta</span>
+          <span><i data-lucide="check"></i>Sin hardware obligatorio</span>
+          <span><i data-lucide="check"></i>Ventas, caja, inventario, equipo y reportes en una app</span>
+          <span><i data-lucide="check"></i>Funciona offline — vendes aunque se vaya el internet</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="rise" style="margin:0; font-size:30px; font-weight:600; letter-spacing:-0.02em; line-height:1.25; max-width:1320px; animation-delay:.28s;">
+    Kova no gana por tener más botones. Gana por darte <span class="blue">claridad operativa sin complicarte</span>.
+  </p>
+  <p style="position:absolute; left:var(--pad-x); bottom:42px; font-size:20px; color:rgba(240,244,255,0.35); max-width:980px; line-height:1.4; margin:0;">
+    Benchmark preliminar con base en información pública disponible; sujeto a validación continua.
+  </p>
+  <div class="pagenum">06 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     7 · PRECIO
+     ════════════════════════════════════════════════════════════════════════ -->
+<section data-label="Precio">
+  <div class="head">
+    <p class="eyebrow accent-eyebrow rise">Precio simple</p>
+    <h2 class="s-title rise" style="animation-delay:.05s;">$299 al mes. Sin comisiones, sin sorpresas.</h2>
+  </div>
+
+  <div class="two-col" style="grid-template-columns: 0.95fr 1.05fr; margin-top:42px; align-items:stretch; gap:56px;">
+    <!-- Price card -->
+    <div class="card rise" style="overflow:hidden; display:flex; flex-direction:column; animation-delay:.12s;">
+      <div style="padding:40px 44px 32px; border-bottom:0.5px solid var(--kova-border); display:flex; align-items:flex-end; justify-content:space-between; gap:20px;">
+        <div>
+          <div style="font-size:26px; font-weight:600;">Plan Kova</div>
+          <div style="font-size:24px; color:var(--kova-muted); margin-top:8px; max-width:340px; line-height:1.4;">Todo tu negocio bajo control, en un solo plan.</div>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:6px;">
+          <span style="font-size:74px; font-weight:700; letter-spacing:-0.04em;" class="tabular">$299</span>
+          <span style="font-size:26px; color:var(--kova-muted);">/mes</span>
+        </div>
+      </div>
+      <div style="padding:34px 44px; display:grid; grid-template-columns:1fr 1fr; gap:20px 28px; flex:1; align-content:center;">
+        <div class="price-f"><span class="ck"><i data-lucide="check"></i></span>7 días gratis</div>
+        <div class="price-f"><span class="ck"><i data-lucide="check"></i></span>Sin tarjeta para empezar</div>
+        <div class="price-f"><span class="ck"><i data-lucide="check"></i></span>Sin comisión por venta</div>
+        <div class="price-f"><span class="ck"><i data-lucide="check"></i></span>Sin cobro por empleado</div>
+        <div class="price-f"><span class="ck"><i data-lucide="check"></i></span>Sin módulos escondidos</div>
+        <div class="price-f"><span class="ck"><i data-lucide="check"></i></span>Cancela cuando quieras</div>
+      </div>
+    </div>
+
+    <!-- Se paga solo -->
+    <div class="rise" style="display:flex; flex-direction:column; justify-content:center; animation-delay:.18s;">
+      <p class="eyebrow" style="margin:0 0 22px; color:var(--kova-tertiary);">Se paga solo — desde el primer mes</p>
+      <p style="font-size:29px; line-height:1.45; color:var(--kova-muted); margin:0 0 28px; max-width:640px;">
+        Si en todo el mes Kova evita un solo problema del mostrador, ya se pagó:
+      </p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:640px;">
+        <div class="pay-self"><span class="ibadge"><i data-lucide="scale"></i></span>Un descuadre de caja</div>
+        <div class="pay-self"><span class="ibadge"><i data-lucide="package-x"></i></span>Una venta perdida</div>
+        <div class="pay-self"><span class="ibadge"><i data-lucide="shopping-basket"></i></span>Una mala compra</div>
+        <div class="pay-self"><span class="ibadge"><i data-lucide="clock"></i></span>Horas haciendo cuentas</div>
+      </div>
+      <p style="margin:30px 0 0; font-size:31px; font-weight:700; letter-spacing:-0.02em; color:var(--kova-ink); max-width:640px; line-height:1.3;">
+        Menos cuentas manuales. Menos descuadres. <span class="blue">Más control — y más tranquilidad.</span>
+      </p>
+    </div>
+  </div>
+  <div class="foot-brand"><span class="wm">kova</span></div>
+  <div class="pagenum">07 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     8 · CÓMO EMPIEZAS
+     ════════════════════════════════════════════════════════════════════════ -->
+<section data-label="Cómo empiezas">
+  <div class="head">
+    <p class="eyebrow accent-eyebrow rise">Cómo empiezas</p>
+    <h2 class="s-title rise" style="animation-delay:.05s;">Del registro al control, el mismo día.</h2>
+  </div>
+
+  <div class="fill" style="flex-direction:column; justify-content:center; margin-top:20px;">
+    <div class="steps rise" style="animation-delay:.12s;">
+      <div class="step">
+        <span class="step-n">1</span>
+        <span class="ibadge"><i data-lucide="package-plus"></i></span>
+        <h3>Cargas tus productos</h3>
+        <p>Tu catálogo listo en minutos, no en días.</p>
+      </div>
+      <span class="step-line"></span>
+      <div class="step">
+        <span class="step-n">2</span>
+        <span class="ibadge"><i data-lucide="shopping-cart"></i></span>
+        <h3>Empiezas a vender</h3>
+        <p>Cobras rápido, con o sin internet.</p>
+      </div>
+      <span class="step-line"></span>
+      <div class="step">
+        <span class="step-n">3</span>
+        <span class="ibadge"><i data-lucide="banknote"></i></span>
+        <h3>Cierras caja</h3>
+        <p>Sabes si el día cuadró, sin sumar tickets.</p>
+      </div>
+      <span class="step-line"></span>
+      <div class="step">
+        <span class="step-n">4</span>
+        <span class="ibadge"><i data-lucide="bar-chart-3"></i></span>
+        <h3>Ves tus reportes</h3>
+        <p>Qué se vendió, a qué hora y cómo pagaron.</p>
+      </div>
+      <span class="step-line"></span>
+      <div class="step accent">
+        <span class="step-n">5</span>
+        <span class="ibadge"><i data-lucide="lightbulb"></i></span>
+        <h3>Decides mejor</h3>
+        <p>Qué comprar, qué promover y cuándo.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="rise" style="margin:0; display:flex; flex-direction:column; gap:16px; animation-delay:.3s;">
+    <span class="trust-line"><i data-lucide="hand-heart"></i>No necesitas ser técnico. Si sabes vender en mostrador, puedes usar Kova.</span>
+    <p style="margin:0; font-size:30px; font-weight:700; letter-spacing:-0.02em;">De registrarte a cobrar tu primera venta — <span class="blue">el mismo día</span>.</p>
+  </div>
+  <div class="foot-brand"><span class="wm">kova</span></div>
+  <div class="pagenum">08 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     9 · CTA
+     ════════════════════════════════════════════════════════════════════════ -->
+<section data-label="Empieza">
+  <div class="two-col" style="grid-template-columns:1fr 0.92fr; align-items:center; gap:72px;">
+    <div class="head" style="gap:24px;">
+      <p class="eyebrow accent-eyebrow rise">Empieza con Kova</p>
+      <h2 class="s-title rise" style="font-size:56px; animation-delay:.05s; line-height:1.02;">Deja de operar a ciegas.<br>Empieza a <span class="blue">dirigir</span> tu negocio.</h2>
+      <p class="s-lead rise" style="margin-top:4px; font-size:28px; animation-delay:.1s;">
+        En 20 minutos revisamos cómo manejas ventas, caja e inventario — y te mostramos exactamente dónde puedes ganar control.
+      </p>
+      <div class="rise convert" style="margin-top:10px; animation-delay:.14s;">
+        <!-- QR generado por JS -->
+        <div class="qr-box" id="qr-slide9"><span style="font-size:16px;color:var(--kova-tertiary);">kovasuite.com</span></div>
+        <div class="convert-info">
+          <a class="weburl" href="https://kovasuite.com"><i data-lucide="globe"></i>kovasuite.com</a>
+          <span class="wapp"><i data-lucide="message-circle"></i>WhatsApp: 4432650199</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rise" style="display:flex; flex-direction:column; gap:20px; animation-delay:.16s;">
+      <div class="cta-card primary">
+        <span class="ibadge"><i data-lucide="calendar-check"></i></span>
+        <div>
+          <h3>Agenda un diagnóstico gratis</h3>
+          <p>20 minutos. Revisamos tu operación y dónde puedes ganar control inmediato.</p>
+        </div>
+      </div>
+      <div class="cta-card">
+        <span class="ibadge"><i data-lucide="rocket"></i></span>
+        <div>
+          <h3>O prueba Kova 7 días gratis</h3>
+          <p>Sin tarjeta. Te acompañamos en la configuración. Cancela cuando quieras.</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; margin-top:6px; color:var(--kova-muted); font-size:23px;">
+        <span style="color:var(--kova-blue); display:inline-flex; font-size:24px;"><i data-lucide="message-circle"></i></span>
+        Te atiende una persona, no un bot — por correo o WhatsApp directo.
+      </div>
+    </div>
+  </div>
+  <div class="foot-brand"><span class="wm">kova</span></div>
+  <div class="pagenum">09 / 10</div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     10 · CIERRE
+     ════════════════════════════════════════════════════════════════════════ -->
+<section class="ink" data-label="Cierre">
+  <div class="grid-bg"></div>
+  <div style="position:relative; display:flex; flex-direction:column; height:100%;">
+
+    <!-- Header wordmark -->
+    <div style="display:flex; align-items:center; gap:16px;">
+      <svg viewBox="0 0 64 64" fill="none" style="width:40px;height:40px;" aria-hidden="true">
+        <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="#F0F4FF" stroke-width="3.4" stroke-linecap="round"/>
+        <circle cx="32" cy="8" r="6" fill="#F0F4FF"/>
+        <circle cx="52.78" cy="44" r="6" fill="#F0F4FF"/>
+        <circle cx="11.22" cy="44" r="6" fill="#F0F4FF"/>
+        <circle cx="32" cy="32" r="6.4" fill="#4F7EF7"/>
+      </svg>
+      <span style="font-size:34px; font-weight:500; letter-spacing:-0.02em;">kova</span>
+    </div>
+
+    <!-- Body -->
+    <div class="fill" style="display:grid; grid-template-columns:1.1fr 0.9fr; align-items:center; gap:72px;">
+      <div>
+        <h2 class="rise" style="font-size:74px; font-weight:700; letter-spacing:-0.038em; line-height:1.0; margin:0;">
+          Los negocios exitosos<br>no adivinan. <span class="blue">Analizan.</span>
+        </h2>
+        <p class="s-lead rise" style="margin-top:30px; font-size:32px; animation-delay:.12s;">
+          Mañana puedes cerrar la cortina sabiendo exactamente cómo te fue. Kova existe para que los negocios pequeños tengan el control que merecen.
+        </p>
+        <div class="rise" style="display:flex; align-items:center; gap:14px; margin-top:36px; animation-delay:.2s; flex-wrap:wrap;">
+          <span class="chip" style="font-size:26px; font-weight:700; padding:12px 24px; background:var(--kova-blue); border-color:var(--kova-blue); color:#fff;">7 días gratis</span>
+          <span class="chip">Sin tarjeta</span>
+          <span class="chip">Sin comisiones</span>
+        </div>
+      </div>
+
+      <!-- Conversion card -->
+      <div class="rise convert-card" style="animation-delay:.18s;">
+        <p class="eyebrow" style="font-size:21px; margin:0; color:var(--kova-tertiary);">Empieza hoy mismo</p>
+        <div class="convert-card-row">
+          <!-- QR generado por JS -->
+          <div class="qr-box" id="qr-slide10"><span style="font-size:16px;color:var(--kova-tertiary);">kovasuite.com</span></div>
+          <div class="convert-info">
+            <a class="weburl" href="https://kovasuite.com"><i data-lucide="globe"></i>kovasuite.com</a>
+            <span class="wapp"><i data-lucide="message-circle"></i>WhatsApp: 4432650199</span>
+          </div>
+        </div>
+        <div class="convert-actions">
+          <span><i data-lucide="calendar-check"></i>Diagnóstico gratis</span>
+          <span><i data-lucide="rocket"></i>Prueba 7 días gratis</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rise" style="display:flex; align-items:center; gap:16px; animation-delay:.22s; flex-wrap:wrap;">
+      <span style="font-size:24px; color:rgba(240,244,255,0.45);">hecho en México 🇲🇽</span>
+    </div>
+  </div>
+  <div class="pagenum">10 / 10</div>
+</section>
+
+</deck-stage>
+
+<!-- ─── Scripts ─────────────────────────────────────────────────────────────── -->
+<script src="deck-stage.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<!-- QR code generator -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+
+<script>
+(function () {
+  // Draw Lucide icons on load and slide changes
+  function drawIcons() {
+    if (window.lucide) window.lucide.createIcons();
+  }
+  drawIcons();
+  document.addEventListener('slidechange', drawIcons);
+  window.addEventListener('load', drawIcons);
+
+  // Generate QR SVG for kovasuite.com and inject into both boxes
+  function injectQR() {
+    if (typeof QRCode === 'undefined') return;
+    const opts = {
+      type: 'svg',
+      width: 110,
+      margin: 1,
+      color: { dark: '#0F1117', light: '#F5F6FA' }
+    };
+    ['qr-slide9', 'qr-slide10'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      QRCode.toString('https://kovasuite.com', opts, function (err, svgStr) {
+        if (err) return;
+        el.innerHTML = svgStr;
+        el.style.padding = '6px';
+        el.style.background = '#F5F6FA';
+      });
+    });
+  }
+
+  // QR lib may load after DOM — wait for it
+  window.addEventListener('load', function () {
+    // small delay ensures CDN script is evaluated
+    setTimeout(injectQR, 200);
+  });
+})();
+</script>
+</body>
+</html>
