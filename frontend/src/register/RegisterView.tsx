@@ -733,7 +733,7 @@ export default function RegisterView() {
                             </span>
                           )}
                           {isLow && (
-                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-warning/15 text-warning">
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-warning/15 text-warning-foreground">
                               {copy.inventoryView.lowBadge}
                             </span>
                           )}

@@ -164,7 +164,7 @@ export default function OrderListView() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="h-8 text-sm"
+              className="h-9 text-sm"
             />
           </div>
           <div className="space-y-1 flex-1 min-w-0">
@@ -173,7 +173,7 @@ export default function OrderListView() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="h-8 text-sm"
+              className="h-9 text-sm"
             />
           </div>
         </div>
@@ -187,7 +187,7 @@ export default function OrderListView() {
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as OrderSort)}
             aria-label={copy.orderList.sortLabel}
-            className="h-8 text-sm"
+            className="h-9 text-sm"
           >
             <option value="created_desc">{copy.orderList.sortNewest}</option>
             <option value="created_asc">{copy.orderList.sortOldest}</option>

@@ -204,7 +204,7 @@ export function BusinessHealthCard({
     band === "healthy"
       ? "text-kova-growth"
       : band === "watch"
-        ? "text-warning"
+        ? "text-warning-foreground"
         : band === "setup"
           ? "text-kova-blue"
         : "text-destructive";

@@ -101,7 +101,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                           "h-4 w-4",
                           variance === 0
                             ? "text-kova-growth"
-                            : "text-warning",
+                            : "text-warning-foreground",
                         )}
                       />
                       {copy.closeShiftModal.variance}
@@ -112,7 +112,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
                           "text-sm font-bold tabular-nums",
                           variance === 0
                             ? "text-kova-growth"
-                            : "text-warning",
+                            : "text-warning-foreground",
                         )}
                       >
                         {formatMoney(variance)}
