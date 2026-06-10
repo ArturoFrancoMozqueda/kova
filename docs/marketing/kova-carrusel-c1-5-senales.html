@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kova · Carrusel — 5 señales de que operas a ciegas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<style>
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  :root{
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --fg: #0F1117;
+    --kova-paper: #F7F8FA;
+    --kova-ink: #0F1117;
+    --kova-on-ink: #F0F4FF;
+    --kova-blue: #4F7EF7;
+    --kova-blue-light: #7BA7FF;
+    --kova-muted: rgba(15,17,23,.5);
+    --kova-tertiary: rgba(15,17,23,.38);
+    --accent-soft: rgba(79,126,247,.1);
+    --tracking-wordmark: -.02em;
+    --ease-entrance: cubic-bezier(0.16,1,0.3,1);
+    --frame-w: 1080px;
+    --frame-h: 1350px;
+    --pad: 92px;
+  }
+  html,body{ height:100%; }
+  body{
+    font-family: var(--font-sans);
+    background: #0a0b0e;
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  /* ---------- Chrome / toolbar ---------- */
+  .toolbar{
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    z-index: 50; display:flex; align-items:center; gap: 6px;
+    background: rgba(20,22,28,.82); backdrop-filter: blur(12px) saturate(140%);
+    border: 0.5px solid rgba(255,255,255,.1); border-radius: 999px;
+    padding: 6px; box-shadow: 0 8px 30px -12px rgba(0,0,0,.6);
+  }
+  .tb-btn{
+    font-family: inherit; font-size: 13px; font-weight: 500; letter-spacing:.01em;
+    color: rgba(255,255,255,.66); background: transparent; border: none;
+    padding: 8px 14px; border-radius: 999px; cursor: pointer; transition: all .18s var(--ease-entrance);
+    display:flex; align-items:center; gap:7px;
+  }
+  .tb-btn:hover{ color:#fff; background: rgba(255,255,255,.07); }
+  .tb-btn.active{ color: var(--kova-ink); background: #fff; }
+  .tb-btn:disabled{ opacity:.4; cursor:default; }
+  .tb-sep{ width:.5px; height:20px; background: rgba(255,255,255,.12); margin:0 2px; }
+  .tb-count{ font-size:13px; font-variant-numeric: tabular-nums; color: rgba(255,255,255,.5); padding: 0 12px; min-width: 62px; text-align:center; }
+
+  /* ---------- Single (swipe) view ---------- */
+  .stage{
+    position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
+  }
+  .scaler{ transform: scale(var(--scale,1)); transition: transform .2s var(--ease-entrance); }
+  .deck{ position: relative; width: var(--frame-w); height: var(--frame-h); }
+
+  .frame{
+    position:absolute; inset:0; width: var(--frame-w); height: var(--frame-h);
+    opacity:0; pointer-events:none; transition: opacity .35s var(--ease-entrance);
+    border-radius: 2px; overflow:hidden;
+  }
+  .frame.active{ opacity:1; pointer-events:auto; }
+
+  /* arrows outside the scaled frame */
+  .nav{
+    position: fixed; top:50%; transform: translateY(-50%); z-index: 40;
+    width: 52px; height: 52px; border-radius:999px; cursor:pointer;
+    background: rgba(20,22,28,.82); backdrop-filter: blur(10px);
+    border: 0.5px solid rgba(255,255,255,.1); color:#fff;
+    display:flex; align-items:center; justify-content:center; transition: all .18s var(--ease-entrance);
+  }
+  .nav:hover{ background: rgba(40,44,54,.92); }
+  .nav:disabled{ opacity:.25; cursor:default; }
+  .nav.prev{ left: 28px; } .nav.next{ right: 28px; }
+  .nav svg{ width:22px; height:22px; }
+
+  /* ---------- The slide design ---------- */
+  .slide{
+    width:100%; height:100%; padding: var(--pad);
+    display:flex; flex-direction:column; position:relative;
+    background: var(--kova-paper); color: var(--kova-ink);
+    overflow:hidden;
+  }
+  .slide.ink{ background: var(--kova-ink); color: var(--kova-on-ink); }
+
+  .grid-motif{
+    position:absolute; inset:0; pointer-events:none;
+    background-image:
+      linear-gradient(to right, rgba(15,17,23,.045) .5px, transparent .5px),
+      linear-gradient(to bottom, rgba(15,17,23,.045) .5px, transparent .5px);
+    background-size: 90px 90px;
+    -webkit-mask-image: radial-gradient(120% 90% at 78% 12%, #000 0%, transparent 62%);
+            mask-image: radial-gradient(120% 90% at 78% 12%, #000 0%, transparent 62%);
+    opacity:.9;
+  }
+  .ink .grid-motif{
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,.05) .5px, transparent .5px),
+      linear-gradient(to bottom, rgba(255,255,255,.05) .5px, transparent .5px);
+  }
+
+  .ghost{
+    position:absolute; top: -54px; right: -8px; z-index:0;
+    font-size: 440px; font-weight: 700; line-height:1;
+    letter-spacing: -.04em; color: var(--kova-blue);
+    opacity:.07; font-variant-numeric: tabular-nums; user-select:none;
+  }
+
+  .brand{ display:flex; align-items:center; gap:11px; position:relative; z-index:2; }
+  .brand .iso{ width:34px; height:34px; }
+  .brand .wm{ font-size:25px; font-weight:600; letter-spacing: var(--tracking-wordmark); }
+  .brand .tag{
+    margin-left:auto; font-size:14px; font-weight:500; letter-spacing:.02em;
+    color: var(--kova-tertiary); display:flex; align-items:center; gap:8px;
+  }
+  .ink .brand .tag{ color: rgba(240,244,255,.5); }
+
+  .body{ flex:1; display:flex; flex-direction:column; justify-content:center; position:relative; z-index:2; }
+  .eyebrow{
+    font-size:22px; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+    color: var(--kova-blue); margin-bottom: 34px;
+  }
+  .hero{
+    font-size: 76px; font-weight:600; letter-spacing:-.03em; line-height:1.04;
+    max-width: 14ch; text-wrap: balance;
+  }
+  .support{
+    font-size: 29px; font-weight:400; line-height:1.5; color: var(--kova-muted);
+    max-width: 24ch; margin-top: 36px;
+  }
+  .ink .support{ color: rgba(240,244,255,.66); }
+  .support em{ font-style: normal; color: var(--kova-ink); font-weight:500; }
+  .ink .support em{ color: var(--kova-on-ink); }
+
+  .cover .hero{ font-size: 88px; letter-spacing:-.035em; line-height:1.0; max-width: 13ch; }
+  .cover .support{ font-size: 31px; margin-top: 40px; }
+  .kicker-pill{
+    display:inline-flex; align-items:center; gap:9px; align-self:flex-start;
+    font-size:15px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--kova-blue); background: var(--accent-soft);
+    border-radius:999px; padding: 10px 18px; margin-bottom: 38px;
+  }
+
+  .foot{ display:flex; align-items:center; justify-content:space-between; position:relative; z-index:2; }
+  .dots{ display:flex; gap:9px; }
+  .dots i{ width:9px; height:9px; border-radius:999px; background: rgba(15,17,23,.16); display:block; transition: all .2s; }
+  .dots i.on{ background: var(--kova-blue); width:26px; }
+  .ink .dots i{ background: rgba(255,255,255,.18); }
+  .ink .dots i.on{ background: var(--kova-blue-light); }
+  .swipe{
+    font-size:18px; font-weight:500; color: var(--kova-tertiary);
+    display:flex; align-items:center; gap:9px;
+  }
+  .swipe svg{ width:20px; height:20px; }
+
+  .cta{
+    display:inline-flex; align-items:center; gap:12px; align-self:flex-start;
+    margin-top: 44px; font-size:25px; font-weight:600; letter-spacing:-.01em;
+    color: var(--kova-blue-light);
+  }
+  .cta .ic{
+    width:48px; height:48px; border-radius:14px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(123,167,255,.14); border:.5px solid rgba(123,167,255,.3);
+  }
+  .cta .ic svg{ width:24px; height:24px; }
+  .close-iso{ width:64px; height:64px; margin-bottom: 40px; }
+  .close-foot{
+    font-size:18px; color: rgba(240,244,255,.5); letter-spacing:.01em;
+    display:flex; align-items:center; gap:10px;
+  }
+
+  /* ---------- Mock app UI widgets ---------- */
+  .mock-widget{
+    margin-top: 44px; max-width: 720px;
+    background: #fff;
+    border: 0.5px solid rgba(15,17,23,.09);
+    border-radius: 20px; overflow: hidden;
+    box-shadow: 0 28px 72px -24px rgba(0,0,0,.2), 0 2px 10px -2px rgba(0,0,0,.06);
+  }
+  .mw-hdr{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 22px;
+    background: #F8F9FB;
+    border-bottom: 0.5px solid rgba(15,17,23,.07);
+  }
+  .mw-hdr-title{ font-size: 13px; font-weight: 600; color: rgba(15,17,23,.6); letter-spacing:-.01em; }
+  .mw-live{
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: #16a34a; background: rgba(22,163,74,.1); border-radius: 999px;
+    padding: 3px 10px; display:flex; align-items:center; gap:5px;
+  }
+  .mw-live::before{
+    content:''; width:6px; height:6px; border-radius:50%; background:#16a34a;
+  }
+  .mw-warn{
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: #ea580c; background: rgba(234,88,12,.1); border-radius: 999px;
+    padding: 3px 10px; display:flex; align-items:center; gap:5px;
+  }
+  .mw-warn::before{
+    content:''; width:6px; height:6px; border-radius:50%; background:#ea580c;
+  }
+  .mw-body{ padding: 20px 22px; }
+
+  /* Stat row */
+  .mw-stats{ display:flex; gap:0; }
+  .mw-stat{
+    flex:1; display:flex; flex-direction:column; gap:2px;
+    padding: 0 18px; border-right: 0.5px solid rgba(15,17,23,.07);
+  }
+  .mw-stat:first-child{ padding-left:0; }
+  .mw-stat:last-child{ border-right:none; }
+  .mw-val{
+    font-size: 26px; font-weight: 700; color: rgba(15,17,23,.9);
+    letter-spacing: -.025em; font-variant-numeric: tabular-nums; display:block;
+  }
+  .mw-key{ font-size: 12px; font-weight: 500; color: rgba(15,17,23,.4); display:block; }
+  .mw-delta{ font-size: 12px; font-weight: 600; display:block; margin-top:3px; }
+  .mw-delta.up{ color:#16a34a; }
+  .mw-delta.dn{ color:#dc2626; }
+
+  /* Alert list */
+  .mw-alert{
+    display:flex; align-items:center; gap:14px;
+    padding: 11px 0; border-bottom: 0.5px solid rgba(15,17,23,.06);
+  }
+  .mw-alert:first-child{ padding-top:0; }
+  .mw-alert:last-child{ border-bottom:none; padding-bottom:0; }
+  .mw-alert-icon{
+    width:36px; height:36px; border-radius:10px; flex:none;
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+  }
+  .mw-alert-icon.warn{ background:rgba(234,88,12,.1); }
+  .mw-alert-icon.ok{ background:rgba(22,163,74,.1); }
+  .mw-alert-name{ flex:1; font-size:13px; font-weight:500; color:rgba(15,17,23,.8); }
+  .mw-alert-sub{ font-size:12px; color:rgba(15,17,23,.4); display:block; margin-top:1px; }
+  .mw-badge{
+    font-size:12px; font-weight:600; border-radius:8px; padding:4px 11px; white-space:nowrap;
+  }
+  .mw-badge.low{ background:rgba(234,88,12,.1); color:#ea580c; }
+  .mw-badge.ok{ background:rgba(22,163,74,.09); color:#16a34a; }
+
+  /* Bar chart */
+  .mw-chart-wrap{ display:flex; flex-direction:column; gap:10px; }
+  .mw-chart{ display:flex; align-items:flex-end; gap:7px; height:64px; }
+  .mw-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .mw-bar-fill{
+    width:100%; border-radius:5px 5px 0 0;
+    background: rgba(79,126,247,.18);
+  }
+  .mw-bar-fill.hi{ background: #4F7EF7; }
+  .mw-bar-lbl{ font-size:11px; font-weight:500; color:rgba(15,17,23,.38); }
+  .mw-chart-leg{
+    display:flex; gap:16px; padding-top:8px;
+    border-top: 0.5px solid rgba(15,17,23,.07); margin-top:4px;
+  }
+  .mw-leg-item{
+    display:flex; align-items:center; gap:6px;
+    font-size:11px; color:rgba(15,17,23,.4); font-weight:500;
+  }
+  .mw-leg-dot{ width:8px; height:8px; border-radius:2px; flex:none; }
+
+  /* Reconciliation */
+  .mw-rec{ display:flex; flex-direction:column; gap:0; }
+  .mw-rec-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 9px 0; border-bottom: 0.5px solid rgba(15,17,23,.06);
+    font-size:13px;
+  }
+  .mw-rec-row:first-child{ padding-top:0; }
+  .mw-rec-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .mw-rec-lbl{ color:rgba(15,17,23,.5); font-weight:400; }
+  .mw-rec-val{ font-weight:600; color:rgba(15,17,23,.85); font-variant-numeric:tabular-nums; }
+  .mw-rec-val.green{ color:#16a34a; }
+  .mw-rec-highlight{
+    display:flex; align-items:center; justify-content:space-between;
+    background: rgba(22,163,74,.06); border-radius:10px; padding:10px 14px; margin-top:6px;
+    font-size:13px;
+  }
+  .mw-rec-highlight .mw-rec-lbl{ color:rgba(15,17,23,.6); font-weight:600; }
+  .mw-rec-highlight .mw-rec-val{ color:#16a34a; font-size:15px; }
+
+  /* Shift report */
+  .mw-shift-head{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .mw-avatar{
+    width:38px; height:38px; border-radius:50%; background:rgba(79,126,247,.12);
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:700; color:#4F7EF7; flex:none;
+    border: 1.5px solid rgba(79,126,247,.2);
+  }
+  .mw-shift-name{ font-size:14px; font-weight:600; color:rgba(15,17,23,.85); display:block; }
+  .mw-shift-time{ font-size:11px; color:rgba(15,17,23,.4); display:block; margin-top:2px; }
+
+  /* ---------- Grid (contact sheet) view ---------- */
+  body.grid-mode .stage, body.grid-mode .nav{ display:none; }
+  .sheet{ display:none; }
+  body.grid-mode .sheet{
+    display:grid; position:fixed; inset:0; overflow:auto;
+    grid-template-columns: repeat(4, 1fr); gap: 26px;
+    padding: 112px 40px 60px;
+    align-content:start;
+  }
+  .sheet .cell{ position:relative; }
+  .sheet .cell .mini{
+    width:100%; aspect-ratio: 1080/1350; position:relative; overflow:hidden;
+    border-radius:6px; box-shadow: 0 10px 30px -14px rgba(0,0,0,.6);
+    border:.5px solid rgba(255,255,255,.08);
+  }
+  .sheet .cell .mini .frame{
+    position:absolute; top:0; left:0; width:1080px; height:1350px; opacity:1; pointer-events:none;
+    transform: scale(calc(var(--mini-w,245) / 1080)); transform-origin: top left;
+  }
+  .sheet .cell .lbl{
+    margin-top:11px; font-size:12px; color: rgba(255,255,255,.42);
+    font-variant-numeric: tabular-nums; letter-spacing:.04em; display:flex; gap:9px;
+  }
+  .sheet .cell .lbl b{ color: rgba(255,255,255,.74); font-weight:600; }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+
+  /* ---------- Export mode ---------- */
+  body.export-mode{ background:#fff; overflow:hidden; }
+  body.export-mode .toolbar, body.export-mode .nav{ display:none !important; }
+  body.export-mode .stage{ align-items:flex-start; justify-content:flex-start; }
+  body.export-mode .scaler{ transform:none !important; }
+  body.export-mode .frame{ transition:none !important; }
+
+  /* ---------- Export progress overlay ---------- */
+  .export-overlay{
+    display:none; position:fixed; inset:0; z-index:200;
+    background: rgba(10,11,14,.88); backdrop-filter: blur(16px);
+    flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  }
+  .export-overlay.visible{ display:flex; }
+  .exp-title{ font-family:var(--font-sans); font-size:20px; font-weight:600; color:#fff; }
+  .exp-bar-track{
+    width:320px; height:4px; background:rgba(255,255,255,.12); border-radius:999px; overflow:hidden;
+  }
+  .exp-bar-fill{ height:100%; background:#4F7EF7; border-radius:999px; width:0%; transition: width .3s; }
+  .exp-sub{ font-family:var(--font-sans); font-size:13px; color:rgba(255,255,255,.5); }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="tb-btn active" id="btnSwipe">Carrusel</button>
+  <button class="tb-btn" id="btnGrid">Cuadrícula</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btnExport">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Exportar PNGs
+  </button>
+  <div class="tb-sep"></div>
+  <div class="tb-count" id="count">01 / 07</div>
+</div>
+
+<div class="stage">
+  <div class="scaler"><div class="deck" id="deck"></div></div>
+</div>
+
+<button class="nav prev" id="prev" aria-label="Anterior">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+</button>
+<button class="nav next" id="next" aria-label="Siguiente">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+</button>
+
+<div class="sheet" id="sheet"></div>
+
+<div class="export-overlay" id="exportOverlay">
+  <div class="exp-title" id="expTitle">Exportando diapositiva 1 de 7…</div>
+  <div class="exp-bar-track"><div class="exp-bar-fill" id="expBar"></div></div>
+  <div class="exp-sub" id="expSub">Los archivos se guardan en tu carpeta de descargas</div>
+</div>
+
+<script>
+const ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
+const ISO = (cls) => `<svg class="${cls}" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+  <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="8" r="6" fill="currentColor"/>
+  <circle cx="52.78" cy="44" r="6" fill="currentColor"/>
+  <circle cx="11.22" cy="44" r="6" fill="currentColor"/>
+  <circle cx="32" cy="32" r="6" fill="#4F7EF7"/>
+</svg>`;
+
+function dots(active) {
+  let s = '<div class="dots">';
+  for (let i = 0; i < 7; i++) s += `<i class="${i === active ? 'on' : ''}"></i>`;
+  return s + '</div>';
+}
+
+/* ---------- Mock app UI widgets ---------- */
+
+const WIDGET_01 = `
+<div class="mock-widget">
+  <div class="mw-hdr">
+    <span class="mw-hdr-title">Ventas · hoy, 12 jun</span>
+    <span class="mw-live">En vivo</span>
+  </div>
+  <div class="mw-body">
+    <div class="mw-stats">
+      <div class="mw-stat">
+        <span class="mw-val">247</span>
+        <span class="mw-key">Tickets</span>
+        <span class="mw-delta up">↑ 12% vs ayer</span>
+      </div>
+      <div class="mw-stat">
+        <span class="mw-val">$18,430</span>
+        <span class="mw-key">Venta neta</span>
+        <span class="mw-delta up">↑ 8% vs ayer</span>
+      </div>
+      <div class="mw-stat">
+        <span class="mw-val">$74.60</span>
+        <span class="mw-key">Ticket promedio</span>
+        <span class="mw-delta up">↑ 3% vs ayer</span>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+const WIDGET_02 = `
+<div class="mock-widget">
+  <div class="mw-hdr">
+    <span class="mw-hdr-title">Corte de caja · turno vespertino</span>
+    <span class="mw-live">Cuadrado</span>
+  </div>
+  <div class="mw-body">
+    <div class="mw-rec">
+      <div class="mw-rec-row">
+        <span class="mw-rec-lbl">Efectivo esperado</span>
+        <span class="mw-rec-val">$12,500.00</span>
+      </div>
+      <div class="mw-rec-row">
+        <span class="mw-rec-lbl">Efectivo contado</span>
+        <span class="mw-rec-val">$12,500.00</span>
+      </div>
+      <div class="mw-rec-row">
+        <span class="mw-rec-lbl">Tarjeta</span>
+        <span class="mw-rec-val">$5,930.00</span>
+      </div>
+    </div>
+    <div class="mw-rec-highlight">
+      <span class="mw-rec-lbl">Diferencia</span>
+      <span class="mw-rec-val green">$0.00 ✓</span>
+    </div>
+  </div>
+</div>`;
+
+const WIDGET_03 = `
+<div class="mock-widget">
+  <div class="mw-hdr">
+    <span class="mw-hdr-title">Alertas de inventario</span>
+    <span class="mw-warn">2 productos bajos</span>
+  </div>
+  <div class="mw-body">
+    <div class="mw-alert">
+      <div class="mw-alert-icon warn">⚠</div>
+      <div style="flex:1">
+        <span class="mw-alert-name">Bistec para tacos</span>
+        <span class="mw-alert-sub">Actualizado hace 14 min</span>
+      </div>
+      <span class="mw-badge low">2 kg restantes</span>
+    </div>
+    <div class="mw-alert">
+      <div class="mw-alert-icon warn">⚠</div>
+      <div style="flex:1">
+        <span class="mw-alert-name">Agua mineral 600 ml</span>
+        <span class="mw-alert-sub">Actualizado hace 1 h</span>
+      </div>
+      <span class="mw-badge low">8 pzas restantes</span>
+    </div>
+    <div class="mw-alert">
+      <div class="mw-alert-icon ok">✓</div>
+      <div style="flex:1">
+        <span class="mw-alert-name">Refresco 355 ml</span>
+        <span class="mw-alert-sub">Actualizado hace 2 h</span>
+      </div>
+      <span class="mw-badge ok">Stock suficiente</span>
+    </div>
+  </div>
+</div>`;
+
+const WIDGET_04 = `
+<div class="mock-widget">
+  <div class="mw-hdr">
+    <span class="mw-hdr-title">Ventas por día · últimas 2 semanas</span>
+  </div>
+  <div class="mw-body">
+    <div class="mw-chart-wrap">
+      <div class="mw-chart">
+        <div class="mw-bar-col"><div class="mw-bar-fill" style="height:44%"></div><span class="mw-bar-lbl">L</span></div>
+        <div class="mw-bar-col"><div class="mw-bar-fill hi" style="height:100%"></div><span class="mw-bar-lbl">Ma</span></div>
+        <div class="mw-bar-col"><div class="mw-bar-fill" style="height:62%"></div><span class="mw-bar-lbl">Mi</span></div>
+        <div class="mw-bar-col"><div class="mw-bar-fill" style="height:54%"></div><span class="mw-bar-lbl">J</span></div>
+        <div class="mw-bar-col"><div class="mw-bar-fill hi" style="height:88%"></div><span class="mw-bar-lbl">V</span></div>
+        <div class="mw-bar-col"><div class="mw-bar-fill hi" style="height:96%"></div><span class="mw-bar-lbl">S</span></div>
+        <div class="mw-bar-col"><div class="mw-bar-fill" style="height:38%"></div><span class="mw-bar-lbl">D</span></div>
+      </div>
+      <div class="mw-chart-leg">
+        <div class="mw-leg-item"><div class="mw-leg-dot" style="background:#4F7EF7"></div>Días fuertes: Ma, V, S</div>
+        <div class="mw-leg-item"><div class="mw-leg-dot" style="background:rgba(79,126,247,.18)"></div>Lunes y domingos, más flojos</div>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+const WIDGET_05 = `
+<div class="mock-widget">
+  <div class="mw-hdr">
+    <span class="mw-hdr-title">Cierre de turno</span>
+    <span class="mw-live">Cuadrado</span>
+  </div>
+  <div class="mw-body">
+    <div class="mw-shift-head">
+      <div class="mw-avatar">MG</div>
+      <div>
+        <span class="mw-shift-name">María García</span>
+        <span class="mw-shift-time">Turno matutino · 9:00 – 17:00 · hoy</span>
+      </div>
+    </div>
+    <div class="mw-stats">
+      <div class="mw-stat">
+        <span class="mw-val">$8,240</span>
+        <span class="mw-key">Ventas totales</span>
+      </div>
+      <div class="mw-stat">
+        <span class="mw-val">94</span>
+        <span class="mw-key">Tickets cobrados</span>
+      </div>
+      <div class="mw-stat">
+        <span class="mw-val" style="color:#16a34a">✓ $0</span>
+        <span class="mw-key">Diferencia caja</span>
+      </div>
+    </div>
+  </div>
+</div>`;
+
+/* ---------- Slide definitions ---------- */
+const slides = [
+  // 0 – Cover
+  { ink: false, ghost: '', html: `
+    <div class="grid-motif"></div>
+    <div class="brand">${ISO('iso')}<span class="wm">kova</span><span class="tag">Autodiagnóstico · 2 min</span></div>
+    <div class="body cover">
+      <span class="kicker-pill">5 señales</span>
+      <div class="hero">5 señales de que operas tu negocio a&nbsp;ciegas.</div>
+      <div class="support">Si haces 3 de estas 5, ni cuenta te das. <em>Sé honesto.</em></div>
+    </div>
+    <div class="foot">${dots(0)}<span class="swipe">Desliza ${ARROW}</span></div>` },
+
+  // 1–5 – Señales
+  { ink: false, ghost: '01', html: signal(1, '01',
+    'Cuentas los tickets para saber cómo te&nbsp;fue.',
+    'Si tienes que sumarlos a mano, no tienes el número. Lo estás <em>adivinando</em>.',
+    WIDGET_01) },
+
+  { ink: false, ghost: '02', html: signal(2, '02',
+    'La caja no cuadra… y nadie sabe por&nbsp;qué.',
+    'Faltan $200 y la única explicación es un encogimiento de hombros.',
+    WIDGET_02) },
+
+  { ink: false, ghost: '03', html: signal(3, '03',
+    'Se acaba tu producto estrella sin&nbsp;avisar.',
+    'Te enteras cuando un cliente lo pide… y ya no hay.',
+    WIDGET_03) },
+
+  { ink: false, ghost: '04', html: signal(4, '04',
+    'Decides tus promociones por&nbsp;corazonada.',
+    '«Se me hace que el martes está flojo» no es un dato. Es una <em>sensación</em>.',
+    WIDGET_04) },
+
+  { ink: false, ghost: '05', html: signal(5, '05',
+    'No sabes cómo cerró el turno quien&nbsp;cobró.',
+    'Confías en que todo cuadró. <em>Confiar no es controlar.</em>',
+    WIDGET_05) },
+
+  // 6 – Close
+  { ink: true, ghost: '', html: `
+    <div class="grid-motif"></div>
+    <div class="brand">${ISO('iso')}<span class="wm">kova</span></div>
+    <div class="body">
+      ${ISO('close-iso')}
+      <div class="hero">Operar a ciegas no es vender poco. Es no saber qué&nbsp;pasó.</div>
+      <div class="cta">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span>
+        Guárdalo y revísalo cuando cierres hoy.
+      </div>
+    </div>
+    <div class="foot"><span class="close-foot">kova — sabe exactamente qué pasa en tu negocio.</span><span class="close-foot">Hecho en México 🇲🇽</span></div>` },
+];
+
+function signal(idx, num, hero, support, widget = '') {
+  return `
+    <div class="ghost">${num}</div>
+    <div class="brand">${ISO('iso')}<span class="wm">kova</span><span class="tag">Señal ${num} de 05</span></div>
+    <div class="body">
+      <div class="eyebrow">Señal ${num}</div>
+      <div class="hero">${hero}</div>
+      <div class="support">${support}</div>
+      ${widget}
+    </div>
+    <div class="foot">${dots(idx)}<span class="swipe">Desliza ${ARROW}</span></div>`;
+}
+
+/* ---------- Build frames ---------- */
+const deck = document.getElementById('deck');
+slides.forEach((s, i) => {
+  const f = document.createElement('div');
+  f.className = 'frame' + (i === 0 ? ' active' : '');
+  f.innerHTML = `<div class="slide${s.ink ? ' ink' : ''}">${s.html}</div>`;
+  deck.appendChild(f);
+});
+const frames = [...deck.querySelectorAll('.frame')];
+
+/* ---------- Nav ---------- */
+let cur = parseInt(localStorage.getItem('kova_c1_pos') || '0', 10) || 0;
+if (cur < 0 || cur >= frames.length) cur = 0;
+
+function render() {
+  frames.forEach((f, i) => f.classList.toggle('active', i === cur));
+  document.getElementById('count').textContent = String(cur + 1).padStart(2, '0') + ' / 07';
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').disabled = cur === frames.length - 1;
+  localStorage.setItem('kova_c1_pos', cur);
+}
+function go(d) { cur = Math.max(0, Math.min(frames.length - 1, cur + d)); render(); }
+document.getElementById('prev').onclick = () => go(-1);
+document.getElementById('next').onclick = () => go(1);
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') go(1);
+  if (e.key === 'ArrowLeft') go(-1);
+});
+
+/* ---------- Scaling ---------- */
+function fit() {
+  const vw = innerWidth || document.documentElement.clientWidth;
+  const vh = innerHeight || document.documentElement.clientHeight;
+  const sx = (vw - 120) / 1080;
+  const sy = (vh - 130) / 1350;
+  const s = Math.min(sx, sy, 1);
+  if (!isFinite(s) || s <= 0) return;
+  document.querySelector('.scaler').style.setProperty('--scale', s.toFixed(4));
+}
+addEventListener('resize', fit);
+addEventListener('load', fit);
+requestAnimationFrame(() => { fit(); requestAnimationFrame(fit); });
+fit();
+
+/* ---------- Grid / contact sheet ---------- */
+const sheet = document.getElementById('sheet');
+const labels = ['Portada', 'Señal 01', 'Señal 02', 'Señal 03', 'Señal 04', 'Señal 05', 'Cierre'];
+
+function buildSheet() {
+  sheet.innerHTML = '';
+  slides.forEach((s, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = `<div class="mini"><div class="frame active"><div class="slide${s.ink ? ' ink' : ''}">${s.html}</div></div></div>
+      <div class="lbl"><b>${String(i + 1).padStart(2, '0')}</b> ${labels[i]}</div>`;
+    cell.querySelector('.mini').onclick = () => { cur = i; setMode('swipe'); render(); };
+    sheet.appendChild(cell);
+  });
+  requestAnimationFrame(() => {
+    sheet.querySelectorAll('.mini').forEach(m => {
+      m.style.setProperty('--mini-w', m.clientWidth);
+    });
+  });
+}
+
+function setMode(mode) {
+  document.body.classList.toggle('grid-mode', mode === 'grid');
+  document.getElementById('btnGrid').classList.toggle('active', mode === 'grid');
+  document.getElementById('btnSwipe').classList.toggle('active', mode === 'swipe');
+  if (mode === 'grid') buildSheet();
+}
+document.getElementById('btnGrid').onclick = () => setMode('grid');
+document.getElementById('btnSwipe').onclick = () => setMode('swipe');
+addEventListener('resize', () => { if (document.body.classList.contains('grid-mode')) buildSheet(); });
+
+render();
+
+/* ---------- PNG Export ---------- */
+const overlay   = document.getElementById('exportOverlay');
+const expTitle  = document.getElementById('expTitle');
+const expBar    = document.getElementById('expBar');
+const expSub    = document.getElementById('expSub');
+
+document.getElementById('btnExport').onclick = exportAllPNGs;
+
+async function exportAllPNGs() {
+  if (!window.html2canvas) {
+    alert('html2canvas no cargó. Revisa tu conexión a internet e intenta de nuevo.');
+    return;
+  }
+
+  const btn = document.getElementById('btnExport');
+  btn.disabled = true;
+
+  // Hide UI chrome
+  document.querySelector('.toolbar').style.visibility = 'hidden';
+  document.querySelectorAll('.nav').forEach(n => n.style.visibility = 'hidden');
+  overlay.classList.add('visible');
+
+  const savedCur = cur;
+
+  for (let i = 0; i < frames.length; i++) {
+    expTitle.textContent = `Exportando ${labels[i]} (${i + 1} de ${frames.length})…`;
+    expBar.style.width = `${((i) / frames.length) * 100}%`;
+
+    // Show only this slide, no viewport transform
+    frames.forEach((f, j) => f.classList.toggle('active', j === i));
+    document.querySelector('.scaler').style.transform = 'none';
+    document.body.classList.remove('grid-mode');
+
+    // Give browser a tick to paint
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    try {
+      const canvas = await html2canvas(frames[i].querySelector('.slide'), {
+        width: 1080,
+        height: 1350,
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: null,
+      });
+
+      const link = document.createElement('a');
+      link.download = `kova-c1-${String(i + 1).padStart(2, '0')}-${labels[i].toLowerCase().replace(/\s/g, '-')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
+      // Small delay so browsers don't block multiple downloads
+      await new Promise(r => setTimeout(r, 600));
+    } catch (err) {
+      console.error(`Error exportando slide ${i + 1}:`, err);
+    }
+  }
+
+  expBar.style.width = '100%';
+  expTitle.textContent = '¡Listo! 7 imágenes descargadas.';
+  expSub.textContent   = 'Revisa tu carpeta de descargas.';
+
+  await new Promise(r => setTimeout(r, 1800));
+
+  // Restore
+  overlay.classList.remove('visible');
+  document.querySelector('.toolbar').style.visibility = '';
+  document.querySelectorAll('.nav').forEach(n => n.style.visibility = '');
+  cur = savedCur;
+  render();
+  fit();
+  btn.disabled = false;
+  expSub.textContent = 'Los archivos se guardan en tu carpeta de descargas';
+}
+
+/* ---------- Export helpers for external capture tools ---------- */
+window.showOnly = (i) => {
+  document.body.classList.remove('grid-mode');
+  document.body.classList.add('export-mode');
+  cur = i; render();
+};
+window.exitExport = () => {
+  document.body.classList.remove('export-mode');
+  render(); fit();
+};
+</script>
+</body>
+</html>
