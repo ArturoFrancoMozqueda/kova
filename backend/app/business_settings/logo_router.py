@@ -191,5 +191,14 @@ def get_receipt_logo(tenant_id: UUID, db: Session = Depends(get_db)):
     return Response(
         content=logo.bytes_data,
         media_type=logo.content_type,
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            # Logos may be SVG. Served from the API origin and reachable
+            # unauthenticated, a malicious SVG opened directly could run script
+            # (stored XSS). `sandbox` forces a unique origin with scripts
+            # disabled; nosniff stops content-type confusion. Inline <img> use
+            # on receipts is unaffected (images never execute SVG script).
+            "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+        },
     )

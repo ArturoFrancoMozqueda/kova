@@ -35,10 +35,22 @@ def _is_stripe_test_key(value: str | None) -> bool:
     return bool(value and value.startswith(("sk_test_", "rk_test_")))
 
 
+def _is_stripe_live_key(value: str | None) -> bool:
+    return bool(value and value.startswith(("sk_live_", "rk_live_")))
+
+
 def _validate_config() -> None:
     if settings.app_env != "local" and settings.secret_key == _DEFAULT_SECRET_KEY:
         raise RuntimeError(
             "SECRET_KEY must be changed from the default value in non-local environments"
+        )
+    # Dev conveniences gated on app_env == "local" (verification/reset tokens
+    # returned in responses, /docs open). If live Stripe keys are present the
+    # environment is clearly production-grade — refuse to boot in local mode so
+    # a misconfigured APP_ENV can never leak account tokens.
+    if settings.app_env == "local" and _is_stripe_live_key(settings.stripe_secret_key):
+        raise RuntimeError(
+            "APP_ENV=local with live Stripe keys is not allowed — set APP_ENV correctly"
         )
     if (
         settings.app_env == "production"
