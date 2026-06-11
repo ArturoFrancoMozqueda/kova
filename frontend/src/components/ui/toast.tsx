@@ -74,7 +74,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      <div
+        className="fixed z-[100] flex flex-col gap-2 pointer-events-none"
+        style={{
+          // Respect notch/safe areas so toasts don't tuck under the status bar
+          // or rounded corners on mobile.
+          top: "max(1rem, env(safe-area-inset-top))",
+          right: "max(1rem, env(safe-area-inset-right))",
+        }}
+      >
         {toasts.map((t) => (
           <div
             key={t.id}

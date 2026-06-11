@@ -8,7 +8,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <select
         className={cn(
-          "flex h-11 w-full rounded-kova-md border-[0.5px] border-kova-border bg-transparent px-3 py-1 text-sm text-kova-ink shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-11 w-full rounded-kova-md border-[0.5px] border-kova-border bg-transparent px-3 py-1 text-sm text-kova-ink shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
         ref={ref}
