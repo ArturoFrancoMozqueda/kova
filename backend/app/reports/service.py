@@ -12,6 +12,10 @@ from app.pricing import calculator
 from app.reports import repository
 from app.shared.exceptions import bad_request
 
+# Cap report ranges so a huge custom range can't load a year of orders into
+# memory. 92 days covers a full quarter, the largest sensible SMB window.
+MAX_REPORT_RANGE_DAYS = 92
+
 DAYPARTS = (
     {"key": "madrugada", "label": "Madrugada", "start_hour": 0, "end_hour": 5},
     {"key": "manana", "label": "Mañana", "start_hour": 6, "end_hour": 11},
@@ -41,6 +45,11 @@ def _normalize_range(
     assert end_date is not None
     if end_date < start_date:
         raise bad_request("End date must be on or after start date")
+    if (end_date - start_date).days + 1 > MAX_REPORT_RANGE_DAYS:
+        raise bad_request(
+            f"El rango máximo de reporte es {MAX_REPORT_RANGE_DAYS} días. "
+            "Acota las fechas e inténtalo de nuevo."
+        )
     return start_date, end_date
 
 
