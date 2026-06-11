@@ -1255,7 +1255,7 @@ export const copy = {
     amountTendered: "Efectivo recibido",
     exactCash: "Exacto",
     paymentReference: "Referencia",
-    optionalReference: "Referencia opcional",
+    optionalReference: "Folio o referencia (opcional)",
     changeDue: "Cambio",
     completeSale: "Cobrar",
     salePending: "Procesando venta",
