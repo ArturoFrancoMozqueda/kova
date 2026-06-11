@@ -99,6 +99,17 @@
     .kova-live-pulse-dot {
       animation: none !important;
     }
+
+    /* Respect reduced-motion app-wide: neutralize animations/transitions for
+       users who opt out, instead of only the live-pulse dot. */
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   * {
