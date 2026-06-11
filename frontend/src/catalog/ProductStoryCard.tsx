@@ -14,6 +14,7 @@ import { formatMoney } from "@/orders/format";
 import { getTopProducts } from "@/reports/api";
 import { listStock } from "@/inventory/api";
 import { daysAgoInTimezone, todayInTimezone } from "@/i18n/date";
+import { useTenantTimezone } from "@/hooks/useTenantTimezone";
 import type { Product } from "./types";
 import type { StockItem } from "@/inventory/types";
 import {
@@ -43,14 +44,6 @@ type LoadState =
       stock: StockItem | null;
     };
 
-function isoDaysAgo(days: number): string {
-  return daysAgoInTimezone(undefined, days);
-}
-
-function todayISO(): string {
-  return todayInTimezone();
-}
-
 function pctRound(pct: number): number {
   const abs = Math.abs(pct);
   return abs < 1 ? 1 : Math.round(abs);
@@ -58,6 +51,7 @@ function pctRound(pct: number): number {
 
 export function ProductStoryCard({ product, open, onClose }: Props) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const tz = useTenantTimezone();
 
   useEffect(() => {
     if (!open) return;
@@ -65,10 +59,10 @@ export function ProductStoryCard({ product, open, onClose }: Props) {
     const load = async () => {
       setState({ status: "loading" });
       try {
-        const end = todayISO();
-        const start = isoDaysAgo(29);
-        const prevEnd = isoDaysAgo(30);
-        const prevStart = isoDaysAgo(59);
+        const end = todayInTimezone(tz);
+        const start = daysAgoInTimezone(tz, 29);
+        const prevEnd = daysAgoInTimezone(tz, 30);
+        const prevStart = daysAgoInTimezone(tz, 59);
         const [current, previous, stock] = await Promise.all([
           getTopProducts(start, end, 50),
           getTopProducts(prevStart, prevEnd, 50),
@@ -95,7 +89,7 @@ export function ProductStoryCard({ product, open, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [open, product.id, product.track_inventory]);
+  }, [open, product.id, product.track_inventory, tz]);
 
   return (
     <Dialog open={open} onClose={onClose} className="max-w-lg">

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { listOrders } from "./api";
 import type { OrderFilters } from "./api";
 import { formatMoney, formatDateTime } from "./format";
-import type { OrderListItem } from "./types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,17 +16,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, AlertCircle, Inbox, X, CheckCircle2, Ban } from "lucide-react";
 
-type LoadState =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "loaded"; items: OrderListItem[]; total: number };
-
 type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
 
 export default function OrderListView() {
   useDocumentTitle(copy.documentTitles.orders);
-  const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -34,22 +28,17 @@ export default function OrderListView() {
 
   const hasActiveFilter = statusFilter !== undefined || startDate !== "" || endDate !== "";
 
-  const load = useCallback(
-    async (filters: OrderFilters = {}) => {
-      setLoadState({ status: "loading" });
-      try {
-        const result = await listOrders(filters);
-        setLoadState({ status: "loaded", items: result.items, total: result.total });
-      } catch {
-        setLoadState({ status: "error" });
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    void load({ status: statusFilter, startDate: startDate || undefined, endDate: endDate || undefined });
-  }, [load, statusFilter, startDate, endDate]);
+  // Cached + deduped via react-query: navigating away and back within the
+  // stale window reuses the result instead of re-hitting the backend.
+  const filters: OrderFilters = {
+    status: statusFilter,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  };
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: ["orders", statusFilter, startDate, endDate],
+    queryFn: () => listOrders(filters),
+  });
 
   const clearFilters = () => {
     setStatusFilter(undefined);
@@ -64,8 +53,8 @@ export default function OrderListView() {
   ];
 
   const sortedItems = useMemo(() => {
-    if (loadState.status !== "loaded") return [];
-    return [...loadState.items].sort((a, b) => {
+    if (!data) return [];
+    return [...data.items].sort((a, b) => {
       if (sortOrder === "created_asc") {
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       }
@@ -73,9 +62,9 @@ export default function OrderListView() {
       if (sortOrder === "amount_asc") return Number(a.total_amount) - Number(b.total_amount);
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [loadState, sortOrder]);
+  }, [data, sortOrder]);
 
-  if (loadState.status === "loading") {
+  if (isPending) {
     return (
       <main className="p-6 lg:p-8 max-w-5xl mx-auto">
         <Skeleton className="h-8 w-48 mb-6" />
@@ -91,7 +80,7 @@ export default function OrderListView() {
     );
   }
 
-  if (loadState.status === "error") {
+  if (isError) {
     return (
       <main className="p-6 lg:p-8 max-w-5xl mx-auto">
         <Card className="border-destructive/50">
@@ -103,13 +92,7 @@ export default function OrderListView() {
             </div>
             <Button
               variant="outline"
-              onClick={() =>
-                void load({
-                  status: statusFilter,
-                  startDate: startDate || undefined,
-                  endDate: endDate || undefined,
-                })
-              }
+              onClick={() => void refetch()}
               className="ml-auto"
             >
               {copy.orderList.retry}
@@ -127,7 +110,7 @@ export default function OrderListView() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{copy.orderList.title}</h1>
           <p className="text-sm text-muted-foreground">
-            {loadState.total} {copy.orderList.total}
+            {data?.total ?? 0} {copy.orderList.total}
           </p>
         </div>
       </div>
