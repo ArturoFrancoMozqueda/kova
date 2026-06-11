@@ -12,7 +12,7 @@ from app.auth.models import Membership, User
 from app.email import service as email_service
 from app.employees.models import MembershipInvitation
 from app.employees.schemas import EmployeeRoleUpdate, InvitationAccept, InvitationCreate
-from app.shared.exceptions import bad_request, not_found
+from app.shared.exceptions import bad_request, forbidden, not_found
 from app.tenants import repository as tenant_repo
 
 INVITATION_TTL_DAYS = 7
@@ -21,6 +21,18 @@ MIN_PASSWORD_LENGTH = 8
 
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _count_active_owners(db: Session, *, tenant_id: UUID) -> int:
+    return (
+        db.query(Membership)
+        .filter(
+            Membership.tenant_id == tenant_id,
+            Membership.role == "owner",
+            Membership.is_active.is_(True),
+        )
+        .count()
+    )
 
 
 def _generate_token() -> str:
@@ -78,8 +90,13 @@ def list_invitations(db: Session, *, tenant_id: UUID) -> list[MembershipInvitati
 
 
 def invite_employee(
-    db: Session, *, tenant_id: UUID, user_id: UUID, body: InvitationCreate
+    db: Session, *, tenant_id: UUID, user_id: UUID, actor_role: str, body: InvitationCreate
 ) -> MembershipInvitation:
+    # Only an owner can grant owner-level access. USERS_MANAGE alone (managers)
+    # must not be able to mint owners — that would be privilege escalation.
+    if body.role == "owner" and actor_role != "owner":
+        raise forbidden("Solo un propietario puede invitar a otro propietario")
+
     email_norm = body.email.lower()
     existing_membership = (
         db.query(Membership)
@@ -225,7 +242,13 @@ def accept_invitation(
 
 
 def update_employee_role(
-    db: Session, *, tenant_id: UUID, user_id: UUID, membership_id: UUID, body: EmployeeRoleUpdate
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    actor_role: str,
+    membership_id: UUID,
+    body: EmployeeRoleUpdate,
 ) -> Membership:
     membership = (
         db.query(Membership)
@@ -234,6 +257,19 @@ def update_employee_role(
     )
     if membership is None:
         raise not_found("Employee not found")
+
+    # Granting owner, or touching an existing owner's role, is owner-only.
+    if (body.role == "owner" or membership.role == "owner") and actor_role != "owner":
+        raise forbidden("Solo un propietario puede cambiar el rol de un propietario")
+
+    # Never strand the tenant without an owner.
+    if (
+        membership.role == "owner"
+        and body.role != "owner"
+        and _count_active_owners(db, tenant_id=tenant_id) <= 1
+    ):
+        raise bad_request("No puedes quitar al último propietario del negocio")
+
     membership.role = body.role
     audit_service.log(
         db,
@@ -250,7 +286,7 @@ def update_employee_role(
 
 
 def deactivate_employee(
-    db: Session, *, tenant_id: UUID, user_id: UUID, membership_id: UUID
+    db: Session, *, tenant_id: UUID, user_id: UUID, actor_role: str, membership_id: UUID
 ) -> Membership:
     membership = (
         db.query(Membership)
@@ -261,6 +297,14 @@ def deactivate_employee(
         raise not_found("Employee not found")
     if membership.user_id == user_id:
         raise bad_request("You cannot deactivate your own access")
+
+    # Only an owner can remove another owner, and never the last one.
+    if membership.role == "owner":
+        if actor_role != "owner":
+            raise forbidden("Solo un propietario puede desactivar a otro propietario")
+        if _count_active_owners(db, tenant_id=tenant_id) <= 1:
+            raise bad_request("No puedes desactivar al último propietario del negocio")
+
     membership.is_active = False
     audit_service.log(
         db,

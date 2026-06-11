@@ -52,7 +52,11 @@ def invite_employee(
 ):
     user, membership, _ = ctx
     return service.invite_employee(
-        db, tenant_id=membership.tenant_id, user_id=user.id, body=body
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        actor_role=membership.role,
+        body=body,
     )
 
 
@@ -91,6 +95,7 @@ def update_employee_role(
         db,
         tenant_id=membership.tenant_id,
         user_id=user.id,
+        actor_role=membership.role,
         membership_id=membership_id,
         body=body,
     )
@@ -109,6 +114,10 @@ def deactivate_employee(
 ):
     user, membership, _ = ctx
     service.deactivate_employee(
-        db, tenant_id=membership.tenant_id, user_id=user.id, membership_id=membership_id
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        actor_role=membership.role,
+        membership_id=membership_id,
     )
     return None
