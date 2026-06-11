@@ -612,7 +612,14 @@ export default function RegisterView() {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => { addProduct(p); setSkuQuery(""); setSkuMatches([]); }}
+                    onClick={() => {
+                      addProduct(p);
+                      setSkuQuery("");
+                      setSkuMatches([]);
+                      // Keep the scanner/typing flow going — return focus so
+                      // the cashier can ring the next item without re-clicking.
+                      skuInputRef.current?.focus();
+                    }}
                     className="flex w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm hover:border-primary/40 hover:bg-muted/30 transition-colors"
                   >
                     <span className="font-medium">{p.name}</span>
@@ -1071,6 +1078,27 @@ export default function RegisterView() {
                             setCashTendered(event.target.value.replace(/^-/, ""))
                           }
                         />
+                        {/* Quick cash: common MXN bills + exact amount, so the
+                            cashier taps instead of typing the tendered amount. */}
+                        <div className="flex flex-wrap gap-2">
+                          {[50, 100, 200, 500].map((bill) => (
+                            <button
+                              key={bill}
+                              type="button"
+                              onClick={() => setCashTendered(String(bill))}
+                              className="rounded-lg border bg-background px-3 py-1.5 text-sm font-medium tabular-nums hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                            >
+                              {formatMoney(bill)}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setCashTendered(totalAmount)}
+                            className="rounded-lg border bg-background px-3 py-1.5 text-sm font-medium hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                          >
+                            {copy.register.exactCash}
+                          </button>
+                        </div>
                         {(() => {
                           const shortfallCents =
                             tenderedCents > 0 && tenderedCents < totalCents

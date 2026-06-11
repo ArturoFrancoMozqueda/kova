@@ -1253,6 +1253,7 @@ export const copy = {
     splitBalanced: "Los pagos cuadran con el total.",
     splitCashShort: "Revisa el efectivo recibido: un pago no cubre su monto.",
     amountTendered: "Efectivo recibido",
+    exactCash: "Exacto",
     paymentReference: "Referencia",
     optionalReference: "Referencia opcional",
     changeDue: "Cambio",
