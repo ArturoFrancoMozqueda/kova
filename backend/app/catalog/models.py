@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -52,13 +53,25 @@ class Product(Base):
     track_inventory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     low_stock_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    image_position_x: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    image_position_y: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
     )
 
-    __table_args__ = (UniqueConstraint("tenant_id", "sku", name="uq_products_tenant_sku"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "sku", name="uq_products_tenant_sku"),
+        CheckConstraint(
+            "image_position_x >= 0 AND image_position_x <= 100",
+            name="ck_products_image_position_x_range",
+        ),
+        CheckConstraint(
+            "image_position_y >= 0 AND image_position_y <= 100",
+            name="ck_products_image_position_y_range",
+        ),
+    )
 
 
 class ProductImageFile(Base):

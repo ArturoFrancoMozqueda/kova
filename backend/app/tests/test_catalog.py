@@ -145,3 +145,48 @@ def test_product_price_uses_decimal_response(client):
     assert response.status_code == 201, response.text
     assert response.json()["price_amount"] == "12.30"
     assert Decimal(response.json()["price_amount"]) == Decimal("12.30")
+
+
+def test_product_image_position_defaults_and_updates(client):
+    _signup_verify_login(client, "catalog-image-position@example.com", "Image Position Bakery")
+
+    create = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "image-position-defaults"},
+        json={"name": "Alfajor", "price_amount": "32.00"},
+    )
+
+    assert create.status_code == 201, create.text
+    product = create.json()
+    assert product["image_position_x"] == 50
+    assert product["image_position_y"] == 50
+
+    update = client.patch(
+        f"/api/v1/catalog/products/{product['id']}",
+        headers={"Idempotency-Key": "image-position-update"},
+        json={"image_position_x": 35, "image_position_y": 70},
+    )
+
+    assert update.status_code == 200, update.text
+    assert update.json()["image_position_x"] == 35
+    assert update.json()["image_position_y"] == 70
+
+    listed = client.get("/api/v1/catalog/products")
+    assert listed.status_code == 200, listed.text
+    [listed_product] = [
+        item for item in listed.json() if item["id"] == product["id"]
+    ]
+    assert listed_product["image_position_x"] == 35
+    assert listed_product["image_position_y"] == 70
+
+
+def test_product_image_position_rejects_out_of_range_values(client):
+    _signup_verify_login(client, "catalog-image-position-invalid@example.com", "Invalid Image Position")
+
+    create = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "image-position-invalid-create"},
+        json={"name": "Bad Position", "price_amount": "32.00", "image_position_x": 101},
+    )
+
+    assert create.status_code == 422

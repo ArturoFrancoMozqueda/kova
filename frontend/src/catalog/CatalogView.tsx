@@ -42,7 +42,7 @@ import type { Category, ModifierGroup, Product } from "./types";
 import { ProductStoryCard } from "./ProductStoryCard";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
-import { productImageSrc, productImageSrcSet } from "./imageUrl";
+import { productImageSrc, productImageSrcSet, productImageStyle } from "./imageUrl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -561,7 +561,8 @@ export default function CatalogView() {
                           srcSet={productImageSrcSet(product.image_url)}
                           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
                           alt={copy.catalog.productImageAlt(product.name)}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full"
+                          style={productImageStyle(product)}
                           loading="lazy"
                           decoding="async"
                         />
@@ -1083,11 +1084,13 @@ type ProductFormValues = {
   modifier_group_ids: string[];
   image_file: File | null;
   image_remove: boolean;
+  image_position_x: number;
+  image_position_y: number;
 };
 
 const PRODUCT_IMAGE_ALLOWED = ["image/png", "image/jpeg", "image/webp"];
 
-function ProductForm({
+export function ProductForm({
   initial,
   defaultTrackInventory = false,
   categories,
@@ -1126,7 +1129,16 @@ function ProductForm({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initial?.image_url ?? null);
   const [imageRemoved, setImageRemoved] = useState(false);
+  const [imagePositionX, setImagePositionX] = useState(initial?.image_position_x ?? 50);
+  const [imagePositionY, setImagePositionY] = useState(initial?.image_position_y ?? 50);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewImageStyle = useMemo(
+    () => productImageStyle({
+      image_position_x: imagePositionX,
+      image_position_y: imagePositionY,
+    }),
+    [imagePositionX, imagePositionY],
+  );
 
   const toggleGroup = (groupId: string) => {
     setSelectedGroupIds((prev) =>
@@ -1188,6 +1200,8 @@ function ProductForm({
       modifier_group_ids: selectedGroupIds,
       image_file: imageFile,
       image_remove: imageRemoved && !imageFile,
+      image_position_x: imagePositionX,
+      image_position_y: imagePositionY,
     });
   };
 
@@ -1196,9 +1210,15 @@ function ProductForm({
       <div className="space-y-2">
         <Label>{copy.catalog.productImage}</Label>
         <div className="flex items-start gap-3">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-[color:var(--kova-mist)]">
+          <div className="flex aspect-video w-40 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-[color:var(--kova-mist)]">
             {imagePreview ? (
-              <img src={imagePreview} alt="" className="h-full w-full object-cover" />
+              <img
+                src={imagePreview}
+                alt=""
+                className="h-full w-full"
+                style={previewImageStyle}
+                data-testid="product-image-preview"
+              />
             ) : (
               <ImagePlus className="h-6 w-6 text-muted-foreground/60" />
             )}
@@ -1227,6 +1247,60 @@ function ProductForm({
               )}
             </div>
             <p className="text-xs text-muted-foreground">{copy.catalog.productImageHint}</p>
+            {imagePreview && (
+              <div className="space-y-2 pt-2">
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <div className="space-y-1">
+                    <Label htmlFor="prod-image-position-x" className="text-xs">
+                      {copy.catalog.productImagePositionX}
+                    </Label>
+                    <Input
+                      id="prod-image-position-x"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={imagePositionX}
+                      className="h-6 cursor-pointer border-0 px-0 shadow-none focus-visible:ring-0"
+                      onChange={(event) => setImagePositionX(Number(event.target.value))}
+                    />
+                  </div>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {imagePositionX}%
+                  </span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <div className="space-y-1">
+                    <Label htmlFor="prod-image-position-y" className="text-xs">
+                      {copy.catalog.productImagePositionY}
+                    </Label>
+                    <Input
+                      id="prod-image-position-y"
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={imagePositionY}
+                      className="h-6 cursor-pointer border-0 px-0 shadow-none focus-visible:ring-0"
+                      onChange={(event) => setImagePositionY(Number(event.target.value))}
+                    />
+                  </div>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {imagePositionY}%
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="px-2"
+                  onClick={() => {
+                    setImagePositionX(50);
+                    setImagePositionY(50);
+                  }}
+                >
+                  {copy.catalog.productImageCenter}
+                </Button>
+              </div>
+            )}
           </div>
           <input
             ref={fileInputRef}

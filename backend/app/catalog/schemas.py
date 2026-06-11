@@ -52,6 +52,8 @@ class ProductCreate(BaseModel):
     category_id: UUID | None = None
     track_inventory: bool = False
     low_stock_threshold: int | None = Field(default=None, ge=0)
+    image_position_x: int = Field(default=50, ge=0, le=100)
+    image_position_y: int = Field(default=50, ge=0, le=100)
 
     @field_validator("name")
     @classmethod
@@ -67,6 +69,8 @@ class ProductUpdate(BaseModel):
     category_id: UUID | None = None
     track_inventory: bool | None = None
     low_stock_threshold: int | None = Field(default=None, ge=0)
+    image_position_x: int | None = Field(default=None, ge=0, le=100)
+    image_position_y: int | None = Field(default=None, ge=0, le=100)
     is_active: bool | None = None
 
     @field_validator("name")
@@ -88,5 +92,7 @@ class ProductResponse(BaseModel):
     track_inventory: bool
     low_stock_threshold: int | None
     image_url: str | None = None
+    image_position_x: int = 50
+    image_position_y: int = 50
     is_active: bool
     modifier_groups: list = Field(default_factory=list)

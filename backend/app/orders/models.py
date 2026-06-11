@@ -18,6 +18,9 @@ class Order(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     client_uuid: Mapped[UUID | None] = mapped_column(nullable=True)
+    # Shift the sale was rung in. Nullable: historical orders and offline syncs
+    # stay unattributed and are excluded from a shift's expected cash.
+    shift_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="completed")
     subtotal_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
