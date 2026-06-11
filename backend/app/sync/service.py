@@ -24,6 +24,10 @@ def sync_offline_sales(
                 body=sale.order,
                 idempotency_key=str(sale.client_uuid),
                 client_uuid=sale.client_uuid,
+                # Offline sales belong to the shift they were rung in (often
+                # already closed by sync time), not the current drawer.
+                # Phase 2 (occurred_at) will attribute them precisely.
+                link_to_open_shift=False,
             )
             results.append(
                 OfflineSaleSyncResult(

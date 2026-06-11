@@ -351,7 +351,11 @@ def refund_payout_cash_movement_recorded(refund_context):
 @then("shift reconciliation subtracts the refund payout")
 def shift_reconciliation_subtracts_refund_payout(refund_context):
     refund_amount = Decimal(refund_context["refund"]["refunded_amount"])
-    actual_cash = Decimal("100.00") - refund_amount
+    # Drawer = opening 100.00 + the 50.00 cash sale rung in this shift
+    # (two 25.00 items) − the cash refund paid out. Expected cash now includes
+    # cash sales, so the physically correct drawer is 150.00 − refund (was
+    # asserted as 100.00 − refund, which silently dropped the sale's cash).
+    actual_cash = Decimal("150.00") - refund_amount
     response = refund_context["client"].post(
         f"/api/v1/shifts/{refund_context['shift']['id']}/close",
         headers={"Idempotency-Key": f"refund-shift-close-{uuid4().hex}"},

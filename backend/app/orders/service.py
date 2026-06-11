@@ -147,6 +147,7 @@ def create_order(
     body: OrderCreate,
     idempotency_key: str,
     client_uuid: UUID | None = None,
+    link_to_open_shift: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     if client_uuid:
@@ -211,6 +212,16 @@ def create_order(
     total = subtotal
     validated_payments = _validate_payments(body.payments, total)
 
+    # Attribute real-time sales to the open shift so their cash counts toward
+    # the drawer's expected cash. Offline syncs pass link_to_open_shift=False:
+    # they were rung in a past (possibly closed) shift and must not inflate the
+    # current drawer.
+    shift_id = None
+    if link_to_open_shift:
+        open_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
+        if open_shift:
+            shift_id = open_shift.id
+
     order = repo.create_order(
         db,
         tenant_id=tenant_id,
@@ -218,6 +229,7 @@ def create_order(
         subtotal_amount=subtotal,
         total_amount=total,
         client_uuid=client_uuid,
+        shift_id=shift_id,
     )
     for product, quantity, effective_price, line_total, modifier_snapshots in priced_items:
         order_item = repo.create_order_item(

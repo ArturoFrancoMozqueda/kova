@@ -52,6 +52,19 @@ def _store_response(
 
 def _shift_body(db: Session, *, shift: Shift) -> dict[str, Any]:
     movements = repo.list_cash_movements(db, shift_id=shift.id)
+    # For an open shift, expose the live expected cash (incl. cash sales) so the
+    # running total and the close preview are correct. A closed shift keeps the
+    # value computed and frozen at close time.
+    if shift.status == "open":
+        expected_cash_amount = str(
+            calculator.calculate_expected_cash(
+                db, tenant_id=shift.tenant_id, shift_id=shift.id
+            )
+        )
+    elif shift.expected_cash_amount is not None:
+        expected_cash_amount = str(shift.expected_cash_amount)
+    else:
+        expected_cash_amount = None
     return {
         "id": str(shift.id),
         "tenant_id": str(shift.tenant_id),
@@ -62,9 +75,7 @@ def _shift_body(db: Session, *, shift: Shift) -> dict[str, Any]:
         "actual_cash_amount": (
             str(shift.actual_cash_amount) if shift.actual_cash_amount is not None else None
         ),
-        "expected_cash_amount": (
-            str(shift.expected_cash_amount) if shift.expected_cash_amount is not None else None
-        ),
+        "expected_cash_amount": expected_cash_amount,
         "reconciliation_status": shift.reconciliation_status,
         "variance_amount": (
             str(shift.variance_amount) if shift.variance_amount is not None else None
@@ -194,7 +205,9 @@ def close_shift(
         raise bad_request("Shift is already closed")
 
     actual_cash = money_calc.money(body.actual_cash_amount)
-    expected_cash = calculator.calculate_expected_cash(db, shift_id=str(shift_id))
+    expected_cash = calculator.calculate_expected_cash(
+        db, tenant_id=tenant_id, shift_id=shift_id
+    )
     status, variance = calculator.determine_reconciliation(actual_cash, expected_cash)
 
     shift = repo.close_shift(

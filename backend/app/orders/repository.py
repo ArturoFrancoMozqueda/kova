@@ -2,6 +2,7 @@ import datetime
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.catalog.models import Product
@@ -31,10 +32,12 @@ def create_order(
     subtotal_amount: Decimal,
     total_amount: Decimal,
     client_uuid: UUID | None = None,
+    shift_id: UUID | None = None,
 ) -> Order:
     order = Order(
         tenant_id=tenant_id,
         client_uuid=client_uuid,
+        shift_id=shift_id,
         created_by_user_id=user_id,
         status="completed",
         subtotal_amount=subtotal_amount,
@@ -43,6 +46,29 @@ def create_order(
     db.add(order)
     db.flush()
     return order
+
+
+def cash_sales_total_for_shift(
+    db: Session, *, tenant_id: UUID, shift_id: UUID
+) -> Decimal:
+    """Sum of cash payments for completed orders rung in this shift.
+
+    Voided orders drop out automatically (status != "completed"), so a void
+    within the shift lowers expected cash without a separate reversal entry.
+    Only the cash portion of split payments is counted.
+    """
+    value = (
+        db.query(func.coalesce(func.sum(Payment.amount_amount), 0))
+        .join(Order, Order.id == Payment.order_id)
+        .filter(
+            Order.tenant_id == tenant_id,
+            Order.shift_id == shift_id,
+            Order.status == "completed",
+            Payment.method == "cash",
+        )
+        .scalar()
+    )
+    return Decimal(value or 0)
 
 
 def create_order_item(
