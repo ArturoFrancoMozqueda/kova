@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Lock, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { Lock, TrendingDown, TrendingUp, Minus, AlertTriangle } from "lucide-react";
+import { useSyncQueue } from "@/offline/useSyncQueue";
 
 interface CloseShiftModalProps {
   shift: Shift;
@@ -26,6 +27,12 @@ interface CloseShiftModalProps {
 
 export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShiftModalProps) {
   const [actualCash, setActualCash] = useState("");
+  const { pendingCount, failedEntries } = useSyncQueue();
+  // Sales still queued or failed offline aren't on the server yet, so they're
+  // not in this shift's expected cash. Warn before closing so the cut isn't
+  // silently incomplete. Non-blocking: a permanently failed sale shouldn't
+  // trap the cashier from ever closing.
+  const unsyncedCount = pendingCount + failedEntries.length;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -60,6 +67,23 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
         </DialogHeader>
 
         <div className="py-4 space-y-4">
+          {unsyncedCount > 0 && (
+            <div
+              role="alert"
+              className="flex items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/10 p-3"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" />
+              <div>
+                <p className="text-sm font-medium text-warning-foreground">
+                  {copy.closeShiftModal.pendingSalesTitle}
+                </p>
+                <p className="mt-0.5 text-xs text-warning-foreground/90">
+                  {copy.closeShiftModal.pendingSalesWarning(unsyncedCount)}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Cash summary */}
           <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
             <div className="flex items-center justify-between">

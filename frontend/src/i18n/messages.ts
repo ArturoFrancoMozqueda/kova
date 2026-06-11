@@ -772,6 +772,11 @@ export const copy = {
     enterActualCash: "Efectivo real en caja",
     submit: "Cerrar turno",
     cancel: "Cancelar",
+    pendingSalesTitle: "Tienes ventas sin sincronizar",
+    pendingSalesWarning: (n: number) =>
+      n === 1
+        ? "1 venta hecha sin conexión aún no se sincroniza. No entra en este corte y tu caja podría no cuadrar. Conéctate para sincronizarla antes de cerrar."
+        : `${n} ventas hechas sin conexión aún no se sincronizan. No entran en este corte y tu caja podría no cuadrar. Conéctate para sincronizarlas antes de cerrar.`,
   },
   cashMovementModal: {
     title: "Registrar movimiento de efectivo",
