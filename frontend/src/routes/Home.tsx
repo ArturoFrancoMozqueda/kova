@@ -6,10 +6,10 @@ import {
   STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
-import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
-import { formatMoney } from "@/orders/format";
+import HeroProductPreview from "@/landing/HeroProductPreview";
+import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
 import { copy } from "@/i18n/messages";
 
 const t = copy.landing;
@@ -119,22 +119,10 @@ const LANDING_STYLES = `
     from { opacity: 0; transform: translateY(-6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  @keyframes lp-hero-drift {
-    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
-    50%      { transform: translate3d(0, -8px, 0) rotate(-0.4deg); }
-  }
-  @keyframes lp-preview-glow {
-    0%, 100% { opacity: 0.46; transform: translateX(-12%); }
-    50%      { opacity: 0.86; transform: translateX(18%); }
-  }
   @keyframes lp-cart-pop {
     0%   { transform: scale(0.85); opacity: 0; }
     70%  { transform: scale(1.08); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
-  }
-  @keyframes lp-core-pulse {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.18); }
   }
 
   .lp-root.lp-motion-ready [data-lp-reveal="true"] {
@@ -152,16 +140,6 @@ const LANDING_STYLES = `
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
     filter: blur(0);
-  }
-
-  .lp-root.lp-motion-ready .lp-hero-visual > * {
-    animation: lp-hero-drift 7s ease-in-out infinite;
-  }
-  .lp-hero-visual > * {
-    max-width: min(100%, 410px);
-  }
-  .lp-hero-logo {
-    width: min(100%, 390px) !important;
   }
 
   .lp-hero-section {
@@ -232,25 +210,6 @@ const LANDING_STYLES = `
   }
   .lp-cta-fill:hover::before { height: 320%; }
   .lp-cta-fill:active { transform: translateY(0) scale(0.98); }
-
-  .lp-desktop-preview {
-    position: relative;
-    isolation: isolate;
-  }
-  .lp-desktop-preview::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background: linear-gradient(110deg, transparent 18%, rgba(123,167,255,0.18) 45%, transparent 72%);
-    animation: lp-preview-glow 6s ease-in-out infinite;
-    pointer-events: none;
-  }
-  .lp-preview-main,
-  .lp-preview-cart {
-    position: relative;
-    z-index: 1;
-  }
 
   .lp-product-tile:hover {
     border-color: var(--accent) !important;
@@ -467,13 +426,19 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 0.95fr) minmax(320px, 0.9fr)",
-            gap: 52,
+            gridTemplateColumns: "minmax(0, 0.82fr) minmax(360px, 1fr)",
+            gap: 48,
             alignItems: "center",
           }}
           className="lp-hero-grid"
         >
           <div>
+            <span
+              className="lp-section-label"
+              style={{ marginBottom: 18, color: "var(--accent)" }}
+            >
+              {t.hero.eyebrow}
+            </span>
             <h1
               className="lp-hero-title"
               style={{
@@ -546,14 +511,14 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
                 background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
                 fontWeight: 600, color: "var(--page-fg)",
               }}>
-                {STANDARD_PLAN_PRICE_LABEL_ES}{t.hero.priceBadgeSuffix}
+                {STANDARD_PLAN_PRICE_LABEL_ES}
               </span>
-              <span>{t.hero.noCardNoFees}</span>
+              <span>{t.hero.trialBadge}</span>
             </p>
           </div>
 
-          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330 }}>
-            <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
+          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0 }}>
+            <HeroProductPreview />
           </div>
         </div>
 
@@ -691,194 +656,6 @@ function HeroDemo() {
   );
 }
 
-/* ─── ThreeNodes ─────────────────────────────────────────────────────────── */
-/* ─── DesktopPreview ─────────────────────────────────────────────────────── */
-type Product = { id: string; name: string; price: number; cat: string; icon: string };
-const CATALOG: Product[] = [
-  { id: "p1", name: t.desktopPreview.products.americano, price: 38, cat: t.desktopPreview.categoryCoffee, icon: "☕" },
-  { id: "p2", name: t.desktopPreview.products.latte, price: 52, cat: t.desktopPreview.categoryCoffee, icon: "🥛" },
-  { id: "p3", name: t.desktopPreview.products.cappuccino, price: 48, cat: t.desktopPreview.categoryCoffee, icon: "☕" },
-  { id: "p4", name: t.desktopPreview.products.concha, price: 22, cat: t.desktopPreview.categoryBakery, icon: "🥐" },
-  { id: "p5", name: t.desktopPreview.products.croissant, price: 28, cat: t.desktopPreview.categoryBakery, icon: "🥖" },
-  { id: "p6", name: t.desktopPreview.products.oatCookie, price: 18, cat: t.desktopPreview.categoryBakery, icon: "🍪" },
-];
-
-const qtyBtnStyle: CSSProperties = {
-  width: 22, height: 22, borderRadius: 6,
-  border: "0.5px solid var(--hairline-color)",
-  background: "var(--surface)",
-  fontSize: 12, cursor: "pointer",
-  display: "flex", alignItems: "center", justifyContent: "center",
-  fontFamily: "inherit", color: "var(--page-fg)", padding: 0,
-};
-
-function DesktopPreview() {
-  const [cart, setCart] = useState<Record<string, number>>({ p2: 2, p4: 1 });
-  const [filter, setFilter] = useState(t.desktopPreview.categoryAll);
-  const [pulseId, setPulseId] = useState<string | null>(null);
-
-  const items = Object.entries(cart)
-    .map(([id, qty]) => {
-      const p = CATALOG.find((x) => x.id === id);
-      return p ? { ...p, qty } : null;
-    })
-    .filter((x): x is Product & { qty: number } => !!x && x.qty > 0);
-  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const filtered = filter === t.desktopPreview.categoryAll ? CATALOG : CATALOG.filter((p) => p.cat === filter);
-
-  const add = (id: string) => {
-    setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
-    setPulseId(id);
-    window.setTimeout(() => setPulseId((cur) => (cur === id ? null : cur)), 280);
-  };
-  const adj = (id: string, d: number) =>
-    setCart((c) => {
-      const next = Math.max(0, (c[id] || 0) + d);
-      const out = { ...c };
-      if (next === 0) delete out[id]; else out[id] = next;
-      return out;
-    });
-
-  return (
-    <div
-      className="lp-desktop-preview"
-      style={{
-        background: "var(--card-bg)", borderRadius: 10,
-        border: "0.5px solid var(--hairline-color)", overflow: "hidden",
-        boxShadow: "0 24px 60px -20px rgba(15,17,23,0.25)",
-        display: "grid", gridTemplateColumns: "1fr 280px",
-        height: 420, color: "var(--page-fg)",
-      }}
-    >
-      <div className="lp-preview-main" style={{ borderRight: "0.5px solid var(--hairline-color)", display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "0.5px solid var(--hairline-color)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <LogoMark size={18} circuitColor="var(--page-fg)" coreColor="var(--accent)" />
-            <span style={{ fontSize: 13, fontWeight: 500 }}>{t.desktopPreview.shopName}</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
-            <span className="lp-live-dot" /> {t.desktopPreview.online}
-          </div>
-        </div>
-
-        <div style={{ padding: "10px 20px", display: "flex", gap: 6, borderBottom: "0.5px solid var(--hairline-color)" }}>
-          {[t.desktopPreview.categoryAll, t.desktopPreview.categoryCoffee, t.desktopPreview.categoryBakery].map((c) => (
-            <button
-              key={c} onClick={() => setFilter(c)}
-              style={{
-                border: "0.5px solid var(--hairline-color)",
-                background: filter === c ? "var(--invert-ink-bg)" : "var(--surface)",
-                color: filter === c ? "var(--invert-ink-fg)" : "var(--page-fg)",
-                fontSize: 11, padding: "5px 10px", borderRadius: 999, fontWeight: 500,
-                fontFamily: "inherit", cursor: "pointer", textTransform: "capitalize",
-                transition: "all 150ms var(--kova-ease-entrance)",
-              }}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        <div className="lp-product-grid" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, alignContent: "start" }}>
-          {filtered.map((p) => {
-            const inCart = (cart[p.id] || 0) > 0;
-            const pulsing = pulseId === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => add(p.id)}
-                className="lp-product-tile"
-                data-active={inCart ? "1" : "0"}
-                style={{
-                  background: "var(--card-bg)",
-                  border: "0.5px solid var(--hairline-color)",
-                  borderRadius: 10, padding: 12, textAlign: "left",
-                  cursor: "pointer", fontFamily: "inherit", color: "inherit",
-                  display: "flex", flexDirection: "column", gap: 4,
-                  transition: "border-color 150ms var(--kova-ease-entrance), transform 150ms var(--kova-ease-entrance), box-shadow 150ms var(--kova-ease-entrance)",
-                  transform: pulsing ? "scale(0.97)" : "scale(1)",
-                  position: "relative",
-                }}
-              >
-                <div style={{ fontSize: 18, lineHeight: 1 }}>{p.icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 500, marginTop: 2 }}>{p.name}</div>
-                <div className="tabular" style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginTop: "auto" }}>
-                  {formatMoney(p.price)}
-                </div>
-                {inCart && (
-                  <span
-                    className="tabular lp-cart-count"
-                    style={{
-                      position: "absolute", top: 8, right: 8,
-                      minWidth: 18, height: 18, borderRadius: 999,
-                      background: "var(--accent)", color: "#fff",
-                      fontSize: 10, fontWeight: 600,
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      padding: "0 5px",
-                    }}
-                  >
-                    {cart[p.id]}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="lp-preview-cart" style={{ display: "flex", flexDirection: "column", background: "var(--surface-2)" }}>
-        <div style={{ padding: "16px 16px 12px", borderBottom: "0.5px solid var(--hairline-color)" }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)", fontWeight: 500 }}>
-            {t.desktopPreview.currentSale}
-          </div>
-          <div style={{ fontSize: 13, marginTop: 4, color: "var(--text-muted)" }}>
-            {t.desktopPreview.itemCount(items.length)}
-          </div>
-        </div>
-        <div style={{ flex: 1, padding: "8px 16px", overflow: "auto" }}>
-          {items.length === 0 && (
-            <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "20px 0", textAlign: "center" }}>
-              {t.desktopPreview.emptyCart}
-            </div>
-          )}
-          {items.map((i) => (
-            <div key={i.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "0.5px solid var(--hairline-color)" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.name}</div>
-                <div className="tabular" style={{ fontSize: 11, color: "var(--text-muted)" }}>{formatMoney(i.price)} c/u</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <button onClick={() => adj(i.id, -1)} style={qtyBtnStyle}>−</button>
-                <span className="tabular" style={{ fontSize: 12, fontWeight: 600, width: 16, textAlign: "center" }}>{i.qty}</span>
-                <button onClick={() => adj(i.id, 1)} style={qtyBtnStyle}>+</button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: 16, borderTop: "0.5px solid var(--hairline-color)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.desktopPreview.total}</span>
-            <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMoney(total)}</span>
-          </div>
-          <button
-            className="lp-cta-fill"
-            style={{
-              width: "100%", background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
-              border: "none", borderRadius: 8, padding: "10px 12px",
-              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-            }}
-          >
-            <span>{t.desktopPreview.charge(formatMoney(total))}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── WhyKova ────────────────────────────────────────────────────────────── */
 /* ─── POSShowcase ────────────────────────────────────────────────────────── */
 function POSShowcase() {
   return (
@@ -897,7 +674,7 @@ function POSShowcase() {
         </div>
 
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 32, alignItems: "center" }} className="lp-showcase-row">
-          <DesktopPreview />
+          <SweetHomePOSPreview />
           <HeroDemo />
         </div>
       </div>
@@ -1377,8 +1154,8 @@ const RESPONSIVE_STYLES = `
   .lp-root *, .lp-root *::before, .lp-root *::after {
     box-sizing: border-box;
   }
-  .lp-desktop-preview,
-  .lp-tablet-preview {
+  .lp-pos-preview,
+  .lp-hero-preview {
     max-width: 100%;
   }
   @media (max-width: 900px) {
@@ -1405,25 +1182,10 @@ const RESPONSIVE_STYLES = `
       line-height: 1 !important;
     }
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
-    .lp-hero-visual { max-width: 100% !important; min-height: 320px !important; overflow: hidden !important; }
-    .lp-hero-visual > * { max-width: min(100%, 360px) !important; }
+    .lp-hero-visual { order: -1; max-width: 100% !important; }
     .lp-product-section { padding: 88px 24px !important; }
     .lp-showcase-row { gap: 24px !important; }
-    .lp-desktop-preview {
-      grid-template-columns: 1fr !important;
-      height: auto !important;
-      min-width: 0 !important;
-    }
-    .lp-preview-main {
-      border-right: none !important;
-      border-bottom: 0.5px solid var(--hairline-color) !important;
-      min-width: 0 !important;
-    }
-    .lp-preview-cart { min-width: 0 !important; }
-    .lp-tablet-preview {
-      width: min(280px, 100%) !important;
-      justify-self: center !important;
-    }
+    .lp-pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
   }
   @media (max-width: 640px) {
     .lp-section { padding: 58px 20px !important; }
@@ -1448,17 +1210,6 @@ const RESPONSIVE_STYLES = `
     .lp-hero-section { padding: 28px 20px 44px !important; }
     .lp-hero-title { font-size: 31px !important; }
     .lp-hero-copy { font-size: 15px !important; margin-top: 14px !important; }
-    .lp-hero-visual { order: -1; min-height: 190px !important; }
-    .lp-hero-visual > * { max-width: min(100%, 220px) !important; }
-    .lp-hero-logo { width: 220px !important; }
-    .lp-hero-logo > div { padding: 0 !important; gap: 0 !important; }
-    .lp-hero-logo > div > div:first-child {
-      width: 150px !important;
-      min-width: 150px !important;
-      max-width: 150px !important;
-    }
-    .lp-hero-logo h1 { font-size: 42px !important; }
-    .lp-hero-logo p { font-size: 12px !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
     .lp-benefit-card { min-height: 118px !important; padding: 13px !important; }
     .lp-benefit-card strong { font-size: 13px !important; }
@@ -1473,10 +1224,16 @@ const RESPONSIVE_STYLES = `
       text-align: center !important;
     }
     .lp-product-section { padding: 72px 20px !important; }
-    .lp-product-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-      padding: 12px !important;
+    .lp-pos-preview { grid-template-columns: 1fr !important; }
+    .lp-pos-main {
+      border-right: none !important;
+      border-bottom: 0.5px solid var(--hairline-color) !important;
     }
+    .lp-pos-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .lp-pos-lines { max-height: 132px !important; }
+    .lp-pos-methods { display: none !important; }
     .lp-footer-grid { grid-template-columns: 1fr !important; }
     .lp-4cols { grid-template-columns: 1fr !important; }
     .lp-4cols > div { border-right: none !important; border-bottom: 0.5px solid var(--hairline-color) !important; }
