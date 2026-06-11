@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer, Numeric, String
+from sqlalchemy import CheckConstraint, DateTime, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -14,6 +14,11 @@ def _now() -> datetime:
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        # Orders are only ever "completed" or "voided"; guard against typos
+        # writing an unknown status that would silently drop out of reports.
+        CheckConstraint("status IN ('completed', 'voided')", name="ck_orders_status"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
