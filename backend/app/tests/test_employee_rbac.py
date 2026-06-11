@@ -22,7 +22,6 @@ from app.auth import service as auth_service
 from app.auth.models import Membership
 from app.employees import service
 from app.employees.schemas import EmployeeRoleUpdate, InvitationCreate
-from app.main import app
 
 
 def _signup(client: TestClient, email: str, tenant: str) -> dict:
