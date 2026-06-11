@@ -4,8 +4,10 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
+import { useTenantTimezone } from "@/hooks/useTenantTimezone";
 import {
   REPORTS_VIEW_ALL_PERMISSION,
   usePermission,
@@ -90,12 +92,12 @@ function previousComparableRange(startDate: string, endDate: string) {
   return { startDate: previousStart, endDate: previousEnd };
 }
 
-function lastThirtyDaysStart(): string {
-  return daysAgoInTimezone(undefined, 29);
+function lastThirtyDaysStart(tz?: string): string {
+  return daysAgoInTimezone(tz, 29);
 }
 
-function lastSevenDaysStart(): string {
-  return daysAgoInTimezone(undefined, 6);
+function lastSevenDaysStart(tz?: string): string {
+  return daysAgoInTimezone(tz, 6);
 }
 
 // Day-label formatters are centralized in i18n/date.ts so the dashboard,
@@ -118,9 +120,21 @@ function chartCopy() {
 export default function ReportsView() {
   useDocumentTitle(copy.documentTitles.reports);
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
-  const [startDate, setStartDate] = useState(todayInTimezone());
-  const [endDate, setEndDate] = useState(todayInTimezone());
+  const { timezone: tz, isResolved: tzResolved } = useTenantTimezone();
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+
+  // Seed the range to "today in the tenant timezone" once the timezone
+  // resolves, so operators outside CDMX don't start on the wrong day. Runs
+  // once; after that the user owns the range.
+  const rangeSeeded = useRef(false);
+  useEffect(() => {
+    if (rangeSeeded.current || !tzResolved) return;
+    rangeSeeded.current = true;
+    setStartDate(todayInTimezone(tz));
+    setEndDate(todayInTimezone(tz));
+  }, [tz, tzResolved]);
 
   const load = useCallback(async () => {
     if (!canViewReports) {
@@ -153,8 +167,11 @@ export default function ReportsView() {
   }, [canViewReports, endDate, startDate]);
 
   useEffect(() => {
+    // Wait until the range is seeded (post timezone-resolve) before loading,
+    // so we never query with empty dates.
+    if (!startDate || !endDate) return;
     void load();
-  }, [load]);
+  }, [load, startDate, endDate]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -163,17 +180,17 @@ export default function ReportsView() {
 
   const applyPreset = (preset: ReportPreset) => {
     if (preset === "today") {
-      setStartDate(todayInTimezone());
-      setEndDate(todayInTimezone());
+      setStartDate(todayInTimezone(tz));
+      setEndDate(todayInTimezone(tz));
       return;
     }
     if (preset === "seven_days") {
-      setStartDate(lastSevenDaysStart());
-      setEndDate(todayInTimezone());
+      setStartDate(lastSevenDaysStart(tz));
+      setEndDate(todayInTimezone(tz));
       return;
     }
-    setStartDate(lastThirtyDaysStart());
-    setEndDate(todayInTimezone());
+    setStartDate(lastThirtyDaysStart(tz));
+    setEndDate(todayInTimezone(tz));
   };
 
   if (!canViewReports) {
@@ -203,7 +220,7 @@ export default function ReportsView() {
         setEndDate={setEndDate}
         submit={submit}
         applyPreset={applyPreset}
-        activePreset={activePreset(startDate, endDate)}
+        activePreset={activePreset(startDate, endDate, tz)}
       />
 
       {loadState.status === "loading" ? <LoadingState /> : null}
@@ -217,8 +234,8 @@ export default function ReportsView() {
           lowStock={loadState.lowStock}
           velocity={loadState.velocity}
           onResetRange={() => {
-            setStartDate(todayInTimezone());
-            setEndDate(todayInTimezone());
+            setStartDate(todayInTimezone(tz));
+            setEndDate(todayInTimezone(tz));
           }}
         />
       ) : null}
@@ -228,11 +245,11 @@ export default function ReportsView() {
 
 type ReportPreset = "today" | "seven_days" | "month";
 
-function activePreset(startDate: string, endDate: string): ReportPreset | null {
-  const currentToday = todayInTimezone();
+function activePreset(startDate: string, endDate: string, tz?: string): ReportPreset | null {
+  const currentToday = todayInTimezone(tz);
   if (startDate === currentToday && endDate === currentToday) return "today";
-  if (startDate === lastSevenDaysStart() && endDate === currentToday) return "seven_days";
-  if (startDate === lastThirtyDaysStart() && endDate === currentToday) return "month";
+  if (startDate === lastSevenDaysStart(tz) && endDate === currentToday) return "seven_days";
+  if (startDate === lastThirtyDaysStart(tz) && endDate === currentToday) return "month";
   return null;
 }
 

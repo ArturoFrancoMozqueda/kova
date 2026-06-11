@@ -51,7 +51,7 @@ function pctRound(pct: number): number {
 
 export function ProductStoryCard({ product, open, onClose }: Props) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
-  const tz = useTenantTimezone();
+  const { timezone: tz } = useTenantTimezone();
 
   useEffect(() => {
     if (!open) return;
