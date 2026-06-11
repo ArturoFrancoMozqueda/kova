@@ -94,6 +94,9 @@ def _product_body(product: Product) -> dict[str, Any]:
         "price_amount": str(product.price_amount),
         "track_inventory": product.track_inventory,
         "low_stock_threshold": product.low_stock_threshold,
+        "image_url": product.image_url,
+        "image_position_x": product.image_position_x,
+        "image_position_y": product.image_position_y,
         "is_active": product.is_active,
     }
 
@@ -280,6 +283,8 @@ def create_product(
         price_amount=body.price_amount,
         track_inventory=body.track_inventory,
         low_stock_threshold=body.low_stock_threshold,
+        image_position_x=body.image_position_x,
+        image_position_y=body.image_position_y,
     )
     response_body = _product_body(product)
     audit_service.log(
@@ -335,6 +340,8 @@ def update_product(
         "price_amount",
         "track_inventory",
         "low_stock_threshold",
+        "image_position_x",
+        "image_position_y",
         "is_active",
     ):
         if field in body.model_fields_set:

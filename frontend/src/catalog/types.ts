@@ -39,6 +39,8 @@ export type Product = {
   track_inventory: boolean;
   low_stock_threshold: number | null;
   image_url: string | null;
+  image_position_x: number;
+  image_position_y: number;
   is_active: boolean;
   modifier_groups: ModifierGroup[];
 };
@@ -64,6 +66,8 @@ export type ProductCreate = {
   category_id?: string | null;
   track_inventory?: boolean;
   low_stock_threshold?: number | null;
+  image_position_x?: number;
+  image_position_y?: number;
 };
 
 export type ProductUpdate = {
@@ -74,5 +78,7 @@ export type ProductUpdate = {
   category_id?: string | null;
   track_inventory?: boolean;
   low_stock_threshold?: number | null;
+  image_position_x?: number;
+  image_position_y?: number;
   is_active?: boolean;
 };

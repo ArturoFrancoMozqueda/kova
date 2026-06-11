@@ -51,7 +51,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
-import { productImageSrc, productImageSrcSet } from "@/catalog/imageUrl";
+import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type LoadState =
@@ -715,7 +715,8 @@ export default function RegisterView() {
                               alt=""
                               loading="lazy"
                               decoding="async"
-                              className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                              className="h-full w-full transition-transform group-hover:scale-[1.03]"
+                              style={productImageStyle(product)}
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
