@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request, Response
 from PIL import Image
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
@@ -216,22 +217,32 @@ def delete_product_image(
     return Response(status_code=204)
 
 
-@router.get("/products/{product_id}/image")
+@router.get(
+    "/products/{product_id}/image",
+    dependencies=[Depends(rate_limit(120, key="product-image-get"))],
+)
 def get_product_image(
     product_id: UUID,
     db: Session = Depends(get_db),
     w: int | None = Query(default=None, description="Optional resize width (160, 320, 400, 800)"),
 ):
-    image = (
-        db.query(ProductImageFile)
-        .filter(ProductImageFile.product_id == product_id)
+    image_row = (
+        db.execute(
+            select(ProductImageFile.bytes_data, ProductImageFile.content_type)
+            .join(Product, Product.id == ProductImageFile.product_id)
+            .where(
+                ProductImageFile.product_id == product_id,
+                ProductImageFile.tenant_id == Product.tenant_id,
+                Product.is_active.is_(True),
+            )
+        )
         .one_or_none()
     )
-    if image is None:
+    if image_row is None:
         raise not_found("Product image not found")
 
-    body = image.bytes_data
-    media_type = image.content_type
+    body, media_type = image_row
+    db.close()
     if w is not None and w in ALLOWED_RESIZE_WIDTHS:
         body, media_type = _resize_to_width(body, media_type, w)
 

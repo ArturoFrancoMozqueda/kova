@@ -147,6 +147,49 @@ def test_product_price_uses_decimal_response(client):
     assert Decimal(response.json()["price_amount"]) == Decimal("12.30")
 
 
+def test_product_image_upload_and_get_returns_stored_bytes(client):
+    _signup_verify_login(client, "catalog-image-get@example.com", "Image Get Bakery")
+    product = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "image-get-product"},
+        json={"name": "Oreja", "price_amount": "20.00"},
+    ).json()
+
+    upload = client.post(
+        f"/api/v1/catalog/products/{product['id']}/image",
+        files={"file": ("oreja.png", b"stored-image-bytes", "image/png")},
+    )
+
+    assert upload.status_code == 200, upload.text
+    image = client.get(upload.json()["image_url"])
+    assert image.status_code == 200, image.text
+    assert image.headers["content-type"].startswith("image/png")
+    assert image.content == b"stored-image-bytes"
+
+
+def test_product_image_get_hides_deactivated_products(client):
+    _signup_verify_login(client, "catalog-image-inactive@example.com", "Inactive Image Bakery")
+    product = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "image-inactive-product"},
+        json={"name": "Polvoron", "price_amount": "15.00"},
+    ).json()
+    upload = client.post(
+        f"/api/v1/catalog/products/{product['id']}/image",
+        files={"file": ("polvoron.png", b"inactive-image-bytes", "image/png")},
+    )
+    assert upload.status_code == 200, upload.text
+
+    deactivate = client.delete(
+        f"/api/v1/catalog/products/{product['id']}",
+        headers={"Idempotency-Key": "image-inactive-deactivate"},
+    )
+
+    assert deactivate.status_code == 200, deactivate.text
+    image = client.get(upload.json()["image_url"])
+    assert image.status_code == 404
+
+
 def test_product_image_position_defaults_and_updates(client):
     _signup_verify_login(client, "catalog-image-position@example.com", "Image Position Bakery")
 

@@ -178,7 +178,10 @@ def delete_receipt_logo(
     return Response(status_code=204)
 
 
-@router.get("/receipt/logo/{tenant_id}")
+@router.get(
+    "/receipt/logo/{tenant_id}",
+    dependencies=[Depends(rate_limit(120, key="receipt-logo-get"))],
+)
 def get_receipt_logo(tenant_id: UUID, db: Session = Depends(get_db)):
     tenant = get_tenant_by_id(db, tenant_id)
     if tenant is None:

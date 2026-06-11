@@ -6,6 +6,10 @@ class Settings(BaseSettings):
 
     app_env: str = "production"
     database_url: str = "postgresql+psycopg://pos:pos@localhost:5432/pos"
+    database_pool_size: int = 5
+    database_max_overflow: int = 0
+    database_pool_timeout: int = 10
+    database_pool_recycle_seconds: int = 300
     frontend_url: str = "http://localhost:5173"
 
     # Auth
