@@ -41,6 +41,34 @@ def stock_on_hand(db: Session, *, tenant_id: UUID, product_id: UUID) -> int:
     return int(value or 0)
 
 
+def stock_on_hand_for_products(
+    db: Session, *, tenant_id: UUID, product_ids: list[UUID]
+) -> dict[UUID, int]:
+    """Batch stock-on-hand for many products in a single grouped query.
+
+    Avoids the N+1 of calling stock_on_hand per product when listing stock or
+    computing velocity. Products with no movements default to 0.
+    """
+    result: dict[UUID, int] = {pid: 0 for pid in product_ids}
+    if not product_ids:
+        return result
+    rows = (
+        db.query(
+            InventoryMovement.product_id,
+            func.coalesce(func.sum(InventoryMovement.quantity_delta), 0).label("qty"),
+        )
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.product_id.in_(product_ids),
+        )
+        .group_by(InventoryMovement.product_id)
+        .all()
+    )
+    for row in rows:
+        result[row.product_id] = int(row.qty or 0)
+    return result
+
+
 def create_movement(
     db: Session,
     *,

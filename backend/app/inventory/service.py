@@ -56,8 +56,11 @@ def _store_response(
     )
 
 
-def _stock_body(db: Session, *, tenant_id: UUID, product: Product) -> dict[str, Any]:
-    stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+def _stock_body(
+    db: Session, *, tenant_id: UUID, product: Product, stock: int | None = None
+) -> dict[str, Any]:
+    if stock is None:
+        stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
     threshold = product.low_stock_threshold
     return {
         "product_id": str(product.id),
@@ -80,10 +83,17 @@ def _tracked_product_for_update(db: Session, *, tenant_id: UUID, product_id: UUI
 
 
 def list_stock(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
-    return [
-        _stock_body(db, tenant_id=tenant_id, product=product)
+    products = [
+        product
         for product in repo.list_active_products(db, tenant_id=tenant_id)
         if product.track_inventory
+    ]
+    stock_map = repo.stock_on_hand_for_products(
+        db, tenant_id=tenant_id, product_ids=[p.id for p in products]
+    )
+    return [
+        _stock_body(db, tenant_id=tenant_id, product=product, stock=stock_map.get(product.id, 0))
+        for product in products
     ]
 
 
@@ -108,11 +118,18 @@ def inventory_velocity(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
     )
     sold_by_product = {row.product_id: abs(int(row.units or 0)) for row in sales_rows}
 
+    tracked_products = [
+        product
+        for product in repo.list_active_products(db, tenant_id=tenant_id)
+        if product.track_inventory
+    ]
+    stock_map = repo.stock_on_hand_for_products(
+        db, tenant_id=tenant_id, product_ids=[p.id for p in tracked_products]
+    )
+
     results: list[dict[str, Any]] = []
-    for product in repo.list_active_products(db, tenant_id=tenant_id):
-        if not product.track_inventory:
-            continue
-        stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+    for product in tracked_products:
+        stock = stock_map.get(product.id, 0)
         units_per_day = (Decimal(sold_by_product.get(product.id, 0)) / Decimal("7")).quantize(
             Decimal("0.01")
         )
