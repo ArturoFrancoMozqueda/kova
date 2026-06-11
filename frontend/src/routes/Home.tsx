@@ -548,7 +548,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               }}>
                 {STANDARD_PLAN_PRICE_LABEL_ES}{t.hero.priceBadgeSuffix}
               </span>
-              <span>Sin tarjeta para empezar. Sin comisiones por venta.</span>
+              <span>{t.hero.noCardNoFees}</span>
             </p>
           </div>
 

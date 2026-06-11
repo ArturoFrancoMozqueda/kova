@@ -43,6 +43,7 @@ export const copy = {
       ctaSecondary: "Ver cómo funciona →",
       priceBadgeSuffix: " · todo incluido",
       priceFineprint: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
+      noCardNoFees: "Sin tarjeta para empezar. Sin comisiones por venta.",
     },
     threeNodes: {
       eyebrow: "Lo que cambia en tu operación diaria",
