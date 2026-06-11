@@ -201,6 +201,20 @@ def get_order(db: Session, *, tenant_id: UUID, order_id: UUID) -> Order | None:
     return db.query(Order).filter(Order.tenant_id == tenant_id, Order.id == order_id).first()
 
 
+def get_order_for_update(db: Session, *, tenant_id: UUID, order_id: UUID) -> Order | None:
+    """Row-locked fetch so refund/void of the same order serialize.
+
+    Without the lock, a concurrent refund and void can both pass their state
+    checks and commit, leaving an order both refunded AND voided.
+    """
+    return (
+        db.query(Order)
+        .filter(Order.tenant_id == tenant_id, Order.id == order_id)
+        .with_for_update()
+        .first()
+    )
+
+
 def get_order_by_client_uuid(
     db: Session, *, tenant_id: UUID, client_uuid: UUID
 ) -> Order | None:

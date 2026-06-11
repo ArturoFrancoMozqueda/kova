@@ -389,7 +389,7 @@ def create_refund(
     if stored:
         return stored
 
-    order = repo.get_order(db, tenant_id=tenant_id, order_id=order_id)
+    order = repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id)
     if not order:
         raise not_found("Order not found")
 
@@ -606,7 +606,7 @@ def create_void(
     if stored:
         return stored
 
-    order = repo.get_order(db, tenant_id=tenant_id, order_id=order_id)
+    order = repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id)
     if not order:
         raise not_found("Order not found")
 
