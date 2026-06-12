@@ -10,10 +10,19 @@ import {
   SWEET_HOME_ACTIVE_SALE,
   SWEET_HOME_BUSINESS,
   SWEET_HOME_PRODUCTS,
+  SWEET_HOME_SALE_TOTAL,
   type SweetHomeCategoryId,
   type SweetHomeProduct,
 } from "@/landing/demo/sweetHome";
 import { ProductIcon } from "@/landing/previews/ProductIconSet";
+import { useCountUp } from "@/landing/previews/useCountUp";
+
+// Microinteracción de entrada (historia, estado 1): la línea de galleta hace
+// pop y el total cuenta desde $130 (la venta sin las 2 galletas) hasta $186.
+const ENTRY_POP_PRODUCT_ID = "galleta-avena";
+const ENTRY_COUNT_FROM =
+  SWEET_HOME_SALE_TOTAL -
+  (SWEET_HOME_PRODUCTS.find((p) => p.id === ENTRY_POP_PRODUCT_ID)?.price ?? 0) * 2;
 
 const t = copy.landing.sweetHome;
 
@@ -47,16 +56,19 @@ export default function SweetHomePOSPreview({
   business = SWEET_HOME_BUSINESS,
   employeeName = SWEET_HOME_ACTIVE_SALE.attendedBy,
   interactive = true,
+  animateEntry = false,
 }: {
   products?: readonly SweetHomeProduct[];
   business?: typeof SWEET_HOME_BUSINESS;
   employeeName?: string;
   interactive?: boolean;
+  animateEntry?: boolean;
 }) {
   const [cart, setCart] = useState<Record<string, number>>(initialCart);
   const [filter, setFilter] = useState<CategoryFilter>("all");
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
 
   const items = Object.entries(cart)
     .map(([id, qty]) => {
@@ -67,13 +79,23 @@ export default function SweetHomePOSPreview({
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
   const filtered = filter === "all" ? products : products.filter((p) => p.categoryId === filter);
 
+  const countedTotal = useCountUp(SWEET_HOME_SALE_TOTAL, {
+    from: ENTRY_COUNT_FROM,
+    durationMs: 300,
+    delayMs: 280,
+    animate: animateEntry,
+  });
+  const displayTotal = animateEntry && !touched ? countedTotal : total;
+
   const add = (id: string) => {
     if (!interactive) return;
+    setTouched(true);
     setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }));
     setPulseId(id);
     window.setTimeout(() => setPulseId((cur) => (cur === id ? null : cur)), 280);
   };
-  const adj = (id: string, d: number) =>
+  const adj = (id: string, d: number) => {
+    setTouched(true);
     setCart((c) => {
       const next = Math.max(0, (c[id] || 0) + d);
       const out = { ...c };
@@ -81,6 +103,7 @@ export default function SweetHomePOSPreview({
       else out[id] = next;
       return out;
     });
+  };
 
   const categories: Array<{ id: CategoryFilter; label: string }> = [
     { id: "all", label: t.categoryAll },
@@ -96,6 +119,7 @@ export default function SweetHomePOSPreview({
   return (
     <div
       className="lp-pos-preview"
+      data-lp-anim={animateEntry ? "on" : "off"}
       style={{
         background: "var(--card-bg)",
         borderRadius: 10,
@@ -213,7 +237,11 @@ export default function SweetHomePOSPreview({
             </li>
           )}
           {items.map((i) => (
-            <li key={i.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 0", borderBottom: "0.5px solid var(--hairline-color)" }}>
+            <li
+              key={i.id}
+              className={animateEntry && i.id === ENTRY_POP_PRODUCT_ID ? "lp-story-pop" : undefined}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 0", borderBottom: "0.5px solid var(--hairline-color)" }}
+            >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.name}</div>
                 <div className="tabular" style={{ fontSize: 11, color: "var(--text-muted)" }}>{formatMoney(i.price)} c/u</div>
@@ -254,20 +282,20 @@ export default function SweetHomePOSPreview({
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.total}</span>
-            <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMoney(total)}</span>
+            <span className="tabular" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>{formatMoney(displayTotal)}</span>
           </div>
           <button
             type="button"
-            className="lp-cta-fill"
+            className="lp-cta-fill lp-charge-pulse"
             disabled={!interactive}
             style={{
-              width: "100%", background: "var(--kova-blue)", color: "#fff",
+              width: "100%", background: "var(--cta-blue, var(--kova-blue))", color: "#fff",
               border: "none", borderRadius: 8, padding: "10px 12px",
               fontSize: 13, fontWeight: 600, cursor: interactive ? "pointer" : "default", fontFamily: "inherit",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             }}
           >
-            <span>{t.charge(formatMoney(total))}</span>
+            <span>{t.charge(formatMoney(displayTotal))}</span>
           </button>
         </div>
       </div>

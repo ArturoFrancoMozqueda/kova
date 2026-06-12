@@ -9,7 +9,10 @@ import {
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import HeroProductPreview from "@/landing/HeroProductPreview";
-import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
+import GuidedProductStory from "@/landing/GuidedProductStory";
+import OwnerDashboard from "@/landing/OwnerDashboard";
+import BentoModules from "@/landing/BentoModules";
+import FinalCta from "@/landing/FinalCta";
 import { copy } from "@/i18n/messages";
 
 const t = copy.landing;
@@ -29,7 +32,8 @@ function themeVars(theme: Theme): CSSProperties {
       "--accent": "var(--kova-blue-light)",
       "--accent-soft": "rgba(123,167,255,0.16)",
       "--text-muted": "#8892A4",
-      "--text-tertiary": "#6B7A99",
+      "--text-tertiary": "#7C89A1",
+      "--cta-blue": "#3D63DF",
       "--ink-on-fg": "var(--kova-ink)",
       "--card-bg": "#1A1D28",
       "--chip-bg": "rgba(255,255,255,0.06)",
@@ -48,6 +52,7 @@ function themeVars(theme: Theme): CSSProperties {
     "--accent-soft": "rgba(79,126,247,0.12)",
     "--text-muted": "var(--kova-muted)",
     "--text-tertiary": "var(--kova-tertiary)",
+    "--cta-blue": "#3D63DF",
     "--ink-on-fg": "var(--kova-on-ink)",
     "--card-bg": "#FFFFFF",
     "--chip-bg": "rgba(15,17,23,0.05)",
@@ -123,6 +128,219 @@ const LANDING_STYLES = `
     0%   { transform: scale(0.85); opacity: 0; }
     70%  { transform: scale(1.08); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes lp-story-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes lp-story-progress-fill {
+    from { width: 0%; }
+    to   { width: 100%; }
+  }
+  @keyframes lp-bar-grow {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+  }
+  @keyframes lp-fill-x {
+    from { width: 0; }
+  }
+  @keyframes lp-btn-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.03); }
+  }
+  @keyframes lp-flash-ring {
+    0%   { box-shadow: 0 0 0 4px rgba(30,191,138,0.35); }
+    100% { box-shadow: 0 0 0 0 rgba(30,191,138,0); }
+  }
+
+  /* Microinteracciones de la historia: solo corren dentro de un contenedor
+     con data-lp-anim="on" (entrada del estado), una vez, sin loops. */
+  [data-lp-anim="on"] .lp-story-fade {
+    opacity: 0;
+    animation: lp-feed-in 280ms var(--kova-ease-entrance) forwards;
+    animation-delay: var(--lp-fade-delay, 0ms);
+  }
+  [data-lp-anim="on"] .lp-story-slide {
+    animation: lp-story-in 300ms var(--kova-ease-entrance) both;
+    animation-delay: 120ms;
+  }
+  [data-lp-anim="on"] .lp-story-pop {
+    animation: lp-cart-pop 260ms var(--kova-ease-spring) both;
+    animation-delay: 160ms;
+  }
+  [data-lp-anim="on"] .lp-bar {
+    transform-origin: bottom;
+    animation: lp-bar-grow 420ms var(--kova-ease-entrance) both;
+    animation-delay: var(--lp-fade-delay, 0ms);
+  }
+  [data-lp-anim="on"] .lp-fill {
+    animation: lp-fill-x 480ms var(--kova-ease-entrance) both;
+    animation-delay: 160ms;
+  }
+  [data-lp-anim="on"] .lp-charge-pulse {
+    animation: lp-btn-pulse 320ms var(--kova-ease-spring) 640ms;
+  }
+  [data-lp-anim="on"] .lp-flash {
+    animation: lp-flash-ring 700ms var(--kova-ease-exit) 720ms;
+  }
+
+  .lp-story-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+    gap: 36px;
+    align-items: start;
+    margin-top: 30px;
+  }
+  .lp-story-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .lp-story-tab {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    text-align: left;
+    padding: 16px 18px;
+    border-radius: 12px;
+    border: 0.5px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-muted);
+    transition: background 180ms var(--kova-ease-entrance), border-color 180ms var(--kova-ease-entrance);
+  }
+  .lp-story-tab:hover { background: var(--surface-2); }
+  .lp-story-tab[data-active="1"] {
+    background: var(--surface-2);
+    border-color: var(--hairline-strong);
+  }
+  .lp-story-tab-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--chip-bg);
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: background 180ms var(--kova-ease-entrance), color 180ms var(--kova-ease-entrance);
+  }
+  .lp-story-tab[data-active="1"] .lp-story-tab-num {
+    background: var(--accent);
+    color: #fff;
+  }
+  .lp-story-tab strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-muted);
+    transition: color 180ms var(--kova-ease-entrance);
+  }
+  .lp-story-tab[data-active="1"] strong { color: var(--page-fg); }
+  .lp-story-tab-line {
+    display: block;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .lp-story-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: 0;
+    background: var(--accent);
+    animation: lp-story-progress-fill 6000ms linear forwards;
+  }
+  .lp-story-progress[data-paused="1"] { animation-play-state: paused; }
+  .lp-story-stage {
+    position: relative;
+    min-height: 420px;
+  }
+  .lp-story-panel {
+    position: relative;
+    animation: lp-story-in 250ms var(--kova-ease-entrance) both;
+    padding-bottom: 16px;
+  }
+  .lp-story-callout {
+    position: absolute;
+    left: 18px;
+    bottom: -2px;
+    background: var(--kova-ink);
+    border: 1px solid var(--accent);
+    color: var(--kova-on-ink);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    box-shadow: 0 10px 28px -10px rgba(0,0,0,0.6);
+    white-space: nowrap;
+  }
+  .lp-story-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 26px;
+  }
+  .lp-story-card {
+    border: 0.5px solid var(--hairline-color);
+    border-radius: 14px;
+    background: var(--page-bg);
+    padding: 16px;
+  }
+
+  .lp-bento {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+    margin: 36px 0 0;
+  }
+  .lp-bento-cell {
+    display: flex;
+    flex-direction: column;
+    min-height: 178px;
+    padding: 20px;
+    border-radius: 14px;
+    border: 0.5px solid var(--hairline-color);
+    background: var(--page-bg);
+    transition:
+      border-color 180ms var(--kova-ease-entrance),
+      transform 180ms var(--kova-ease-entrance),
+      box-shadow 180ms var(--kova-ease-entrance);
+  }
+  .lp-bento-cell:hover {
+    border-color: var(--hairline-strong);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -16px rgba(0,0,0,0.5);
+  }
+  .lp-bento-cell[data-large="1"] { grid-column: span 2; }
+
+  .lp-cta-band {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    align-items: center;
+    padding: 56px 40px;
+    border-radius: 18px;
+    border: 0.5px solid var(--hairline-strong);
+    background: linear-gradient(180deg, var(--accent-soft), rgba(123,167,255,0.03));
+  }
+  .lp-cta-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px 26px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
   }
 
   .lp-root.lp-motion-ready [data-lp-reveal="true"] {
@@ -253,7 +471,7 @@ function useLandingRevealMotion() {
           ".lp-reveal-block",
           ".lp-hero-grid",
           ".lp-benefit-strip",
-          ".lp-showcase-row",
+          ".lp-story-card",
           ".lp-footer-grid",
         ].join(",")
       )
@@ -415,8 +633,8 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
       body: t.threeNodes.items[2].title,
     },
     {
-      title: t.features.items[0].kicker,
-      body: t.features.items[0].title,
+      title: t.bento.items[1].title,
+      body: t.bento.items[1].line,
     },
   ];
 
@@ -529,355 +747,6 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
               <span>{benefit.body}</span>
             </div>
           ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── HeroDemo ───────────────────────────────────────────────────────────── */
-function HeroDemo() {
-  const d = t.hero.demo;
-  const steps: Array<{ label: string; primary: string; meta: string; icon: ReactNode; accent?: boolean }> = [
-    {
-      label: d.step1Label,
-      primary: d.step1Primary,
-      meta: d.step1Meta,
-      accent: true,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M5 12l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-    },
-    {
-      label: d.step2Label,
-      primary: d.step2Primary,
-      meta: d.step2Meta,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 7l8-4 8 4M4 7v10l8 4 8-4V7M4 7l8 4m8-4l-8 4m0 0v9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-    },
-    {
-      label: d.step3Label,
-      primary: d.step3Primary,
-      meta: d.step3Meta,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 19V5m0 14h16M8 15v-4m4 4V8m4 7v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-    },
-  ];
-  return (
-    <div
-      className="lp-hero-demo"
-      style={{
-        width: "100%",
-        maxWidth: 320,
-        justifySelf: "center",
-        background: "var(--card-bg)",
-        border: "0.5px solid var(--hairline-color)",
-        borderRadius: 16,
-        padding: 16,
-        boxShadow: "0 24px 60px -20px rgba(0,0,0,0.5)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
-    >
-      <div
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          paddingBottom: 12, borderBottom: "0.5px solid var(--hairline-color)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 10, fontWeight: 500, letterSpacing: "0.16em",
-            textTransform: "uppercase", color: "var(--text-tertiary)",
-          }}
-        >
-          {d.eyebrow}
-        </span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-muted)" }}>
-          <span
-            aria-hidden="true"
-            style={{
-              width: 6, height: 6, borderRadius: "50%",
-              background: "var(--kova-growth, #1EBF8A)",
-              boxShadow: "0 0 0 4px rgba(30,191,138,0.18)",
-            }}
-          />
-          {d.livePulse}
-        </span>
-      </div>
-      {steps.map((s, i) => (
-        <div
-          key={i}
-          style={{
-            display: "flex", alignItems: "center", gap: 12,
-            padding: "12px 14px", borderRadius: 12,
-            background: "var(--surface-2)",
-            border: "0.5px solid var(--hairline-color)",
-          }}
-        >
-          <div
-            aria-hidden="true"
-            style={{
-              width: 32, height: 32, borderRadius: 10,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: s.accent ? "var(--accent-soft)" : "var(--chip-bg)",
-              color: s.accent ? "var(--accent)" : "var(--page-fg)",
-              flexShrink: 0,
-            }}
-          >
-            {s.icon}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span
-              style={{
-                fontSize: 10, fontWeight: 500, letterSpacing: "0.14em",
-                textTransform: "uppercase", color: "var(--text-tertiary)",
-              }}
-            >
-              {s.label}
-            </span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--page-fg)", fontVariantNumeric: "tabular-nums" }}>
-              {s.primary}
-            </span>
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{s.meta}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ─── POSShowcase ────────────────────────────────────────────────────────── */
-function POSShowcase() {
-  return (
-    <section id="producto" className="lp-product-section lp-section lp-reveal-block" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
-      <div className="lp-section-inner">
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 28 }}>
-          <span className="lp-section-label">{t.posShowcase.eyebrow}</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.6fr)", gap: 40, alignItems: "end", marginBottom: 36 }} className="lp-showcase-head">
-          <h2 className="lp-section-title">
-            {t.posShowcase.titleLine1}<br />{t.posShowcase.titleLine2}
-          </h2>
-          <p className="lp-section-copy" style={{ margin: 0, paddingBottom: 4 }}>
-            {t.posShowcase.body}
-          </p>
-        </div>
-
-        <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 32, alignItems: "center" }} className="lp-showcase-row">
-          <SweetHomePOSPreview />
-          <HeroDemo />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Features ───────────────────────────────────────────────────────────── */
-type FeatKind = "offline" | "tenant" | "pay" | "live" | "shift" | "pwa";
-function FeatIcon({ kind }: { kind: FeatKind }) {
-  const sx: CSSProperties = { width: 32, height: 32, color: "var(--page-fg)" };
-  switch (kind) {
-    case "offline":
-      return (
-        <svg viewBox="0 0 32 32" fill="none" style={sx}>
-          <path d="M4 16 Q 16 4, 28 16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="3 3" />
-          <path d="M9 20 Q 16 14, 23 20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          <circle cx="16" cy="24" r="2" fill="var(--accent)" />
-        </svg>
-      );
-    case "tenant":
-      return (
-        <svg viewBox="0 0 32 32" fill="none" style={sx}>
-          <circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="23" cy="9" r="3" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="16" cy="22" r="3" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M9 12 L 16 19 M 23 12 L 16 19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-        </svg>
-      );
-    case "pay":
-      return (
-        <svg viewBox="0 0 32 32" fill="none" style={sx}>
-          <rect x="5" y="9" width="22" height="14" rx="2" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M5 13 H 27" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="22" cy="18" r="1.5" fill="var(--accent)" />
-        </svg>
-      );
-    case "live":
-      return (
-        <svg viewBox="0 0 32 32" fill="none" style={sx}>
-          <path d="M3 18 H 9 L 12 10 L 15 24 L 19 14 L 22 18 H 29" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="29" cy="18" r="2" fill="var(--accent)" />
-        </svg>
-      );
-    case "shift":
-      return (
-        <svg viewBox="0 0 32 32" fill="none" style={sx}>
-          <circle cx="16" cy="16" r="11" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M16 9 V 16 L 21 19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          <circle cx="16" cy="16" r="1.6" fill="var(--accent)" />
-        </svg>
-      );
-    case "pwa":
-      return (
-        <svg viewBox="0 0 32 32" fill="none" style={sx}>
-          <rect x="9" y="4" width="14" height="24" rx="2.5" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="16" cy="24" r="1" fill="currentColor" />
-          <path d="M13 9 H 19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          <circle cx="22" cy="6" r="1.6" fill="var(--accent)" />
-        </svg>
-      );
-  }
-}
-
-function Features() {
-  const featureKinds: FeatKind[] = ["offline", "tenant", "pay", "live", "shift", "pwa"];
-  const feats = t.features.items.map((it, i) => ({ ...it, kind: featureKinds[i] }));
-  return (
-    <section id="como-funciona" className="lp-section lp-reveal-block">
-      <div className="lp-section-inner">
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
-          <span className="lp-section-label">{t.features.eyebrow}</span>
-        </div>
-        <h2 className="lp-section-title" style={{ maxWidth: 720 }}>
-          {t.features.title}
-        </h2>
-        <p className="lp-section-copy">
-          {t.features.lead}
-        </p>
-
-        <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0, border: "0.5px solid var(--hairline-color)", borderRadius: 12, overflow: "hidden", background: "var(--surface)" }} className="lp-3cols">
-          {feats.map((f, i) => (
-            <div
-              key={i}
-              style={{
-                padding: "26px 24px",
-                borderRight: i % 3 !== 2 ? "0.5px solid var(--hairline-color)" : "none",
-                borderBottom: i < 3 ? "0.5px solid var(--hairline-color)" : "none",
-                display: "flex", flexDirection: "column", gap: 10, minHeight: 205,
-              }}
-            >
-              <div style={{ marginBottom: 8 }}><FeatIcon kind={f.kind} /></div>
-              <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>{f.kicker}</span>
-              <h3 style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.2, margin: 0 }}>{f.title}</h3>
-              <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── FirstDay ───────────────────────────────────────────────────────────── */
-function FirstDay({ primaryTarget }: { primaryTarget: string }) {
-  const steps = t.firstDay.steps;
-  return (
-    <section className="lp-section lp-reveal-block">
-      <div className="lp-section-inner">
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
-          <span className="lp-section-label">
-            {t.firstDay.eyebrow}
-          </span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,0.72fr)", gap: 40, alignItems: "end", marginBottom: 36 }} className="lp-showcase-head">
-          <h2 className="lp-section-title">
-            {t.firstDay.titleLine1}<br />{t.firstDay.titleLine2}
-          </h2>
-          <p className="lp-section-copy" style={{ margin: 0, paddingBottom: 4 }}>
-            {t.firstDay.body}
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 0,
-            border: "0.5px solid var(--hairline-color)",
-            borderRadius: 12,
-            overflow: "hidden",
-            background: "var(--surface)",
-          }}
-          className="lp-4cols"
-        >
-          {steps.map((s, i) => (
-            <div
-              key={s.n}
-              style={{
-                padding: "24px 22px",
-                borderRight: i < steps.length - 1 ? "0.5px solid var(--hairline-color)" : "none",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                minHeight: 178,
-                position: "relative",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--accent)", letterSpacing: "0.08em" }}>
-                  {s.n}
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 500, padding: "3px 8px", borderRadius: 999, background: "var(--chip-bg)", color: "var(--text-muted)", letterSpacing: "0.06em" }}>
-                  {s.time}
-                </span>
-              </div>
-              <h3 style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1.25, margin: "8px 0 0" }}>
-                {s.title}
-              </h3>
-              <p style={{ fontSize: 13.5, lineHeight: 1.55, color: "var(--text-muted)", margin: 0 }}>
-                {s.body}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: 28,
-            padding: "20px 24px",
-            borderRadius: 12,
-            background: "var(--accent-soft)",
-            border: "0.5px solid var(--hairline-color)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 24,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ flex: "1 1 360px" }}>
-            <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)" }}>
-              {t.firstDay.ctaEyebrow}
-            </div>
-            <p style={{ fontSize: 16, lineHeight: 1.5, margin: "6px 0 0", color: "var(--page-fg)" }}>
-              {t.firstDay.ctaBody}
-            </p>
-          </div>
-          <Link
-            to={primaryTarget}
-            className="lp-cta-fill"
-            style={{
-              background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
-              padding: "12px 20px", borderRadius: 10,
-              fontWeight: 600, fontSize: 14, textDecoration: "none",
-              display: "inline-flex", alignItems: "center", gap: 8,
-            }}
-          >
-            <span>{t.firstDay.ctaButton}</span>
-            <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-              <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </Link>
         </div>
       </div>
     </section>
@@ -1037,7 +906,10 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
           {t.pricing.leadEnd}
         </p>
 
-        <div style={{ marginTop: 34, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
+        <p style={{ marginTop: 30, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+          {t.pricing.bridge}
+        </p>
+        <div style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
           <div
             style={{
               borderRadius: 12, padding: 30,
@@ -1062,7 +934,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
               to={primaryTarget}
               className="lp-cta-fill"
               style={{
-                width: "100%", background: "var(--kova-blue)", color: "#fff",
+                width: "100%", background: "var(--cta-blue, var(--kova-blue))", color: "#fff",
                 padding: "14px 16px", borderRadius: 10, border: "none",
                 fontWeight: 600, fontSize: 14, fontFamily: "inherit",
                 textAlign: "center", textDecoration: "none", display: "block",
@@ -1162,17 +1034,14 @@ const RESPONSIVE_STYLES = `
     .lp-section { padding: 72px 24px !important; }
     .lp-section-compact { padding: 60px 24px !important; }
     .lp-section-inner { max-width: 100% !important; }
-    .lp-hero-grid, .lp-showcase-row, .lp-showcase-head, .lp-2cols {
+    .lp-hero-grid {
       grid-template-columns: 1fr !important;
     }
     .lp-3cols { grid-template-columns: 1fr !important; }
-    .lp-4cols { grid-template-columns: 1fr 1fr !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin-top: 28px !important; }
-    .lp-4cols > div { border-right: none !important; border-bottom: 0.5px solid var(--hairline-color) !important; }
-    .lp-4cols > div:nth-child(2n) { border-right: none !important; }
-    .lp-4cols > div:last-child { border-bottom: none !important; }
-    .lp-4cols > div:nth-last-child(2) { border-bottom: none !important; }
-    .lp-4cols > div:nth-child(odd) { border-right: 0.5px solid var(--hairline-color) !important; }
+    .lp-bento { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .lp-own-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .lp-own-bottom { grid-template-columns: 1fr !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
     .lp-hero-section { min-height: auto !important; padding: 44px 24px 56px !important; }
     .lp-hero-grid { gap: 32px !important; margin-top: 16px !important; }
@@ -1183,9 +1052,9 @@ const RESPONSIVE_STYLES = `
     }
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
     .lp-hero-visual { order: -1; max-width: 100% !important; }
-    .lp-product-section { padding: 88px 24px !important; }
-    .lp-showcase-row { gap: 24px !important; }
     .lp-pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    .lp-cash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .lp-rep-bottom { grid-template-columns: 1fr !important; }
   }
   @media (max-width: 640px) {
     .lp-section { padding: 58px 20px !important; }
@@ -1223,7 +1092,6 @@ const RESPONSIVE_STYLES = `
       justify-content: center !important;
       text-align: center !important;
     }
-    .lp-product-section { padding: 72px 20px !important; }
     .lp-pos-preview { grid-template-columns: 1fr !important; }
     .lp-pos-main {
       border-right: none !important;
@@ -1234,10 +1102,23 @@ const RESPONSIVE_STYLES = `
     }
     .lp-pos-lines { max-height: 132px !important; }
     .lp-pos-methods { display: none !important; }
+    /* Historia en mobile: cada preview se recorta a su núcleo (brief §6). */
+    .lp-story-card .lp-pos-main { display: none !important; }
+    .lp-story-card .lp-inv-card[data-secondary="1"] { display: none !important; }
+    .lp-story-card .lp-inv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .lp-story-card .lp-cash-tile[data-secondary="1"] { display: none !important; }
+    .lp-story-card .lp-rep-kpi[data-secondary="1"] { display: none !important; }
+    .lp-story-card .lp-rep-kpis { grid-template-columns: 1fr !important; }
+    .lp-story-card .lp-rep-secondary { display: none !important; }
+    .lp-story-card .lp-rep-bar[data-extra="1"] { display: none !important; }
     .lp-footer-grid { grid-template-columns: 1fr !important; }
-    .lp-4cols { grid-template-columns: 1fr !important; }
-    .lp-4cols > div { border-right: none !important; border-bottom: 0.5px solid var(--hairline-color) !important; }
-    .lp-4cols > div:last-child { border-bottom: none !important; }
+    .lp-bento { grid-template-columns: 1fr !important; }
+    .lp-bento-cell[data-large="1"] { grid-column: auto !important; }
+    .lp-own-kpis { grid-template-columns: 1fr 1fr !important; }
+    .lp-own-kpi[data-secondary="1"] { display: none !important; }
+    .lp-own-secondary { display: none !important; }
+    .lp-cta-band { padding: 40px 22px !important; }
+    .lp-cta-steps { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   }
   @media (max-width: 360px) {
     .lp-nav-primary { padding: 9px 10px !important; font-size: 12px !important; }
@@ -1279,12 +1160,13 @@ export default function Home(): ReactNode {
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
       <main>
         <Hero primaryTarget={primaryTarget} />
-        <POSShowcase />
-        <Features />
-        <FirstDay primaryTarget={primaryTarget} />
+        <GuidedProductStory />
+        <OwnerDashboard />
+        <BentoModules />
         <BuiltFor />
         <Pricing primaryTarget={primaryTarget} />
         <FAQ />
+        <FinalCta primaryTarget={primaryTarget} />
       </main>
       <Footer />
     </div>
