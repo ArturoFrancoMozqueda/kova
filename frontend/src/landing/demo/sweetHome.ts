@@ -102,9 +102,23 @@ export const SWEET_HOME_REPORTS = {
   cardSharePct: 64,
   orders: 37,
   avgTicket: 130,
+  refunds: 0,
   deltaVsYesterdayPct: 18,
   bestHoursLabel: "5:00 PM – 7:00 PM",
   topProductId: "latte-vainilla",
+  // Ranking del día — consistente con la venta activa (los 3 se vendieron hoy).
+  topProductIds: ["latte-vainilla", "cheesecake", "galleta-avena"],
+  // Barras del mini-chart "Tus mejores horas" (% relativo a la mejor hora).
+  // La venta de las 5:42 PM cae dentro de la ventana resaltada.
+  hourly: [
+    { label: "1 PM", pct: 34, best: false },
+    { label: "2 PM", pct: 26, best: false },
+    { label: "3 PM", pct: 48, best: false },
+    { label: "4 PM", pct: 62, best: false },
+    { label: "5 PM", pct: 100, best: true },
+    { label: "6 PM", pct: 88, best: true },
+    { label: "7 PM", pct: 54, best: false },
+  ],
 } as const;
 
 export const SWEET_HOME_EMPLOYEES = [

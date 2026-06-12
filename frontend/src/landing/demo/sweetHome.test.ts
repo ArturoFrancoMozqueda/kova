@@ -59,5 +59,23 @@ describe("Sweet Home demo data contract", () => {
     expect(r.cashSharePct + r.cardSharePct).toBe(100);
     expect(Math.round((r.cashTotal / r.netSales) * 100)).toBe(r.cashSharePct);
     expect(SWEET_HOME_PRODUCTS.some((p) => p.id === r.topProductId)).toBe(true);
+    expect(r.topProductIds[0]).toBe(r.topProductId);
+    const productIds = new Set(SWEET_HOME_PRODUCTS.map((p) => p.id));
+    for (const id of r.topProductIds) expect(productIds.has(id)).toBe(true);
+    expect(r.refunds).toBe(0);
+  });
+
+  it("hourly bars match the best-hours window", () => {
+    const r = SWEET_HOME_REPORTS;
+    for (const bar of r.hourly) {
+      expect(bar.pct).toBeGreaterThan(0);
+      expect(bar.pct).toBeLessThanOrEqual(100);
+    }
+    const best = r.hourly.filter((b) => b.best);
+    // La ventana 5:00 PM – 7:00 PM cubre las barras que inician a las 5 y 6 PM.
+    expect(best.map((b) => b.label)).toEqual(["5 PM", "6 PM"]);
+    const maxPct = Math.max(...r.hourly.map((b) => b.pct));
+    expect(best.some((b) => b.pct === maxPct)).toBe(true);
+    expect(r.bestHoursLabel).toBe("5:00 PM – 7:00 PM");
   });
 });
