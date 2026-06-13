@@ -45,7 +45,7 @@ def _clear_auth_cookies(response: Response) -> None:
 
 @router.post(
     "/signup", response_model=SignupResponse,
-    dependencies=[Depends(rate_limit(10, key="auth-signup"))],
+    dependencies=[Depends(rate_limit(10, key="auth-signup", fail_closed=True))],
 )
 def signup(
     body: SignupRequest, request: Request, response: Response, db: Session = Depends(get_db)
@@ -89,7 +89,7 @@ def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)):
     return MessageResponse(message="Email verified.")
 
 
-@router.post("/login", dependencies=[Depends(rate_limit(20, key="auth-login"))])
+@router.post("/login", dependencies=[Depends(rate_limit(20, key="auth-login", fail_closed=True))])
 def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     access_token, refresh_token, _ = service.login(
         db,
@@ -145,7 +145,7 @@ def logout_all(
 
 @router.post(
     "/password-reset/request", response_model=MessageResponse,
-    dependencies=[Depends(rate_limit(5, key="auth-password-reset"))],
+    dependencies=[Depends(rate_limit(5, key="auth-password-reset", fail_closed=True))],
 )
 def password_reset_request(body: PasswordResetRequestBody, db: Session = Depends(get_db)):
     plain = service.request_password_reset(db, email=body.email)
