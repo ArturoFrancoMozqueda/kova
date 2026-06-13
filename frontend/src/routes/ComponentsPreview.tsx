@@ -114,19 +114,19 @@ function PrimitivesGrid() {
 
       <Row label="Input / Select / Label">
         <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
-          <Label htmlFor="preview-input">Email</Label>
-          <Input id="preview-input" placeholder="you@example.com" />
+          <Label htmlFor="preview-input">Correo</Label>
+          <Input id="preview-input" placeholder="tu@ejemplo.com" />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
-          <Label htmlFor="preview-select">Currency</Label>
+          <Label htmlFor="preview-select">Moneda</Label>
           <Select id="preview-select" defaultValue="mxn">
             <option value="mxn">MXN</option>
             <option value="usd">USD</option>
           </Select>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 220 }}>
-          <Label htmlFor="preview-input-disabled">Disabled</Label>
-          <Input id="preview-input-disabled" placeholder="disabled" disabled />
+          <Label htmlFor="preview-input-disabled">Deshabilitado</Label>
+          <Input id="preview-input-disabled" placeholder="deshabilitado" disabled />
         </div>
       </Row>
 

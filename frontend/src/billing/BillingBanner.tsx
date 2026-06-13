@@ -15,6 +15,17 @@ type BannerContent = {
   body: string;
 };
 
+// Grace-window urgency: surface the days left so the cashier/owner feels the
+// deadline. Falls back to the generic copy when the date is missing.
+function pastDueGraceBody(graceEndsAt: string | null): string {
+  if (!graceEndsAt) return copy.billingBanner.pastDueGraceBody;
+  const ms = new Date(graceEndsAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return copy.billingBanner.pastDueGraceBody;
+  const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+  if (days <= 1) return copy.billingBanner.pastDueGraceBodyLastDay;
+  return copy.billingBanner.pastDueGraceBodyWithDays(days);
+}
+
 function bannerForAccess(access: BillingAccess): BannerContent | null {
   if (access.allowed) {
     if (access.reason === "signup_trial") {
@@ -24,7 +35,11 @@ function bannerForAccess(access: BillingAccess): BannerContent | null {
       return { tone: "info", title: copy.billingBanner.trialingActive, body: copy.billingBanner.trialingActiveBody };
     }
     if (access.reason === "past_due_grace") {
-      return { tone: "warning", title: copy.billingBanner.pastDueGrace, body: copy.billingBanner.pastDueGraceBody };
+      return {
+        tone: "warning",
+        title: copy.billingBanner.pastDueGrace,
+        body: pastDueGraceBody(access.grace_period_ends_at),
+      };
     }
     return null;
   }
@@ -40,7 +55,9 @@ function bannerForAccess(access: BillingAccess): BannerContent | null {
             ? copy.billingBanner.blockedUnpaid
             : access.reason === "incomplete"
               ? copy.billingBanner.blockedIncomplete
-              : copy.billingBanner.blockedGeneric;
+              : access.reason === "incomplete_expired"
+                ? copy.billingBanner.blockedIncompleteExpired
+                : copy.billingBanner.blockedGeneric;
 
   return { tone: "danger", title: copy.billingBanner.blockedTitle, body: blockedBody };
 }
