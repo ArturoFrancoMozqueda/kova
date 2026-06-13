@@ -149,6 +149,16 @@ def _set_order_user(db, order_id: str, user_id: UUID) -> None:
     db.commit()
 
 
+def _open_shift(client) -> dict:
+    response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"reports-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def _create_product(client, *, name: str, price: str) -> dict:
     response = client.post(
         "/api/v1/catalog/products",
@@ -195,6 +205,7 @@ def _cash_payment(amount: str) -> dict:
 def manager_with_sales_and_refund(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"reports-manager-{suffix}@example.com", "Reports Tenant")
+    _open_shift(client)
     product = _create_product(client, name="Concha", price="25.00")
     order = _create_order(client, product=product, quantity=2, payments=[_cash_payment("50.00")])
     refund = client.post(
@@ -213,6 +224,7 @@ def manager_with_sales_and_refund(client):
 def manager_with_split_payment_sales(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"reports-split-{suffix}@example.com", "Reports Split Tenant")
+    _open_shift(client)
     product = _create_product(client, name="Cake", price="50.00")
     _create_order(
         client,
@@ -230,6 +242,7 @@ def manager_with_split_payment_sales(client):
 def manager_with_completed_sales(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"reports-top-{suffix}@example.com", "Reports Top Tenant")
+    _open_shift(client)
     concha = _create_product(client, name="Concha", price="25.00")
     roll = _create_product(client, name="Roll", price="10.00")
     _create_order(client, product=concha, quantity=3, payments=[_cash_payment("75.00")])
@@ -241,6 +254,7 @@ def manager_with_completed_sales(client):
 def manager_with_hourly_sales(client, db):
     suffix = uuid4().hex
     _signup_verify_login(client, f"reports-hourly-{suffix}@example.com", "Reports Hourly Tenant")
+    _open_shift(client)
     concha = _create_product(client, name="Concha", price="25.00")
     coffee = _create_product(client, name="Coffee", price="30.00")
     morning = _create_order(client, product=concha, quantity=1, payments=[_cash_payment("25.00")])
@@ -256,6 +270,7 @@ def manager_with_employee_sales(client, db):
     signup = _signup_verify_login(
         client, f"reports-employees-owner-{suffix}@example.com", "Reports Employee Tenant"
     )
+    _open_shift(client)
     employee = _create_user(
         db,
         tenant_id=signup["tenant_id"],
@@ -290,6 +305,7 @@ def manager_with_refund_reasons(client):
     _signup_verify_login(
         client, f"reports-refund-reasons-{suffix}@example.com", "Reports Refund Tenant"
     )
+    _open_shift(client)
     concha = _create_product(client, name="Concha", price="25.00")
     roll = _create_product(client, name="Roll", price="10.00")
     order_a = _create_order(client, product=concha, quantity=2, payments=[_cash_payment("50.00")])
@@ -322,6 +338,7 @@ def manager_with_refund_reasons(client):
 def manager_with_business_story_data(client, db):
     suffix = uuid4().hex
     _signup_verify_login(client, f"reports-story-{suffix}@example.com", "Reports Story Tenant")
+    _open_shift(client)
     dona = _create_product(client, name="Dona", price="10.00")
     concha = _create_product(client, name="Concha", price="20.00")
     tenant_tz = ZoneInfo("America/Mexico_City")
@@ -402,6 +419,7 @@ def cashier_without_reports_permission(client, db):
 def tenant_a_has_completed_sales(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"reports-tenant-a-{suffix}@example.com", "Reports Tenant A")
+    _open_shift(client)
     product = _create_product(client, name="Tenant A Product", price="40.00")
     _create_order(client, product=product, quantity=1, payments=[_cash_payment("40.00")])
     client.post("/api/v1/auth/logout")

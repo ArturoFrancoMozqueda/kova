@@ -1,5 +1,6 @@
 """Split payment + receipt golden tests (Sprint 3)."""
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
@@ -29,6 +30,16 @@ def test_no_change_on_exact_cash_payment():
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _open_shift(client: TestClient) -> dict:
+    r = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"split-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
 def _setup(client: TestClient, email: str, tenant: str, price: str = "50.00") -> dict:
     r = client.post(
         "/api/v1/auth/signup",
@@ -38,6 +49,7 @@ def _setup(client: TestClient, email: str, tenant: str, price: str = "50.00") ->
     signup = r.json()
     client.post("/api/v1/auth/verify", json={"token": signup["dev_verification_token"]})
     client.post("/api/v1/auth/login", json={"email": email, "password": "S3cur3pass!"})
+    _open_shift(client)
     product = client.post(
         "/api/v1/catalog/products",
         headers={"Idempotency-Key": "split-product"},
