@@ -12,7 +12,6 @@ import { LogoMark } from "@/components/brand/Logo";
 import GuidedProductStory from "@/landing/GuidedProductStory";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
-import FinalCta from "@/landing/FinalCta";
 import { copy } from "@/i18n/messages";
 
 const t = copy.landing;
@@ -337,6 +336,31 @@ const LANDING_STYLES = `
     box-shadow: 0 12px 32px -16px rgba(0,0,0,0.5);
   }
   .lp-bento-cell[data-large="1"] { grid-column: span 2; }
+
+  /* Reusable card/chip lift — same feel as the bento cells */
+  .lp-lift {
+    transition:
+      border-color 180ms var(--kova-ease-entrance),
+      transform 180ms var(--kova-ease-entrance),
+      box-shadow 180ms var(--kova-ease-entrance),
+      background 180ms var(--kova-ease-entrance);
+  }
+  .lp-lift:hover {
+    border-color: var(--hairline-strong);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -16px rgba(0,0,0,0.5);
+  }
+  .lp-chip-lift {
+    transition:
+      border-color 180ms var(--kova-ease-entrance),
+      transform 180ms var(--kova-ease-entrance),
+      background 180ms var(--kova-ease-entrance);
+  }
+  .lp-chip-lift:hover {
+    border-color: var(--hairline-strong);
+    transform: translateY(-1px);
+    background: var(--surface-2);
+  }
 
   .lp-cta-band {
     display: flex;
@@ -820,6 +844,7 @@ function Problem() {
           {p.fragments.map((f) => (
             <span
               key={f}
+              className="lp-chip-lift"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 8,
                 padding: "10px 16px", borderRadius: 999,
@@ -857,6 +882,7 @@ function Differentiation() {
           {d.columns.map((c) => (
             <div
               key={c.name}
+              className="lp-lift"
               style={{
                 background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
                 borderRadius: 12, padding: "30px 28px",
@@ -869,6 +895,7 @@ function Differentiation() {
             </div>
           ))}
           <div
+            className="lp-lift"
             style={{
               background: "var(--surface)", border: "1px solid var(--accent)",
               boxShadow: "0 0 0 4px var(--accent-soft)",
@@ -1023,6 +1050,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
             {t.pricing.worthItItems.map((it) => (
               <span
                 key={it}
+                className="lp-chip-lift"
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
                   padding: "10px 16px", borderRadius: 999,
@@ -1310,7 +1338,6 @@ export default function Home(): ReactNode {
         <BuiltFor />
         <FAQ />
         <Pricing primaryTarget={primaryTarget} />
-        <FinalCta primaryTarget={primaryTarget} />
       </main>
       <Footer />
     </div>

@@ -24,7 +24,7 @@ export const copy = {
     },
     hero: {
       eyebrow: "Una venta lo mueve todo",
-      titlePart1: "Conoce exactamente",
+      titlePart1: "Deja de adivinar",
       titleEmphasis: "qué pasa",
       titlePart2: " en tu negocio.",
       subtitle: "¿Vendiste bien hoy, o solo lo sientes? Cobra y Kova actualiza inventario, caja y reportes al instante — para que cierres el día con claridad, no con dudas.",
