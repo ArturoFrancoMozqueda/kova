@@ -195,6 +195,7 @@ export const copy = {
       privacy: "Privacidad",
       terms: "Términos",
       security: "Seguridad",
+      cookies: "Cookies",
       support: "Soporte",
     },
   },
