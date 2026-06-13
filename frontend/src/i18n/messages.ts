@@ -115,6 +115,18 @@ export const copy = {
         { title: "Tú entiendes", line: "Tu día, explicado.", callout: "Y tú entiendes qué pasó." },
       ],
     },
+    // Cinematic showcase (laptop mockup) — used on the landing and on the
+    // standalone /kova-showcase-video export route. Section captions reuse
+    // `story.steps`; only the wrapper + final CTA copy live here.
+    showcase: {
+      eyebrow: "Kova en acción",
+      title: "Una sola venta, contada por Kova.",
+      line: "Del cobro al reporte, todo se actualiza en tiempo real.",
+      urlBar: "app.kova.mx",
+      ctaTitle: "Deja de adivinar.",
+      ctaLine: "Conoce exactamente qué pasa en tu negocio.",
+      ctaButton: "Empieza gratis",
+    },
     ownerDashboard: {
       kicker: "Al final del día",
       title: "Termina el día sabiendo qué pasó.",

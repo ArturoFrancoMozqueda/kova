@@ -25,6 +25,7 @@ const SettingsView = lazy(() => import("./settings/SettingsView"));
 const ShiftView = lazy(() => import("./shifts/ShiftView"));
 const AppShell = lazy(() => import("./layout/AppShell"));
 const Home = lazy(() => import("./routes/Home"));
+const KovaShowcaseVideo = lazy(() => import("./routes/KovaShowcaseVideo"));
 const LegalPage = lazy(() => import("./routes/LegalPage"));
 const LogoPreview = lazy(() => import("./routes/LogoPreview"));
 const ComponentsPreview = lazy(() => import("./routes/ComponentsPreview"));
@@ -53,6 +54,8 @@ export default function App() {
                 <Route path="/accept-invite" element={<AcceptInviteView />} />
 
                 <Route path="/" element={<Home />} />
+                {/* Isolated marketing showcase for video export (noindex). */}
+                <Route path="/kova-showcase-video" element={<KovaShowcaseVideo />} />
                 <Route path="/privacy" element={<LegalPage variant="privacy" />} />
                 <Route path="/terms" element={<LegalPage variant="terms" />} />
                 <Route path="/seguridad" element={<LegalPage variant="security" />} />
