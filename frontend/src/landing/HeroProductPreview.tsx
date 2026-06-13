@@ -1,5 +1,7 @@
 // Visual principal del hero: el POS de Sweet Home dentro de un marco tipo
 // ventana de app, con la venta de $186 ya cargada e interactividad limitada.
+// Al cargar reproduce una vez la microinteracción de entrada (pop de la
+// galleta + count-up del total); con prefers-reduced-motion no anima.
 import { SWEET_HOME_BUSINESS } from "@/landing/demo/sweetHome";
 import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
 
@@ -33,7 +35,7 @@ export default function HeroProductPreview() {
           {SWEET_HOME_BUSINESS.name} · {SWEET_HOME_BUSINESS.tagline}
         </span>
       </div>
-      <SweetHomePOSPreview interactive />
+      <SweetHomePOSPreview interactive animateEntry />
     </div>
   );
 }
