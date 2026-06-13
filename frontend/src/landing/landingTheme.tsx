@@ -588,6 +588,11 @@ export const RESPONSIVE_STYLES = `
     .lp-pos-methods { display: none !important; }
     /* Historia en mobile: cada preview se recorta a su núcleo (brief §6). */
     .lp-story-card .lp-pos-main { display: none !important; }
+    .lp-story-card .lp-pos-lines {
+      max-height: none !important;
+      overflow: visible !important;
+      flex: 0 0 auto !important;
+    }
     .lp-story-card .lp-inv-card[data-secondary="1"] { display: none !important; }
     .lp-story-card .lp-inv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-story-card .lp-cash-tile[data-secondary="1"] { display: none !important; }

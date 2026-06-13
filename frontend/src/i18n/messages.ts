@@ -122,7 +122,7 @@ export const copy = {
       eyebrow: "Kova en acción",
       title: "Una sola venta, contada por Kova.",
       line: "Del cobro al reporte, todo se actualiza en tiempo real.",
-      urlBar: "app.kova.mx",
+      urlBar: "kovasuite.com",
       ctaTitle: "Deja de adivinar.",
       ctaLine: "Conoce exactamente qué pasa en tu negocio.",
       ctaButton: "Empieza gratis",

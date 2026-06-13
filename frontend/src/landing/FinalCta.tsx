@@ -29,7 +29,7 @@ export default function FinalCta({ primaryTarget }: { primaryTarget: string }) {
                 >
                   {i + 1}
                 </span>
-                <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--page-fg)", whiteSpace: "nowrap" }}>{step}</span>
+                <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--page-fg)", lineHeight: 1.25 }}>{step}</span>
               </li>
             ))}
           </ol>

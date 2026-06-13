@@ -12,6 +12,7 @@ import { LogoMark } from "@/components/brand/Logo";
 import GuidedProductStory from "@/landing/GuidedProductStory";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
+import FinalCta from "@/landing/FinalCta";
 import KovaShowcase from "@/landing/showcase/KovaShowcase";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { copy } from "@/i18n/messages";
@@ -745,6 +746,7 @@ export default function Home(): ReactNode {
         <BuiltFor />
         <FAQ />
         <Pricing primaryTarget={primaryTarget} />
+        <FinalCta primaryTarget={primaryTarget} />
       </main>
       <Footer />
     </div>
