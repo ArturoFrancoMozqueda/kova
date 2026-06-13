@@ -9,6 +9,7 @@ export const copy = {
     network: "Parece que no hay conexión. Revisa tu internet e inténtalo de nuevo.",
     permission: "Tu cuenta no tiene permiso para esto. Pídeselo a tu gerente o al dueño.",
     server: "Tuvimos un problema de nuestro lado. Espera unos segundos e inténtalo de nuevo.",
+    unexpected: "Algo salió mal. Intenta de nuevo.",
   },
   landing: {
     nav: {
