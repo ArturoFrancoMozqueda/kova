@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+
+# Authenticated app routes (client-side only — they serve the empty shell and
+# have no indexable content). Keep crawlers off them to avoid wasted budget.
+Disallow: /dashboard
+Disallow: /register
+Disallow: /catalog
+Disallow: /catalogo
+Disallow: /inventory
+Disallow: /inventario
+Disallow: /orders
+Disallow: /ordenes
+Disallow: /reports
+Disallow: /reportes
+Disallow: /shifts
+Disallow: /turnos
+Disallow: /caja
+Disallow: /panel
+Disallow: /settings
+Disallow: /configuracion
+Disallow: /billing
+Disallow: /sync-queue
+Disallow: /api/
+
+Sitemap: https://kovasuite.com/sitemap.xml
