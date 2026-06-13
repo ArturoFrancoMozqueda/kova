@@ -705,6 +705,14 @@ export default function RegisterView() {
             )}
           </CardHeader>
           <CardContent className="p-4">
+            {/* Screen-reader announcement of the filtered result count — the
+                product grid changes without a navigation, so without this a SR
+                user gets no feedback when filtering by category or SKU. */}
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              {(selectedCategory || skuQuery)
+                ? copy.register.itemCount(filteredProducts.length)
+                : ""}
+            </div>
             {filteredProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">

@@ -1269,6 +1269,9 @@ export const copy = {
     loading: "Cargando cola",
     online: "En línea",
     willSyncWhenRestored: "Se sincronizará cuando regrese la conexión",
+    statusAnnouncement: (pending: number, failed: number) =>
+      `${pending} venta${pending === 1 ? "" : "s"} pendiente${pending === 1 ? "" : "s"}, ` +
+      `${failed} fallida${failed === 1 ? "" : "s"}.`,
   },
   catalog: {
     title: "Catálogo",
