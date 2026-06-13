@@ -158,7 +158,7 @@ export default function KovaShowcase({ format, variant = "embedded" }: KovaShowc
 
   // Embedded on the landing: a normal landing section with a heading.
   return (
-    <section className="lp-section ksw-section">
+    <section id="producto" className="lp-section ksw-section">
       <div className="lp-section-inner">
         <h2 className="lp-section-label">{sc.eyebrow}</h2>
         <h3 className="lp-section-title ksw-heading">{sc.title}</h3>
@@ -190,11 +190,16 @@ const SHOWCASE_STYLES = `
     justify-content: center;
     font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
   }
-  /* Embedded on the landing: responsive band with a fixed aspect ratio. */
+  /* Embedded on the landing: desktop keeps the cinematic ratio; smaller
+     viewports get explicit height so captions never sit on top of the app. */
   .ksw-stage[data-variant="embedded"] {
     margin-top: 34px;
     border-radius: 18px;
     border: 0.5px solid var(--hairline-color);
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: clamp(22px, 3vw, 34px);
+    padding: clamp(26px, 4vw, 48px) clamp(18px, 4vw, 54px) clamp(22px, 4vw, 46px);
   }
   .ksw-stage[data-variant="embedded"][data-format="landscape"] { aspect-ratio: 16 / 10; }
   .ksw-stage[data-variant="embedded"][data-format="portrait"] { aspect-ratio: 4 / 5; }
@@ -244,6 +249,18 @@ const SHOWCASE_STYLES = `
     text-align: center;
     padding: 0 6%;
     pointer-events: none;
+  }
+  .ksw-stage[data-variant="embedded"] .ksw-captions {
+    position: relative;
+    inset: auto;
+    z-index: 3;
+    width: 100%;
+    height: clamp(64px, 8vw, 92px);
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .ksw-stage[data-variant="embedded"] .ksw-caption {
+    justify-content: center;
   }
   .ksw-stage[data-format="portrait"] .ksw-captions { top: 8%; height: 12%; }
   .ksw-caption {
@@ -433,15 +450,21 @@ const SHOWCASE_STYLES = `
     50%      { transform: translateY(-10px); }
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
     .ksw-stage[data-variant="embedded"] {
       aspect-ratio: auto !important;
-      height: clamp(440px, 62vw, 620px);
+      height: 650px;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .ksw-stage[data-variant="embedded"] {
+      height: clamp(620px, 86vw, 680px);
+      padding: 28px 24px 26px;
+      gap: 22px;
     }
     .ksw-stage[data-variant="embedded"] .ksw-captions {
-      top: 24px;
       height: 86px;
-      padding: 0 8%;
       align-items: flex-start;
     }
     .ksw-stage[data-variant="embedded"] .ksw-caption-title {
@@ -453,7 +476,6 @@ const SHOWCASE_STYLES = `
     }
     .ksw-stage[data-variant="embedded"] .ksw-laptop {
       width: min(92%, 760px);
-      margin-top: 106px;
     }
     .ksw-stage[data-variant="embedded"] .ksw-screen-layer {
       padding: clamp(14px, 2.4vw, 24px);
@@ -471,14 +493,14 @@ const SHOWCASE_STYLES = `
       max-width: 12ch;
     }
     .ksw-stage[data-variant="embedded"] {
-      height: 430px;
+      height: 460px;
       margin-top: 28px;
       border-radius: 14px;
+      padding: 20px 16px 18px;
+      gap: 18px;
     }
     .ksw-stage[data-variant="embedded"] .ksw-captions {
-      top: 18px;
       height: 82px;
-      padding: 0 18px;
     }
     .ksw-stage[data-variant="embedded"] .ksw-caption {
       gap: 4px;
@@ -491,8 +513,7 @@ const SHOWCASE_STYLES = `
       font-size: 12px;
     }
     .ksw-stage[data-variant="embedded"] .ksw-laptop {
-      width: calc(100% - 32px);
-      margin-top: 118px;
+      width: 100%;
       filter: drop-shadow(0 24px 46px rgba(0,0,0,0.5));
     }
     .ksw-stage[data-variant="embedded"] .ksw-lid {

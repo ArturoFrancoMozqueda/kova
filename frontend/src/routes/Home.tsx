@@ -9,7 +9,6 @@ import {
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
-import GuidedProductStory from "@/landing/GuidedProductStory";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
@@ -739,7 +738,6 @@ export default function Home(): ReactNode {
             powers the standalone /kova-showcase-video export route. */}
         <KovaShowcase format="landscape" variant="embedded" />
         <Problem />
-        <GuidedProductStory />
         <OwnerDashboard />
         <BentoModules />
         <Differentiation />

@@ -129,7 +129,7 @@ export const copy = {
     },
     ownerDashboard: {
       kicker: "Al final del día",
-      title: "Termina el día sabiendo qué pasó.",
+      title: "Conoce exactamente qué pasa en tu negocio.",
       line: "Sin perseguir tickets ni hojas de cálculo.",
     },
     bento: {
