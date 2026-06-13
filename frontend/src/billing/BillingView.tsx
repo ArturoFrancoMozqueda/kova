@@ -20,7 +20,9 @@ import { trackFunnelEvent, trackFunnelEventOnce } from "@/telemetry/funnel";
 function pastDueGraceUrgency(graceEndsAt: string | null): string | null {
   if (!graceEndsAt) return null;
   const ms = new Date(graceEndsAt).getTime() - Date.now();
-  if (Number.isNaN(ms)) return null;
+  // Grace already passed (or unparseable) → no urgency copy; the caller falls
+  // back to the static "recupera la facturación" banner.
+  if (Number.isNaN(ms) || ms <= 0) return null;
   const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
   if (days <= 1) return copy.billingBanner.pastDueGraceBodyLastDay;
   return copy.billingBanner.pastDueGraceBodyWithDays(days);

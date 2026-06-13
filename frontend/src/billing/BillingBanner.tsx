@@ -20,7 +20,7 @@ type BannerContent = {
 function pastDueGraceBody(graceEndsAt: string | null): string {
   if (!graceEndsAt) return copy.billingBanner.pastDueGraceBody;
   const ms = new Date(graceEndsAt).getTime() - Date.now();
-  if (Number.isNaN(ms)) return copy.billingBanner.pastDueGraceBody;
+  if (Number.isNaN(ms) || ms <= 0) return copy.billingBanner.pastDueGraceBody;
   const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
   if (days <= 1) return copy.billingBanner.pastDueGraceBodyLastDay;
   return copy.billingBanner.pastDueGraceBodyWithDays(days);
