@@ -40,6 +40,9 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
         sales: items.map((item) => ({
           client_uuid: item.client_uuid,
           order: item.sale,
+          // Omit when absent so legacy queue items send the exact same payload
+          // as before this field existed.
+          ...(item.shift_id ? { shift_id: item.shift_id } : {}),
         })),
       }),
     });
