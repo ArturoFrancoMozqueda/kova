@@ -806,6 +806,101 @@ function BuiltFor() {
   );
 }
 
+/* ─── Problem ────────────────────────────────────────────────────────────── */
+function Problem() {
+  const p = t.problem;
+  return (
+    <section className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
+      <div className="lp-section-inner" style={{ maxWidth: 1000 }}>
+        <span className="lp-section-label" style={{ color: "var(--accent)" }}>{p.eyebrow}</span>
+        <h2 className="lp-section-title" style={{ maxWidth: 820, color: "var(--kova-on-ink)" }}>{p.title}</h2>
+        <p className="lp-section-copy" style={{ color: "rgba(240,244,255,0.65)" }}>{p.body}</p>
+
+        <div style={{ marginTop: 32, display: "flex", flexWrap: "wrap", gap: 10 }}>
+          {p.fragments.map((f) => (
+            <span
+              key={f}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "10px 16px", borderRadius: 999,
+                background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
+                fontSize: 14, fontWeight: 500, color: "var(--page-fg)",
+              }}
+            >
+              {f}
+            </span>
+          ))}
+        </div>
+        <p style={{ marginTop: 18, fontSize: 14, color: "var(--text-muted)" }}>{p.fragmentsFoot}</p>
+
+        <p style={{ marginTop: 32, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
+          {p.punch}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Differentiation ────────────────────────────────────────────────────── */
+function Differentiation() {
+  const d = t.diff;
+  return (
+    <section className="lp-section lp-reveal-block">
+      <div className="lp-section-inner">
+        <span className="lp-section-label">{d.eyebrow}</span>
+        <h2 className="lp-section-title" style={{ maxWidth: 760 }}>{d.title}</h2>
+
+        <div
+          className="lp-3cols"
+          style={{ marginTop: 40, display: "grid", gridTemplateColumns: "1fr 1fr 1.12fr", gap: 16, alignItems: "stretch" }}
+        >
+          {d.columns.map((c) => (
+            <div
+              key={c.name}
+              style={{
+                background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
+                borderRadius: 12, padding: "30px 28px",
+                display: "flex", flexDirection: "column", gap: 14,
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)" }}>{c.tag}</span>
+              <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--page-fg)" }}>{c.name}</div>
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--text-muted)" }}>{c.body}</p>
+            </div>
+          ))}
+          <div
+            style={{
+              background: "var(--surface)", border: "1px solid var(--accent)",
+              boxShadow: "0 0 0 4px var(--accent-soft)",
+              borderRadius: 12, padding: "30px 28px",
+              display: "flex", flexDirection: "column", gap: 14,
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--page-fg)" }}>
+              <LogoMark size={22} circuitColor="rgba(255,255,255,0.5)" coreColor="var(--kova-blue-light)" />
+              {d.kova.tag}
+            </span>
+            <div style={{ fontSize: 15, color: "var(--text-muted)" }}>{d.kova.name}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+              {d.kova.points.map((pt) => (
+                <span key={pt} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, fontWeight: 500, color: "var(--page-fg)", lineHeight: 1.4 }}>
+                  <svg width="16" height="16" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true">
+                    <path d="M2 6L5 9L10 3" stroke="var(--kova-growth)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {pt}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p style={{ marginTop: 32, fontSize: "clamp(18px, 2.2vw, 26px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 900, color: "var(--page-fg)" }}>{d.punch}</p>
+        <p style={{ marginTop: 16, fontSize: 12, color: "var(--text-tertiary)", maxWidth: 720, lineHeight: 1.4 }}>{d.disclaimer}</p>
+      </div>
+    </section>
+  );
+}
+
 /* ─── FAQ ────────────────────────────────────────────────────────────────── */
 function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
@@ -920,7 +1015,28 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
           {t.pricing.leadEnd}
         </p>
 
-        <p style={{ marginTop: 30, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+        <div style={{ marginTop: 30, maxWidth: 620, marginLeft: "auto", marginRight: "auto", textAlign: "center" }}>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1.4, color: "var(--page-fg)" }}>
+            <span style={{ color: "var(--accent)" }}>{t.pricing.worthItTitle}</span> {t.pricing.worthItBody}
+          </p>
+          <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
+            {t.pricing.worthItItems.map((it) => (
+              <span
+                key={it}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  padding: "10px 16px", borderRadius: 999,
+                  background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
+                  fontSize: 13, fontWeight: 500, color: "var(--page-fg)",
+                }}
+              >
+                {it}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <p style={{ marginTop: 36, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
           {t.pricing.bridge}
         </p>
         <div style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
@@ -1186,12 +1302,14 @@ export default function Home(): ReactNode {
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
       <main>
         <Hero primaryTarget={primaryTarget} />
+        <Problem />
         <GuidedProductStory />
         <OwnerDashboard />
         <BentoModules />
+        <Differentiation />
         <BuiltFor />
-        <Pricing primaryTarget={primaryTarget} />
         <FAQ />
+        <Pricing primaryTarget={primaryTarget} />
         <FinalCta primaryTarget={primaryTarget} />
       </main>
       <Footer />
