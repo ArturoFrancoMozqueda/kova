@@ -6,9 +6,9 @@ import {
   STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
+import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
-import HeroProductPreview from "@/landing/HeroProductPreview";
 import GuidedProductStory from "@/landing/GuidedProductStory";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
@@ -128,6 +128,20 @@ const LANDING_STYLES = `
     0%   { transform: scale(0.85); opacity: 0; }
     70%  { transform: scale(1.08); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes lp-hero-drift {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    50%      { transform: translate3d(0, -8px, 0) rotate(-0.4deg); }
+  }
+
+  .lp-root.lp-motion-ready .lp-hero-visual > * {
+    animation: lp-hero-drift 7s ease-in-out infinite;
+  }
+  .lp-hero-visual > * {
+    max-width: min(100%, 410px);
+  }
+  .lp-hero-logo {
+    width: min(100%, 390px) !important;
   }
   @keyframes lp-story-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0); }
@@ -644,8 +658,8 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 0.82fr) minmax(360px, 1fr)",
-            gap: 48,
+            gridTemplateColumns: "minmax(0, 0.95fr) minmax(320px, 0.9fr)",
+            gap: 52,
             alignItems: "center",
           }}
           className="lp-hero-grid"
@@ -735,8 +749,8 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             </p>
           </div>
 
-          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0 }}>
-            <HeroProductPreview />
+          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330 }}>
+            <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
           </div>
         </div>
 
@@ -1026,8 +1040,7 @@ const RESPONSIVE_STYLES = `
   .lp-root *, .lp-root *::before, .lp-root *::after {
     box-sizing: border-box;
   }
-  .lp-pos-preview,
-  .lp-hero-preview {
+  .lp-pos-preview {
     max-width: 100%;
   }
   @media (max-width: 900px) {
@@ -1051,7 +1064,8 @@ const RESPONSIVE_STYLES = `
       line-height: 1 !important;
     }
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
-    .lp-hero-visual { order: -1; max-width: 100% !important; }
+    .lp-hero-visual { max-width: 100% !important; min-height: 320px !important; overflow: hidden !important; }
+    .lp-hero-visual > * { max-width: min(100%, 360px) !important; }
     .lp-pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
     .lp-cash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-rep-bottom { grid-template-columns: 1fr !important; }
@@ -1079,6 +1093,17 @@ const RESPONSIVE_STYLES = `
     .lp-hero-section { padding: 28px 20px 44px !important; }
     .lp-hero-title { font-size: 31px !important; }
     .lp-hero-copy { font-size: 15px !important; margin-top: 14px !important; }
+    .lp-hero-visual { order: -1; min-height: 190px !important; }
+    .lp-hero-visual > * { max-width: min(100%, 220px) !important; }
+    .lp-hero-logo { width: 220px !important; }
+    .lp-hero-logo > div { padding: 0 !important; gap: 0 !important; }
+    .lp-hero-logo > div > div:first-child {
+      width: 150px !important;
+      min-width: 150px !important;
+      max-width: 150px !important;
+    }
+    .lp-hero-logo h1 { font-size: 42px !important; }
+    .lp-hero-logo p { font-size: 12px !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
     .lp-benefit-card { min-height: 118px !important; padding: 13px !important; }
     .lp-benefit-card strong { font-size: 13px !important; }
