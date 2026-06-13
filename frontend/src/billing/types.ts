@@ -30,6 +30,8 @@ export type BillingAccess = {
   trial_ends_at: string | null;
   blocked_at: string | null;
   recovery_path: string;
+  // Set only during the past_due grace window, so the UI can show urgency.
+  grace_period_ends_at: string | null;
 };
 
 export type BillingSubscription = {

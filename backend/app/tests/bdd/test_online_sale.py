@@ -38,12 +38,23 @@ def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> di
     return signup
 
 
+def _open_shift(client: TestClient) -> dict:
+    response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"bdd-sale-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 @given(
     parsers.parse('an active catalog product named "{product_name}" priced at "{price}"'),
     target_fixture="sale_context",
 )
 def active_catalog_product(client, product_name, price):
     _signup_verify_login(client, f"{product_name.lower()}-owner@example.com", f"{product_name} Bakery")
+    _open_shift(client)
     response = client.post(
         "/api/v1/catalog/products",
         headers={"Idempotency-Key": f"bdd-product-{product_name}"},
@@ -105,6 +116,7 @@ def two_tenants_with_completed_online_sales():
     client_b = TestClient(app)
     suffix = uuid4().hex
     _signup_verify_login(client_a, f"sale-a-{suffix}@example.com", "Sale Tenant A")
+    _open_shift(client_a)
     _signup_verify_login(client_b, f"sale-b-{suffix}@example.com", "Sale Tenant B")
     product = client_a.post(
         "/api/v1/catalog/products",

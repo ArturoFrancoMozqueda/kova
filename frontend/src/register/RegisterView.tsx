@@ -19,6 +19,7 @@ import { triggerSync } from "../offline/syncWorker";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
 import type { SelectedModifier } from "./ModifierSelectionModal";
 import { getOpenShift } from "@/shifts/api";
+import type { Shift } from "@/shifts/types";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -139,7 +140,12 @@ export default function RegisterView() {
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
-  const [hasOpenShift, setHasOpenShift] = useState<boolean | null>(null);
+  // undefined = state unknown (fetch pending/failed/offline), null = no open
+  // shift, Shift = open. We fail open on unknown so the register keeps working
+  // offline; cash is only blocked when we KNOW there's no shift.
+  const [openShift, setOpenShift] = useState<Shift | null | undefined>(undefined);
+  const hasOpenShift: boolean | null =
+    openShift === undefined ? null : openShift !== null;
   const [skuQuery, setSkuQuery] = useState("");
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -180,6 +186,14 @@ export default function RegisterView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [completedOrder, resetSale]);
 
+  // Best-effort refresh of the open-shift state. Leaves state at `undefined`
+  // (unknown) on failure so we never block cash just because the check failed.
+  const refreshShift = useCallback(() => {
+    getOpenShift()
+      .then((shift) => setOpenShift(shift ?? null))
+      .catch(() => setOpenShift(undefined));
+  }, []);
+
   useEffect(() => {
     void load();
     void triggerSync();
@@ -187,10 +201,31 @@ export default function RegisterView() {
     listStock()
       .then((items) => setStockMap(new Map(items.map((i) => [i.product_id, i]))))
       .catch(() => undefined);
-    getOpenShift()
-      .then((shift) => setHasOpenShift(Boolean(shift)))
-      .catch(() => setHasOpenShift(null));
-  }, [load]);
+    refreshShift();
+  }, [load, refreshShift]);
+
+  // Re-check the shift when the cashier returns to the tab: another device may
+  // have opened or closed the drawer in the meantime.
+  useEffect(() => {
+    const onFocus = () => refreshShift();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshShift();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [refreshShift]);
+
+  // When we learn there's no open shift, move the single-payment selection off
+  // cash so the cashier isn't stuck on a blocked method.
+  useEffect(() => {
+    if (hasOpenShift === false && !splitPaymentsEnabled && paymentMethod === "cash") {
+      setPaymentMethod("bank_transfer");
+    }
+  }, [hasOpenShift, splitPaymentsEnabled, paymentMethod]);
 
   // Map category_id → category name for readable filter pills
   const categoryMap = useMemo<Map<string, string>>(() => {
@@ -278,10 +313,20 @@ export default function RegisterView() {
   const splitTotalMatches = splitPaymentTotalCents === totalCents;
   const splitIsValid =
     !splitPaymentsEnabled || (splitHasPayment && splitTotalMatches && splitCashIsValid);
+  // Cash must land in an open drawer so the corte reconciles. Mirrors the
+  // backend rule; this is the real enforcement for the register, which only
+  // ever rings via the offline-sync path (the backend can't block there).
+  const saleIncludesCash = splitPaymentsEnabled
+    ? splitPayments.some(
+        (payment) => payment.method === "cash" && moneyToCents(payment.amount) > 0,
+      )
+    : paymentMethod === "cash";
+  const cashBlocked = hasOpenShift === false && saleIncludesCash;
   const canSubmitSale =
     canCreateOrders &&
     cartItems.length > 0 &&
     (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
+    !cashBlocked &&
     !submitting;
 
   useEffect(() => {
@@ -413,9 +458,6 @@ export default function RegisterView() {
     if (!canSubmitSale) return;
 
     setSubmitting(true);
-    if (hasOpenShift === false) {
-      toast(copy.register.noShiftWarning, "warning");
-    }
 
     const sale = {
       items: cartItems.map((item) => ({
@@ -444,7 +486,7 @@ export default function RegisterView() {
           ],
     };
 
-    const queueItem = await queueOfflineSale(sale);
+    const queueItem = await queueOfflineSale(sale, openShift?.id);
 
     setCart({});
     setCashTendered("");
@@ -663,6 +705,14 @@ export default function RegisterView() {
             )}
           </CardHeader>
           <CardContent className="p-4">
+            {/* Screen-reader announcement of the filtered result count — the
+                product grid changes without a navigation, so without this a SR
+                user gets no feedback when filtering by category or SKU. */}
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              {(selectedCategory || skuQuery)
+                ? copy.register.itemCount(filteredProducts.length)
+                : ""}
+            </div>
             {filteredProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
@@ -938,7 +988,9 @@ export default function RegisterView() {
                             })
                           }
                         >
-                          <option value="cash">{copy.register.cash}</option>
+                          <option value="cash" disabled={hasOpenShift === false}>
+                            {copy.register.cash}
+                          </option>
                           <option value="bank_transfer">{copy.register.bankTransfer}</option>
                           <option value="manual_card">{copy.register.manualCard}</option>
                         </Select>
@@ -1041,24 +1093,34 @@ export default function RegisterView() {
                         role="radiogroup"
                         aria-labelledby="paymentMethodLabel"
                       >
-                        {paymentMethodOptions.map(({ value, label, icon }) => (
-                          <button
-                            key={value}
-                            type="button"
-                            role="radio"
-                            aria-checked={paymentMethod === value}
-                            onClick={() => setPaymentMethod(value)}
-                            className={cn(
-                              "flex min-h-[60px] flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-medium transition-all",
-                              paymentMethod === value
-                                ? "border-kova-blue bg-kova-blue/5 text-kova-blue shadow-sm"
-                                : "border-kova-border text-kova-muted hover:border-kova-blue/40 hover:text-kova-ink",
-                            )}
-                          >
-                            {icon}
-                            {label}
-                          </button>
-                        ))}
+                        {paymentMethodOptions.map(({ value, label, icon }) => {
+                          const isCashDisabled = value === "cash" && hasOpenShift === false;
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              role="radio"
+                              aria-checked={paymentMethod === value}
+                              aria-disabled={isCashDisabled}
+                              onClick={() =>
+                                isCashDisabled
+                                  ? toast(copy.register.cashRequiresShift, "warning")
+                                  : setPaymentMethod(value)
+                              }
+                              className={cn(
+                                "flex min-h-[60px] flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-medium transition-all",
+                                isCashDisabled
+                                  ? "cursor-not-allowed border-kova-border bg-muted/40 text-muted-foreground/50"
+                                  : paymentMethod === value
+                                    ? "border-kova-blue bg-kova-blue/5 text-kova-blue shadow-sm"
+                                    : "border-kova-border text-kova-muted hover:border-kova-blue/40 hover:text-kova-ink",
+                              )}
+                            >
+                              {icon}
+                              {label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -1168,6 +1230,18 @@ export default function RegisterView() {
                       </span>
                     </label>
                   </details>
+                )}
+
+                {/* Cash is blocked without an open drawer — tell the cashier
+                    why the charge button is disabled and how to unblock it. */}
+                {cashBlocked && (
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive sm:text-sm">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 flex-1">{copy.register.cashRequiresShift}</span>
+                    <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
+                      {copy.register.openShift}
+                    </Link>
+                  </div>
                 )}
 
                 {/* Submit */}

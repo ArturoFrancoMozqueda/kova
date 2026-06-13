@@ -74,6 +74,16 @@ def _set_role(db, signup: dict, role: str) -> None:
     db.commit()
 
 
+def _open_shift(client) -> dict:
+    response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"void-bdd-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def _create_product(client) -> dict:
     response = client.post(
         "/api/v1/catalog/products",
@@ -112,6 +122,7 @@ def _create_voidable_order(client) -> tuple[dict, dict]:
 def manager_with_order(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"void-manager-{suffix}@example.com", "Void Test Tenant")
+    _open_shift(client)
     product, order = _create_voidable_order(client)
     return {"client": client, "order": order, "product": product}
 
@@ -120,6 +131,7 @@ def manager_with_order(client):
 def manager_with_voided_order(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"void-voided-{suffix}@example.com", "Void Voided Tenant")
+    _open_shift(client)
     product, order = _create_voidable_order(client)
     void_response = client.post(
         f"/api/v1/orders/{order['id']}/void",
@@ -134,6 +146,7 @@ def manager_with_voided_order(client):
 def manager_with_refunded_order(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"void-refunded-{suffix}@example.com", "Void Refunded Tenant")
+    _open_shift(client)
     product, order = _create_voidable_order(client)
     refund_response = client.post(
         f"/api/v1/orders/{order['id']}/refunds",
@@ -153,6 +166,7 @@ def cashier_without_void_permission(client, db):
     signup = _signup_verify_login(
         client, f"void-cashier-{suffix}@example.com", "Void Cashier Tenant"
     )
+    _open_shift(client)
     product, order = _create_voidable_order(client)
     _set_role(db, signup, "cashier")
     client.post("/api/v1/auth/logout")
@@ -168,6 +182,7 @@ def cashier_without_void_permission(client, db):
 def two_tenants_with_orders(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"void-tenant-a-{suffix}@example.com", "Void Tenant A")
+    _open_shift(client)
     product, order = _create_voidable_order(client)
     client.post("/api/v1/auth/logout")
     _signup_verify_login(client, f"void-tenant-b-{suffix}@example.com", "Void Tenant B")

@@ -90,7 +90,9 @@ def get_order(
 def get_receipt(
     order_id: UUID,
     db: Session = Depends(get_db),
-    ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_commercial_access(Permission.ORDERS_CREATE)
+    ),
 ):
     _, membership, _ = ctx
     return service.get_receipt(db, tenant_id=membership.tenant_id, order_id=order_id)

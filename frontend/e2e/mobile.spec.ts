@@ -428,6 +428,12 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
 test("register quick sale keeps CTAs above mobile navigation", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockCommon(page);
+  // A cash sale needs an open drawer (product decision); override the default
+  // no-shift mock so the quick cash sale is allowed. Registered after
+  // mockCommon so this handler takes precedence.
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: { id: "shift-mobile", tenant_id: "tenant-1", status: "open" } }),
+  );
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     expect(route.request().method()).toBe("POST");
     await route.fulfill({ json: makeSyncResponse("order-mobile", "18.50") });

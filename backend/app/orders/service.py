@@ -148,6 +148,7 @@ def create_order(
     idempotency_key: str,
     client_uuid: UUID | None = None,
     link_to_open_shift: bool = True,
+    shift_id: UUID | None = None,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     if client_uuid:
@@ -213,14 +214,21 @@ def create_order(
     validated_payments = _validate_payments(body.payments, total)
 
     # Attribute real-time sales to the open shift so their cash counts toward
-    # the drawer's expected cash. Offline syncs pass link_to_open_shift=False:
-    # they were rung in a past (possibly closed) shift and must not inflate the
+    # the drawer's expected cash. Offline syncs pass link_to_open_shift=False
+    # plus a tenant-verified shift_id captured at ring time (or None): they
+    # were rung in a past (possibly closed) shift and must not inflate the
     # current drawer.
-    shift_id = None
+    # NOTE: shift_id must never enter the idempotency payload hash above —
+    # replays of pre-deploy queue items would otherwise be rejected as
+    # "Idempotency key reused with different request body".
     if link_to_open_shift:
         open_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
-        if open_shift:
-            shift_id = open_shift.id
+        if any(p.method == "cash" for p in body.payments) and not open_shift:
+            # Product decision: cash must land in an open drawer so the
+            # shift's expected cash always reconciles. Mirrors the cash
+            # refund rule below.
+            raise bad_request("Open a shift before accepting cash payments")
+        shift_id = open_shift.id if open_shift else None
 
     order = repo.create_order(
         db,

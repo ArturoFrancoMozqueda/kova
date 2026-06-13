@@ -166,3 +166,59 @@ def test_upstash_backend_fails_open_on_exception(monkeypatch):
     )
     assert allowed is True
     assert retry == 0
+
+
+def _broken_upstash_instance():
+    backend_instance = rl._InMemoryBackend.__new__(rl._UpstashBackend)
+    backend_instance._cache = {}  # type: ignore[attr-defined]
+    backend_instance._lock = rl.Lock()  # type: ignore[attr-defined]
+
+    def broken_get_ratelimit(*a, **kw):  # noqa: ARG001
+        class _Bad:
+            def limit(self_inner, _key):
+                raise RuntimeError("simulated upstash outage")
+
+        return _Bad()
+
+    backend_instance._get_ratelimit = broken_get_ratelimit  # type: ignore[attr-defined]
+    return backend_instance
+
+
+def test_upstash_backend_fails_closed_when_requested():
+    """Auth endpoints opt into fail_closed: a backend outage must DENY so a
+    Redis blip can't open an unbounded brute-force window."""
+    backend_instance = _broken_upstash_instance()
+    allowed, retry = rl._UpstashBackend.is_allowed(
+        backend_instance, "any-key", 5, 60, fail_closed=True
+    )
+    assert allowed is False
+    assert retry == rl._FAIL_CLOSED_RETRY_SECONDS
+
+
+def test_dependency_fail_closed_only_applies_in_production(monkeypatch):
+    """fail_closed must be inert outside production so staging/local outages
+    don't lock developers out, and active in production."""
+    backend_instance = _broken_upstash_instance()
+    monkeypatch.setattr(rl, "_get_backend", lambda: backend_instance)
+
+    fake_request = MagicMock()
+    fake_request.headers = {}
+    fake_request.client = MagicMock()
+    fake_request.client.host = "1.2.3.4"
+    fake_request.scope = {}
+    fake_request.url.path = "/api/v1/auth/login"
+
+    dep = rl.rate_limit(20, key="auth-login", fail_closed=True)
+
+    # Staging: backend errors but the dependency still allows (fail-open).
+    monkeypatch.setattr(settings, "app_env", "staging")
+    dep(fake_request)  # must not raise
+
+    # Production: the same outage now denies with 429 + Retry-After.
+    monkeypatch.setattr(settings, "app_env", "production")
+    try:
+        dep(fake_request)
+        raise AssertionError("expected the dependency to deny in production")
+    except rl.HTTPException as exc:
+        assert exc.status_code == 429
+        assert exc.headers["Retry-After"] == str(rl._FAIL_CLOSED_RETRY_SECONDS)

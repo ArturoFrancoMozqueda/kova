@@ -37,11 +37,19 @@ Orden final de la página: **Navbar → Hero → GuidedProductStory → OwnerDas
 
 ### 1.1 Hero
 
-- **Objetivo:** que en <5 segundos el visitante entienda qué es Kova viendo el producto, no leyéndolo.
+> **Actualización jun-2026 (decisión del dueño).** El visual del hero es la
+> animación de marca `IntroAnimation` (el logo de kova), no `HeroProductPreview`.
+> El producto real se muestra al hacer scroll en `GuidedProductStory` y
+> `OwnerDashboard`, que ya cargan el POS de Sweet Home con la venta de $186.
+> Se mantiene la animación por decisión consciente posterior a este brief;
+> `HeroProductPreview` quedó retirado (ver commit `63ad777`). El texto de abajo
+> conserva la intención de copy del hero; solo el visual cambió.
+
+- **Objetivo:** que en <5 segundos el visitante entienda la promesa de Kova por el copy del hero y, al primer scroll, vea el producto real en acción.
 - **Copy visible:** H1 "Una venta lo mueve todo." · soporte "Cobra, y Kova actualiza inventario, caja y reportes al instante." · CTA primario "Empieza gratis" · CTA secundario "Ver cómo funciona" (ancla a GuidedProductStory) · badge `STANDARD_PLAN_PRICE_LABEL` + "7 días gratis. Sin tarjeta."
-- **Visual principal:** `HeroProductPreview` — el POS de Sweet Home con la venta de $186 ya armada, vivo (indicador verde pulsando), ocupando ~55% del ancho en desktop, a la derecha del copy.
-- **Qué debe sentir/entender:** "Esto es una caja registradora moderna y se ve fácil de usar; esto es el producto real."
-- **Qué evitar:** ilustraciones abstractas, animación de intro larga que tape el producto, más de 2 líneas de copy, claims numéricos no verificables.
+- **Visual principal:** `IntroAnimation` (logo de marca animado), a la derecha del copy en desktop. El producto vive en GuidedProductStory/OwnerDashboard, no en el hero.
+- **Qué debe sentir/entender:** "Esto es una herramienta de caja moderna y con identidad; el producto real está a un scroll de distancia."
+- **Qué evitar:** más de 2 líneas de copy, claims numéricos no verificables. (La animación es corta y respeta `prefers-reduced-motion`.)
 
 ### 1.2 GuidedProductStory
 

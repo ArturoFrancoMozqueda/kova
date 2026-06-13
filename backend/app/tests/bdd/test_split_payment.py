@@ -1,4 +1,16 @@
+from uuid import uuid4
+
 from pytest_bdd import given, parsers, scenario, then, when
+
+
+def _open_shift(client) -> dict:
+    r = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"bdd-split-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
 
 
 @scenario(
@@ -30,6 +42,7 @@ def verified_tenant_owner_with_product(client, price):
     token = r.json()["dev_verification_token"]
     client.post("/api/v1/auth/verify", json={"token": token})
     client.post("/api/v1/auth/login", json={"email": "bdd-split@example.com", "password": "S3cur3pass!"})
+    _open_shift(client)
     product = client.post(
         "/api/v1/catalog/products",
         headers={"Idempotency-Key": "bdd-split-product"},

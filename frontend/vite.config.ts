@@ -67,7 +67,12 @@ export default defineConfig({
         // navigation fallback below — they always hit the network, so pricing
         // and landing copy can never be served stale.
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        navigateFallback: "index.html",
+        // The SPA navigation fallback is the EMPTY app-shell, not the
+        // prerendered index.html (which is now the landing). app-shell.html is
+        // written by scripts/prerender.mjs after this build, so add it to the
+        // precache manifest explicitly (globPatterns ran before it existed).
+        navigateFallback: "app-shell.html",
+        additionalManifestEntries: [{ url: "app-shell.html", revision: BUILD_HASH }],
         navigateFallbackDenylist: [
           /^\/$/,
           /^\/login/,

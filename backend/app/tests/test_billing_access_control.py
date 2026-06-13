@@ -26,6 +26,16 @@ def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> di
     return signup
 
 
+def _open_shift(client: TestClient) -> dict:
+    response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"billing-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def _create_product(client: TestClient, *, name: str = "Concha") -> dict:
     response = client.post(
         "/api/v1/catalog/products",
@@ -76,6 +86,7 @@ def _expire_trial(monkeypatch) -> None:
 
 def test_signup_trial_allows_order_creation(client: TestClient) -> None:
     _signup_verify_login(client, f"trial-open-{uuid4().hex}@example.com", "Trial Open")
+    _open_shift(client)
     product = _create_product(client)
 
     response = _create_cash_order(client, product["id"])
@@ -113,6 +124,9 @@ def test_active_subscription_allows_order_after_trial_expiry(
     client: TestClient, db: Session, monkeypatch
 ) -> None:
     signup = _signup_verify_login(client, f"sub-active-{uuid4().hex}@example.com", "Active")
+    # Open the shift while trial billing access is still allowed; shifts stay
+    # open across the trial-expiry + subscription mutations below.
+    _open_shift(client)
     _expire_trial(monkeypatch)
     db.add(
         Subscription(
@@ -193,6 +207,33 @@ def test_canceled_subscription_blocks_orders_list(
 
     assert response.status_code == 402, response.text
     assert response.json()["detail"]["reason"] == "canceled"
+
+
+def test_incomplete_expired_subscription_blocks_orders_list(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """Default-deny: a Stripe status we don't explicitly allow (here
+    `incomplete_expired`, when the first payment never completed) must block,
+    surfacing the raw reason so the UI can map it."""
+    signup = _signup_verify_login(
+        client, f"incomplete-{uuid4().hex}@example.com", "IncompleteExpired"
+    )
+    _expire_trial(monkeypatch)
+    db.add(
+        Subscription(
+            tenant_id=UUID(signup["tenant_id"]),
+            stripe_customer_id=f"cus_{uuid4().hex}",
+            stripe_subscription_id=f"sub_{uuid4().hex}",
+            stripe_price_id="price_standard_299_mxn",
+            status="incomplete_expired",
+        )
+    )
+    db.commit()
+
+    response = client.get("/api/v1/orders")
+
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "incomplete_expired"
 
 
 def test_blocked_tenant_can_start_billing_recovery(

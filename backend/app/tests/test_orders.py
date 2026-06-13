@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
@@ -50,6 +50,16 @@ def _seed_stock(client: TestClient, product_id: str, qty: int = 10) -> None:
     assert response.status_code == 201, response.text
 
 
+def _open_shift(client: TestClient) -> dict:
+    response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"orders-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def _create_cash_order(client: TestClient, product_id: str, key: str = "order-cash") -> object:
     return client.post(
         "/api/v1/orders",
@@ -63,6 +73,7 @@ def _create_cash_order(client: TestClient, product_id: str, key: str = "order-ca
 
 def test_cash_order_uses_server_prices_and_writes_audit(client, db):
     signup = _signup_verify_login(client, "order-cash@example.com", "Cash Order Bakery")
+    _open_shift(client)
     product = _create_product(client)
 
     response = _create_cash_order(client, product["id"])
@@ -118,6 +129,7 @@ def test_manual_card_order_records_payment(client):
 
 def test_order_create_idempotency_replays_same_response(client):
     _signup_verify_login(client, "order-idempotent@example.com", "Replay Bakery")
+    _open_shift(client)
     product = _create_product(client)
 
     first = _create_cash_order(client, product["id"], key="order-replay")
@@ -130,6 +142,7 @@ def test_order_create_idempotency_replays_same_response(client):
 
 def test_order_idempotency_reuse_with_different_body_returns_400(client):
     _signup_verify_login(client, "order-idempotent-bad@example.com", "Bad Replay Bakery")
+    _open_shift(client)
     product = _create_product(client)
 
     first = _create_cash_order(client, product["id"], key="order-replay-bad")
@@ -148,6 +161,7 @@ def test_order_idempotency_reuse_with_different_body_returns_400(client):
 
 def test_tracked_product_creates_inventory_sale_movement(client, db):
     signup = _signup_verify_login(client, "order-inventory@example.com", "Inventory Bakery")
+    _open_shift(client)
     product = _create_product(client, track_inventory=True)
     _seed_stock(client, product["id"], qty=10)
 
@@ -183,6 +197,7 @@ def test_out_of_stock_tracked_product_rejected(client, db):
 
 def test_untracked_product_does_not_create_inventory_movement(client, db):
     signup = _signup_verify_login(client, "order-untracked@example.com", "Untracked Bakery")
+    _open_shift(client)
     product = _create_product(client, track_inventory=False)
 
     response = _create_cash_order(client, product["id"], key="order-untracked")

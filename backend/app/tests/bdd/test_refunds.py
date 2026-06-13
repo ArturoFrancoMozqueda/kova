@@ -88,6 +88,16 @@ def _set_role(db, signup: dict, role: str) -> None:
     db.commit()
 
 
+def _open_shift(client) -> dict:
+    response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"refund-bdd-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def _create_product(client, *, name: str, price: str) -> dict:
     suffix = uuid4().hex
     response = client.post(
@@ -132,6 +142,7 @@ def _create_two_item_order(client) -> tuple[list[dict], dict]:
 def manager_with_order(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"refund-manager-{suffix}@example.com", "Refund Test Tenant")
+    _open_shift(client)
     products, order = _create_two_item_order(client)
     return {"client": client, "order": order, "products": products}
 
@@ -164,6 +175,7 @@ def manager_with_open_shift_and_cash_order(client):
 def manager_with_voided_order(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"refund-voided-{suffix}@example.com", "Refund Voided Tenant")
+    _open_shift(client)
     products, order = _create_two_item_order(client)
     void_response = client.post(
         f"/api/v1/orders/{order['id']}/void",
@@ -180,6 +192,7 @@ def cashier_without_refund_permission(client, db):
     signup = _signup_verify_login(
         client, f"refund-cashier-{suffix}@example.com", "Refund Cashier Tenant"
     )
+    _open_shift(client)
     products, order = _create_two_item_order(client)
     _set_role(db, signup, "cashier")
     client.post("/api/v1/auth/logout")
@@ -195,6 +208,7 @@ def cashier_without_refund_permission(client, db):
 def two_tenants_with_orders(client):
     suffix = uuid4().hex
     _signup_verify_login(client, f"refund-tenant-a-{suffix}@example.com", "Refund Tenant A")
+    _open_shift(client)
     products, order = _create_two_item_order(client)
     client.post("/api/v1/auth/logout")
     _signup_verify_login(client, f"refund-tenant-b-{suffix}@example.com", "Refund Tenant B")

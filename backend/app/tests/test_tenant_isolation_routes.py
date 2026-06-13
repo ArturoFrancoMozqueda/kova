@@ -72,6 +72,14 @@ def test_catalog_isolation(db):  # noqa: ARG001 — db fixture wires the DB over
 def test_orders_and_reports_isolation(db):  # noqa: ARG001
     a, b = _two_tenants()
     try:
+        # Tenant A opens a shift so the cash sale below lands in an open drawer.
+        r_shift = a.post(
+            "/api/v1/shifts",
+            headers={"Idempotency-Key": f"iso-shift-{uuid4().hex}"},
+            json={"opening_cash_amount": "100.00"},
+        )
+        assert r_shift.status_code == 201, r_shift.text
+
         # Tenant A creates a product and a paid order.
         product = a.post(
             "/api/v1/catalog/products",

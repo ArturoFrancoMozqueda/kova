@@ -18,6 +18,16 @@ def _signup_verify_login(client, email: str, tenant_name: str) -> None:
     assert login.status_code == 200, login.text
 
 
+def _open_shift(client) -> dict:
+    response = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"refund-money-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def _create_product(client, *, name: str, price: str) -> dict:
     response = client.post(
         "/api/v1/catalog/products",
@@ -35,6 +45,7 @@ def test_refund_amount_uses_decimal_line_totals(client):
         f"refund-money-{suffix}@example.com",
         "Refund Money Tenant",
     )
+    _open_shift(client)
     first = _create_product(client, name="Golden Cookie", price="19.99")
     second = _create_product(client, name="Golden Cake", price="10.50")
 

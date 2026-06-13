@@ -15,6 +15,19 @@ import { useToast } from "@/components/ui/toast";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
 import { trackFunnelEvent, trackFunnelEventOnce } from "@/telemetry/funnel";
 
+// Days-aware grace copy so the owner sees how long they have to fix billing.
+// Returns null when no grace date is set (fall back to the static banner).
+function pastDueGraceUrgency(graceEndsAt: string | null): string | null {
+  if (!graceEndsAt) return null;
+  const ms = new Date(graceEndsAt).getTime() - Date.now();
+  // Grace already passed (or unparseable) → no urgency copy; the caller falls
+  // back to the static "recupera la facturación" banner.
+  if (Number.isNaN(ms) || ms <= 0) return null;
+  const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+  if (days <= 1) return copy.billingBanner.pastDueGraceBodyLastDay;
+  return copy.billingBanner.pastDueGraceBodyWithDays(days);
+}
+
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
@@ -235,7 +248,10 @@ export default function BillingView() {
           {loadState.billing.subscription?.status === "past_due" && (
             <div className="flex items-center gap-3 rounded-lg bg-warning/20 border border-warning/30 px-4 py-3 text-sm animate-fade-in">
               <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
-              <p className="text-warning-foreground">{copy.billingView.pastDueBanner}</p>
+              <p className="text-warning-foreground">
+                {pastDueGraceUrgency(loadState.billing.subscription.grace_period_ends_at) ??
+                  copy.billingView.pastDueBanner}
+              </p>
             </div>
           )}
 

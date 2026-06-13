@@ -9,6 +9,7 @@ export const copy = {
     network: "Parece que no hay conexión. Revisa tu internet e inténtalo de nuevo.",
     permission: "Tu cuenta no tiene permiso para esto. Pídeselo a tu gerente o al dueño.",
     server: "Tuvimos un problema de nuestro lado. Espera unos segundos e inténtalo de nuevo.",
+    unexpected: "Algo salió mal. Intenta de nuevo.",
   },
   landing: {
     nav: {
@@ -194,6 +195,7 @@ export const copy = {
       privacy: "Privacidad",
       terms: "Términos",
       security: "Seguridad",
+      cookies: "Cookies",
       support: "Soporte",
     },
   },
@@ -1231,7 +1233,8 @@ export const copy = {
     saleError: "No se pudo completar la venta.",
     saleComplete: "Venta completada.",
     saleQueued: "Venta en cola. Se sincronizará cuando vuelva la conexión.",
-    noShiftWarning: "No hay turno abierto. Abre uno para que las ventas en efectivo entren a tu corte del día.",
+    noShiftWarning: "No hay turno abierto. Los cobros en efectivo están bloqueados hasta que abras uno.",
+    cashRequiresShift: "Para cobrar en efectivo, abre un turno de caja primero.",
     openShift: "Abrir turno",
     openOrder: "Abrir orden",
     newSale: "Nueva venta",
@@ -1266,6 +1269,9 @@ export const copy = {
     loading: "Cargando cola",
     online: "En línea",
     willSyncWhenRestored: "Se sincronizará cuando regrese la conexión",
+    statusAnnouncement: (pending: number, failed: number) =>
+      `${pending} venta${pending === 1 ? "" : "s"} pendiente${pending === 1 ? "" : "s"}, ` +
+      `${failed} fallida${failed === 1 ? "" : "s"}.`,
   },
   catalog: {
     title: "Catálogo",
@@ -1447,17 +1453,21 @@ export const copy = {
     trialingActiveBody: `Tu suscripción está en prueba. Activa el ${STANDARD_PLAN.name} por ${STANDARD_PLAN_PRICE_LABEL} para seguir vendiendo cuando termine.`,
     pastDueGrace: "Pago vencido",
     pastDueGraceBody: "El pago falló. Actualiza tu facturación dentro del periodo de gracia para no perder el acceso.",
+    pastDueGraceBodyWithDays: (n: number) =>
+      `El pago falló. Te queda${n === 1 ? "" : "n"} ${n} día${n === 1 ? "" : "s"} para actualizar tu facturación antes de perder el acceso.`,
+    pastDueGraceBodyLastDay: "El pago falló. Hoy es el último día para actualizar tu facturación antes de perder el acceso.",
     blockedTitle: "Facturación requerida",
     blockedTrialExpired: `Tu prueba terminó. Activa el ${STANDARD_PLAN.name} para seguir vendiendo.`,
     blockedPastDueExpired: "El periodo de gracia terminó. Paga ahora para recuperar las funciones de pago.",
     blockedCanceled: "Tu suscripción está cancelada. Reactívala para volver a usar las funciones de pago.",
     blockedUnpaid: "Tu suscripción está sin pagar. Recupera la facturación para seguir vendiendo.",
     blockedIncomplete: "El pago no se completó. Termina el pago para activar tu suscripción.",
+    blockedIncompleteExpired: "Tu intento de suscripción expiró. Vuelve a suscribirte para seguir usando Kova.",
     blockedGeneric: "Activa la facturación para recuperar las funciones del POS.",
   },
   trialChip: {
-    label: "Prueba",
-    daysRemaining: (n: number) => `${n} día${n === 1 ? "" : "s"} restante${n === 1 ? "" : "s"}`,
+    label: "Prueba gratis",
+    daysRemaining: (n: number) => `quedan ${n} día${n === 1 ? "" : "s"}`,
     endsToday: "Termina hoy",
     endsTomorrow: "Termina mañana",
     expired: "Prueba terminada",

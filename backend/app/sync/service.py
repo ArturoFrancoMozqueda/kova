@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.orders import service as order_service
+from app.shifts import repository as shifts_repo
 from app.sync.schemas import OfflineSaleSyncItem, OfflineSaleSyncResult
 
 
@@ -17,6 +18,20 @@ def sync_offline_sales(
     results: list[OfflineSaleSyncResult] = []
     for sale in sales:
         try:
+            # Sales are attributed to the shift that was open on the device at
+            # ring time (sent by the client), verified tenant-scoped here. The
+            # shift may already be closed by sync time — attribution is still
+            # the historical truth and cannot disturb a closed shift's frozen
+            # reconciliation. An unknown/foreign shift id degrades to
+            # unattributed; attribution metadata never fails a sale.
+            verified_shift_id: UUID | None = None
+            if sale.shift_id:
+                shift = shifts_repo.get_shift(
+                    db, tenant_id=tenant_id, shift_id=sale.shift_id
+                )
+                if shift:
+                    verified_shift_id = shift.id
+
             _, order = order_service.create_order(
                 db,
                 tenant_id=tenant_id,
@@ -24,10 +39,10 @@ def sync_offline_sales(
                 body=sale.order,
                 idempotency_key=str(sale.client_uuid),
                 client_uuid=sale.client_uuid,
-                # Offline sales belong to the shift they were rung in (often
-                # already closed by sync time), not the current drawer.
-                # Phase 2 (occurred_at) will attribute them precisely.
+                # Never link to the *current* drawer: by sync time it may be a
+                # different shift than the one the sale was rung in.
                 link_to_open_shift=False,
+                shift_id=verified_shift_id,
             )
             results.append(
                 OfflineSaleSyncResult(

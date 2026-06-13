@@ -8,6 +8,9 @@ from app.orders.schemas import OrderCreate
 class OfflineSaleSyncItem(BaseModel):
     client_uuid: UUID
     order: OrderCreate
+    # Shift that was open on the device when the sale was rung. Optional so
+    # queue items created by older bundles keep syncing unchanged.
+    shift_id: UUID | None = None
 
 
 class OfflineSaleSyncRequest(BaseModel):

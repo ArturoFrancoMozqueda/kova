@@ -59,14 +59,41 @@ def _open_shift(client: TestClient, *, opening: str) -> dict:
     return response.json()
 
 
-def _create_order(client: TestClient, *, payments: list[dict], items: list[dict]) -> dict:
-    response = client.post(
+def _post_order(client: TestClient, *, payments: list[dict], items: list[dict]):
+    return client.post(
         "/api/v1/orders",
         headers={"Idempotency-Key": f"cash-recon-order-{uuid4().hex}"},
         json={"items": items, "payments": payments},
     )
+
+
+def _create_order(client: TestClient, *, payments: list[dict], items: list[dict]) -> dict:
+    response = _post_order(client, payments=payments, items=items)
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def _sync_sale(
+    client: TestClient,
+    *,
+    product_id: str,
+    payments: list[dict],
+    client_uuid: str | None = None,
+    shift_id: str | None = None,
+    quantity: int = 1,
+):
+    item: dict = {
+        "client_uuid": client_uuid or str(uuid4()),
+        "order": {
+            "items": [{"product_id": product_id, "quantity": quantity}],
+            "payments": payments,
+        },
+    }
+    if shift_id is not None:
+        item["shift_id"] = shift_id
+    response = client.post("/api/v1/sync/offline-sales", json={"sales": [item]})
+    assert response.status_code == 200, response.text
+    return response.json()["results"][0]
 
 
 def _close_shift(client: TestClient, shift_id: str, *, actual: str) -> dict:
@@ -168,32 +195,25 @@ def test_void_removes_cash_sale_from_expected():
     assert closed["reconciliation_status"] == "balanced"
 
 
-def test_offline_synced_sale_excluded_from_current_shift():
+def test_offline_synced_sale_without_shift_id_excluded_from_current_shift():
+    """Backward compat: queue items from pre-shift_id bundles sync unattributed.
+
+    A sync item without shift_id must keep today's behavior exactly — the sale
+    lands, but never inflates the current drawer.
+    """
     client = _new_client("Offline Sync Shift")
     product = _create_product(client, name="Concha", price="50.00")
     shift = _open_shift(client, opening="100.00")
 
-    sync = client.post(
-        "/api/v1/sync/offline-sales",
-        json={
-            "sales": [
-                {
-                    "client_uuid": str(uuid4()),
-                    "order": {
-                        "items": [{"product_id": product["id"], "quantity": 1}],
-                        "payments": [
-                            {"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}
-                        ],
-                    },
-                }
-            ]
-        },
+    result = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[{"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}],
     )
-    assert sync.status_code == 200, sync.text
-    assert sync.json()["results"][0]["status"] == "synced"
+    assert result["status"] == "synced"
 
-    # Offline sale is NOT attributed to the current drawer, so expected stays
-    # at the opening balance.
+    # Legacy offline sale is NOT attributed to the current drawer, so expected
+    # stays at the opening balance.
     current = client.get("/api/v1/shifts/current").json()
     assert current["expected_cash_amount"] == "100.00"
 
@@ -201,18 +221,182 @@ def test_offline_synced_sale_excluded_from_current_shift():
     assert closed["reconciliation_status"] == "balanced"
 
 
-def test_sale_without_open_shift_still_succeeds():
-    """Contract preserved: the backend does not yet require an open shift.
+def test_register_path_sale_with_open_shift_counts_in_expected_cash():
+    """The P0 proof: the real POS path (sync endpoint + ring-time shift_id)
+    must count cash sales in the drawer's expected cash."""
+    client = _new_client("Register Path Shift")
+    product = _create_product(client, name="Cafe", price="50.00")
+    shift = _open_shift(client, opening="100.00")
 
-    The order is recorded unattributed (no shift) — documents current behavior
-    pending the separate 'require open shift' decision.
+    result = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[{"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}],
+        shift_id=shift["id"],
+    )
+    assert result["status"] == "synced"
+
+    current = client.get("/api/v1/shifts/current").json()
+    assert current["expected_cash_amount"] == "150.00"
+
+    closed = _close_shift(client, shift["id"], actual="150.00")
+    assert closed["reconciliation_status"] == "balanced"
+    assert closed["variance_amount"] == "0.00"
+
+
+def test_register_path_split_payment_counts_only_cash_portion():
+    client = _new_client("Register Split Shift")
+    product = _create_product(client, name="Combo Sync", price="50.00")
+    shift = _open_shift(client, opening="100.00")
+
+    result = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[
+            {"method": "cash", "amount": "30.00", "amount_tendered": "30.00"},
+            {"method": "bank_transfer", "amount": "20.00"},
+        ],
+        shift_id=shift["id"],
+    )
+    assert result["status"] == "synced"
+
+    closed = _close_shift(client, shift["id"], actual="130.00")
+    assert closed["reconciliation_status"] == "balanced"
+
+
+def test_sync_to_closed_shift_keeps_frozen_close_and_current_drawer():
+    """A sale rung in shift A but synced after A closed attributes to A as the
+    historical record, without changing A's frozen reconciliation nor shift B's
+    live expected cash."""
+    client = _new_client("Late Sync Shift")
+    product = _create_product(client, name="Pan", price="50.00")
+
+    shift_a = _open_shift(client, opening="100.00")
+    closed_a = _close_shift(client, shift_a["id"], actual="100.00")
+    assert closed_a["expected_cash_amount"] == "100.00"
+
+    shift_b = _open_shift(client, opening="200.00")
+
+    result = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[{"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}],
+        shift_id=shift_a["id"],
+    )
+    assert result["status"] == "synced"
+
+    # Shift A keeps its frozen close-time expected cash.
+    detail_a = client.get(f"/api/v1/shifts/{shift_a['id']}").json()
+    assert detail_a["expected_cash_amount"] == "100.00"
+
+    # Shift B's drawer is untouched by the late sync.
+    current = client.get("/api/v1/shifts/current").json()
+    assert current["expected_cash_amount"] == "200.00"
+
+    closed_b = _close_shift(client, shift_b["id"], actual="200.00")
+    assert closed_b["reconciliation_status"] == "balanced"
+
+
+def test_sync_with_unknown_or_foreign_shift_id_degrades_to_unattributed():
+    """Attribution metadata never fails a sale, and a shift id from another
+    tenant must not attach (tenant isolation)."""
+    client = _new_client("Foreign Shift A")
+    other = _new_client("Foreign Shift B")
+    other_shift = _open_shift(other, opening="500.00")
+
+    product = _create_product(client, name="Galleta", price="50.00")
+    shift = _open_shift(client, opening="100.00")
+
+    # Unknown shift id: sale syncs, drawer untouched.
+    result = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[{"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}],
+        shift_id=str(uuid4()),
+    )
+    assert result["status"] == "synced"
+
+    # Foreign tenant's shift id: sale syncs, neither drawer is affected.
+    result = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[{"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}],
+        shift_id=other_shift["id"],
+    )
+    assert result["status"] == "synced"
+
+    current = client.get("/api/v1/shifts/current").json()
+    assert current["expected_cash_amount"] == "100.00"
+
+    other_current = other.get("/api/v1/shifts/current").json()
+    assert other_current["expected_cash_amount"] == "500.00"
+
+    closed = _close_shift(client, shift["id"], actual="100.00")
+    assert closed["reconciliation_status"] == "balanced"
+
+
+def test_sync_replay_with_or_without_shift_id_is_idempotent():
+    """shift_id stays out of the idempotency payload hash: a replay of a
+    pre-deploy queue item that now carries shift_id must return the same order
+    instead of failing with 'Idempotency key reused', and the cash counts once.
     """
-    client = _new_client("No Shift Sale")
+    client = _new_client("Idempotent Sync Shift")
+    product = _create_product(client, name="Tamal", price="50.00")
+    shift = _open_shift(client, opening="100.00")
+    client_uuid = str(uuid4())
+
+    first = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[{"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}],
+        client_uuid=client_uuid,
+    )
+    assert first["status"] == "synced"
+
+    # Replay of the same client_uuid, now carrying shift_id (e.g. after a PWA
+    # bundle update): same order, no new attribution, no 400.
+    replay = _sync_sale(
+        client,
+        product_id=product["id"],
+        payments=[{"method": "cash", "amount": "50.00", "amount_tendered": "50.00"}],
+        client_uuid=client_uuid,
+        shift_id=shift["id"],
+    )
+    assert replay["status"] == "synced"
+    assert replay["order_id"] == first["order_id"]
+
+    # First sync had no shift_id, so the stored order stays unattributed and
+    # the drawer counts nothing — exactly once-and-only-once semantics.
+    current = client.get("/api/v1/shifts/current").json()
+    assert current["expected_cash_amount"] == "100.00"
+
+
+def test_cash_sale_without_open_shift_rejected():
+    """Product decision (jun-2026): cash must land in an open drawer so the
+    corte always reconciles. Replaces the old contract where a cash sale
+    without a shift silently recorded unattributed — expected behavior changed
+    deliberately, mirroring the existing cash-refund rule."""
+    client = _new_client("No Shift Cash Sale")
     product = _create_product(client, name="Te", price="25.00")
+
+    response = _post_order(
+        client,
+        items=[{"product_id": product["id"], "quantity": 1}],
+        payments=[{"method": "cash", "amount": "25.00", "amount_tendered": "25.00"}],
+    )
+    assert response.status_code == 400, response.text
+    assert "Open a shift before accepting cash payments" in response.text
+
+
+def test_card_sale_without_open_shift_succeeds():
+    """Non-cash methods don't touch the drawer, so they stay allowed without
+    an open shift (recorded unattributed)."""
+    client = _new_client("No Shift Card Sale")
+    product = _create_product(client, name="Te Verde", price="25.00")
 
     order = _create_order(
         client,
         items=[{"product_id": product["id"], "quantity": 1}],
-        payments=[{"method": "cash", "amount": "25.00", "amount_tendered": "25.00"}],
+        payments=[{"method": "bank_transfer", "amount": "25.00"}],
     )
     assert order["status"] == "completed"

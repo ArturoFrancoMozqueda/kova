@@ -31,6 +31,13 @@ export default function SyncQueueView() {
         )}
       </div>
 
+      {/* Sync state changes (a sale syncs, a retry fails, the network drops)
+          happen without navigation; announce the queue counts so SR users
+          hear the progress. */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {copy.syncQueue.statusAnnouncement(pendingCount, failedEntries.length)}
+      </div>
+
       {pendingCount === 0 && failedEntries.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center py-16">

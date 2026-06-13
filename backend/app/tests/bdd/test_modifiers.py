@@ -61,6 +61,16 @@ def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> di
     return signup
 
 
+def _open_shift(client: TestClient) -> dict:
+    r = client.post(
+        "/api/v1/shifts",
+        headers={"Idempotency-Key": f"mod-shift-{uuid4().hex}"},
+        json={"opening_cash_amount": "100.00"},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
 def _create_product(client: TestClient, name: str, price: str) -> dict:
     r = client.post(
         "/api/v1/catalog/products",
@@ -120,6 +130,7 @@ def _create_order(client: TestClient, product_id: str, option_ids: list[str], to
 def owner_with_product(client, name, price):
     suffix = uuid4().hex[:8]
     _signup_verify_login(client, f"mod-owner-{suffix}@example.com", f"Mod Bakery {suffix}")
+    _open_shift(client)
     product = _create_product(client, name, price)
     return {"client": client, "product": product}
 

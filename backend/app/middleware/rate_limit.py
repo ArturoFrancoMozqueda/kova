@@ -23,6 +23,11 @@ from app.config import settings
 
 logger = logging.getLogger("app.rate_limit")
 
+# Retry-After (seconds) we report when failing closed on a backend outage —
+# long enough to throttle a brute-force attempt, short enough not to lock a
+# real user out for long once Redis recovers.
+_FAIL_CLOSED_RETRY_SECONDS = 30
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -50,11 +55,17 @@ def _route_pattern(request: Request) -> str:
 
 class _RateLimiterBackend(Protocol):
     def is_allowed(
-        self, key: str, max_requests: int, window_seconds: int
+        self,
+        key: str,
+        max_requests: int,
+        window_seconds: int,
+        fail_closed: bool = False,
     ) -> tuple[bool, int]:
         """Return ``(allowed, retry_after_seconds)``.
 
         ``retry_after_seconds`` is ignored when ``allowed`` is True.
+        ``fail_closed`` controls behavior when the backend itself errors: when
+        True the request is denied, otherwise it is allowed (the default).
         """
         ...
 
@@ -72,7 +83,11 @@ class _InMemoryBackend:
         self._lock = Lock()
 
     def is_allowed(
-        self, key: str, max_requests: int, window_seconds: int
+        self,
+        key: str,
+        max_requests: int,
+        window_seconds: int,
+        fail_closed: bool = False,  # noqa: ARG002 — in-memory backend can't fail
     ) -> tuple[bool, int]:
         now = time.monotonic()
         cutoff = now - window_seconds
@@ -129,12 +144,24 @@ class _UpstashBackend:
             return rl
 
     def is_allowed(
-        self, key: str, max_requests: int, window_seconds: int
+        self,
+        key: str,
+        max_requests: int,
+        window_seconds: int,
+        fail_closed: bool = False,
     ) -> tuple[bool, int]:
         try:
             rl = self._get_ratelimit(max_requests, window_seconds)
             result = rl.limit(key)  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001 — intentional fail-open
+        except Exception:  # noqa: BLE001 — intentional fail-open/closed handling
+            if fail_closed:
+                # Auth endpoints in production deny on outage so a Redis blip
+                # can't open an unbounded brute-force window.
+                logger.exception(
+                    "rate_limit_upstash_call_failed_closed",
+                    extra={"key": key, "max": max_requests, "window": window_seconds},
+                )
+                return False, _FAIL_CLOSED_RETRY_SECONDS
             logger.exception(
                 "rate_limit_upstash_call_failed",
                 extra={"key": key, "max": max_requests, "window": window_seconds},
@@ -192,12 +219,18 @@ def rate_limit(
     window_seconds: int = 60,
     *,
     key: str | None = None,
+    fail_closed: bool = False,
 ):
     """Return a FastAPI dependency that enforces ``max_requests / window_seconds``
     per client IP.
 
     ``key`` names the bucket so distinct endpoints don't share the same quota.
     When ``key`` is omitted, the matched route's path pattern is used.
+
+    ``fail_closed`` denies requests when the backend errors instead of allowing
+    them. It only takes effect in production (``settings.app_env == "production"``)
+    so staging/local outages never lock developers out; reserve it for auth
+    endpoints where a Redis blip must not open a brute-force window.
 
     Usage::
 
@@ -213,8 +246,9 @@ def rate_limit(
         bucket = key or _route_pattern(request) or "default"
         ip = _get_client_ip(request)
         bucket_key = f"{bucket}:{ip}"
+        effective_fail_closed = fail_closed and settings.app_env == "production"
         allowed, retry = _get_backend().is_allowed(
-            bucket_key, max_requests, window_seconds
+            bucket_key, max_requests, window_seconds, fail_closed=effective_fail_closed
         )
         if not allowed:
             raise HTTPException(

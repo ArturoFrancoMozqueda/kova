@@ -27,6 +27,9 @@ class BillingAccessStatus:
     trial_ends_at: datetime | None
     blocked_at: datetime | None
     recovery_path: str
+    # Set only while in the past_due grace window, so the UI can show urgency
+    # ("te quedan X días"). None in every other state.
+    grace_period_ends_at: datetime | None = None
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -60,6 +63,7 @@ def get_billing_access_status(db: Session, *, tenant_id: UUID) -> BillingAccessS
                     trial_ends_at=None,
                     blocked_at=None,
                     recovery_path=BILLING_RECOVERY_PATH,
+                    grace_period_ends_at=grace_ends_at,
                 )
             return BillingAccessStatus(
                 allowed=False,
@@ -118,6 +122,7 @@ def serialize_billing_access(status: BillingAccessStatus) -> dict:
         "trial_ends_at": status.trial_ends_at,
         "blocked_at": status.blocked_at,
         "recovery_path": status.recovery_path,
+        "grace_period_ends_at": status.grace_period_ends_at,
     }
 
 

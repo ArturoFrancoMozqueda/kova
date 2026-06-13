@@ -5,21 +5,26 @@ const nowIso = () => new Date().toISOString();
 
 export function makeQueuedSale(
   sale: OfflineSaleDraft,
-  clientUuid = crypto.randomUUID()
+  clientUuid = crypto.randomUUID(),
+  shiftId?: string
 ): OfflineSaleQueueItem {
   const now = nowIso();
   return {
     client_uuid: clientUuid,
     status: "pending",
     sale,
+    ...(shiftId ? { shift_id: shiftId } : {}),
     attempt_count: 0,
     created_at: now,
     updated_at: now,
   };
 }
 
-export async function queueOfflineSale(sale: OfflineSaleDraft): Promise<OfflineSaleQueueItem> {
-  const item = makeQueuedSale(sale);
+export async function queueOfflineSale(
+  sale: OfflineSaleDraft,
+  shiftId?: string
+): Promise<OfflineSaleQueueItem> {
+  const item = makeQueuedSale(sale, undefined, shiftId);
   await offlineDb.offline_sales.put(item);
   return item;
 }

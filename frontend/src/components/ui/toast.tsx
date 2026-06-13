@@ -1,6 +1,16 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import * as Sentry from "@sentry/react";
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { copy } from "@/i18n/messages";
 
 type ToastVariant = "success" | "error" | "warning" | "info";
 
@@ -70,6 +80,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     },
     [dismissToast],
   );
+
+  // Catch promise rejections that escape every view's try/catch — async errors
+  // the ErrorBoundary (render-only) can't see. Report to Sentry (no-op when the
+  // DSN is unset) and show one generic toast, throttled so a rejection loop
+  // can't flood the screen.
+  const lastUnhandledToastAt = useRef(0);
+  useEffect(() => {
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      Sentry.captureException(event.reason);
+      const now = Date.now();
+      if (now - lastUnhandledToastAt.current > 5000) {
+        lastUnhandledToastAt.current = now;
+        toast(copy.errors.unexpected, "error");
+      }
+    };
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => window.removeEventListener("unhandledrejection", onUnhandledRejection);
+  }, [toast]);
 
   return (
     <ToastContext.Provider value={{ toast }}>

@@ -222,6 +222,7 @@ __marimo__/
 # Node / frontend
 node_modules/
 dist/
+dist-server/
 .vite/
 coverage/
 *.tsbuildinfo

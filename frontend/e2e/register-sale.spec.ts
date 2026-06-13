@@ -8,6 +8,14 @@ const CASHIER_SESSION = {
   tenant_name: "Bakery",
 };
 
+const OPEN_SHIFT = {
+  id: "shift-1",
+  tenant_id: "tenant-1",
+  status: "open",
+  opening_cash_amount: "100.00",
+  expected_cash_amount: "100.00",
+};
+
 const CATALOG = [
   {
     id: "product-1",
@@ -57,13 +65,19 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
   await page.route("**/api/v1/catalog/categories", (route) =>
     route.fulfill({ json: [] }),
   );
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: OPEN_SHIFT }),
+  );
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     expect(route.request().method()).toBe("POST");
     const body = route.request().postDataJSON() as {
-      sales: Array<{ client_uuid: string; order: unknown }>;
+      sales: Array<{ client_uuid: string; order: unknown; shift_id?: string }>;
     };
     expect(body.sales).toHaveLength(1);
+    // The ring-time shift id must travel with the sale so its cash counts
+    // toward the drawer's expected cash.
+    expect(body.sales[0].shift_id).toBe("shift-1");
     expect(body.sales[0].order).toMatchObject({
       items: [{ product_id: "product-1", quantity: 1 }],
       payments: [{ method: "cash", amount: "18.50", amount_tendered: "20.00" }],
@@ -102,12 +116,16 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
   await page.route("**/api/v1/catalog/categories", (route) =>
     route.fulfill({ json: [] }),
   );
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: OPEN_SHIFT }),
+  );
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     expect(route.request().method()).toBe("POST");
     const body = route.request().postDataJSON() as {
-      sales: Array<{ client_uuid: string; order: unknown }>;
+      sales: Array<{ client_uuid: string; order: unknown; shift_id?: string }>;
     };
+    expect(body.sales[0].shift_id).toBe("shift-1");
     expect(body.sales[0].order).toMatchObject({
       items: [{ product_id: "product-1", quantity: 1 }],
       payments: [
@@ -158,6 +176,51 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
   await page.getByRole("button", { name: /^cobrar$/i }).click();
 
   await expect(page.getByRole("status")).toContainText(/en cola/i);
+});
+
+test("cash is blocked without an open shift but a transfer sale completes", async ({
+  page,
+}) => {
+  await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: CASHIER_SESSION }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) =>
+    route.fulfill({ json: CATALOG }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  // No open shift on this device.
+  await page.route("**/api/v1/shifts/current", (route) => route.fulfill({ json: null }));
+
+  await page.route("**/api/v1/sync/offline-sales", async (route) => {
+    const body = route.request().postDataJSON() as {
+      sales: Array<{ order: { payments: Array<{ method: string }> }; shift_id?: string }>;
+    };
+    // A blocked-cash sale must never reach the wire; only the transfer does.
+    expect(body.sales[0].order.payments[0].method).toBe("bank_transfer");
+    expect(body.sales[0].shift_id).toBeUndefined();
+    await route.fulfill({ json: makeSyncResponse("order-transfer", "18.50") });
+  });
+
+  await page.goto("/register");
+  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await expect(
+    page.getByText(/los cobros en efectivo están bloqueados/i),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+
+  // Cash method is disabled; selecting it surfaces the reason and does not
+  // switch the method.
+  const cashRadio = page.getByRole("radio", { name: /^efectivo$/i });
+  await expect(cashRadio).toHaveAttribute("aria-disabled", "true");
+
+  // Transfer is still allowed and completes the sale.
+  await page.getByRole("radio", { name: /transferencia/i }).click();
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
+  await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
 });
 
 test("out-of-stock product cannot be added to the cart", async ({ page }) => {

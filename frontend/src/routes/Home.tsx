@@ -1018,6 +1018,7 @@ function Footer() {
             <Link to="/privacy" style={footerLinkStyle}>{t.footer.privacy}</Link>
             <Link to="/terms" style={footerLinkStyle}>{t.footer.terms}</Link>
             <Link to="/seguridad" style={footerLinkStyle}>{t.footer.security}</Link>
+            <Link to="/cookies" style={footerLinkStyle}>{t.footer.cookies}</Link>
             <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>{t.footer.support}</a>
           </div>
         </div>
