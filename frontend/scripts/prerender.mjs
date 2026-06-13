@@ -23,7 +23,7 @@ const DEFAULT_DESCRIPTION =
 // rendered HTML — our guarantee that the route actually rendered its content
 // rather than an empty fallback.
 const ROUTES = [
-  { path: "/", out: "index.html", assert: "Conoce exactamente" },
+  { path: "/", out: "index.html", assert: "Deja de adivinar" },
   {
     path: "/privacy",
     out: "privacy/index.html",
