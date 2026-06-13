@@ -190,6 +190,13 @@ const SHOWCASE_STYLES = `
     justify-content: center;
     font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
   }
+  .ksw-section .lp-section-copy {
+    max-width: 680px;
+  }
+  .ksw-heading {
+    max-width: 760px;
+    font-size: clamp(34px, 3.8vw, 48px);
+  }
   /* Embedded on the landing: desktop keeps the cinematic ratio; smaller
      viewports get explicit height so captions never sit on top of the app. */
   .ksw-stage[data-variant="embedded"] {

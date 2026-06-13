@@ -2,7 +2,7 @@
 // Cada celda lleva una mini-viñeta de UI (no íconos solos) construida con
 // labels reales del producto. Las 6 capacidades son las ya publicadas hoy.
 import type { CSSProperties, ReactNode } from "react";
-import { AlertTriangle, BarChart3, Calculator, CreditCard, Package, Users, WifiOff } from "lucide-react";
+import { AlertTriangle, BarChart3, Calculator, CreditCard, Package, WifiOff } from "lucide-react";
 import { formatMoney } from "@/orders/format";
 import { localizeReconciliationStatus } from "@/shifts/format";
 import { copy } from "@/i18n/messages";
@@ -81,31 +81,31 @@ function StockVignette() {
   );
 }
 
-function RolesVignette() {
-  return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      {[t.roleOwner, t.roleManager, t.roleCashier].map((role) => (
-        <span key={role} style={chipStyle}>{role}</span>
-      ))}
-    </div>
-  );
-}
-
 const CELLS: Array<{ icon: ReactNode; large: boolean; vignette: ReactNode }> = [
   { icon: <CreditCard size={18} strokeWidth={1.6} />, large: true, vignette: <PaymentChips /> },
-  { icon: <WifiOff size={18} strokeWidth={1.6} />, large: true, vignette: <OfflineVignette /> },
-  { icon: <Calculator size={18} strokeWidth={1.6} />, large: false, vignette: <CashVignette /> },
   { icon: <Package size={18} strokeWidth={1.6} />, large: false, vignette: <StockVignette /> },
-  { icon: <Users size={18} strokeWidth={1.6} />, large: false, vignette: <RolesVignette /> },
+  { icon: <Calculator size={18} strokeWidth={1.6} />, large: false, vignette: <CashVignette /> },
   { icon: <BarChart3 size={18} strokeWidth={1.6} />, large: false, vignette: <HoursMiniChart height={34} /> },
+  { icon: <WifiOff size={18} strokeWidth={1.6} />, large: true, vignette: <OfflineVignette /> },
 ];
+
+const audienceTypes = copy.landing.builtFor.types.slice(0, 5).map((type) => type.name);
 
 export default function BentoModules() {
   return (
     <section id="como-funciona" className="lp-section lp-reveal-block" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
-      <div className="lp-section-inner">
+      <div className="lp-section-inner" style={{ position: "relative" }}>
+        <span id="comercios" style={{ position: "absolute", top: -96 }} aria-hidden="true" />
         <span className="lp-section-label">{t.kicker}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 720 }}>{t.title}</h2>
+        <p className="lp-section-copy">{t.body}</p>
+        <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {audienceTypes.map((type) => (
+            <span key={type} className="lp-chip-lift" style={chipStyle}>
+              {type}
+            </span>
+          ))}
+        </div>
 
         <ul className="lp-bento">
           {t.items.map((item, i) => (

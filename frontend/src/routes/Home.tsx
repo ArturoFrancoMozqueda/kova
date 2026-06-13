@@ -317,45 +317,6 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
   );
 }
 
-/* ─── BuiltFor ───────────────────────────────────────────────────────────── */
-function BuiltFor() {
-  const types = t.builtFor.types;
-  return (
-    <section id="comercios" className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
-      <div className="lp-section-inner">
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
-          <span className="lp-section-label" style={{ color: "var(--kova-tertiary)" }}>{t.builtFor.eyebrow}</span>
-        </div>
-        <h2 className="lp-section-title" style={{ maxWidth: 760, color: "var(--kova-on-ink)" }}>
-          {t.builtFor.title}
-        </h2>
-        <p className="lp-section-copy" style={{ color: "rgba(240,244,255,0.65)" }}>
-          {t.builtFor.body}
-        </p>
-
-        <div style={{ marginTop: 36, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 12, overflow: "hidden", border: "0.5px solid rgba(255,255,255,0.08)" }} className="lp-3cols">
-          {types.map((type, i) => (
-            <div
-              key={type.name}
-              style={{ background: "var(--kova-ink)", padding: "24px 22px", display: "flex", flexDirection: "column", gap: 10, minHeight: 170, transition: "background 220ms", cursor: "pointer" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1A1D28")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--kova-ink)")}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-tertiary)" }}>0{i + 1}</span>
-                <LogoMark size={22} circuitColor="rgba(255,255,255,0.4)" coreColor="var(--kova-blue-light)" />
-              </div>
-              <h3 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.025em", margin: 0, color: "#fff" }}>{type.name}</h3>
-              <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, color: "rgba(240,244,255,0.6)" }}>{type.body}</p>
-              <div style={{ marginTop: "auto", fontSize: 11, color: "var(--kova-blue-light)" }}>↳ {type.tag}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ─── Problem ────────────────────────────────────────────────────────────── */
 function Problem() {
   const p = t.problem;
@@ -741,7 +702,6 @@ export default function Home(): ReactNode {
         <OwnerDashboard />
         <BentoModules />
         <Differentiation />
-        <BuiltFor />
         <FAQ />
         <Pricing primaryTarget={primaryTarget} />
         <FinalCta primaryTarget={primaryTarget} />
