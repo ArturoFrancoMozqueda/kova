@@ -5,11 +5,12 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 
 export default [
-  { ignores: ["dist", "node_modules", "coverage"] },
+  { ignores: ["dist", "dist-server", "node_modules", "coverage"] },
   js.configs.recommended,
   // Node globals for config files (vite.config.ts, tailwind.config.js, postcss.config.js)
+  // and build scripts (scripts/*.mjs, e.g. the prerender postbuild step).
   {
-    files: ["*.config.{js,ts}", "*.config.*.{js,ts}"],
+    files: ["*.config.{js,ts}", "*.config.*.{js,ts}", "scripts/**/*.{js,mjs}"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
