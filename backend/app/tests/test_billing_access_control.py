@@ -209,6 +209,33 @@ def test_canceled_subscription_blocks_orders_list(
     assert response.json()["detail"]["reason"] == "canceled"
 
 
+def test_incomplete_expired_subscription_blocks_orders_list(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """Default-deny: a Stripe status we don't explicitly allow (here
+    `incomplete_expired`, when the first payment never completed) must block,
+    surfacing the raw reason so the UI can map it."""
+    signup = _signup_verify_login(
+        client, f"incomplete-{uuid4().hex}@example.com", "IncompleteExpired"
+    )
+    _expire_trial(monkeypatch)
+    db.add(
+        Subscription(
+            tenant_id=UUID(signup["tenant_id"]),
+            stripe_customer_id=f"cus_{uuid4().hex}",
+            stripe_subscription_id=f"sub_{uuid4().hex}",
+            stripe_price_id="price_standard_299_mxn",
+            status="incomplete_expired",
+        )
+    )
+    db.commit()
+
+    response = client.get("/api/v1/orders")
+
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "incomplete_expired"
+
+
 def test_blocked_tenant_can_start_billing_recovery(
     client: TestClient, monkeypatch
 ) -> None:

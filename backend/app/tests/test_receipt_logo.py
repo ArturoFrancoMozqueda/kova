@@ -70,6 +70,21 @@ def test_receipt_logo_upload_rejects_unsupported_content_type(client):
     assert "PNG" in response.text
 
 
+def test_receipt_logo_upload_rejects_svg(client):
+    """SVG is rejected: it can carry embedded script (XSS on the logo render
+    surface). Raster formats only."""
+    _signup_verify_login(client, "logo-svg@example.com", "SVG Logo Bakery")
+
+    response = _upload_logo(
+        client,
+        b'<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+        "image/svg+xml",
+    )
+
+    assert response.status_code == 400
+    assert "PNG" in response.text
+
+
 def test_receipt_logo_upload_is_bound_to_current_tenant(client, db):
     tenant_a = _signup_verify_login(client, "logo-a@example.com", "Logo Tenant A")
     upload_a = _upload_logo(client, b"a-logo", "image/png")

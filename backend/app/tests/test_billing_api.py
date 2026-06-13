@@ -678,6 +678,50 @@ def test_invoice_payment_succeeded_clears_past_due_grace(
     assert subscription.grace_period_ends_at is None
 
 
+def test_invoice_paid_event_clears_past_due_grace(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """Stripe emits both `invoice.payment_succeeded` and `invoice.paid`; the
+    handler treats them identically. This covers the `invoice.paid` alias that
+    only had implicit coverage before."""
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"webhook-invoice-paid-alias-{uuid4().hex}@example.com", "Webhook Invoice Paid Alias"
+    )
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_subscription_id="sub_test_invoice_paid_alias",
+        status="past_due",
+    )
+    from datetime import UTC, datetime, timedelta
+
+    subscription.past_due_at = datetime.now(UTC)
+    subscription.grace_period_ends_at = subscription.past_due_at + timedelta(days=7)
+    db.add(subscription)
+    db.commit()
+    payload = _stripe_event(
+        "invoice.paid",
+        {
+            "id": "in_test_paid_alias",
+            "object": "invoice",
+            "subscription": "sub_test_invoice_paid_alias",
+            "metadata": {},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    db.refresh(subscription)
+    assert subscription.status == "active"
+    assert subscription.past_due_at is None
+    assert subscription.grace_period_ends_at is None
+
+
 def test_webhook_without_tenant_is_ignored(client: TestClient, db: Session, monkeypatch) -> None:
     _configure_stripe(monkeypatch)
     payload = _stripe_event(

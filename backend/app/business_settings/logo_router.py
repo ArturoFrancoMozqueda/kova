@@ -18,7 +18,9 @@ from app.tenants.repository import get_by_id as get_tenant_by_id
 
 router = APIRouter(prefix="/api/v1/settings", tags=["settings"])
 
-ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp", "image/svg+xml"}
+# SVG is intentionally excluded: it can carry embedded scripts (XSS via the
+# logo render surface). Raster-only keeps the upload safe.
+ALLOWED_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
 MAX_LOGO_BYTES = 512 * 1024
 
 
@@ -98,7 +100,7 @@ async def upload_receipt_logo(
     user, membership, _ = ctx
     parsed = await _parse_logo_upload(request)
     if parsed.content_type not in ALLOWED_CONTENT_TYPES:
-        raise bad_request("Logo must be PNG, JPEG, WebP, or SVG.")
+        raise bad_request("Logo must be PNG, JPEG, or WebP.")
     if len(parsed.data) > MAX_LOGO_BYTES:
         raise bad_request("Logo must be 512 KB or smaller.")
 
