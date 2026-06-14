@@ -4,6 +4,10 @@ import { ProductForm } from "./CatalogView";
 import type { Product } from "./types";
 import { ToastProvider } from "@/components/ui/toast";
 
+vi.mock("@/lib/compressImage", () => ({
+  compressImage: vi.fn(async (file: File) => file),
+}));
+
 function getPreviewImage(): HTMLImageElement {
   const editor = screen.getByRole("img", { name: /editor de encuadre/i });
   const image = editor.querySelector("img");
@@ -32,6 +36,61 @@ const product: Product = {
 };
 
 describe("ProductForm image positioning", () => {
+  it("renders a selected image preview and submits its framing", async () => {
+    const onSubmit = vi.fn(async () => undefined);
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    const objectUrlSpy = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:product-preview");
+    const file = new File(["image"], "concha.webp", { type: "image/webp" });
+
+    const { container } = render(
+      <ToastProvider>
+        <ProductForm
+          categories={[]}
+          availableModifierGroups={[]}
+          defaultCategoryId={null}
+          pending={false}
+          onCancel={vi.fn()}
+          onSubmit={onSubmit}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Nombre del producto"), {
+      target: { value: "Concha" },
+    });
+    fireEvent.change(screen.getByLabelText("Precio"), {
+      target: { value: "18.00" },
+    });
+
+    const input = container.querySelector('input[type="file"]');
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    fireEvent.change(input as HTMLInputElement, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(getPreviewImage()).toHaveAttribute("src", "blob:product-preview");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /aumentar zoom/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar producto" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_file: file,
+        image_position_x: 50,
+        image_position_y: 50,
+        image_zoom: 1.1,
+      }),
+    );
+
+    objectUrlSpy.mockRestore();
+  });
+
   it("updates the preview zoom and submits the saved framing", async () => {
     const onSubmit = vi.fn(async () => undefined);
 
