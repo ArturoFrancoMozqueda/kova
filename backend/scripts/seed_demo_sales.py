@@ -17,8 +17,10 @@ Usage (inside the backend container or env):
     uv run python scripts/seed_demo_sales.py  # this script
 """
 import sys
+import urllib.request
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_CEILING, Decimal
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
@@ -31,7 +33,7 @@ import seed_demo
 from app.auth.models import Membership, User
 from app.auth.service import hash_password
 from app.business_settings.models import BusinessProfile, ReceiptSettings
-from app.catalog.models import Product
+from app.catalog.models import Product, ProductImageFile
 from app.config import settings
 from app.inventory import repository as inventory_repo
 from app.orders import service as orders_service
@@ -77,6 +79,88 @@ RECIPES = [
 # cash dominates, with transfers and card mixed in (index → method).
 METHODS = ["cash", "cash", "bank_transfer", "cash", "manual_card",
            "cash", "cash", "manual_card", "bank_transfer", "cash"]
+
+# Per-SKU photo keywords (real bakery photos fetched by keyword). The marketing
+# showcase looks far better with product photos than placeholder icons.
+IMAGE_KEYWORDS = {
+    "PAN-001": "bread,loaf",
+    "PAN-002": "baguette,bread",
+    "PAS-001": "chocolate,cake",
+    "PAS-002": "vanilla,cake",
+    "GAL-001": "oatmeal,cookie",
+    "GAL-002": "cookie,biscuit",
+    "BEB-001": "coffee,cup",
+    "BEB-002": "hot,chocolate,drink",
+    "ESP-001": "sweet,bread,pastry",
+    "ESP-002": "pastry,bun",
+}
+
+
+def _fetch_photo(keywords: str, lock: int) -> bytes | None:
+    """Download a real photo for the given keywords, or None if offline."""
+    url = f"https://loremflickr.com/640/480/{keywords}?lock={lock}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "kova-seed"})
+        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310 (trusted URL)
+            data = resp.read()
+        return data if data and len(data) < 1_000_000 else None
+    except Exception:
+        return None
+
+
+def _generated_tile(label: str, index: int) -> tuple[bytes, str]:
+    """Fallback: a warm gradient tile with the product name (needs no network)."""
+    from PIL import Image, ImageDraw
+
+    w, h = 640, 480
+    palettes = [
+        ((247, 224, 198), (214, 162, 116)),
+        ((236, 213, 226), (190, 142, 170)),
+        ((214, 230, 245), (140, 178, 214)),
+        ((226, 240, 219), (150, 196, 142)),
+    ]
+    top, bottom = palettes[index % len(palettes)]
+    img = Image.new("RGB", (w, h), top)
+    draw = ImageDraw.Draw(img)
+    for y in range(h):
+        t = y / h
+        draw.line(
+            [(0, y), (w, y)],
+            fill=tuple(int(top[c] + (bottom[c] - top[c]) * t) for c in range(3)),
+        )
+    draw.text((28, h - 56), label, fill=(60, 40, 30))
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue(), "image/png"
+
+
+def _seed_product_images(db: Session, *, tenant_id, products: dict) -> int:
+    """Attach a photo to each product that doesn't have one yet (idempotent)."""
+    seeded = 0
+    for index, (sku, product) in enumerate(sorted(products.items())):
+        exists = (
+            db.query(ProductImageFile)
+            .filter(ProductImageFile.product_id == product.id)
+            .first()
+        )
+        if exists is not None:
+            continue
+        keywords = IMAGE_KEYWORDS.get(sku, "bakery,food")
+        data = _fetch_photo(keywords, lock=index + 1)
+        content_type = "image/jpeg"
+        if data is None:
+            data, content_type = _generated_tile(product.name, index)
+        now = datetime.now(UTC)
+        db.add(ProductImageFile(
+            id=uuid4(), tenant_id=tenant_id, product_id=product.id,
+            content_type=content_type, bytes_data=data, byte_size=len(data),
+            created_at=now, updated_at=now,
+        ))
+        product.image_url = f"/api/v1/catalog/products/{product.id}/image?v={int(now.timestamp())}"
+        product.updated_at = now
+        db.flush()
+        seeded += 1
+    return seeded
 
 
 def _ceil_50(total: Decimal) -> Decimal:
@@ -144,6 +228,18 @@ def main() -> None:
                 footer="¡Gracias por tu compra! Síguenos @panaderiademo",
             ))
         db.commit()
+
+        # Product photos so the POS catalog shows real images, not placeholder
+        # icons. Idempotent + before the guard so re-runs backfill them.
+        catalog = {
+            p.sku: p
+            for p in db.query(Product).filter(Product.tenant_id == tenant.id).all()
+            if p.sku
+        }
+        image_count = _seed_product_images(db, tenant_id=tenant.id, products=catalog)
+        db.commit()
+        if image_count:
+            print(f"  Seeded {image_count} product photos.")
 
         # 2. Idempotency: bail if this tenant already has orders.
         if db.query(Order).filter(Order.tenant_id == tenant.id).first() is not None:
