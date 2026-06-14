@@ -55,9 +55,9 @@ type CtaSection = { id: "cta"; kind: "cta"; caption: null };
 type Section = ImageSection | CtaSection;
 
 const SECTIONS: Section[] = [
-  { id: "pos", kind: "image", caption: steps[0] }, // /register
-  { id: "inventory", kind: "image", caption: steps[1] }, // /inventory
-  { id: "caja", kind: "image", caption: steps[2] }, // /shifts
+  { id: "pos", kind: "image", caption: steps[0] }, // /register — cobras
+  { id: "caja", kind: "image", caption: steps[2] }, // /shifts — la caja cuadra
+  { id: "reportes", kind: "image", caption: sc.reportesCaption }, // /reports
   { id: "panel", kind: "image", caption: steps[3] }, // /dashboard — climax
   { id: "cta", kind: "cta", caption: null },
 ];

@@ -124,6 +124,7 @@ export const copy = {
       line: "Cobras $186 y Kova actualiza ticket, inventario, caja y reportes en tiempo real.",
       urlBar: "kovasuite.com",
       fallback: "Captura de Kova",
+      reportesCaption: { title: "Lees tu día", callout: "Qué se vende, cuándo y cuánto entra." },
       ctaTitle: "Deja de adivinar.",
       ctaLine: "Conoce exactamente qué pasa en tu negocio.",
       ctaButton: "Empieza gratis",
