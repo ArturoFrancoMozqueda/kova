@@ -1092,6 +1092,11 @@ type ProductFormValues = {
 
 const PRODUCT_IMAGE_ALLOWED = ["image/png", "image/jpeg", "image/webp"];
 
+function persistedImagePosition(value: number): number {
+  if (!Number.isFinite(value)) return 50;
+  return Math.min(Math.max(Math.round(value), 0), 100);
+}
+
 export function ProductForm({
   initial,
   defaultTrackInventory = false,
@@ -1196,8 +1201,8 @@ export function ProductForm({
       modifier_group_ids: selectedGroupIds,
       image_file: imageFile,
       image_remove: imageRemoved && !imageFile,
-      image_position_x: imagePositionX,
-      image_position_y: imagePositionY,
+      image_position_x: persistedImagePosition(imagePositionX),
+      image_position_y: persistedImagePosition(imagePositionY),
       image_zoom: imageZoom,
     });
   };

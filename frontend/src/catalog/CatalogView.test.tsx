@@ -36,6 +36,34 @@ const product: Product = {
 };
 
 describe("ProductForm image positioning", () => {
+  it("rounds dragged image coordinates before submitting to the API", async () => {
+    const onSubmit = vi.fn(async () => undefined);
+
+    render(
+      <ToastProvider>
+        <ProductForm
+          initial={{ ...product, image_position_x: 46.667, image_position_y: 53.5 }}
+          categories={[]}
+          availableModifierGroups={[]}
+          defaultCategoryId={null}
+          pending={false}
+          onCancel={vi.fn()}
+          onSubmit={onSubmit}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Guardar producto" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_position_x: 47,
+        image_position_y: 54,
+      }),
+    );
+  });
+
   it("renders a selected image preview and submits its framing", async () => {
     const onSubmit = vi.fn(async () => undefined);
     Object.defineProperty(URL, "createObjectURL", {
