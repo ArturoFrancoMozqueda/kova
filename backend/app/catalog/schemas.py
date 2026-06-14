@@ -54,6 +54,7 @@ class ProductCreate(BaseModel):
     low_stock_threshold: int | None = Field(default=None, ge=0)
     image_position_x: int = Field(default=50, ge=0, le=100)
     image_position_y: int = Field(default=50, ge=0, le=100)
+    image_zoom: float = Field(default=1.0, ge=0.5, le=3.0)
 
     @field_validator("name")
     @classmethod
@@ -71,6 +72,7 @@ class ProductUpdate(BaseModel):
     low_stock_threshold: int | None = Field(default=None, ge=0)
     image_position_x: int | None = Field(default=None, ge=0, le=100)
     image_position_y: int | None = Field(default=None, ge=0, le=100)
+    image_zoom: float | None = Field(default=None, ge=0.5, le=3.0)
     is_active: bool | None = None
 
     @field_validator("name")
@@ -94,5 +96,6 @@ class ProductResponse(BaseModel):
     image_url: str | None = None
     image_position_x: int = 50
     image_position_y: int = 50
+    image_zoom: float = 1.0
     is_active: bool
     modifier_groups: list = Field(default_factory=list)

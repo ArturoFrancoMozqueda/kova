@@ -43,6 +43,7 @@ import { ProductStoryCard } from "./ProductStoryCard";
 import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "./imageUrl";
+import { ImagePositionEditor } from "./ImagePositionEditor";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1086,6 +1087,7 @@ type ProductFormValues = {
   image_remove: boolean;
   image_position_x: number;
   image_position_y: number;
+  image_zoom: number;
 };
 
 const PRODUCT_IMAGE_ALLOWED = ["image/png", "image/jpeg", "image/webp"];
@@ -1131,14 +1133,8 @@ export function ProductForm({
   const [imageRemoved, setImageRemoved] = useState(false);
   const [imagePositionX, setImagePositionX] = useState(initial?.image_position_x ?? 50);
   const [imagePositionY, setImagePositionY] = useState(initial?.image_position_y ?? 50);
+  const [imageZoom, setImageZoom] = useState(initial?.image_zoom ?? 1.0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewImageStyle = useMemo(
-    () => productImageStyle({
-      image_position_x: imagePositionX,
-      image_position_y: imagePositionY,
-    }),
-    [imagePositionX, imagePositionY],
-  );
 
   const toggleGroup = (groupId: string) => {
     setSelectedGroupIds((prev) =>
@@ -1202,6 +1198,7 @@ export function ProductForm({
       image_remove: imageRemoved && !imageFile,
       image_position_x: imagePositionX,
       image_position_y: imagePositionY,
+      image_zoom: imageZoom,
     });
   };
 
@@ -1209,107 +1206,48 @@ export function ProductForm({
     <form onSubmit={handleSubmit} aria-label="Formulario de producto" className="space-y-4">
       <div className="space-y-2">
         <Label>{copy.catalog.productImage}</Label>
-        <div className="flex items-start gap-3">
-          <div className="flex aspect-video w-40 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-[color:var(--kova-mist)]">
-            {imagePreview ? (
-              <img
-                src={imagePreview}
-                alt=""
-                className="h-full w-full"
-                style={previewImageStyle}
-                data-testid="product-image-preview"
-              />
-            ) : (
-              <ImagePlus className="h-6 w-6 text-muted-foreground/60" />
-            )}
-          </div>
-          <div className="flex-1 space-y-1.5">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <ImagePlus className="mr-1 h-4 w-4" />
-                {copy.catalog.productImageUpload}
-              </Button>
-              {imagePreview && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleImageRemove}
-                >
-                  <XIcon className="mr-1 h-4 w-4" />
-                  {copy.catalog.productImageRemove}
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">{copy.catalog.productImageHint}</p>
-            {imagePreview && (
-              <div className="space-y-2 pt-2">
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                  <div className="space-y-1">
-                    <Label htmlFor="prod-image-position-x" className="text-xs">
-                      {copy.catalog.productImagePositionX}
-                    </Label>
-                    <Input
-                      id="prod-image-position-x"
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={imagePositionX}
-                      className="h-6 cursor-pointer border-0 px-0 shadow-none focus-visible:ring-0"
-                      onChange={(event) => setImagePositionX(Number(event.target.value))}
-                    />
-                  </div>
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {imagePositionX}%
-                  </span>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                  <div className="space-y-1">
-                    <Label htmlFor="prod-image-position-y" className="text-xs">
-                      {copy.catalog.productImagePositionY}
-                    </Label>
-                    <Input
-                      id="prod-image-position-y"
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={imagePositionY}
-                      className="h-6 cursor-pointer border-0 px-0 shadow-none focus-visible:ring-0"
-                      onChange={(event) => setImagePositionY(Number(event.target.value))}
-                    />
-                  </div>
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {imagePositionY}%
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="px-2"
-                  onClick={() => {
-                    setImagePositionX(50);
-                    setImagePositionY(50);
-                  }}
-                >
-                  {copy.catalog.productImageCenter}
-                </Button>
-              </div>
-            )}
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            onChange={handleImagePick}
-          />
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImagePlus className="mr-1 h-4 w-4" />
+            {copy.catalog.productImageUpload}
+          </Button>
+          {imagePreview && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleImageRemove}
+            >
+              <XIcon className="mr-1 h-4 w-4" />
+              {copy.catalog.productImageRemove}
+            </Button>
+          )}
         </div>
+        {!imagePreview && (
+          <p className="text-xs text-muted-foreground">{copy.catalog.productImageHint}</p>
+        )}
+        {imagePreview && (
+          <ImagePositionEditor
+            src={imagePreview}
+            positionX={imagePositionX}
+            positionY={imagePositionY}
+            zoom={imageZoom}
+            onPositionChange={(x, y) => { setImagePositionX(x); setImagePositionY(y); }}
+            onZoomChange={setImageZoom}
+          />
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={handleImagePick}
+        />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2 sm:col-span-2">

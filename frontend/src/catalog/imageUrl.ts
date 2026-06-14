@@ -13,12 +13,19 @@ export function productImageSrc(url: string, width: number = 400): string {
 }
 
 export function productImageStyle(
-  product: { image_position_x?: number | null; image_position_y?: number | null },
+  product: {
+    image_position_x?: number | null;
+    image_position_y?: number | null;
+    image_zoom?: number | null;
+  },
 ): CSSProperties {
   const x = product.image_position_x ?? DEFAULT_IMAGE_POSITION;
   const y = product.image_position_y ?? DEFAULT_IMAGE_POSITION;
+  const zoom = product.image_zoom ?? 1.0;
   return {
     objectFit: "cover",
     objectPosition: `${x}% ${y}%`,
+    transformOrigin: `${x}% ${y}%`,
+    ...(zoom !== 1.0 && { transform: `scale(${zoom})` }),
   };
 }

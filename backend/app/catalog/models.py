@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     LargeBinary,
@@ -55,6 +56,7 @@ class Product(Base):
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     image_position_x: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     image_position_y: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    image_zoom: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -70,6 +72,10 @@ class Product(Base):
         CheckConstraint(
             "image_position_y >= 0 AND image_position_y <= 100",
             name="ck_products_image_position_y_range",
+        ),
+        CheckConstraint(
+            "image_zoom >= 0.5 AND image_zoom <= 3.0",
+            name="ck_products_image_zoom_range",
         ),
     )
 
