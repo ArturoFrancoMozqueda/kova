@@ -763,7 +763,7 @@ export default function RegisterView() {
                       )}
                     >
                       <div className="flex sm:block items-center gap-3 sm:gap-0 sm:space-y-2 flex-1 min-w-0">
-                        <div className="aspect-square w-16 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50">
+                        <div className="aspect-square w-16 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50 transition-transform group-hover:scale-[1.03]">
                           {product.image_url ? (
                             <img
                               src={productImageSrc(product.image_url, 400)}
@@ -772,7 +772,7 @@ export default function RegisterView() {
                               alt=""
                               loading="lazy"
                               decoding="async"
-                              className="h-full w-full transition-transform group-hover:scale-[1.03]"
+                              className="h-full w-full"
                               style={productImageStyle(product)}
                             />
                           ) : (

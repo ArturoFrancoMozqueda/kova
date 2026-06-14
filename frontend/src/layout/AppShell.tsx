@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Menu,
   X,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
@@ -66,6 +68,7 @@ function roleLabel(role: string): string {
 export default function AppShell() {
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
   const tenantName = formatTenantName(tenantNameRaw);
@@ -105,12 +108,17 @@ export default function AppShell() {
   const SidebarContent = (
     <>
       {/* Brand */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
+      <div className={cn(
+        "flex items-center border-b border-sidebar-border",
+        sidebarCollapsed ? "justify-center px-0 py-5" : "gap-3 px-5 py-5",
+      )}>
         <LogoMark size={32} circuitColor="var(--kova-on-ink)" />
-        <div className="min-w-0">
-          <p className="text-[10px] text-sidebar-muted tracking-[0.14em] uppercase">kova</p>
-          <p className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</p>
-        </div>
+        {!sidebarCollapsed && (
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] text-sidebar-muted tracking-[0.14em] uppercase">kova</p>
+            <p className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</p>
+          </div>
+        )}
         {/* Close button — mobile only */}
         <button
           type="button"
@@ -120,18 +128,38 @@ export default function AppShell() {
         >
           <X className="h-4 w-4" />
         </button>
+        {/* Collapse toggle — desktop only */}
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          aria-label={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
+          className={cn(
+            "hidden lg:flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors shrink-0",
+            sidebarCollapsed ? "mt-0" : "ml-auto",
+          )}
+        >
+          {sidebarCollapsed
+            ? <ChevronsRight className="h-4 w-4" />
+            : <ChevronsLeft className="h-4 w-4" />
+          }
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label={copy.auth.accountNavigation}>
+      <nav
+        className={cn("flex-1 overflow-y-auto py-4 space-y-1", sidebarCollapsed ? "px-2" : "px-3")}
+        aria-label={copy.auth.accountNavigation}
+      >
         {filteredNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             onClick={closeSidebar}
+            title={sidebarCollapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                "group flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                sidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                   : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
@@ -139,31 +167,44 @@ export default function AppShell() {
             }
           >
             {item.icon}
-            <span className="flex-1">{item.label}</span>
-            <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+            {!sidebarCollapsed && (
+              <>
+                <span className="flex-1">{item.label}</span>
+                <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-sidebar-border p-4 space-y-3">
-        <OfflineIndicator />
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-xs font-bold uppercase shrink-0">
+      <div className={cn("border-t border-sidebar-border space-y-3", sidebarCollapsed ? "p-2" : "p-4")}>
+        {!sidebarCollapsed && <OfflineIndicator />}
+        <div className={cn("flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}>
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-xs font-bold uppercase shrink-0"
+            title={sidebarCollapsed ? userEmail : undefined}
+          >
             {userEmail.charAt(0)}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-sidebar-muted truncate">{userEmail}</p>
-            <p className="text-[10px] text-sidebar-muted/60">{roleLabel(userRole)}</p>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-sidebar-muted truncate">{userEmail}</p>
+              <p className="text-[10px] text-sidebar-muted/60">{roleLabel(userRole)}</p>
+            </div>
+          )}
         </div>
         <button
           onClick={() => void logout()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          title={sidebarCollapsed ? copy.register.logout : undefined}
+          className={cn(
+            "flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            sidebarCollapsed && "px-2",
+          )}
           type="button"
         >
           <LogOut className="h-4 w-4" />
-          {copy.register.logout}
+          {!sidebarCollapsed && copy.register.logout}
         </button>
       </div>
     </>
@@ -183,8 +224,9 @@ export default function AppShell() {
       {/* Sidebar — fixed on mobile, static on desktop */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out",
           "lg:relative lg:translate-x-0 lg:shrink-0",
+          sidebarCollapsed ? "lg:w-[60px]" : "lg:w-[260px]",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
