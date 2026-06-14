@@ -26,10 +26,10 @@ from uuid import uuid4
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+import seed_demo
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-import seed_demo
 from app.auth.models import Membership, User
 from app.auth.service import hash_password
 from app.business_settings.models import BusinessProfile, ReceiptSettings
@@ -38,7 +38,13 @@ from app.config import settings
 from app.inventory import repository as inventory_repo
 from app.orders import service as orders_service
 from app.orders.models import InventoryMovement, Order, Payment
-from app.orders.schemas import OrderCreate, OrderItemCreate, PaymentCreate, RefundCreate, RefundItemCreate
+from app.orders.schemas import (
+    OrderCreate,
+    OrderItemCreate,
+    PaymentCreate,
+    RefundCreate,
+    RefundItemCreate,
+)
 from app.shifts import calculator as shift_calc
 from app.shifts import repository as shifts_repo
 from app.shifts import service as shifts_service
@@ -373,7 +379,12 @@ def main() -> None:
             orders_service.create_refund(
                 db, tenant_id=tenant.id, user_id=owner.id, order_id=first_order["id"],
                 body=RefundCreate(
-                    items=[RefundItemCreate(order_item_id=first_order["items"][0]["id"], quantity=1)],
+                    items=[
+                        RefundItemCreate(
+                            order_item_id=first_order["items"][0]["id"],
+                            quantity=1,
+                        )
+                    ],
                     reason="customer_return", refund_payment_method="cash",
                 ),
                 idempotency_key="seed-refund-today",
