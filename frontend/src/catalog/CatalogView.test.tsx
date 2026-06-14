@@ -4,6 +4,15 @@ import { ProductForm } from "./CatalogView";
 import type { Product } from "./types";
 import { ToastProvider } from "@/components/ui/toast";
 
+function getPreviewImage(): HTMLImageElement {
+  const editor = screen.getByRole("img", { name: /editor de encuadre/i });
+  const image = editor.querySelector("img");
+  if (!(image instanceof HTMLImageElement)) {
+    throw new Error("Expected the image editor to render a preview image.");
+  }
+  return image;
+}
+
 const product: Product = {
   id: "product-1",
   tenant_id: "tenant-1",
@@ -17,12 +26,13 @@ const product: Product = {
   image_url: "/api/v1/catalog/products/product-1/image?v=1",
   image_position_x: 50,
   image_position_y: 50,
+  image_zoom: 1.0,
   is_active: true,
   modifier_groups: [],
 };
 
 describe("ProductForm image positioning", () => {
-  it("updates the preview object position and submits the saved focus", async () => {
+  it("updates the preview zoom and submits the saved framing", async () => {
     const onSubmit = vi.fn(async () => undefined);
 
     render(
@@ -39,25 +49,24 @@ describe("ProductForm image positioning", () => {
       </ToastProvider>,
     );
 
-    const preview = screen.getByTestId("product-image-preview");
+    const preview = getPreviewImage();
     expect(preview).toHaveStyle({ objectPosition: "50% 50%" });
 
-    fireEvent.change(screen.getByLabelText("Ajuste horizontal"), {
-      target: { value: "35" },
-    });
-    fireEvent.change(screen.getByLabelText("Ajuste vertical"), {
-      target: { value: "70" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: /aumentar zoom/i }));
 
-    expect(preview).toHaveStyle({ objectPosition: "35% 70%" });
+    expect(preview).toHaveStyle({
+      objectPosition: "50% 50%",
+      transform: "scale(1.1)",
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Guardar producto" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
-        image_position_x: 35,
-        image_position_y: 70,
+        image_position_x: 50,
+        image_position_y: 50,
+        image_zoom: 1.1,
       }),
     );
   });
@@ -66,7 +75,7 @@ describe("ProductForm image positioning", () => {
     render(
       <ToastProvider>
         <ProductForm
-          initial={{ ...product, image_position_x: 20, image_position_y: 80 }}
+          initial={{ ...product, image_position_x: 20, image_position_y: 80, image_zoom: 2.0 }}
           categories={[]}
           availableModifierGroups={[]}
           defaultCategoryId={null}
@@ -79,8 +88,9 @@ describe("ProductForm image positioning", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Centrar" }));
 
-    expect(screen.getByTestId("product-image-preview")).toHaveStyle({
+    expect(getPreviewImage()).toHaveStyle({
       objectPosition: "50% 50%",
+      transform: "",
     });
   });
 });

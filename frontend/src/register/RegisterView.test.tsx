@@ -35,6 +35,7 @@ const product: Product = {
   image_url: null,
   image_position_x: 50,
   image_position_y: 50,
+  image_zoom: 1.0,
   is_active: true,
   modifier_groups: [],
 };
