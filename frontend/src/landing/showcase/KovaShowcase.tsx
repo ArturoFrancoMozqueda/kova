@@ -36,14 +36,9 @@
 // Tip (Puppeteer): set viewport {width:1080,height:1350,deviceScaleFactor:2},
 // goto the route, wait 500ms for fonts, then screencast for 30s.
 // ─────────────────────────────────────────────────────────────────────────
-import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LogoMark } from "@/components/brand/Logo";
 import { copy } from "@/i18n/messages";
-import CashRegisterPreview from "@/landing/previews/CashRegisterPreview";
-import InventoryStatePreview from "@/landing/previews/InventoryStatePreview";
-import ReportsPreview from "@/landing/previews/ReportsPreview";
-import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
 
 const sc = copy.landing.showcase;
 const steps = copy.landing.story.steps;
@@ -52,40 +47,44 @@ const steps = copy.landing.story.steps;
 // with the `animation-delay` values + `ksw-seq` keyframe percentages below.
 const SEQUENCE_SECONDS = 30;
 
-type Section = {
-  id: string;
-  caption: { title: string; callout: string } | null;
-  screen: ReactNode;
-};
+// Story beats. The four product screens are REAL snapshots captured from a live
+// Kova tenant (see scripts/capture-showcase.mjs → public/showcase/<id>.png).
+// Captions reuse the landing story copy; the climax is the Panel (Dashboard).
+type ImageSection = { id: string; kind: "image"; caption: { title: string; callout: string } };
+type CtaSection = { id: "cta"; kind: "cta"; caption: null };
+type Section = ImageSection | CtaSection;
 
-// animate={false}: previews render their final populated state. The section
-// cross-fade (not the previews' own one-shot entry animations) drives motion,
-// so static screens keep every loop identical and avoid layout jumps.
-function buildSections(ctaTarget: string): Section[] {
-  return [
-    {
-      id: "pos",
-      caption: steps[0],
-      screen: <SweetHomePOSPreview interactive={false} animateEntry={false} />,
-    },
-    { id: "inventory", caption: steps[1], screen: <InventoryStatePreview animate={false} /> },
-    { id: "cash", caption: steps[2], screen: <CashRegisterPreview animate={false} /> },
-    { id: "reports", caption: steps[3], screen: <ReportsPreview animate={false} /> },
-    {
-      id: "cta",
-      caption: null,
-      screen: (
-        <div className="ksw-cta">
-          <LogoMark size={44} coreColor="var(--accent)" circuitColor="var(--page-fg)" />
-          <h3 className="ksw-cta-title">{sc.ctaTitle}</h3>
-          <p className="ksw-cta-line">{sc.ctaLine}</p>
-          <Link to={ctaTarget} className="ksw-cta-btn">
-            {sc.ctaButton}
-          </Link>
-        </div>
-      ),
-    },
-  ];
+const SECTIONS: Section[] = [
+  { id: "pos", kind: "image", caption: steps[0] }, // /register
+  { id: "inventory", kind: "image", caption: steps[1] }, // /inventory
+  { id: "caja", kind: "image", caption: steps[2] }, // /shifts
+  { id: "panel", kind: "image", caption: steps[3] }, // /dashboard — climax
+  { id: "cta", kind: "cta", caption: null },
+];
+
+// Real screenshot for a story beat. The branded fallback sits behind the image
+// so a not-yet-captured screen shows a clean Kova placeholder, never a broken
+// image. The PNG fills the screen exactly (captures are 16/10, like the viewport).
+function ScreenShot({ id }: { id: string }) {
+  return (
+    <div className="ksw-shot">
+      <div className="ksw-shot-fallback">
+        <LogoMark size={40} coreColor="var(--accent)" circuitColor="var(--page-fg)" />
+        <span>{sc.fallback}</span>
+      </div>
+      <img
+        className="ksw-shot-img"
+        src={`/showcase/${id}.png`}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onError={(e) => {
+          // Reveal the branded fallback if the capture hasn't been run yet.
+          e.currentTarget.style.visibility = "hidden";
+        }}
+      />
+    </div>
+  );
 }
 
 export type KovaShowcaseProps = {
@@ -95,7 +94,6 @@ export type KovaShowcaseProps = {
 
 export default function KovaShowcase({ format, variant = "embedded" }: KovaShowcaseProps) {
   const ctaTarget = "/signup";
-  const sections = buildSections(ctaTarget);
 
   const stage = (
     <div className="ksw-stage" data-format={format} data-variant={variant} aria-hidden="true">
@@ -107,7 +105,7 @@ export default function KovaShowcase({ format, variant = "embedded" }: KovaShowc
 
       {/* Per-section captions, cross-fading in sync with the screen below */}
       <div className="ksw-captions">
-        {sections.map((s) => (
+        {SECTIONS.map((s) => (
           <div className="ksw-layer ksw-caption" key={s.id}>
             {s.caption ? (
               <>
@@ -134,14 +132,24 @@ export default function KovaShowcase({ format, variant = "embedded" }: KovaShowc
               <span className="ksw-browser-spacer" />
             </div>
             <div className="ksw-viewport">
-              {sections.map((s) => (
-                <div
-                  className={`ksw-layer ksw-screen-layer${s.id === "cta" ? " ksw-center" : ""}`}
-                  key={s.id}
-                >
-                  <div className="ksw-screen-fit">{s.screen}</div>
-                </div>
-              ))}
+              {SECTIONS.map((s) =>
+                s.kind === "cta" ? (
+                  <div className="ksw-layer ksw-screen-layer ksw-center" key={s.id}>
+                    <div className="ksw-cta">
+                      <LogoMark size={44} coreColor="var(--accent)" circuitColor="var(--page-fg)" />
+                      <h3 className="ksw-cta-title">{sc.ctaTitle}</h3>
+                      <p className="ksw-cta-line">{sc.ctaLine}</p>
+                      <Link to={ctaTarget} className="ksw-cta-btn">
+                        {sc.ctaButton}
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ksw-layer ksw-screen-layer ksw-shot-layer" key={s.id}>
+                    <ScreenShot id={s.id} />
+                  </div>
+                ),
+              )}
             </div>
           </div>
         </div>
@@ -372,24 +380,47 @@ const SHOWCASE_STYLES = `
   .ksw-viewport {
     position: relative;
     width: 100%;
+    /* Captures are 1440×900 (16/10) — match in BOTH formats so the real
+       screenshots fill the screen edge-to-edge with no letterboxing. */
     aspect-ratio: 16 / 10;
     overflow: hidden;
   }
-  .ksw-stage[data-format="portrait"] .ksw-viewport { aspect-ratio: 4 / 3.1; }
   .ksw-screen-layer {
     display: flex;
-    /* Top-align data screens so short previews (reports/caja) sit under the
-       browser chrome like a real app, instead of floating dead-centre. */
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding: clamp(16px, 3vmin, 40px);
     overflow: hidden;
   }
   .ksw-screen-layer.ksw-center { align-items: center; } /* CTA screen */
-  .ksw-screen-fit {
+
+  /* Real product screenshot — fills the whole screen (capture already includes
+     the app's sidebar/chrome). */
+  .ksw-shot-layer { padding: 0; }
+  .ksw-shot { position: relative; width: 100%; height: 100%; }
+  .ksw-shot-img {
+    position: relative;
+    z-index: 1;
     width: 100%;
-    max-width: 620px;
-    max-height: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+  /* Branded placeholder shown until scripts/capture-showcase.mjs is run. */
+  .ksw-shot-fallback {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-size: clamp(12px, 1.6vmin, 16px);
+    font-weight: 500;
+    letter-spacing: 0.02em;
   }
 
   /* CTA screen (last section). */

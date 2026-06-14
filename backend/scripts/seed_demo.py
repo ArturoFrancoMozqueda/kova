@@ -25,7 +25,9 @@ from app.catalog.models import Category, Product
 from app.config import settings
 from app.tenants.models import Tenant
 
-DEMO_EMAIL = "demo@bakery.local"
+# Use a real TLD: the login endpoint validates emails and rejects reserved
+# domains like ".local", so a demo account on .local can never sign in.
+DEMO_EMAIL = "demo@kovademo.com"
 DEMO_PASSWORD = "demo1234"
 TENANT_SLUG = "demo-bakery"
 

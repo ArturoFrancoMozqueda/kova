@@ -123,6 +123,7 @@ export const copy = {
       title: "Mira cómo una venta ordena todo.",
       line: "Cobras $186 y Kova actualiza ticket, inventario, caja y reportes en tiempo real.",
       urlBar: "kovasuite.com",
+      fallback: "Captura de Kova",
       ctaTitle: "Deja de adivinar.",
       ctaLine: "Conoce exactamente qué pasa en tu negocio.",
       ctaButton: "Empieza gratis",
