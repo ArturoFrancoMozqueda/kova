@@ -1,5 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import * as Sentry from "@sentry/react";
+import { forceReload, isReloadSafePath, isStaleAssetError } from "./pwaUpdate";
 
 type Props = { children: ReactNode };
 type State = { hasError: boolean };
@@ -37,6 +38,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    if (isStaleAssetError(error) && isReloadSafePath(window.location.pathname)) {
+      void forceReload();
+      return;
+    }
+
     // Report render crashes to Sentry (no-op when DSN is unset) with the
     // component stack so production errors are visible, not just console-only.
     Sentry.captureException(error, {

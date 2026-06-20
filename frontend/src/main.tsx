@@ -3,39 +3,12 @@ import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { forceReload, isReloadSafePath, safelyUpdateServiceWorker } from "./pwaUpdate";
 import "./observability/sentry";
 // Self-hosted Inter (variable). Bundled by Vite and precached by the PWA
 // (workbox globPatterns includes woff2), so the brand font works offline too.
 import "@fontsource-variable/inter";
 import "./styles.css";
-
-// autoUpdate mode: new service workers skip waiting and claim clients
-// immediately, so updated assets apply on the next navigation without a manual
-// prompt. Marketing/auth routes ("/", "/login", "/signup", "/verify-email",
-// "/billing") are denylisted from the SW navigation fallback in vite.config.ts,
-// so returning users always get fresh landing/pricing copy from the network.
-let reloading = false;
-async function forceReload() {
-  if (reloading) return;
-  reloading = true;
-  try {
-    if ("caches" in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
-  } catch {
-    // best-effort cache wipe; reload anyway
-  }
-  window.location.reload();
-}
-
-// Routes where a forced reload would destroy in-flight work (e.g. an open
-// cart in the register). On those, we skip the reload and let the next safe
-// navigation pick up the new bundle.
-function isReloadSafePath(pathname: string): boolean {
-  if (pathname.startsWith("/register")) return false;
-  return true;
-}
 
 // One-shot version probe at boot. Fetches the deploy-time version.json
 // (NetworkOnly via the SW runtime route) and compares to the hash baked into
@@ -64,7 +37,7 @@ const updateSW = registerSW({
   onRegisteredSW(_swUrl, registration) {
     if (!registration) return;
     const checkForUpdate = () => {
-      void registration.update();
+      safelyUpdateServiceWorker(() => registration.update());
     };
     checkForUpdate();
     window.setInterval(checkForUpdate, 60 * 60 * 1000);
@@ -95,7 +68,7 @@ if ("serviceWorker" in navigator) {
 }
 
 window.addEventListener("pos:pwa-apply-update", () => {
-  void updateSW(true);
+  safelyUpdateServiceWorker(() => updateSW(true));
 });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
