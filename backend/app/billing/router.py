@@ -32,7 +32,7 @@ def subscription_status(
     ),
 ):
     _, membership, _ = ctx
-    return service.get_subscription_status(db, tenant_id=membership.tenant_id)
+    return service.get_subscription_status(db, tenant_id=membership.tenant_id, resync=True)
 
 
 @router.post(

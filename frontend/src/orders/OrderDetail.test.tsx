@@ -246,6 +246,21 @@ describe("OrderDetail", () => {
     expect(await screen.findByText(/orden cancelada/i)).toBeInTheDocument();
   });
 
+  it("explains unavailable actions on voided orders without implying a role problem", async () => {
+    const voidedReceipt = {
+      ...receipt,
+      status: "voided",
+      void: { id: "void-1", reason: "operator_error", created_at: "2026-05-08T01:00:00Z" },
+    };
+    mockInitialLoad(voidedReceipt, "owner");
+    window.history.pushState(null, "", "/orders/order-1");
+
+    render(<App />);
+
+    expect(await screen.findByText(/esta orden ya no acepta/i)).toBeInTheDocument();
+    expect(screen.queryByText(/tu rol no puede devolver ni cancelar/i)).not.toBeInTheDocument();
+  });
+
   it("reprints the shared receipt from order detail", async () => {
     const printSpy = vi.spyOn(window, "print").mockImplementation(() => undefined);
     mockInitialLoad(receipt, "owner");

@@ -579,7 +579,9 @@ def business_story_calculated_from_real_data(reports_context):
     assert story["peak_hour"]["daypart_key"] == "noche"
     assert Decimal(story["peak_hour"]["net_sales"]) == Decimal("50.00")
     assert story["top_product_by_sales"]["product_name"] == "Dona"
-    assert story["top_product_by_sales"]["sales_share_pct"] == 56
+    # Product share excludes refunded items (Dona $50 of $70 net product sales);
+    # Concha's refunded unit is subtracted, so 50/70 = 71% rather than 50/90.
+    assert story["top_product_by_sales"]["sales_share_pct"] == 71
     assert story["top_product_by_units"]["product_name"] == "Dona"
     assert story["dominant_payment"]["method"] == "cash"
     assert story["dominant_payment"]["sales_share_pct"] == 56

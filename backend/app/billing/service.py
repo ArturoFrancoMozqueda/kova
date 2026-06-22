@@ -156,8 +156,38 @@ def verify_stripe_signature(
         raise bad_request("Invalid Stripe signature")
 
 
-def get_subscription_status(db: Session, *, tenant_id: UUID) -> dict:
+def _maybe_resync_period(db: Session, subscription: Subscription) -> None:
+    """Best-effort refresh of a stale renewal date from the live subscription.
+
+    Self-heals rows whose ``current_period_end`` is missing or already in the
+    past for an otherwise-active subscription (e.g. written from a period-less
+    event before this hardening landed). Never raises: a read of the billing
+    page must not depend on a live Stripe call succeeding.
+    """
+    if subscription.status not in {"active", "trialing"}:
+        return
+    if not subscription.stripe_subscription_id or not settings.stripe_secret_key:
+        return
+    current_end = subscription.current_period_end
+    if current_end is not None:
+        current_end_utc = (
+            current_end if current_end.tzinfo else current_end.replace(tzinfo=UTC)
+        )
+        if current_end_utc > datetime.now(UTC):
+            return
+    period_start, period_end = _retrieve_live_period(subscription.stripe_subscription_id)
+    if period_end is None:
+        return
+    subscription.current_period_end = _timestamp(period_end)
+    if period_start is not None:
+        subscription.current_period_start = _timestamp(period_start)
+    db.commit()
+
+
+def get_subscription_status(db: Session, *, tenant_id: UUID, resync: bool = False) -> dict:
     subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
+    if resync and subscription is not None:
+        _maybe_resync_period(db, subscription)
     access = get_billing_access_status(db, tenant_id=tenant_id)
     return {
         "plan": {
@@ -313,6 +343,27 @@ def _extract_period(stripe_object: dict[str, Any]) -> tuple[Any, Any]:
     return start, end
 
 
+def _retrieve_live_period(stripe_subscription_id: str | None) -> tuple[Any, Any]:
+    """Pull the authoritative billing period from the live Stripe subscription.
+
+    Some payloads (notably ``checkout.session`` and, on recent API versions,
+    invoices) don't carry ``current_period_*``. The subscription object is the
+    single source of truth, so we fetch it directly. Returns ``(None, None)``
+    when we lack the id/secret or the fetch fails, so callers can degrade
+    gracefully without clobbering a known period.
+    """
+    if not stripe_subscription_id or not settings.stripe_secret_key:
+        return None, None
+    try:
+        live_subscription = subscription_client.retrieve(
+            secret_key=settings.stripe_secret_key,
+            stripe_subscription_id=str(stripe_subscription_id),
+        )
+    except StripeSubscriptionError:
+        return None, None
+    return _extract_period(live_subscription)
+
+
 def _subscription_status(stripe_status: str | None) -> str:
     if stripe_status in {"trialing", "active", "past_due", "canceled", "unpaid"}:
         return stripe_status
@@ -359,8 +410,19 @@ def _upsert_subscription_from_stripe_object(
     else:
         subscription.status = _subscription_status(stripe_object.get("status"))
     period_start, period_end = _extract_period(stripe_object)
-    subscription.current_period_start = _timestamp(period_start)
-    subscription.current_period_end = _timestamp(period_end)
+    if period_start is None or period_end is None:
+        # The object lacks the period (e.g. checkout.session, or invoices on
+        # API 2026-04-22.dahlia). Fetch the live subscription so we store the
+        # real renewal date instead of leaving/overwriting it with None.
+        live_start, live_end = _retrieve_live_period(stripe_subscription_id)
+        period_start = period_start if period_start is not None else live_start
+        period_end = period_end if period_end is not None else live_end
+    # Never clobber a known period with None: keep the last good value when a
+    # period-less event arrives out of order.
+    if period_start is not None:
+        subscription.current_period_start = _timestamp(period_start)
+    if period_end is not None:
+        subscription.current_period_end = _timestamp(period_end)
     subscription.trial_ends_at = _timestamp(stripe_object.get("trial_end"))
     subscription.cancel_at_period_end = bool(stripe_object.get("cancel_at_period_end", False))
     subscription.canceled_at = _timestamp(stripe_object.get("canceled_at"))
@@ -584,8 +646,10 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
                         live_subscription = None
                     if live_subscription:
                         period_start, period_end = _extract_period(live_subscription)
-                        subscription.current_period_start = _timestamp(period_start)
-                        subscription.current_period_end = _timestamp(period_end)
+                        if period_start is not None:
+                            subscription.current_period_start = _timestamp(period_start)
+                        if period_end is not None:
+                            subscription.current_period_end = _timestamp(period_end)
             if payment_succeeded:
                 _send_payment_receipt_for_tenant(
                     db, tenant_id=tenant_id, invoice_object=stripe_object

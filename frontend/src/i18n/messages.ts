@@ -676,6 +676,7 @@ export const copy = {
     refund: "Devolver",
     void: "Cancelar",
     permissionHidden: "Tu rol no puede devolver ni cancelar órdenes. Pídeselo a tu gerente o al dueño.",
+    actionsUnavailable: "Esta orden ya no acepta devoluciones ni cancelaciones.",
     receipt: "Recibo",
     payments: "Pagos",
     total: "Total",
