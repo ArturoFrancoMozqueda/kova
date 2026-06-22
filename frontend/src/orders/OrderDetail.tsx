@@ -126,6 +126,8 @@ export default function OrderDetail() {
 
   const { order, receipt } = loadState;
   const isVoided = receipt.status === "voided";
+  const canManageOrderCorrections = canRefund || canVoid;
+  const canShowCorrectionActions = canManageOrderCorrections && !isVoided;
 
   // Aggregate refunded quantity per line item so we can annotate "x (n devuelta)"
   // and decide whether to surface a partial/full-refund badge alongside the
@@ -228,7 +230,7 @@ export default function OrderDetail() {
                 <Printer className="h-4 w-4" />
                 {copy.orderDetail.printTicket}
               </Button>
-              {(canRefund || canVoid) && !isVoided ? (
+              {canShowCorrectionActions ? (
                 <>
                   {canRefund && (
                     <Button variant="outline" onClick={() => setActiveModal("refund")}>
@@ -244,7 +246,11 @@ export default function OrderDetail() {
                   )}
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">{copy.orderDetail.permissionHidden}</p>
+                <p className="text-sm text-muted-foreground">
+                  {canManageOrderCorrections
+                    ? copy.orderDetail.actionsUnavailable
+                    : copy.orderDetail.permissionHidden}
+                </p>
               )}
             </CardContent>
           </Card>
