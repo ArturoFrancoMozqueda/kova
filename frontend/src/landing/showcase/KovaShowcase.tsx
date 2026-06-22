@@ -491,13 +491,16 @@ const SHOWCASE_STYLES = `
   @media (max-width: 1100px) {
     .ksw-stage[data-variant="embedded"] {
       aspect-ratio: auto !important;
-      height: 650px;
+      /* Let the stage follow its content (caption + laptop). A fixed height here
+         left a black void below the laptop, whose height is driven by its own
+         width × aspect-ratio and is shorter than any fixed frame on narrow screens. */
+      height: auto;
     }
   }
 
   @media (max-width: 900px) {
     .ksw-stage[data-variant="embedded"] {
-      height: clamp(620px, 86vw, 680px);
+      height: auto;
       padding: 28px 24px 26px;
       gap: 22px;
     }
@@ -531,7 +534,7 @@ const SHOWCASE_STYLES = `
       max-width: 12ch;
     }
     .ksw-stage[data-variant="embedded"] {
-      height: 460px;
+      height: auto;
       margin-top: 28px;
       border-radius: 14px;
       padding: 20px 16px 18px;
