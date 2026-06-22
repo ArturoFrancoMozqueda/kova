@@ -1,3 +1,5 @@
+import hashlib
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
@@ -16,10 +18,18 @@ from app.auth.schemas import (
 from app.config import settings
 from app.db import get_db
 from app.middleware.csrf import clear_csrf_cookie, set_csrf_cookie
-from app.middleware.rate_limit import rate_limit
+from app.middleware.rate_limit import enforce_rate_limit, rate_limit
 from app.shared.dependencies import get_current_session
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+def _account_bucket(prefix: str, email: str) -> str:
+    """Per-account rate-limit bucket keyed by a SHA-256 of the (already
+    normalized) email, so raw addresses are never written into the rate-limiter
+    store (e.g. Redis keys)."""
+    digest = hashlib.sha256(email.encode()).hexdigest()
+    return f"{prefix}:{digest}"
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -50,6 +60,12 @@ def _clear_auth_cookies(response: Response) -> None:
 def signup(
     body: SignupRequest, request: Request, response: Response, db: Session = Depends(get_db)
 ):
+    # Per-account throttle (in addition to the per-IP dependency) so signup spam
+    # against one address can't slip through a botnet of rotating IPs.
+    enforce_rate_limit(
+        bucket_key=_account_bucket("auth-signup-acct", body.email),
+        max_requests=5, window_seconds=3600, fail_closed=True,
+    )
     outcome = service.signup(
         db,
         email=body.email,
@@ -83,7 +99,10 @@ def signup(
     )
 
 
-@router.post("/verify", response_model=MessageResponse)
+@router.post(
+    "/verify", response_model=MessageResponse,
+    dependencies=[Depends(rate_limit(20, key="auth-verify", fail_closed=True))],
+)
 def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)):
     service.verify_email(db, token=body.token)
     return MessageResponse(message="Email verified.")
@@ -91,6 +110,14 @@ def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", dependencies=[Depends(rate_limit(20, key="auth-login", fail_closed=True))])
 def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    # Per-account throttle bounds distributed password-spraying against a single
+    # account that the per-IP limit alone would miss. Window is short and the cap
+    # generous so a real user is essentially never tripped, keeping the worst-case
+    # targeted lockout brief (see docs / plan: failure-only counting is a follow-up).
+    enforce_rate_limit(
+        bucket_key=_account_bucket("auth-login-acct", body.email),
+        max_requests=10, window_seconds=600, fail_closed=True,
+    )
     access_token, refresh_token, _ = service.login(
         db,
         email=body.email,
@@ -148,13 +175,22 @@ def logout_all(
     dependencies=[Depends(rate_limit(5, key="auth-password-reset", fail_closed=True))],
 )
 def password_reset_request(body: PasswordResetRequestBody, db: Session = Depends(get_db)):
+    # Per-account throttle so reset-email spam can't be aimed at one victim from
+    # many IPs (and keeps the anti-enumeration response cheap).
+    enforce_rate_limit(
+        bucket_key=_account_bucket("auth-reset-acct", body.email),
+        max_requests=5, window_seconds=3600, fail_closed=True,
+    )
     plain = service.request_password_reset(db, email=body.email)
     dev_token = plain if settings.app_env == "local" else None
     msg = "If that email exists, a reset link has been sent."
     return MessageResponse(message=msg, dev_reset_token=dev_token)
 
 
-@router.post("/password-reset/confirm", response_model=MessageResponse)
+@router.post(
+    "/password-reset/confirm", response_model=MessageResponse,
+    dependencies=[Depends(rate_limit(10, key="auth-reset-confirm", fail_closed=True))],
+)
 def password_reset_confirm(body: PasswordResetConfirmBody, db: Session = Depends(get_db)):
     service.confirm_password_reset(db, token=body.token, new_password=body.new_password)
     return MessageResponse(message="Password updated.")

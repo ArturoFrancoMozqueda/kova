@@ -97,7 +97,7 @@ def invite_employee(
     if body.role == "owner" and actor_role != "owner":
         raise forbidden("Solo un propietario puede invitar a otro propietario")
 
-    email_norm = body.email.lower()
+    email_norm = body.email.strip().lower()
     existing_membership = (
         db.query(Membership)
         .join(User, User.id == Membership.user_id)

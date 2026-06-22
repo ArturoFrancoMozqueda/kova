@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production-use-a-long-random-string"
     access_token_ttl_seconds: int = 900        # 15 minutes
     refresh_token_ttl_seconds: int = 2_592_000  # 30 days
+    # Absolute ceiling on a session's lifetime measured from its creation. Refresh
+    # rotation extends the sliding window but can never push a session past this cap,
+    # so a continuously-refreshed (e.g. stolen) refresh token still forces re-login.
+    refresh_token_absolute_ttl_seconds: int = 7_776_000  # 90 days
     token_ttl_seconds: int = 86_400             # 24 h for verify/reset tokens
     sentry_dsn: str | None = None
     sentry_traces_sample_rate: float = 0.0

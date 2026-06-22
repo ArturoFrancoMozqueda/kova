@@ -1,6 +1,6 @@
 # Rate limiting
 
-Last updated: 2026-05-25
+Last updated: 2026-06-21
 Owner: backend
 Related code:
 - `backend/app/middleware/rate_limit.py` — pluggable rate-limit factory
@@ -32,9 +32,23 @@ algorithm. Each `Ratelimit` instance is cached per `(max_requests, window_second
 pair so we don't recreate state on every request.
 
 Failure mode: if the Upstash call raises (network blip, service outage, auth
-failure), the limiter logs and **fails open** — the request is allowed. The
-rationale is availability over strict enforcement: a Redis outage should not
-block every real user. Persistent failures will surface in logs and alerting.
+failure), the limiter logs and **fails open by default** — the request is
+allowed. The rationale is availability over strict enforcement: a Redis outage
+should not block every real user. Persistent failures will surface in logs and
+alerting.
+
+**Exception — auth endpoints fail closed (`fail_closed=True`).** Signup, login,
+email verification, and both password-reset endpoints deny (429) instead of
+allowing when the limiter backend errors *in production*, so a Redis blip can't
+open an unbounded brute-force window. `fail_closed` is inert outside production
+(staging/local fail open) so developer outages don't lock anyone out.
+
+> **Operational note:** because these endpoints fail closed, a sustained
+> rate-limiter outage in production will **temporarily block legitimate email
+> verification and password-reset flows** (users see 429 with a short
+> `Retry-After`), not just attacks. This is an intentional safety trade-off.
+> If the limiter is degraded, prioritize restoring Upstash; do not "fix" auth by
+> flipping these endpoints to fail-open. Monitor `rate_limit_upstash_call_failed_closed`.
 
 ### In-memory (fallback)
 
@@ -58,20 +72,37 @@ comes from `X-Forwarded-For` (first hop) when present, otherwise
 
 ## Current thresholds
 
-| Endpoint | Method | Bucket key | Limit |
+Per-IP buckets:
+
+| Endpoint | Method | Bucket key | Limit | Fail mode |
+|---|---|---|---|---|
+| `/api/v1/auth/signup` | POST | `auth-signup` | 10 / min | closed |
+| `/api/v1/auth/login` | POST | `auth-login` | 20 / min | closed |
+| `/api/v1/auth/verify` | POST | `auth-verify` | 20 / min | closed |
+| `/api/v1/auth/password-reset/request` | POST | `auth-password-reset` | 5 / min | closed |
+| `/api/v1/auth/password-reset/confirm` | POST | `auth-reset-confirm` | 10 / min | closed |
+| `/api/v1/sync/offline-sales` | POST | `sync-offline-sales` | 60 / min | open |
+| `/api/v1/billing/checkout` | POST | `billing-checkout` | 5 / min | open |
+| `/api/v1/settings/receipt/logo` | POST/DELETE | `settings-logo-upload`/`-delete` | 10 / min each | open |
+| `/api/v1/catalog/products/{id}/image` | POST/DELETE | `catalog-image-upload`/`-delete` | 30 / min each | open |
+
+Per-account buckets (enforced in the handler in addition to the per-IP limit, so
+a distributed spray from many IPs against one account is still bounded). The
+bucket key is `<prefix>:<sha256(normalized-email)>` — the raw email is **never**
+written into the limiter store:
+
+| Endpoint | Bucket prefix | Limit | Fail mode |
 |---|---|---|---|
-| `/api/v1/auth/signup` | POST | `auth-signup` | 10 / min |
-| `/api/v1/auth/login` | POST | `auth-login` | 20 / min |
-| `/api/v1/auth/password-reset/request` | POST | `auth-password-reset` | 5 / min |
-| `/api/v1/sync/offline-sales` | POST | `sync-offline-sales` | 60 / min |
-| `/api/v1/billing/checkout` | POST | `billing-checkout` | 5 / min |
-| `/api/v1/settings/receipt/logo` | POST/DELETE | `settings-logo-upload`/`-delete` | 10 / min each |
-| `/api/v1/catalog/products/{id}/image` | POST/DELETE | `catalog-image-upload`/`-delete` | 30 / min each |
+| `/api/v1/auth/login` | `auth-login-acct` | 10 / 10 min | closed |
+| `/api/v1/auth/signup` | `auth-signup-acct` | 5 / hour | closed |
+| `/api/v1/auth/password-reset/request` | `auth-reset-acct` | 5 / hour | closed |
 
 Thresholds are intentionally generous for normal usage and tight enough to
 slow down credential stuffing, signup spam, brute-force checkout abuse, and
 runaway clients. Adjust them with usage data; do not lower without telemetry
-that justifies the change.
+that justifies the change. The per-account limiter consumes a token per attempt
+(including successful ones), so the worst-case targeted lockout is bounded to one
+short window; failure-only counting (reset on success) is a future enhancement.
 
 ## Bypass rules
 

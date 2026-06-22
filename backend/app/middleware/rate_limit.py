@@ -214,6 +214,37 @@ def _reset_backend_for_tests() -> None:
 # ── FastAPI dependency ─────────────────────────────────────────────────────
 
 
+def enforce_rate_limit(
+    *,
+    bucket_key: str,
+    max_requests: int,
+    window_seconds: int = 60,
+    fail_closed: bool = False,
+) -> None:
+    """Enforce ``max_requests / window_seconds`` for an already-composed bucket key.
+
+    This is the shared core used by the per-IP :func:`rate_limit` dependency and by
+    handlers that need a second, per-account bucket (e.g. login throttled by email in
+    addition to IP, so a distributed password-spray against one account is still
+    bounded). Raises HTTP 429 with ``Retry-After`` when the bucket is exhausted.
+
+    No-op when ``settings.app_env == "local"`` (test clients share one IP). ``fail_closed``
+    only takes effect in production so staging/local backend outages never lock users out.
+    """
+    if settings.app_env == "local":
+        return
+    effective_fail_closed = fail_closed and settings.app_env == "production"
+    allowed, retry = _get_backend().is_allowed(
+        bucket_key, max_requests, window_seconds, fail_closed=effective_fail_closed
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Demasiadas peticiones. Intenta de nuevo en unos momentos.",
+            headers={"Retry-After": str(retry)},
+        )
+
+
 def rate_limit(
     max_requests: int,
     window_seconds: int = 60,
@@ -241,20 +272,13 @@ def rate_limit(
     """
 
     def dependency(request: Request) -> None:
-        if settings.app_env == "local":
-            return
         bucket = key or _route_pattern(request) or "default"
         ip = _get_client_ip(request)
-        bucket_key = f"{bucket}:{ip}"
-        effective_fail_closed = fail_closed and settings.app_env == "production"
-        allowed, retry = _get_backend().is_allowed(
-            bucket_key, max_requests, window_seconds, fail_closed=effective_fail_closed
+        enforce_rate_limit(
+            bucket_key=f"{bucket}:{ip}",
+            max_requests=max_requests,
+            window_seconds=window_seconds,
+            fail_closed=fail_closed,
         )
-        if not allowed:
-            raise HTTPException(
-                status_code=429,
-                detail="Demasiadas peticiones. Intenta de nuevo en unos momentos.",
-                headers={"Retry-After": str(retry)},
-            )
 
     return dependency
