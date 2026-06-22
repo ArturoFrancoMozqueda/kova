@@ -215,11 +215,8 @@ export default function ShiftView() {
                 </div>
               )}
               {(() => {
-                // Roll up the open shift's cash flow so the cashier can see at a
-                // glance what's expected in the drawer without waiting for the
-                // close-shift modal. Opening balance is its own row above; here
-                // we only count cash_in / cash_out movements logged during the
-                // shift.
+                // Manual movements are shown separately from the backend's live
+                // expected cash, which also includes cash sales for this shift.
                 const cashIn = currentShift.movements
                   .filter((m) => m.type === "cash_in")
                   .reduce((sum, m) => sum + parseFloat(m.amount), 0);
@@ -229,7 +226,9 @@ export default function ShiftView() {
                 const opening = currentShift.opening_cash_amount
                   ? parseFloat(currentShift.opening_cash_amount)
                   : 0;
-                const expected = opening + cashIn - cashOut;
+                const expected = currentShift.expected_cash_amount
+                  ? parseFloat(currentShift.expected_cash_amount)
+                  : opening + cashIn - cashOut;
                 return (
                   <>
                     <div className="rounded-lg bg-kova-growth/10 p-3">

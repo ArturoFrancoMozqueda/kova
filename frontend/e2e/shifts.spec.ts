@@ -91,6 +91,26 @@ test("owner opens a shift without opening cash", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText(/turno abierto correctamente/i);
 });
 
+test("open shift expected cash uses backend total that includes cash sales", async ({ page }) => {
+  await mockAuth(page);
+
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({
+      json: makeOpenShift({
+        opening_cash_amount: "500.00",
+        expected_cash_amount: "532.00",
+        movements: [],
+      }),
+    }),
+  );
+  await page.route("**/api/v1/shifts", (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/shifts");
+  await expect(page.getByRole("heading", { name: /turno activo/i })).toBeVisible();
+  await expect(page.getByText("Efectivo esperado")).toBeVisible();
+  await expect(page.getByText("$532.00")).toBeVisible();
+});
+
 test("owner closes a shift and sees reconciliation result", async ({ page }) => {
   await mockAuth(page);
 
