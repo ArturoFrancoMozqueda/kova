@@ -1,6 +1,6 @@
 """track subscription period sync time
 
-Revision ID: 0035_subscription_period_synced_at
+Revision ID: 0035_sub_period_sync
 Revises: 0034_normalize_user_emails
 Create Date: 2026-06-22 00:00:00.000000
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0035_subscription_period_synced_at"
+revision: str = "0035_sub_period_sync"
 down_revision: str | None = "0034_normalize_user_emails"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
