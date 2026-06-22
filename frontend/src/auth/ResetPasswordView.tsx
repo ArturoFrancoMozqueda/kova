@@ -25,8 +25,19 @@ export default function ResetPasswordView() {
 
   const mismatch = confirmation.length > 0 && password !== confirmation;
   const tooShort = password.length > 0 && password.length < 8;
+  const weakPassword =
+    password.length >= 8 && (!/[A-Za-z]/.test(password) || !/\d/.test(password));
+  const passwordHint = tooShort
+    ? copy.auth.resetPasswordTooShort
+    : weakPassword
+      ? copy.auth.resetPasswordWeak
+      : null;
   const canSubmit =
-    token.length > 0 && password.length >= 8 && password === confirmation && state !== "submitting";
+    token.length > 0 &&
+    password.length >= 8 &&
+    !weakPassword &&
+    password === confirmation &&
+    state !== "submitting";
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -37,8 +48,10 @@ export default function ResetPasswordView() {
       setState("success");
       window.setTimeout(() => navigate("/login", { replace: true }), 2500);
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 400 || err.status === 422)) {
+      if (err instanceof ApiError && err.status === 400) {
         setErrorMessage(copy.auth.resetTokenInvalid);
+      } else if (err instanceof ApiError && err.status === 422) {
+        setErrorMessage(copy.auth.resetPasswordWeak);
       } else {
         setErrorMessage(copy.auth.operationError);
       }
@@ -116,12 +129,12 @@ export default function ResetPasswordView() {
                     placeholder={copy.auth.resetPasswordPlaceholder}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    aria-invalid={tooShort ? "true" : undefined}
-                    aria-describedby={tooShort ? "password-hint" : undefined}
+                    aria-invalid={passwordHint ? "true" : undefined}
+                    aria-describedby={passwordHint ? "password-hint" : undefined}
                   />
-                  {tooShort && (
+                  {passwordHint && (
                     <p id="password-hint" className="text-xs text-destructive">
-                      {copy.auth.resetPasswordTooShort}
+                      {passwordHint}
                     </p>
                   )}
                 </div>
