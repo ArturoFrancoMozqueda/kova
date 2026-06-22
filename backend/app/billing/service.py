@@ -31,12 +31,17 @@ STANDARD_PLAN_NAME = "Standard Plan"
 STANDARD_PLAN_AMOUNT_MINOR_UNITS = 29_900
 STANDARD_PLAN_CURRENCY = "MXN"
 STANDARD_PLAN_INTERVAL = "month"
+BILLING_PERIOD_RESYNC_TTL = timedelta(hours=24)
 
 checkout_client = StripeCheckoutClient()
 price_client = StripePriceClient()
 subscription_client = StripeSubscriptionClient()
 WEBHOOK_TOLERANCE_SECONDS = 300
 LIVE_MODE_CONFIGURATION_ERROR = "Stripe checkout is not configured for live mode"
+
+
+def _now_utc() -> datetime:
+    return datetime.now(UTC)
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
@@ -157,30 +162,48 @@ def verify_stripe_signature(
 
 
 def _maybe_resync_period(db: Session, subscription: Subscription) -> None:
-    """Best-effort refresh of a stale renewal date from the live subscription.
+    """Best-effort refresh of the renewal date from the live subscription.
 
-    Self-heals rows whose ``current_period_end`` is missing or already in the
-    past for an otherwise-active subscription (e.g. written from a period-less
-    event before this hardening landed). Never raises: a read of the billing
-    page must not depend on a live Stripe call succeeding.
+    Self-heals rows whose period has never been confirmed from Stripe, is
+    missing, is stale, or has passed the backend TTL. Never raises: a read of
+    the billing page must not depend on a live Stripe call succeeding.
     """
     if subscription.status not in {"active", "trialing"}:
         return
     if not subscription.stripe_subscription_id or not settings.stripe_secret_key:
         return
+    now = _now_utc()
     current_end = subscription.current_period_end
-    if current_end is not None:
-        current_end_utc = (
-            current_end if current_end.tzinfo else current_end.replace(tzinfo=UTC)
-        )
-        if current_end_utc > datetime.now(UTC):
-            return
+    current_end_utc = current_end if current_end and current_end.tzinfo else (
+        current_end.replace(tzinfo=UTC) if current_end else None
+    )
+    synced_at = subscription.stripe_period_synced_at
+    synced_at_utc = synced_at if synced_at and synced_at.tzinfo else (
+        synced_at.replace(tzinfo=UTC) if synced_at else None
+    )
+    needs_resync = (
+        current_end_utc is None
+        or current_end_utc <= now
+        or synced_at_utc is None
+        or synced_at_utc <= now - BILLING_PERIOD_RESYNC_TTL
+    )
+    if not needs_resync:
+        return
     period_start, period_end = _retrieve_live_period(subscription.stripe_subscription_id)
     if period_end is None:
         return
-    subscription.current_period_end = _timestamp(period_end)
+    next_period_end = _timestamp(period_end)
+    next_period_start = _timestamp(period_start) if period_start is not None else None
+    if subscription.current_period_end == next_period_end and (
+        next_period_start is None or subscription.current_period_start == next_period_start
+    ):
+        subscription.stripe_period_synced_at = now
+        db.commit()
+        return
+    subscription.current_period_end = next_period_end
     if period_start is not None:
-        subscription.current_period_start = _timestamp(period_start)
+        subscription.current_period_start = next_period_start
+    subscription.stripe_period_synced_at = now
     db.commit()
 
 
@@ -305,6 +328,8 @@ def cancel_subscription(
     cancel_start, cancel_end = _extract_period(stripe_subscription)
     subscription.current_period_start = _timestamp(cancel_start)
     subscription.current_period_end = _timestamp(cancel_end)
+    if cancel_end is not None:
+        subscription.stripe_period_synced_at = _now_utc()
     subscription.canceled_at = _timestamp(stripe_subscription.get("canceled_at"))
     audit_service.log(
         db,
@@ -423,6 +448,7 @@ def _upsert_subscription_from_stripe_object(
         subscription.current_period_start = _timestamp(period_start)
     if period_end is not None:
         subscription.current_period_end = _timestamp(period_end)
+        subscription.stripe_period_synced_at = _now_utc()
     subscription.trial_ends_at = _timestamp(stripe_object.get("trial_end"))
     subscription.cancel_at_period_end = bool(stripe_object.get("cancel_at_period_end", False))
     subscription.canceled_at = _timestamp(stripe_object.get("canceled_at"))
@@ -650,6 +676,7 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
                             subscription.current_period_start = _timestamp(period_start)
                         if period_end is not None:
                             subscription.current_period_end = _timestamp(period_end)
+                            subscription.stripe_period_synced_at = _now_utc()
             if payment_succeeded:
                 _send_payment_receipt_for_tenant(
                     db, tenant_id=tenant_id, invoice_object=stripe_object
