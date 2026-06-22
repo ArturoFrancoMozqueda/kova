@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -305,12 +305,12 @@ export default function SettingsView() {
 
           <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-start" onSubmit={submitInvite}>
             <div className="flex-1">
-              <Label>{copy.settings.employeeEmail}</Label>
-              <Input type="email" value={invite.email} onChange={(e) => setInvite((x) => ({ ...x, email: e.target.value }))} required />
+              <Label htmlFor="employee-invite-email">{copy.settings.employeeEmail}</Label>
+              <Input id="employee-invite-email" type="email" value={invite.email} onChange={(e) => setInvite((x) => ({ ...x, email: e.target.value }))} required />
             </div>
             <div>
-              <Label>{copy.settings.role}</Label>
-              <Select value={invite.role} onChange={(e) => setInvite((x) => ({ ...x, role: e.target.value as Role }))}>
+              <Label htmlFor="employee-invite-role">{copy.settings.role}</Label>
+              <Select id="employee-invite-role" value={invite.role} onChange={(e) => setInvite((x) => ({ ...x, role: e.target.value as Role }))}>
                 {roleOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -406,10 +406,11 @@ function Field({
   onChange: (value: string) => void;
   required?: boolean;
 }) {
+  const id = useId();
   return (
     <div className="space-y-1">
-      <Label>{label}</Label>
-      <Input value={value} onChange={(event) => onChange(event.target.value)} required={required} />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} value={value} onChange={(event) => onChange(event.target.value)} required={required} />
     </div>
   );
 }
@@ -464,10 +465,11 @@ function SelectField({
   onChange: (value: string) => void;
 }) {
   const known = options.some((option) => option.value === value);
+  const id = useId();
   return (
     <div className="space-y-1">
-      <Label>{label}</Label>
-      <Select value={value} onChange={(event) => onChange(event.target.value)}>
+      <Label htmlFor={id}>{label}</Label>
+      <Select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
         {!known && value ? <option value={value}>{value}</option> : null}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
