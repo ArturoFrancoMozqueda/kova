@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8" />
+<title>Kova · OG image 1200x630</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0F1117;
+    --blue: #4F7EF7;
+    --mist: #F5F6FA;
+    --growth: #1EBF8A;
+    --muted: #6B7A99;
+    --border: #E2E6EF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .canvas {
+    width: 1200px;
+    height: 630px;
+    background: var(--mist);
+    background-image:
+      radial-gradient(700px 500px at 12% 18%, #ffffff 0%, var(--mist) 60%),
+      radial-gradient(600px 600px at 95% 95%, rgba(79,126,247,0.10) 0%, var(--mist) 70%);
+    padding: 56px 64px;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 32px;
+    align-items: stretch;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ---------- Left: brand + headline ---------- */
+  .left {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-right: 8px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-mark { width: 40px; height: 40px; }
+  .wordmark {
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  .eyebrow {
+    margin-top: 28px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--blue);
+    text-transform: uppercase;
+    letter-spacing: 0.20em;
+  }
+
+  h1 {
+    margin-top: 14px;
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+  }
+  h1 .accent { color: var(--blue); }
+
+  .subhead {
+    margin-top: 20px;
+    font-size: 19px;
+    line-height: 1.45;
+    color: var(--muted);
+    font-weight: 400;
+    max-width: 540px;
+  }
+  .subhead strong { color: var(--ink); font-weight: 600; }
+
+  .proof-strip {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .proof-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 14px 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    box-shadow: 0 1px 0 rgba(15,17,23,0.02);
+  }
+  .proof-icon {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(30,191,138,0.14);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .proof-icon svg { width: 11px; height: 11px; }
+
+  .footer-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 28px;
+  }
+  .qr-block {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px 10px 10px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 6px 18px -10px rgba(15,17,23,0.18);
+  }
+  .qr {
+    width: 72px; height: 72px;
+    border-radius: 8px;
+    background: #fff;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .qr img { width: 100%; height: 100%; display: block; }
+  .qr-text { display: flex; flex-direction: column; gap: 2px; }
+  .qr-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--blue);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .url {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .qr-sub {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .dot-sep {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--border);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .badge .check {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--growth);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .badge .check svg { width: 10px; height: 10px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- Left footer: clean URL row (replaces the QR block) ---------- */
+  .url-block { display: flex; flex-direction: column; gap: 4px; }
+
+  /* ---------- Right: laptop/browser with real product screenshot ---------- */
+  .right {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .laptop {
+    width: 100%;
+    max-width: 520px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid var(--border);
+    box-shadow:
+      0 30px 60px -20px rgba(15,17,23,0.35),
+      0 18px 40px -16px rgba(79,126,247,0.22);
+    transform: rotate(1.5deg);
+  }
+  .browser {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+  }
+  .dots { display: inline-flex; gap: 7px; flex-shrink: 0; }
+  .dots i { width: 11px; height: 11px; border-radius: 50%; background: #C9CED9; display: block; }
+  .dots i:nth-child(1) { background: #ED6A5E; }
+  .dots i:nth-child(2) { background: #F4BF50; }
+  .dots i:nth-child(3) { background: #61C554; }
+  .urlpill {
+    flex: 1;
+    text-align: center;
+    background: var(--mist);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: -0.01em;
+  }
+  .screenshot {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: var(--mist);
+  }
+  .screenshot img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+
+  /* Floating mini card to add depth */
+  .floating-card {
+    position: absolute;
+    top: 30px;
+    left: -52px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 12px 30px -10px rgba(15,17,23,0.18);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transform: rotate(-3deg);
+  }
+  .floating-card .ico {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(30,191,138,0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .floating-card .ico svg { width: 18px; height: 18px; stroke: var(--growth); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .floating-card .label { font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .floating-card .value { font-size: 18px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+
+  .floating-pill {
+    position: absolute;
+    bottom: 50px;
+    right: -6px;
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 12px 28px -10px rgba(15,17,23,0.4);
+    transform: rotate(2deg);
+  }
+  .floating-pill .pill-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--blue);
+    box-shadow: 0 0 0 4px rgba(79,126,247,0.20);
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="brand">
+      <svg class="logo-mark" viewBox="0 0 64 64" fill="none">
+        <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="#0F1117" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="#0F1117" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="#0F1117" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <circle cx="32" cy="8" r="6" fill="#0F1117"/>
+        <circle cx="52.78" cy="44" r="6" fill="#0F1117"/>
+        <circle cx="11.22" cy="44" r="6" fill="#0F1117"/>
+        <circle cx="32" cy="32" r="6" fill="#4F7EF7"/>
+      </svg>
+      <span class="wordmark">Kova</span>
+    </div>
+
+    <div>
+      <div class="eyebrow">Kova en acción</div>
+      <h1>Mira cómo una venta <span class="accent">ordena todo</span>.</h1>
+      <p class="subhead">
+        Cobras $186 y Kova actualiza
+        <strong>ticket, inventario, caja y reportes</strong> en tiempo real.
+      </p>
+      <div class="proof-strip">
+        <span class="proof-chip">
+          <span class="proof-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1EBF8A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+          </span>
+          Inventario al día
+        </span>
+        <span class="proof-chip">
+          <span class="proof-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1EBF8A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+          </span>
+          Caja que cuadra
+        </span>
+        <span class="proof-chip">
+          <span class="proof-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1EBF8A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+          </span>
+          Reportes claros
+        </span>
+      </div>
+    </div>
+
+    <div class="footer-row">
+      <div class="url-block">
+        <span class="url">kovasuite.com</span>
+        <span class="qr-sub">7 días gratis · sin tarjeta</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="laptop">
+      <div class="browser">
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span class="urlpill">kovasuite.com</span>
+      </div>
+      <div class="screenshot">
+        <img src="../public/showcase/panel.png" alt="Panel de Kova"/>
+      </div>
+    </div>
+
+    <div class="floating-card">
+      <div class="ico">
+        <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M6 17v-5"/><path d="M11 17V8"/><path d="M16 17v-7"/><path d="M21 17V5"/></svg>
+      </div>
+      <div>
+        <div class="label">Ventas hoy</div>
+        <div class="value">$7,820</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
