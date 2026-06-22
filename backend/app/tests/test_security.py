@@ -57,7 +57,13 @@ def test_login_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
         headers={"X-Forwarded-For": test_ip},
     )
     assert response.status_code == 429
-    assert response.headers.get("retry-after") == "60"
+    # Retry-After counts down from the oldest in-window hit. Login now runs bcrypt
+    # on every attempt (including unknown emails — the timing-equalization fix), so
+    # 20 sequential attempts span a couple of seconds and the value is legitimately
+    # a hair under the 60s window rather than exactly 60. Assert it's a sane
+    # countdown within the window instead of an exact value.
+    retry_after = int(response.headers.get("retry-after", "0"))
+    assert 1 <= retry_after <= 60
 
 
 def test_signup_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
@@ -100,15 +106,77 @@ def test_rate_limit_is_per_ip(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(settings, "app_env", "staging")
     ip_a = "192.0.2.21"
     ip_b = "192.0.2.22"
-    payload = {"email": "x@example.com", "password": "x"}
+    # Use a distinct email per IP so the per-account throttle (added in the auth
+    # hardening review) doesn't cross over between IPs — this test isolates the
+    # per-IP dimension specifically.
     for _ in range(20):
-        client.post("/api/v1/auth/login", json=payload, headers={"X-Forwarded-For": ip_a})
+        client.post(
+            "/api/v1/auth/login",
+            json={"email": "ip-a@example.com", "password": "wrong1"},
+            headers={"X-Forwarded-For": ip_a},
+        )
     # ip_a is now throttled
     assert client.post(
-        "/api/v1/auth/login", json=payload, headers={"X-Forwarded-For": ip_a}
+        "/api/v1/auth/login",
+        json={"email": "ip-a@example.com", "password": "wrong1"},
+        headers={"X-Forwarded-For": ip_a},
     ).status_code == 429
     # ip_b is independent — first request should not be throttled (returns 401 for bad creds)
     response_b = client.post(
-        "/api/v1/auth/login", json=payload, headers={"X-Forwarded-For": ip_b}
+        "/api/v1/auth/login",
+        json={"email": "ip-b@example.com", "password": "wrong1"},
+        headers={"X-Forwarded-For": ip_b},
     )
     assert response_b.status_code != 429
+
+
+def test_login_per_account_rate_limit_across_ips(client: TestClient, monkeypatch) -> None:
+    """A distributed password-spray (rotating IPs, one target account) is bounded
+    by the per-account throttle even though no single IP hits its limit."""
+    monkeypatch.setattr(settings, "app_env", "staging")
+    email = "spray-target@example.com"
+    # 10 allowed per account / 10 min; each attempt from a fresh IP so the per-IP
+    # limiter never fires and only the per-account bucket can trip.
+    for i in range(10):
+        client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": "wrong1"},
+            headers={"X-Forwarded-For": f"198.51.100.{i}"},
+        )
+    blocked = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "wrong1"},
+        headers={"X-Forwarded-For": "198.51.100.200"},
+    )
+    assert blocked.status_code == 429
+
+
+def test_verify_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "app_env", "staging")
+    ip = "203.0.113.1"
+    for _ in range(20):
+        client.post(
+            "/api/v1/auth/verify", json={"token": "x"}, headers={"X-Forwarded-For": ip}
+        )
+    response = client.post(
+        "/api/v1/auth/verify", json={"token": "x"}, headers={"X-Forwarded-For": ip}
+    )
+    assert response.status_code == 429
+
+
+def test_password_reset_confirm_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "app_env", "staging")
+    ip = "203.0.113.2"
+    payload = {"token": "x", "new_password": "N3wpass!"}
+    for _ in range(10):
+        client.post(
+            "/api/v1/auth/password-reset/confirm",
+            json=payload,
+            headers={"X-Forwarded-For": ip},
+        )
+    response = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json=payload,
+        headers={"X-Forwarded-For": ip},
+    )
+    assert response.status_code == 429

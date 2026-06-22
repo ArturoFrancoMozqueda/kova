@@ -30,6 +30,12 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
+# A throwaway hash used to equalize login timing when the email is unknown. Verifying
+# against it costs the same bcrypt work as a real account, so response time can't be
+# used to tell whether an email is registered. Computed once at import.
+_DUMMY_PASSWORD_HASH = hash_password("timing-equalizer-not-a-real-password")
+
+
 # ── Tokens ────────────────────────────────────────────────────────────────────
 
 def _hash_token(token: str) -> str:
@@ -236,7 +242,12 @@ def login(
 ) -> tuple[str, str, UserSession]:
     """Returns (access_token, refresh_token_plain, session)."""
     user = repo.get_user_by_email(db, email)
-    if not user or not verify_password(password, user.hashed_password):
+    if not user:
+        # Pay the same bcrypt cost as a real account so timing doesn't leak whether
+        # the email exists, then fail with the same generic error.
+        verify_password(password, _DUMMY_PASSWORD_HASH)
+        raise unauthorized("Invalid credentials")
+    if not verify_password(password, user.hashed_password):
         raise unauthorized("Invalid credentials")
     if not user.is_email_verified:
         raise forbidden("Email not verified")
@@ -285,12 +296,27 @@ def refresh_session(db: Session, *, refresh_token: str) -> tuple[str, str]:
     if not session or session.revoked_at or session.expires_at.replace(tzinfo=UTC) < now:
         raise unauthorized("Invalid or expired refresh token")
 
+    # Absolute lifetime cap: rotation can't keep a session alive forever. Once a
+    # session is older than the absolute TTL from creation, force a fresh login.
+    absolute_deadline = session.created_at.replace(tzinfo=UTC) + timedelta(
+        seconds=settings.refresh_token_absolute_ttl_seconds
+    )
+    if now >= absolute_deadline:
+        repo.revoke_session(db, session)
+        db.commit()
+        raise unauthorized("Session lifetime exceeded")
+
     new_refresh = _generate_token()
+    # Never extend the sliding window past the absolute deadline.
+    new_expires_at = min(
+        now + timedelta(seconds=settings.refresh_token_ttl_seconds),
+        absolute_deadline,
+    )
     repo.rotate_refresh_token(
         db,
         session,
         new_hash=_hash_token(new_refresh),
-        new_expires_at=now + timedelta(seconds=settings.refresh_token_ttl_seconds),
+        new_expires_at=new_expires_at,
     )
     new_access = create_access_token(session.user_id, session.tenant_id, session.id)
     db.commit()
@@ -336,6 +362,8 @@ def request_password_reset(db: Session, *, email: str) -> str | None:
     user = repo.get_user_by_email(db, email)
     if not user:
         return None
+    # Invalidate any previously issued reset links so only the newest one works.
+    repo.invalidate_pending_tokens(db, user_id=user.id, token_type="password_reset")
     plain = _generate_token()
     repo.create_verification_token(
         db,
@@ -359,6 +387,8 @@ def confirm_password_reset(db: Session, *, token: str, new_password: str) -> Non
         raise bad_request("Invalid reset token")
     membership = repo.get_membership_by_user(db, user.id)
     repo.mark_token_used(db, vt)
+    # Burn any other outstanding reset links for this user, not just the one used.
+    repo.invalidate_pending_tokens(db, user_id=user.id, token_type="password_reset")
     repo.update_password(db, user, hash_password(new_password))
     repo.revoke_all_sessions(db, user.id)
     audit_service.log(

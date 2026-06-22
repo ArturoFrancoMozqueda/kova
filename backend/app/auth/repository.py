@@ -161,6 +161,10 @@ def get_verification_token(
     db: Session, token_hash: str, token_type: str
 ) -> VerificationToken | None:
     now = datetime.now(UTC)
+    # Lock the matched row FOR UPDATE so two concurrent verify/confirm requests
+    # carrying the same token can't both observe `used_at IS NULL` and consume it
+    # — the second waits, then sees it already used. Callers run inside a
+    # committing transaction, so the lock is held until consumption completes.
     return (
         db.query(VerificationToken)
         .filter(
@@ -169,6 +173,7 @@ def get_verification_token(
             VerificationToken.expires_at > now,
             VerificationToken.used_at.is_(None),
         )
+        .with_for_update()
         .first()
     )
 

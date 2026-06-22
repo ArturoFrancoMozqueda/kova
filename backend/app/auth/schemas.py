@@ -13,11 +13,22 @@ def _validate_password_strength(value: str) -> str:
     return value
 
 
+def _normalize_email(value: str) -> str:
+    """Trim and lowercase so the same address can't create distinct accounts and
+    login/reset/enumeration checks all compare against one canonical form."""
+    return value.strip().lower()
+
+
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=_PASSWORD_MIN_LENGTH, max_length=_PASSWORD_MAX_LENGTH)
     tenant_name: str
     accepted_terms: bool = False
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, v: str) -> str:
+        return _normalize_email(v)
 
     @field_validator("password")
     @classmethod
@@ -40,6 +51,11 @@ class VerifyEmailRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, v: str) -> str:
+        return _normalize_email(v)
 
 
 class UserResponse(BaseModel):
@@ -70,6 +86,11 @@ class RefreshResponse(BaseModel):
 
 class PasswordResetRequestBody(BaseModel):
     email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def _normalize_email(cls, v: str) -> str:
+        return _normalize_email(v)
 
 
 class PasswordResetConfirmBody(BaseModel):
