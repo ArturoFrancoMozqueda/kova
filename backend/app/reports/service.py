@@ -225,25 +225,8 @@ def top_products(
         db, tenant_id=tenant_id, start_date=start_date, end_date=end_date, tz=tz
     )
     order_ids = [order.id for order in orders]
-    product_totals: dict[UUID, dict] = {}
-
-    for item in repository.order_items_for_orders(
-        db, tenant_id=tenant_id, order_ids=order_ids
-    ):
-        row = product_totals.setdefault(
-            item.product_id,
-            {
-                "product_id": item.product_id,
-                "product_name": item.product_name,
-                "quantity_sold": 0,
-                "gross_sales": Decimal("0.00"),
-            },
-        )
-        row["quantity_sold"] += item.quantity
-        row["gross_sales"] = calculator.money(row["gross_sales"] + item.line_total_amount)
-
     products = sorted(
-        product_totals.values(),
+        _net_product_totals(db, tenant_id=tenant_id, order_ids=order_ids).values(),
         key=lambda row: (row["quantity_sold"], row["gross_sales"]),
         reverse=True,
     )[:limit]
@@ -554,15 +537,16 @@ def _product_units_in_window(
     start: datetime,
     end: datetime,
 ) -> dict[UUID, dict]:
-    rows = repository.product_units_in_window(
-        db, tenant_id=tenant_id, start=start, end=end
-    )
+    orders = _completed_orders_between(db, tenant_id=tenant_id, start=start, end=end)
+    rows = _net_product_totals(
+        db, tenant_id=tenant_id, order_ids=[order.id for order in orders]
+    ).values()
     return {
-        row.product_id: {
-            "product_id": row.product_id,
-            "product_name": row.product_name,
-            "units": int(row.units or 0),
-            "gross": calculator.money(row.gross or Decimal("0.00")),
+        row["product_id"]: {
+            "product_id": row["product_id"],
+            "product_name": row["product_name"],
+            "units": int(row["quantity_sold"] or 0),
+            "gross": calculator.money(row["gross_sales"] or Decimal("0.00")),
         }
         for row in rows
     }
@@ -711,26 +695,7 @@ def _restock_alerts(
 
 
 def _product_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> list[dict]:
-    product_totals: dict[UUID, dict] = {}
-    items = repository.order_items_for_orders(
-        db, tenant_id=tenant_id, order_ids=order_ids
-    )
-    if not items:
-        return []
-    for item in items:
-        row = product_totals.setdefault(
-            item.product_id,
-            {
-                "product_id": item.product_id,
-                "product_name": item.product_name,
-                "quantity_sold": 0,
-                "gross_sales": Decimal("0.00"),
-                "sales_share_pct": 0,
-            },
-        )
-        row["quantity_sold"] += item.quantity
-        row["gross_sales"] = calculator.money(row["gross_sales"] + item.line_total_amount)
-
+    product_totals = _net_product_totals(db, tenant_id=tenant_id, order_ids=order_ids)
     product_gross_total = calculator.money(
         sum((row["gross_sales"] for row in product_totals.values()), Decimal("0.00"))
     )
@@ -739,6 +704,40 @@ def _product_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> 
         row["sales_share_pct"] = _pct(row["gross_sales"], product_gross_total)
         rows.append(row)
     return sorted(rows, key=lambda row: (row["gross_sales"], row["quantity_sold"]), reverse=True)
+
+
+def _net_product_totals(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> dict[UUID, dict]:
+    product_totals: dict[UUID, dict] = {}
+    items = repository.order_items_for_orders(db, tenant_id=tenant_id, order_ids=order_ids)
+    refunded_by_item = {
+        row.order_item_id: {
+            "quantity": int(row.quantity or 0),
+            "line_total_amount": calculator.money(row.line_total_amount or Decimal("0.00")),
+        }
+        for row in repository.refund_items_for_orders(
+            db, tenant_id=tenant_id, order_ids=order_ids
+        )
+    }
+    for item in items:
+        refunded = refunded_by_item.get(
+            item.id, {"quantity": 0, "line_total_amount": Decimal("0.00")}
+        )
+        net_quantity = max(item.quantity - refunded["quantity"], 0)
+        net_gross = calculator.money(item.line_total_amount - refunded["line_total_amount"])
+        if net_quantity <= 0 and net_gross <= Decimal("0.00"):
+            continue
+        row = product_totals.setdefault(
+            item.product_id,
+            {
+                "product_id": item.product_id,
+                "product_name": item.product_name,
+                "quantity_sold": 0,
+                "gross_sales": Decimal("0.00"),
+            },
+        )
+        row["quantity_sold"] += net_quantity
+        row["gross_sales"] = calculator.money(row["gross_sales"] + max(net_gross, Decimal("0.00")))
+    return product_totals
 
 
 def _payment_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> list[dict]:

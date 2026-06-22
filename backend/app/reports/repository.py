@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.business_settings.models import BusinessProfile
 from app.catalog.models import Product
-from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, Void
+from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, RefundItem, Void
 
 
 def get_business_profile(db: Session, *, tenant_id: UUID) -> BusinessProfile | None:
@@ -81,6 +81,29 @@ def order_items_for_orders(
     return (
         db.query(OrderItem)
         .filter(OrderItem.tenant_id == tenant_id, OrderItem.order_id.in_(order_ids))
+        .all()
+    )
+
+
+def refund_items_for_orders(
+    db: Session, *, tenant_id: UUID, order_ids: list[UUID]
+) -> list:
+    if not order_ids:
+        return []
+    return (
+        db.query(
+            RefundItem.order_item_id.label("order_item_id"),
+            func.coalesce(func.sum(RefundItem.quantity), 0).label("quantity"),
+            func.coalesce(func.sum(RefundItem.line_total_amount), Decimal("0.00")).label(
+                "line_total_amount"
+            ),
+        )
+        .join(Refund, Refund.id == RefundItem.refund_id)
+        .filter(
+            Refund.tenant_id == tenant_id,
+            Refund.order_id.in_(order_ids),
+        )
+        .group_by(RefundItem.order_item_id)
         .all()
     )
 
