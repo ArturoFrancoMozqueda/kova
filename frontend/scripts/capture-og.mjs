@@ -40,7 +40,9 @@ async function main() {
 
   await page.goto(pathToFileURL(TEMPLATE).href, { waitUntil: "networkidle" });
   // Give the web font (DM Sans) a beat to load so text metrics are final.
-  await page.evaluate(() => document.fonts.ready);
+  // `document` is a browser global (runs inside page.evaluate); reference it via
+  // globalThis so Node-side ESLint doesn't flag it as undefined.
+  await page.evaluate(() => globalThis.document.fonts.ready);
   await page.waitForTimeout(400);
 
   // Clip to the exact .canvas box so the PNG is precisely 1200×630.
