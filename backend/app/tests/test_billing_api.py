@@ -142,9 +142,11 @@ class FakeStripePriceClient:
 
 
 class FakeStripeSubscriptionClient:
-    def __init__(self, *, error: bool = False) -> None:
+    def __init__(self, *, error: bool = False, subscription: dict | None = None) -> None:
         self.error = error
         self.calls: list[dict] = []
+        self.retrieve_calls: list[dict] = []
+        self._subscription = subscription
 
     def update_cancel_at_period_end(self, **kwargs) -> dict:
         self.calls.append(kwargs)
@@ -157,6 +159,20 @@ class FakeStripeSubscriptionClient:
             "current_period_start": 1_700_000_000,
             "current_period_end": 1_702_592_000,
             "canceled_at": None,
+        }
+
+    def retrieve(self, **kwargs) -> dict:
+        self.retrieve_calls.append(kwargs)
+        if self.error:
+            raise StripeSubscriptionError("stripe down")
+        if self._subscription is not None:
+            return self._subscription
+        return {
+            "id": kwargs["stripe_subscription_id"],
+            "object": "subscription",
+            "status": "active",
+            "current_period_start": 1_700_000_000,
+            "current_period_end": 1_702_592_000,
         }
 
 
@@ -558,6 +574,182 @@ def test_subscription_webhook_reads_period_from_items_when_root_missing(
     assert subscription.current_period_end is not None
     assert int(subscription.current_period_start.timestamp()) == 1_700_000_000
     assert int(subscription.current_period_end.timestamp()) == 1_702_592_000
+
+
+def test_checkout_completed_resolves_period_from_live_subscription(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """A checkout.session object carries no current_period_*. The handler must
+    fetch the live subscription so the real renewal date is stored instead of
+    being left null."""
+    _configure_stripe(monkeypatch)
+    fake_subscription = FakeStripeSubscriptionClient(
+        subscription={
+            "id": "sub_checkout_period",
+            "object": "subscription",
+            "status": "active",
+            "items": {
+                "data": [
+                    {
+                        "current_period_start": 1_700_000_000,
+                        "current_period_end": 1_702_592_000,
+                    }
+                ]
+            },
+        }
+    )
+    monkeypatch.setattr(billing_service, "subscription_client", fake_subscription)
+    tenant = _signup_verify_login(
+        client, f"checkout-period-{uuid4().hex}@example.com", "Checkout Period"
+    )
+    payload = _stripe_event(
+        "checkout.session.completed",
+        {
+            "id": "cs_checkout_period",
+            "object": "checkout.session",
+            "customer": "cus_checkout_period",
+            "subscription": "sub_checkout_period",
+            "metadata": {"tenant_id": tenant["tenant_id"]},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == UUID(tenant["tenant_id"]))
+        .one()
+    )
+    assert subscription.status == "active"
+    assert subscription.current_period_end is not None
+    assert int(subscription.current_period_end.timestamp()) == 1_702_592_000
+    assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_checkout_period"
+
+
+def test_period_less_event_does_not_clobber_known_period(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """If a good period is already stored, a later period-less event (and a live
+    subscription that also lacks a period) must not overwrite it with null."""
+    _configure_stripe(monkeypatch)
+    # Live subscription without any period fields -> fallback yields None.
+    fake_subscription = FakeStripeSubscriptionClient(
+        subscription={
+            "id": "sub_no_period",
+            "object": "subscription",
+            "status": "active",
+        }
+    )
+    monkeypatch.setattr(billing_service, "subscription_client", fake_subscription)
+    tenant = _signup_verify_login(
+        client, f"period-clobber-{uuid4().hex}@example.com", "Period Clobber"
+    )
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_customer_id="cus_no_period",
+        stripe_subscription_id="sub_no_period",
+        status="active",
+    )
+    from datetime import UTC, datetime
+
+    subscription.current_period_end = datetime.fromtimestamp(1_702_592_000, UTC)
+    db.add(subscription)
+    db.commit()
+
+    payload = _stripe_event(
+        "checkout.session.completed",
+        {
+            "id": "cs_no_period",
+            "object": "checkout.session",
+            "customer": "cus_no_period",
+            "subscription": "sub_no_period",
+            "metadata": {"tenant_id": tenant["tenant_id"]},
+        },
+    )
+
+    response = client.post(
+        "/api/v1/billing/webhooks/stripe",
+        content=payload,
+        headers={"Stripe-Signature": _stripe_signature(payload)},
+    )
+
+    assert response.status_code == 200, response.text
+    db.refresh(subscription)
+    assert subscription.current_period_end is not None
+    assert int(subscription.current_period_end.timestamp()) == 1_702_592_000
+
+
+def test_get_subscription_resyncs_stale_period_from_stripe(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """An active subscription whose stored period is missing/past self-heals on
+    read by pulling the real period from the live Stripe subscription."""
+    _configure_stripe(monkeypatch)
+    fake_subscription = FakeStripeSubscriptionClient(
+        subscription={
+            "id": "sub_resync",
+            "object": "subscription",
+            "status": "active",
+            "current_period_start": 1_999_000_000,
+            "current_period_end": 2_000_000_000,
+        }
+    )
+    monkeypatch.setattr(billing_service, "subscription_client", fake_subscription)
+    tenant = _signup_verify_login(
+        client, f"resync-{uuid4().hex}@example.com", "Resync"
+    )
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_customer_id="cus_resync",
+        stripe_subscription_id="sub_resync",
+        status="active",
+    )
+    db.add(subscription)
+    db.commit()
+
+    response = client.get("/api/v1/billing/subscription")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["subscription"]["current_period_end"] is not None
+    assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_resync"
+    db.refresh(subscription)
+    assert int(subscription.current_period_end.timestamp()) == 2_000_000_000
+
+
+def test_get_subscription_skips_resync_when_period_in_future(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """A healthy future period must not trigger a Stripe call on every read."""
+    _configure_stripe(monkeypatch)
+    fake_subscription = FakeStripeSubscriptionClient()
+    monkeypatch.setattr(billing_service, "subscription_client", fake_subscription)
+    tenant = _signup_verify_login(
+        client, f"no-resync-{uuid4().hex}@example.com", "No Resync"
+    )
+    from datetime import UTC, datetime
+
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_customer_id="cus_no_resync",
+        stripe_subscription_id="sub_no_resync",
+        status="active",
+    )
+    subscription.current_period_end = datetime.fromtimestamp(2_000_000_000, UTC)
+    db.add(subscription)
+    db.commit()
+
+    response = client.get("/api/v1/billing/subscription")
+
+    assert response.status_code == 200, response.text
+    assert fake_subscription.retrieve_calls == []
+    db.refresh(subscription)
+    assert int(subscription.current_period_end.timestamp()) == 2_000_000_000
 
 
 def test_invoice_payment_failed_marks_subscription_past_due(
