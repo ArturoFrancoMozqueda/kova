@@ -574,6 +574,7 @@ def test_subscription_webhook_reads_period_from_items_when_root_missing(
     assert subscription.current_period_end is not None
     assert int(subscription.current_period_start.timestamp()) == 1_700_000_000
     assert int(subscription.current_period_end.timestamp()) == 1_702_592_000
+    assert subscription.stripe_period_synced_at is not None
 
 
 def test_checkout_completed_resolves_period_from_live_subscription(
@@ -628,6 +629,7 @@ def test_checkout_completed_resolves_period_from_live_subscription(
     assert subscription.status == "active"
     assert subscription.current_period_end is not None
     assert int(subscription.current_period_end.timestamp()) == 1_702_592_000
+    assert subscription.stripe_period_synced_at is not None
     assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_checkout_period"
 
 
@@ -720,24 +722,40 @@ def test_get_subscription_resyncs_stale_period_from_stripe(
     assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_resync"
     db.refresh(subscription)
     assert int(subscription.current_period_end.timestamp()) == 2_000_000_000
+    assert subscription.stripe_period_synced_at is not None
 
 
-def test_get_subscription_skips_resync_when_period_in_future(
+def test_get_subscription_resyncs_future_period_when_local_value_differs(
     client: TestClient, db: Session, monkeypatch
 ) -> None:
-    """A healthy future period must not trigger a Stripe call on every read."""
+    """A future local renewal date can still be wrong; Stripe remains the
+    source of truth for the billing page."""
     _configure_stripe(monkeypatch)
-    fake_subscription = FakeStripeSubscriptionClient()
+    fake_subscription = FakeStripeSubscriptionClient(
+        subscription={
+            "id": "sub_resync_future",
+            "object": "subscription",
+            "status": "active",
+            "items": {
+                "data": [
+                    {
+                        "current_period_start": 2_099_000_000,
+                        "current_period_end": 2_100_000_000,
+                    }
+                ]
+            },
+        }
+    )
     monkeypatch.setattr(billing_service, "subscription_client", fake_subscription)
     tenant = _signup_verify_login(
-        client, f"no-resync-{uuid4().hex}@example.com", "No Resync"
+        client, f"future-resync-{uuid4().hex}@example.com", "Future Resync"
     )
     from datetime import UTC, datetime
 
     subscription = Subscription(
         tenant_id=UUID(tenant["tenant_id"]),
-        stripe_customer_id="cus_no_resync",
-        stripe_subscription_id="sub_no_resync",
+        stripe_customer_id="cus_resync_future",
+        stripe_subscription_id="sub_resync_future",
         status="active",
     )
     subscription.current_period_end = datetime.fromtimestamp(2_000_000_000, UTC)
@@ -747,9 +765,77 @@ def test_get_subscription_skips_resync_when_period_in_future(
     response = client.get("/api/v1/billing/subscription")
 
     assert response.status_code == 200, response.text
+    assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_resync_future"
+    db.refresh(subscription)
+    assert subscription.current_period_start is not None
+    assert subscription.current_period_end is not None
+    assert int(subscription.current_period_start.timestamp()) == 2_099_000_000
+    assert int(subscription.current_period_end.timestamp()) == 2_100_000_000
+    assert subscription.stripe_period_synced_at is not None
+
+
+def test_get_subscription_skips_live_resync_when_period_was_recently_synced(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """A recently confirmed period should be served from the local billing row."""
+    _configure_stripe(monkeypatch)
+    fake_subscription = FakeStripeSubscriptionClient()
+    monkeypatch.setattr(billing_service, "subscription_client", fake_subscription)
+    tenant = _signup_verify_login(
+        client, f"recent-resync-{uuid4().hex}@example.com", "Recent Resync"
+    )
+    from datetime import UTC, datetime
+
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_customer_id="cus_recent_resync",
+        stripe_subscription_id="sub_recent_resync",
+        status="active",
+    )
+    subscription.current_period_end = datetime.fromtimestamp(2_000_000_000, UTC)
+    subscription.stripe_period_synced_at = datetime.now(UTC)
+    db.add(subscription)
+    db.commit()
+
+    response = client.get("/api/v1/billing/subscription")
+
+    assert response.status_code == 200, response.text
     assert fake_subscription.retrieve_calls == []
     db.refresh(subscription)
+    assert subscription.current_period_end is not None
     assert int(subscription.current_period_end.timestamp()) == 2_000_000_000
+
+
+def test_get_subscription_keeps_local_period_when_live_resync_fails(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """Billing status reads should degrade gracefully when Stripe is unavailable."""
+    _configure_stripe(monkeypatch)
+    fake_subscription = FakeStripeSubscriptionClient(error=True)
+    monkeypatch.setattr(billing_service, "subscription_client", fake_subscription)
+    tenant = _signup_verify_login(
+        client, f"resync-failure-{uuid4().hex}@example.com", "Resync Failure"
+    )
+    from datetime import UTC, datetime
+
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_customer_id="cus_resync_failure",
+        stripe_subscription_id="sub_resync_failure",
+        status="active",
+    )
+    subscription.current_period_end = datetime.fromtimestamp(2_000_000_000, UTC)
+    db.add(subscription)
+    db.commit()
+
+    response = client.get("/api/v1/billing/subscription")
+
+    assert response.status_code == 200, response.text
+    assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_resync_failure"
+    db.refresh(subscription)
+    assert subscription.current_period_end is not None
+    assert int(subscription.current_period_end.timestamp()) == 2_000_000_000
+    assert subscription.stripe_period_synced_at is None
 
 
 def test_invoice_payment_failed_marks_subscription_past_due(

@@ -30,6 +30,9 @@ class Subscription(Base):
     current_period_end: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    stripe_period_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     past_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     grace_period_ends_at: Mapped[datetime | None] = mapped_column(
