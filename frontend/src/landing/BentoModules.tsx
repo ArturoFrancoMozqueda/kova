@@ -2,7 +2,7 @@
 // Cada celda lleva una mini-viñeta de UI (no íconos solos) construida con
 // labels reales del producto. Las 6 capacidades son las ya publicadas hoy.
 import type { CSSProperties, ReactNode } from "react";
-import { AlertTriangle, BarChart3, Calculator, CreditCard, Package, WifiOff } from "lucide-react";
+import { AlertTriangle, BarChart3, Calculator, CreditCard, Package, UsersRound, WifiOff } from "lucide-react";
 import { formatMoney } from "@/orders/format";
 import { localizeReconciliationStatus } from "@/shifts/format";
 import { copy } from "@/i18n/messages";
@@ -81,12 +81,26 @@ function StockVignette() {
   );
 }
 
+function RolesVignette() {
+  const roles = [t.roleOwner, t.roleManager, t.roleCashier];
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {roles.map((role, i) => (
+        <span key={role} style={{ ...chipStyle, ...(i === 0 ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" } : {}) }}>
+          {role}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 const CELLS: Array<{ icon: ReactNode; large: boolean; vignette: ReactNode }> = [
   { icon: <CreditCard size={18} strokeWidth={1.6} />, large: true, vignette: <PaymentChips /> },
   { icon: <Package size={18} strokeWidth={1.6} />, large: false, vignette: <StockVignette /> },
   { icon: <Calculator size={18} strokeWidth={1.6} />, large: false, vignette: <CashVignette /> },
   { icon: <BarChart3 size={18} strokeWidth={1.6} />, large: false, vignette: <HoursMiniChart height={34} /> },
   { icon: <WifiOff size={18} strokeWidth={1.6} />, large: true, vignette: <OfflineVignette /> },
+  { icon: <UsersRound size={18} strokeWidth={1.6} />, large: false, vignette: <RolesVignette /> },
 ];
 
 const audienceTypes = copy.landing.builtFor.types.slice(0, 5).map((type) => type.name);
