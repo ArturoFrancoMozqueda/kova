@@ -4,20 +4,22 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.validation import StrictModel
 
-class ShiftOpenCreate(BaseModel):
+
+class ShiftOpenCreate(StrictModel):
     opening_cash_amount: Decimal | None = Field(
         default=None, ge=0, max_digits=12, decimal_places=2
     )
 
 
-class CashMovementCreate(BaseModel):
+class CashMovementCreate(StrictModel):
     type: str = Field(pattern="^(cash_in|cash_out)$")
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     reason: str = Field(min_length=1, max_length=255)
 
 
-class ShiftCloseCreate(BaseModel):
+class ShiftCloseCreate(StrictModel):
     actual_cash_amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
 
 

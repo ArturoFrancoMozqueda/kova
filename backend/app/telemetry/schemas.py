@@ -2,12 +2,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.shared.validation import StrictModel
+
 MAX_PROPERTIES = 50
 MAX_PROPERTY_KEY_LEN = 80
 MAX_PROPERTY_VALUE_LEN = 500
 
 
-class TelemetryEventCreate(BaseModel):
+class TelemetryEventCreate(StrictModel):
     event_name: str = Field(min_length=1, max_length=120, pattern=r"^[a-z0-9_.:-]+$")
     client_event_id: str = Field(min_length=1, max_length=80)
     properties: dict[str, Any] = Field(default_factory=dict)

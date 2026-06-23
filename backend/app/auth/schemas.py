@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.shared.validation import StrictModel, reject_html
+
 _PASSWORD_MIN_LENGTH = 8
 _PASSWORD_MAX_LENGTH = 128
 
@@ -19,10 +21,10 @@ def _normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
-class SignupRequest(BaseModel):
+class SignupRequest(StrictModel):
     email: EmailStr
     password: str = Field(min_length=_PASSWORD_MIN_LENGTH, max_length=_PASSWORD_MAX_LENGTH)
-    tenant_name: str
+    tenant_name: str = Field(min_length=1, max_length=120)
     accepted_terms: bool = False
 
     @field_validator("email")
@@ -35,6 +37,11 @@ class SignupRequest(BaseModel):
     def _password_strength(cls, v: str) -> str:
         return _validate_password_strength(v)
 
+    @field_validator("tenant_name")
+    @classmethod
+    def _tenant_name_no_html(cls, v: str) -> str:
+        return reject_html(v) or v
+
 
 class SignupResponse(BaseModel):
     message: str
@@ -44,11 +51,11 @@ class SignupResponse(BaseModel):
     dev_verification_token: str | None = None
 
 
-class VerifyEmailRequest(BaseModel):
+class VerifyEmailRequest(StrictModel):
     token: str
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(StrictModel):
     email: EmailStr
     password: str
 
@@ -84,7 +91,7 @@ class RefreshResponse(BaseModel):
     message: str
 
 
-class PasswordResetRequestBody(BaseModel):
+class PasswordResetRequestBody(StrictModel):
     email: EmailStr
 
     @field_validator("email")
@@ -93,7 +100,7 @@ class PasswordResetRequestBody(BaseModel):
         return _normalize_email(v)
 
 
-class PasswordResetConfirmBody(BaseModel):
+class PasswordResetConfirmBody(StrictModel):
     token: str
     new_password: str = Field(min_length=_PASSWORD_MIN_LENGTH, max_length=_PASSWORD_MAX_LENGTH)
 

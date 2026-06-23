@@ -14,6 +14,7 @@ from app.db import get_db
 from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.exceptions import bad_request, not_found
+from app.shared.validation import verify_image_signature
 from app.tenants.repository import get_by_id as get_tenant_by_id
 
 router = APIRouter(prefix="/api/v1/settings", tags=["settings"])
@@ -103,6 +104,7 @@ async def upload_receipt_logo(
         raise bad_request("Logo must be PNG, JPEG, or WebP.")
     if len(parsed.data) > MAX_LOGO_BYTES:
         raise bad_request("Logo must be 512 KB or smaller.")
+    verify_image_signature(parsed.content_type, parsed.data)
 
     now = datetime.now(UTC)
     logo = (

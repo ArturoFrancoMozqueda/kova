@@ -3,6 +3,11 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.orders.schemas import OrderCreate
+from app.shared.validation import MAX_OFFLINE_SALES_BATCH
+
+# NOTE: Sync schemas stay on BaseModel (lenient) on purpose — see orders/schemas.py.
+# Older offline bundles may include fields this version no longer defines, and
+# rejecting them would drop already-confirmed sales. Batch size is still capped.
 
 
 class OfflineSaleSyncItem(BaseModel):
@@ -14,7 +19,7 @@ class OfflineSaleSyncItem(BaseModel):
 
 
 class OfflineSaleSyncRequest(BaseModel):
-    sales: list[OfflineSaleSyncItem] = Field(min_length=1)
+    sales: list[OfflineSaleSyncItem] = Field(min_length=1, max_length=MAX_OFFLINE_SALES_BATCH)
 
 
 class OfflineSaleSyncResult(BaseModel):

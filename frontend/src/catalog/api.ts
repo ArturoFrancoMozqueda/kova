@@ -69,10 +69,28 @@ export function listProducts(): Promise<Product[]> {
   return requestJson<Product[]>("/api/v1/catalog/products");
 }
 
+// The product form value object carries client-only fields (image_file,
+// image_remove, modifier_group_ids) that the API schema rejects now that it
+// forbids unknown fields. Send only the declared schema fields.
+function productPayload(body: ProductCreate | ProductUpdate) {
+  return {
+    name: body.name,
+    description: body.description,
+    sku: body.sku,
+    price_amount: body.price_amount,
+    category_id: body.category_id,
+    track_inventory: body.track_inventory,
+    low_stock_threshold: body.low_stock_threshold,
+    image_position_x: body.image_position_x,
+    image_position_y: body.image_position_y,
+    image_zoom: body.image_zoom,
+  };
+}
+
 export function createProduct(body: ProductCreate): Promise<Product> {
   return requestJson<Product>("/api/v1/catalog/products", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify(productPayload(body)),
     headers: { "Idempotency-Key": ikey() },
   });
 }
@@ -80,7 +98,7 @@ export function createProduct(body: ProductCreate): Promise<Product> {
 export function updateProduct(id: string, body: ProductUpdate): Promise<Product> {
   return requestJson<Product>(`/api/v1/catalog/products/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...productPayload(body), is_active: body.is_active }),
     headers: { "Idempotency-Key": ikey() },
   });
 }

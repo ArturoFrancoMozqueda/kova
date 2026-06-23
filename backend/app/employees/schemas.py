@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
 
+from app.shared.validation import StrictModel
+
 EmployeeRole = Literal["owner", "manager", "cashier"]
 
 
@@ -16,11 +18,11 @@ class EmployeeResponse(BaseModel):
     created_at: datetime
 
 
-class EmployeeRoleUpdate(BaseModel):
+class EmployeeRoleUpdate(StrictModel):
     role: EmployeeRole
 
 
-class InvitationCreate(BaseModel):
+class InvitationCreate(StrictModel):
     email: EmailStr
     role: EmployeeRole
 
@@ -42,6 +44,6 @@ class InvitationPreview(BaseModel):
     requires_password: bool
 
 
-class InvitationAccept(BaseModel):
+class InvitationAccept(StrictModel):
     token: str
     password: str | None = None

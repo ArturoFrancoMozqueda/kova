@@ -4,6 +4,10 @@ import { syncOfflineSales } from "./sync";
 
 const MAX_ATTEMPTS = 5;
 const BACKOFF_MS = [2_000, 8_000, 30_000, 60_000, 120_000];
+// Keep request batches within the server-side per-request cap
+// (MAX_OFFLINE_SALES_BATCH) so a large offline backlog syncs in chunks instead
+// of being rejected wholesale. Must stay <= the backend cap.
+const SYNC_CHUNK_SIZE = 100;
 
 let isSyncing = false;
 let retryTimer: ReturnType<typeof window.setTimeout> | null = null;
@@ -34,7 +38,9 @@ export async function triggerSync(): Promise<void> {
 
   isSyncing = true;
   try {
-    await syncOfflineSales(retryable);
+    for (let i = 0; i < retryable.length; i += SYNC_CHUNK_SIZE) {
+      await syncOfflineSales(retryable.slice(i, i + SYNC_CHUNK_SIZE));
+    }
   } catch {
     // Network error — entries are back to "pending", schedule retry
     const stillPending = await offlineDb.offline_sales
