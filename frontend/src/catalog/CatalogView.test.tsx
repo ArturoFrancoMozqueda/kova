@@ -158,6 +158,30 @@ describe("ProductForm image positioning", () => {
     );
   });
 
+  it("renders a malicious product name as literal text, not injected HTML", () => {
+    const xssName = '<img src=x onerror="window.__xss__=1">';
+    render(
+      <ToastProvider>
+        <ProductForm
+          initial={{ ...product, name: xssName }}
+          categories={[]}
+          availableModifierGroups={[]}
+          defaultCategoryId={null}
+          pending={false}
+          onCancel={vi.fn()}
+          onSubmit={vi.fn()}
+        />
+      </ToastProvider>,
+    );
+
+    // React keeps the value as a plain string on the input — no HTML parsing.
+    const nameInput = screen.getByLabelText("Nombre del producto") as HTMLInputElement;
+    expect(nameInput.value).toBe(xssName);
+    // The payload must not have been materialized as a real, executing element.
+    expect(document.querySelector('img[onerror]')).toBeNull();
+    expect((window as unknown as { __xss__?: number }).__xss__).toBeUndefined();
+  });
+
   it("can reset image focus back to center", () => {
     render(
       <ToastProvider>

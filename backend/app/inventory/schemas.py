@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.shared.validation import StrictModel
+
 
 class InventoryStockItem(BaseModel):
     product_id: UUID
@@ -24,7 +26,7 @@ class InventoryMovementResponse(BaseModel):
     reason: str
 
 
-class InventoryAdjustmentCreate(BaseModel):
+class InventoryAdjustmentCreate(StrictModel):
     quantity_delta: int
     reason: str = Field(min_length=1, max_length=255)
 
@@ -36,12 +38,12 @@ class InventoryAdjustmentCreate(BaseModel):
         return value
 
 
-class StockTakeCreate(BaseModel):
+class StockTakeCreate(StrictModel):
     counted_quantity: int = Field(ge=0)
     reason: str = Field(min_length=1, max_length=255)
 
 
-class LowStockThresholdUpdate(BaseModel):
+class LowStockThresholdUpdate(StrictModel):
     low_stock_threshold: int | None = Field(default=None, ge=0)
 
 

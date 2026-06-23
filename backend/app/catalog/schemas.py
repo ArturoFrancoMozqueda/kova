@@ -1,36 +1,32 @@
-import re
 from decimal import Decimal
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-if TYPE_CHECKING:
-    pass
+from app.shared.validation import StrictModel, reject_html
 
 
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
-
-
-def _reject_html(value: str | None) -> str | None:
-    if value is None:
-        return value
-    if _HTML_TAG_RE.search(value):
-        raise ValueError("El nombre no puede contener etiquetas HTML")
-    return value
-
-
-class CategoryCreate(BaseModel):
+class CategoryCreate(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=500)
     sort_order: int = 0
 
+    @field_validator("name")
+    @classmethod
+    def _name_no_html(cls, value: str) -> str:
+        return reject_html(value) or value
 
-class CategoryUpdate(BaseModel):
+
+class CategoryUpdate(StrictModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=500)
     sort_order: int | None = None
     is_active: bool | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _name_no_html(cls, value: str | None) -> str | None:
+        return reject_html(value)
 
 
 class CategoryResponse(BaseModel):
@@ -44,7 +40,7 @@ class CategoryResponse(BaseModel):
     is_active: bool
 
 
-class ProductCreate(BaseModel):
+class ProductCreate(StrictModel):
     name: str = Field(min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
@@ -59,10 +55,10 @@ class ProductCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def _name_no_html(cls, value: str) -> str:
-        return _reject_html(value) or value
+        return reject_html(value) or value
 
 
-class ProductUpdate(BaseModel):
+class ProductUpdate(StrictModel):
     name: str | None = Field(default=None, min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
@@ -78,7 +74,7 @@ class ProductUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def _name_no_html(cls, value: str | None) -> str | None:
-        return _reject_html(value)
+        return reject_html(value)
 
 
 class ProductResponse(BaseModel):

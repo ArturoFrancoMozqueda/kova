@@ -5,11 +5,23 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.validation import (
+    MAX_MODIFIER_OPTIONS,
+    MAX_ORDER_ITEMS,
+    MAX_PAYMENTS,
+    MAX_REFUND_ITEMS,
+)
+
+# NOTE: Order request schemas intentionally stay on BaseModel (not StrictModel):
+# the offline queue may replay payloads from older app bundles that carry extra
+# fields, and silently dropping queued sales is not acceptable. They are still
+# bounded by collection-size caps below.
+
 
 class OrderItemCreate(BaseModel):
     product_id: UUID
     quantity: int = Field(gt=0)
-    modifier_option_ids: list[UUID] = Field(default_factory=list)
+    modifier_option_ids: list[UUID] = Field(default_factory=list, max_length=MAX_MODIFIER_OPTIONS)
 
 
 class PaymentCreate(BaseModel):
@@ -20,8 +32,8 @@ class PaymentCreate(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    items: list[OrderItemCreate] = Field(min_length=1)
-    payments: list[PaymentCreate] = Field(min_length=1)
+    items: list[OrderItemCreate] = Field(min_length=1, max_length=MAX_ORDER_ITEMS)
+    payments: list[PaymentCreate] = Field(min_length=1, max_length=MAX_PAYMENTS)
 
 
 class OrderItemModifierResponse(BaseModel):
@@ -139,7 +151,7 @@ class RefundItemCreate(BaseModel):
 
 
 class RefundCreate(BaseModel):
-    items: list[RefundItemCreate] = Field(min_length=1)
+    items: list[RefundItemCreate] = Field(min_length=1, max_length=MAX_REFUND_ITEMS)
     reason: str = Field(pattern="^(customer_return|defective|wrong_item|other)$")
     refund_payment_method: Literal["cash", "bank_transfer", "manual_card"] | None = None
 

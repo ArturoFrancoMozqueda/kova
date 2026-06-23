@@ -6,6 +6,14 @@ from fastapi.testclient import TestClient
 from app.audit.models import AuditLog
 from app.auth.models import Membership
 
+# A real 1x1 PNG. Uploads are now signature-validated (the declared content-type
+# must match the actual file bytes), so placeholder byte strings no longer pass.
+PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
     response = client.post(
@@ -157,14 +165,14 @@ def test_product_image_upload_and_get_returns_stored_bytes(client):
 
     upload = client.post(
         f"/api/v1/catalog/products/{product['id']}/image",
-        files={"file": ("oreja.png", b"stored-image-bytes", "image/png")},
+        files={"file": ("oreja.png", PNG_BYTES, "image/png")},
     )
 
     assert upload.status_code == 200, upload.text
     image = client.get(upload.json()["image_url"])
     assert image.status_code == 200, image.text
     assert image.headers["content-type"].startswith("image/png")
-    assert image.content == b"stored-image-bytes"
+    assert image.content == PNG_BYTES
 
 
 def test_product_image_get_hides_deactivated_products(client):
@@ -176,7 +184,7 @@ def test_product_image_get_hides_deactivated_products(client):
     ).json()
     upload = client.post(
         f"/api/v1/catalog/products/{product['id']}/image",
-        files={"file": ("polvoron.png", b"inactive-image-bytes", "image/png")},
+        files={"file": ("polvoron.png", PNG_BYTES, "image/png")},
     )
     assert upload.status_code == 200, upload.text
 

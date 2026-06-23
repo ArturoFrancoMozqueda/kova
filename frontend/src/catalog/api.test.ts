@@ -1,0 +1,81 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createProduct, updateProduct } from "./api";
+import type { ProductCreate, ProductUpdate } from "./types";
+
+function mockProductResponse() {
+  return new Response(
+    JSON.stringify({
+      id: "product-1",
+      tenant_id: "tenant-1",
+      category_id: null,
+      name: "Concha",
+      description: null,
+      sku: null,
+      price_amount: "18.00",
+      track_inventory: false,
+      low_stock_threshold: null,
+      image_url: null,
+      image_position_x: 50,
+      image_position_y: 50,
+      image_zoom: 1,
+      is_active: true,
+      modifier_groups: [],
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}
+
+function sentBody(fetchMock: ReturnType<typeof vi.fn>): Record<string, unknown> {
+  const init = fetchMock.mock.calls[0][1] as RequestInit;
+  return JSON.parse(init.body as string);
+}
+
+// The product form object carries client-only fields. The backend now rejects
+// unknown fields, so the API layer must strip them before sending.
+const POLLUTED = {
+  name: "Concha",
+  description: null,
+  sku: null,
+  price_amount: "18.00",
+  category_id: null,
+  track_inventory: false,
+  low_stock_threshold: null,
+  image_position_x: 50,
+  image_position_y: 50,
+  image_zoom: 1,
+  // client-only fields that must NOT reach the API:
+  image_file: new File(["x"], "x.png", { type: "image/png" }),
+  image_remove: false,
+  modifier_group_ids: ["group-1"],
+};
+
+describe("catalog api product payloads", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("createProduct sends only schema fields", async () => {
+    const fetchMock = vi.fn(async () => mockProductResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createProduct(POLLUTED as unknown as ProductCreate);
+
+    const body = sentBody(fetchMock);
+    expect(body).not.toHaveProperty("image_file");
+    expect(body).not.toHaveProperty("image_remove");
+    expect(body).not.toHaveProperty("modifier_group_ids");
+    expect(body.name).toBe("Concha");
+    expect(body.price_amount).toBe("18.00");
+  });
+
+  it("updateProduct sends only schema fields", async () => {
+    const fetchMock = vi.fn(async () => mockProductResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateProduct("product-1", POLLUTED as unknown as ProductUpdate);
+
+    const body = sentBody(fetchMock);
+    expect(body).not.toHaveProperty("image_file");
+    expect(body).not.toHaveProperty("image_remove");
+    expect(body).not.toHaveProperty("modifier_group_ids");
+    expect(body.name).toBe("Concha");
+  });
+});

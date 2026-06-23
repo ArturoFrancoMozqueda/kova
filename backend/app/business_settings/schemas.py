@@ -1,10 +1,12 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import EmailStr, Field
+
+from app.shared.validation import StrictModel
 
 
-class BusinessProfileUpsert(BaseModel):
+class BusinessProfileUpsert(StrictModel):
     public_name: str = Field(min_length=1, max_length=255)
     support_email: EmailStr | None = None
     support_phone: str | None = Field(default=None, max_length=50)
@@ -21,7 +23,7 @@ class BusinessProfileResponse(BusinessProfileUpsert):
     model_config = {"from_attributes": True}
 
 
-class ReceiptSettingsUpsert(BaseModel):
+class ReceiptSettingsUpsert(StrictModel):
     receipt_business_name: str = Field(min_length=1, max_length=255)
     footer: str | None = Field(default=None, max_length=1000)
     tax_contact_text: str | None = Field(default=None, max_length=1000)

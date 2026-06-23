@@ -17,6 +17,7 @@ from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.dependencies import require_permission
 from app.shared.exceptions import bad_request, not_found
+from app.shared.validation import verify_image_signature
 
 router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
 
@@ -145,6 +146,7 @@ async def upload_product_image(
         raise bad_request("Image must be PNG, JPEG, or WebP.")
     if len(parsed.data) > MAX_IMAGE_BYTES:
         raise bad_request("Image must be 1 MB or smaller.")
+    verify_image_signature(parsed.content_type, parsed.data)
 
     now = datetime.now(UTC)
     image = (

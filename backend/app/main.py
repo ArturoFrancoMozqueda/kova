@@ -15,6 +15,7 @@ from app.config import settings
 from app.employees.router import router as employees_router
 from app.health.router import router as health_router
 from app.inventory.router import router as inventory_router
+from app.middleware.body_size import body_size_limit_middleware
 from app.middleware.csrf import csrf_middleware
 from app.middleware.security_headers import security_headers_middleware
 from app.modifiers.router import router as modifiers_router
@@ -98,6 +99,8 @@ def create_app() -> FastAPI:
     app.middleware("http")(security_headers_middleware)
     app.middleware("http")(csrf_middleware)
     app.middleware("http")(request_context_middleware)
+    # Added last → runs outermost: reject oversized bodies before any other work.
+    app.middleware("http")(body_size_limit_middleware)
 
     _error_logger = logging.getLogger("app.errors")
 

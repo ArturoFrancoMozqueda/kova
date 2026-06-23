@@ -2,8 +2,10 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.shared.validation import StrictModel
 
-class PresetApplyRequest(BaseModel):
+
+class PresetApplyRequest(StrictModel):
     preset: Literal["cafe", "bakery", "retail"]
 
 

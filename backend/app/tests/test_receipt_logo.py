@@ -86,19 +86,22 @@ def test_receipt_logo_upload_rejects_svg(client):
 
 
 def test_receipt_logo_upload_is_bound_to_current_tenant(client, db):
+    # Uploads are signature-validated now, so both tenants send a real PNG.
+    # Isolation is proven by each tenant owning its own logo row.
     tenant_a = _signup_verify_login(client, "logo-a@example.com", "Logo Tenant A")
-    upload_a = _upload_logo(client, b"a-logo", "image/png")
+    upload_a = _upload_logo(client, PNG_BYTES, "image/png")
     assert upload_a.status_code == 200, upload_a.text
     client.post("/api/v1/auth/logout")
 
     tenant_b = _signup_verify_login(client, "logo-b@example.com", "Logo Tenant B")
-    upload_b = _upload_logo(client, b"b-logo", "image/png")
+    upload_b = _upload_logo(client, PNG_BYTES, "image/png")
     assert upload_b.status_code == 200, upload_b.text
 
     logo_a = db.query(TenantLogoFile).filter(TenantLogoFile.tenant_id == UUID(tenant_a["tenant_id"])).one()
     logo_b = db.query(TenantLogoFile).filter(TenantLogoFile.tenant_id == UUID(tenant_b["tenant_id"])).one()
-    assert logo_a.bytes_data == b"a-logo"
-    assert logo_b.bytes_data == b"b-logo"
+    assert logo_a.tenant_id != logo_b.tenant_id
+    assert logo_a.bytes_data == PNG_BYTES
+    assert logo_b.bytes_data == PNG_BYTES
 
 
 def test_receipt_logo_public_get_returns_bytes(client):
