@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
+import { clearSentryIdentity, setSentryIdentity } from "../observability/sentry";
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 
 export type AuthUser = {
@@ -49,10 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!session || !session.authenticated) {
+      clearSentryIdentity();
       const next: AuthState = { status: "unauthenticated" };
       setState(next);
       return next;
     }
+    setSentryIdentity(session.user);
     const next: AuthState = {
       status: "authenticated",
       user: session.user,
@@ -114,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await apiLogout();
+    clearSentryIdentity();
     setState({ status: "unauthenticated" });
   }, []);
 
