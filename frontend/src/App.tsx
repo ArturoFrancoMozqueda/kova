@@ -30,6 +30,7 @@ const LegalPage = lazy(() => import("./routes/LegalPage"));
 const LogoPreview = lazy(() => import("./routes/LogoPreview"));
 const ComponentsPreview = lazy(() => import("./routes/ComponentsPreview"));
 const IntroPreview = lazy(() => import("./routes/dev/IntroPreview"));
+const InternalOpsRoot = lazy(() => import("./internal-ops/InternalOpsRoot"));
 const NotFound = lazy(() => import("./routes/NotFound"));
 
 function RouteFallback() {
@@ -106,6 +107,11 @@ export default function App() {
                   <Route path="/turnos" element={<Navigate to="/shifts" replace />} />
                   <Route path="/panel" element={<Navigate to="/dashboard" replace />} />
                 </Route>
+
+                {/* Internal ops dashboard — sibling of the tenant shell, never
+                    in tenant navigation. Server-side allowlist is the real gate. */}
+                <Route path="/internal/ops/*" element={<InternalOpsRoot />} />
+
                 {/* Catch-all 404 (after all real routes) */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
