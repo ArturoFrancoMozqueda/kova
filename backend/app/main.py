@@ -30,6 +30,7 @@ from app.modifiers.router import router as modifiers_router
 from app.observability.logging import configure_logging, request_context_middleware
 from app.observability.sentry import init_sentry
 from app.onboarding.router import router as onboarding_router
+from app.ops.router import router as ops_router
 from app.orders.router import router as orders_router
 from app.reports.router import router as reports_router
 from app.shifts.router import router as shifts_router
@@ -88,6 +89,14 @@ def _validate_config() -> None:
             raise RuntimeError(
                 "EMAIL_FROM must be configured with a verified domain in production "
                 "(default 'onboarding@resend.dev' is not allowed)"
+            )
+    # A typo in the ops allowlist silently locks the CEO out (or worse, grants
+    # nobody-you-expect); refuse to boot on entries that can't be emails.
+    for entry in settings.internal_admin_email_set:
+        if "@" not in entry:
+            raise RuntimeError(
+                "INTERNAL_ADMIN_EMAILS must be a comma-separated list of email "
+                f"addresses; got invalid entry: {entry!r}"
             )
 
 
@@ -161,6 +170,7 @@ def create_app() -> FastAPI:
     app.include_router(inventory_router)
     app.include_router(imports_router)
     app.include_router(onboarding_router)
+    app.include_router(ops_router)
     app.include_router(orders_router)
     app.include_router(reports_router)
     app.include_router(shifts_router)
