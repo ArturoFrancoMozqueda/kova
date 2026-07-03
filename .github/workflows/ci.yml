@@ -286,7 +286,9 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       - name: Deploy backend image from this commit
-        run: flyctl deploy --remote-only --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --strategy rolling --wait-timeout 5m
+        # Both values identify the exact deployed commit: KOVA_RELEASE_SHA is
+        # immutable image metadata and GIT_SHA is surfaced in Kova Ops/Sentry.
+        run: flyctl deploy --remote-only --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --env GIT_SHA="$GITHUB_SHA" --strategy rolling --wait-timeout 5m
         working-directory: backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

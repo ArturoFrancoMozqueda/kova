@@ -29,6 +29,7 @@ from app.ops.schemas import (
     RevenueResponse,
     TechnicalResponse,
     TenantListResponse,
+    TraceResponse,
     TriageStatus,
     TriageUpdate,
 )
@@ -191,6 +192,32 @@ def ops_incident_triage(
     if detail is None:
         raise not_found("Incident not found")
     return detail
+
+
+@router.get("/trace", response_model=TraceResponse)
+def ops_trace(
+    request_id: str | None = Query(default=None, max_length=200),
+    tenant_id: UUID | None = Query(default=None),
+    user_id: UUID | None = Query(default=None),
+    stripe_event_id: str | None = Query(default=None, max_length=255),
+    sentry_event_id: str | None = Query(default=None, max_length=255),
+    from_ts: datetime | None = Query(default=None, alias="from"),
+    to_ts: datetime | None = Query(default=None, alias="to"),
+    limit: int = Query(default=100, ge=1, le=500),
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> TraceResponse:
+    return service.build_trace(
+        db,
+        request_id=request_id,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        stripe_event_id=stripe_event_id,
+        sentry_event_id=sentry_event_id,
+        from_ts=from_ts,
+        to_ts=to_ts,
+        limit=limit,
+    )
 
 
 @router.get("/notes", response_model=OpsNoteListResponse)

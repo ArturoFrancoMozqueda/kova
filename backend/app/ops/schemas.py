@@ -336,3 +336,37 @@ class TriageUpdate(BaseModel):
         if self.triage_status is None and self.snoozed_until is None:
             raise ValueError("triage_status or snoozed_until is required")
         return self
+
+
+# ── Trace ─────────────────────────────────────────────────────────────────────
+
+
+class TraceQuery(BaseModel):
+    request_id: str | None = None
+    tenant_id: UUID | None = None
+    user_id: UUID | None = None
+    stripe_event_id: str | None = None
+    sentry_event_id: str | None = None
+    from_ts: datetime | None = Field(default=None, alias="from")
+    to_ts: datetime | None = Field(default=None, alias="to")
+
+    model_config = {"populate_by_name": True}
+
+
+class TraceEvent(BaseModel):
+    ts: datetime | None
+    source: str
+    kind: str
+    summary: str
+    correlation: IncidentCorrelation
+    deep_link: str | None = None
+
+
+class TraceResponse(BaseModel):
+    generated_at: datetime
+    query: TraceQuery
+    timeline: list[TraceEvent]
+    # Per-source honesty: which sources we actually queried and their state.
+    # e.g. {"local_db": "ok", "sentry": "not_configured", "fly_logs": "deep_link_only"}
+    sources_queried: dict[str, str]
+    deep_links: dict[str, str]

@@ -11,7 +11,8 @@ from uuid import UUID
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.auth.models import Membership, User
+from app.audit.models import AuditLog
+from app.auth.models import Membership, User, UserSession
 from app.billing.models import Subscription, WebhookEvent
 from app.onboarding.models import TenantOnboardingState
 from app.ops.models import OpsIncidentState, OpsNote
@@ -235,6 +236,115 @@ def upsert_incident_state(
     state.updated_at = _now()
     db.flush()
     return state
+
+
+# ── Trace (cross-source correlation, local DB) ────────────────────────────────
+
+
+def trace_webhook_events(
+    db: Session,
+    *,
+    stripe_event_id: str | None,
+    tenant_id: UUID | None,
+    from_ts: datetime | None,
+    to_ts: datetime | None,
+    limit: int,
+) -> list[WebhookEvent]:
+    query = db.query(WebhookEvent)
+    if stripe_event_id:
+        query = query.filter(WebhookEvent.stripe_event_id == stripe_event_id)
+    if tenant_id:
+        query = query.filter(WebhookEvent.tenant_id == tenant_id)
+    query = _time_filter(query, WebhookEvent.created_at, from_ts, to_ts)
+    return query.order_by(WebhookEvent.created_at.desc()).limit(limit).all()
+
+
+def trace_telemetry(
+    db: Session,
+    *,
+    tenant_id: UUID | None,
+    user_id: UUID | None,
+    from_ts: datetime | None,
+    to_ts: datetime | None,
+    limit: int,
+) -> list[TelemetryEvent]:
+    if not (tenant_id or user_id):
+        return []
+    query = db.query(TelemetryEvent)
+    if tenant_id:
+        query = query.filter(TelemetryEvent.tenant_id == tenant_id)
+    if user_id:
+        query = query.filter(TelemetryEvent.user_id == user_id)
+    query = _time_filter(query, TelemetryEvent.created_at, from_ts, to_ts)
+    return query.order_by(TelemetryEvent.created_at.desc()).limit(limit).all()
+
+
+def trace_orders(
+    db: Session,
+    *,
+    tenant_id: UUID | None,
+    user_id: UUID | None,
+    from_ts: datetime | None,
+    to_ts: datetime | None,
+    limit: int,
+) -> list[Order]:
+    if not (tenant_id or user_id):
+        return []
+    query = db.query(Order)
+    if tenant_id:
+        query = query.filter(Order.tenant_id == tenant_id)
+    if user_id:
+        query = query.filter(Order.created_by_user_id == user_id)
+    query = _time_filter(query, Order.created_at, from_ts, to_ts)
+    return query.order_by(Order.created_at.desc()).limit(limit).all()
+
+
+def trace_audit_logs(
+    db: Session,
+    *,
+    tenant_id: UUID | None,
+    user_id: UUID | None,
+    from_ts: datetime | None,
+    to_ts: datetime | None,
+    limit: int,
+) -> list[AuditLog]:
+    if not (tenant_id or user_id):
+        return []
+    query = db.query(AuditLog)
+    if tenant_id:
+        query = query.filter(AuditLog.tenant_id == tenant_id)
+    if user_id:
+        query = query.filter(AuditLog.user_id == user_id)
+    query = _time_filter(query, AuditLog.created_at, from_ts, to_ts)
+    return query.order_by(AuditLog.created_at.desc()).limit(limit).all()
+
+
+def trace_sessions(
+    db: Session,
+    *,
+    tenant_id: UUID | None,
+    user_id: UUID | None,
+    from_ts: datetime | None,
+    to_ts: datetime | None,
+    limit: int,
+) -> list[UserSession]:
+    if not (tenant_id or user_id):
+        return []
+    query = db.query(UserSession)
+    if tenant_id:
+        query = query.filter(UserSession.tenant_id == tenant_id)
+    if user_id:
+        query = query.filter(UserSession.user_id == user_id)
+    query = _time_filter(query, UserSession.created_at, from_ts, to_ts)
+    return query.order_by(UserSession.created_at.desc()).limit(limit).all()
+
+
+def _time_filter(query, column, from_ts: datetime | None, to_ts: datetime | None):
+    if from_ts:
+        query = query.filter(column >= from_ts)
+    if to_ts:
+        query = query.filter(column <= to_ts)
+    return query
 
 
 # ── Operations (orders / signups) ────────────────────────────────────────────
