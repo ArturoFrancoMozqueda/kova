@@ -7,9 +7,14 @@ import {
 } from "./sentry";
 
 const sentryInit = vi.mocked(Sentry.init);
+const sentrySetUser = vi.mocked(Sentry.setUser);
+const sentrySetTag = vi.mocked(Sentry.setTag);
 
 vi.mock("@sentry/react", () => ({
   init: vi.fn(),
+  setUser: vi.fn(),
+  setTag: vi.fn(),
+  captureException: vi.fn(),
 }));
 
 describe("frontend Sentry configuration", () => {
@@ -62,5 +67,21 @@ describe("frontend Sentry configuration", () => {
 
     expect(options.denyUrls).toEqual(facebookInAppBrowserNoiseFilters.denyUrls);
     expect(matches(options.denyUrls, "iabjs://navigation_performance_logger_android")).toBe(true);
+  });
+
+  it("attaches opaque user and tenant identifiers after initialization", async () => {
+    const { clearSentryIdentity, setSentryIdentity } = await import("./sentry");
+    sentryInit.mockClear();
+    sentrySetUser.mockClear();
+    sentrySetTag.mockClear();
+    initSentry("https://public@example.ingest.sentry.io/1", "production");
+
+    setSentryIdentity({ id: "u-1", tenant_id: "t-1" });
+    expect(sentrySetUser).toHaveBeenCalledWith({ id: "u-1" });
+    expect(sentrySetTag).toHaveBeenCalledWith("tenant_id", "t-1");
+
+    clearSentryIdentity();
+    expect(sentrySetUser).toHaveBeenLastCalledWith(null);
+    expect(sentrySetTag).toHaveBeenLastCalledWith("tenant_id", undefined);
   });
 });
