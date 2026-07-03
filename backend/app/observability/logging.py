@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 import jwt
+import sentry_sdk
 from fastapi import Request, Response
 
 request_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
@@ -52,8 +53,11 @@ def configure_logging() -> None:
 def set_request_context(*, tenant_id: Any | None = None, user_id: Any | None = None) -> None:
     if tenant_id is not None:
         tenant_id_var.set(str(tenant_id))
+        # UUID tags (not PII); lets the ops trace search find errors by tenant.
+        sentry_sdk.set_tag("tenant_id", str(tenant_id))
     if user_id is not None:
         user_id_var.set(str(user_id))
+        sentry_sdk.set_tag("user_id", str(user_id))
 
 
 def _set_context_from_access_cookie(request: Request) -> None:
@@ -75,6 +79,9 @@ async def request_context_middleware(
     request_id_token = request_id_var.set(request_id)
     tenant_id_token = tenant_id_var.set(None)
     user_id_token = user_id_var.set(None)
+    # Tag every Sentry event with the request_id so /trace?request_id= can find
+    # the errors a given request produced. No-op if Sentry isn't initialized.
+    sentry_sdk.set_tag("request_id", request_id)
     _set_context_from_access_cookie(request)
 
     started = time.perf_counter()

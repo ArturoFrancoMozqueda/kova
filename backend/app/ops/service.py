@@ -44,6 +44,9 @@ from app.ops.schemas import (
     TenantListResponse,
     TenantUsage,
     TimelineEvent,
+    TraceEvent,
+    TraceQuery,
+    TraceResponse,
     TrialItem,
     VersionInfo,
     WebhookFailureItem,
@@ -690,5 +693,152 @@ def _incident_detail_payload(
     return detail, timeline
 
 
-# sanitize_webhook_payload is re-exported for the trace phase.
+# ── Trace ─────────────────────────────────────────────────────────────────────
+
+
+def build_trace(
+    db: Session,
+    *,
+    request_id: str | None,
+    tenant_id=None,
+    user_id=None,
+    stripe_event_id: str | None = None,
+    sentry_event_id: str | None = None,
+    from_ts: datetime | None = None,
+    to_ts: datetime | None = None,
+    limit: int = 100,
+) -> TraceResponse:
+    now = _now()
+    events: list[TraceEvent] = []
+
+    for wh in repository.trace_webhook_events(
+        db, stripe_event_id=stripe_event_id, tenant_id=tenant_id,
+        from_ts=from_ts, to_ts=to_ts, limit=limit,
+    ):
+        events.append(
+            TraceEvent(
+                ts=_ensure_aware(wh.created_at),
+                source="stripe_webhook",
+                kind=wh.processing_status,
+                summary=f"{wh.event_type} ({wh.processing_status})",
+                correlation=IncidentCorrelation(
+                    tenant_id=wh.tenant_id, stripe_event_id=wh.stripe_event_id
+                ),
+                deep_link=deep_links.stripe_event(wh.stripe_event_id),
+            )
+        )
+
+    for ev in repository.trace_telemetry(
+        db, tenant_id=tenant_id, user_id=user_id, from_ts=from_ts, to_ts=to_ts, limit=limit
+    ):
+        events.append(
+            TraceEvent(
+                ts=_ensure_aware(ev.created_at),
+                source="telemetry",
+                kind=ev.event_name,
+                summary=ev.event_name,
+                correlation=IncidentCorrelation(tenant_id=ev.tenant_id, user_id=ev.user_id),
+            )
+        )
+
+    for order in repository.trace_orders(
+        db, tenant_id=tenant_id, user_id=user_id, from_ts=from_ts, to_ts=to_ts, limit=limit
+    ):
+        events.append(
+            TraceEvent(
+                ts=_ensure_aware(order.created_at),
+                source="order",
+                kind=order.status,
+                summary=f"Orden {order.status} ${order.total_amount:.2f}",
+                correlation=IncidentCorrelation(
+                    tenant_id=order.tenant_id, user_id=order.created_by_user_id
+                ),
+            )
+        )
+
+    for log in repository.trace_audit_logs(
+        db, tenant_id=tenant_id, user_id=user_id, from_ts=from_ts, to_ts=to_ts, limit=limit
+    ):
+        events.append(
+            TraceEvent(
+                ts=_ensure_aware(log.created_at),
+                source="audit",
+                kind=log.action,
+                summary=log.action,
+                correlation=IncidentCorrelation(tenant_id=log.tenant_id, user_id=log.user_id),
+            )
+        )
+
+    for sess in repository.trace_sessions(
+        db, tenant_id=tenant_id, user_id=user_id, from_ts=from_ts, to_ts=to_ts, limit=limit
+    ):
+        # Only session timestamps — never ip_address/user_agent.
+        events.append(
+            TraceEvent(
+                ts=_ensure_aware(sess.created_at),
+                source="session",
+                kind="revoked" if sess.revoked_at else "created",
+                summary="Sesión iniciada",
+                correlation=IncidentCorrelation(tenant_id=sess.tenant_id, user_id=sess.user_id),
+            )
+        )
+
+    # Sentry: the only local source that can resolve a bare request_id, since no
+    # local table stores it. Issue search by the request_id tag (free plan).
+    sources_queried: dict[str, str] = {"local_db": "ok", "fly_logs": "deep_link_only"}
+    deep_links_out: dict[str, str] = {"fly_live_logs": deep_links.fly_monitoring()}
+
+    if request_id:
+        sentry_result = sentry.search_issues_by_request_id(
+            request_id, timeout=float(settings.ops_connector_timeout_seconds)
+        )
+        sources_queried["sentry"] = sentry_result.status
+        if sentry_result.status == "ok":
+            for issue in (sentry_result.data or {}).get("issues", []):
+                events.append(
+                    TraceEvent(
+                        ts=_parse_sentry_ts(issue.get("last_seen")),
+                        source="sentry",
+                        kind=issue.get("level") or "issue",
+                        summary=issue.get("title") or "Sentry issue",
+                        correlation=IncidentCorrelation(request_id=request_id),
+                        deep_link=issue.get("permalink"),
+                    )
+                )
+        search_link = deep_links.sentry_search(f"request_id:{request_id}")
+        if search_link:
+            deep_links_out["sentry_search"] = search_link
+    else:
+        sources_queried["sentry"] = "skipped"
+
+    # Sort ascending; events without a timestamp (rare) sink to the end.
+    events.sort(key=lambda e: _ensure_aware(e.ts) if e.ts else now)
+
+    query = TraceQuery(
+        request_id=request_id,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        stripe_event_id=stripe_event_id,
+        sentry_event_id=sentry_event_id,
+        **{"from": from_ts, "to": to_ts},
+    )
+    return TraceResponse(
+        generated_at=now,
+        query=query,
+        timeline=events[:limit],
+        sources_queried=sources_queried,
+        deep_links=deep_links_out,
+    )
+
+
+def _parse_sentry_ts(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return _ensure_aware(datetime.fromisoformat(value.replace("Z", "+00:00")))
+    except ValueError:
+        return None
+
+
+# sanitize_webhook_payload is re-exported for other modules.
 __all__ = ["sanitize_webhook_payload"]
