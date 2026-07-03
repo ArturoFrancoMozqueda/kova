@@ -40,9 +40,35 @@ class Settings(BaseSettings):
     upstash_redis_rest_token: str | None = None
     email_from: str = "onboarding@resend.dev"
 
+    # Internal ops dashboard (CEO). Emails allowed into /api/v1/internal/ops/*;
+    # empty allowlist means nobody gets in. Connector tokens are optional — a
+    # missing token surfaces that integration as "not_configured", never an error.
+    internal_admin_emails: str = ""
+    sentry_api_token: str | None = None
+    sentry_org_slug: str | None = None
+    sentry_project_slug: str | None = None
+    sentry_frontend_project_slug: str | None = None
+    fly_api_token: str | None = None
+    fly_app_name: str = "pos-project-backend"
+    vercel_api_token: str | None = None
+    vercel_team_id: str | None = None
+    vercel_project_id: str | None = None
+    uptimerobot_api_key: str | None = None
+    ops_cache_ttl_seconds: int = 60
+    ops_connector_timeout_seconds: int = 5
+    git_sha: str | None = None
+
     @property
     def cookie_secure(self) -> bool:
         return self.app_env != "local"
+
+    @property
+    def internal_admin_email_set(self) -> frozenset[str]:
+        return frozenset(
+            entry.strip().lower()
+            for entry in self.internal_admin_emails.split(",")
+            if entry.strip()
+        )
 
 
 settings = Settings()
