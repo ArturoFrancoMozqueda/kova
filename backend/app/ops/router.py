@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -13,6 +14,10 @@ from app.ops.models import OpsNote
 from app.ops.schemas import (
     FunnelResponse,
     FunnelWindow,
+    IncidentDetailResponse,
+    IncidentListResponse,
+    IncidentSeverity,
+    IncidentSource,
     NoteEntityType,
     NoteStatus,
     OpsMeResponse,
@@ -24,8 +29,10 @@ from app.ops.schemas import (
     RevenueResponse,
     TechnicalResponse,
     TenantListResponse,
+    TriageStatus,
+    TriageUpdate,
 )
-from app.shared.exceptions import not_found
+from app.shared.exceptions import bad_request, not_found
 
 router = APIRouter(
     prefix="/api/v1/internal/ops",
@@ -104,6 +111,86 @@ def ops_tenants(
     db: Session = Depends(get_db),
 ) -> TenantListResponse:
     return service.build_tenants(db, search=search, offset=offset, limit=limit)
+
+
+@router.get("/incidents", response_model=IncidentListResponse)
+def ops_incidents(
+    severity: IncidentSeverity | None = Query(default=None),
+    source: IncidentSource | None = Query(default=None),
+    triage_status: TriageStatus | None = Query(default=None),
+    since: datetime | None = Query(default=None),
+    include_snoozed: bool = Query(default=False),
+    limit: int = Query(default=100, ge=1, le=500),
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> IncidentListResponse:
+    return service.build_incidents(
+        db,
+        severity=severity,
+        source=source,
+        triage_status=triage_status,
+        since=since,
+        include_snoozed=include_snoozed,
+        limit=limit,
+    )
+
+
+def _split_key(incident_key: str) -> tuple[str, str]:
+    source, _, external_id = incident_key.partition(":")
+    if not source or not external_id:
+        raise bad_request("Invalid incident key")
+    return source, external_id
+
+
+@router.get("/incidents/{incident_key:path}", response_model=IncidentDetailResponse)
+def ops_incident_detail(
+    incident_key: str,
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> IncidentDetailResponse:
+    _split_key(incident_key)
+    detail = service.build_incident_detail(db, key=incident_key)
+    if detail is None:
+        raise not_found("Incident not found")
+    return detail
+
+
+@router.patch(
+    "/incidents/{incident_key:path}/triage",
+    response_model=IncidentDetailResponse,
+    dependencies=[Depends(_write_rate_limit)],
+)
+def ops_incident_triage(
+    incident_key: str,
+    body: TriageUpdate,
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> IncidentDetailResponse:
+    source, external_id = _split_key(incident_key)
+    state = repository.upsert_incident_state(
+        db,
+        source=source,
+        external_id=external_id,
+        triage_status=body.triage_status,
+        snoozed_until=body.snoozed_until,
+        updated_by_user_id=ctx.user.id,
+    )
+    audit_service.log(
+        db,
+        action="ops_incident_triage",
+        user_id=ctx.user.id,
+        resource_type="ops_incident",
+        changes={
+            "source": source,
+            "external_id": external_id,
+            "triage_status": state.triage_status,
+        },
+    )
+    db.commit()
+    detail = service.build_incident_detail(db, key=incident_key)
+    if detail is None:
+        raise not_found("Incident not found")
+    return detail
 
 
 @router.get("/notes", response_model=OpsNoteListResponse)

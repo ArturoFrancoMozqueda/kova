@@ -9,17 +9,26 @@ from app.billing.models import Subscription
 from app.config import settings
 from app.onboarding.models import TenantOnboardingState
 from app.ops import deep_links, repository
+from app.ops import incidents as incidents_mod
 from app.ops.cache import ops_cache
 from app.ops.connectors import fly, sentry, uptimerobot, vercel
 from app.ops.connectors.base import ConnectorResult
+from app.ops.incidents import ComputedIncident
 from app.ops.sanitize import sanitize_webhook_payload
 from app.ops.schemas import (
+    DeepLink,
     FunnelConversion,
     FunnelResponse,
     FunnelStep,
     FunnelWindow,
+    IncidentCorrelation,
+    IncidentDetailResponse,
+    IncidentItem,
+    IncidentListResponse,
+    IncidentTriage,
     MoneySummary,
     OperationsSummary,
+    OpsNoteResponse,
     OpsStatus,
     OverviewHealth,
     OverviewResponse,
@@ -34,6 +43,7 @@ from app.ops.schemas import (
     TenantItem,
     TenantListResponse,
     TenantUsage,
+    TimelineEvent,
     TrialItem,
     VersionInfo,
     WebhookFailureItem,
@@ -458,5 +468,227 @@ def build_tenants(
     return TenantListResponse(generated_at=now, items=items, total=total)
 
 
-# sanitize_webhook_payload is re-exported for the incidents/trace phases.
+# ── Incidents ─────────────────────────────────────────────────────────────────
+
+_SEVERITY_RANK = {"critical": 0, "warning": 1, "info": 2}
+
+
+def _collect_incidents(db: Session, *, now: datetime) -> tuple[list[ComputedIncident], list[str]]:
+    """Compute the raw incident set plus the list of degraded source names."""
+    computed: list[ComputedIncident] = []
+
+    stuck_cutoff = now - timedelta(hours=1)
+    for event in repository.problem_webhooks(db, stuck_older_than=stuck_cutoff):
+        computed.append(incidents_mod._webhook_incident(event, now=now))
+
+    for sub, tenant_name in repository.list_subscriptions_by_status(db, status="past_due"):
+        computed.append(incidents_mod._subscription_incident(sub, tenant_name, now=now))
+
+    connectors = fetch_all_connectors()
+    degraded_sources = [name for name, r in connectors.items() if r.status == "degraded"]
+    computed.extend(incidents_mod._connector_incidents(connectors, now=now))
+
+    health = db_health(db)
+    if health.status == "critical":
+        computed.append(
+            ComputedIncident(
+                source="db",
+                external_id="primary",
+                severity="critical",
+                title="Base de datos inaccesible",
+                detected_at=now,
+            )
+        )
+    return computed, degraded_sources
+
+
+def _to_incident_item(
+    computed: ComputedIncident, state
+) -> IncidentItem:
+    triage = IncidentTriage(
+        status=state.triage_status if state else "new",
+        snoozed_until=state.snoozed_until if state else None,
+        updated_at=state.updated_at if state else None,
+    )
+    corr = computed.correlation
+    return IncidentItem(
+        key=computed.key,
+        source=computed.source,
+        external_id=computed.external_id,
+        severity=computed.severity,
+        title=computed.title,
+        detected_at=computed.detected_at,
+        last_seen_at=computed.last_seen_at,
+        correlation=IncidentCorrelation(
+            tenant_id=corr.get("tenant_id"),
+            user_id=corr.get("user_id"),
+            request_id=corr.get("request_id"),
+            stripe_event_id=corr.get("stripe_event_id"),
+        ),
+        triage=triage,
+        deep_links=[DeepLink(label=label, url=url) for label, url in computed.deep_links],
+    )
+
+
+def build_incidents(
+    db: Session,
+    *,
+    severity: str | None = None,
+    source: str | None = None,
+    triage_status: str | None = None,
+    since: datetime | None = None,
+    include_snoozed: bool = False,
+    limit: int = 100,
+) -> IncidentListResponse:
+    now = _now()
+    computed, degraded_sources = _collect_incidents(db, now=now)
+
+    states = repository.incident_states_map(
+        db, [(c.source, c.external_id) for c in computed]
+    )
+
+    items: list[IncidentItem] = []
+    for c in computed:
+        state = states.get((c.source, c.external_id))
+        # Hide snoozed incidents unless explicitly asked for or filtering by status.
+        if (
+            not include_snoozed
+            and state is not None
+            and state.snoozed_until is not None
+            and _ensure_aware(state.snoozed_until) > now
+        ):
+            continue
+        item = _to_incident_item(c, state)
+        if severity and item.severity != severity:
+            continue
+        if source and item.source != source:
+            continue
+        if triage_status and item.triage.status != triage_status:
+            continue
+        if since and item.detected_at < since:
+            continue
+        items.append(item)
+
+    items.sort(key=lambda i: (_SEVERITY_RANK.get(i.severity, 9), _sort_ts(i.detected_at)))
+    total = len(items)
+    return IncidentListResponse(
+        generated_at=now,
+        items=items[:limit],
+        total=total,
+        degraded_sources=degraded_sources,
+    )
+
+
+def _ensure_aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def _sort_ts(dt: datetime) -> float:
+    # Most-recent first within a severity band.
+    return -_ensure_aware(dt).timestamp()
+
+
+def _note_to_response(note, author_email: str) -> OpsNoteResponse:
+    return OpsNoteResponse(
+        id=note.id,
+        author_user_id=note.author_user_id,
+        author_email=author_email,
+        entity_type=note.entity_type,
+        entity_source=note.entity_source,
+        entity_external_id=note.entity_external_id,
+        tenant_id=note.tenant_id,
+        body=note.body,
+        status=note.status,
+        pinned=note.pinned,
+        created_at=note.created_at,
+        updated_at=note.updated_at,
+    )
+
+
+def build_incident_detail(db: Session, *, key: str) -> IncidentDetailResponse | None:
+    now = _now()
+    computed_list, _ = _collect_incidents(db, now=now)
+    match = next((c for c in computed_list if c.key == key), None)
+    if match is None:
+        return None
+    state = repository.get_incident_state(db, source=match.source, external_id=match.external_id)
+    item = _to_incident_item(match, state)
+
+    detail, timeline = _incident_detail_payload(db, match, state, now=now)
+
+    note_rows, _ = repository.list_notes(
+        db,
+        entity_type="incident",
+        entity_source=match.source,
+        entity_external_id=match.external_id,
+    )
+    notes = [_note_to_response(note, email) for note, email in note_rows]
+    for note in notes:
+        timeline.append(
+            TimelineEvent(
+                ts=note.created_at, kind="note", summary=note.body, actor=note.author_email
+            )
+        )
+    timeline.sort(key=lambda e: _ensure_aware(e.ts))
+
+    return IncidentDetailResponse(incident=item, detail=detail, timeline=timeline, notes=notes)
+
+
+def _incident_detail_payload(
+    db: Session, computed: ComputedIncident, state, *, now: datetime
+) -> tuple[dict | None, list[TimelineEvent]]:
+    timeline: list[TimelineEvent] = []
+    detail: dict | None = None
+
+    if computed.source == "stripe_webhook":
+        event = repository.get_webhook_by_event_id(db, computed.external_id)
+        if event is not None:
+            detail = {
+                "event_type": event.event_type,
+                "processing_status": event.processing_status,
+                "process_attempts": event.process_attempts,
+                "error_reason": event.error_reason,
+                "payload": sanitize_webhook_payload(event.payload),
+            }
+            timeline.append(
+                TimelineEvent(ts=_ensure_aware(event.created_at), kind="received",
+                              summary=f"Webhook {event.event_type} recibido")
+            )
+            if event.processed_at:
+                timeline.append(
+                    TimelineEvent(
+                        ts=_ensure_aware(event.processed_at),
+                        kind=event.processing_status,
+                        summary=event.error_reason or "Procesado",
+                    )
+                )
+    elif computed.source == "subscription":
+        sub = repository.get_subscription_by_tenant(db, computed.correlation["tenant_id"])
+        if sub is not None:
+            detail = {
+                "status": sub.status,
+                "plan_name": sub.plan_name,
+                "past_due_at": sub.past_due_at.isoformat() if sub.past_due_at else None,
+                "grace_period_ends_at": sub.grace_period_ends_at.isoformat()
+                if sub.grace_period_ends_at
+                else None,
+            }
+            if sub.past_due_at:
+                timeline.append(
+                    TimelineEvent(ts=_ensure_aware(sub.past_due_at), kind="past_due",
+                                  summary="Suscripción marcada past_due")
+                )
+
+    if state is not None:
+        timeline.append(
+            TimelineEvent(
+                ts=_ensure_aware(state.updated_at),
+                kind="triage",
+                summary=f"Triage: {state.triage_status}",
+            )
+        )
+    return detail, timeline
+
+
+# sanitize_webhook_payload is re-exported for the trace phase.
 __all__ = ["sanitize_webhook_payload"]

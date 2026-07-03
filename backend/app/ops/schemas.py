@@ -265,3 +265,74 @@ class OpsNoteResponse(BaseModel):
 class OpsNoteListResponse(BaseModel):
     items: list[OpsNoteResponse]
     total: int
+
+
+# ── Incidents ─────────────────────────────────────────────────────────────────
+
+IncidentSeverity = Literal["critical", "warning", "info"]
+IncidentSource = Literal[
+    "stripe_webhook", "subscription", "sentry", "uptimerobot", "fly", "vercel", "db"
+]
+
+
+class IncidentCorrelation(BaseModel):
+    tenant_id: UUID | None = None
+    user_id: UUID | None = None
+    request_id: str | None = None
+    stripe_event_id: str | None = None
+
+
+class IncidentTriage(BaseModel):
+    status: TriageStatus
+    snoozed_until: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class DeepLink(BaseModel):
+    label: str
+    url: str
+
+
+class IncidentItem(BaseModel):
+    key: str
+    source: IncidentSource
+    external_id: str
+    severity: IncidentSeverity
+    title: str
+    detected_at: datetime
+    last_seen_at: datetime | None = None
+    correlation: IncidentCorrelation
+    triage: IncidentTriage
+    deep_links: list[DeepLink]
+
+
+class IncidentListResponse(BaseModel):
+    generated_at: datetime
+    items: list[IncidentItem]
+    total: int
+    degraded_sources: list[str]
+
+
+class TimelineEvent(BaseModel):
+    ts: datetime
+    kind: str
+    summary: str
+    actor: str | None = None
+
+
+class IncidentDetailResponse(BaseModel):
+    incident: IncidentItem
+    detail: dict | None = None
+    timeline: list[TimelineEvent]
+    notes: list[OpsNoteResponse]
+
+
+class TriageUpdate(BaseModel):
+    triage_status: TriageStatus | None = None
+    snoozed_until: datetime | None = None
+
+    @model_validator(mode="after")
+    def _require_change(self) -> "TriageUpdate":
+        if self.triage_status is None and self.snoozed_until is None:
+            raise ValueError("triage_status or snoozed_until is required")
+        return self

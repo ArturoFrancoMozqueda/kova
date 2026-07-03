@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import Membership, User
 from app.billing.models import Subscription, WebhookEvent
 from app.onboarding.models import TenantOnboardingState
-from app.ops.models import OpsNote
+from app.ops.models import OpsIncidentState, OpsNote
 from app.orders.models import Order
 from app.telemetry.models import TelemetryEvent
 from app.tenants.models import Tenant
@@ -137,6 +137,104 @@ def recent_failed_webhooks(db: Session, *, limit: int = 20) -> list[WebhookEvent
         .limit(limit)
         .all()
     )
+
+
+def problem_webhooks(
+    db: Session, *, stuck_older_than: datetime, limit: int = 100
+) -> list[WebhookEvent]:
+    """Failed events, plus 'received' events that never progressed (stuck)."""
+    from sqlalchemy import and_, or_
+
+    return (
+        db.query(WebhookEvent)
+        .filter(
+            or_(
+                WebhookEvent.processing_status == "failed",
+                and_(
+                    WebhookEvent.processing_status == "received",
+                    WebhookEvent.created_at < stuck_older_than,
+                ),
+            )
+        )
+        .order_by(WebhookEvent.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_webhook_by_event_id(db: Session, stripe_event_id: str) -> WebhookEvent | None:
+    return (
+        db.query(WebhookEvent)
+        .filter(WebhookEvent.stripe_event_id == stripe_event_id)
+        .first()
+    )
+
+
+def get_subscription_by_tenant(db: Session, tenant_id: UUID) -> Subscription | None:
+    return db.query(Subscription).filter(Subscription.tenant_id == tenant_id).first()
+
+
+# ── Incident triage state ─────────────────────────────────────────────────────
+
+
+def incident_states_map(
+    db: Session, keys: list[tuple[str, str]]
+) -> dict[tuple[str, str], OpsIncidentState]:
+    """Fetch triage rows for a set of (source, external_id) natural keys."""
+    if not keys:
+        return {}
+    sources = {k[0] for k in keys}
+    externals = {k[1] for k in keys}
+    rows = (
+        db.query(OpsIncidentState)
+        .filter(
+            OpsIncidentState.source.in_(sources),
+            OpsIncidentState.external_id.in_(externals),
+        )
+        .all()
+    )
+    wanted = set(keys)
+    return {
+        (row.source, row.external_id): row
+        for row in rows
+        if (row.source, row.external_id) in wanted
+    }
+
+
+def get_incident_state(
+    db: Session, *, source: str, external_id: str
+) -> OpsIncidentState | None:
+    return (
+        db.query(OpsIncidentState)
+        .filter(
+            OpsIncidentState.source == source,
+            OpsIncidentState.external_id == external_id,
+        )
+        .first()
+    )
+
+
+def upsert_incident_state(
+    db: Session,
+    *,
+    source: str,
+    external_id: str,
+    triage_status: str | None,
+    snoozed_until: datetime | None,
+    updated_by_user_id: UUID,
+) -> OpsIncidentState:
+    state = get_incident_state(db, source=source, external_id=external_id)
+    if state is None:
+        state = OpsIncidentState(source=source, external_id=external_id)
+        db.add(state)
+    if triage_status is not None:
+        state.triage_status = triage_status
+    if snoozed_until is not None:
+        state.snoozed_until = snoozed_until
+    state.updated_by_user_id = updated_by_user_id
+    state.updated_at = _now()
+    db.flush()
+    return state
 
 
 # ── Operations (orders / signups) ────────────────────────────────────────────
