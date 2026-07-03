@@ -188,6 +188,26 @@ class TenantListResponse(BaseModel):
     total: int
 
 
+# ── Technical ─────────────────────────────────────────────────────────────────
+
+
+class TechnicalSource(BaseModel):
+    status: OpsStatus
+    checked_at: datetime | None = None
+    error_summary: str | None = None
+    # Connector-produced, already-allowlisted payload (issues, machines, monitors…).
+    data: dict | None = None
+
+
+class TechnicalResponse(BaseModel):
+    generated_at: datetime
+    db: TechnicalSource
+    uptimerobot: TechnicalSource
+    sentry: TechnicalSource
+    fly: TechnicalSource
+    vercel: TechnicalSource
+
+
 # ── Notes / triage ──────────────────────────────────────────────────────────
 
 NoteEntityType = Literal["incident", "tenant", "general"]

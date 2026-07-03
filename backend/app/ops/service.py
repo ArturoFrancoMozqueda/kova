@@ -1,4 +1,5 @@
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, text
@@ -8,6 +9,9 @@ from app.billing.models import Subscription
 from app.config import settings
 from app.onboarding.models import TenantOnboardingState
 from app.ops import deep_links, repository
+from app.ops.cache import ops_cache
+from app.ops.connectors import fly, sentry, uptimerobot, vercel
+from app.ops.connectors.base import ConnectorResult
 from app.ops.sanitize import sanitize_webhook_payload
 from app.ops.schemas import (
     FunnelConversion,
@@ -23,6 +27,8 @@ from app.ops.schemas import (
     RevenueResponse,
     RiskSummary,
     SourceHealth,
+    TechnicalResponse,
+    TechnicalSource,
     TenantActivation,
     TenantBilling,
     TenantItem,
@@ -58,12 +64,53 @@ def db_health(db: Session) -> SourceHealth:
     return SourceHealth(status="ok", latency_ms=latency_ms, checked_at=_now())
 
 
-def _configured_or_not(token: str | None) -> SourceHealth:
-    if not token:
-        return SourceHealth(status="not_configured")
-    # Real connector checks land in F4; until then a configured token reports as
-    # degraded (unknown state), never fake-ok.
-    return SourceHealth(status="degraded", detail="connector not implemented yet")
+# ── External connectors: cached, concurrent fan-out ──────────────────────────
+
+# Fetchers keyed by source name; each returns a ConnectorResult and never raises.
+_CONNECTORS: dict[str, object] = {
+    "sentry": lambda t: sentry.fetch_unresolved_issues(timeout=t),
+    "fly": lambda t: fly.fetch_status(timeout=t),
+    "vercel": lambda t: vercel.fetch_latest_deployment(timeout=t),
+    "uptimerobot": lambda t: uptimerobot.fetch_monitors(timeout=t),
+}
+
+
+def _connector_ttl(result: ConnectorResult) -> float:
+    # Cache real observations for the full window; re-probe degraded sources
+    # sooner so a transient outage clears quickly.
+    if result.status == "degraded":
+        return min(30.0, settings.ops_cache_ttl_seconds)
+    return float(settings.ops_cache_ttl_seconds)
+
+
+def _fetch_connector(name: str) -> ConnectorResult:
+    fetcher = _CONNECTORS[name]
+    timeout = float(settings.ops_connector_timeout_seconds)
+
+    def compute() -> ConnectorResult:
+        try:
+            return fetcher(timeout)  # type: ignore[operator]
+        except Exception as exc:  # noqa: BLE001 — a connector must never 500 the dashboard
+            return ConnectorResult(status="degraded", error_summary=type(exc).__name__)
+
+    return ops_cache.get_or_set(f"connector:{name}", _connector_ttl, compute)
+
+
+def fetch_all_connectors() -> dict[str, ConnectorResult]:
+    """Run every connector concurrently (cached). One slow/broken source can't
+    block or break the others."""
+    names = list(_CONNECTORS)
+    with ThreadPoolExecutor(max_workers=len(names)) as pool:
+        results = list(pool.map(_fetch_connector, names))
+    return dict(zip(names, results, strict=True))
+
+
+def _connector_to_source_health(result: ConnectorResult) -> SourceHealth:
+    return SourceHealth(
+        status=result.status,
+        detail=result.error_summary,
+        checked_at=result.checked_at,
+    )
 
 
 def overall_status(sources: dict[str, SourceHealth]) -> OpsStatus:
@@ -132,15 +179,16 @@ def build_overview(db: Session) -> OverviewResponse:
     now = _now()
     failed_7d = repository.failed_webhooks_count(db, since=now - timedelta(days=7))
     stuck = repository.stuck_received_count(db, older_than=now - timedelta(hours=1))
+    connectors = fetch_all_connectors()
     sources: dict[str, SourceHealth] = {
         "db": db_health(db),
         "stripe_webhooks": SourceHealth(
             status=_stripe_webhook_status(failed_7d, stuck), checked_at=now
         ),
-        "sentry": _configured_or_not(settings.sentry_api_token),
-        "fly": _configured_or_not(settings.fly_api_token),
-        "vercel": _configured_or_not(settings.vercel_api_token),
-        "uptimerobot": _configured_or_not(settings.uptimerobot_api_key),
+        "sentry": _connector_to_source_health(connectors["sentry"]),
+        "fly": _connector_to_source_health(connectors["fly"]),
+        "vercel": _connector_to_source_health(connectors["vercel"]),
+        "uptimerobot": _connector_to_source_health(connectors["uptimerobot"]),
     }
     return OverviewResponse(
         generated_at=now,
@@ -150,6 +198,38 @@ def build_overview(db: Session) -> OverviewResponse:
         money=build_money(db),
         risk=build_risk(db),
         operations=build_operations(db),
+    )
+
+
+# ── Technical ─────────────────────────────────────────────────────────────────
+
+
+def _to_technical_source(result: ConnectorResult) -> TechnicalSource:
+    data = result.data if isinstance(result.data, dict) else None
+    return TechnicalSource(
+        status=result.status,
+        checked_at=result.checked_at,
+        error_summary=result.error_summary,
+        data=data,
+    )
+
+
+def build_technical(db: Session) -> TechnicalResponse:
+    now = _now()
+    health = db_health(db)
+    connectors = fetch_all_connectors()
+    return TechnicalResponse(
+        generated_at=now,
+        db=TechnicalSource(
+            status=health.status,
+            checked_at=health.checked_at,
+            error_summary=health.detail,
+            data={"latency_ms": health.latency_ms},
+        ),
+        uptimerobot=_to_technical_source(connectors["uptimerobot"]),
+        sentry=_to_technical_source(connectors["sentry"]),
+        fly=_to_technical_source(connectors["fly"]),
+        vercel=_to_technical_source(connectors["vercel"]),
     )
 
 
