@@ -73,6 +73,8 @@ jobs:
         run: npm test -- --run
       - name: Build
         run: npm run build
+      - name: Scan bundle for secrets
+        run: npm run check:bundle-secrets
 
   migrations:
     runs-on: ubuntu-latest
