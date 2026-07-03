@@ -26,12 +26,24 @@ const VITE_BUILTINS = new Set(["MODE", "DEV", "PROD", "SSR", "BASE_URL"]);
 
 // Substrings that should never appear in client source (real or templated secrets).
 const FORBIDDEN_SUBSTRINGS = [
+  // Supabase
   "service_role",
   "SUPABASE_SERVICE",
+  // Stripe
   "sk_live_",
   "sk_test_",
   "STRIPE_SECRET",
+  "whsec_",
+  // Resend
   "RESEND_API_KEY",
+  "re_live_",
+  "re_test_",
+  // Internal Kova server-only config
+  "DATABASE_URL",
+  "SECRET_KEY",
+  "INTERNAL_API_KEY",
+  // Hardcoded JWT (HS256 base64 header prefix)
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
 ];
 
 describe("frontend secret exposure guard", () => {

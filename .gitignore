@@ -149,6 +149,15 @@ activemq-data/
 
 # Environments
 .env
+.env.local
+.env.*.local
+.env.development
+.env.development.local
+.env.staging
+.env.production
+.env.production.local
+.env.test
+.env.test.local
 .envrc
 .venv
 .venv*/
@@ -157,6 +166,15 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Credentials and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+.secret*
+secrets.json
+serviceAccountKey.json
 
 # Spyder project settings
 .spyderproject
