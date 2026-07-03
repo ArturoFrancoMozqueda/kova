@@ -83,6 +83,17 @@ def db(apply_migrations):  # noqa: ARG001
 
 
 @pytest.fixture(autouse=True)
+def _clear_ops_cache():
+    """The ops connector cache is a process-wide singleton; clear it between
+    tests so a cached (e.g. not_configured) result can't leak across cases."""
+    from app.ops.cache import ops_cache
+
+    ops_cache.clear()
+    yield
+    ops_cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def auto_csrf_for_test_clients(monkeypatch):
     """Make ad-hoc TestClient(app) instances behave like the shared fixture."""
     original_init = TestClient.__init__

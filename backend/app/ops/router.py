@@ -22,6 +22,7 @@ from app.ops.schemas import (
     OpsNoteUpdate,
     OverviewResponse,
     RevenueResponse,
+    TechnicalResponse,
     TenantListResponse,
 )
 from app.shared.exceptions import not_found
@@ -67,6 +68,14 @@ def ops_overview(
     db: Session = Depends(get_db),
 ) -> OverviewResponse:
     return service.build_overview(db)
+
+
+@router.get("/technical", response_model=TechnicalResponse)
+def ops_technical(
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> TechnicalResponse:
+    return service.build_technical(db)
 
 
 @router.get("/revenue", response_model=RevenueResponse)
