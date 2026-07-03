@@ -11,6 +11,8 @@ from app.ops import repository, service
 from app.ops.dependencies import InternalAdminContext, require_internal_admin
 from app.ops.models import OpsNote
 from app.ops.schemas import (
+    FunnelResponse,
+    FunnelWindow,
     NoteEntityType,
     NoteStatus,
     OpsMeResponse,
@@ -19,6 +21,8 @@ from app.ops.schemas import (
     OpsNoteResponse,
     OpsNoteUpdate,
     OverviewResponse,
+    RevenueResponse,
+    TenantListResponse,
 )
 from app.shared.exceptions import not_found
 
@@ -63,6 +67,34 @@ def ops_overview(
     db: Session = Depends(get_db),
 ) -> OverviewResponse:
     return service.build_overview(db)
+
+
+@router.get("/revenue", response_model=RevenueResponse)
+def ops_revenue(
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> RevenueResponse:
+    return service.build_revenue(db)
+
+
+@router.get("/funnel", response_model=FunnelResponse)
+def ops_funnel(
+    window: FunnelWindow = Query(default="30d"),
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> FunnelResponse:
+    return service.build_funnel(db, window=window)
+
+
+@router.get("/tenants", response_model=TenantListResponse)
+def ops_tenants(
+    search: str | None = Query(default=None, max_length=255),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    ctx: InternalAdminContext = Depends(require_internal_admin),
+    db: Session = Depends(get_db),
+) -> TenantListResponse:
+    return service.build_tenants(db, search=search, offset=offset, limit=limit)
 
 
 @router.get("/notes", response_model=OpsNoteListResponse)
