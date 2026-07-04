@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react";
 
 export const facebookInAppBrowserNoiseFilters = {
-  ignoreErrors: [/Error invoking enableDidUserTypeOnKeyboardLogging: Java object is gone/i],
+  ignoreErrors: [/Error invoking (enableDidUserTypeOnKeyboardLogging|postMessage): Java object is gone/i],
   denyUrls: [/^iabjs:\/\//i, /navigation_performance_logger_android/i],
 } satisfies Pick<Sentry.BrowserOptions, "ignoreErrors" | "denyUrls">;
 

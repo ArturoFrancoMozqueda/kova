@@ -42,7 +42,7 @@ describe("frontend Sentry configuration", () => {
     );
   });
 
-  it("ignores the Facebook Android WebView keyboard logging error", () => {
+  it("ignores Facebook Android WebView Java bridge errors", () => {
     const options = buildSentryOptions("https://public@example.ingest.sentry.io/1", "production");
 
     expect(options.ignoreErrors).toEqual(facebookInAppBrowserNoiseFilters.ignoreErrors);
@@ -52,6 +52,9 @@ describe("frontend Sentry configuration", () => {
         "Error invoking enableDidUserTypeOnKeyboardLogging: Java object is gone",
       ),
     ).toBe(true);
+    expect(matches(options.ignoreErrors, "Error invoking postMessage: Java object is gone")).toBe(
+      true,
+    );
   });
 
   it("denies injected iabjs Facebook in-app browser scripts", () => {
