@@ -934,20 +934,20 @@ def _executive_summary(
 ) -> str:
     if completed_orders == 0:
         return (
-            f"Del {start_date.isoformat()} al {end_date.isoformat()}, no hay ventas "
+            f"Del {_format_day(start_date)} al {_format_day(end_date)}, no hay ventas "
             "completadas en el periodo. El reporte se actualizará cuando existan "
             "transacciones reales."
         )
     parts = [
         (
-            f"Del {start_date.isoformat()} al {end_date.isoformat()}, "
-            f"Kovar generó {_format_money(net_sales)} en ventas netas a partir de "
+            f"Del {_format_day(start_date)} al {_format_day(end_date)}, "
+            f"Kova generó {_format_money(net_sales)} en ventas netas a partir de "
             f"{completed_orders} orden{'es' if completed_orders != 1 else ''}."
         ),
         f"El ticket promedio fue {_format_money(average_ticket)}.",
     ]
     if best_day:
-        parts.append(f"El mejor día fue {best_day['date'].isoformat()}.")
+        parts.append(f"El mejor día fue {_format_day(best_day['date'])}.")
     if best_daypart:
         sentence = f"El mejor momento fue {best_daypart['label'].lower()}"
         if peak_hour and peak_hour["daypart_key"] == best_daypart["key"]:
@@ -958,7 +958,7 @@ def _executive_summary(
         parts.append(f"{top_product['product_name']} fue el producto principal del periodo.")
     if dominant_payment:
         parts.append(
-            f"{dominant_payment['method']} concentró "
+            f"{_payment_label(dominant_payment['method'])} concentró "
             f"{dominant_payment['sales_share_pct']}% de los cobros."
         )
     if refund_count == 0 and void_count == 0:
@@ -970,3 +970,38 @@ def _executive_summary(
 
 def _format_money(amount: Decimal) -> str:
     return f"MX${calculator.money(amount):,.2f}"
+
+
+# Spanish month names — avoids depending on a locale being installed in the
+# container, which is not guaranteed. Mirrors the frontend `formatDayMonthLong`.
+_MONTHS_ES = (
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+)
+
+# Payment method keys (orders schema: cash | bank_transfer | manual_card) to
+# es-MX labels. Mirrors the frontend `reasonLabel` map so both agree.
+_PAYMENT_LABELS = {
+    "cash": "Efectivo",
+    "bank_transfer": "Transferencia",
+    "manual_card": "Tarjeta manual",
+}
+
+
+def _format_day(value: date) -> str:
+    """A business day as "5 de julio" (es-MX), not a raw ISO string."""
+    return f"{value.day} de {_MONTHS_ES[value.month - 1]}"
+
+
+def _payment_label(method: str) -> str:
+    return _PAYMENT_LABELS.get(method, method.replace("_", " "))
