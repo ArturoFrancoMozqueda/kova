@@ -18,7 +18,7 @@ export function ReportSection({
 }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="p-4 pb-2.5 sm:p-5 sm:pb-3">
         <div className="flex items-center gap-2">
           {icon}
           <CardTitle>{title}</CardTitle>
@@ -27,7 +27,7 @@ export function ReportSection({
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         ) : null}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">{children}</CardContent>
     </Card>
   );
 }
