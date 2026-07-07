@@ -2,6 +2,47 @@ import type { InventoryVelocityItem, StockItem } from "../../inventory/types";
 import type { BusinessStoryReport, ProductTrendRow } from "../types";
 
 // ---------------------------------------------------------------------------
+// Refund / cancellation severity (shared by the ops section and the action
+// plan, so both always agree on what "nivel normal" means)
+// ---------------------------------------------------------------------------
+
+export type OpsSeverity = "info" | "watch" | "high";
+
+export function refundSeverityLevel(ratePct: number, count: number): OpsSeverity {
+  if (count <= 1 && ratePct < 5) return "info";
+  if (ratePct < 1) return "info";
+  if (ratePct <= 5) return "watch";
+  return "high";
+}
+
+export function cancelSeverityLevel(ratePct: number, count: number): OpsSeverity {
+  if (ratePct <= 5) return "info";
+  if (ratePct <= 15) return "watch";
+  return count >= 3 ? "high" : "info";
+}
+
+export function refundRatePct(summary: BusinessStoryReport["summary"]): number {
+  const gross = Number(summary.gross_sales);
+  return gross > 0 ? (Number(summary.refund_total) / gross) * 100 : 0;
+}
+
+export function cancelRatePct(summary: BusinessStoryReport["summary"]): number {
+  const denominator = summary.completed_orders + summary.cancellation_count;
+  return denominator > 0 ? (summary.cancellation_count / denominator) * 100 : 0;
+}
+
+/** True when both refunds and cancellations sit at the "info" level. Zero
+ * counts short-circuit to normal, mirroring the ops section's clean state
+ * (which never looks at rates when there is nothing to count). */
+export function opsAreNormal(summary: BusinessStoryReport["summary"]): boolean {
+  if (summary.refund_count === 0 && summary.cancellation_count === 0) return true;
+  return (
+    refundSeverityLevel(refundRatePct(summary), summary.refund_count) === "info" &&
+    cancelSeverityLevel(cancelRatePct(summary), summary.cancellation_count) === "info"
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Period-over-period growth
 // ---------------------------------------------------------------------------
 

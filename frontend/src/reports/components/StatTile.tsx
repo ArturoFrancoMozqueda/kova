@@ -33,15 +33,20 @@ export function StatTile({
   children?: ReactNode;
 }) {
   return (
-    <div className={`rounded-kova-lg border border-kova-border p-5 shadow-kova-card ${TONE_BG[tone]}`}>
+    // Phones get a compact row (value + delta side by side, no icon) so the
+    // three KPIs cost about a third of the vertical space before "Qué hacer
+    // ahora"; from `sm` up it's the full tile.
+    <div className={`rounded-kova-lg border border-kova-border p-4 shadow-kova-card sm:p-5 ${TONE_BG[tone]}`}>
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-medium uppercase tracking-wide text-kova-muted">{label}</p>
-        <span className="flex h-9 w-9 items-center justify-center rounded-kova-md bg-white/70 text-kova-muted">
+        <span className="hidden h-9 w-9 items-center justify-center rounded-kova-md bg-white/70 text-kova-muted sm:flex">
           {icon}
         </span>
       </div>
-      <p className="mt-3 text-2xl font-bold tabular-nums text-kova-ink">{value}</p>
-      <div className="mt-1 min-h-5">{children}</div>
+      <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 sm:mt-3 sm:block">
+        <p className="text-xl font-bold tabular-nums text-kova-ink sm:text-2xl">{value}</p>
+        <div className="sm:mt-1 sm:min-h-5">{children}</div>
+      </div>
     </div>
   );
 }

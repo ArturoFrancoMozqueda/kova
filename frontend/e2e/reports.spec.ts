@@ -184,7 +184,8 @@ async function mockReports(
       })),
     });
   });
-  await page.route("**/api/v1/inventory/low-stock", async (route) => {
+  // ReportsView reads the full stock list (not the low-stock subset).
+  await page.route("**/api/v1/inventory/stock", async (route) => {
     await route.fulfill({ json: options.lowStock ?? [] });
   });
   await page.route("**/api/v1/inventory/velocity", async (route) => {
@@ -234,26 +235,40 @@ test("reports page displays business storytelling layout", async ({ page }) => {
   await page.getByLabel(/fecha final/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
+  // Qué pasó: summary and executive KPIs. The previous period ($180) is below
+  // MIN_MONEY_BASE, so the headline deliberately avoids a noisy percentage.
   await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
-  await expect(page.getByText(/resumen ejecutivo/i)).toBeVisible();
-  await expect(page.getByText(/Kova gener[oó] \$231\.00 en ventas netas/i)).toBeVisible();
-  await expect(page.getByText("+28% vs. periodo anterior.")).toBeVisible();
-  await expect(page.getByText(/Reabastece Dona/i)).toBeVisible();
-  await expect(page.getByText(/Refuerza operación en noche/i)).toBeVisible();
-  await expect(page.getByTestId("owner-brief-action")).toHaveCount(3);
-  await expect(page.getByText(/ventas por d[ií]a/i)).not.toBeVisible();
+  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+  await expect(page.getByText("Vendiste $231.00 con 7 órdenes en estos 7 días.")).toBeVisible();
+  await expect(
+    page.getByText("Comparado con el periodo anterior: 6 may – 12 may (7 días)."),
+  ).toBeVisible();
+  await expect(page.getByText("Ventas netas", { exact: true })).toBeVisible();
 
-  await page.getByText(/ver análisis detallado/i).click();
+  // Qué hacer: the priority recommendation reads without any interaction.
+  await expect(page.getByText("Qué hacer ahora", { exact: true })).toBeVisible();
+  const hero = page.getByTestId("priority-recommendation");
+  await expect(hero).toBeVisible();
+  await expect(hero).toContainText("Tu prioridad ahora");
+  await expect(hero).toContainText("Dona necesita reabasto pronto");
+  // The checklist synthesizes signals: with 0 refunds/cancellations the plan
+  // confirms operations are normal right inside the action block.
+  await expect(page.getByText(/Pagos y devoluciones en nivel normal/)).toBeVisible();
 
-  await expect(page.getByText(/ventas en el tiempo/i)).toBeVisible();
-  await expect(page.getByText(/qu[eé] d[ií]as vendes m[aá]s/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /17 may: \$88\.00/i })).toBeVisible();
-  await expect(page.getByText(/productos e inventario/i)).toBeVisible();
+  // Por qué pasó: every thematic block framed as a business question, no toggles.
+  await expect(page.getByText("¿Cuándo vendo más?")).toBeVisible();
+  await expect(page.getByText("¿Qué producto mueve el negocio?")).toBeVisible();
+  await expect(page.getByText("¿Cómo me están pagando?")).toBeVisible();
+  await expect(page.getByText("¿Hay devoluciones o cancelaciones preocupantes?")).toBeVisible();
+  await expect(page.getByText("¿Quién está vendiendo?")).toBeVisible();
+
+  // Deep-analysis content stays: charts, day blocks and full tables.
+  await expect(page.getByText("Ventas por día", { exact: true })).toBeVisible();
+  await expect(page.getByText("Bloques del día")).toBeVisible();
+  await expect(page.getByText("Bloque más fuerte")).toBeVisible();
+  await expect(page.getByText("Tus 3 mejores horas")).toBeVisible();
   await expect(page.getByRole("cell", { name: "Dona", exact: true })).toBeVisible();
-  await expect(page.getByRole("table").getByText("Reabastecer", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /pagos y operación/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Noche: \$160\.00/i })).toBeVisible();
-  await expect(page.getByText(/Hora pico del periodo: 20:00-21:00/i)).toBeVisible();
+  await expect(page.getByRole("table").first().getByText("Reabastecer", { exact: true })).toBeVisible();
 });
 
 test("reports aligns best moment and strongest block when afternoon leads sales", async ({ page }) => {
@@ -326,16 +341,13 @@ test("reports aligns best moment and strongest block when afternoon leads sales"
 
   await page.goto("/reports");
 
-  const bestMoment = page.getByText("Mejor momento", { exact: true }).locator("..").last();
-  await expect(bestMoment).toContainText("Tarde");
-
-  const strongestBlock = page.getByText("Horario fuerte", { exact: true }).locator("..").last();
+  // The strongest-block badge must sit on the block that actually leads sales.
+  await expect(page.getByText("Bloques del día")).toBeVisible();
+  const strongestBlock = page.getByText("Bloque más fuerte", { exact: true }).locator("..");
   await expect(strongestBlock).toContainText("Tarde");
-  await expect(strongestBlock).toContainText("Hora pico del bloque ganador: 15:00-16:00");
 
-  await expect(page.getByText(/El mejor momento fue Tarde, especialmente entre 15:00-16:00/i)).toBeVisible();
-  await expect(page.getByText(/Refuerza operación en tarde/i)).toBeVisible();
-  await expect(page.getByText(/Refuerza operación en noche/i)).not.toBeVisible();
+  // Peak-hour facts follow the same afternoon story.
+  await expect(page.getByText("Hora pico", { exact: true }).locator("..")).toContainText("15:00-16:00");
 });
 
 test("reports shows useful empty state without demo data", async ({ page }) => {
@@ -386,4 +398,16 @@ test("reports shows useful empty state without demo data", async ({ page }) => {
   await expect(page.getByText(/A[uú]n no hay ventas para contar una historia/i)).toBeVisible();
   await expect(page.getByText(/Abrir caja y vender/i)).toBeVisible();
   await expect(page.getByText(/demo/i)).not.toBeVisible();
+});
+
+test("no onboarding tour covers the first read of reports", async ({ page }) => {
+  // Deliberately NOT calling markFirstUseToursSeen: even on a first visit,
+  // nothing may overlay the period summary.
+  await mockAuthAs(page, "owner");
+  await mockReports(page);
+
+  await page.goto("/reports");
+
+  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+  await expect(page.locator("#first-use-tour-title")).toHaveCount(0);
 });

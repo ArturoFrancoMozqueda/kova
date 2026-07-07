@@ -1183,6 +1183,9 @@ export const copy = {
       `Vendiste ${amount} con ${orders} ${orders === 1 ? "orden" : "órdenes"} en estos ${days} ${days === 1 ? "día" : "días"}.`,
     headlineToday: (amount: string, orders: number) =>
       `Hoy llevas ${amount} con ${orders} ${orders === 1 ? "orden" : "órdenes"}.`,
+    headlineCause: (parts: string[]) => `Lo que más pesó: ${parts.join(" · ")}.`,
+    causeProduct: (name: string, pct: number) => `${name} (${pct}% de la venta)`,
+    causeDaypart: (label: string, pct: number) => `la ${label.toLowerCase()} (${pct}% del periodo)`,
     headlineTodayGrowth: (amount: string, pct: number, moment: string | null) =>
       moment
         ? `Hoy vendiste ${amount}, ${pct}% más que ayer — la ${moment.toLowerCase()} hizo la diferencia.`
@@ -1196,10 +1199,14 @@ export const copy = {
     factEmpty: "—",
     factDominantPaymentValue: (method: string, pct: number) => `${method} · ${pct}%`,
 
-    // --- Recommendations section ---
-    recommendationsTitle: "Acciones recomendadas",
+    // --- "Qué hacer ahora" action plan ---
+    recommendationsTitle: "Qué hacer ahora",
     recommendationsDescription:
       "Lo más importante que puedes hacer con estos números, ordenado por prioridad.",
+    actionWatchTicketAction: "Vigila el ticket promedio: revisa combos, precios o descuentos.",
+    actionWatchTicketEvidence: (amount: string, pct: number) =>
+      `Va en ${amount}, ${pct}% abajo del periodo anterior.`,
+    actionOpsNormalAction: "Pagos y devoluciones en nivel normal — nada que hacer ahí.",
     recommendationsEmpty:
       "No hay alertas fuertes en este rango. Mantén el ritmo y revisa inventario, hora pico y cómo te pagaron.",
     priorityRecommendationKicker: "Tu prioridad ahora",
@@ -1309,6 +1316,17 @@ export const copy = {
       `Tu bloque fuerte cambió de ${prev.toLowerCase()} a ${current.toLowerCase()}; ajusta la preparación a ese horario.`,
     daypartRecQuiet: (label: string) =>
       `Las horas tranquilas de la ${label.toLowerCase()} sirven para preparar el pico, hacer inventario o probar promociones — no son un problema.`,
+
+    // --- Products & inventory: actionable reading strip ---
+    productReadingMoney: "Genera más dinero",
+    productReadingRestock: "Por agotarse",
+    productReadingGrowing: "Creciendo",
+    productReadingSlow: "Baja rotación",
+    productReadingOutOfStock: "ya no queda stock",
+
+    // --- Narrative arc kickers ---
+    arcWhy: "Por qué pasó",
+    arcOps: "Operación y control",
 
     // --- Products & inventory table ---
     inventoryColumn: "Inventario",

@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 import { formatMoney, reasonLabel } from "@/orders/format";
 import { cn } from "@/lib/utils";
 import type { BusinessStoryReport } from "../types";
+import {
+  type OpsSeverity as Severity,
+  cancelRatePct,
+  cancelSeverityLevel,
+  refundRatePct,
+  refundSeverityLevel,
+} from "../utils/calculations";
 import { ReportSection } from "./ReportSection";
-
-type Severity = "info" | "watch" | "high";
 
 const SEVERITY_TEXT: Record<Severity, string> = {
   info: "text-kova-muted",
@@ -16,18 +21,31 @@ const SEVERITY_TEXT: Record<Severity, string> = {
   high: "text-destructive",
 };
 
+// Threshold logic lives in utils/calculations (shared with the action plan);
+// only the message wording is chosen here.
 function refundSeverity(rate: number, count: number): { tone: Severity; message: string } {
-  if (count <= 1 && rate < 5) return { tone: "info", message: copy.reportsView.refundSingleGuard };
-  if (rate < 1) return { tone: "info", message: copy.reportsView.refundRateNormal };
-  if (rate <= 5) return { tone: "watch", message: copy.reportsView.refundRateWatch };
-  return { tone: "high", message: copy.reportsView.refundRateHigh };
+  const tone = refundSeverityLevel(rate, count);
+  if (tone === "info") {
+    return {
+      tone,
+      message: count <= 1 && rate < 5 ? copy.reportsView.refundSingleGuard : copy.reportsView.refundRateNormal,
+    };
+  }
+  return {
+    tone,
+    message: tone === "watch" ? copy.reportsView.refundRateWatch : copy.reportsView.refundRateHigh,
+  };
 }
 
 function cancelSeverity(rate: number, count: number): { tone: Severity; message: string } {
-  if (rate <= 5) return { tone: "info", message: copy.reportsView.cancelNormal };
-  if (rate <= 15) return { tone: "watch", message: copy.reportsView.cancelWatch };
-  if (count >= 3) return { tone: "high", message: copy.reportsView.cancelHigh };
-  return { tone: "info", message: copy.reportsView.cancelNormal };
+  const tone = cancelSeverityLevel(rate, count);
+  const message =
+    tone === "info"
+      ? copy.reportsView.cancelNormal
+      : tone === "watch"
+        ? copy.reportsView.cancelWatch
+        : copy.reportsView.cancelHigh;
+  return { tone, message };
 }
 
 function Tile({
@@ -75,10 +93,8 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
     );
   }
 
-  const gross = Number(summary.gross_sales);
-  const refundRate = gross > 0 ? (Number(summary.refund_total) / gross) * 100 : 0;
-  const cancelDenominator = summary.completed_orders + cancelCount;
-  const cancelRate = cancelDenominator > 0 ? (cancelCount / cancelDenominator) * 100 : 0;
+  const refundRate = refundRatePct(summary);
+  const cancelRate = cancelRatePct(summary);
   const refund = refundSeverity(refundRate, refundCount);
   const cancel = cancelSeverity(cancelRate, cancelCount);
 

@@ -32,6 +32,21 @@ describe("ProductInventoryAnalysis", () => {
     expect(screen.getAllByText(/Vincula inventario/i).length).toBeGreaterThan(0);
   });
 
+  it("leads with an actionable reading strip before the table", () => {
+    const story = makeStory({
+      product_drivers: [
+        { product_id: "p1", product_name: "Latte mediano", quantity_sold: 40, gross_sales: "4000", sales_share_pct: 40 },
+        { product_id: "p2", product_name: "Concha", quantity_sold: 12, gross_sales: "300", sales_share_pct: 8 },
+      ],
+    });
+    render(<ProductInventoryAnalysis story={story} stock={[trackedLowStock]} velocity={[]} />);
+
+    // Money maker: the #1 driver with amount + share.
+    expect(screen.getByText("Genera más dinero")).toBeInTheDocument();
+    // Restock: p1 is low-stock → surfaces in the "Por agotarse" reading.
+    expect(screen.getByText("Por agotarse")).toBeInTheDocument();
+  });
+
   it("renders an empty state when there are no product drivers", () => {
     const story = makeStory({ product_drivers: [] });
     render(<ProductInventoryAnalysis story={story} stock={[]} velocity={[]} />);

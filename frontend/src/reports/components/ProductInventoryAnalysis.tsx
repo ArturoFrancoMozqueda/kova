@@ -162,6 +162,85 @@ function buildRows(
   });
 }
 
+type Reading = { key: string; label: string; product: string; detail: string };
+
+/** The four decisions the owner actually makes with this table, surfaced as a
+ * reading strip: what earns money, what runs out, what grows, what stalls.
+ * Each card is derived from the first matching row; missing ones are omitted. */
+function buildReadings(rows: ProductRow[]): Reading[] {
+  const readings: Reading[] = [];
+  const money = rows[0];
+  if (money && Number(money.grossSales) > 0) {
+    readings.push({
+      key: "money",
+      label: copy.reportsView.productReadingMoney,
+      product: money.productName,
+      detail: `${formatMoney(money.grossSales)} · ${copy.reportsView.chartShare(money.salesSharePct)}`,
+    });
+  }
+  const restock = rows.find((row) => row.status.kind === "riesgo" || row.status.kind === "reabastecer");
+  if (restock) {
+    readings.push({
+      key: "restock",
+      label: copy.reportsView.productReadingRestock,
+      product: restock.productName,
+      detail:
+        restock.stockOnHand === 0
+          ? copy.reportsView.productReadingOutOfStock
+          : restock.daysUntilOut !== null
+            ? copy.reportsView.inventoryDaysLeft(Math.max(0, Math.round(restock.daysUntilOut)))
+            : copy.reportsView.inventoryStatusLabel(restock.status.kind),
+    });
+  }
+  const growing = rows.find(
+    (row) => row.status.kind === "creciendo" || row.trend?.trend === "new",
+  );
+  if (growing && growing.productId !== money?.productId) {
+    readings.push({
+      key: "growing",
+      label: copy.reportsView.productReadingGrowing,
+      product: growing.productName,
+      detail: `${growing.quantitySold} ${copy.reportsView.chartUnits.toLowerCase()}`,
+    });
+  }
+  // Never contradict the money reading: the top earner can't also be shown
+  // as the slow mover, even if its unit trend is flat.
+  const slow = rows.find(
+    (row) =>
+      (row.status.kind === "baja-rotacion" || row.status.kind === "sobrestock") &&
+      row.productId !== money?.productId,
+  );
+  if (slow) {
+    readings.push({
+      key: "slow",
+      label: copy.reportsView.productReadingSlow,
+      product: slow.productName,
+      detail: `${formatMoney(slow.grossSales)} · ${copy.reportsView.chartShare(slow.salesSharePct)}`,
+    });
+  }
+  return readings.slice(0, 4);
+}
+
+function ProductReadingStrip({ rows }: { rows: ProductRow[] }) {
+  const readings = buildReadings(rows);
+  if (readings.length === 0) return null;
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {readings.map((reading) => (
+        <div key={reading.key} className="rounded-kova-md border border-kova-border bg-kova-mist/40 px-3 py-2.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">
+            {reading.label}
+          </p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-kova-ink" title={reading.product}>
+            {reading.product}
+          </p>
+          <p className="truncate text-xs tabular-nums text-kova-muted">{reading.detail}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CriticalRestockStrip({ story }: { story: BusinessStoryReport }) {
   const critical = (story.restock_alerts ?? []).filter((a) => a.severity === "critical").slice(0, 3);
   if (critical.length === 0) return null;
@@ -205,6 +284,7 @@ export function ProductInventoryAnalysis({
       description={copy.reportsView.productInventoryDescription}
     >
       <CriticalRestockStrip story={story} />
+      <ProductReadingStrip rows={rows} />
       {rows.length === 0 ? (
         <p className="rounded-kova-md border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
           {copy.reportsView.noProducts}

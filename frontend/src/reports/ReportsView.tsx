@@ -25,6 +25,16 @@ import type { BusinessStoryReport } from "./types";
 import { activePreset, daysBetweenInclusive, presetRange, type ReportPreset } from "./utils/dateRange";
 import { buildRecommendations } from "./utils/recommendations";
 
+/** Narrative-arc divider: makes the story structure explicit between blocks
+ * (Resumen → Qué hacer ahora → Por qué pasó → Operación y control). */
+function ArcKicker({ label }: { label: string }) {
+  return (
+    <p className="pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-kova-tertiary">
+      {label}
+    </p>
+  );
+}
+
 function recommendationsFor(
   story: BusinessStoryReport,
   previousStory: BusinessStoryReport | null,
@@ -114,8 +124,11 @@ export default function ReportsView() {
           />
           <RecommendationCards
             recommendations={recommendationsFor(story, data.previousStory, data.stock, data.velocity)}
+            story={story}
+            previousStory={data.previousStory}
           />
           <QuickFacts story={story} />
+          <ArcKicker label={copy.reportsView.arcWhy} />
           <TimingAnalysis
             story={story}
             hourly={data.hourly}
@@ -124,6 +137,7 @@ export default function ReportsView() {
           />
           <ProductInventoryAnalysis story={story} stock={data.stock} velocity={data.velocity} />
           <PaymentAnalysis story={story} previousStory={data.previousStory} />
+          <ArcKicker label={copy.reportsView.arcOps} />
           <RefundsAndCancellations story={story} />
           <EmployeePerformance story={story} />
         </div>

@@ -59,6 +59,24 @@ export function ExecutiveSummary({
   const headline = buildHeadline({ summary, netGrowth, prevHasSales, rangeDays, bestDaypart });
   const caption = buildCaption({ previousFailed, prevSummary, prevHasSales, rangeDays });
 
+  // "¿Cuál fue la causa principal?" answered right under the headline. The
+  // growth headline already credits the daypart, so only add it here when the
+  // headline did not; the top product is never in the headline.
+  const headlineCreditsDaypart =
+    prevHasSales && netGrowth.kind === "pct" && netGrowth.value > 0 && bestDaypart !== null;
+  const causeParts: string[] = [];
+  if (story.top_product_by_sales) {
+    causeParts.push(
+      copy.reportsView.causeProduct(
+        story.top_product_by_sales.product_name,
+        story.top_product_by_sales.sales_share_pct,
+      ),
+    );
+  }
+  if (bestDaypart && Number(bestDaypart.net_sales) > 0 && !headlineCreditsDaypart) {
+    causeParts.push(copy.reportsView.causeDaypart(bestDaypart.label, bestDaypart.sales_share_pct));
+  }
+
   const renderDelta = (
     growth: typeof netGrowth,
     current: number,
@@ -76,7 +94,14 @@ export function ExecutiveSummary({
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-lg font-semibold text-kova-ink">{copy.reportsView.summaryTitle}</h2>
       </div>
-      <p className="max-w-3xl text-sm leading-6 text-kova-ink">{headline}</p>
+      <div className="max-w-3xl space-y-1">
+        <p className="text-sm leading-6 text-kova-ink">{headline}</p>
+        {causeParts.length > 0 ? (
+          <p className="text-sm leading-6 text-kova-muted">
+            {copy.reportsView.headlineCause(causeParts)}
+          </p>
+        ) : null}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <StatTile
