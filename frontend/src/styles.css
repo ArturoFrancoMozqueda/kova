@@ -42,7 +42,7 @@
     --border: 214 18% 88%;
     --input: 214 18% 88%;
     --ring: 225 91% 64%;
-    --radius: 0.625rem;
+    --radius: 0.875rem;
 
     /* Sidebar — Kova ink palette. HSL equivalents of the brand hex tokens
        so the existing hsl(var(--sidebar...)) Tailwind mappings keep working. */
@@ -70,19 +70,26 @@
     --kova-on-ink: #F0F4FF;
     --kova-ink-border: #1E2330;
 
-    --radius-kova-sm: 6px;
-    --radius-kova-md: 8px;
-    --radius-kova-lg: 10px;
-    --radius-kova-xl: 14px;
+    --radius-kova-sm: 8px;
+    --radius-kova-md: 12px;
+    --radius-kova-lg: 16px;
+    --radius-kova-xl: 20px;
 
     --kova-ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
     --kova-ease-exit: cubic-bezier(0.4, 0, 1, 1);
     --kova-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    /* Hairline shadows for premium card feel (Stripe/Linear inspired). */
-    --kova-shadow-card: 0 1px 2px -1px rgba(15, 17, 23, 0.04), 0 1px 1px rgba(15, 17, 23, 0.03);
-    --kova-shadow-card-hover: 0 2px 8px -2px rgba(15, 17, 23, 0.08), 0 1px 2px rgba(15, 17, 23, 0.04);
+    /* Soft layered shadows so cards float over the page like premium
+       dashboard surfaces, while staying hairline-subtle up close. */
+    --kova-shadow-card: 0 1px 2px rgba(15, 17, 23, 0.03), 0 6px 16px -10px rgba(15, 17, 23, 0.08);
+    --kova-shadow-card-hover: 0 2px 8px -2px rgba(15, 17, 23, 0.08), 0 10px 24px -12px rgba(15, 17, 23, 0.12);
     --kova-shadow-hero: 0 24px 60px -20px rgba(15, 17, 23, 0.25);
+
+    /* Pastel gradient washes for KPI tiles (single-hue family: brand blue
+       + growth teal), dark ink text stays on top for contrast. */
+    --kova-grad-blue: linear-gradient(135deg, #eef3ff 0%, #e2ebff 55%, #ddf0ff 100%);
+    --kova-grad-mint: linear-gradient(135deg, #e9fbf4 0%, #ddf6ec 55%, #e2f3ff 100%);
+    --kova-grad-sky: linear-gradient(135deg, #f2f6ff 0%, #e9f1ff 55%, #eef9ff 100%);
   }
 
   @keyframes kovaLivePulse {

@@ -6,7 +6,7 @@ import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
-import { ExecutiveSummary } from "./components/ExecutiveSummary";
+import { ExecutiveSummary, QuickFacts } from "./components/ExecutiveSummary";
 import { EmployeePerformance } from "./components/EmployeePerformance";
 import { PaymentAnalysis } from "./components/PaymentAnalysis";
 import { ProductInventoryAnalysis } from "./components/ProductInventoryAnalysis";
@@ -87,7 +87,7 @@ export default function ReportsView() {
   const story = data.story;
 
   return (
-    <main className="flex-1 space-y-6 p-4 sm:p-6">
+    <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 p-4 sm:p-6">
       <ReportsHeader
         startDate={startDate}
         endDate={endDate}
@@ -105,7 +105,7 @@ export default function ReportsView() {
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}
 
       {hasSales && story ? (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <ExecutiveSummary
             story={story}
             previousStory={data.previousStory}
@@ -115,6 +115,7 @@ export default function ReportsView() {
           <RecommendationCards
             recommendations={recommendationsFor(story, data.previousStory, data.stock, data.velocity)}
           />
+          <QuickFacts story={story} />
           <TimingAnalysis
             story={story}
             hourly={data.hourly}

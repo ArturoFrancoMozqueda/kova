@@ -7,24 +7,36 @@ import { formatMoneyDelta } from "@/orders/format";
 import { formatSignedPercent } from "../utils/format";
 import type { GrowthResult } from "../utils/calculations";
 
+export type StatTileTone = "blue" | "mint" | "sky";
+
+const TONE_BG: Record<StatTileTone, string> = {
+  blue: "bg-kova-grad-blue",
+  mint: "bg-kova-grad-mint",
+  sky: "bg-kova-grad-sky",
+};
+
 /** KPI tile mirroring the dashboard Panel anatomy: uppercase label + icon tile,
- * a large tabular value, and a delta/comparison line below. */
+ * a large tabular value, and a delta/comparison line below. Each tile carries a
+ * soft pastel gradient wash (brand blue / growth mint family) with ink text on
+ * top, so the KPI row reads premium without leaving the single-hue system. */
 export function StatTile({
   label,
   value,
   icon,
+  tone = "sky",
   children,
 }: {
   label: string;
   value: string;
   icon: ReactNode;
+  tone?: StatTileTone;
   children?: ReactNode;
 }) {
   return (
-    <div className="rounded-kova-lg border border-kova-border bg-gradient-to-br from-white to-kova-mist/40 p-5 shadow-kova-card">
+    <div className={`rounded-kova-lg border border-kova-border p-5 shadow-kova-card ${TONE_BG[tone]}`}>
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">{label}</p>
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-kova-mist text-kova-muted">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-kova-muted">{label}</p>
+        <span className="flex h-9 w-9 items-center justify-center rounded-kova-md bg-white/70 text-kova-muted">
           {icon}
         </span>
       </div>

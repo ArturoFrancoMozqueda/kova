@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { makeStory } from "../__fixtures__/story";
@@ -13,12 +13,18 @@ describe("RefundsAndCancellations", () => {
     expect(screen.getByText(/Buena señal operativa/i)).toBeInTheDocument();
   });
 
-  it("treats a single small refund as an isolated event, not a pattern", () => {
+  it("collapses a calm operation to a status line with detail one tap away", () => {
+    // A single small refund is calm: the section leads with one summary line
+    // and only opens tiles + reasons on demand (progressive disclosure).
     const story = makeStory({
       summary: { ...makeStory().summary, refund_count: 1, refund_total: "80", gross_sales: "10000" },
       refunds_by_reason: [{ reason: "customer_return", refund_count: 1, refunded_amount: "80" }],
     });
     render(<RefundsAndCancellations story={story} />);
+    expect(screen.getByText(/nivel normal/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no es un patrón/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /ver detalle/i }));
     expect(screen.getByText(/no es un patrón/i)).toBeInTheDocument();
   });
 

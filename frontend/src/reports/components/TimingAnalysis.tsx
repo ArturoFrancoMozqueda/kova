@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Clock3 } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
@@ -5,6 +6,7 @@ import { formatDayLong, formatDayShort, formatDayWithWeekday } from "@/i18n/date
 import { formatMoney } from "@/orders/format";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { RankBarChart } from "../charts/RankBarChart";
 import { SalesTrendChart, type SalesDayPoint } from "../charts/SalesTrendChart";
 import type { ChartRow } from "../charts/types";
@@ -58,6 +60,15 @@ function buildDayPoints(story: BusinessStoryReport): SalesDayPoint[] {
   return points;
 }
 
+/** When more than half of the range is zero-days before the first sale, the
+ * chart looks broken instead of "young business" — one caption explains it. */
+function firstSaleNote(points: SalesDayPoint[]): string | null {
+  const firstSaleIndex = points.findIndex((point) => !point.isZero);
+  if (firstSaleIndex <= 0) return null;
+  if (firstSaleIndex / points.length <= 0.5) return null;
+  return copy.reportsView.salesTrendStartedNote(points[firstSaleIndex].fullLabel);
+}
+
 function DaypartDelta({ current, previous }: { current: DaypartRow; previous: DaypartRow | null }) {
   if (!previous || previous.order_count < 3) {
     return <span className="text-xs text-kova-muted">{copy.reportsView.daypartNoComparison}</span>;
@@ -87,6 +98,9 @@ function DaypartGrid({
   story: BusinessStoryReport;
   previousStory: BusinessStoryReport | null;
 }) {
+  // When the previous period had no sales at all, the summary caption already
+  // says so once — repeating "Sin comparación" per block is noise.
+  const prevComparable = (previousStory?.summary.completed_orders ?? 0) > 0;
   const prevByKey = new Map((previousStory?.sales_by_daypart ?? []).map((row) => [row.key, row]));
   // Hide madrugada when it never had an order in the whole range (closed hours).
   const dayparts = story.sales_by_daypart.filter(
@@ -126,9 +140,11 @@ function DaypartGrid({
                     {copy.reportsView.chartShare(row.sales_share_pct)} · {row.order_count}{" "}
                     {copy.reportsView.orders.toLowerCase()} · {formatMoney(row.average_ticket)}
                   </p>
-                  <div className="mt-1">
-                    <DaypartDelta current={row} previous={prevByKey.get(row.key) ?? null} />
-                  </div>
+                  {prevComparable ? (
+                    <div className="mt-1">
+                      <DaypartDelta current={row} previous={prevByKey.get(row.key) ?? null} />
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>
@@ -207,6 +223,9 @@ function HourlySection({
   hourlyFailed: boolean;
   rangeDays: number;
 }) {
+  // Progressive disclosure: the worst-hours ranking duplicates the shape of
+  // "mejores horas" and only matters on longer reads, so it stays one tap away.
+  const [showWorst, setShowWorst] = useState(false);
   if (hourlyFailed) {
     return <PartialFailureNote message={copy.reportsView.hourlyUnavailable} />;
   }
@@ -216,21 +235,28 @@ function HourlySection({
     return <PartialFailureNote message={copy.reportsView.noHourlySales} />;
   }
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
-      <RankBarChart
-        title={copy.reportsView.hourlyTopTitle}
-        subtitle={copy.reportsView.hourlyChartSubtitle}
-        rows={top}
-        emptyLabel={copy.reportsView.noHourlySales}
-        valueFormatter={(value) => formatMoney(value)}
-      />
-      {worst.length > 0 ? (
+    <div className="space-y-3">
+      <div className="grid gap-6 xl:grid-cols-2">
         <RankBarChart
-          title={copy.reportsView.hourlyWorstTitleActive}
-          rows={worst}
+          title={copy.reportsView.hourlyTopTitle}
+          subtitle={copy.reportsView.hourlyChartSubtitle}
+          rows={top}
           emptyLabel={copy.reportsView.noHourlySales}
           valueFormatter={(value) => formatMoney(value)}
         />
+        {worst.length > 0 && showWorst ? (
+          <RankBarChart
+            title={copy.reportsView.hourlyWorstTitleActive}
+            rows={worst}
+            emptyLabel={copy.reportsView.noHourlySales}
+            valueFormatter={(value) => formatMoney(value)}
+          />
+        ) : null}
+      </div>
+      {worst.length > 0 ? (
+        <Button variant="ghost" size="sm" onClick={() => setShowWorst((value) => !value)}>
+          {showWorst ? copy.reportsView.hourlyWorstHide : copy.reportsView.hourlyWorstShow}
+        </Button>
       ) : null}
     </div>
   );
@@ -278,6 +304,7 @@ export function TimingAnalysis({
             bestDayId={bestDayId}
             rangeDays={rangeDays}
             srSummary={srSummary}
+            note={firstSaleNote(points)}
           />
         ) : null}
         <DaypartGrid story={story} previousStory={previousStory} />

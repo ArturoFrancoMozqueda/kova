@@ -22,7 +22,9 @@ function contextLine(story: BusinessStoryReport, previousStory: BusinessStoryRep
   }
   const previousMethods = new Set((previousStory?.payment_mix ?? []).map((row) => row.method));
   const currentMethods = new Set(mix.map((row) => row.method));
-  if (previousStory) {
+  // Only flag new/lost methods against a previous period that actually had
+  // sales — with a young history everything is "new" and the note is noise.
+  if (previousStory && previousStory.summary.completed_orders > 0) {
     const newMethod = mix.find((row) => !previousMethods.has(row.method));
     if (newMethod) return copy.reportsView.paymentInsightNewMethod(reasonLabel(newMethod.method));
     const lost = [...previousMethods].find((method) => !currentMethods.has(method));
@@ -55,8 +57,9 @@ export function PaymentAnalysis({
       title={copy.reportsView.paymentOperationsTitle}
       description={copy.reportsView.paymentOperationsDescription}
     >
+      {/* The section question is the only title; a second "Cómo te pagaron"
+          heading right below it reads duplicated. */}
       <RankBarChart
-        title={copy.reportsView.paymentBreakdown}
         subtitle={copy.reportsView.paymentChartSubtitle}
         rows={rows}
         emptyLabel={copy.reportsView.noPayments}

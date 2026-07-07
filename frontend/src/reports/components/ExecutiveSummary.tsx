@@ -56,7 +56,6 @@ export function ExecutiveSummary({
   );
 
   const bestDaypart = bestDaypartRow(story);
-  const bestDay = bestDayRow(story);
   const headline = buildHeadline({ summary, netGrowth, prevHasSales, rangeDays, bestDaypart });
   const caption = buildCaption({ previousFailed, prevSummary, prevHasSales, rangeDays });
 
@@ -66,8 +65,9 @@ export function ExecutiveSummary({
     previous: number | null,
     format: "money" | "count",
   ) => {
-    if (previousFailed) return null;
-    if (!prevHasSales) return <span className="text-xs text-kova-muted">{copy.reportsView.deltaEmptyPrevious}</span>;
+    // Without a comparable previous period the caption below the KPI row says
+    // it once; repeating the same note inside every tile is noise.
+    if (previousFailed || !prevHasSales) return null;
     return <DeltaChip growth={growth} current={current} previous={previous ?? 0} format={format} />;
   };
 
@@ -78,11 +78,12 @@ export function ExecutiveSummary({
       </div>
       <p className="max-w-3xl text-sm leading-6 text-kova-ink">{headline}</p>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         <StatTile
           label={copy.reportsView.kpiNetSalesLabel}
           value={formatMoney(summary.net_sales)}
           icon={<DollarSign className="h-4 w-4" />}
+          tone="blue"
         >
           {renderDelta(netGrowth, Number(summary.net_sales), prevSummary ? Number(prevSummary.net_sales) : null, "money")}
         </StatTile>
@@ -90,6 +91,7 @@ export function ExecutiveSummary({
           label={copy.reportsView.kpiOrdersLabel}
           value={String(summary.completed_orders)}
           icon={<ShoppingCart className="h-4 w-4" />}
+          tone="mint"
         >
           {renderDelta(orderGrowth, summary.completed_orders, prevSummary?.completed_orders ?? null, "count")}
         </StatTile>
@@ -97,39 +99,48 @@ export function ExecutiveSummary({
           label={copy.reportsView.kpiAvgTicketLabel}
           value={formatMoney(summary.average_ticket)}
           icon={<Receipt className="h-4 w-4" />}
+          tone="sky"
         >
           {renderDelta(ticketGrowth, Number(summary.average_ticket), prevSummary ? Number(prevSummary.average_ticket) : null, "money")}
         </StatTile>
       </div>
 
       {caption ? <p className="text-xs text-kova-muted">{caption}</p> : null}
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Fact
-          label={copy.reportsView.factBestDay}
-          value={bestDay ? formatDayWithWeekday(bestDay.date) : copy.reportsView.factEmpty}
-        />
-        <Fact
-          label={copy.reportsView.factPeakHour}
-          value={story.peak_hour?.label ?? copy.reportsView.factEmpty}
-        />
-        <Fact
-          label={copy.reportsView.factTopProduct}
-          value={story.top_product_by_sales?.product_name ?? copy.reportsView.factEmpty}
-        />
-        <Fact
-          label={copy.reportsView.factDominantPayment}
-          value={
-            story.dominant_payment
-              ? copy.reportsView.factDominantPaymentValue(
-                  reasonLabel(story.dominant_payment.method),
-                  story.dominant_payment.sales_share_pct,
-                )
-              : copy.reportsView.factEmpty
-          }
-        />
-      </div>
     </section>
+  );
+}
+
+/** Quick-facts strip (best day, peak hour, top product, dominant payment).
+ * Rendered after the recommendations as the bridge between "qué hacer" and
+ * the analysis sections, so it never competes with the priority action. */
+export function QuickFacts({ story }: { story: BusinessStoryReport }) {
+  const bestDay = bestDayRow(story);
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <Fact
+        label={copy.reportsView.factBestDay}
+        value={bestDay ? formatDayWithWeekday(bestDay.date) : copy.reportsView.factEmpty}
+      />
+      <Fact
+        label={copy.reportsView.factPeakHour}
+        value={story.peak_hour?.label ?? copy.reportsView.factEmpty}
+      />
+      <Fact
+        label={copy.reportsView.factTopProduct}
+        value={story.top_product_by_sales?.product_name ?? copy.reportsView.factEmpty}
+      />
+      <Fact
+        label={copy.reportsView.factDominantPayment}
+        value={
+          story.dominant_payment
+            ? copy.reportsView.factDominantPaymentValue(
+                reasonLabel(story.dominant_payment.method),
+                story.dominant_payment.sales_share_pct,
+              )
+            : copy.reportsView.factEmpty
+        }
+      />
+    </div>
   );
 }
 
@@ -147,6 +158,14 @@ function buildHeadline({
   bestDaypart: ReturnType<typeof bestDaypartRow>;
 }): string {
   const amount = formatMoney(summary.net_sales);
+  // Single-day ranges compare against yesterday and speak in "hoy", never
+  // "en estos 1 día".
+  if (rangeDays === 1 && prevHasSales && netGrowth.kind === "pct" && netGrowth.value > 0) {
+    return copy.reportsView.headlineTodayGrowth(amount, netGrowth.value, bestDaypart?.label ?? null);
+  }
+  if (rangeDays === 1 && prevHasSales && netGrowth.kind === "pct" && netGrowth.value < 0) {
+    return copy.reportsView.headlineTodayDecline(amount, Math.abs(netGrowth.value));
+  }
   if (prevHasSales && netGrowth.kind === "pct" && netGrowth.value > 0) {
     return copy.reportsView.headlineGrowth(amount, rangeDays, netGrowth.value, bestDaypart?.label ?? null);
   }

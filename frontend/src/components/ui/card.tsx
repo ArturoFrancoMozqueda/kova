@@ -6,7 +6,7 @@ const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     <div
       ref={ref}
       className={cn(
-        "rounded-kova-lg border-[0.5px] border-kova-border bg-white text-kova-ink transition-shadow",
+        "rounded-kova-lg border-[0.5px] border-kova-border bg-white text-kova-ink shadow-kova-card transition-shadow",
         className,
       )}
       {...props}

@@ -410,16 +410,23 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
 
   await page.goto("/reports");
   await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
+
+  // On phones the manual range hides behind "Personalizar" so the first
+  // screen leads with data; presets stay one tap away.
+  await expect(page.getByRole("button", { name: /7 días/i })).toBeVisible();
+  await expect(page.getByLabel(/fecha inicial/i)).toBeHidden();
+  await page.getByRole("button", { name: /personalizar/i }).click();
   await expect(page.getByRole("button", { name: /aplicar/i })).toBeVisible();
   await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
   await page.getByLabel(/fecha final/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
-  await expect(page.getByText(/resumen ejecutivo/i)).toBeVisible();
+  await expect(page.getByText("Resumen del periodo")).toBeVisible();
   await expect(page.getByText(/Tarde/).first()).toBeVisible();
   await expectMobileTaskNavigation(page);
   await expectNoHorizontalOverflow(page);
 
+  // Tablet and up: the manual range is always visible, no toggle needed.
   await page.setViewportSize({ width: 768, height: 1024 });
   await expect(page.getByRole("button", { name: /aplicar/i })).toBeVisible();
   await expectNoHorizontalOverflow(page);

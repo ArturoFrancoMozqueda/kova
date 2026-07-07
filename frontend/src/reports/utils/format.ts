@@ -39,3 +39,19 @@ export function formatSignedPercent(pct: number): string {
 export function formatPercent(pct: number): string {
   return `${Math.round(pct)}%`;
 }
+
+/**
+ * Human display name for a team member. Accounts created by email often have
+ * the raw address as `display_name`; showing "sofia@bakery.local" (truncated)
+ * as a person breaks the premium read. Falls back to the capitalized local
+ * part of the email; real names pass through untouched.
+ */
+export function displayPersonName(name: string): string {
+  if (!name.includes("@")) return name;
+  const local = name.split("@")[0];
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}

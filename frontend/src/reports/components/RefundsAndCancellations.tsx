@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
+import { Button } from "@/components/ui/button";
 import { formatMoney, reasonLabel } from "@/orders/format";
 import { cn } from "@/lib/utils";
 import type { BusinessStoryReport } from "../types";
@@ -54,6 +56,7 @@ function Tile({
 }
 
 export function RefundsAndCancellations({ story }: { story: BusinessStoryReport }) {
+  const [detailOpen, setDetailOpen] = useState(false);
   const summary = story.summary;
   const refundCount = summary.refund_count;
   const cancelCount = summary.cancellation_count;
@@ -87,6 +90,32 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
   const rest = reasons.slice(6);
   const restAmount = rest.reduce((sum, row) => sum + Number(row.refunded_amount), 0);
   const restCount = rest.reduce((sum, row) => sum + row.refund_count, 0);
+
+  // Calm operation (both signals at "info"): one status line, detail one tap
+  // away. The tiles and table only open by default when something needs eyes.
+  const calm = refund.tone === "info" && cancel.tone === "info";
+  if (calm && !detailOpen) {
+    return (
+      <ReportSection
+        icon={<RotateCcw className="h-5 w-5 text-muted-foreground" />}
+        title={copy.reportsView.refundsSectionTitle}
+        description={copy.reportsView.refundsSectionDescription}
+      >
+        <p className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/5 p-4 text-sm text-kova-ink">
+          {copy.reportsView.refundsCalmSummary(
+            copy.reportsView.refundCountValue(refundCount),
+            formatMoney(summary.refund_total),
+            copy.reportsView.cancelCountValue(cancelCount),
+          )}
+        </p>
+        <div className="mt-3">
+          <Button variant="ghost" size="sm" onClick={() => setDetailOpen(true)}>
+            {copy.reportsView.refundsShowDetail}
+          </Button>
+        </div>
+      </ReportSection>
+    );
+  }
 
   return (
     <ReportSection
@@ -143,6 +172,16 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
               ) : null}
             </tbody>
           </table>
+        </div>
+      ) : null}
+      {reasons.length === 1 ? (
+        <p className="mt-2 text-xs text-muted-foreground">{copy.reportsView.refundReasonHint}</p>
+      ) : null}
+      {calm ? (
+        <div className="mt-3">
+          <Button variant="ghost" size="sm" onClick={() => setDetailOpen(false)}>
+            {copy.reportsView.refundsHideDetail}
+          </Button>
         </div>
       ) : null}
     </ReportSection>

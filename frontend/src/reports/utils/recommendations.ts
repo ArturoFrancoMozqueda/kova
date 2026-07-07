@@ -272,20 +272,39 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
     });
   }
 
-  // --- R11: Producto nuevo funcionando (Baja) ---
+  // --- R11: Producto nuevo funcionando (Baja), aggregated when ≥3 like R7.
+  // Without aggregation a young catalog floods the section with identical
+  // "arrancó bien" cards and buries the one action that matters.
   const newWinners = (story.product_trends?.growing ?? []).filter(
     (row) => row.trend === "new" && row.current_units >= 10,
   );
-  for (const row of newWinners) {
+  if (newWinners.length >= 3) {
+    const ranked = [...newWinners].sort((a, b) => b.current_units - a.current_units);
+    const totalUnits = ranked.reduce((sum, row) => sum + row.current_units, 0);
     out.push({
       id: "R11",
-      subjectId: row.product_id,
+      subjectId: "new-products-multi",
       priority: "baja",
       tone: "opportunity",
-      finding: rec.newProductFinding(row.product_name),
-      evidence: rec.newProductEvidence(row.current_units),
-      action: rec.newProductAction,
+      finding: rec.newProductMultiFinding(ranked.length),
+      evidence: rec.newProductMultiEvidence(
+        ranked.slice(0, 3).map((row) => row.product_name),
+        totalUnits,
+      ),
+      action: rec.newProductMultiAction,
     });
+  } else {
+    for (const row of newWinners) {
+      out.push({
+        id: "R11",
+        subjectId: row.product_id,
+        priority: "baja",
+        tone: "opportunity",
+        finding: rec.newProductFinding(row.product_name),
+        evidence: rec.newProductEvidence(row.current_units),
+        action: rec.newProductAction,
+      });
+    }
   }
 
   // --- R12: Sobrestock (Baja) ---

@@ -75,6 +75,11 @@ export default {
         "kova-card-hover": "var(--kova-shadow-card-hover)",
         "kova-hero": "var(--kova-shadow-hero)",
       },
+      backgroundImage: {
+        "kova-grad-blue": "var(--kova-grad-blue)",
+        "kova-grad-mint": "var(--kova-grad-mint)",
+        "kova-grad-sky": "var(--kova-grad-sky)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

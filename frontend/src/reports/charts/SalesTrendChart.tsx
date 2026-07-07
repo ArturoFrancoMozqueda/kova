@@ -83,12 +83,14 @@ export function SalesTrendChart({
   bestDayId,
   rangeDays,
   srSummary,
+  note,
 }: {
   points: SalesDayPoint[];
   average: number;
   bestDayId: string | null;
   rangeDays: number;
   srSummary?: string;
+  note?: string | null;
 }) {
   const { activeId, toggle, preview } = useChartSelection(bestDayId);
   const hasSales = points.some((point) => point.value > 0);
@@ -108,7 +110,10 @@ export function SalesTrendChart({
       emptyLabel={copy.reportsView.salesTrendChartTitle}
     >
       <ResponsiveContainer width="100%" height={256}>
-        <ComposedChart data={data} margin={{ top: 24, right: 8, bottom: 4, left: 4 }} accessibilityLayer>
+        {/* No accessibilityLayer: on touch devices it pins a tooltip over the
+            chart on load (focus shows index 0, often an empty day). The
+            sr-only summary + persistent detail card carry accessibility. */}
+        <ComposedChart data={data} margin={{ top: 24, right: 8, bottom: 4, left: 4 }}>
           <XAxis
             dataKey="axisLabel"
             interval={tickInterval(rangeDays)}
@@ -163,6 +168,7 @@ export function SalesTrendChart({
           </Bar>
         </ComposedChart>
       </ResponsiveContainer>
+      {note ? <p className="mt-2 text-xs text-kova-muted">{note}</p> : null}
       {activePoint ? (
         <div className="mt-4 rounded-kova-md border border-kova-border bg-white p-3" role="status">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

@@ -127,6 +127,42 @@ describe("buildRecommendations", () => {
     expect(result[0].subjectId).toBe("declining-multi");
   });
 
+  it("aggregates R11 into one card when three or more new products start well", () => {
+    const growing = ["p1", "p2", "p3", "p4"].map((id, index) => ({
+      product_id: id,
+      product_name: `Nuevo ${index + 1}`,
+      current_units: 16 - index,
+      previous_units: 0,
+      delta_units: 16 - index,
+      delta_pct: 100,
+      current_gross: "400",
+      previous_gross: "0",
+      trend: "new" as const,
+    }));
+    const story = makeStory({ product_trends: { growing, declining: [], slow_movers: [] } });
+    const result = buildRecommendations(emptyInput(story, null)).filter((r) => r.id === "R11");
+    expect(result).toHaveLength(1);
+    expect(result[0].subjectId).toBe("new-products-multi");
+    expect(result[0].finding).toContain("4 productos nuevos");
+  });
+
+  it("keeps per-product R11 cards below the aggregation threshold", () => {
+    const growing = ["p1", "p2"].map((id, index) => ({
+      product_id: id,
+      product_name: `Nuevo ${index + 1}`,
+      current_units: 12,
+      previous_units: 0,
+      delta_units: 12,
+      delta_pct: 100,
+      current_gross: "300",
+      previous_gross: "0",
+      trend: "new" as const,
+    }));
+    const story = makeStory({ product_trends: { growing, declining: [], slow_movers: [] } });
+    const result = buildRecommendations(emptyInput(story, null)).filter((r) => r.id === "R11");
+    expect(result).toHaveLength(2);
+  });
+
   it("fires R13 (clean ops) as a low-priority good signal", () => {
     const story = makeStory();
     const result = buildRecommendations(emptyInput(story, null));

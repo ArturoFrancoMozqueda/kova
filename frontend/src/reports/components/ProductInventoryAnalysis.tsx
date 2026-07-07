@@ -17,6 +17,9 @@ import { formatSignedPercent } from "../utils/format";
 import { ReportSection } from "./ReportSection";
 
 const COLLAPSED_ROWS = 10;
+// Phones pay ~150px per product card; five visible rows keep the section
+// scannable and the rest stays behind the existing toggle.
+const COLLAPSED_ROWS_MOBILE = 5;
 
 type ProductRow = {
   productId: string;
@@ -192,7 +195,8 @@ export function ProductInventoryAnalysis({
   const [expanded, setExpanded] = useState(false);
   const rows = buildRows(story, stock, velocity);
   const visible = expanded ? rows : rows.slice(0, COLLAPSED_ROWS);
-  const hasMore = rows.length > COLLAPSED_ROWS;
+  const visibleMobile = expanded ? rows : rows.slice(0, COLLAPSED_ROWS_MOBILE);
+  const hasMore = rows.length > COLLAPSED_ROWS_MOBILE;
 
   return (
     <ReportSection
@@ -209,7 +213,7 @@ export function ProductInventoryAnalysis({
         <>
           {/* Mobile: stacked cards */}
           <div className="space-y-3 sm:hidden">
-            {visible.map((row) => {
+            {visibleMobile.map((row) => {
               const inventory = inventoryLabel(row);
               const detail = statusDetail(row.status);
               return (
@@ -308,7 +312,9 @@ export function ProductInventoryAnalysis({
           </div>
 
           {hasMore ? (
-            <div className="mt-3">
+            // On sm+ the table already shows up to COLLAPSED_ROWS, so the
+            // toggle only renders there when it actually reveals more rows.
+            <div className={cn("mt-3", rows.length <= COLLAPSED_ROWS && "sm:hidden")}>
               <Button variant="ghost" size="sm" onClick={() => setExpanded((value) => !value)}>
                 {expanded ? copy.reportsView.productsShowLess : copy.reportsView.productsShowAll(rows.length)}
               </Button>

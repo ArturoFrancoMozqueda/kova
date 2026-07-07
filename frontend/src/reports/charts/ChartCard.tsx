@@ -14,7 +14,7 @@ export function ChartCard({
   emptyLabel,
   children,
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
   srSummary?: string;
   isEmpty: boolean;
@@ -23,10 +23,12 @@ export function ChartCard({
 }) {
   return (
     <section className="space-y-3">
-      <div>
-        <h3 className="text-sm font-semibold text-kova-ink">{title}</h3>
-        {subtitle ? <p className="mt-0.5 text-xs leading-5 text-kova-muted">{subtitle}</p> : null}
-      </div>
+      {title || subtitle ? (
+        <div>
+          {title ? <h3 className="text-sm font-semibold text-kova-ink">{title}</h3> : null}
+          {subtitle ? <p className="mt-0.5 text-xs leading-5 text-kova-muted">{subtitle}</p> : null}
+        </div>
+      ) : null}
       {isEmpty ? (
         <div className="flex min-h-32 items-center justify-center rounded-kova-md border border-dashed border-kova-border bg-kova-mist/40 p-6 text-center text-sm text-kova-muted">
           {emptyLabel}
