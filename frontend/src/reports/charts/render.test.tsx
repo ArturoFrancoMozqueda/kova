@@ -1,5 +1,5 @@
 import { cloneElement, isValidElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // jsdom has no layout, so Recharts' ResponsiveContainer measures 0x0 and draws
@@ -17,6 +17,7 @@ vi.mock("recharts", async (importOriginal) => {
   };
 });
 
+import { DistributionBar, type DistributionSegment } from "./DistributionBar";
 import { RankBarChart } from "./RankBarChart";
 import { SalesTrendChart, type SalesDayPoint } from "./SalesTrendChart";
 import type { ChartRow } from "./types";
@@ -50,6 +51,23 @@ describe("chart rendering (with a real size)", () => {
     // Best day is pre-selected → detail card is populated without interaction.
     expect(screen.getByText("Mejor día del periodo")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("MX$4,210");
+  });
+
+  it("draws the payment mix as one stacked 100% bar with a single-source legend", () => {
+    const segments: DistributionSegment[] = [
+      { id: "cash", label: "Efectivo", value: 6700, valueLabel: "MX$6,700", sharePct: 67, meta: "6 transacciones" },
+      { id: "card", label: "Tarjeta", value: 3300, valueLabel: "MX$3,300", sharePct: 33, meta: "3 transacciones" },
+    ];
+    const { container } = render(
+      <DistributionBar segments={segments} emptyLabel="Sin pagos" srSummary="Efectivo: 67%, Tarjeta: 33%." />,
+    );
+    expect(container.querySelector("svg")).toBeInTheDocument();
+    // One stacked rectangle per method.
+    expect(container.querySelectorAll(".recharts-bar-rectangle").length).toBe(2);
+    // Legend carries label, share and amount exactly once each.
+    expect(screen.getByText("Efectivo")).toBeInTheDocument();
+    expect(screen.getByText("67%")).toBeInTheDocument();
+    expect(screen.getAllByText("MX$6,700")).toHaveLength(1);
   });
 
   it("keeps the reference-line and best-day labels legible", () => {

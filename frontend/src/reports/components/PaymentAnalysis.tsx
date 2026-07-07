@@ -2,8 +2,7 @@ import { CreditCard } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
 import { formatMoney, reasonLabel } from "@/orders/format";
-import { RankBarChart } from "../charts/RankBarChart";
-import type { ChartRow } from "../charts/types";
+import { DistributionBar, type DistributionSegment } from "../charts/DistributionBar";
 import type { BusinessStoryReport } from "../types";
 import { ReportSection } from "./ReportSection";
 
@@ -40,16 +39,18 @@ export function PaymentAnalysis({
   story: BusinessStoryReport;
   previousStory: BusinessStoryReport | null;
 }) {
-  const rows: ChartRow[] = story.payment_mix.map((row) => ({
+  const segments: DistributionSegment[] = story.payment_mix.map((row) => ({
     id: row.method,
     label: reasonLabel(row.method),
     value: Number(row.amount),
     valueLabel: formatMoney(row.amount),
-    meta: [
-      { label: copy.reportsView.chartShareLabel, value: `${row.sales_share_pct}%` },
-      { label: copy.reportsView.chartPayments, value: copy.reportsView.paymentTransactions(row.payment_count) },
-    ],
+    sharePct: row.sales_share_pct,
+    meta: copy.reportsView.paymentTransactions(row.payment_count),
   }));
+  const srSummary =
+    segments.length > 0
+      ? segments.map((segment) => `${segment.label}: ${segment.sharePct}%`).join(", ") + "."
+      : undefined;
 
   return (
     <ReportSection
@@ -57,15 +58,15 @@ export function PaymentAnalysis({
       title={copy.reportsView.paymentOperationsTitle}
       description={copy.reportsView.paymentOperationsDescription}
     >
-      {/* The section question is the only title; a second "Cómo te pagaron"
-          heading right below it reads duplicated. */}
-      <RankBarChart
+      {/* Composition, not ranking: one 100% bar shows how the whole cobro
+          splits by method; the legend carries each number exactly once. */}
+      <DistributionBar
         subtitle={copy.reportsView.paymentChartSubtitle}
-        rows={rows}
+        segments={segments}
         emptyLabel={copy.reportsView.noPayments}
-        valueFormatter={(value) => formatMoney(value)}
+        srSummary={srSummary}
       />
-      {rows.length > 0 ? (
+      {segments.length > 0 ? (
         <p className="mt-3 rounded-kova-md border border-kova-border bg-kova-mist/40 p-3 text-sm leading-6 text-kova-ink">
           {contextLine(story, previousStory)}
         </p>

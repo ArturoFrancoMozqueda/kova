@@ -5,7 +5,6 @@ import {
   LabelList,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -36,39 +35,6 @@ function tickInterval(rangeDays: number): number {
   if (rangeDays <= 8) return 0;
   if (rangeDays > 31) return 6;
   return Math.max(0, Math.ceil(rangeDays / 6) - 1);
-}
-
-function TrendTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: SalesDayPoint }>;
-}) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0].payload;
-  return (
-    <div className="rounded-kova-md border border-kova-border bg-white p-2.5 shadow-kova-card">
-      <p className="text-sm font-semibold text-kova-ink">{point.fullLabel}</p>
-      {point.isZero ? (
-        <p className="mt-1 text-xs text-kova-muted">{copy.reportsView.salesTrendZeroDay}</p>
-      ) : (
-        <div className="mt-1 space-y-0.5 text-xs text-kova-muted">
-          <p>
-            {copy.reportsView.salesTrendTooltipSales}:{" "}
-            <span className="font-semibold tabular-nums text-kova-ink">{point.valueLabel}</span>
-          </p>
-          <p>
-            {copy.reportsView.salesTrendTooltipOrders}: {point.orderCount}
-          </p>
-          <p>
-            {copy.reportsView.salesTrendTooltipTicket}: {point.avgTicketLabel}
-          </p>
-          {point.vsPrevLabel ? <p>{copy.reportsView.salesTrendVsPrevDay(point.vsPrevLabel)}</p> : null}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /**
@@ -130,7 +96,9 @@ export function SalesTrendChart({
             tick={{ fontSize: 11, fill: "var(--kova-muted)" }}
             tickFormatter={(value: number) => formatCompactMoney(value)}
           />
-          <Tooltip content={<TrendTooltip />} cursor={{ fill: "var(--kova-mist)" }} />
+          {/* No Tooltip: hovering a bar already previews it into the detail
+              card below, so a floating box would repeat the same numbers on
+              top of the chart. */}
           <ReferenceLine
             y={average}
             stroke="var(--kova-tertiary)"
@@ -185,6 +153,9 @@ export function SalesTrendChart({
             <span>
               {copy.reportsView.salesTrendTooltipTicket}: {activePoint.avgTicketLabel}
             </span>
+            {activePoint.vsPrevLabel ? (
+              <span>{copy.reportsView.salesTrendVsPrevDay(activePoint.vsPrevLabel)}</span>
+            ) : null}
           </div>
         </div>
       ) : null}

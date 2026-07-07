@@ -1,11 +1,9 @@
-import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, XAxis, YAxis } from "recharts";
 
-import { copy } from "@/i18n/messages";
 import { ChartCard } from "./ChartCard";
 import { ChartDetailPanel } from "./ChartDetailPanel";
 import { useChartSelection } from "./useChartSelection";
 import type { ChartRow } from "./types";
-import { percentOfTotal } from "./types";
 
 const ACCENT = "var(--kova-blue)";
 const MUTED = "var(--kova-blue-light)";
@@ -14,40 +12,13 @@ function truncate(label: string, max = 16): string {
   return label.length > max ? `${label.slice(0, max - 1)}…` : label;
 }
 
-function RankTooltip({
-  active,
-  payload,
-  total,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: ChartRow }>;
-  total: number;
-}) {
-  if (!active || !payload?.length) return null;
-  const row = payload[0].payload;
-  return (
-    <div className="rounded-kova-md border border-kova-border bg-white p-2.5 shadow-kova-card">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm font-semibold text-kova-ink">{row.label}</span>
-        <span className="text-sm font-bold tabular-nums text-kova-ink">{row.valueLabel}</span>
-      </div>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-kova-muted">
-        <span>{copy.reportsView.chartShare(percentOfTotal(row.value, total))}</span>
-        {row.meta?.map((item) => (
-          <span key={`${item.label}-${item.value}`}>
-            {item.label}: {item.value}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /**
- * Horizontal magnitude bars for a small set of categories (payment methods,
- * employees, refund reasons). Single hue; the selected/hovered row keeps the
- * accent while the rest de-emphasize. Amounts are labeled at the bar end; a
- * persistent detail card and an sr-only summary carry the rest.
+ * Horizontal magnitude bars for a small set of categories (top hours,
+ * employees). Single hue over a full-width rail, so each bar reads as
+ * "relative to the leader" at a glance. Every number lives in exactly one
+ * place: the value at the bar end, and the extended metadata in the
+ * persistent detail card below (live on hover, locked on click/tap) — no
+ * tooltip repeating the same figures on top of the chart.
  */
 export function RankBarChart({
   title,
@@ -91,14 +62,11 @@ export function RankBarChart({
             tick={{ fontSize: 12, fill: "var(--kova-muted)" }}
             tickFormatter={(value: string) => truncate(value)}
           />
-          <Tooltip
-            content={<RankTooltip total={total} />}
-            cursor={{ fill: "var(--kova-mist)" }}
-          />
           <Bar
             dataKey="value"
-            radius={[0, 4, 4, 0]}
+            radius={[0, 6, 6, 0]}
             maxBarSize={24}
+            background={{ fill: "var(--kova-mist)", radius: 6 }}
             isAnimationActive={false}
             onClick={(entry: unknown) => {
               const id = (entry as { id?: string })?.id;

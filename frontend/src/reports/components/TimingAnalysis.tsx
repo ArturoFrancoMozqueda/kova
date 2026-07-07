@@ -136,7 +136,20 @@ function DaypartGrid({
                   <p className="mt-2 text-lg font-bold tabular-nums text-kova-ink">
                     {formatMoney(row.net_sales)}
                   </p>
-                  <p className="text-xs text-kova-muted">
+                  <div
+                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-kova-mist"
+                    role="meter"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={row.sales_share_pct}
+                    aria-label={`${row.label}: ${copy.reportsView.chartShare(row.sales_share_pct)}`}
+                  >
+                    <div
+                      className="h-full rounded-full bg-kova-blue"
+                      style={{ width: `${Math.min(100, Math.max(2, row.sales_share_pct))}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-kova-muted">
                     {copy.reportsView.chartShare(row.sales_share_pct)} · {row.order_count}{" "}
                     {copy.reportsView.orders.toLowerCase()} · {formatMoney(row.average_ticket)}
                   </p>
