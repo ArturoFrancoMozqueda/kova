@@ -111,7 +111,11 @@ export default defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        // Defaults to localhost for native `npm run dev`; docker-compose.yml
+        // overrides this to the "backend" service name for container-to-
+        // container networking (localhost inside the frontend container is
+        // the container itself, not the backend service).
+        target: process.env.VITE_API_BASE_URL || "http://localhost:8000",
         changeOrigin: true,
       },
     },
