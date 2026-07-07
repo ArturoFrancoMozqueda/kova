@@ -27,11 +27,42 @@ import { buildRecommendations } from "./utils/recommendations";
 
 /** Narrative-arc divider: makes the story structure explicit between blocks
  * (Resumen → Qué hacer ahora → Por qué pasó → Operación y control). */
-function ArcKicker({ label }: { label: string }) {
+function ArcKicker({ label, id }: { label: string; id?: string }) {
   return (
-    <p className="pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-kova-tertiary">
+    <p id={id} className="scroll-mt-14 pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-kova-tertiary">
       {label}
     </p>
+  );
+}
+
+const CHAPTERS = [
+  { id: "reporte-resumen", label: copy.reportsView.navSummary },
+  { id: "reporte-plan", label: copy.reportsView.navPlan },
+  { id: "reporte-porque", label: copy.reportsView.navWhy },
+  { id: "reporte-control", label: copy.reportsView.navOps },
+];
+
+/** Phone-only sticky chapter chips: one tap to any act of the story, so the
+ * 6+ scroll screens never mean hunting for a section. */
+function ChapterNav() {
+  return (
+    <nav
+      aria-label={copy.reportsView.navAria}
+      className="sticky top-0 z-20 -mx-4 flex gap-2 overflow-x-auto border-b border-kova-border bg-background/95 px-4 py-2 backdrop-blur sm:hidden"
+    >
+      {CHAPTERS.map((chapter) => (
+        <button
+          key={chapter.id}
+          type="button"
+          onClick={() =>
+            document.getElementById(chapter.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          className="shrink-0 rounded-full border border-kova-border bg-white px-3 py-1 text-xs font-medium text-kova-ink"
+        >
+          {chapter.label}
+        </button>
+      ))}
+    </nav>
   );
 }
 
@@ -116,28 +147,34 @@ export default function ReportsView() {
 
       {hasSales && story ? (
         <div className="space-y-4 sm:space-y-6">
-          <ExecutiveSummary
-            story={story}
-            previousStory={data.previousStory}
-            previousFailed={data.previousFailed}
-            rangeDays={daysBetweenInclusive(story.summary.start_date, story.summary.end_date)}
-          />
-          <RecommendationCards
-            recommendations={recommendationsFor(story, data.previousStory, data.stock, data.velocity)}
-            story={story}
-            previousStory={data.previousStory}
-          />
+          <ChapterNav />
+          <div id="reporte-resumen" className="scroll-mt-14">
+            <ExecutiveSummary
+              story={story}
+              previousStory={data.previousStory}
+              previousFailed={data.previousFailed}
+              rangeDays={daysBetweenInclusive(story.summary.start_date, story.summary.end_date)}
+            />
+          </div>
+          <div id="reporte-plan" className="scroll-mt-14">
+            <RecommendationCards
+              recommendations={recommendationsFor(story, data.previousStory, data.stock, data.velocity)}
+              story={story}
+              previousStory={data.previousStory}
+            />
+          </div>
           <QuickFacts story={story} />
-          <ArcKicker label={copy.reportsView.arcWhy} />
+          <ArcKicker id="reporte-porque" label={copy.reportsView.arcWhy} />
           <TimingAnalysis
             story={story}
             hourly={data.hourly}
             hourlyFailed={data.hourlyFailed}
             previousStory={data.previousStory}
+            trendStory={data.trendStory}
           />
           <ProductInventoryAnalysis story={story} stock={data.stock} velocity={data.velocity} />
           <PaymentAnalysis story={story} previousStory={data.previousStory} />
-          <ArcKicker label={copy.reportsView.arcOps} />
+          <ArcKicker id="reporte-control" label={copy.reportsView.arcOps} />
           <RefundsAndCancellations story={story} />
           <EmployeePerformance story={story} />
         </div>

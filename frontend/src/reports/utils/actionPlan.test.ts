@@ -89,6 +89,15 @@ describe("buildActionPlan", () => {
     expect(plan.signals.some((item) => item.id === "signal|ops-normal")).toBe(false);
   });
 
+  it("links inventory-template actions to /inventory", () => {
+    const recs = makeRecommendations(3);
+    recs[1] = { ...recs[1], id: "R4" };
+    recs[2] = { ...recs[2], id: "R6" };
+    const plan = buildActionPlan({ recommendations: recs, story: makeStory(), previousStory: null });
+    expect(plan.actions[0].linkTo).toBe("/inventory");
+    expect(plan.actions[1].linkTo).toBeUndefined();
+  });
+
   it("marks good-signal recommendations as ok rows", () => {
     const recs = makeRecommendations(2);
     recs[1] = { ...recs[1], tone: "good_signal" };

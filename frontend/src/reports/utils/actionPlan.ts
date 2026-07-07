@@ -14,7 +14,16 @@ export type ActionPlanItem = {
   priority?: Recommendation["priority"];
   action: string;
   evidence?: string;
+  /** In-app route where the owner can execute the action (e.g. /inventory). */
+  linkTo?: string;
 };
+
+/** Route where a recommendation template can be acted on, if any. Inventory
+ * templates (stockout, restock, link inventory, overstock) go to /inventory. */
+export function recommendationLink(templateId: string): string | null {
+  if (["R2", "R4", "R5", "R12"].includes(templateId)) return "/inventory";
+  return null;
+}
 
 export type ActionPlan = {
   hero: Recommendation | null;
@@ -52,6 +61,7 @@ export function buildActionPlan({
     priority: rec.priority,
     action: rec.action,
     evidence: `${rec.finding}. ${rec.evidence}`,
+    linkTo: recommendationLink(rec.id) ?? undefined,
   }));
 
   const signals: ActionPlanItem[] = [];

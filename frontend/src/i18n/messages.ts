@@ -1207,6 +1207,9 @@ export const copy = {
     actionWatchTicketEvidence: (amount: string, pct: number) =>
       `Va en ${amount}, ${pct}% abajo del periodo anterior.`,
     actionOpsNormalAction: "Pagos y devoluciones en nivel normal — nada que hacer ahí.",
+    actionGoInventory: "Ir a Inventario",
+    planMarkDone: "Marcar como hecha",
+    planDone: "Hecha",
     recommendationsEmpty:
       "No hay alertas fuertes en este rango. Mantén el ritmo y revisa inventario, hora pico y cómo te pagaron.",
     priorityRecommendationKicker: "Tu prioridad ahora",
@@ -1287,6 +1290,8 @@ export const copy = {
     salesTrendChartTitle: "Ventas por día",
     salesTrendChartSubtitle:
       "Cada barra es un día del periodo. La línea marca tu promedio diario.",
+    salesTrendContextSubtitle:
+      "Tus últimos 7 días, para dar contexto a hoy. La línea marca tu promedio diario.",
     salesTrendAverageLabel: (amount: string) => `Prom. ${amount}`,
     salesTrendBestDayLabel: "Mejor día del periodo",
     salesTrendTooltipSales: "Ventas",
@@ -1327,6 +1332,13 @@ export const copy = {
     // --- Narrative arc kickers ---
     arcWhy: "Por qué pasó",
     arcOps: "Operación y control",
+
+    // --- Mobile chapter nav ---
+    navAria: "Secciones del reporte",
+    navSummary: "Resumen",
+    navPlan: "Qué hacer",
+    navWhy: "Por qué",
+    navOps: "Control",
 
     // --- Products & inventory table ---
     inventoryColumn: "Inventario",

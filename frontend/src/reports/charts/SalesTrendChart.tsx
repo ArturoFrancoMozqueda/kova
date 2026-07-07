@@ -50,6 +50,8 @@ export function SalesTrendChart({
   rangeDays,
   srSummary,
   note,
+  subtitle,
+  initialSelectedId,
 }: {
   points: SalesDayPoint[];
   average: number;
@@ -57,8 +59,13 @@ export function SalesTrendChart({
   rangeDays: number;
   srSummary?: string;
   note?: string | null;
+  /** Overrides the default period subtitle (e.g. the trailing-7-days context). */
+  subtitle?: string;
+  /** Pre-selected bar; defaults to the best day. The "Hoy" context chart
+   * pre-selects today so the detail card reads "hoy vs tu semana". */
+  initialSelectedId?: string | null;
 }) {
-  const { activeId, toggle, preview } = useChartSelection(bestDayId);
+  const { activeId, toggle, preview } = useChartSelection(initialSelectedId ?? bestDayId);
   const hasSales = points.some((point) => point.value > 0);
   const activePoint = points.find((point) => point.id === activeId) ?? null;
 
@@ -70,7 +77,7 @@ export function SalesTrendChart({
   return (
     <ChartCard
       title={copy.reportsView.salesTrendChartTitle}
-      subtitle={copy.reportsView.salesTrendChartSubtitle}
+      subtitle={subtitle ?? copy.reportsView.salesTrendChartSubtitle}
       srSummary={srSummary}
       isEmpty={!hasSales}
       emptyLabel={copy.reportsView.salesTrendChartTitle}

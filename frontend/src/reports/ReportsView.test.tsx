@@ -16,6 +16,9 @@ vi.mock("../auth/permissions", () => ({
 }));
 vi.mock("./api", () => ({ getBusinessStory: vi.fn(), getSalesByHour: vi.fn() }));
 vi.mock("../inventory/api", () => ({ listStock: vi.fn(), listVelocity: vi.fn() }));
+vi.mock("@/auth/useAuth", () => ({
+  useAuth: () => ({ state: { status: "authenticated", tenantId: "tenant-1" } }),
+}));
 
 import { getBusinessStory, getSalesByHour } from "./api";
 import { listStock, listVelocity } from "../inventory/api";
@@ -48,6 +51,8 @@ describe("ReportsView", () => {
     expect(await screen.findByText(copy.reportsView.kpiNetSalesLabel)).toBeInTheDocument();
     expect(screen.getByText(copy.reportsView.timingAnalysisTitle)).toBeInTheDocument();
     expect(screen.getByText(copy.reportsView.refundsSectionTitle)).toBeInTheDocument();
+    // The priority action must be readable without any interaction.
+    expect(screen.getByTestId("priority-recommendation")).toBeInTheDocument();
   });
 
   it("shows the error state with a working retry", async () => {

@@ -275,33 +275,41 @@ function HourlySection({
   );
 }
 
+function trendSrSummary(source: BusinessStoryReport, average: number): string | undefined {
+  const best = bestDayRow(source);
+  if (!best) return undefined;
+  return copy.reportsView.salesTrendSrSummary(
+    formatDayShort(source.summary.start_date),
+    formatDayShort(source.summary.end_date),
+    formatDayWithWeekday(best.date),
+    formatMoney(best.net_sales),
+    formatMoney(String(average)),
+  );
+}
+
 export function TimingAnalysis({
   story,
   hourly,
   hourlyFailed,
   previousStory,
+  trendStory = null,
 }: {
   story: BusinessStoryReport;
   hourly: SalesByHourRow[];
   hourlyFailed: boolean;
   previousStory: BusinessStoryReport | null;
+  /** Trailing 7-day story for single-day ranges: the daily chart stays on
+   * screen even on "Hoy", with today pre-selected against its own week. */
+  trendStory?: BusinessStoryReport | null;
 }) {
   const rangeDays = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
-  const points = buildDayPoints(story);
+  // On single-day ranges the chart draws from the trailing-7-days context.
+  const trendSource = rangeDays > 1 ? story : trendStory;
+  const points = trendSource ? buildDayPoints(trendSource) : [];
   // Average over every day in the range (zero-sales days included, since points
   // are padded), so the reference line reflects the whole period.
   const average = points.length ? points.reduce((sum, p) => sum + p.value, 0) / points.length : 0;
-  const best = bestDayRow(story);
-  const bestDayId = best?.date ?? null;
-  const srSummary = best
-    ? copy.reportsView.salesTrendSrSummary(
-        formatDayShort(story.summary.start_date),
-        formatDayShort(story.summary.end_date),
-        formatDayWithWeekday(best.date),
-        formatMoney(best.net_sales),
-        formatMoney(String(average)),
-      )
-    : undefined;
+  const bestDayId = trendSource ? (bestDayRow(trendSource)?.date ?? null) : null;
 
   return (
     <ReportSection
@@ -310,14 +318,19 @@ export function TimingAnalysis({
       description={copy.reportsView.timingAnalysisDescription}
     >
       <div className="space-y-6">
-        {rangeDays > 1 ? (
+        {trendSource && points.length > 1 ? (
           <SalesTrendChart
             points={points}
             average={average}
             bestDayId={bestDayId}
-            rangeDays={rangeDays}
-            srSummary={srSummary}
+            rangeDays={daysBetweenInclusive(
+              trendSource.summary.start_date,
+              trendSource.summary.end_date,
+            )}
+            srSummary={trendSrSummary(trendSource, average)}
             note={firstSaleNote(points)}
+            subtitle={rangeDays === 1 ? copy.reportsView.salesTrendContextSubtitle : undefined}
+            initialSelectedId={rangeDays === 1 ? story.summary.end_date : undefined}
           />
         ) : null}
         <DaypartGrid story={story} previousStory={previousStory} />

@@ -4,7 +4,7 @@ import { listStock, listVelocity } from "../../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../../inventory/types";
 import { getBusinessStory, getSalesByHour } from "../api";
 import type { BusinessStoryReport, SalesByHourRow } from "../types";
-import { previousComparableRange } from "../utils/dateRange";
+import { addDays, daysBetweenInclusive, previousComparableRange } from "../utils/dateRange";
 
 export type ReportDataState = {
   status: "loading" | "error" | "loaded";
@@ -16,6 +16,9 @@ export type ReportDataState = {
   hourly: SalesByHourRow[];
   /** True when the hourly fetch rejected (surface a note instead of empty). */
   hourlyFailed: boolean;
+  /** Trailing 7-day story fetched only for single-day ranges, so the daily
+   * sales chart never disappears when the owner lands on "Hoy". */
+  trendStory: BusinessStoryReport | null;
   stock: StockItem[];
   velocity: InventoryVelocityItem[];
   reload: () => void;
@@ -38,6 +41,7 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
     previousFailed: false,
     hourly: [],
     hourlyFailed: false,
+    trendStory: null,
     stock: [],
     velocity: [],
   });
@@ -53,10 +57,14 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
         getSalesByHour(startDate, endDate).catch(() => null),
       ]);
       const previousRange = previousComparableRange(startDate, endDate);
-      const [previous, stock, velocity] = await Promise.all([
+      const singleDay = daysBetweenInclusive(startDate, endDate) === 1;
+      const [previous, stock, velocity, trend] = await Promise.all([
         getBusinessStory(previousRange.startDate, previousRange.endDate).catch(() => null),
         listStock().catch(() => null),
         listVelocity().catch(() => null),
+        singleDay
+          ? getBusinessStory(addDays(endDate, -6), endDate).catch(() => null)
+          : Promise.resolve(null),
       ]);
       setState({
         status: "loaded",
@@ -65,6 +73,7 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
         previousFailed: previous === null,
         hourly: hourly ?? [],
         hourlyFailed: hourly === null,
+        trendStory: trend,
         stock: stock ?? [],
         velocity: velocity ?? [],
       });
