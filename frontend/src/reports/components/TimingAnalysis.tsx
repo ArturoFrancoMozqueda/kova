@@ -112,7 +112,14 @@ function DaypartGrid({
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-kova-ink">{copy.reportsView.daypartGridTitle}</h3>
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* One row on desktop: an orphan block on a second line reads unbalanced.
+          Columns match the visible daypart count (3, or 4 with madrugada). */}
+      <div
+        className={cn(
+          "grid gap-3 sm:grid-cols-2",
+          dayparts.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3",
+        )}
+      >
         {dayparts.map((row) => {
           const isBest = best?.key === row.key && Number(row.net_sales) > 0;
           const zero = Number(row.net_sales) <= 0;
