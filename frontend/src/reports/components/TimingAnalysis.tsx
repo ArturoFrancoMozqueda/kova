@@ -181,9 +181,17 @@ function daypartRecommendation(
   if (!best) return null;
   const rangeDays = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
 
-  // 1. Peak daypart concentrates the day → staff/stock ahead of it.
+  // 1. Peak daypart concentrates the day → staff/stock ahead of it. The
+  // insight carries the exact money, share and order count, then the
+  // operational recommendation.
   if (best.sales_share_pct >= 40 && best.order_count >= 10) {
-    return copy.reportsView.daypartRecReinforce(best.label, best.sales_share_pct, best.start_hour);
+    return copy.reportsView.daypartRecReinforce(
+      best.label,
+      formatMoney(best.net_sales),
+      best.sales_share_pct,
+      best.order_count,
+      best.start_hour,
+    );
   }
   // 2. Strong block shifted vs the previous period.
   const prevBest = previousStory ? bestDaypartRow(previousStory) : null;

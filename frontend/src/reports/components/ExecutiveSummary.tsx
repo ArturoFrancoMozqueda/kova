@@ -108,7 +108,6 @@ export function ExecutiveSummary({
           label={copy.reportsView.kpiNetSalesLabel}
           value={formatMoney(summary.net_sales)}
           icon={<DollarSign className="h-4 w-4" />}
-          tone="blue"
         >
           {renderDelta(netGrowth, Number(summary.net_sales), prevSummary ? Number(prevSummary.net_sales) : null, "money")}
         </StatTile>
@@ -116,7 +115,6 @@ export function ExecutiveSummary({
           label={copy.reportsView.kpiOrdersLabel}
           value={String(summary.completed_orders)}
           icon={<ShoppingCart className="h-4 w-4" />}
-          tone="mint"
         >
           {renderDelta(orderGrowth, summary.completed_orders, prevSummary?.completed_orders ?? null, "count")}
         </StatTile>
@@ -124,7 +122,6 @@ export function ExecutiveSummary({
           label={copy.reportsView.kpiAvgTicketLabel}
           value={formatMoney(summary.average_ticket)}
           icon={<Receipt className="h-4 w-4" />}
-          tone="sky"
         >
           {renderDelta(ticketGrowth, Number(summary.average_ticket), prevSummary ? Number(prevSummary.average_ticket) : null, "money")}
         </StatTile>

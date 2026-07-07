@@ -1315,8 +1315,8 @@ export const copy = {
     daypartStrongest: "Bloque más fuerte",
     daypartNoSales: "Sin ventas",
     daypartNoComparison: "Sin comparación",
-    daypartRecReinforce: (label: string, pct: number, hour: number) =>
-      `La ${label.toLowerCase()} concentra ${pct}% de tu venta: ten producto, cambio y personal listos antes de las ${String(hour).padStart(2, "0")}:00.`,
+    daypartRecReinforce: (label: string, amount: string, pct: number, orders: number, hour: number) =>
+      `La ${label.toLowerCase()} concentró ${amount}, ${pct}% de tu venta, con ${orders} ${orders === 1 ? "orden" : "órdenes"}. Ten producto, cambio y personal listos antes de las ${String(hour).padStart(2, "0")}:00.`,
     daypartRecShift: (prev: string, current: string) =>
       `Tu bloque fuerte cambió de ${prev.toLowerCase()} a ${current.toLowerCase()}; ajusta la preparación a ese horario.`,
     daypartRecQuiet: (label: string) =>

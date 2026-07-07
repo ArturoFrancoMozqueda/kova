@@ -7,39 +7,29 @@ import { formatMoneyDelta } from "@/orders/format";
 import { formatSignedPercent } from "../utils/format";
 import type { GrowthResult } from "../utils/calculations";
 
-export type StatTileTone = "blue" | "mint" | "sky";
-
-const TONE_BG: Record<StatTileTone, string> = {
-  blue: "bg-kova-grad-blue",
-  mint: "bg-kova-grad-mint",
-  sky: "bg-kova-grad-sky",
-};
-
 /** KPI tile mirroring the dashboard Panel anatomy: uppercase label + icon tile,
- * a large tabular value, and a delta/comparison line below. Each tile carries a
- * soft pastel gradient wash (brand blue / growth mint family) with ink text on
- * top, so the KPI row reads premium without leaving the single-hue system. */
+ * a large tabular value, and a delta/comparison line below. Deliberately sober:
+ * white surface, thin border, light shadow, strong number — the only color on
+ * the tile is the delta's up/down tone. */
 export function StatTile({
   label,
   value,
   icon,
-  tone = "sky",
   children,
 }: {
   label: string;
   value: string;
   icon: ReactNode;
-  tone?: StatTileTone;
   children?: ReactNode;
 }) {
   return (
     // Phones get a compact row (value + delta side by side, no icon) so the
     // three KPIs cost about a third of the vertical space before "Qué hacer
     // ahora"; from `sm` up it's the full tile.
-    <div className={`rounded-kova-lg border border-kova-border p-4 shadow-kova-card sm:p-5 ${TONE_BG[tone]}`}>
+    <div className="rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card sm:p-5">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-kova-muted">{label}</p>
-        <span className="hidden h-9 w-9 items-center justify-center rounded-kova-md bg-white/70 text-kova-muted sm:flex">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">{label}</p>
+        <span className="hidden h-9 w-9 items-center justify-center rounded-kova-md bg-kova-mist text-kova-muted sm:flex">
           {icon}
         </span>
       </div>
