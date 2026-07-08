@@ -27,10 +27,12 @@ jobs:
       # postgresql+psycopg://…) directly — do not strip the driver hint here.
       DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
       APP_ENV: production
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-      FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+      # Only used to build the "Activar mi plan" link in the reminder email.
+      # Reuses the existing deployed-frontend URL secret so no new secret is
+      # needed. Must be the SPA origin, e.g. https://app.tudominio.com
+      FRONTEND_URL: ${{ secrets.VERCEL_URL }}
 
     steps:
       - uses: actions/checkout@v5
