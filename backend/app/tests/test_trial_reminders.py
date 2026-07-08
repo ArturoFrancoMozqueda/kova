@@ -50,12 +50,12 @@ def test_signup_trial_reminder_fires_three_days_before_expiry(
     monkeypatch.setattr(
         email_service,
         "send_trial_ending_email",
-        lambda **kwargs: sent.append(kwargs),
+        lambda **kwargs: sent.append(kwargs) or True,
     )
     monkeypatch.setattr(
         trial_reminders.email_service,
         "send_trial_ending_email",
-        lambda **kwargs: sent.append(kwargs),
+        lambda **kwargs: sent.append(kwargs) or True,
     )
 
     count = trial_reminders.send_due_trial_reminders(db, now=now)
@@ -84,7 +84,7 @@ def test_trial_reminder_skips_tenants_outside_window(
     monkeypatch.setattr(
         trial_reminders.email_service,
         "send_trial_ending_email",
-        lambda **kwargs: sent.append(kwargs),
+        lambda **kwargs: sent.append(kwargs) or True,
     )
 
     count = trial_reminders.send_due_trial_reminders(db, now=now)
@@ -142,9 +142,35 @@ def test_trial_reminder_skips_active_subscribers(
     monkeypatch.setattr(
         trial_reminders.email_service,
         "send_trial_ending_email",
-        lambda **kwargs: sent.append(kwargs),
+        lambda **kwargs: sent.append(kwargs) or True,
     )
 
     count = trial_reminders.send_due_trial_reminders(db, now=now)
     assert count == 0
     assert sent == []
+
+
+def test_trial_reminder_does_not_mark_sent_when_delivery_fails(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    signup = _signup_verify(
+        client, f"delivery-fail-{uuid4().hex}@example.com", "Delivery Fail Tenant"
+    )
+    now = datetime.now(UTC)
+    created_at = now - timedelta(days=settings.billing_trial_days) + timedelta(
+        days=3, hours=12
+    )
+    _set_tenant_created_at(db, signup["tenant_id"], created_at)
+
+    monkeypatch.setattr(
+        trial_reminders.email_service,
+        "send_trial_ending_email",
+        lambda **kwargs: False,
+    )
+
+    count = trial_reminders.send_due_trial_reminders(db, now=now)
+
+    tenant = db.query(Tenant).filter(Tenant.id == signup["tenant_id"]).first()
+    assert tenant is not None
+    assert count == 0
+    assert tenant.trial_reminder_sent_at is None
