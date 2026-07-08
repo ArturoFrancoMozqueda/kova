@@ -17,13 +17,13 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import settings, sqlalchemy_database_url
 from app.email.trial_reminders import send_due_trial_reminders
 
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    engine = create_engine(settings.database_url)
+    engine = create_engine(sqlalchemy_database_url(settings.database_url))
     with Session(engine) as db:
         count = send_due_trial_reminders(db)
     print(f"trial_reminder.batch sent={count}")
