@@ -92,9 +92,16 @@ def send_due_trial_reminders(db: Session, *, now: datetime | None = None) -> int
         email = _owner_email(db, tenant_id=tenant.id)
         if not email:
             continue
-        email_service.send_trial_ending_email(
+        delivered = email_service.send_trial_ending_email(
             to=email, trial_ends_iso=trial_end.strftime("%Y-%m-%d")
         )
+        if not delivered:
+            logger.warning(
+                "trial_reminder.delivery_failed tenant_id=%s trial_ends=%s",
+                tenant.id,
+                trial_end.isoformat(),
+            )
+            continue
         tenant.trial_reminder_sent_at = now
         db.commit()
         sent += 1
