@@ -16,7 +16,7 @@ from app.auth.schemas import (
     VerifyEmailRequest,
 )
 from app.config import settings
-from app.db import get_db
+from app.db import get_db, get_privileged_db
 from app.middleware.csrf import clear_csrf_cookie, set_csrf_cookie
 from app.middleware.rate_limit import enforce_rate_limit, rate_limit
 from app.shared.dependencies import get_current_session
@@ -58,7 +58,13 @@ def _clear_auth_cookies(response: Response) -> None:
     dependencies=[Depends(rate_limit(10, key="auth-signup", fail_closed=True))],
 )
 def signup(
-    body: SignupRequest, request: Request, response: Response, db: Session = Depends(get_db)
+    body: SignupRequest,
+    request: Request,
+    response: Response,
+    # Pre-session: creates a brand-new tenant + its first membership/subscription
+    # before any tenant context exists. Runs on the privileged engine (RLS bypass);
+    # there is no cross-tenant read, only inserts for the tenant just created.
+    db: Session = Depends(get_privileged_db),
 ):
     # Per-account throttle (in addition to the per-IP dependency) so signup spam
     # against one address can't slip through a botnet of rotating IPs.
@@ -103,13 +109,20 @@ def signup(
     "/verify", response_model=MessageResponse,
     dependencies=[Depends(rate_limit(20, key="auth-verify", fail_closed=True))],
 )
-def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)):
+def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_privileged_db)):
     service.verify_email(db, token=body.token)
     return MessageResponse(message="Email verified.")
 
 
 @router.post("/login", dependencies=[Depends(rate_limit(20, key="auth-login", fail_closed=True))])
-def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+def login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    # Pre-session: resolves the user's tenant/membership across tenants and mints
+    # a session before any tenant context exists. Privileged engine (RLS bypass).
+    db: Session = Depends(get_privileged_db),
+):
     # Per-account throttle bounds distributed password-spraying against a single
     # account that the per-IP limit alone would miss. Window is short and the cap
     # generous so a real user is essentially never tripped, keeping the worst-case
@@ -130,7 +143,7 @@ def login(body: LoginRequest, request: Request, response: Response, db: Session 
 
 
 @router.post("/refresh")
-def refresh(request: Request, response: Response, db: Session = Depends(get_db)):
+def refresh(request: Request, response: Response, db: Session = Depends(get_privileged_db)):
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         from app.shared.exceptions import unauthorized
@@ -174,7 +187,9 @@ def logout_all(
     "/password-reset/request", response_model=MessageResponse,
     dependencies=[Depends(rate_limit(5, key="auth-password-reset", fail_closed=True))],
 )
-def password_reset_request(body: PasswordResetRequestBody, db: Session = Depends(get_db)):
+def password_reset_request(
+    body: PasswordResetRequestBody, db: Session = Depends(get_privileged_db)
+):
     # Per-account throttle so reset-email spam can't be aimed at one victim from
     # many IPs (and keeps the anti-enumeration response cheap).
     enforce_rate_limit(
@@ -191,7 +206,9 @@ def password_reset_request(body: PasswordResetRequestBody, db: Session = Depends
     "/password-reset/confirm", response_model=MessageResponse,
     dependencies=[Depends(rate_limit(10, key="auth-reset-confirm", fail_closed=True))],
 )
-def password_reset_confirm(body: PasswordResetConfirmBody, db: Session = Depends(get_db)):
+def password_reset_confirm(
+    body: PasswordResetConfirmBody, db: Session = Depends(get_privileged_db)
+):
     service.confirm_password_reset(db, token=body.token, new_password=body.new_password)
     return MessageResponse(message="Password updated.")
 
