@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.auth.router import router as auth_router
+from app.billing import service as billing_service
 from app.billing.router import router as billing_router
 from app.business_settings.logo_router import router as business_settings_logo_router
 from app.business_settings.router import router as business_settings_router
@@ -59,6 +60,9 @@ def _validate_config() -> None:
         and not settings.stripe_allow_test_mode_in_production
     ):
         raise RuntimeError("STRIPE_SECRET_KEY must use live mode in production")
+    # A test-mode webhook signing secret in a live deployment would let Stripe
+    # test events verify against production and mutate real subscription state.
+    billing_service.validate_webhook_secret_mode()
     if settings.app_env == "production":
         if not settings.resend_api_key:
             raise RuntimeError(

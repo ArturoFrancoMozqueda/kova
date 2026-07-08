@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -25,8 +26,16 @@ from app.billing.stripe_client import (
 from app.config import settings
 from app.email import service as email_service
 from app.idempotency import service as idempotency_service
-from app.shared.exceptions import bad_request
+from app.shared.exceptions import bad_request, forbidden
 
+logger = logging.getLogger(__name__)
+
+# A tenant in any of these statuses already has a live Stripe subscription that
+# may still bill them, so a new checkout would mint a duplicate customer +
+# subscription (double billing). `canceled`/`incomplete` are intentionally
+# excluded so a churned or never-completed tenant can re-subscribe (reusing the
+# stored Stripe customer).
+LIVE_SUBSCRIPTION_STATUSES = {"active", "trialing", "past_due", "unpaid"}
 STANDARD_PLAN_NAME = "Standard Plan"
 STANDARD_PLAN_AMOUNT_MINOR_UNITS = 29_900
 STANDARD_PLAN_CURRENCY = "MXN"
@@ -121,6 +130,25 @@ def _validate_standard_price_configuration(*, secret_key: str, price_id: str) ->
             status_code=503,
             detail="Stripe Standard Plan price is misconfigured",
         )
+
+
+def _is_test_mode_webhook_secret(value: str | None) -> bool:
+    return bool(value and value.startswith("whsec_test"))
+
+
+def validate_webhook_secret_mode() -> None:
+    """Boot guard: a live deployment must not verify webhooks with a test-mode
+    signing secret.
+
+    Without this, Stripe *test*-mode events would pass signature verification in
+    production and mutate real subscription state. Mirrors the live/test guard
+    already applied to the Stripe secret key. Skipped when test mode is
+    explicitly allowed in production (``stripe_allow_test_mode_in_production``).
+    """
+    if _requires_live_stripe() and _is_test_mode_webhook_secret(
+        settings.stripe_webhook_secret
+    ):
+        raise RuntimeError("STRIPE_WEBHOOK_SECRET must use live mode in production")
 
 
 def _webhook_secret() -> str:
@@ -232,7 +260,7 @@ def create_checkout_session(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
-    if subscription and subscription.status in {"active", "trialing"}:
+    if subscription and subscription.status in LIVE_SUBSCRIPTION_STATUSES:
         raise bad_request("Tenant already has an active subscription")
 
     secret_key, price_id, success_url, cancel_url = _checkout_config()
@@ -259,6 +287,9 @@ def create_checkout_session(
             tenant_id=str(tenant_id),
             user_id=str(user_id),
             idempotency_key=f"checkout:{tenant_id}:{idempotency_key}",
+            # Reuse the tenant's Stripe customer on re-subscription so we never
+            # create a second customer that could keep billing in parallel.
+            customer=subscription.stripe_customer_id if subscription else None,
         )
     except StripeCheckoutError as exc:
         raise HTTPException(status_code=502, detail="Stripe checkout failed") from exc
@@ -295,6 +326,71 @@ def create_checkout_session(
     )
     db.commit()
     return 201, response_body
+
+
+def reconcile_checkout_session(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    session_id: str,
+) -> dict:
+    """Self-heal a lost ``checkout.session.completed`` webhook.
+
+    Fetches the checkout session from Stripe, verifies it belongs to the
+    calling tenant, and — if it is paid — runs the same activation path as the
+    webhook, idempotently. Safe to call repeatedly: a second call after the
+    subscription is already active is a no-op (no duplicate audit/email).
+    """
+    secret_key = _stripe_secret_key()
+    try:
+        stripe_session = checkout_client.retrieve_session(
+            secret_key=secret_key, session_id=session_id
+        )
+    except StripeCheckoutError as exc:
+        raise HTTPException(status_code=502, detail="Stripe session lookup failed") from exc
+
+    # Tenant isolation: only ever act on a session this tenant owns.
+    session_tenant_id = _tenant_id_from_event_object(stripe_session)
+    if session_tenant_id is None or session_tenant_id != tenant_id:
+        raise forbidden("Checkout session does not belong to this tenant")
+
+    paid = (
+        stripe_session.get("payment_status") == "paid"
+        or stripe_session.get("status") == "complete"
+    )
+    if not paid:
+        return get_subscription_status(db, tenant_id=tenant_id)
+
+    existing = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
+    already_active = bool(
+        existing
+        and existing.status == "active"
+        and existing.latest_checkout_session_id == stripe_session.get("id")
+    )
+    # The retrieved object is a checkout.session, so the upsert treats it as an
+    # activation (status -> active, records latest_checkout_session_id).
+    stripe_session["object"] = "checkout.session"
+    subscription = _upsert_subscription_from_stripe_object(
+        db, tenant_id=tenant_id, stripe_object=stripe_session
+    )
+    if not already_active:
+        audit_service.log(
+            db,
+            action="billing.subscription_activated",
+            tenant_id=tenant_id,
+            user_id=user_id,
+            resource_type="subscription",
+            resource_id=subscription.id,
+            changes={
+                "status": subscription.status,
+                "checkout_session_id": stripe_session.get("id"),
+                "source": "reconcile",
+            },
+        )
+        _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
+    db.commit()
+    return get_subscription_status(db, tenant_id=tenant_id)
 
 
 def cancel_subscription(
@@ -543,6 +639,32 @@ def _tenant_id_from_event_object(stripe_object: dict[str, Any]) -> UUID | None:
         return None
 
 
+def _tenant_id_from_related_subscription(
+    db: Session, *, event_type: str, stripe_object: dict[str, Any]
+) -> UUID | None:
+    """Resolve the tenant from the local subscription row when metadata is absent.
+
+    Production ``customer.subscription.*`` events carry the subscription id in
+    ``id`` (not ``subscription``), so map via that id. Invoice events keep the
+    existing ``subscription`` / ``parent.subscription_details.subscription``
+    resolution. Returns None when no local subscription matches.
+    """
+    if event_type.startswith("customer.subscription."):
+        related_subscription_id = stripe_object.get("id")
+    else:
+        related_subscription_id = stripe_object.get("subscription") or (
+            (stripe_object.get("parent") or {})
+            .get("subscription_details", {})
+            .get("subscription")
+        )
+    if not related_subscription_id:
+        return None
+    subscription = repository.get_subscription_by_stripe_id(
+        db, stripe_subscription_id=str(related_subscription_id)
+    )
+    return subscription.tenant_id if subscription else None
+
+
 def _mark_event(
     event: WebhookEvent,
     *,
@@ -587,20 +709,14 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
     stripe_object = event_payload.get("data", {}).get("object", {})
     tenant_id = _tenant_id_from_event_object(stripe_object)
     if tenant_id is None:
-        # Stripe API 2026-04-22.dahlia moved the subscription id off the invoice
-        # root and into `parent.subscription_details.subscription`. Fall back
-        # to the new location so invoice events for known subscriptions still
-        # resolve to a tenant.
-        related_subscription_id = stripe_object.get("subscription") or (
-            (stripe_object.get("parent") or {})
-            .get("subscription_details", {})
-            .get("subscription")
+        # Production subscription-lifecycle events (customer.subscription.*)
+        # carry no session metadata, and API 2026-04-22.dahlia moved the
+        # invoice's subscription id into `parent.subscription_details`. Resolve
+        # the tenant from the local subscription row keyed by the Stripe
+        # subscription id so cancellations/updates still converge status.
+        tenant_id = _tenant_id_from_related_subscription(
+            db, event_type=event_type, stripe_object=stripe_object
         )
-        if related_subscription_id:
-            subscription = repository.get_subscription_by_stripe_id(
-                db, stripe_subscription_id=str(related_subscription_id)
-            )
-            tenant_id = subscription.tenant_id if subscription else None
 
     try:
         if event_type in {
@@ -610,6 +726,13 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
             "customer.subscription.deleted",
         }:
             if tenant_id is None:
+                logger.warning(
+                    "billing.webhook.ignored_unknown_tenant "
+                    "event_type=%s stripe_event_id=%s reason=%s",
+                    event_type,
+                    stripe_event_id,
+                    "missing_tenant_metadata",
+                )
                 _mark_event(event, status="ignored", error_reason="Missing tenant metadata")
                 db.commit()
                 return {"status": "ignored"}
@@ -639,6 +762,13 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
         }:
             payment_succeeded = event_type in {"invoice.paid", "invoice.payment_succeeded"}
             if tenant_id is None:
+                logger.warning(
+                    "billing.webhook.ignored_unknown_tenant "
+                    "event_type=%s stripe_event_id=%s reason=%s",
+                    event_type,
+                    stripe_event_id,
+                    "missing_subscription_mapping",
+                )
                 _mark_event(event, status="ignored", error_reason="Missing subscription mapping")
                 db.commit()
                 return {"status": "ignored"}

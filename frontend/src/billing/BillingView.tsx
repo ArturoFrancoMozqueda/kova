@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
-import { ApiError, getBillingSubscription, invalidateBillingSubscription, startCheckout, cancelSubscription } from "./api";
+import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, cancelSubscription } from "./api";
 import { STANDARD_PLAN } from "./standardPlan";
 import type { BillingSubscription } from "./types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -97,6 +97,9 @@ export default function BillingView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  // Ref (not state) so marking the reconcile as started never re-triggers the
+  // effect below and cancels its own in-flight retry loop.
+  const reconcileStartedRef = useRef(false);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -114,6 +117,39 @@ export default function BillingView() {
     if (checkoutReturnState === "success") toast(copy.billingView.checkoutSuccess, "success");
     if (checkoutReturnState === "cancel") toast(copy.billingView.checkoutCanceled, "warning");
   }, [checkoutReturnState, toast]);
+
+  // Self-heal a lost `checkout.session.completed` webhook. On the success page,
+  // if the subscription is not yet active, reconcile against the Stripe session
+  // (with a short bounded retry) so access converges without a manual refresh.
+  // No-op when the webhook already landed (subscription is active). Gating on a
+  // derived boolean (rather than the whole loadState) keeps the retry loop's own
+  // setLoadState calls from re-running the effect and cancelling itself.
+  const shouldReconcile =
+    checkoutReturnState === "success" &&
+    loadState.status === "loaded" &&
+    loadState.billing.subscription?.status !== "active";
+  useEffect(() => {
+    if (!shouldReconcile || reconcileStartedRef.current) return;
+    const sessionId = new URLSearchParams(location.search).get("session_id");
+    if (!sessionId) return;
+
+    reconcileStartedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt += 1) {
+        try {
+          const billing = await reconcileCheckout(sessionId);
+          if (cancelled) return;
+          setLoadState({ status: "loaded", billing });
+          if (billing.subscription?.status === "active") return;
+        } catch {
+          // Ignore and retry; the webhook may still be in flight.
+        }
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [shouldReconcile, location.search]);
 
   const beginCheckout = async () => {
     if (loadState.status === "loaded" && hasCheckoutBlockingSubscription(loadState.billing)) {

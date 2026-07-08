@@ -1,4 +1,6 @@
+import importlib.util
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -88,6 +90,32 @@ def test_trial_reminder_skips_tenants_outside_window(
     count = trial_reminders.send_due_trial_reminders(db, now=now)
     assert count == 0
     assert sent == []
+
+
+def _load_reminder_script():
+    script_path = Path(__file__).resolve().parents[2] / "scripts" / "send_trial_reminders.py"
+    spec = importlib.util.spec_from_file_location("send_trial_reminders_script", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_reminder_script_entrypoint_runs_a_dry_pass(monkeypatch) -> None:
+    """The scheduled cron entrypoint wires the reminder job and exits cleanly.
+
+    Stubs the actual sender so the smoke test doesn't depend on live email or
+    DB rows — it only proves `main()` invokes the job and returns success."""
+    module = _load_reminder_script()
+    calls: list[object] = []
+    monkeypatch.setattr(
+        module,
+        "send_due_trial_reminders",
+        lambda db, **kwargs: calls.append(db) or 0,
+    )
+
+    assert module.main() == 0
+    assert len(calls) == 1
 
 
 def test_trial_reminder_skips_active_subscribers(
