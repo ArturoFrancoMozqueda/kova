@@ -1,0 +1,67 @@
+name: Trial-ending reminders
+
+on:
+  schedule:
+    # Daily at 06:00 UTC = 00:00 (medianoche) hora de México (CST, UTC-6, sin
+    # horario de verano desde 2023). The reminder window is a 24h band and the
+    # job is idempotent per tenant (tenants.trial_reminder_sent_at), so a single
+    # daily run reaches every eligible tenant exactly once.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: trial-reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    name: Send trial-ending emails
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      # The application reads DATABASE_URL (SQLAlchemy form,
+      # postgresql+psycopg://…) directly — do not strip the driver hint here.
+      DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+      APP_ENV: production
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Validate configuration
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::SUPABASE_DB_URL secret is empty."
+            exit 1
+          fi
+          if [ -z "${RESEND_API_KEY:-}" ]; then
+            echo "::error::RESEND_API_KEY secret is empty — reminders would be silently skipped."
+            exit 1
+          fi
+          echo "Trial-reminder configuration validated."
+
+      - name: Send due trial reminders
+        run: uv run python scripts/send_trial_reminders.py
+
+      - name: Failure notice
+        if: failure()
+        run: |
+          echo "::error::Trial-reminder job failed. Verify SUPABASE_DB_URL, RESEND_API_KEY, and EMAIL_FROM secrets are set and that the DB is reachable."

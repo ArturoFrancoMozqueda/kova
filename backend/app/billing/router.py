@@ -7,6 +7,7 @@ from app.billing.schemas import (
     BillingSubscriptionResponse,
     CheckoutSessionResponse,
     InternalSubscriptionListResponse,
+    ReconcileCheckoutRequest,
 )
 from app.config import settings
 from app.db import get_db
@@ -58,6 +59,27 @@ def create_checkout_session(
     )
     response.status_code = status_code
     return response_body
+
+
+@router.post(
+    "/checkout/reconcile",
+    response_model=BillingSubscriptionResponse,
+    dependencies=[Depends(rate_limit(10, key="billing-reconcile"))],
+)
+def reconcile_checkout(
+    body: ReconcileCheckoutRequest,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.BILLING_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    return service.reconcile_checkout_session(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        session_id=body.checkout_session_id,
+    )
 
 
 @router.post("/cancel", response_model=BillingSubscriptionResponse)

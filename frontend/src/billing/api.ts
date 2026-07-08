@@ -78,3 +78,14 @@ export function cancelSubscription(): Promise<BillingSubscription> {
     method: "POST",
   });
 }
+
+// Self-heal a lost checkout webhook: the billing success page reconciles the
+// Stripe session server-side so access activates without a manual refresh.
+export function reconcileCheckout(sessionId: string): Promise<BillingSubscription> {
+  invalidateBillingSubscription();
+  return requestJson<BillingSubscription>("/api/v1/billing/checkout/reconcile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ checkout_session_id: sessionId }),
+  });
+}
