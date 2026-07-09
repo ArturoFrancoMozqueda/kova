@@ -5,7 +5,13 @@ import { copy } from "@/i18n/messages";
 
 const t = copy.landing.finalCta;
 
-export default function FinalCta({ primaryTarget }: { primaryTarget: string }) {
+export default function FinalCta({
+  primaryTarget,
+  onCtaClick,
+}: {
+  primaryTarget: string;
+  onCtaClick?: () => void;
+}) {
   return (
     <section className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
@@ -37,6 +43,7 @@ export default function FinalCta({ primaryTarget }: { primaryTarget: string }) {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <Link
               to={primaryTarget}
+              onClick={onCtaClick}
               className="lp-cta-fill"
               style={{
                 background: "var(--cta-blue, var(--kova-blue))", color: "#fff",

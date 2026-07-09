@@ -49,6 +49,9 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       if (mode === "login") {
         await login({ email, password });
         const next = await refresh();
+        // Queued (like signup_completed) so it flushes once AppShell mounts
+        // authenticated — fills the funnel's `login` rung.
+        queueFunnelEvent("login");
         const role = next.status === "authenticated" ? next.user.role : "";
         navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
         return;

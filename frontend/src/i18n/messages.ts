@@ -66,7 +66,7 @@ export const copy = {
         {
           label: "Entiende",
           title: "Reportes que se leen de un vistazo.",
-          body: "Descubre qué días vendes más, qué productos te dejan mejor margen y a qué hora se llena tu local. Decide con datos reales, no con corazonadas.",
+          body: "Descubre qué días vendes más, qué productos mueven tu ingreso y a qué hora se llena tu local. Decide con datos reales, no con corazonadas.",
           meta: ["Ventas del día", "Productos top", "Horas pico", "Cierre de turno"],
         },
       ],
@@ -217,7 +217,7 @@ export const copy = {
       worthItBody: "Si evita un solo descuadre, una venta perdida o una mala compra, ya valió la pena:",
       worthItItems: ["Un descuadre de caja", "Una venta perdida", "Una mala compra", "Horas haciendo cuentas"],
       bridge: "Todo el control del mostrador, por",
-      planName: "Plan Kova",
+      planName: "Plan Standard",
       planSubtitle: "Caja, inventario y reportes claros desde una sola app",
       ctaButton: "Empieza gratis",
       ctaFineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
