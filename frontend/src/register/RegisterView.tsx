@@ -171,8 +171,11 @@ export default function RegisterView() {
         listCategories(),
       ]);
       // Persist the full catalog so the register can open offline from a cold
-      // start. Best-effort: a cache write must never block ringing a sale.
-      if (tenantId) void saveCatalogCache(tenantId, allProducts, categories);
+      // start. Best-effort: a cache write must never block ringing a sale, and
+      // its rejection must never surface (e.g. no IndexedDB in a test env).
+      if (tenantId) {
+        void saveCatalogCache(tenantId, allProducts, categories).catch(() => undefined);
+      }
       const products = allProducts.filter((product) => product.is_active);
       setLoadState({ status: "ready", products, categories });
     } catch {
