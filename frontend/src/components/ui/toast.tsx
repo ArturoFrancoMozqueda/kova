@@ -114,7 +114,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            role="status"
+            // Errors interrupt the screen reader (assertive); other variants
+            // announce politely so they don't cut off in-progress output.
+            role={t.variant === "error" ? "alert" : "status"}
+            aria-live={t.variant === "error" ? "assertive" : "polite"}
             className={cn(
               "pointer-events-auto flex items-center gap-3 rounded-kova-lg border-[0.5px] px-4 py-3 shadow-lg min-w-[280px] max-w-[420px]",
               variantStyles[t.variant],

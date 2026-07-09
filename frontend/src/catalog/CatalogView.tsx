@@ -52,6 +52,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -90,6 +91,15 @@ type Modal =
 
 type ProductSort = "name_asc" | "price_desc" | "price_asc" | "stock_first";
 
+// Describes a pending destructive action awaiting confirmation, shared by the
+// catalog view and the modifier panel.
+type ConfirmRequest = {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  run: () => Promise<void>;
+};
+
 export default function CatalogView() {
   useDocumentTitle(copy.documentTitles.catalog);
   const canCreate = usePermission(CATALOG_CREATE_PERMISSION);
@@ -102,7 +112,17 @@ export default function CatalogView() {
   const [searchParams] = useSearchParams();
   const handledSetupParam = useRef<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
   const { toast } = useToast();
+
+  const runConfirmRequest = useCallback(async () => {
+    if (!confirmRequest) return;
+    try {
+      await confirmRequest.run();
+    } finally {
+      setConfirmRequest(null);
+    }
+  }, [confirmRequest]);
   const navigate = useNavigate();
 
   const [showModifiers, setShowModifiers] = useState(false);
@@ -440,19 +460,26 @@ export default function CatalogView() {
                       size="icon"
                       className="h-10 w-10 lg:h-8 lg:w-8 text-destructive hover:text-destructive"
                       aria-label={`Desactivar ${cat.name}`}
-                      onClick={async () => {
-                        setPending(true);
-                        try {
-                          await deactivateCategory(cat.id);
-                          showNotice(copy.catalog.categoryDeactivated);
-                          if (selectedCategoryId === cat.id) setSelectedCategoryId(null);
-                          await load();
-                        } catch (error) {
-                          showCatalogError(error);
-                        } finally {
-                          setPending(false);
-                        }
-                      }}
+                      onClick={() =>
+                        setConfirmRequest({
+                          title: copy.catalog.confirmCategoryTitle,
+                          body: copy.catalog.confirmCategoryBody(cat.name),
+                          confirmLabel: copy.catalog.confirmDeactivateAction,
+                          run: async () => {
+                            setPending(true);
+                            try {
+                              await deactivateCategory(cat.id);
+                              showNotice(copy.catalog.categoryDeactivated);
+                              if (selectedCategoryId === cat.id) setSelectedCategoryId(null);
+                              await load();
+                            } catch (error) {
+                              showCatalogError(error);
+                            } finally {
+                              setPending(false);
+                            }
+                          },
+                        })
+                      }
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -773,24 +800,42 @@ export default function CatalogView() {
             }}
             onDeactivate={
               canDelete && modal.type === "product-edit"
-                ? async () => {
-                    setPending(true);
-                    try {
-                      await deactivateProduct(modal.product.id);
-                      showNotice(copy.catalog.productDeactivated);
-                      setModal(null);
-                      await load();
-                    } catch (error) {
-                      showCatalogError(error);
-                    } finally {
-                      setPending(false);
-                    }
+                ? () => {
+                    const product = modal.product;
+                    setConfirmRequest({
+                      title: copy.catalog.confirmProductTitle,
+                      body: copy.catalog.confirmProductBody(product.name),
+                      confirmLabel: copy.catalog.confirmDeactivateAction,
+                      run: async () => {
+                        setPending(true);
+                        try {
+                          await deactivateProduct(product.id);
+                          showNotice(copy.catalog.productDeactivated);
+                          setModal(null);
+                          await load();
+                        } catch (error) {
+                          showCatalogError(error);
+                        } finally {
+                          setPending(false);
+                        }
+                      },
+                    });
                   }
                 : undefined
             }
           />
         )}
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmRequest !== null}
+        title={confirmRequest?.title ?? ""}
+        description={confirmRequest?.body}
+        confirmLabel={confirmRequest?.confirmLabel}
+        busy={pending}
+        onConfirm={() => void runConfirmRequest()}
+        onCancel={() => setConfirmRequest(null)}
+      />
     </main>
   );
 }
@@ -818,6 +863,19 @@ function ModifierGroupsPanel({
   const [newGroupRequired, setNewGroupRequired] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
   const [newOptions, setNewOptions] = useState<Record<string, { name: string; delta: string }>>({});
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+
+  const runConfirmRequest = useCallback(async () => {
+    if (!confirmRequest) return;
+    setConfirmBusy(true);
+    try {
+      await confirmRequest.run();
+    } finally {
+      setConfirmBusy(false);
+      setConfirmRequest(null);
+    }
+  }, [confirmRequest]);
 
   const handleCreateGroup = async (e: FormEvent) => {
     e.preventDefault();
@@ -871,15 +929,23 @@ function ModifierGroupsPanel({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={async () => {
-                  try {
-                    await deactivateModifierGroup(group.id);
-                    onNotice(copy.catalog.modifierGroupDeactivated);
-                    await onReload();
-                  } catch (error) {
-                    onError(error);
-                  }
-                }}
+                aria-label={copy.catalog.deactivateGroupLabel(group.name)}
+                onClick={() =>
+                  setConfirmRequest({
+                    title: copy.catalog.confirmModifierGroupTitle,
+                    body: copy.catalog.confirmModifierGroupBody(group.name),
+                    confirmLabel: copy.catalog.confirmDeactivateAction,
+                    run: async () => {
+                      try {
+                        await deactivateModifierGroup(group.id);
+                        onNotice(copy.catalog.modifierGroupDeactivated);
+                        await onReload();
+                      } catch (error) {
+                        onError(error);
+                      }
+                    },
+                  })
+                }
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -904,15 +970,23 @@ function ModifierGroupsPanel({
                     variant="ghost"
                     size="icon"
                     className="h-9 w-9 lg:h-7 lg:w-7 opacity-100 lg:opacity-60 lg:group-hover/opt:opacity-100 lg:focus-within:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                    onClick={async () => {
-                      try {
-                        await deactivateModifierOption(group.id, opt.id);
-                        onNotice(copy.catalog.optionDeactivated);
-                        await onReload();
-                      } catch (error) {
-                        onError(error);
-                      }
-                    }}
+                    aria-label={copy.catalog.deactivateOptionLabel(opt.name)}
+                    onClick={() =>
+                      setConfirmRequest({
+                        title: copy.catalog.confirmModifierOptionTitle,
+                        body: copy.catalog.confirmModifierOptionBody(opt.name),
+                        confirmLabel: copy.catalog.confirmRemoveAction,
+                        run: async () => {
+                          try {
+                            await deactivateModifierOption(group.id, opt.id);
+                            onNotice(copy.catalog.optionDeactivated);
+                            await onReload();
+                          } catch (error) {
+                            onError(error);
+                          }
+                        },
+                      })
+                    }
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -985,6 +1059,16 @@ function ModifierGroupsPanel({
           </Button>
         </form>
       )}
+
+      <ConfirmDialog
+        open={confirmRequest !== null}
+        title={confirmRequest?.title ?? ""}
+        description={confirmRequest?.body}
+        confirmLabel={confirmRequest?.confirmLabel}
+        busy={confirmBusy}
+        onConfirm={() => void runConfirmRequest()}
+        onCancel={() => setConfirmRequest(null)}
+      />
     </div>
   );
 }
@@ -1116,7 +1200,7 @@ export function ProductForm({
   pending: boolean;
   onCancel: () => void;
   onSubmit: (values: ProductFormValues) => Promise<void>;
-  onDeactivate?: () => Promise<void>;
+  onDeactivate?: () => void | Promise<void>;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");

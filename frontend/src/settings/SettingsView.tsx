@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
 import { ReceiptTemplate } from "@/orders/ReceiptTemplate";
@@ -121,7 +122,25 @@ export default function SettingsView() {
     email: "",
     role: "cashier",
   });
+  const [pendingAction, setPendingAction] = useState<{
+    title: string;
+    body: string;
+    confirmLabel: string;
+    run: () => Promise<void>;
+  } | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const activeTab = tabFromPath(location.pathname);
+
+  const runPendingAction = useCallback(async () => {
+    if (!pendingAction) return;
+    setActionBusy(true);
+    try {
+      await pendingAction.run();
+    } finally {
+      setActionBusy(false);
+      setPendingAction(null);
+    }
+  }, [pendingAction]);
 
   const load = useCallback(async () => {
     setLoadState("loading");
@@ -334,12 +353,41 @@ export default function SettingsView() {
                     {roleDescription(employee.role)}
                   </p>
                 </div>
-                <Select className="sm:w-44" value={employee.role} disabled={!employee.is_active} onChange={(e) => void updateEmployeeRole(employee.membership_id, e.target.value as Role).then(load)}>
+                <Select
+                  className="sm:w-44"
+                  value={employee.role}
+                  disabled={!employee.is_active}
+                  onChange={(e) => {
+                    const newRole = e.target.value as Role;
+                    if (newRole === employee.role) return;
+                    setPendingAction({
+                      title: copy.settings.roleChangeConfirmTitle,
+                      body: copy.settings.roleChangeConfirmBody(
+                        employee.email,
+                        roleLabel(employee.role),
+                        roleLabel(newRole),
+                      ),
+                      confirmLabel: copy.settings.roleChangeConfirmAction,
+                      run: () => updateEmployeeRole(employee.membership_id, newRole).then(load),
+                    });
+                  }}
+                >
                   {roleOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </Select>
-                <Button variant="outline" disabled={!employee.is_active} onClick={() => void deactivateEmployee(employee.membership_id).then(load)}>
+                <Button
+                  variant="outline"
+                  disabled={!employee.is_active}
+                  onClick={() =>
+                    setPendingAction({
+                      title: copy.settings.deactivateConfirmTitle,
+                      body: copy.settings.deactivateConfirmBody(employee.email),
+                      confirmLabel: copy.settings.deactivateConfirmAction,
+                      run: () => deactivateEmployee(employee.membership_id).then(load),
+                    })
+                  }
+                >
                   {copy.settings.deactivate}
                 </Button>
               </div>
@@ -391,6 +439,16 @@ export default function SettingsView() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title={pendingAction?.title ?? ""}
+        description={pendingAction?.body}
+        confirmLabel={pendingAction?.confirmLabel}
+        busy={actionBusy}
+        onConfirm={() => void runPendingAction()}
+        onCancel={() => setPendingAction(null)}
+      />
     </main>
   );
 }
