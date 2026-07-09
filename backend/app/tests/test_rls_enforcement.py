@@ -16,6 +16,8 @@ TENANT_A = uuid.UUID("11111111-1111-1111-1111-1111111111a1")
 TENANT_B = uuid.UUID("22222222-2222-2222-2222-2222222222b2")
 PRODUCT_A = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")
 PRODUCT_B = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2")
+USER_A = uuid.UUID("33333333-3333-3333-3333-3333333333a3")
+USER_B = uuid.UUID("44444444-4444-4444-4444-4444444444b4")
 
 
 @pytest.fixture
@@ -38,10 +40,33 @@ def rls_seed(owner_engine):
             ),
             {"pa": PRODUCT_A, "pb": PRODUCT_B, "a": TENANT_A, "b": TENANT_B},
         )
+        conn.execute(
+            text(
+                "INSERT INTO users (id, email, hashed_password, is_email_verified) VALUES "
+                "(:ua, 'rls-a@example.com', 'hash-a', true), "
+                "(:ub, 'rls-b@example.com', 'hash-b', true)"
+            ),
+            {"ua": USER_A, "ub": USER_B},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO memberships (tenant_id, user_id, role) VALUES "
+                "(:a, :ua, 'owner'), (:b, :ub, 'owner')"
+            ),
+            {"a": TENANT_A, "b": TENANT_B, "ua": USER_A, "ub": USER_B},
+        )
     try:
         yield
     finally:
         with owner_engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM memberships WHERE user_id IN (:ua, :ub)"),
+                {"ua": USER_A, "ub": USER_B},
+            )
+            conn.execute(
+                text("DELETE FROM users WHERE id IN (:ua, :ub)"),
+                {"ua": USER_A, "ub": USER_B},
+            )
             conn.execute(
                 text("DELETE FROM products WHERE id IN (:pa, :pb)"),
                 {"pa": PRODUCT_A, "pb": PRODUCT_B},
@@ -80,6 +105,36 @@ def test_no_context_sees_nothing(kova_app_engine, rls_seed):  # noqa: ARG001
             {"pa": PRODUCT_A, "pb": PRODUCT_B},
         ).scalar()
     assert count == 0
+
+
+def test_users_are_visible_only_through_current_tenant_membership(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        emails = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT email FROM users WHERE id IN (:ua, :ub)"),
+                {"ua": USER_A, "ub": USER_B},
+            )
+        }
+    assert emails == {"rls-a@example.com"}
+
+
+def test_tenant_name_is_visible_only_for_current_tenant(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        names = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT name FROM tenants WHERE id IN (:a, :b)"),
+                {"a": TENANT_A, "b": TENANT_B},
+            )
+        }
+    assert names == {"RLS A"}
 
 
 def test_cross_tenant_insert_is_rejected(kova_app_engine, rls_seed):  # noqa: ARG001
