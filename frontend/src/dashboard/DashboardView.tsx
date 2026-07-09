@@ -30,7 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { formatTenantName } from "@/lib/formatTenantName";
-import { CountUp, LivePulse } from "@/components/brand/RealTime";
+import { CountUp } from "@/components/brand/RealTime";
 import {
   DollarSign,
   ShoppingCart,
@@ -464,8 +464,7 @@ export default function DashboardView() {
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground mb-1">{greetingLabel}</p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">{copy.app.dashboard}</h1>
-            {loadState.status === "ready" && <LivePulse label="En vivo" />}
+            <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
           </div>
           <p className="text-muted-foreground mt-1">{periodSubtitle(period, tenantTimezone)}</p>
         </div>
