@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { copy } from "../i18n/messages";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ const voidReasons = ["operator_error", "wrong_product", "system_issue", "other"]
 export function VoidModal({ disabled, onCancel, onSubmit }: VoidModalProps) {
   const [reason, setReason] = useState(voidReasons[0]);
   const [confirmed, setConfirmed] = useState(false);
+  const reasonId = useId();
 
   return (
     <Dialog open onClose={onCancel}>
@@ -35,11 +36,11 @@ export function VoidModal({ disabled, onCancel, onSubmit }: VoidModalProps) {
         </div>
 
         <div className="space-y-2">
-          <Label>{copy.voidModal.reason}</Label>
-          <Select value={reason} onChange={(event) => setReason(event.target.value)}>
+          <Label htmlFor={reasonId}>{copy.voidModal.reason}</Label>
+          <Select id={reasonId} value={reason} onChange={(event) => setReason(event.target.value)}>
             {voidReasons.map((option) => (
               <option key={option} value={option}>
-                {option.replaceAll("_", " ")}
+                {copy.voidModal.reasons[option as keyof typeof copy.voidModal.reasons]}
               </option>
             ))}
           </Select>

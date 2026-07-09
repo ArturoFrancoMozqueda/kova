@@ -5,6 +5,10 @@ import {
 import { BILLING_TRIAL_LABEL } from "@/billing/trial";
 
 export const copy = {
+  confirm: {
+    cancel: "Cancelar",
+    confirm: "Confirmar",
+  },
   errors: {
     network: "Parece que no hay conexión. Revisa tu internet e inténtalo de nuevo.",
     permission: "Tu cuenta no tiene permiso para esto. Pídeselo a tu gerente o al dueño.",
@@ -544,6 +548,14 @@ export const copy = {
     deactivate: "Desactivar",
     pendingInvites: "Invitaciones pendientes",
     loadError: "No se pudo cargar la configuración.",
+    deactivateConfirmTitle: "¿Desactivar acceso?",
+    deactivateConfirmBody: (email: string) =>
+      `${email} ya no podrá iniciar sesión ni operar en tu negocio. Podrás reactivarlo más adelante.`,
+    deactivateConfirmAction: "Desactivar acceso",
+    roleChangeConfirmTitle: "¿Cambiar el rol?",
+    roleChangeConfirmBody: (email: string, from: string, to: string) =>
+      `${email} pasará de ${from} a ${to}. Esto cambia lo que puede ver y hacer en Kova.`,
+    roleChangeConfirmAction: "Cambiar rol",
   },
   tour: {
     dismiss: "Cerrar recorrido",
@@ -723,6 +735,12 @@ export const copy = {
     reason: "Motivo",
     submit: "Cancelar orden",
     cancel: "Cerrar",
+    reasons: {
+      operator_error: "Error del operador",
+      wrong_product: "Producto equivocado",
+      system_issue: "Problema del sistema",
+      other: "Otro",
+    },
   },
   shiftView: {
     title: "Turnos",
@@ -1330,6 +1348,21 @@ export const copy = {
     saveCategory: "Guardar categoría",
     deactivate: "Desactivar",
     deactivateConfirm: "¿Desactivar?",
+    confirmCategoryTitle: "¿Desactivar categoría?",
+    confirmCategoryBody: (name: string) =>
+      `"${name}" dejará de aparecer en el catálogo. Los productos asignados no se eliminan.`,
+    confirmProductTitle: "¿Desactivar producto?",
+    confirmProductBody: (name: string) =>
+      `"${name}" dejará de venderse en la caja. Su historial de ventas se conserva.`,
+    confirmModifierGroupTitle: "¿Desactivar grupo de modificadores?",
+    confirmModifierGroupBody: (name: string) =>
+      `"${name}" y sus opciones dejarán de ofrecerse en la caja.`,
+    confirmModifierOptionTitle: "¿Quitar opción?",
+    confirmModifierOptionBody: (name: string) => `"${name}" dejará de ofrecerse en la caja.`,
+    confirmDeactivateAction: "Desactivar",
+    confirmRemoveAction: "Quitar",
+    deactivateGroupLabel: (name: string) => `Desactivar grupo ${name}`,
+    deactivateOptionLabel: (name: string) => `Quitar opción ${name}`,
     emptyCategories: "Aún no hay categorías.",
     products: "Productos",
     searchProducts: "Buscar productos",

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, createContext, useContext, useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
@@ -9,19 +9,79 @@ interface DialogProps {
   className?: string;
 }
 
+// Shares the generated title id from Dialog down to DialogTitle so the dialog
+// can reference its own accessible name via aria-labelledby.
+const DialogTitleContext = createContext<string | undefined>(undefined);
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "textarea:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
 export function Dialog({ open, onClose, children, className }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    // Remember where focus was so we can restore it when the dialog closes.
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+
+    // Move focus into the dialog. Focusing the panel container (tabIndex=-1)
+    // lets the screen reader announce the dialog title without accidentally
+    // arming a button, and Tab from here moves to the first control.
+    panel?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      if (items.length === 0) {
+        // No focusable child — keep focus on the container.
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+
+      if (e.shiftKey) {
+        if (active === first || active === panel || !panel.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !panel.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
-    document.addEventListener("keydown", handleEscape);
+
+    document.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
+      // Restore focus to the trigger, guarding against it having unmounted
+      // (e.g. a row action whose row was removed) so this never throws.
+      if (
+        previouslyFocused &&
+        typeof previouslyFocused.focus === "function" &&
+        document.contains(previouslyFocused)
+      ) {
+        previouslyFocused.focus();
+      }
     };
   }, [open, onClose]);
 
@@ -36,11 +96,14 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
       }}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
           // Mobile: bottom sheet — full width, slides up, capped height, rounded top corners
-          "relative w-full max-h-[90dvh] overflow-y-auto overscroll-contain",
+          "relative w-full max-h-[90dvh] overflow-y-auto overscroll-contain focus:outline-none",
           "rounded-t-kova-xl border-t-[0.5px] border-x-[0.5px] border-kova-border bg-white p-5 pt-7 shadow-xl",
           "animate-slide-up",
           // Desktop overrides: centered card
@@ -58,7 +121,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
         >
           <X className="h-4 w-4" />
         </button>
-        {children}
+        <DialogTitleContext.Provider value={titleId}>{children}</DialogTitleContext.Provider>
       </div>
     </div>
   );
@@ -68,8 +131,15 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
   return <div className={cn("mb-4 space-y-1.5", className)} {...props} />;
 }
 
-export function DialogTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn("text-lg font-semibold leading-none tracking-tight text-kova-ink", className)} {...props} />;
+export function DialogTitle({ className, id, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  const titleId = useContext(DialogTitleContext);
+  return (
+    <h2
+      id={id ?? titleId}
+      className={cn("text-lg font-semibold leading-none tracking-tight text-kova-ink", className)}
+      {...props}
+    />
+  );
 }
 
 export function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {

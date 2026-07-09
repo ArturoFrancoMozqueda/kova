@@ -24,6 +24,7 @@ import type { Shift } from "@/shifts/types";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1121,6 +1122,17 @@ export default function RegisterView() {
                         className="grid grid-cols-3 gap-2"
                         role="radiogroup"
                         aria-labelledby="paymentMethodLabel"
+                        onKeyDown={(e) =>
+                          handleRadioGroupKeyDown(
+                            e,
+                            paymentMethodOptions.map(({ value }) => ({
+                              value,
+                              disabled: value === "cash" && hasOpenShift === false,
+                            })),
+                            paymentMethod,
+                            setPaymentMethod,
+                          )
+                        }
                       >
                         {paymentMethodOptions.map(({ value, label, icon }) => {
                           const isCashDisabled = value === "cash" && hasOpenShift === false;
@@ -1129,6 +1141,8 @@ export default function RegisterView() {
                               key={value}
                               type="button"
                               role="radio"
+                              data-radio-value={value}
+                              tabIndex={paymentMethod === value ? 0 : -1}
                               aria-checked={paymentMethod === value}
                               aria-disabled={isCashDisabled}
                               onClick={() =>
