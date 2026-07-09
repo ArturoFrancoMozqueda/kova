@@ -64,6 +64,8 @@ class SalesSummaryResponse(BaseModel):
 class PaymentBreakdownRow(BaseModel):
     method: str
     amount: Decimal
+    refunded_amount: Decimal = Decimal("0.00")
+    net_amount: Decimal = Decimal("0.00")
     payment_count: int
 
 
@@ -71,6 +73,9 @@ class PaymentBreakdownResponse(BaseModel):
     start_date: date
     end_date: date
     payments: list[PaymentBreakdownRow]
+    gross_total: Decimal = Decimal("0.00")
+    refund_total: Decimal = Decimal("0.00")
+    net_total: Decimal = Decimal("0.00")
 
 
 class TopProductRow(BaseModel):
@@ -158,6 +163,8 @@ class BusinessStoryProductDriver(BaseModel):
 class BusinessStoryPaymentDriver(BaseModel):
     method: str
     amount: Decimal
+    refunded_amount: Decimal = Decimal("0.00")
+    net_amount: Decimal = Decimal("0.00")
     payment_count: int
     sales_share_pct: int
 

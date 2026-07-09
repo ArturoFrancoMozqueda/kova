@@ -197,6 +197,23 @@ def payment_breakdown(
         )
         counts[payment.method] += 1
 
+    # Refund-adjust the mix so it ties to net sales. `amount` stays the gross
+    # collected (unchanged definition); `net_amount` = collected − refunds
+    # attributed to that method. Refunds with a recorded method net out per
+    # method; legacy refunds (method NULL) only reduce the overall net_total so
+    # the top line still reconciles to net_sales (= gross_sales − refunds).
+    refunds_by_method = repository.refunds_by_method_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    )
+    all_refunds = repository.refunds_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    )
+    refund_total = calculator.money(
+        sum((r.refunded_amount for r in all_refunds), Decimal("0.00"))
+    )
+    gross_total = calculator.money(sum(totals.values(), Decimal("0.00")))
+    net_total = calculator.money(gross_total - refund_total)
+
     return {
         "start_date": start_date,
         "end_date": end_date,
@@ -204,10 +221,17 @@ def payment_breakdown(
             {
                 "method": method,
                 "amount": totals[method],
+                "refunded_amount": refunds_by_method.get(method, Decimal("0.00")),
+                "net_amount": calculator.money(
+                    totals[method] - refunds_by_method.get(method, Decimal("0.00"))
+                ),
                 "payment_count": counts[method],
             }
             for method in sorted(totals)
         ],
+        "gross_total": gross_total,
+        "refund_total": refund_total,
+        "net_total": net_total,
     }
 
 
@@ -754,11 +778,21 @@ def _payment_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> 
         totals[payment.method] = calculator.money(totals[payment.method] + payment.amount_amount)
         counts[payment.method] += 1
     total_payments = calculator.money(sum(totals.values(), Decimal("0.00")))
+    # `amount` and `sales_share_pct` stay the gross-collection view (unchanged
+    # definition). `net_amount` nets out refunds recorded against each method so
+    # the mix reconciles with net sales; legacy method-less refunds are excluded.
+    refunds_by_method = repository.refunds_by_method_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    )
     return sorted(
         [
             {
                 "method": method,
                 "amount": amount,
+                "refunded_amount": refunds_by_method.get(method, Decimal("0.00")),
+                "net_amount": calculator.money(
+                    amount - refunds_by_method.get(method, Decimal("0.00"))
+                ),
                 "payment_count": counts[method],
                 "sales_share_pct": _pct(amount, total_payments),
             }

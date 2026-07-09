@@ -79,6 +79,33 @@ def payments_for_orders(
     )
 
 
+def refunds_by_method_for_orders(
+    db: Session, *, tenant_id: UUID, order_ids: list[UUID]
+) -> dict[str, Decimal]:
+    """Total refunded per payment method across a set of orders.
+
+    Only refunds that recorded a refund_payment_method are attributed to a
+    method; legacy refunds (method NULL) are excluded here and instead surface
+    in the overall refund total so the top-level net still reconciles.
+    """
+    if not order_ids:
+        return {}
+    rows = (
+        db.query(
+            Refund.refund_payment_method,
+            func.coalesce(func.sum(Refund.refunded_amount), 0).label("total"),
+        )
+        .filter(
+            Refund.tenant_id == tenant_id,
+            Refund.order_id.in_(order_ids),
+            Refund.refund_payment_method.isnot(None),
+        )
+        .group_by(Refund.refund_payment_method)
+        .all()
+    )
+    return {row.refund_payment_method: Decimal(row.total or 0) for row in rows}
+
+
 def order_items_for_orders(
     db: Session, *, tenant_id: UUID, order_ids: list[UUID]
 ) -> list[OrderItem]:

@@ -154,6 +154,7 @@ def manager_with_refunded_order(client):
         json={
             "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     assert refund_response.status_code == 201, refund_response.text

@@ -69,6 +69,7 @@ def test_product_reports_discount_refunded_items(client):
         json={
             "items": [{"order_item_id": order_json["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     assert refund.status_code == 201, refund.text

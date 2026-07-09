@@ -475,6 +475,34 @@ def create_refund(
         refund_lines.append((order_item, refund_item.quantity, line_total))
         total_refunded = calculator.money(total_refunded + line_total)
 
+    # Money integrity: a refund can only be paid back through a method that
+    # actually collected money for this order, and never more than was collected
+    # in that method minus what has already been refunded to it. This blocks a
+    # transfer-only order from draining the cash drawer, and blocks
+    # over-refunding a split payment's cash portion.
+    method = body.refund_payment_method
+    collected = repo.collected_by_method(db, tenant_id=tenant_id, order_id=order_id).get(
+        method, Decimal("0.00")
+    )
+    already_refunded = repo.refunded_by_method(
+        db, tenant_id=tenant_id, order_id=order_id
+    ).get(method, Decimal("0.00"))
+    available_in_method = calculator.money(collected - already_refunded)
+    if total_refunded > available_in_method:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "REFUND_METHOD_EXCEEDS_COLLECTED",
+                "method": method,
+                "available": str(available_in_method),
+                "requested": str(total_refunded),
+                "message": (
+                    "No puedes devolver por este método más de lo que se cobró "
+                    f"en él (máx. {available_in_method})."
+                ),
+            },
+        )
+
     cash_refund_shift = None
     if body.refund_payment_method == "cash":
         cash_refund_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
@@ -488,6 +516,7 @@ def create_refund(
         user_id=user_id,
         reason=body.reason,
         refunded_amount=total_refunded,
+        refund_payment_method=method,
     )
 
     for order_item, quantity, line_total in refund_lines:
