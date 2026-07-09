@@ -221,6 +221,7 @@ def manager_with_sales_and_refund(client):
         json={
             "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     assert refund.status_code == 201, refund.text
@@ -295,6 +296,7 @@ def manager_with_employee_sales(client, db):
         json={
             "items": [{"order_item_id": employee_order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     assert refund.status_code == 201, refund.text
@@ -323,6 +325,7 @@ def manager_with_refund_reasons(client):
         json={
             "items": [{"order_item_id": order_a["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     refund_b = client.post(
@@ -331,6 +334,7 @@ def manager_with_refund_reasons(client):
         json={
             "items": [{"order_item_id": order_b["items"][0]["id"], "quantity": 1}],
             "reason": "defective",
+            "refund_payment_method": "cash",
         },
     )
     assert refund_a.status_code == 201, refund_a.text
@@ -383,6 +387,7 @@ def manager_with_business_story_data(client, db):
         json={
             "items": [{"order_item_id": later_night_order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "bank_transfer",
         },
     )
     assert refund.status_code == 201, refund.text

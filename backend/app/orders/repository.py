@@ -296,6 +296,7 @@ def create_refund(
     user_id: UUID,
     reason: str,
     refunded_amount: Decimal,
+    refund_payment_method: str | None = None,
 ) -> Refund:
     refund = Refund(
         order_id=order_id,
@@ -303,10 +304,52 @@ def create_refund(
         created_by_user_id=user_id,
         reason=reason,
         refunded_amount=refunded_amount,
+        refund_payment_method=refund_payment_method,
     )
     db.add(refund)
     db.flush()
     return refund
+
+
+def collected_by_method(
+    db: Session, *, tenant_id: UUID, order_id: UUID
+) -> dict[str, Decimal]:
+    """Total collected per payment method for an order (tenant-scoped)."""
+    rows = (
+        db.query(
+            Payment.method,
+            func.coalesce(func.sum(Payment.amount_amount), 0).label("total"),
+        )
+        .filter(Payment.tenant_id == tenant_id, Payment.order_id == order_id)
+        .group_by(Payment.method)
+        .all()
+    )
+    return {row.method: Decimal(row.total or 0) for row in rows}
+
+
+def refunded_by_method(
+    db: Session, *, tenant_id: UUID, order_id: UUID
+) -> dict[str, Decimal]:
+    """Total already refunded per method for an order (tenant-scoped).
+
+    Only rows that recorded a refund_payment_method count toward a method's
+    running total; legacy rows (method NULL) are excluded from the per-method
+    ceiling check because their tender is unknown.
+    """
+    rows = (
+        db.query(
+            Refund.refund_payment_method,
+            func.coalesce(func.sum(Refund.refunded_amount), 0).label("total"),
+        )
+        .filter(
+            Refund.tenant_id == tenant_id,
+            Refund.order_id == order_id,
+            Refund.refund_payment_method.isnot(None),
+        )
+        .group_by(Refund.refund_payment_method)
+        .all()
+    )
+    return {row.refund_payment_method: Decimal(row.total or 0) for row in rows}
 
 
 def create_refund_item(

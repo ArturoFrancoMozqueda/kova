@@ -94,6 +94,10 @@ class Refund(Base):
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(String(30), nullable=False)
     refunded_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    # The tender the refund was paid back through (cash / bank_transfer /
+    # manual_card). Nullable for rows created before this column existed; new
+    # refunds always persist it so per-method drawer/report math ties out.
+    refund_payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

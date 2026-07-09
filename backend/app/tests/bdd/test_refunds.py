@@ -279,6 +279,7 @@ def refund_again_with_key(refund_context, key):
         json={
             "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     refund_context["refund_response_2"] = response
@@ -299,6 +300,7 @@ def tenant_b_attempts_refund(refund_context):
         json={
             "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     refund_context["refund_response"] = response
@@ -313,9 +315,13 @@ def _post_refund(
     refund_payment_method: str | None = None,
 ) -> None:
     order = refund_context["order"]
-    payload = {"items": items, "reason": reason}
-    if refund_payment_method:
-        payload["refund_payment_method"] = refund_payment_method
+    # refund_payment_method is required by the API; default to cash since the
+    # refund fixtures ring cash orders.
+    payload = {
+        "items": items,
+        "reason": reason,
+        "refund_payment_method": refund_payment_method or "cash",
+    }
     response = refund_context["client"].post(
         f"/api/v1/orders/{order['id']}/refunds",
         headers={"Idempotency-Key": key or f"refund-{uuid4().hex}"},

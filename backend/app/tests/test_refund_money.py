@@ -75,6 +75,7 @@ def test_refund_amount_uses_decimal_line_totals(client):
         json={
             "items": [{"order_item_id": item["id"], "quantity": 1} for item in order["items"]],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     assert refund_response.status_code == 201, refund_response.text
