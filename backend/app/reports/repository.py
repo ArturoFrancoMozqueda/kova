@@ -15,6 +15,12 @@ from app.business_settings.models import BusinessProfile
 from app.catalog.models import Product
 from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, RefundItem, Void
 
+# Sale time = client ring-time when present, else server INSERT time. Reports
+# bucket by when a sale actually happened, so a sale rung at 23:50 and synced
+# after midnight reports on the ring-time day. Backfilled/online rows have
+# occurred_at == created_at, so historical report totals are unchanged.
+_SALE_TIME = func.coalesce(Order.occurred_at, Order.created_at)
+
 
 def get_business_profile(db: Session, *, tenant_id: UUID) -> BusinessProfile | None:
     return db.get(BusinessProfile, tenant_id)
@@ -28,8 +34,8 @@ def completed_orders_between(
         .filter(
             Order.tenant_id == tenant_id,
             Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
+            _SALE_TIME >= start,
+            _SALE_TIME <= end,
         )
         .all()
     )
@@ -166,8 +172,8 @@ def sales_by_employee_rows(
         .filter(
             Order.tenant_id == tenant_id,
             Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
+            _SALE_TIME >= start,
+            _SALE_TIME <= end,
         )
         .group_by(Order.created_by_user_id, User.email)
         .order_by(func.sum(Order.total_amount).desc())
@@ -189,8 +195,8 @@ def product_units_in_window(
         .filter(
             Order.tenant_id == tenant_id,
             Order.status == "completed",
-            Order.created_at >= start,
-            Order.created_at <= end,
+            _SALE_TIME >= start,
+            _SALE_TIME <= end,
         )
         .group_by(OrderItem.product_id, OrderItem.product_name)
         .all()

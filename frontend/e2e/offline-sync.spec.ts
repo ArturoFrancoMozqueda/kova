@@ -174,6 +174,51 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
   await expect(page.getByRole("heading", { name: /fallidas/i })).not.toBeVisible({ timeout: 5000 });
 });
 
+test("cold offline: register renders catalog from IndexedDB cache and queues a sale", async ({
+  page,
+}) => {
+  await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: CASHIER_SESSION }),
+  );
+
+  // Single mutable flag flips the catalog/categories/sync from online to a
+  // hard network failure, simulating going fully offline between two loads.
+  let online = true;
+  await page.route("**/api/v1/catalog/products", (route) =>
+    online ? route.fulfill({ json: CATALOG }) : route.abort(),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    online ? route.fulfill({ json: [] }) : route.abort(),
+  );
+  await page.route("**/api/v1/sync/offline-sales", (route) =>
+    online
+      ? route.fulfill({ json: syncSuccess("ignored", "order-online") })
+      : route.abort(),
+  );
+
+  // Phase 1 — online: the register loads and caches the catalog to IndexedDB.
+  await page.goto("/register");
+  await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
+
+  // Phase 2 — go fully offline and reload from a cold start.
+  online = false;
+  await page.reload();
+
+  // The register must render from the cache, not the error card.
+  await expect(page.getByText(/modo sin conexi[óo]n/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
+
+  // A sale can still be rung and lands in the offline queue.
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
+  await expect(page.getByRole("status")).toContainText(/en cola/i);
+
+  await page.goto("/sync-queue");
+  await expect(page.getByRole("heading", { name: /pendientes/i })).toBeVisible();
+});
+
 test("duplicate sync of same client_uuid returns same order (idempotency)", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
