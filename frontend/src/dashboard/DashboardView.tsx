@@ -454,15 +454,17 @@ export default function DashboardView() {
   }, [load, period]);
 
   const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
+  const greeting = getGreeting(tenantTimezone);
+  const greetingLabel = tenantName ? `${greeting}: ${tenantName}` : greeting;
 
   return (
     <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground mb-1">{getGreeting(tenantTimezone)}</p>
+          <p className="text-sm text-muted-foreground mb-1">{greetingLabel}</p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{copy.app.dashboard}</h1>
             {loadState.status === "ready" && <LivePulse label="En vivo" />}
           </div>
           <p className="text-muted-foreground mt-1">{periodSubtitle(period, tenantTimezone)}</p>
