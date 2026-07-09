@@ -1,7 +1,9 @@
 export type CashMovement = {
   id: string;
   shift_id: string;
-  type: "opening_balance" | "cash_in" | "cash_out";
+  // refund_payout rows are emitted by the backend when a refund is paid out of
+  // the drawer; they count against expected cash at close.
+  type: "opening_balance" | "cash_in" | "cash_out" | "refund_payout";
   amount: string;
   reason: string;
   created_at: string;

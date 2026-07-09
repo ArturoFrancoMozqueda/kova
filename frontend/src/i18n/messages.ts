@@ -779,6 +779,21 @@ export const copy = {
           : status === "shortage"
             ? "Faltante"
             : "Cerrado",
+    printCorte: "Imprimir corte",
+  },
+  corte: {
+    title: "Corte de caja",
+    openedAt: "Apertura",
+    closedAt: "Cierre",
+    openingCash: "Fondo de apertura",
+    cashSales: "Ventas en efectivo",
+    cashIn: "Entradas de efectivo",
+    cashOut: "Salidas de efectivo",
+    refundPayout: "Reembolsos en efectivo",
+    expectedCash: "Efectivo esperado",
+    actualCash: "Efectivo contado",
+    variance: "Diferencia",
+    footer: "Documento interno de control de caja.",
   },
   openShiftModal: {
     title: "Abrir turno",
@@ -1298,6 +1313,7 @@ export const copy = {
     openShift: "Abrir turno",
     openOrder: "Abrir orden",
     newSale: "Nueva venta",
+    printReceipt: "Imprimir recibo",
     total: "Total",
     charge: "Cobrar",
     pendingSales: (n: number) => `${n} en cola`,
