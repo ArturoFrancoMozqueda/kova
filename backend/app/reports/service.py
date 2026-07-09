@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,13 @@ from app.orders.models import Order, Refund
 from app.pricing import calculator
 from app.reports import repository
 from app.shared.exceptions import bad_request
+from app.shared.timezone import local_day_bounds
+from app.shared.timezone import tenant_timezone as _shared_tenant_timezone
+
+
+def _sale_time(order: Order) -> datetime:
+    """Ring-time when present, else server INSERT time (see repository._SALE_TIME)."""
+    return order.occurred_at or order.created_at
 
 # Cap report ranges so a huge custom range can't load a year of orders into
 # memory. 92 days covers a full quarter, the largest sensible SMB window.
@@ -60,12 +67,9 @@ def _bounds(start_date: date, end_date: date) -> tuple[datetime, datetime]:
 
 
 def _tenant_timezone(db: Session, *, tenant_id: UUID) -> ZoneInfo:
-    profile = repository.get_business_profile(db, tenant_id=tenant_id)
-    timezone_name = profile.timezone if profile else "America/Mexico_City"
-    try:
-        return ZoneInfo(timezone_name)
-    except ZoneInfoNotFoundError:
-        return ZoneInfo("America/Mexico_City")
+    # Delegate to the shared helper so reports and order-list resolve the
+    # tenant timezone identically.
+    return _shared_tenant_timezone(db, tenant_id=tenant_id)
 
 
 def _timezone_name(tz: ZoneInfo) -> str:
@@ -73,9 +77,7 @@ def _timezone_name(tz: ZoneInfo) -> str:
 
 
 def _local_bounds(start_date: date, end_date: date, tz: ZoneInfo) -> tuple[datetime, datetime]:
-    local_start = datetime.combine(start_date, time.min, tzinfo=tz)
-    local_end = datetime.combine(end_date, time.max, tzinfo=tz)
-    return local_start.astimezone(UTC), local_end.astimezone(UTC)
+    return local_day_bounds(start_date, end_date, tz)
 
 
 def _completed_orders_between(
@@ -255,7 +257,7 @@ def sales_by_hour(
         for hour in range(24)
     }
     for order in orders:
-        hour = order.created_at.astimezone(tz).hour
+        hour = _sale_time(order).astimezone(tz).hour
         net = calculator.money(
             order.total_amount - refunds_by_order.get(order.id, Decimal("0.00"))
         )
@@ -348,7 +350,7 @@ def business_story(
     }
 
     for order in orders:
-        local_created = order.created_at.astimezone(tz)
+        local_created = _sale_time(order).astimezone(tz)
         order_net = calculator.money(
             order.total_amount - refunds_by_order.get(order.id, Decimal("0.00"))
         )

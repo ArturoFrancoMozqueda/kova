@@ -7,6 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.catalog.models import Product
 from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, RefundItem, Void
+from app.shared.timezone import tenant_timezone
+
+# Sale time for filtering/sorting: the client ring-time when present, else the
+# server INSERT time. Backfilled rows and online sales have occurred_at ==
+# created_at, so this is a no-op for them and only re-buckets late-synced
+# offline sales to the day they were actually rung.
+_SALE_TIME = func.coalesce(Order.occurred_at, Order.created_at)
 
 
 def get_active_product_for_update(
@@ -33,6 +40,7 @@ def create_order(
     total_amount: Decimal,
     client_uuid: UUID | None = None,
     shift_id: UUID | None = None,
+    occurred_at: datetime.datetime | None = None,
 ) -> Order:
     order = Order(
         tenant_id=tenant_id,
@@ -42,6 +50,7 @@ def create_order(
         status="completed",
         subtotal_amount=subtotal_amount,
         total_amount=total_amount,
+        occurred_at=occurred_at,
     )
     db.add(order)
     db.flush()
@@ -147,25 +156,47 @@ def create_inventory_movement(
     return movement
 
 
+def _resolve_bounds(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    start_date: datetime.date | None,
+    end_date: datetime.date | None,
+) -> tuple[datetime.datetime | None, datetime.datetime | None]:
+    """Turn calendar dates into tz-aware UTC bounds in the tenant's timezone.
+
+    The old code combined dates with time.min naively, so a filter for a local
+    day silently used UTC midnight — off by the tenant's UTC offset (6h for
+    America/Mexico_City). Bounding in the tenant tz matches the reports module.
+    """
+    if start_date is None and end_date is None:
+        return None, None
+    tz = tenant_timezone(db, tenant_id=tenant_id)
+    start = end = None
+    if start_date is not None:
+        start = datetime.datetime.combine(
+            start_date, datetime.time.min, tzinfo=tz
+        ).astimezone(datetime.UTC)
+    if end_date is not None:
+        end = datetime.datetime.combine(
+            end_date, datetime.time.max, tzinfo=tz
+        ).astimezone(datetime.UTC)
+    return start, end
+
+
 def _apply_order_filters(
     query,
     *,
     status: str | None = None,
-    start_date: datetime.date | None = None,
-    end_date: datetime.date | None = None,
+    start: datetime.datetime | None = None,
+    end: datetime.datetime | None = None,
 ):
     if status:
         query = query.filter(Order.status == status)
-    if start_date:
-        query = query.filter(
-            Order.created_at >= datetime.datetime.combine(start_date, datetime.time.min)
-        )
-    if end_date:
-        query = query.filter(
-            Order.created_at < datetime.datetime.combine(
-                end_date + datetime.timedelta(days=1), datetime.time.min
-            )
-        )
+    if start is not None:
+        query = query.filter(_SALE_TIME >= start)
+    if end is not None:
+        query = query.filter(_SALE_TIME <= end)
     return query
 
 
@@ -179,9 +210,12 @@ def list_orders_by_tenant(
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
 ) -> list[Order]:
+    start, end = _resolve_bounds(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
+    )
     query = db.query(Order).filter(Order.tenant_id == tenant_id)
-    query = _apply_order_filters(query, status=status, start_date=start_date, end_date=end_date)
-    return query.order_by(Order.created_at.desc()).limit(limit).offset(offset).all()
+    query = _apply_order_filters(query, status=status, start=start, end=end)
+    return query.order_by(_SALE_TIME.desc()).limit(limit).offset(offset).all()
 
 
 def count_orders_by_tenant(
@@ -192,8 +226,11 @@ def count_orders_by_tenant(
     start_date: datetime.date | None = None,
     end_date: datetime.date | None = None,
 ) -> int:
+    start, end = _resolve_bounds(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
+    )
     query = db.query(Order).filter(Order.tenant_id == tenant_id)
-    query = _apply_order_filters(query, status=status, start_date=start_date, end_date=end_date)
+    query = _apply_order_filters(query, status=status, start=start, end=end)
     return query.count()
 
 

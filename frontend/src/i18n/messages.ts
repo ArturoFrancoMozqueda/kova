@@ -1274,6 +1274,7 @@ export const copy = {
     saleError: "No se pudo completar la venta.",
     saleComplete: "Venta completada.",
     saleQueued: "Venta en cola. Se sincronizará cuando vuelva la conexión.",
+    offlineCatalogNotice: "Modo sin conexión: mostrando el catálogo guardado. Las ventas se sincronizarán al volver la conexión.",
     noShiftWarning: "No hay turno abierto. Los cobros en efectivo están bloqueados hasta que abras uno.",
     cashRequiresShift: "Para cobrar en efectivo, abre un turno de caja primero.",
     openShift: "Abrir turno",

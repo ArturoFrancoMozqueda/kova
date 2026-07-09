@@ -16,6 +16,7 @@ import type { Order } from "../orders/types";
 import { queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
 import { triggerSync } from "../offline/syncWorker";
+import { readCatalogCache, saveCatalogCache } from "../offline/catalogCache";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
 import type { SelectedModifier } from "./ModifierSelectionModal";
 import { getOpenShift } from "@/shifts/api";
@@ -58,7 +59,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; products: Product[]; categories: Category[] };
+  | { status: "ready"; products: Product[]; categories: Category[]; fromCache?: boolean };
 
 type CartItem = {
   product: Product;
@@ -116,6 +117,7 @@ export default function RegisterView() {
   useDocumentTitle(copy.documentTitles.register);
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
+  const tenantId = state.status === "authenticated" ? state.tenantId : null;
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
   const { toast } = useToast();
@@ -168,12 +170,29 @@ export default function RegisterView() {
         listProducts(),
         listCategories(),
       ]);
+      // Persist the full catalog so the register can open offline from a cold
+      // start. Best-effort: a cache write must never block ringing a sale.
+      if (tenantId) void saveCatalogCache(tenantId, allProducts, categories);
       const products = allProducts.filter((product) => product.is_active);
       setLoadState({ status: "ready", products, categories });
     } catch {
+      // Offline / fetch failed. Fall back to the cached catalog so the cashier
+      // can still open the register and queue sales without connectivity.
+      if (tenantId) {
+        const cached = await readCatalogCache(tenantId).catch(() => undefined);
+        if (cached) {
+          setLoadState({
+            status: "ready",
+            products: cached.products.filter((product) => product.is_active),
+            categories: cached.categories,
+            fromCache: true,
+          });
+          return;
+        }
+      }
       setLoadState({ status: "error" });
     }
-  }, []);
+  }, [tenantId]);
 
   // Focus the primary CTA + handle Escape on mobile success overlay.
   useEffect(() => {
@@ -577,6 +596,13 @@ export default function RegisterView() {
           )}
         </div>
       </div>
+
+      {loadState.status === "ready" && loadState.fromCache && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-kova-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:text-sm">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">{copy.register.offlineCatalogNotice}</span>
+        </div>
+      )}
 
       {hasOpenShift === false && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground sm:text-sm">

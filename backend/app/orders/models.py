@@ -30,6 +30,13 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="completed")
     subtotal_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    # Client ring-time. For online sales this equals created_at (server now);
+    # for offline sales it is the tenant-clamped time the sale was rung on the
+    # device, so reports/receipts bucket by when the sale happened, not when it
+    # synced. Nullable for the expand phase; the app layer always populates it.
+    occurred_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=_now
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now

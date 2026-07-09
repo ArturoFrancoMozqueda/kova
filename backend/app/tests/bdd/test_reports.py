@@ -96,11 +96,16 @@ def _set_role(db, signup: dict, role: str) -> None:
 
 
 def _set_order_hour(db, order_id: str, hour: int) -> None:
-    """Pin an order's created_at to the given hour in the tenant timezone."""
+    """Pin an order's sale time to the given hour in the tenant timezone.
+
+    Reports bucket by occurred_at (the client ring-time), so pin both it and
+    created_at to keep the simulated sale coherent.
+    """
     order = db.query(Order).filter(Order.id == UUID(order_id)).one()
     tz = ZoneInfo("America/Mexico_City")
     local_today = datetime.now(tz).replace(hour=hour, minute=0, second=0, microsecond=0)
     order.created_at = local_today.astimezone(UTC)
+    order.occurred_at = local_today.astimezone(UTC)
     db.commit()
 
 
@@ -108,6 +113,8 @@ def _set_order_created_at(db, order_id: str, value: datetime) -> None:
     order = db.query(Order).filter(Order.id == UUID(order_id)).one()
     order.created_at = value
     order.updated_at = value
+    # Reports key off occurred_at now; keep it aligned with the pinned time.
+    order.occurred_at = value
     db.commit()
 
 

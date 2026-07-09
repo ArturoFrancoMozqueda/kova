@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -16,6 +17,10 @@ class OfflineSaleSyncItem(BaseModel):
     # Shift that was open on the device when the sale was rung. Optional so
     # queue items created by older bundles keep syncing unchanged.
     shift_id: UUID | None = None
+    # Client ring-time captured on the device when the sale was rung. Optional
+    # so legacy queue items keep syncing (they fall back to server-now). The
+    # server clamps this to a sane window; a client cannot rewrite history.
+    occurred_at: datetime | None = None
 
 
 class OfflineSaleSyncRequest(BaseModel):
