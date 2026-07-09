@@ -144,5 +144,6 @@ test("refund exceeding available qty shows specific error toast", async ({ page 
   await page.getByLabel(/Concha Cantidad/i).fill("2");
   await page.getByRole("button", { name: /registrar devoluci[oó]n/i }).click();
 
-  await expect(page.getByRole("status")).toContainText(/excede lo disponible/i);
+  // Error toasts are now announced assertively (role="alert") — PLAN-UX-01.
+  await expect(page.getByRole("alert")).toContainText(/excede lo disponible/i);
 });
