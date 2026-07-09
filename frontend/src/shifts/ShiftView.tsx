@@ -10,6 +10,7 @@ import { formatMoney } from "../orders/format";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { CorteTemplate } from "./CorteTemplate";
 import { resolveApiErrorMessage } from "@/lib/apiError";
+import { trackFunnelEvent } from "@/telemetry/funnel";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   closeShift,
@@ -104,6 +105,9 @@ export default function ShiftView() {
     setOperationPending(true);
     try {
       await openShift(payload);
+      // Funnel rung between first product and first sale (fires each open, not
+      // once — opening a drawer is a recurring daily action).
+      void trackFunnelEvent("open_shift");
       setActiveModal(null);
       toast(copy.shiftView.openSuccess, "success");
       await load();
