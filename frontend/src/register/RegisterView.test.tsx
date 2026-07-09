@@ -10,6 +10,7 @@ import type { Shift } from "@/shifts/types";
 const getOpenShift = vi.fn();
 const queueOfflineSale = vi.fn();
 const syncOfflineSales = vi.fn();
+const getReceipt = vi.fn();
 const catalogApi = vi.hoisted(() => ({
   listProducts: vi.fn(),
   listCategories: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("../offline/sync", () => ({
   syncOfflineSales: (...args: unknown[]) => syncOfflineSales(...args),
 }));
 vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn() }));
+vi.mock("../orders/api", () => ({ getReceipt: (...args: unknown[]) => getReceipt(...args) }));
 vi.mock("@/telemetry/funnel", () => ({ trackFunnelEventOnce: vi.fn() }));
 vi.mock("../inventory/api", () => ({ listStock: () => Promise.resolve([]) }));
 vi.mock("../offline/catalogCache", () => ({
@@ -98,6 +100,8 @@ describe("RegisterView cash-without-shift guard", () => {
     getOpenShift.mockReset();
     queueOfflineSale.mockReset();
     syncOfflineSales.mockReset();
+    getReceipt.mockReset();
+    getReceipt.mockRejectedValue(new Error("no receipt"));
     catalogApi.listProducts.mockResolvedValue([product]);
     catalogApi.listCategories.mockResolvedValue([]);
     catalogCache.readCatalogCache.mockResolvedValue(undefined);
@@ -191,5 +195,66 @@ describe("RegisterView cash-without-shift guard", () => {
 
     expect(await screen.findByText(copy.register.loadError)).toBeInTheDocument();
     expect(screen.queryByText(copy.register.offlineCatalogNotice)).not.toBeInTheDocument();
+  });
+
+  it("shows the receipt and prints it in one tap after a synced sale", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "c-1" });
+    syncOfflineSales.mockResolvedValue([
+      { status: "synced", order: { id: "o-1", total_amount: "50.00" } },
+    ]);
+    getReceipt.mockResolvedValue({
+      order_id: "o-1",
+      receipt_number: "A-000123",
+      tenant_name: "Sweet Home",
+      created_at: "2026-07-09T16:30:00.000Z",
+      status: "completed",
+      items: [
+        {
+          product_name: "Concha",
+          quantity: 1,
+          unit_price_amount: "50.00",
+          line_total_amount: "50.00",
+          modifiers: [],
+        },
+      ],
+      subtotal_amount: "50.00",
+      total_amount: "50.00",
+      payments: [
+        {
+          method: "cash",
+          amount_amount: "50.00",
+          amount_tendered_amount: "50.00",
+          change_due_amount: "0.00",
+          reference: null,
+        },
+      ],
+      total_tendered: "50.00",
+      total_change: "0.00",
+      refunds: [],
+      void: null,
+    });
+    const printSpy = vi.fn();
+    vi.stubGlobal("print", printSpy);
+
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    await waitFor(() => expect(getReceipt).toHaveBeenCalledWith("o-1"));
+
+    // Receipt number renders (desktop + mobile success blocks are both mounted).
+    const printButtons = await screen.findAllByRole("button", {
+      name: copy.register.printReceipt,
+    });
+    expect(printButtons.length).toBeGreaterThan(0);
+    expect(screen.getAllByText("A-000123").length).toBeGreaterThan(0);
+
+    fireEvent.click(printButtons[0]);
+    expect(printSpy).toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
   });
 });

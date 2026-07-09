@@ -222,7 +222,7 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
         method: "POST",
@@ -260,7 +260,7 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
         method: "POST",
@@ -308,7 +308,7 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/sync/offline-sales"),
       expect.objectContaining({
         method: "POST",

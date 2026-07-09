@@ -4,8 +4,11 @@ import {
   SHIFT_OPEN_PERMISSION,
   usePermission,
 } from "../auth/permissions";
+import { useAuth } from "../auth/useAuth";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
+import { formatTenantName } from "@/lib/formatTenantName";
+import { CorteTemplate } from "./CorteTemplate";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
@@ -46,6 +49,7 @@ import {
   Banknote,
   RefreshCw,
   AlertCircle,
+  Printer,
 } from "lucide-react";
 
 type LoadState =
@@ -60,8 +64,16 @@ export default function ShiftView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [operationPending, setOperationPending] = useState(false);
+  // The shift selected for printing a corte de caja. Mounted in a print-only
+  // node; the effect below fires the print dialog once it's committed, then
+  // clears so a later print targets the right shift.
+  const [corteShift, setCorteShift] = useState<Shift | null>(null);
   const canOpen = usePermission(SHIFT_OPEN_PERMISSION);
   const canClose = usePermission(SHIFT_CLOSE_PERMISSION);
+  const { state } = useAuth();
+  const businessName = formatTenantName(
+    state.status === "authenticated" ? state.tenantName : "",
+  );
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -78,6 +90,15 @@ export default function ShiftView() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Once the selected corte is committed to the DOM, print it and clear.
+  // window.print() blocks until the dialog resolves, so the node is present
+  // for the whole print; clearing after keeps the hidden node from lingering.
+  useEffect(() => {
+    if (!corteShift) return;
+    window.print();
+    setCorteShift(null);
+  }, [corteShift]);
 
   const submitOpenShift = async (payload: ShiftOpenPayload) => {
     setOperationPending(true);
@@ -360,6 +381,9 @@ export default function ShiftView() {
                     <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.status}
                     </th>
+                    <th className="py-3 px-4">
+                      <span className="sr-only">{copy.shiftView.printCorte}</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -389,6 +413,16 @@ export default function ShiftView() {
                           <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>
                         )}
                       </td>
+                      <td className="py-3 px-4 text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCorteShift(shift)}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          {copy.shiftView.printCorte}
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -396,6 +430,17 @@ export default function ShiftView() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Print-only corte de caja for the selected closed shift. */}
+      {corteShift && (
+        <div className="print-only">
+          <CorteTemplate
+            businessName={businessName}
+            shift={corteShift}
+            className="print-corte-root"
+          />
+        </div>
       )}
 
       {/* Modals */}
