@@ -7,8 +7,10 @@ import subprocess
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 # Import all models so Base.metadata is fully populated before migrations check
 import app.audit.models  # noqa: F401
@@ -28,7 +30,7 @@ import app.shifts.models  # noqa: F401
 import app.telemetry.models  # noqa: F401
 import app.tenants.models  # noqa: F401
 from app.config import settings
-from app.db import get_db
+from app.db import get_db, get_privileged_db
 from app.main import app as fastapi_app
 
 _engine = create_engine(settings.database_url, pool_pre_ping=True)
@@ -64,6 +66,61 @@ def apply_migrations():
     subprocess.run(["alembic", "upgrade", "head"], check=True, cwd=".")
 
 
+# Dev/CI-only password for the least-privilege role used by the RLS test. The
+# real password is injected via secret in staging/prod (see provision_app_role.sql).
+_KOVA_APP_PASSWORD = "kova_app"
+
+
+def _provision_kova_app() -> None:
+    """Create/refresh the non-owner `kova_app` role and its grants against the
+    test database, mirroring backend/scripts/provision_app_role.sql. Kept as
+    inline SQL here because the .sql file uses psql meta-commands (\\if, \\set)
+    that a raw driver can't run."""
+    db_name = make_url(settings.database_url).database
+    with _engine.begin() as conn:
+        conn.execute(
+            text(
+                "DO $$ BEGIN "
+                "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kova_app') THEN "
+                "CREATE ROLE kova_app LOGIN NOSUPERUSER NOBYPASSRLS "
+                "NOCREATEDB NOCREATEROLE; END IF; END $$;"
+            )
+        )
+        conn.execute(text(f"ALTER ROLE kova_app WITH PASSWORD '{_KOVA_APP_PASSWORD}'"))
+        conn.execute(text(f'GRANT CONNECT ON DATABASE "{db_name}" TO kova_app'))
+        conn.execute(text("GRANT USAGE ON SCHEMA public TO kova_app"))
+        conn.execute(
+            text(
+                "GRANT SELECT, INSERT, UPDATE, DELETE "
+                "ON ALL TABLES IN SCHEMA public TO kova_app"
+            )
+        )
+        conn.execute(
+            text("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kova_app")
+        )
+
+
+@pytest.fixture(scope="session")
+def owner_engine(apply_migrations):  # noqa: ARG001
+    """Owner/superuser engine — seeds and cleans up committed rows for the RLS
+    test (bypasses RLS, like migrations and the privileged runtime engine)."""
+    return _engine
+
+
+@pytest.fixture(scope="session")
+def kova_app_engine(apply_migrations):  # noqa: ARG001
+    """Least-privilege, non-owner engine subject to RLS. This is the only way to
+    prove tenant_isolation actually blocks at the SQL layer — the app's own test
+    connection runs as the owner (transactional-isolation fixture), so it can't."""
+    _provision_kova_app()
+    url = make_url(settings.database_url).set(
+        username="kova_app", password=_KOVA_APP_PASSWORD
+    )
+    app_engine = create_engine(url, poolclass=NullPool, future=True)
+    yield app_engine
+    app_engine.dispose()
+
+
 @pytest.fixture
 def db(apply_migrations):  # noqa: ARG001
     connection = _engine.connect()
@@ -73,7 +130,14 @@ def db(apply_migrations):  # noqa: ARG001
     def override_get_db():
         yield session
 
+    # Route BOTH the normal and the privileged dependency to the single
+    # transactional session. In production get_privileged_db opens a separate
+    # (RLS-bypassing) connection, but in tests a second real connection would sit
+    # outside this transaction and deadlock against the row locks it holds
+    # (e.g. login's SELECT ... FOR UPDATE). One session keeps tests isolated and
+    # lock-free; RLS bypass itself is proven separately in test_rls_enforcement.py.
     fastapi_app.dependency_overrides[get_db] = override_get_db
+    fastapi_app.dependency_overrides[get_privileged_db] = override_get_db
     yield session
     fastapi_app.dependency_overrides.clear()
     session.close()

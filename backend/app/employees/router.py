@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
-from app.db import get_db
+from app.db import get_db, get_privileged_db
 from app.employees import service
 from app.employees.schemas import (
     EmployeeResponse,
@@ -63,7 +63,9 @@ def invite_employee(
 @router.get("/invitations/preview", response_model=InvitationPreview)
 def preview_invitation(
     token: str = Query(..., min_length=1),
-    db: Session = Depends(get_db),
+    # Unauthenticated token-based lookup (invitee has no session/tenant context).
+    # Privileged engine (RLS bypass); scoped by the single-use token hash.
+    db: Session = Depends(get_privileged_db),
 ):
     return service.preview_invitation(db, token=token)
 
@@ -72,7 +74,9 @@ def preview_invitation(
 def accept_invitation(
     body: InvitationAccept,
     request: Request,
-    db: Session = Depends(get_db),
+    # Unauthenticated accept: reads the invitation by token and creates the
+    # user/membership before any session exists. Privileged engine (RLS bypass).
+    db: Session = Depends(get_privileged_db),
 ):
     return service.accept_invitation(
         db,

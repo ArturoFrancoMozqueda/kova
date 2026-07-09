@@ -13,6 +13,7 @@ from app.business_settings.router import router as business_settings_router
 from app.catalog.image_router import router as catalog_image_router
 from app.catalog.router import router as catalog_router
 from app.config import settings
+from app.db import assert_rls_active
 from app.employees.router import router as employees_router
 from app.health.router import router as health_router
 from app.inventory.router import router as inventory_router
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
     configure_logging()
     init_sentry()
     _validate_config()
+    assert_rls_active()
     _hide_docs = settings.app_env == "production"
     app = FastAPI(
         title="POS API",

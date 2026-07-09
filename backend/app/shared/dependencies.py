@@ -29,6 +29,18 @@ def get_current_session(
     if not session_id or not user_id or not tenant_id:
         raise unauthorized()
 
+    # Establish the RLS tenant context BEFORE any tenant-scoped read. The tenant
+    # id comes from the signed access token, so it is trusted. The runtime app
+    # role (`kova_app`) is subject to RLS, so the session/membership lookups below
+    # (both tenant-scoped tables) would return nothing without this. Setting it
+    # from the token also means a session/membership belonging to a different
+    # tenant is invisible here — an extra integrity check, not just a convenience.
+    # `set_config(..., true)` is transaction-local (pgBouncer-safe).
+    db.execute(
+        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+        {"tenant_id": tenant_id},
+    )
+
     session = auth_repo.get_session_by_id(db, UUID(session_id))
     if not session or session.revoked_at:
         raise unauthorized("Session revoked")
@@ -42,10 +54,6 @@ def get_current_session(
         raise forbidden("No active membership for this tenant")
 
     set_request_context(tenant_id=membership.tenant_id, user_id=user.id)
-    db.execute(
-        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
-        {"tenant_id": str(membership.tenant_id)},
-    )
     return user, membership, session
 
 

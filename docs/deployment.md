@@ -47,9 +47,18 @@ Performed by a human operator outside Sprint 0A:
 2. In **Settings → Database**, copy the connection string. Two are exposed:
    - **Direct** (`db.<PROJECT-REF>.supabase.co:5432`) — best for long-running backend processes and migrations.
    - **Pooler** (`<region>.pooler.supabase.com:6543`) — best for serverless/short-lived connections.
-3. Store the connection string in the backend hosting provider's secret store as `DATABASE_URL`. Use `postgresql+psycopg://...` so SQLAlchemy picks the `psycopg` driver.
+3. Store the **owner** connection string (the Supabase `postgres` role) in the backend hosting provider's secret store as `MIGRATION_DATABASE_URL`. Use `postgresql+psycopg://...` so SQLAlchemy picks the `psycopg` driver. This role runs migrations (DDL) and the small set of RLS-bypass paths.
 4. Confirm the database is reachable from CI/the backend host's region.
 5. Run `alembic upgrade head` once against the new project (see *Deploy Procedure*).
+6. **Provision the least-privilege app role (`kova_app`).** After the first migration, run [../backend/scripts/provision_app_role.sql](../backend/scripts/provision_app_role.sql) once as the owner, injecting a strong password via env — never commit it:
+
+   ```bash
+   psql "$MIGRATION_DATABASE_URL" \
+     -v kova_app_password="$KOVA_APP_DB_PASSWORD" \
+     -f backend/scripts/provision_app_role.sql
+   ```
+
+   Then set `APP_DATABASE_URL` in the secret store to the same connection string but with the `kova_app` user + `KOVA_APP_DB_PASSWORD`. The application connects as `kova_app` at runtime so RLS `tenant_isolation` policies are enforced (the `postgres` owner bypasses RLS and must not be the runtime role). See [ADR-009](adr/ADR-009-backend-only-rls-no-policy-tables.md) and `PLAN-02`.
 
 Repeat for production with a separate Supabase project. Never share a single Supabase project across environments.
 
@@ -72,7 +81,9 @@ Pick one consistently per environment. Pooler URLs are typically the right defau
 Mirror [.env.example](../.env.example), but supply real values via the hosting provider's secret manager. Required for the backend:
 
 - `APP_ENV` — `staging` or `production`
-- `DATABASE_URL` — the Supabase connection string for that environment
+- `APP_DATABASE_URL` — runtime connection as the least-privilege `kova_app` role (subject to RLS). This is what the app serves requests with.
+- `MIGRATION_DATABASE_URL` — owner (`postgres`) connection for Alembic migrations and RLS-bypass paths (webhook, public assets, pre-session auth).
+- `DATABASE_URL` — legacy single URL. Still honored as the fallback for both of the above when they are unset (keeps local dev working), but staging/production should set the two explicit URLs so the runtime role is `kova_app`.
 
 Local-only `POSTGRES_*` variables and the `db` Docker service are **not** used in staging/production.
 
@@ -174,7 +185,7 @@ These must be addressed before exposing real tenants — not Sprint 0A work:
 - No critical/high dependency vulnerabilities
 - Sentry / structured logs configured
 - Uptime monitor configured
-- RLS policies authored and tested on Supabase
+- ✅ RLS policies authored, **forced**, and enforced at runtime (PLAN-02): the app connects as the non-owner `kova_app` role, every tenant-scoped table has `FORCE ROW LEVEL SECURITY` + `WITH CHECK`, and `app/tests/test_rls_enforcement.py` proves cross-tenant reads/writes are blocked at the SQL layer. Remaining ops step per environment: run `provision_app_role.sql` on Supabase and set `APP_DATABASE_URL`/`MIGRATION_DATABASE_URL`.
 
 ## Out of Scope of Sprint 0A
 

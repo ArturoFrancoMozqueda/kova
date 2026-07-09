@@ -10,7 +10,7 @@ from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
 from app.billing.access import require_commercial_access
 from app.business_settings.models import ReceiptSettings, TenantLogoFile
-from app.db import get_db
+from app.db import get_db, get_privileged_db
 from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.exceptions import bad_request, not_found
@@ -186,7 +186,12 @@ def delete_receipt_logo(
     "/receipt/logo/{tenant_id}",
     dependencies=[Depends(rate_limit(120, key="receipt-logo-get"))],
 )
-def get_receipt_logo(tenant_id: UUID, db: Session = Depends(get_db)):
+def get_receipt_logo(
+    tenant_id: UUID,
+    # Public, unauthenticated read served cross-tenant by tenant id (logos render
+    # on shared receipts, no session). Privileged engine (RLS bypass).
+    db: Session = Depends(get_privileged_db),
+):
     tenant = get_tenant_by_id(db, tenant_id)
     if tenant is None:
         raise not_found("Tenant logo not found")
