@@ -10,6 +10,14 @@ import type { Shift } from "@/shifts/types";
 const getOpenShift = vi.fn();
 const queueOfflineSale = vi.fn();
 const syncOfflineSales = vi.fn();
+const catalogApi = vi.hoisted(() => ({
+  listProducts: vi.fn(),
+  listCategories: vi.fn(),
+}));
+const catalogCache = vi.hoisted(() => ({
+  readCatalogCache: vi.fn(),
+  saveCatalogCache: vi.fn(),
+}));
 
 vi.mock("@/shifts/api", () => ({ getOpenShift: () => getOpenShift() }));
 vi.mock("../offline/queue", () => ({
@@ -21,6 +29,10 @@ vi.mock("../offline/sync", () => ({
 vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn() }));
 vi.mock("@/telemetry/funnel", () => ({ trackFunnelEventOnce: vi.fn() }));
 vi.mock("../inventory/api", () => ({ listStock: () => Promise.resolve([]) }));
+vi.mock("../offline/catalogCache", () => ({
+  readCatalogCache: (...args: unknown[]) => catalogCache.readCatalogCache(...args),
+  saveCatalogCache: (...args: unknown[]) => catalogCache.saveCatalogCache(...args),
+}));
 
 const product: Product = {
   id: "product-1",
@@ -41,13 +53,18 @@ const product: Product = {
 };
 
 vi.mock("../catalog/api", () => ({
-  listProducts: () => Promise.resolve([product]),
-  listCategories: () => Promise.resolve([]),
+  listProducts: (...args: unknown[]) => catalogApi.listProducts(...args),
+  listCategories: (...args: unknown[]) => catalogApi.listCategories(...args),
 }));
 
 vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({
-    state: { status: "authenticated", tenantName: "Sweet Home", user: { role: "owner" } },
+    state: {
+      status: "authenticated",
+      tenantId: "tenant-1",
+      tenantName: "Sweet Home",
+      user: { role: "owner" },
+    },
   }),
 }));
 vi.mock("../auth/permissions", async () => {
@@ -81,6 +98,10 @@ describe("RegisterView cash-without-shift guard", () => {
     getOpenShift.mockReset();
     queueOfflineSale.mockReset();
     syncOfflineSales.mockReset();
+    catalogApi.listProducts.mockResolvedValue([product]);
+    catalogApi.listCategories.mockResolvedValue([]);
+    catalogCache.readCatalogCache.mockResolvedValue(undefined);
+    catalogCache.saveCatalogCache.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -138,5 +159,37 @@ describe("RegisterView cash-without-shift guard", () => {
     // No banner, no disable: unknown state must keep the register usable offline.
     expect(screen.queryByText(copy.register.noShiftWarning)).not.toBeInTheDocument();
     expect(cashRadio).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("renders the saved catalog when product and category fetches fail offline", async () => {
+    getOpenShift.mockRejectedValue(new Error("offline"));
+    catalogApi.listProducts.mockRejectedValue(new Error("offline"));
+    catalogApi.listCategories.mockRejectedValue(new Error("offline"));
+    catalogCache.readCatalogCache.mockResolvedValue({
+      tenant_id: "tenant-1",
+      products: [product],
+      categories: [],
+      cached_at: "2026-07-09T16:30:00.000Z",
+    });
+
+    renderRegister();
+
+    expect(await screen.findByText(copy.register.offlineCatalogNotice)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` }),
+    ).toBeInTheDocument();
+    expect(catalogCache.readCatalogCache).toHaveBeenCalledWith("tenant-1");
+  });
+
+  it("shows the register load error when offline cache is unavailable", async () => {
+    getOpenShift.mockRejectedValue(new Error("offline"));
+    catalogApi.listProducts.mockRejectedValue(new Error("offline"));
+    catalogApi.listCategories.mockRejectedValue(new Error("offline"));
+    catalogCache.readCatalogCache.mockResolvedValue(undefined);
+
+    renderRegister();
+
+    expect(await screen.findByText(copy.register.loadError)).toBeInTheDocument();
+    expect(screen.queryByText(copy.register.offlineCatalogNotice)).not.toBeInTheDocument();
   });
 });
