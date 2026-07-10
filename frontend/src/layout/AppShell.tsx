@@ -211,7 +211,7 @@ export default function AppShell() {
   );
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden">
+    <div className="flex h-[100dvh] min-h-screen overflow-hidden">
       {/* Mobile backdrop overlay */}
       {sidebarOpen && (
         <div
@@ -224,7 +224,7 @@ export default function AppShell() {
       {/* Sidebar — fixed on mobile, static on desktop */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 flex h-[100dvh] min-h-screen w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out",
           "lg:relative lg:translate-x-0 lg:shrink-0",
           sidebarCollapsed ? "lg:w-[60px]" : "lg:w-[260px]",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
