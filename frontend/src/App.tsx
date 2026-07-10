@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import RequireAuth from "./auth/RequireAuth";
 import { ToastProvider } from "./components/ui/toast";
+import { RouteFallback } from "./components/ui/route-fallback";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import { queryClient } from "./lib/queryClient";
 
@@ -31,10 +32,6 @@ const LogoPreview = lazy(() => import("./routes/LogoPreview"));
 const ComponentsPreview = lazy(() => import("./routes/ComponentsPreview"));
 const IntroPreview = lazy(() => import("./routes/dev/IntroPreview"));
 const NotFound = lazy(() => import("./routes/NotFound"));
-
-function RouteFallback() {
-  return <div className="min-h-screen bg-[var(--color-bg)]" aria-label="Cargando" />;
-}
 
 export default function App() {
   return (

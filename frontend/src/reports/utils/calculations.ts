@@ -43,63 +43,19 @@ export function opsAreNormal(summary: BusinessStoryReport["summary"]): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Period-over-period growth
+// Period-over-period growth — promoted to `@/lib/growth` (shared with Panel and
+// future tabs). Re-exported here so existing report callers and tests that
+// import from `./calculations` keep working unchanged.
 // ---------------------------------------------------------------------------
 
-/**
- * The result of comparing a current value to a previous one. A discriminated
- * union instead of `number | null` so the UI can render each case honestly:
- * a real percentage, a first-appearance ("Nuevo"), no comparable data, or a
- * base too small / swing too large to express as a trustworthy percentage
- * (carrying `from`/`to` so the caller can fall back to an absolute delta).
- */
-export type GrowthResult =
-  | { kind: "pct"; value: number }
-  | { kind: "flat" }
-  | { kind: "new" }
-  | { kind: "no-previous" }
-  | { kind: "insufficient-base"; from: number; to: number };
-
-/** Below this previous value, a percentage is noise (e.g. +900% from $1). */
-export const MIN_MONEY_BASE = 500;
-/** Below this previous count, an order/unit percentage is noise. */
-export const MIN_COUNT_BASE = 5;
-/** Percentages beyond this magnitude are shown as absolute deltas instead. */
-export const MAX_DISPLAY_PCT = 300;
-
-export function calculateSafeGrowth(
-  current: number,
-  previous: number | null | undefined,
-  opts?: { minBase?: number },
-): GrowthResult {
-  const minBase = opts?.minBase ?? MIN_MONEY_BASE;
-
-  if (previous == null || !Number.isFinite(previous) || !Number.isFinite(current)) {
-    return { kind: "no-previous" };
-  }
-  if (previous === 0) {
-    return current > 0 ? { kind: "new" } : { kind: "no-previous" };
-  }
-  if (Math.abs(previous) < minBase) {
-    return { kind: "insufficient-base", from: previous, to: current };
-  }
-
-  const pct = Math.round(((current - previous) / previous) * 100);
-  if (pct === 0) return { kind: "flat" };
-  if (Math.abs(pct) > MAX_DISPLAY_PCT) {
-    return { kind: "insufficient-base", from: previous, to: current };
-  }
-  return { kind: "pct", value: pct };
-}
-
-export function toneFromGrowth(growth: GrowthResult): "up" | "down" | "neutral" {
-  if (growth.kind === "pct") return growth.value > 0 ? "up" : "down";
-  if (growth.kind === "insufficient-base") {
-    return growth.to > growth.from ? "up" : growth.to < growth.from ? "down" : "neutral";
-  }
-  if (growth.kind === "new") return "up";
-  return "neutral";
-}
+export {
+  MIN_MONEY_BASE,
+  MIN_COUNT_BASE,
+  MAX_DISPLAY_PCT,
+  calculateSafeGrowth,
+  toneFromGrowth,
+} from "@/lib/growth";
+export type { GrowthResult } from "@/lib/growth";
 
 // ---------------------------------------------------------------------------
 // Sales-by-day helpers

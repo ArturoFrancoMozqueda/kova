@@ -5,6 +5,7 @@ import { copy } from "@/i18n/messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ViewHeader } from "@/components/ui/view-header";
 import { cn } from "@/lib/utils";
 import { timezoneLabel } from "@/i18n/timezones";
 import type { ReportPreset } from "../utils/dateRange";
@@ -35,12 +36,11 @@ export function ReportsHeader({
   const [customOpen, setCustomOpen] = useState(false);
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{copy.reportsView.storyEyebrow}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">{copy.reportsView.title}</h1>
-        </div>
+    <ViewHeader
+      eyebrow={copy.reportsView.storyEyebrow}
+      title={copy.reportsView.title}
+      meta={timezone ? `${copy.reportsView.timezone}: ${timezoneLabel(timezone)}` : undefined}
+      actions={
         <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((preset) => (
@@ -93,12 +93,7 @@ export function ReportsHeader({
             </Button>
           </div>
         </form>
-      </div>
-      {timezone ? (
-        <p className="text-xs text-muted-foreground">
-          {copy.reportsView.timezone}: {timezoneLabel(timezone)}
-        </p>
-      ) : null}
-    </div>
+      }
+    />
   );
 }
