@@ -4,6 +4,10 @@ Covers the security posture that lets this endpoint be unauthenticated safely:
 only allowlisted event types are accepted, no tenant/user identity can be
 smuggled in, the payload is bounded, and the authenticated path is untouched.
 """
+from uuid import uuid4
+
+from sqlalchemy import text
+
 from app.telemetry.models import AnonymousTelemetryEvent
 from app.telemetry.schemas import MAX_PROPERTIES
 
@@ -119,3 +123,32 @@ def test_anonymous_endpoint_requires_no_auth(client):
         },
     )
     assert resp.status_code == 202
+
+
+def test_kova_app_can_insert_anonymous_event_under_rls(kova_app_engine):
+    event_id = f"landing_viewed:{uuid4()}"
+
+    with kova_app_engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO anonymous_telemetry_events (
+                    id,
+                    event_name,
+                    client_event_id,
+                    client_id,
+                    properties,
+                    created_at
+                )
+                VALUES (
+                    :id,
+                    'landing_viewed',
+                    :event_id,
+                    'visitor-rls',
+                    '{}'::json,
+                    now()
+                )
+                """
+            ),
+            {"id": uuid4(), "event_id": event_id},
+        )
