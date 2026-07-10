@@ -153,7 +153,12 @@ class RefundItemCreate(BaseModel):
 class RefundCreate(BaseModel):
     items: list[RefundItemCreate] = Field(min_length=1, max_length=MAX_REFUND_ITEMS)
     reason: str = Field(pattern="^(customer_return|defective|wrong_item|other)$")
-    refund_payment_method: Literal["cash", "bank_transfer", "manual_card"] | None = None
+    # Required: a refund always names the tender it is paid back through so the
+    # amount can be validated against what was actually collected in that method
+    # (a transfer-only order can't be refunded from the cash drawer). Refunds are
+    # online-only (never queued offline), so tightening this can't drop a synced
+    # refund.
+    refund_payment_method: Literal["cash", "bank_transfer", "manual_card"]
 
 
 class RefundItemResponse(BaseModel):

@@ -15,8 +15,13 @@ export type PaymentBreakdown = {
   payments: Array<{
     method: string;
     amount: string;
+    refunded_amount: string;
+    net_amount: string;
     payment_count: number;
   }>;
+  gross_total: string;
+  refund_total: string;
+  net_total: string;
 };
 
 export type TopProducts = {
@@ -115,12 +120,16 @@ export type BusinessStoryReport = {
   dominant_payment: {
     method: string;
     amount: string;
+    refunded_amount: string;
+    net_amount: string;
     payment_count: number;
     sales_share_pct: number;
   } | null;
   payment_mix: Array<{
     method: string;
     amount: string;
+    refunded_amount: string;
+    net_amount: string;
     payment_count: number;
     sales_share_pct: number;
   }>;

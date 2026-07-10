@@ -1,11 +1,33 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def sqlalchemy_database_url(database_url: str) -> str:
+    if database_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + database_url[len("postgresql://") :]
+    if database_url.startswith("postgres://"):
+        return "postgresql+psycopg://" + database_url[len("postgres://") :]
+    return database_url
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "production"
+    # Owner/privileged connection. Used by (a) Alembic migrations, which must run
+    # as the table owner to issue DDL, and (b) the small set of deliberately
+    # tenant-agnostic request paths (webhook, public assets, pre-session auth) via
+    # the privileged engine. The owner/superuser (or a BYPASSRLS role) is the only
+    # role permitted to bypass RLS.
     database_url: str = "postgresql+psycopg://pos:pos@localhost:5432/pos"
+    # Runtime application connection. Should point at the least-privilege,
+    # non-owner `kova_app` role so RLS tenant_isolation policies are enforced.
+    # Falls back to `database_url` when unset so local dev / tests keep working
+    # even before the role is provisioned (RLS simply stays inert, as it is today).
+    app_database_url: str | None = None
+    # Explicit owner URL for migrations. Falls back to `database_url`. Kept
+    # separate so the runtime app can point at `kova_app` while DDL still runs
+    # as the owner.
+    migration_database_url: str | None = None
     database_pool_size: int = 5
     database_max_overflow: int = 0
     database_pool_timeout: int = 10
@@ -43,6 +65,16 @@ class Settings(BaseSettings):
     @property
     def cookie_secure(self) -> bool:
         return self.app_env != "local"
+
+    @property
+    def effective_app_database_url(self) -> str:
+        """Runtime app connection (kova_app), falling back to the owner URL."""
+        return self.app_database_url or self.database_url
+
+    @property
+    def effective_migration_database_url(self) -> str:
+        """Owner connection for DDL/migrations, falling back to database_url."""
+        return self.migration_database_url or self.database_url
 
 
 settings = Settings()

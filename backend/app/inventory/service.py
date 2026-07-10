@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -174,6 +175,25 @@ def adjust_stock(
         return stored
 
     product = _tracked_product_for_update(db, tenant_id=tenant_id, product_id=product_id)
+    # Under the product row lock (taken above), reject any adjustment that would
+    # drive on-hand negative. Without this floor a manual -N adjustment silently
+    # corrupts stock counts, reorder logic, and reports. Legitimate loss is still
+    # possible by adjusting down to exactly zero.
+    current_stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+    resulting_stock = current_stock + body.quantity_delta
+    if resulting_stock < 0:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "WOULD_GO_NEGATIVE",
+                "available": current_stock,
+                "requested_delta": body.quantity_delta,
+                "message": (
+                    "El ajuste dejaría el inventario en negativo. "
+                    f"Disponible actual: {current_stock}."
+                ),
+            },
+        )
     movement = repo.create_movement(
         db,
         tenant_id=tenant_id,

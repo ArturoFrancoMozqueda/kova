@@ -24,6 +24,34 @@ export type SyncItemResult = {
   error: string | null;
 };
 
+/**
+ * Thrown when the sync endpoint rate-limits us (429). The affected items are
+ * rolled back to pending (no attempt burned); the sync worker catches this and
+ * schedules a single retry after `retryAfterMs` instead of hammering every
+ * remaining chunk.
+ */
+export class RateLimitError extends Error {
+  constructor(
+    message: string,
+    public readonly retryAfterMs: number,
+  ) {
+    super(message);
+    this.name = "RateLimitError";
+  }
+}
+
+const DEFAULT_RETRY_AFTER_MS = 60_000;
+
+export function parseRetryAfterMs(header: string | null): number {
+  if (!header) return DEFAULT_RETRY_AFTER_MS;
+  // Retry-After is either delta-seconds or an HTTP date.
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const dateMs = Date.parse(header);
+  if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now());
+  return DEFAULT_RETRY_AFTER_MS;
+}
+
 export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<SyncItemResult[]> {
   for (const item of items) {
     await markOfflineSaleStatus(item.client_uuid, "syncing");
@@ -43,6 +71,10 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
           // Omit when absent so legacy queue items send the exact same payload
           // as before this field existed.
           ...(item.shift_id ? { shift_id: item.shift_id } : {}),
+          // Ring-time: created_at is stamped when the sale is queued on the
+          // device, so the backend buckets it into the day it was actually
+          // rung, not the day it synced. Omitted for legacy items without it.
+          ...(item.created_at ? { occurred_at: item.created_at } : {}),
         })),
       }),
     });
@@ -56,13 +88,10 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
         for (const item of items) {
           await rollbackOfflineSaleAttempt(item.client_uuid, message);
         }
-        return items.map((item) => ({
-          client_uuid: item.client_uuid,
-          status: "failed" as const,
-          order_id: null,
-          order: null,
-          error: message,
-        }));
+        // Signal the worker so it schedules a Retry-After-honoring retry and
+        // stops sending the remaining chunks (a big backlog must not turn into
+        // a burst of 429s).
+        throw new RateLimitError(message, parseRetryAfterMs(response.headers.get("Retry-After")));
       }
       const message = `Sync failed with status ${response.status}`;
       await Promise.all(items.map((item) => markOfflineSaleFailed(item.client_uuid, message)));

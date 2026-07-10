@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
+import { clearCatalogCache } from "../offline/catalogCache";
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 
 export type AuthUser = {
@@ -114,6 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await apiLogout();
+    // Wipe the cached catalog so a different tenant on this device can never
+    // read the previous tenant's products from IndexedDB. Best-effort:
+    // logout must still complete if the cache clear fails.
+    await clearCatalogCache().catch(() => undefined);
     setState({ status: "unauthenticated" });
   }, []);
 

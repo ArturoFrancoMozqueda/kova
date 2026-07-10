@@ -96,11 +96,16 @@ def _set_role(db, signup: dict, role: str) -> None:
 
 
 def _set_order_hour(db, order_id: str, hour: int) -> None:
-    """Pin an order's created_at to the given hour in the tenant timezone."""
+    """Pin an order's sale time to the given hour in the tenant timezone.
+
+    Reports bucket by occurred_at (the client ring-time), so pin both it and
+    created_at to keep the simulated sale coherent.
+    """
     order = db.query(Order).filter(Order.id == UUID(order_id)).one()
     tz = ZoneInfo("America/Mexico_City")
     local_today = datetime.now(tz).replace(hour=hour, minute=0, second=0, microsecond=0)
     order.created_at = local_today.astimezone(UTC)
+    order.occurred_at = local_today.astimezone(UTC)
     db.commit()
 
 
@@ -108,6 +113,8 @@ def _set_order_created_at(db, order_id: str, value: datetime) -> None:
     order = db.query(Order).filter(Order.id == UUID(order_id)).one()
     order.created_at = value
     order.updated_at = value
+    # Reports key off occurred_at now; keep it aligned with the pinned time.
+    order.occurred_at = value
     db.commit()
 
 
@@ -214,6 +221,7 @@ def manager_with_sales_and_refund(client):
         json={
             "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     assert refund.status_code == 201, refund.text
@@ -288,6 +296,7 @@ def manager_with_employee_sales(client, db):
         json={
             "items": [{"order_item_id": employee_order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     assert refund.status_code == 201, refund.text
@@ -316,6 +325,7 @@ def manager_with_refund_reasons(client):
         json={
             "items": [{"order_item_id": order_a["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "cash",
         },
     )
     refund_b = client.post(
@@ -324,6 +334,7 @@ def manager_with_refund_reasons(client):
         json={
             "items": [{"order_item_id": order_b["items"][0]["id"], "quantity": 1}],
             "reason": "defective",
+            "refund_payment_method": "cash",
         },
     )
     assert refund_a.status_code == 201, refund_a.text
@@ -376,6 +387,7 @@ def manager_with_business_story_data(client, db):
         json={
             "items": [{"order_item_id": later_night_order["items"][0]["id"], "quantity": 1}],
             "reason": "customer_return",
+            "refund_payment_method": "bank_transfer",
         },
     )
     assert refund.status_code == 201, refund.text

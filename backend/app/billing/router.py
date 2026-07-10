@@ -7,9 +7,10 @@ from app.billing.schemas import (
     BillingSubscriptionResponse,
     CheckoutSessionResponse,
     InternalSubscriptionListResponse,
+    ReconcileCheckoutRequest,
 )
 from app.config import settings
-from app.db import get_db
+from app.db import get_db, get_privileged_db
 from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.dependencies import require_permission
@@ -60,6 +61,27 @@ def create_checkout_session(
     return response_body
 
 
+@router.post(
+    "/checkout/reconcile",
+    response_model=BillingSubscriptionResponse,
+    dependencies=[Depends(rate_limit(10, key="billing-reconcile"))],
+)
+def reconcile_checkout(
+    body: ReconcileCheckoutRequest,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.BILLING_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    return service.reconcile_checkout_session(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        session_id=body.checkout_session_id,
+    )
+
+
 @router.post("/cancel", response_model=BillingSubscriptionResponse)
 def cancel_subscription(
     db: Session = Depends(get_db),
@@ -78,7 +100,10 @@ def cancel_subscription(
 @router.post("/webhooks/stripe")
 async def stripe_webhook(
     request: Request,
-    db: Session = Depends(get_db),
+    # Stripe calls this unauthenticated, with no tenant context; it resolves the
+    # tenant from the event and mutates subscriptions/webhook_events across
+    # tenants. Privileged engine (RLS bypass); the handler scopes writes itself.
+    db: Session = Depends(get_privileged_db),
     stripe_signature: str | None = Header(default=None, alias="Stripe-Signature"),
 ):
     payload = await request.body()
@@ -98,7 +123,9 @@ def internal_list_subscriptions(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
-    db: Session = Depends(get_db),
+    # Internal cross-tenant listing (guarded by the internal API key); has no
+    # single-tenant context. Privileged engine (RLS bypass).
+    db: Session = Depends(get_privileged_db),
 ):
     if not settings.internal_api_key or x_internal_key != settings.internal_api_key:
         raise forbidden("Invalid or missing internal API key")

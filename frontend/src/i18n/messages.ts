@@ -5,6 +5,10 @@ import {
 import { BILLING_TRIAL_LABEL } from "@/billing/trial";
 
 export const copy = {
+  confirm: {
+    cancel: "Cancelar",
+    confirm: "Confirmar",
+  },
   errors: {
     network: "Parece que no hay conexión. Revisa tu internet e inténtalo de nuevo.",
     permission: "Tu cuenta no tiene permiso para esto. Pídeselo a tu gerente o al dueño.",
@@ -62,7 +66,7 @@ export const copy = {
         {
           label: "Entiende",
           title: "Reportes que se leen de un vistazo.",
-          body: "Descubre qué días vendes más, qué productos te dejan mejor margen y a qué hora se llena tu local. Decide con datos reales, no con corazonadas.",
+          body: "Descubre qué días vendes más, qué productos mueven tu ingreso y a qué hora se llena tu local. Decide con datos reales, no con corazonadas.",
           meta: ["Ventas del día", "Productos top", "Horas pico", "Cierre de turno"],
         },
       ],
@@ -213,7 +217,7 @@ export const copy = {
       worthItBody: "Si evita un solo descuadre, una venta perdida o una mala compra, ya valió la pena:",
       worthItItems: ["Un descuadre de caja", "Una venta perdida", "Una mala compra", "Horas haciendo cuentas"],
       bridge: "Todo el control del mostrador, por",
-      planName: "Plan Kova",
+      planName: "Plan Standard",
       planSubtitle: "Caja, inventario y reportes claros desde una sola app",
       ctaButton: "Empieza gratis",
       ctaFineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
@@ -544,6 +548,14 @@ export const copy = {
     deactivate: "Desactivar",
     pendingInvites: "Invitaciones pendientes",
     loadError: "No se pudo cargar la configuración.",
+    deactivateConfirmTitle: "¿Desactivar acceso?",
+    deactivateConfirmBody: (email: string) =>
+      `${email} ya no podrá iniciar sesión ni operar en tu negocio. Podrás reactivarlo más adelante.`,
+    deactivateConfirmAction: "Desactivar acceso",
+    roleChangeConfirmTitle: "¿Cambiar el rol?",
+    roleChangeConfirmBody: (email: string, from: string, to: string) =>
+      `${email} pasará de ${from} a ${to}. Esto cambia lo que puede ver y hacer en Kova.`,
+    roleChangeConfirmAction: "Cambiar rol",
   },
   tour: {
     dismiss: "Cerrar recorrido",
@@ -715,6 +727,12 @@ export const copy = {
     reason: "Motivo",
     submit: "Cancelar orden",
     cancel: "Cerrar",
+    reasons: {
+      operator_error: "Error del operador",
+      wrong_product: "Producto equivocado",
+      system_issue: "Problema del sistema",
+      other: "Otro",
+    },
   },
   shiftView: {
     title: "Turnos",
@@ -753,6 +771,21 @@ export const copy = {
           : status === "shortage"
             ? "Faltante"
             : "Cerrado",
+    printCorte: "Imprimir corte",
+  },
+  corte: {
+    title: "Corte de caja",
+    openedAt: "Apertura",
+    closedAt: "Cierre",
+    openingCash: "Fondo de apertura",
+    cashSales: "Ventas en efectivo",
+    cashIn: "Entradas de efectivo",
+    cashOut: "Salidas de efectivo",
+    refundPayout: "Reembolsos en efectivo",
+    expectedCash: "Efectivo esperado",
+    actualCash: "Efectivo contado",
+    variance: "Diferencia",
+    footer: "Documento interno de control de caja.",
   },
   openShiftModal: {
     title: "Abrir turno",
@@ -1547,11 +1580,13 @@ export const copy = {
     saleError: "No se pudo completar la venta.",
     saleComplete: "Venta completada.",
     saleQueued: "Venta en cola. Se sincronizará cuando vuelva la conexión.",
+    offlineCatalogNotice: "Modo sin conexión: mostrando el catálogo guardado. Las ventas se sincronizarán al volver la conexión.",
     noShiftWarning: "No hay turno abierto. Los cobros en efectivo están bloqueados hasta que abras uno.",
     cashRequiresShift: "Para cobrar en efectivo, abre un turno de caja primero.",
     openShift: "Abrir turno",
     openOrder: "Abrir orden",
     newSale: "Nueva venta",
+    printReceipt: "Imprimir recibo",
     total: "Total",
     charge: "Cobrar",
     pendingSales: (n: number) => `${n} en cola`,
@@ -1602,6 +1637,21 @@ export const copy = {
     saveCategory: "Guardar categoría",
     deactivate: "Desactivar",
     deactivateConfirm: "¿Desactivar?",
+    confirmCategoryTitle: "¿Desactivar categoría?",
+    confirmCategoryBody: (name: string) =>
+      `"${name}" dejará de aparecer en el catálogo. Los productos asignados no se eliminan.`,
+    confirmProductTitle: "¿Desactivar producto?",
+    confirmProductBody: (name: string) =>
+      `"${name}" dejará de venderse en la caja. Su historial de ventas se conserva.`,
+    confirmModifierGroupTitle: "¿Desactivar grupo de modificadores?",
+    confirmModifierGroupBody: (name: string) =>
+      `"${name}" y sus opciones dejarán de ofrecerse en la caja.`,
+    confirmModifierOptionTitle: "¿Quitar opción?",
+    confirmModifierOptionBody: (name: string) => `"${name}" dejará de ofrecerse en la caja.`,
+    confirmDeactivateAction: "Desactivar",
+    confirmRemoveAction: "Quitar",
+    deactivateGroupLabel: (name: string) => `Desactivar grupo ${name}`,
+    deactivateOptionLabel: (name: string) => `Quitar opción ${name}`,
     emptyCategories: "Aún no hay categorías.",
     products: "Productos",
     searchProducts: "Buscar productos",

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { copy } from "../i18n/messages";
 import type { OrderItem, RefundPayload } from "./types";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -22,6 +22,8 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
   const [reason, setReason] = useState(refundReasons[0]);
   const [refundPaymentMethod, setRefundPaymentMethod] = useState<(typeof refundPaymentMethods)[number]>("cash");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const reasonId = useId();
+  const paymentMethodId = useId();
 
   const selectedItems = useMemo(
     () =>
@@ -47,8 +49,8 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label>{copy.refundModal.reason}</Label>
-          <Select value={reason} onChange={(event) => setReason(event.target.value)}>
+          <Label htmlFor={reasonId}>{copy.refundModal.reason}</Label>
+          <Select id={reasonId} value={reason} onChange={(event) => setReason(event.target.value)}>
             {refundReasons.map((option) => (
               <option key={option} value={option}>
                 {copy.refundModal.reasons[option as keyof typeof copy.refundModal.reasons]}
@@ -58,8 +60,9 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
         </div>
 
         <div className="space-y-2">
-          <Label>{copy.refundModal.refundPaymentMethod}</Label>
+          <Label htmlFor={paymentMethodId}>{copy.refundModal.refundPaymentMethod}</Label>
           <Select
+            id={paymentMethodId}
             value={refundPaymentMethod}
             onChange={(event) =>
               setRefundPaymentMethod(event.target.value as (typeof refundPaymentMethods)[number])

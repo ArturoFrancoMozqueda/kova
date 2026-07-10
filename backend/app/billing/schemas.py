@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StandardPlanResponse(BaseModel):
@@ -49,6 +49,10 @@ class BillingSubscriptionResponse(BaseModel):
 class CheckoutSessionResponse(BaseModel):
     checkout_url: str
     checkout_session_id: str
+
+
+class ReconcileCheckoutRequest(BaseModel):
+    checkout_session_id: str = Field(min_length=1, max_length=255)
 
 
 class InternalSubscriptionItem(BaseModel):

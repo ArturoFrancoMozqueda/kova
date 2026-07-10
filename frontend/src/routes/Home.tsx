@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
+import { trackAnonymousEvent, trackAnonymousEventOnce } from "@/telemetry/funnel";
 import {
   STANDARD_PLAN_AMOUNT,
   STANDARD_PLAN_PRICE_LABEL_ES,
@@ -97,9 +105,11 @@ function useLandingRevealMotion() {
 function Navbar({
   primaryTarget,
   isAuthenticated,
+  onCtaClick,
 }: {
   primaryTarget: string;
   isAuthenticated: boolean;
+  onCtaClick: (cta: string) => void;
 }) {
   return (
     <nav
@@ -162,6 +172,7 @@ function Navbar({
           <Link
             className="lp-nav-primary lp-cta-fill"
             to={primaryTarget}
+            onClick={() => onCtaClick("navbar")}
             style={{
               fontSize: 13, fontWeight: 600,
               background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
@@ -182,7 +193,13 @@ function Navbar({
 
 /* ─── MXN Ticker ─────────────────────────────────────────────────────────── */
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
-function Hero({ primaryTarget }: { primaryTarget: string }) {
+function Hero({
+  primaryTarget,
+  onCtaClick,
+}: {
+  primaryTarget: string;
+  onCtaClick: (cta: string) => void;
+}) {
   const benefits = [
     {
       title: t.threeNodes.items[0].label,
@@ -253,6 +270,7 @@ function Hero({ primaryTarget }: { primaryTarget: string }) {
             <div className="lp-hero-actions" style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
               <Link
                 to={primaryTarget}
+                onClick={() => onCtaClick("hero")}
                 className="lp-cta-fill"
                 style={{
                   background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
@@ -512,7 +530,13 @@ function FAQ() {
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-function Pricing({ primaryTarget }: { primaryTarget: string }) {
+function Pricing({
+  primaryTarget,
+  onCtaClick,
+}: {
+  primaryTarget: string;
+  onCtaClick: (cta: string) => void;
+}) {
   const feats = t.pricing.features;
   return (
     <section id="precio" className="lp-section lp-reveal-block">
@@ -577,6 +601,7 @@ function Pricing({ primaryTarget }: { primaryTarget: string }) {
 
             <Link
               to={primaryTarget}
+              onClick={() => onCtaClick("pricing")}
               className="lp-cta-fill"
               style={{
                 width: "100%", background: "var(--cta-blue, var(--kova-blue))", color: "#fff",
@@ -671,6 +696,25 @@ export default function Home(): ReactNode {
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
   useLandingRevealMotion();
 
+  // Top-of-funnel instrumentation (PLAN-UX-03). Anonymous, client_id-keyed, no
+  // PII — makes landing → CTA → signup measurable. `landing_viewed` fires once
+  // per page load; each primary CTA reports `landing_cta_clicked`, and when the
+  // CTA leads to signup it also reports `signup_started` (the pre-auth rung that
+  // links to the later authenticated `signup_completed` via the same client_id).
+  useEffect(() => {
+    trackAnonymousEventOnce("landing_viewed", "landing_viewed");
+  }, []);
+
+  const onCtaClick = useCallback(
+    (cta: string) => {
+      void trackAnonymousEvent("landing_cta_clicked", { cta });
+      if (primaryTarget === "/signup") {
+        void trackAnonymousEvent("signup_started", { cta });
+      }
+    },
+    [primaryTarget],
+  );
+
   // Paint html/body with the same landing background while this view is mounted.
   // Prevents the white body bg from showing on viewports wider than the natural
   // .lp-root width (was the right-side white strip on >=1440px monitors).
@@ -691,9 +735,9 @@ export default function Home(): ReactNode {
   return (
     <div className="lp-root" style={rootStyle}>
       <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
-      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} />
+      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} onCtaClick={onCtaClick} />
       <main>
-        <Hero primaryTarget={primaryTarget} />
+        <Hero primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
         {/* Cinematic product showcase (laptop mockup, auto-playing loop).
             Landscape variant tuned for the landing flow; the same component
             powers the standalone /kova-showcase-video export route. */}
@@ -703,8 +747,8 @@ export default function Home(): ReactNode {
         <BentoModules />
         <Differentiation />
         <FAQ />
-        <Pricing primaryTarget={primaryTarget} />
-        <FinalCta primaryTarget={primaryTarget} />
+        <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
+        <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
       </main>
       <Footer />
     </div>

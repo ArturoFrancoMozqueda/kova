@@ -29,8 +29,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
+import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { formatTenantName } from "@/lib/formatTenantName";
-import { CountUp, LivePulse } from "@/components/brand/RealTime";
+import { CountUp } from "@/components/brand/RealTime";
 import {
   DollarSign,
   ShoppingCart,
@@ -454,16 +455,16 @@ export default function DashboardView() {
   }, [load, period]);
 
   const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
+  const greeting = getGreeting(tenantTimezone);
 
   return (
     <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground mb-1">{getGreeting(tenantTimezone)}</p>
+          <p className="text-sm text-muted-foreground mb-1">{greeting}</p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
-            {loadState.status === "ready" && <LivePulse label="En vivo" />}
           </div>
           <p className="text-muted-foreground mt-1">{periodSubtitle(period, tenantTimezone)}</p>
         </div>
@@ -472,6 +473,14 @@ export default function DashboardView() {
             role="radiogroup"
             aria-label={copy.dashboard.periodLabel}
             className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(
+                e,
+                [{ value: "day" }, { value: "week" }, { value: "month" }] as const,
+                period,
+                setPeriod,
+              )
+            }
           >
             {([
               { value: "day", label: copy.dashboard.periodDay },
@@ -482,6 +491,8 @@ export default function DashboardView() {
                 key={value}
                 type="button"
                 role="radio"
+                data-radio-value={value}
+                tabIndex={period === value ? 0 : -1}
                 aria-checked={period === value}
                 onClick={() => setPeriod(value)}
                 className={cn(

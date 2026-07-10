@@ -3,12 +3,13 @@ import json
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.idempotency import service as idempotency_service
 from app.pricing import calculator as money_calc
-from app.shared.exceptions import bad_request, not_found
+from app.shared.exceptions import bad_request, conflict, not_found
 from app.shifts import calculator
 from app.shifts import repository as repo
 from app.shifts.models import Shift
@@ -121,12 +122,20 @@ def open_shift(
         else None
     )
 
-    shift = repo.create_shift(
-        db,
-        tenant_id=tenant_id,
-        user_id=user_id,
-        opening_cash_amount=opening_cash,
-    )
+    # The app-level check above loses a race between two concurrent opens: both
+    # can read "no open shift" and both insert. The partial unique index
+    # (uq_one_open_shift_per_tenant) is the real backstop — catch its violation
+    # and return 409 so exactly one open shift can ever exist per tenant.
+    try:
+        shift = repo.create_shift(
+            db,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            opening_cash_amount=opening_cash,
+        )
+    except IntegrityError as exc:
+        db.rollback()
+        raise conflict("A shift is already open for this tenant") from exc
 
     if opening_cash is not None:
         repo.create_cash_movement(

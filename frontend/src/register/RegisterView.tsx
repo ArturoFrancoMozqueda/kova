@@ -12,10 +12,13 @@ import { listStock } from "../inventory/api";
 import type { StockItem } from "../inventory/types";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
-import type { Order } from "../orders/types";
+import { getReceipt } from "../orders/api";
+import { ReceiptTemplate } from "../orders/ReceiptTemplate";
+import type { Order, Receipt } from "../orders/types";
 import { queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
 import { triggerSync } from "../offline/syncWorker";
+import { readCatalogCache, saveCatalogCache } from "../offline/catalogCache";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
 import type { SelectedModifier } from "./ModifierSelectionModal";
 import { getOpenShift } from "@/shifts/api";
@@ -23,6 +26,7 @@ import type { Shift } from "@/shifts/types";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +54,7 @@ import {
   Sparkles,
   X,
   ChevronUp,
+  Printer,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
@@ -58,7 +63,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; products: Product[]; categories: Category[] };
+  | { status: "ready"; products: Product[]; categories: Category[]; fromCache?: boolean };
 
 type CartItem = {
   product: Product;
@@ -116,6 +121,7 @@ export default function RegisterView() {
   useDocumentTitle(copy.documentTitles.register);
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
+  const tenantId = state.status === "authenticated" ? state.tenantId : null;
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
   const { toast } = useToast();
@@ -131,6 +137,11 @@ export default function RegisterView() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  // The completed-sale response has no receipt number / business name / timestamp
+  // (those live on the receipt), so we fetch the printable receipt after a synced
+  // sale. Null until it loads (or if the fetch fails); an offline-queued sale
+  // never sets completedOrder, so no receipt is offered until it syncs.
+  const [saleReceipt, setSaleReceipt] = useState<Receipt | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const skuInputRef = useRef<HTMLInputElement | null>(null);
   const cashTenderedRef = useRef<HTMLInputElement | null>(null);
@@ -168,12 +179,32 @@ export default function RegisterView() {
         listProducts(),
         listCategories(),
       ]);
+      // Persist the full catalog so the register can open offline from a cold
+      // start. Best-effort: a cache write must never block ringing a sale, and
+      // its rejection must never surface (e.g. no IndexedDB in a test env).
+      if (tenantId) {
+        void saveCatalogCache(tenantId, allProducts, categories).catch(() => undefined);
+      }
       const products = allProducts.filter((product) => product.is_active);
       setLoadState({ status: "ready", products, categories });
     } catch {
+      // Offline / fetch failed. Fall back to the cached catalog so the cashier
+      // can still open the register and queue sales without connectivity.
+      if (tenantId) {
+        const cached = await readCatalogCache(tenantId).catch(() => undefined);
+        if (cached) {
+          setLoadState({
+            status: "ready",
+            products: cached.products.filter((product) => product.is_active),
+            categories: cached.categories,
+            fromCache: true,
+          });
+          return;
+        }
+      }
       setLoadState({ status: "error" });
     }
-  }, []);
+  }, [tenantId]);
 
   // Focus the primary CTA + handle Escape on mobile success overlay.
   useEffect(() => {
@@ -185,6 +216,44 @@ export default function RegisterView() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [completedOrder, resetSale]);
+
+  // Fetch the printable receipt for the completed sale so the cashier can print
+  // it in one tap without leaving the register. Non-blocking: the sale is already
+  // done; if the fetch fails the success card simply omits the receipt/print.
+  useEffect(() => {
+    if (!completedOrder) {
+      setSaleReceipt(null);
+      return;
+    }
+    let cancelled = false;
+    void getReceipt(completedOrder.id)
+      .then((receipt) => {
+        if (!cancelled) setSaleReceipt(receipt);
+      })
+      .catch(() => {
+        if (!cancelled) setSaleReceipt(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [completedOrder]);
+
+  // Map the fetched receipt to ReceiptTemplate props (same shape OrderDetail uses).
+  // A fresh sale has no refunds/void, so those are omitted.
+  const receiptProps = useMemo(() => {
+    if (!saleReceipt) return null;
+    return {
+      businessName: formatTenantName(saleReceipt.tenant_name),
+      receiptNumber: saleReceipt.receipt_number,
+      createdAt: saleReceipt.created_at,
+      items: saleReceipt.items,
+      subtotalAmount: saleReceipt.subtotal_amount,
+      totalAmount: saleReceipt.total_amount,
+      payments: saleReceipt.payments,
+      totalTendered: saleReceipt.total_tendered,
+      totalChange: saleReceipt.total_change,
+    };
+  }, [saleReceipt]);
 
   // Best-effort refresh of the open-shift state. Leaves state at `undefined`
   // (unknown) on failure so we never block cash just because the check failed.
@@ -577,6 +646,13 @@ export default function RegisterView() {
           )}
         </div>
       </div>
+
+      {loadState.status === "ready" && loadState.fromCache && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-kova-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:text-sm">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">{copy.register.offlineCatalogNotice}</span>
+        </div>
+      )}
 
       {hasOpenShift === false && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground sm:text-sm">
@@ -1092,6 +1168,17 @@ export default function RegisterView() {
                         className="grid grid-cols-3 gap-2"
                         role="radiogroup"
                         aria-labelledby="paymentMethodLabel"
+                        onKeyDown={(e) =>
+                          handleRadioGroupKeyDown(
+                            e,
+                            paymentMethodOptions.map(({ value }) => ({
+                              value,
+                              disabled: value === "cash" && hasOpenShift === false,
+                            })),
+                            paymentMethod,
+                            setPaymentMethod,
+                          )
+                        }
                       >
                         {paymentMethodOptions.map(({ value, label, icon }) => {
                           const isCashDisabled = value === "cash" && hasOpenShift === false;
@@ -1100,6 +1187,8 @@ export default function RegisterView() {
                               key={value}
                               type="button"
                               role="radio"
+                              data-radio-value={value}
+                              tabIndex={paymentMethod === value ? 0 : -1}
                               aria-checked={paymentMethod === value}
                               aria-disabled={isCashDisabled}
                               onClick={() =>
@@ -1284,7 +1373,13 @@ export default function RegisterView() {
                     <p className="text-xs text-muted-foreground">{copy.register.saleSuccessSubtitle}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {receiptProps && (
+                    <Button variant="outline" size="sm" onClick={() => window.print()}>
+                      <Printer className="h-3.5 w-3.5" />
+                      {copy.register.printReceipt}
+                    </Button>
+                  )}
                   <Link to={`/orders/${completedOrder.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                     <ExternalLink className="h-3.5 w-3.5" />
                     {copy.register.openOrder}
@@ -1294,6 +1389,12 @@ export default function RegisterView() {
                     {copy.register.newSale}
                   </Button>
                 </div>
+                {/* On-screen preview for desktop. The printable copy lives in the
+                    mobile success overlay (always in the DOM); at print width the
+                    lg:block desktop card is display:none, so it never double-prints. */}
+                {receiptProps && (
+                  <ReceiptTemplate {...receiptProps} className="mt-4" />
+                )}
               </CardContent>
             </Card>
           )}
@@ -1333,7 +1434,7 @@ export default function RegisterView() {
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-4">
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 pb-4">
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-kova-growth/15 animate-scale-in">
               <CheckCircle2 className="h-14 w-14 text-kova-growth" strokeWidth={2.25} />
             </div>
@@ -1346,6 +1447,12 @@ export default function RegisterView() {
                 {formatMoney(completedOrder.total_amount)}
               </p>
             </div>
+            {/* Printable receipt: this node (always in the DOM whenever a sale is
+                complete) is the single print-receipt-root the print CSS targets,
+                for both mobile and desktop. */}
+            {receiptProps && (
+              <ReceiptTemplate {...receiptProps} className="print-receipt-root w-full max-w-xs" />
+            )}
           </div>
           <div className="px-6 pb-6 space-y-2">
             <Button
@@ -1357,6 +1464,17 @@ export default function RegisterView() {
               <RotateCcw className="h-5 w-5" />
               {copy.register.newSale}
             </Button>
+            {receiptProps && (
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full"
+                onClick={() => window.print()}
+              >
+                <Printer className="h-4 w-4" />
+                {copy.register.printReceipt}
+              </Button>
+            )}
             <Link
               to={`/orders/${completedOrder.id}`}
               className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}

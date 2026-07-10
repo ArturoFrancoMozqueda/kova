@@ -30,6 +30,13 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="completed")
     subtotal_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    # Client ring-time. For online sales this equals created_at (server now);
+    # for offline sales it is the tenant-clamped time the sale was rung on the
+    # device, so reports/receipts bucket by when the sale happened, not when it
+    # synced. Nullable for the expand phase; the app layer always populates it.
+    occurred_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=_now
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
@@ -87,6 +94,10 @@ class Refund(Base):
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(String(30), nullable=False)
     refunded_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    # The tender the refund was paid back through (cash / bank_transfer /
+    # manual_card). Nullable for rows created before this column existed; new
+    # refunds always persist it so per-method drawer/report math ties out.
+    refund_payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

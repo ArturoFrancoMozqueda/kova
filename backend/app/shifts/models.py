@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Numeric, String
+from sqlalchemy import DateTime, Index, Numeric, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -14,6 +14,16 @@ def _now() -> datetime:
 
 class Shift(Base):
     __tablename__ = "shifts"
+    __table_args__ = (
+        # At most one open shift per tenant. Enforced at the DB level so a
+        # concurrent double-open can't create two drawers (see migration 0041).
+        Index(
+            "uq_one_open_shift_per_tenant",
+            "tenant_id",
+            unique=True,
+            postgresql_where=text("status = 'open'"),
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)

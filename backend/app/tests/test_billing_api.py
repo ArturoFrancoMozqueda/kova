@@ -110,16 +110,24 @@ def test_billing_subscription_is_tenant_scoped(client: TestClient, db: Session) 
 
 
 class FakeStripeCheckoutClient:
-    def __init__(self, *, session: dict | None = None) -> None:
+    def __init__(
+        self, *, session: dict | None = None, retrieve_session: dict | None = None
+    ) -> None:
         self.calls: list[dict] = []
+        self.retrieve_calls: list[dict] = []
         self.session = session or {
             "id": "cs_test_123",
             "url": "https://checkout.stripe.test/session/cs_test_123",
         }
+        self.retrieve_session_result = retrieve_session
 
     def create_checkout_session(self, **kwargs) -> dict:
         self.calls.append(kwargs)
         return self.session
+
+    def retrieve_session(self, **kwargs) -> dict:
+        self.retrieve_calls.append(kwargs)
+        return self.retrieve_session_result or {}
 
 
 class FakeStripePriceClient:
@@ -1122,3 +1130,197 @@ def test_cancel_subscription_surfaces_stripe_failure(
     response = client.post("/api/v1/billing/cancel")
 
     assert response.status_code == 502
+
+
+def test_checkout_passes_tenant_and_customer_to_stripe(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """The checkout call must carry the tenant metadata (via the service) and
+    reuse the tenant's stored Stripe customer so a re-subscription cannot mint a
+    duplicate customer."""
+    fake_client = FakeStripeCheckoutClient()
+    monkeypatch.setattr(billing_service, "checkout_client", fake_client)
+    _configure_stripe(monkeypatch)
+    # Canceled tenant with a stored customer id — allowed to re-subscribe.
+    tenant = _signup_verify_login(
+        client, f"checkout-reuse-{uuid4().hex}@example.com", "Checkout Reuse"
+    )
+    db.add(
+        Subscription(
+            tenant_id=UUID(tenant["tenant_id"]),
+            stripe_customer_id="cus_reuse_me",
+            stripe_subscription_id="sub_old_canceled",
+            status="canceled",
+        )
+    )
+    db.commit()
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-reuse-1"},
+    )
+
+    assert response.status_code == 201, response.text
+    assert fake_client.calls[0]["tenant_id"] == tenant["tenant_id"]
+    assert fake_client.calls[0]["customer"] == "cus_reuse_me"
+
+
+def test_past_due_tenant_cannot_start_duplicate_checkout(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """A past_due tenant still has a live Stripe subscription, so a new checkout
+    is blocked — it would otherwise mint a second customer + subscription that
+    keeps billing in parallel (double billing)."""
+    fake_client = FakeStripeCheckoutClient()
+    monkeypatch.setattr(billing_service, "checkout_client", fake_client)
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"checkout-pastdue-{uuid4().hex}@example.com", "Checkout Past Due"
+    )
+    db.add(
+        Subscription(
+            tenant_id=UUID(tenant["tenant_id"]),
+            stripe_customer_id="cus_past_due",
+            stripe_subscription_id="sub_past_due",
+            status="past_due",
+        )
+    )
+    db.commit()
+
+    response = client.post(
+        "/api/v1/billing/checkout",
+        headers={"Idempotency-Key": "checkout-pastdue-1"},
+    )
+
+    assert response.status_code == 400, response.text
+    # No Stripe customer/subscription was minted.
+    assert fake_client.calls == []
+
+
+def _reconcile_session(tenant_id: str) -> dict:
+    return {
+        "id": "cs_reconcile_1",
+        "object": "checkout.session",
+        "customer": "cus_reconcile",
+        "subscription": "sub_reconcile",
+        "payment_status": "paid",
+        "status": "complete",
+        "metadata": {"tenant_id": tenant_id},
+    }
+
+
+def _reconcile_subscription_client() -> "FakeStripeSubscriptionClient":
+    return FakeStripeSubscriptionClient(
+        subscription={
+            "id": "sub_reconcile",
+            "object": "subscription",
+            "status": "active",
+            "items": {
+                "data": [
+                    {
+                        "current_period_start": 1_700_000_000,
+                        "current_period_end": 1_702_592_000,
+                    }
+                ]
+            },
+        }
+    )
+
+
+def test_reconcile_activates_on_lost_webhook_and_is_idempotent(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """A completed paid checkout whose webhook never arrived self-heals: the
+    reconcile endpoint activates the subscription and a second call is a no-op
+    (no duplicate activation audit)."""
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"reconcile-{uuid4().hex}@example.com", "Reconcile"
+    )
+    fake_checkout = FakeStripeCheckoutClient(
+        retrieve_session=_reconcile_session(tenant["tenant_id"])
+    )
+    monkeypatch.setattr(billing_service, "checkout_client", fake_checkout)
+    monkeypatch.setattr(
+        billing_service, "subscription_client", _reconcile_subscription_client()
+    )
+
+    first = client.post(
+        "/api/v1/billing/checkout/reconcile",
+        json={"checkout_session_id": "cs_reconcile_1"},
+    )
+    second = client.post(
+        "/api/v1/billing/checkout/reconcile",
+        json={"checkout_session_id": "cs_reconcile_1"},
+    )
+
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json()["subscription"]["status"] == "active"
+    assert first.json()["access"]["allowed"] is True
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == UUID(tenant["tenant_id"]))
+        .one()
+    )
+    assert subscription.status == "active"
+    assert subscription.stripe_subscription_id == "sub_reconcile"
+    assert subscription.latest_checkout_session_id == "cs_reconcile_1"
+    activation_audits = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.tenant_id == UUID(tenant["tenant_id"]),
+            AuditLog.action == "billing.subscription_activated",
+        )
+        .count()
+    )
+    assert activation_audits == 1
+
+
+def test_reconcile_rejects_session_for_another_tenant(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    """Reconcile must verify the Stripe session belongs to the caller's tenant
+    before mutating anything (tenant isolation)."""
+    _configure_stripe(monkeypatch)
+    tenant = _signup_verify_login(
+        client, f"reconcile-foreign-{uuid4().hex}@example.com", "Reconcile Foreign"
+    )
+    foreign_session = _reconcile_session(str(uuid4()))
+    fake_checkout = FakeStripeCheckoutClient(retrieve_session=foreign_session)
+    monkeypatch.setattr(billing_service, "checkout_client", fake_checkout)
+    monkeypatch.setattr(
+        billing_service, "subscription_client", _reconcile_subscription_client()
+    )
+
+    response = client.post(
+        "/api/v1/billing/checkout/reconcile",
+        json={"checkout_session_id": "cs_reconcile_1"},
+    )
+
+    assert response.status_code == 403, response.text
+    assert (
+        db.query(Subscription)
+        .filter(Subscription.tenant_id == UUID(tenant["tenant_id"]))
+        .first()
+        is None
+    )
+
+
+def test_reconcile_requires_billing_manage_permission(
+    client: TestClient, db: Session, monkeypatch
+) -> None:
+    _configure_stripe(monkeypatch)
+    email = f"reconcile-cashier-{uuid4().hex}@example.com"
+    signup = _signup_verify_login(client, email, "Reconcile Cashier")
+    _set_role(db, signup, "cashier")
+    client.post("/api/v1/auth/logout")
+    login = client.post("/api/v1/auth/login", json={"email": email, "password": "S3cur3pass!"})
+    assert login.status_code == 200, login.text
+
+    response = client.post(
+        "/api/v1/billing/checkout/reconcile",
+        json={"checkout_session_id": "cs_reconcile_1"},
+    )
+
+    assert response.status_code == 403

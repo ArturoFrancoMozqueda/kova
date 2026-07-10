@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
 from app.catalog.models import Product, ProductImageFile
-from app.db import get_db
+from app.db import get_db, get_privileged_db
 from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.dependencies import require_permission
@@ -225,7 +225,9 @@ def delete_product_image(
 )
 def get_product_image(
     product_id: UUID,
-    db: Session = Depends(get_db),
+    # Public, unauthenticated read served cross-tenant by product id (no tenant
+    # context). Privileged engine (RLS bypass); the query is scoped by id only.
+    db: Session = Depends(get_privileged_db),
     w: int | None = Query(default=None, description="Optional resize width (160, 320, 400, 800)"),
 ):
     image_row = (

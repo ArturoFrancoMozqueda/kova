@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -19,6 +20,29 @@ from app.pricing import calculator
 from app.shared.exceptions import bad_request, not_found
 from app.shifts import repository as shifts_repo
 from app.tenants import repository as tenant_repo
+
+# Bound the client-supplied ring-time so a skewed or malicious clock cannot
+# rewrite history: a value more than a day in the future or a month in the past
+# is treated as untrustworthy and falls back to server-now.
+_MAX_FUTURE_SKEW = timedelta(hours=24)
+_MAX_PAST_SKEW = timedelta(days=30)
+
+
+def _clamp_occurred_at(occurred_at: datetime | None) -> datetime:
+    """Resolve the sale's ring-time to a trusted, tz-aware UTC datetime.
+
+    None (online sales / legacy queue items) → server now. A client value is
+    normalized to UTC and accepted only within the skew window; anything
+    outside it degrades to server now rather than corrupting reports.
+    """
+    now = datetime.now(UTC)
+    if occurred_at is None:
+        return now
+    ts = occurred_at
+    ts = ts.replace(tzinfo=UTC) if ts.tzinfo is None else ts.astimezone(UTC)
+    if ts > now + _MAX_FUTURE_SKEW or ts < now - _MAX_PAST_SKEW:
+        return now
+    return ts
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
@@ -149,6 +173,7 @@ def create_order(
     client_uuid: UUID | None = None,
     link_to_open_shift: bool = True,
     shift_id: UUID | None = None,
+    occurred_at: datetime | None = None,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     if client_uuid:
@@ -218,9 +243,10 @@ def create_order(
     # plus a tenant-verified shift_id captured at ring time (or None): they
     # were rung in a past (possibly closed) shift and must not inflate the
     # current drawer.
-    # NOTE: shift_id must never enter the idempotency payload hash above —
-    # replays of pre-deploy queue items would otherwise be rejected as
-    # "Idempotency key reused with different request body".
+    # NOTE: shift_id and occurred_at must never enter the idempotency payload
+    # hash above — replays of pre-deploy queue items (which lacked these
+    # fields) would otherwise be rejected as "Idempotency key reused with
+    # different request body".
     if link_to_open_shift:
         open_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
         if any(p.method == "cash" for p in body.payments) and not open_shift:
@@ -238,6 +264,7 @@ def create_order(
         total_amount=total,
         client_uuid=client_uuid,
         shift_id=shift_id,
+        occurred_at=_clamp_occurred_at(occurred_at),
     )
     for product, quantity, effective_price, line_total, modifier_snapshots in priced_items:
         order_item = repo.create_order_item(
@@ -331,7 +358,9 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
         "order_id": str(order.id),
         "receipt_number": str(order.id).replace("-", "")[-8:].upper(),
         "tenant_name": tenant.name if tenant else "",
-        "created_at": order.created_at.isoformat(),
+        # Ring-time so the receipt shows when the sale happened, not when an
+        # offline sale later synced.
+        "created_at": (order.occurred_at or order.created_at).isoformat(),
         "status": order.status,
         "items": [
             {
@@ -446,6 +475,34 @@ def create_refund(
         refund_lines.append((order_item, refund_item.quantity, line_total))
         total_refunded = calculator.money(total_refunded + line_total)
 
+    # Money integrity: a refund can only be paid back through a method that
+    # actually collected money for this order, and never more than was collected
+    # in that method minus what has already been refunded to it. This blocks a
+    # transfer-only order from draining the cash drawer, and blocks
+    # over-refunding a split payment's cash portion.
+    method = body.refund_payment_method
+    collected = repo.collected_by_method(db, tenant_id=tenant_id, order_id=order_id).get(
+        method, Decimal("0.00")
+    )
+    already_refunded = repo.refunded_by_method(
+        db, tenant_id=tenant_id, order_id=order_id
+    ).get(method, Decimal("0.00"))
+    available_in_method = calculator.money(collected - already_refunded)
+    if total_refunded > available_in_method:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "REFUND_METHOD_EXCEEDS_COLLECTED",
+                "method": method,
+                "available": str(available_in_method),
+                "requested": str(total_refunded),
+                "message": (
+                    "No puedes devolver por este método más de lo que se cobró "
+                    f"en él (máx. {available_in_method})."
+                ),
+            },
+        )
+
     cash_refund_shift = None
     if body.refund_payment_method == "cash":
         cash_refund_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
@@ -459,6 +516,7 @@ def create_refund(
         user_id=user_id,
         reason=body.reason,
         refunded_amount=total_refunded,
+        refund_payment_method=method,
     )
 
     for order_item, quantity, line_total in refund_lines:

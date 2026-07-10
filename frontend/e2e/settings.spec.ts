@@ -246,10 +246,15 @@ test("settings employees invite role change and deactivate work at mobile width"
   await expect(page.getByText("barista@bakery.com - Gerente - pending")).toBeVisible();
 
   const employeeRow = page.getByText("cashier@bakery.com").locator("..").locator("..");
+  // Role change now confirms before mutating (PLAN-UX-01): the select opens a
+  // confirmation dialog and the change applies only after confirming.
   await employeeRow.locator("select").selectOption("manager");
+  await page.getByRole("button", { name: /cambiar rol/i }).click();
   await expect(employeeRow.getByText(/opera el negocio/i)).toBeVisible();
 
+  // Deactivate is likewise gated by a confirmation dialog.
   await employeeRow.getByRole("button", { name: /desactivar/i }).click();
+  await page.getByRole("button", { name: /desactivar acceso/i }).click();
   await expect(page.getByText(/acceso desactivado/i)).toBeVisible();
   await expect(employeeRow.getByRole("button", { name: /desactivar/i })).toBeDisabled();
 });

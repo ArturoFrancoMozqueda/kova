@@ -12,10 +12,10 @@ def _enabled() -> bool:
     return bool(settings.resend_api_key)
 
 
-def _send(*, to: str, subject: str, html: str, kind: str) -> None:
+def _send(*, to: str, subject: str, html: str, kind: str) -> bool:
     if not _enabled():
         logger.info("email.skip reason=no_api_key to=%s type=%s", to, kind)
-        return
+        return False
     resend.api_key = settings.resend_api_key
     try:
         resend.Emails.send({
@@ -25,8 +25,10 @@ def _send(*, to: str, subject: str, html: str, kind: str) -> None:
             "html": html,
         })
         logger.info("email.sent to=%s type=%s", to, kind)
+        return True
     except Exception:
         logger.exception("email.error to=%s type=%s", to, kind)
+        return False
 
 
 def send_verification_email(*, to: str, token: str) -> None:
@@ -109,7 +111,7 @@ def send_payment_receipt_email(
     _send(to=to, subject="Recibo de pago — Kova", html=html, kind="payment_receipt")
 
 
-def send_trial_ending_email(*, to: str, trial_ends_iso: str) -> None:
+def send_trial_ending_email(*, to: str, trial_ends_iso: str) -> bool:
     billing_url = f"{settings.frontend_url}/settings/billing"
     html = render_email(
         preheader=(
@@ -129,7 +131,7 @@ def send_trial_ending_email(*, to: str, trial_ends_iso: str) -> None:
         cta_url=billing_url,
         body_html=muted("Si ya activaste tu plan, ignora este mensaje."),
     )
-    _send(
+    return _send(
         to=to,
         subject="Tu periodo de prueba de Kova termina pronto",
         html=html,

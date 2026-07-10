@@ -220,11 +220,14 @@
   }
 
   .print-receipt-root,
-  .print-receipt-root * {
+  .print-receipt-root *,
+  .print-corte-root,
+  .print-corte-root * {
     visibility: visible;
   }
 
-  .print-receipt-root {
+  .print-receipt-root,
+  .print-corte-root {
     position: absolute;
     left: 0;
     top: 0;
@@ -237,4 +240,14 @@
   .no-print {
     display: none !important;
   }
+
+  .print-only {
+    display: block !important;
+  }
+}
+
+/* Present in the DOM but shown only when printing (e.g. the corte de caja
+   node that ShiftView mounts on demand). */
+.print-only {
+  display: none;
 }

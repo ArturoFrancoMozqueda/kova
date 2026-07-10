@@ -6,12 +6,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.auth.router import router as auth_router
+from app.billing import service as billing_service
 from app.billing.router import router as billing_router
 from app.business_settings.logo_router import router as business_settings_logo_router
 from app.business_settings.router import router as business_settings_router
 from app.catalog.image_router import router as catalog_image_router
 from app.catalog.router import router as catalog_router
 from app.config import settings
+from app.db import assert_rls_active
 from app.employees.router import router as employees_router
 from app.health.router import router as health_router
 from app.inventory.router import router as inventory_router
@@ -59,6 +61,9 @@ def _validate_config() -> None:
         and not settings.stripe_allow_test_mode_in_production
     ):
         raise RuntimeError("STRIPE_SECRET_KEY must use live mode in production")
+    # A test-mode webhook signing secret in a live deployment would let Stripe
+    # test events verify against production and mutate real subscription state.
+    billing_service.validate_webhook_secret_mode()
     if settings.app_env == "production":
         if not settings.resend_api_key:
             raise RuntimeError(
@@ -76,6 +81,7 @@ def create_app() -> FastAPI:
     configure_logging()
     init_sentry()
     _validate_config()
+    assert_rls_active()
     _hide_docs = settings.app_env == "production"
     app = FastAPI(
         title="POS API",
