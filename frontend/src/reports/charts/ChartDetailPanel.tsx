@@ -24,7 +24,7 @@ export function ChartDetailPanel({
         <p className="text-sm font-semibold text-kova-ink">{row.label}</p>
         <p className="text-sm font-bold tabular-nums text-kova-ink">{row.valueLabel}</p>
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-kova-muted">
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-kova-muted">
         <span>{copy.reportsView.chartShare(percentOfTotal(row.value, total))}</span>
         {row.meta?.map((item) => (
           <span key={`${item.label}-${item.value}`}>

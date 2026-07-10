@@ -251,3 +251,7 @@
 .print-only {
   display: none;
 }
+
+.recharts-wrapper text {
+  font-variant-numeric: tabular-nums;
+}

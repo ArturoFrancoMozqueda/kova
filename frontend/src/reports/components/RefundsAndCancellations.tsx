@@ -67,7 +67,7 @@ function Tile({
       <p className={cn("mt-2 text-2xl font-bold tabular-nums", valueTone ? SEVERITY_TEXT[valueTone] : "text-kova-ink")}>
         {value}
       </p>
-      {subValue ? <p className="text-xs text-kova-muted">{subValue}</p> : null}
+      {subValue ? <p className="text-xs tabular-nums text-kova-muted">{subValue}</p> : null}
       {note ? <p className={cn("mt-1 text-xs", valueTone ? SEVERITY_TEXT[valueTone] : "text-kova-muted")}>{note}</p> : null}
     </div>
   );
@@ -86,7 +86,7 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
         title={copy.reportsView.refundsSectionTitle}
         description={copy.reportsView.refundsSectionDescription}
       >
-        <p className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/5 p-4 text-sm text-kova-ink">
+        <p className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/5 p-4 text-sm tabular-nums text-kova-ink">
           {copy.reportsView.refundsCleanState}
         </p>
       </ReportSection>

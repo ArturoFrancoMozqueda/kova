@@ -152,7 +152,7 @@ export function SalesTrendChart({
             </p>
             <p className="text-sm font-bold tabular-nums text-kova-ink">{activePoint.valueLabel}</p>
           </div>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-kova-muted">
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-kova-muted">
             <span>{copy.reportsView.salesTrendShare(activePoint.sharePct)}</span>
             <span>
               {copy.reportsView.salesTrendTooltipOrders}: {activePoint.orderCount}

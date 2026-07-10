@@ -48,7 +48,7 @@ export function EmployeePerformance({ story }: { story: BusinessStoryReport }) {
         title={copy.reportsView.employeePerformance}
         description={copy.reportsView.teamAnalysisDescription}
       >
-        <p className="rounded-kova-md border border-dashed bg-muted/30 p-5 text-sm leading-6 text-muted-foreground">
+        <p className="rounded-kova-md border border-dashed bg-muted/30 p-5 text-sm leading-6 tabular-nums text-muted-foreground">
           {copy.reportsView.teamSingle(
             displayPersonName(only.display_name),
             only.order_count,
@@ -75,7 +75,7 @@ export function EmployeePerformance({ story }: { story: BusinessStoryReport }) {
         title={copy.reportsView.employeePerformance}
         description={copy.reportsView.teamAnalysisDescription}
       >
-        <p className="rounded-kova-md border border-kova-border bg-kova-mist/40 p-4 text-sm leading-6 text-kova-ink">
+        <p className="rounded-kova-md border border-kova-border bg-kova-mist/40 p-4 text-sm leading-6 tabular-nums text-kova-ink">
           {copy.reportsView.teamPair(
             displayPersonName(first.display_name),
             formatMoney(first.net_sales),

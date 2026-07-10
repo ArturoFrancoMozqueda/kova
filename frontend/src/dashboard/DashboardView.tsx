@@ -350,7 +350,7 @@ function OnboardingChecklist({
                 <p className={cn("text-sm font-medium", step.done && "line-through text-muted-foreground")}>
                   {step.label}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">{step.desc}</p>
               </div>
               {!step.done && step.actionTo && (
                 <Link
@@ -615,7 +615,7 @@ export default function DashboardView() {
                           : (n) => String(Math.round(n))}
                       />
                     </p>
-                    <p className="text-xs text-kova-muted mt-0.5">{sub}</p>
+                    <p className="text-xs text-kova-muted mt-0.5 tabular-nums">{sub}</p>
                     <div className="mt-1.5">
                       <DeltaBadge
                         current={currentNum}
@@ -846,7 +846,7 @@ export default function DashboardView() {
                               {copy.reportsView.soldCount(p.quantity_sold)}
                             </p>
                           </div>
-                          <span className="text-sm font-semibold shrink-0">
+                          <span className="text-sm font-semibold shrink-0 tabular-nums">
                             {formatMoney(p.gross_sales)}
                           </span>
                         </div>
@@ -948,7 +948,7 @@ function TrialValueRecap({
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-semibold">{copy.dashboard.trialRecapTitle}</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            <p className="mt-1 text-sm leading-6 text-muted-foreground tabular-nums">
               {copy.dashboard.trialRecapBody(formatMoney(netSales))}
             </p>
           </div>
@@ -963,7 +963,7 @@ function TrialValueRecap({
           {metrics.map((metric) => (
             <div key={metric.label} className="rounded-lg border bg-white/70 p-3">
               <p className="text-xs text-muted-foreground">{metric.label}</p>
-              <p className="mt-1 truncate text-sm font-semibold">{metric.value}</p>
+              <p className="mt-1 truncate text-sm font-semibold tabular-nums">{metric.value}</p>
             </div>
           ))}
         </div>

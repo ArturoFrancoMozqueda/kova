@@ -156,7 +156,7 @@ function DaypartGrid({
                       style={{ width: `${Math.min(100, Math.max(2, row.sales_share_pct))}%` }}
                     />
                   </div>
-                  <p className="mt-1.5 text-xs text-kova-muted">
+                  <p className="mt-1.5 text-xs tabular-nums text-kova-muted">
                     {copy.reportsView.chartShare(row.sales_share_pct)} · {row.order_count}{" "}
                     {copy.reportsView.orders.toLowerCase()} · {formatMoney(row.average_ticket)}
                   </p>

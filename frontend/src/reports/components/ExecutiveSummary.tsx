@@ -17,7 +17,7 @@ function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-kova-md border border-kova-border bg-white px-3 py-2">
       <p className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">{label}</p>
-      <p className="mt-0.5 truncate text-sm font-semibold text-kova-ink" title={value}>
+      <p className="mt-0.5 truncate text-sm font-semibold tabular-nums text-kova-ink" title={value}>
         {value}
       </p>
     </div>
@@ -95,7 +95,7 @@ export function ExecutiveSummary({
         <h2 className="text-lg font-semibold text-kova-ink">{copy.reportsView.summaryTitle}</h2>
       </div>
       <div className="max-w-3xl space-y-1">
-        <p className="text-sm leading-6 text-kova-ink">{headline}</p>
+        <p className="text-sm leading-6 tabular-nums text-kova-ink">{headline}</p>
         {causeParts.length > 0 ? (
           <p className="text-sm leading-6 text-kova-muted">
             {copy.reportsView.headlineCause(causeParts)}

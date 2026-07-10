@@ -22,7 +22,7 @@ export function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 tabular-nums">
       {title || subtitle ? (
         <div>
           {title ? <h3 className="text-sm font-semibold text-kova-ink">{title}</h3> : null}
@@ -35,7 +35,7 @@ export function ChartCard({
         </div>
       ) : (
         <>
-          {srSummary ? <p className="sr-only">{srSummary}</p> : null}
+          {srSummary ? <p className="sr-only tabular-nums">{srSummary}</p> : null}
           {children}
         </>
       )}
