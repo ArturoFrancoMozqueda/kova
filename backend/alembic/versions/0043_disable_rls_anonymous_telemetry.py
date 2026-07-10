@@ -1,6 +1,6 @@
 """disable RLS on anonymous telemetry events
 
-Revision ID: 0043_disable_rls_anonymous_telemetry
+Revision ID: 0043_anon_telemetry_rls
 Revises: 0042_anonymous_telemetry_events
 Create Date: 2026-07-10 00:00:00.000000
 """
@@ -9,7 +9,7 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0043_disable_rls_anonymous_telemetry"
+revision: str = "0043_anon_telemetry_rls"
 down_revision: str | None = "0042_anonymous_telemetry_events"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
