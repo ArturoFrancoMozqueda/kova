@@ -24,6 +24,19 @@ async function mockAuthAs(page: Page, role: string) {
       },
     });
   });
+  await page.route("**/api/v1/settings/business-profile", async (route) => {
+    await route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        public_name: "Bakery",
+        support_email: "test@bakery.com",
+        support_phone: null,
+        timezone: "America/Mexico_City",
+        locale: "es-MX",
+        currency: "MXN",
+      },
+    });
+  });
 }
 
 function storyPayload(overrides = {}) {
@@ -192,6 +205,29 @@ async function mockReports(
     await route.fulfill({ json: options.velocity ?? [] });
   });
 }
+
+test("desktop sidebar covers the viewport after scrolling reports", async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  await mockReports(page);
+
+  await page.goto("/reports");
+  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+
+  await page.evaluate(() => {
+    const main = document.querySelector("main");
+    const scroller = main?.parentElement;
+    if (scroller) {
+      scroller.scrollTop = scroller.scrollHeight;
+    }
+  });
+
+  const sidebar = await page.locator("aside").boundingBox();
+  expect(sidebar).not.toBeNull();
+  expect(Math.round(sidebar?.y ?? -1)).toBe(0);
+  expect(Math.round(sidebar?.height ?? 0)).toBe(768);
+});
 
 test("reports page displays business storytelling layout", async ({ page }) => {
   await markFirstUseToursSeen(page);
