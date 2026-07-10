@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createProduct, updateProduct } from "./api";
+import { createProduct, setProductModifierGroups, updateProduct } from "./api";
 import type { ProductCreate, ProductUpdate } from "./types";
 
 function mockProductResponse() {
@@ -77,5 +77,20 @@ describe("catalog api product payloads", () => {
     expect(body).not.toHaveProperty("image_remove");
     expect(body).not.toHaveProperty("modifier_group_ids");
     expect(body.name).toBe("Concha");
+  });
+
+  it("setProductModifierGroups skips blank ids and compacts sort order", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await setProductModifierGroups("product-1", [" group-1 ", "", "group-1", "group-2"]);
+
+    const body = sentBody(fetchMock);
+    expect(body).toEqual({
+      assignments: [
+        { modifier_group_id: "group-1", sort_order: 0 },
+        { modifier_group_id: "group-2", sort_order: 1 },
+      ],
+    });
   });
 });

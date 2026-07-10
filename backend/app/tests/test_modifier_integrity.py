@@ -69,6 +69,19 @@ def test_cross_tenant_product_modifier_assignment_is_rejected(client):
     assert cross_assignment.status_code == 404
 
 
+def test_blank_product_modifier_group_id_is_rejected(client):
+    suffix = uuid4().hex[:8]
+    _signup_verify_login(client, f"pmg-blank-{suffix}@example.com", "Tenant Blank")
+    product = _create_product(client, "Product with blank modifier group")
+
+    response = client.put(
+        f"/api/v1/catalog/products/{product['id']}/modifier-groups",
+        json={"assignments": [{"modifier_group_id": "", "sort_order": 0}]},
+    )
+
+    assert response.status_code == 422
+
+
 def test_product_modifier_groups_have_tenant_scoped_foreign_keys(db):
     inspector = inspect(db.bind)
 
