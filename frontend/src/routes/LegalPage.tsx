@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/brand/Logo";
+import { SUPPORT_EMAIL } from "@/lib/support";
 
 type LegalPageProps = {
   variant: "privacy" | "terms" | "security" | "cookies";
@@ -36,7 +37,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "II. Identidad y domicilio del responsable",
         body: [
-          "El responsable del tratamiento de los datos personales es Kova, nombre comercial bajo el cual se opera una plataforma digital de administración comercial para negocios, emprendedores y comercios locales. Para cualquier asunto relacionado con el tratamiento de datos personales, derechos ARCO, revocación del consentimiento o dudas sobre este Aviso de Privacidad, puede comunicarse al correo electrónico: posprojectsupport@gmail.com.",
+          `El responsable del tratamiento de los datos personales es Kova, nombre comercial bajo el cual se opera una plataforma digital de administración comercial para negocios, emprendedores y comercios locales. Para cualquier asunto relacionado con el tratamiento de datos personales, derechos ARCO, revocación del consentimiento o dudas sobre este Aviso de Privacidad, puede comunicarse al correo electrónico: ${SUPPORT_EMAIL}.`,
         ],
       },
       {
@@ -81,7 +82,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "7. Realizar encuestas de satisfacción y estudios de mercado.",
           "8. Analizar el uso de la plataforma para mejorar funcionalidades.",
           "9. Compartir contenido de éxito o casos de uso (siempre con consentimiento expreso y de forma anonimizada).",
-          "Si usted no desea que sus datos sean tratados para las finalidades secundarias, puede comunicarlo a posprojectsupport@gmail.com sin que ello afecte su acceso al servicio.",
+          `Si usted no desea que sus datos sean tratados para las finalidades secundarias, puede comunicarlo a ${SUPPORT_EMAIL} sin que ello afecte su acceso al servicio.`,
         ],
       },
       {
@@ -94,7 +95,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "• OPOSICIÓN: Oponerse al tratamiento de sus datos para finalidades secundarias.",
           "• PORTABILIDAD (principio GDPR aplicable): Recibir sus datos en formato estructurado.",
           "• REVOCACIÓN DEL CONSENTIMIENTO: Retirar su consentimiento para tratamientos no esenciales.",
-          "Para ejercer sus derechos, envíe solicitud a posprojectsupport@gmail.com con asunto “Derechos ARCO” indicando: nombre completo, descripción del derecho a ejercer, documentación que acredite su identidad, y el dato o tratamiento sobre el que ejerce el derecho. Responderemos en un plazo máximo de 20 días hábiles conforme a la LFPDPPP.",
+          `Para ejercer sus derechos, envíe solicitud a ${SUPPORT_EMAIL} con asunto “Derechos ARCO” indicando: nombre completo, descripción del derecho a ejercer, documentación que acredite su identidad, y el dato o tratamiento sobre el que ejerce el derecho. Responderemos en un plazo máximo de 20 días hábiles conforme a la LFPDPPP.`,
         ],
       },
       {
@@ -150,7 +151,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         heading: "3. Registro y seguridad de la cuenta",
         body: [
           "3.1 El usuario es responsable de mantener la confidencialidad de sus credenciales de acceso. Kova no será responsable por accesos no autorizados derivados de negligencia del usuario en la custodia de sus credenciales.",
-          "3.2 El usuario debe notificar a Kova de inmediato ante cualquier uso no autorizado de su cuenta mediante: posprojectsupport@gmail.com.",
+          `3.2 El usuario debe notificar a Kova de inmediato ante cualquier uso no autorizado de su cuenta mediante: ${SUPPORT_EMAIL}.`,
           "3.3 Kova se reserva el derecho de suspender, bloquear o eliminar cuentas que presenten actividad sospechosa, incumplan estos Términos, o que a juicio de Kova representen un riesgo para la plataforma o sus usuarios.",
         ],
       },
@@ -212,10 +213,10 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "10. Cancelación y eliminación de cuenta",
         body: [
-          "10.1 El usuario puede cancelar su cuenta en cualquier momento desde la configuración de su perfil o solicitándolo a posprojectsupport@gmail.com.",
+          `10.1 El usuario puede cancelar su cuenta en cualquier momento desde la configuración de su perfil o solicitándolo a ${SUPPORT_EMAIL}.`,
           "10.2 Tras la cancelación, Kova conservará los datos del usuario por un período máximo de 180 días naturales para posibilitar la reactivación y para fines de seguridad y cumplimiento legal.",
           "10.3 Kova puede terminar la cuenta del usuario si: (i) viola estos Términos de forma grave o reiterada; (ii) no paga el servicio transcurrido el período de gracia; (iii) la cuenta presenta actividad fraudulenta o ilegal.",
-          "10.4 El usuario tiene derecho a exportar sus datos antes de la cancelación. Kova facilitará esta exportación en formato estándar mediante solicitud a posprojectsupport@gmail.com.",
+          `10.4 El usuario tiene derecho a exportar sus datos antes de la cancelación. Kova facilitará esta exportación en formato estándar mediante solicitud a ${SUPPORT_EMAIL}.`,
         ],
       },
       {
@@ -247,7 +248,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "Contacto",
         body: [
-          "Para dudas, soporte o ejercicio de derechos relacionados con estos Términos: posprojectsupport@gmail.com.",
+          `Para dudas, soporte o ejercicio de derechos relacionados con estos Términos: ${SUPPORT_EMAIL}.`,
         ],
       },
     ],
@@ -303,7 +304,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         body: [
           "Usa contraseñas largas (12+ caracteres) y únicas. Si compartes acceso con tu equipo, dales su propio usuario en Configuración → Empleados con el rol mínimo necesario.",
           "Cierra sesión al terminar el turno en equipos compartidos. La sesión expira sola, pero el cierre explícito es más rápido.",
-          "Avísanos de cualquier comportamiento extraño en posprojectsupport@gmail.com con el asunto 'Seguridad Kova'.",
+          `Avísanos de cualquier comportamiento extraño en ${SUPPORT_EMAIL} con el asunto 'Seguridad Kova'.`,
         ],
       },
       {
@@ -317,7 +318,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "Soporte",
         body: [
-          "Canal único durante beta: posprojectsupport@gmail.com. Respondemos en horario hábil de México (lun-vie, 9:00 a 19:00 CDMX). Incidentes que rompan tu operación se atienden con prioridad alta.",
+          `Canal único durante beta: ${SUPPORT_EMAIL}. Respondemos en horario hábil de México (lun-vie, 9:00 a 19:00 CDMX). Incidentes que rompan tu operación se atienden con prioridad alta.`,
         ],
       },
     ],
@@ -373,7 +374,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "Contacto",
         body: [
-          "Para dudas relacionadas con el uso de cookies y tecnologías similares, puede contactarnos en: posprojectsupport@gmail.com.",
+          `Para dudas relacionadas con el uso de cookies y tecnologías similares, puede contactarnos en: ${SUPPORT_EMAIL}.`,
         ],
       },
     ],

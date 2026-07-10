@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-05-28
+Last updated: 2026-07-10
 
 ## Source Of Truth
 
@@ -9,10 +9,31 @@ This file is the active execution board only.
 - Current execution target and release gates live here.
 - Historical sprint notes, completed audit findings, and future roadmap live in
   `docs/sprint-planning.md`.
+- Audit deliverables and superseded phase plans live in `docs/audits/`.
 - Operational runbooks live in `docs/runbooks/`.
 - Risks live in `docs/risk-register.md`.
 - Do not duplicate detailed acceptance criteria here; link to the owning spec, runbook, or planning
   section instead.
+
+## Active Sprint (2026-07): Premium redesign app-wide + remaining hardening
+
+The active backlog is `PLAN-DESIGN.md` (repo root): extend the `feature/reports-redesign` design
+system to every tab so the product feels premium end-to-end, and consolidate everything left over
+(PLAN-05 backend, PLAN-UX-04/05, B5 resume, quick wins, operational gates).
+
+Merged into `main` as of 2026-07-10 (closed, do not re-open here):
+
+- [x] PLAN-01 (billing lifecycle correctness), PLAN-02 (tenant-isolation RLS — provisioned in prod,
+      `kova_app` runtime verified on Fly), PLAN-03 (offline-sync integrity), PLAN-04 (cash & inventory
+      correctness).
+- [x] PLAN-UX-01 (modal a11y & destructive-action safety), PLAN-UX-02 (one-tap receipt + corte de
+      caja printout), PLAN-UX-03 (anonymous funnel instrumentation & landing accuracy).
+- [x] Épica 0 of `PLAN-DESIGN.md`: merged `feature/reports-redesign` (design system source) with the
+      T0.1–T0.6 correctness fixes (payment keys, `net_amount`, unified thresholds, Docker proxy).
+
+Open (tracked in `PLAN-DESIGN.md`): Épicas 1–4 (shared kit + per-tab redesign + state completeness +
+backend hardening PLAN-05/B5) and Épica 6 (operational gates below). PLAN-UX-04/05 detail specs live
+in `docs/audits/`.
 
 ## Current Focus: Paid Beta Readiness
 

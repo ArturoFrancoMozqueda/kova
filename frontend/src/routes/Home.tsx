@@ -23,6 +23,7 @@ import FinalCta from "@/landing/FinalCta";
 import KovaShowcase from "@/landing/showcase/KovaShowcase";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { copy } from "@/i18n/messages";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
 const t = copy.landing;
 
@@ -517,7 +518,7 @@ function FAQ() {
         <p style={{ marginTop: 40, fontSize: 14, color: "var(--text-muted)", textAlign: "center" }}>
           {t.faq.contactPrefix}
           <a
-            href="mailto:posprojectsupport@gmail.com"
+            href={SUPPORT_MAILTO}
             style={{ color: "var(--accent)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--accent-soft)" }}
           >
             {t.faq.contactLink}
@@ -661,10 +662,10 @@ function Footer() {
               {t.footer.contactBody}
             </p>
             <a
-              href="mailto:posprojectsupport@gmail.com"
+              href={SUPPORT_MAILTO}
               style={{ display: "inline-flex", marginTop: 16, fontSize: 14, fontWeight: 500, color: "var(--page-fg)", textDecoration: "none", borderBottom: "1px solid var(--hairline-color)" }}
             >
-              posprojectsupport@gmail.com
+              {SUPPORT_EMAIL}
             </a>
           </div>
         </div>
@@ -675,7 +676,7 @@ function Footer() {
             <Link to="/terms" style={footerLinkStyle}>{t.footer.terms}</Link>
             <Link to="/seguridad" style={footerLinkStyle}>{t.footer.security}</Link>
             <Link to="/cookies" style={footerLinkStyle}>{t.footer.cookies}</Link>
-            <a href="mailto:posprojectsupport@gmail.com" style={footerLinkStyle}>{t.footer.support}</a>
+            <a href={SUPPORT_MAILTO} style={footerLinkStyle}>{t.footer.support}</a>
           </div>
         </div>
       </div>
