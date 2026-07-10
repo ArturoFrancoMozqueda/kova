@@ -199,10 +199,14 @@ export function setProductModifierGroups(
   productId: string,
   groupIds: string[],
 ): Promise<ModifierGroup[]> {
+  const assignments = Array.from(
+    new Set(groupIds.map((id) => id.trim()).filter(Boolean)),
+  ).map((id, i) => ({ modifier_group_id: id, sort_order: i }));
+
   return requestJson<ModifierGroup[]>(`/api/v1/catalog/products/${productId}/modifier-groups`, {
     method: "PUT",
     body: JSON.stringify({
-      assignments: groupIds.map((id, i) => ({ modifier_group_id: id, sort_order: i })),
+      assignments,
     }),
   });
 }
