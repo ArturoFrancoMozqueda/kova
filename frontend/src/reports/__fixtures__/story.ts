@@ -32,10 +32,10 @@ export function makeStory(overrides: Partial<BusinessStoryReport> = {}): Busines
     product_drivers: [
       { product_id: "p1", product_name: "Latte mediano", quantity_sold: 40, gross_sales: "4000", sales_share_pct: 40 },
     ],
-    dominant_payment: { method: "cash", amount: "6700", payment_count: 67, sales_share_pct: 67 },
+    dominant_payment: { method: "cash", amount: "6700", refunded_amount: "0", net_amount: "6700", payment_count: 67, sales_share_pct: 67 },
     payment_mix: [
-      { method: "cash", amount: "6700", payment_count: 67, sales_share_pct: 67 },
-      { method: "card", amount: "3300", payment_count: 33, sales_share_pct: 33 },
+      { method: "cash", amount: "6700", refunded_amount: "0", net_amount: "6700", payment_count: 67, sales_share_pct: 67 },
+      { method: "manual_card", amount: "3300", refunded_amount: "0", net_amount: "3300", payment_count: 33, sales_share_pct: 33 },
     ],
     operational_signals: [],
     recommended_actions: [],

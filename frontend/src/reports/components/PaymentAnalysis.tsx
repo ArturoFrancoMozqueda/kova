@@ -13,8 +13,10 @@ function contextLine(story: BusinessStoryReport, previousStory: BusinessStoryRep
   if (cash && cash.sales_share_pct >= 70 && totalPayments >= 10) {
     return copy.reportsView.paymentContextCash(cash.sales_share_pct);
   }
+  // Backend payment keys are cash | bank_transfer | manual_card. "Card-heavy"
+  // means the non-cash rails (transfer + manual card) dominate the mix.
   const cardlike = mix
-    .filter((row) => row.method === "card" || row.method === "transfer")
+    .filter((row) => row.method === "manual_card" || row.method === "bank_transfer")
     .reduce((sum, row) => sum + row.sales_share_pct, 0);
   if (cardlike >= 80) {
     return copy.reportsView.paymentContextCardHeavy(cardlike);

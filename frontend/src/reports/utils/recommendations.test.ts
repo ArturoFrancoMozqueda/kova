@@ -97,14 +97,14 @@ describe("buildRecommendations", () => {
   it("fires R6 only when cash dominates with enough transactions", () => {
     const cashHeavy = makeStory({
       payment_mix: [
-        { method: "cash", amount: "8000", payment_count: 80, sales_share_pct: 80 },
-        { method: "card", amount: "2000", payment_count: 20, sales_share_pct: 20 },
+        { method: "cash", amount: "8000", refunded_amount: "0", net_amount: "8000", payment_count: 80, sales_share_pct: 80 },
+        { method: "manual_card", amount: "2000", refunded_amount: "0", net_amount: "2000", payment_count: 20, sales_share_pct: 20 },
       ],
     });
     expect(ids(emptyInput(cashHeavy, null))).toContain("R6");
 
     const cashLowVolume = makeStory({
-      payment_mix: [{ method: "cash", amount: "800", payment_count: 5, sales_share_pct: 90 }],
+      payment_mix: [{ method: "cash", amount: "800", refunded_amount: "0", net_amount: "800", payment_count: 5, sales_share_pct: 90 }],
     });
     expect(ids(emptyInput(cashLowVolume, null))).not.toContain("R6");
   });
@@ -174,7 +174,7 @@ describe("buildRecommendations", () => {
   it("orders high priority before medium and low", () => {
     const story = makeStory({
       summary: { ...makeStory().summary, net_sales: "8000", refund_total: "800", refund_count: 6 },
-      payment_mix: [{ method: "cash", amount: "8000", payment_count: 80, sales_share_pct: 80 }],
+      payment_mix: [{ method: "cash", amount: "8000", refunded_amount: "0", net_amount: "8000", payment_count: 80, sales_share_pct: 80 }],
     });
     const previous = makeStory({ summary: { ...makeStory().summary, net_sales: "10000" } });
     const result = buildRecommendations(emptyInput(story, previous));
