@@ -576,14 +576,6 @@ export const copy = {
       "Los productos activos aparecen de inmediato en caja.",
     ],
     catalogCta: "Crear productos",
-    reportsTitle: "Reportes con datos reales",
-    reportsBody: "Esta vista se llena cuando existen ventas completadas en el rango seleccionado.",
-    reportsBullets: [
-      "Usa Hoy, 7 días o Mes para cambiar el contexto.",
-      "Cómo te pagaron ayuda a conciliar efectivo y transferencias.",
-      "Los productos top sirven para decidir stock y promociones.",
-    ],
-    reportsCta: "Ver reportes",
   },
   auth: {
     accountNavigation: "Navegación de la cuenta",
@@ -928,6 +920,8 @@ export const copy = {
     startDate: "Fecha inicial",
     endDate: "Fecha final",
     apply: "Aplicar",
+    customRange: "Personalizar",
+    customRangeClose: "Ocultar fechas",
     presetLabel: (preset: string) =>
       ({
         today: "Hoy",
@@ -1007,13 +1001,13 @@ export const copy = {
     firstReportMilestoneBody: "Este reporte ya usa ventas reales para explicar qué pasó, cuándo se vendió y qué conviene revisar después.",
     detailToggleTitle: "Ver análisis detallado",
     detailToggleBody: "Abre solo si quieres revisar horarios, productos, inventario, pagos y operación con más detalle.",
-    timingAnalysisTitle: "Ventas en el tiempo",
+    timingAnalysisTitle: "¿Cuándo vendo más?",
     timingAnalysisDescription:
       "Úsalo para decidir cuándo preparar más producto, caja y personal: primero días, luego bloques y hora pico.",
-    productInventoryTitle: "Productos e inventario",
+    productInventoryTitle: "¿Qué producto mueve el negocio?",
     productInventoryDescription:
       "Prioriza qué vender, proteger o reabastecer conectando ventas, unidades, participación y stock disponible.",
-    paymentOperationsTitle: "Pagos y operación: cómo te pagaron",
+    paymentOperationsTitle: "¿Cómo me están pagando?",
     paymentOperationsDescription:
       "Revisa si la forma de cobro o las incidencias pueden afectar conciliación, efectivo o velocidad de caja.",
     grossVsNetNote:
@@ -1183,8 +1177,7 @@ export const copy = {
     chartUnits: "Unidades",
     paymentQuestion: "¿Cómo pagaron tus clientes?",
     paymentShare: (method: string, pct: number) => `${method} representa ${pct}% del cobro registrado.`,
-    employeePerformance: "Desempeño por empleado",
-    employeeQuestion: "¿Dónde hay oportunidad de coaching?",
+    employeePerformance: "¿Quién está vendiendo?",
     noEmployeeSales: "Sin ventas por empleado en este rango.",
     employeeStats: (orders: number, refunds: number) =>
       `${orders} ${orders === 1 ? "orden" : "órdenes"} · ${refunds} ${refunds === 1 ? "devolución" : "devoluciones"}`,
@@ -1197,6 +1190,286 @@ export const copy = {
     productsQuestion: "¿Qué productos empujaron el periodo?",
     topProductInsight: (name: string, amount: string, units: number) =>
       `${name} lideró con ${amount} y ${units} unidad${units === 1 ? "" : "es"} vendida${units === 1 ? "" : "s"}.`,
+
+    // --- Redesign 2026: executive summary, KPI strip and comparison ---
+    summaryTitle: "Resumen del periodo",
+    kpiNetSalesLabel: "Ventas netas",
+    kpiOrdersLabel: "Órdenes",
+    kpiAvgTicketLabel: "Ticket promedio",
+    comparisonCaptionMulti: (prevStart: string, prevEnd: string, days: number) =>
+      `Comparado con el periodo anterior: ${prevStart} – ${prevEnd} (${days} ${days === 1 ? "día" : "días"}).`,
+    comparisonCaptionYesterday: (day: string) => `Comparado con ayer, ${day}.`,
+    comparisonUnavailable: "No se pudo cargar el periodo anterior para comparar.",
+    comparisonEmptyPrevious: (start: string, end: string) =>
+      `Aún no hay periodo anterior para comparar: del ${start} al ${end} no hubo ventas.`,
+    deltaNoPrevious: "Sin datos suficientes para comparar",
+    deltaEmptyPrevious: "Sin ventas en el periodo anterior",
+    deltaVsPrevious: "vs. periodo anterior",
+    deltaNew: "Nuevo en este periodo",
+    headlineGrowth: (amount: string, days: number, pct: number, moment: string | null) =>
+      moment
+        ? `Vendiste ${amount} en estos ${days} ${days === 1 ? "día" : "días"}, ${pct}% más que el periodo anterior — ${moment.toLowerCase()} hizo la diferencia.`
+        : `Vendiste ${amount} en estos ${days} ${days === 1 ? "día" : "días"}, ${pct}% más que el periodo anterior.`,
+    headlineDecline: (amount: string, pct: number) =>
+      `Vendiste ${amount}, ${pct}% menos que el periodo anterior. Revisa las acciones recomendadas.`,
+    headlineNeutral: (amount: string, orders: number, days: number) =>
+      `Vendiste ${amount} con ${orders} ${orders === 1 ? "orden" : "órdenes"} en estos ${days} ${days === 1 ? "día" : "días"}.`,
+    headlineToday: (amount: string, orders: number) =>
+      `Hoy llevas ${amount} con ${orders} ${orders === 1 ? "orden" : "órdenes"}.`,
+    headlineCause: (parts: string[]) => `Lo que más pesó: ${parts.join(" · ")}.`,
+    causeProduct: (name: string, pct: number) => `${name} (${pct}% de la venta)`,
+    causeDaypart: (label: string, pct: number) => `la ${label.toLowerCase()} (${pct}% del periodo)`,
+    headlineTodayGrowth: (amount: string, pct: number, moment: string | null) =>
+      moment
+        ? `Hoy vendiste ${amount}, ${pct}% más que ayer — la ${moment.toLowerCase()} hizo la diferencia.`
+        : `Hoy vendiste ${amount}, ${pct}% más que ayer.`,
+    headlineTodayDecline: (amount: string, pct: number) =>
+      `Hoy vendiste ${amount}, ${pct}% menos que ayer. Revisa las acciones recomendadas.`,
+    factBestDay: "Mejor día",
+    factPeakHour: "Hora pico",
+    factTopProduct: "Producto top",
+    factDominantPayment: "Pago dominante",
+    factEmpty: "—",
+    factDominantPaymentValue: (method: string, pct: number) => `${method} · ${pct}%`,
+
+    // --- "Qué hacer ahora" action plan ---
+    recommendationsTitle: "Qué hacer ahora",
+    recommendationsDescription:
+      "Lo más importante que puedes hacer con estos números, ordenado por prioridad.",
+    actionWatchTicketAction: "Vigila el ticket promedio: revisa combos, precios o descuentos.",
+    actionWatchTicketEvidence: (amount: string, pct: number) =>
+      `Va en ${amount}, ${pct}% abajo del periodo anterior.`,
+    actionOpsNormalAction: "Pagos y devoluciones en nivel normal — nada que hacer ahí.",
+    actionGoInventory: "Ir a Inventario",
+    planMarkDone: "Marcar como hecha",
+    planDone: "Hecha",
+    recommendationsEmpty:
+      "No hay alertas fuertes en este rango. Mantén el ritmo y revisa inventario, hora pico y cómo te pagaron.",
+    priorityRecommendationKicker: "Tu prioridad ahora",
+    recShowAll: (n: number) => `Ver todas (${n})`,
+    recShowLess: "Ver menos",
+    recImpactPrefix: "Impacto",
+    priorityLabel: (priority: string) =>
+      ({ alta: "Prioridad alta", media: "Prioridad media", baja: "Prioridad baja" })[priority] ??
+      "Prioridad",
+    rec: {
+      salesDropFinding: "Las ventas bajaron frente al periodo anterior",
+      salesDropEvidence: (amount: string, pct: number) =>
+        `Vendiste ${amount}, ${pct}% menos que el periodo anterior comparable.`,
+      salesDropAction:
+        "Revisa si faltó stock de tus productos top o cambió el horario del equipo.",
+      salesDropImpact: (amount: string) => `${amount} menos que el periodo anterior.`,
+      stockoutFinding: (name: string) => `${name} está por agotarse`,
+      stockoutEvidence: (units: number, stock: number, days: number | null) =>
+        `Vendiste ${units} ${units === 1 ? "unidad" : "unidades"} y ${stock === 0 ? "ya no queda stock" : `quedan ${stock}`}${days !== null ? ` (≈${Math.max(0, Math.round(days))} ${Math.round(days) === 1 ? "día" : "días"} al ritmo actual)` : ""}.`,
+      stockoutAction: "Reabastece hoy o mañana para no perder ventas.",
+      stockoutImpact: (amount: string) => `${amount} en riesgo si se agota unos días.`,
+      refundSpikeFinding: "Suben las devoluciones",
+      refundSpikeEvidence: (count: number, amount: string, ratePct: number) =>
+        `${count} ${count === 1 ? "devolución" : "devoluciones"} por ${amount} (${ratePct}% de tus ventas brutas).`,
+      refundSpikeAction: "Revisa los motivos abajo y documenta el patrón antes del cierre.",
+      restockFinding: (name: string) => `${name} necesita reabasto pronto`,
+      restockEvidence: (days: number | null) =>
+        days !== null
+          ? `Al ritmo actual te quedan ≈${Math.max(0, Math.round(days))} ${Math.round(days) === 1 ? "día" : "días"} de inventario.`
+          : "Está por debajo de tu umbral de stock bajo.",
+      restockAction: "Programa la compra esta semana.",
+      unlinkedFinding: (name: string) => `${name} vende fuerte y no tiene inventario vinculado`,
+      unlinkedEvidence: (name: string, share: number) =>
+        `${name} pesa ${share}% de tu venta pero no sabemos su stock.`,
+      unlinkedAction: "Vincula su inventario o receta para anticipar faltantes.",
+      cashHeavyFinding: "El efectivo domina tus cobros",
+      cashHeavyEvidence: (pct: number) => `${pct}% de tus cobros fueron en efectivo.`,
+      cashHeavyAction: "Prepara cambio antes del pico y cuadra caja al cierre.",
+      decliningMultiFinding: "Varios productos van a la baja",
+      decliningMultiEvidence: (count: number) =>
+        `${count} productos vendieron bastante menos que el periodo anterior.`,
+      decliningMultiAction: "Revisa precio, exhibición o si faltó stock en esos productos.",
+      decliningFinding: (name: string) => `${name} va a la baja`,
+      decliningEvidence: (prev: number, cur: number) =>
+        `Pasó de ${prev} a ${cur} unidades vendidas.`,
+      decliningAction: "Revisa precio o exhibición antes de que caiga más.",
+      cancellationsFinding: "Muchas cancelaciones",
+      cancellationsEvidence: (count: number, ratePct: number) =>
+        `${count} ${count === 1 ? "ticket cancelado" : "tickets cancelados"} (${ratePct}% del total).`,
+      cancellationsAction: "Revisa si son errores de captura o clientes que se arrepienten.",
+      peakHourFinding: "Tu hora pico concentra mucha venta",
+      peakHourEvidence: (hour: string, pct: number) =>
+        `${hour} genera ${pct}% de tu venta del periodo.`,
+      peakHourAction: "Ten producto, cambio y personal listos antes de esa hora.",
+      quietHoursFinding: (label: string) => `Tus ${label.toLowerCase()}s están tranquilas`,
+      quietHoursEvidence: (label: string, pct: number) =>
+        `La ${label.toLowerCase()} solo genera ${pct}% de tu venta.`,
+      quietHoursAction: "Úsalas para preparar el pico o probar una promoción.",
+      newProductFinding: (name: string) => `${name} arrancó bien`,
+      newProductEvidence: (units: number) =>
+        `Vendió ${units} ${units === 1 ? "unidad" : "unidades"} sin ventas previas.`,
+      newProductAction: "Dale visibilidad y asegúrale stock para que siga creciendo.",
+      newProductMultiFinding: (count: number) => `${count} productos nuevos arrancaron bien`,
+      newProductMultiEvidence: (names: string[], units: number) =>
+        `${names.join(", ")}${names.length >= 3 ? " y más" : ""} suman ${units} unidades sin ventas previas.`,
+      newProductMultiAction: "Dales visibilidad y asegúrales stock para que sigan creciendo.",
+      overstockFinding: (name: string) => `Tienes sobrestock de ${name}`,
+      overstockEvidence: (days: number) =>
+        `Al ritmo actual te dura más de ${days} días.`,
+      overstockAction: "Frena compras y considera una promoción para moverlo.",
+      cleanOpsFinding: "Operación limpia",
+      cleanOpsEvidence: (orders: number) =>
+        `${orders} órdenes sin devoluciones ni cancelaciones.`,
+      cleanOpsAction: "Usa este periodo como referencia para comparar días con problemas.",
+    },
+
+    // --- Sales trend chart ---
+    salesTrendChartTitle: "Ventas por día",
+    salesTrendChartSubtitle:
+      "Cada barra es un día del periodo. La línea marca tu promedio diario.",
+    salesTrendContextSubtitle:
+      "Tus últimos 7 días, para dar contexto a hoy. La línea marca tu promedio diario.",
+    salesTrendAverageLabel: (amount: string) => `Prom. ${amount}`,
+    salesTrendBestDayLabel: "Mejor día del periodo",
+    salesTrendTooltipSales: "Ventas",
+    salesTrendTooltipOrders: "Órdenes",
+    salesTrendTooltipTicket: "Ticket promedio",
+    salesTrendVsPrevDay: (label: string) => `vs. día anterior: ${label}`,
+    salesTrendZeroDay: "Sin ventas este día",
+    salesTrendStartedNote: (day: string) =>
+      `Empezaste a vender el ${day}; los días anteriores aparecen en cero.`,
+    salesTrendShare: (pct: number) => `${pct}% de las ventas del periodo`,
+    salesTrendSrSummary: (start: string, end: string, bestDay: string, bestAmount: string, avg: string) =>
+      `Ventas por día del ${start} al ${end}. Mejor día: ${bestDay} con ${bestAmount}. Promedio diario: ${avg}.`,
+    hourlyChartSubtitle: "Ventas por hora dentro de tu horario activo.",
+    hourlyUnavailable: "No pudimos cargar el detalle por hora en este rango.",
+    hourlyWorstTitleActive: "Horas con menos venta (dentro de tu horario activo)",
+    hourlyWorstShow: "Ver horas con menos venta",
+    hourlyWorstHide: "Ocultar horas con menos venta",
+
+    // --- Dayparts grid ---
+    daypartGridTitle: "Bloques del día",
+    daypartStrongest: "Bloque más fuerte",
+    daypartNoSales: "Sin ventas",
+    daypartNoComparison: "Sin comparación",
+    daypartRecReinforce: (label: string, amount: string, pct: number, orders: number, hour: number) =>
+      `La ${label.toLowerCase()} concentró ${amount}, ${pct}% de tu venta, con ${orders} ${orders === 1 ? "orden" : "órdenes"}. Ten producto, cambio y personal listos antes de las ${String(hour).padStart(2, "0")}:00.`,
+    daypartRecShift: (prev: string, current: string) =>
+      `Tu bloque fuerte cambió de ${prev.toLowerCase()} a ${current.toLowerCase()}; ajusta la preparación a ese horario.`,
+    daypartRecQuiet: (label: string) =>
+      `Las horas tranquilas de la ${label.toLowerCase()} sirven para preparar el pico, hacer inventario o probar promociones — no son un problema.`,
+
+    // --- Products & inventory: actionable reading strip ---
+    productReadingMoney: "Genera más dinero",
+    productReadingRestock: "Por agotarse",
+    productReadingGrowing: "Creciendo",
+    productReadingSlow: "Baja rotación",
+    productReadingOutOfStock: "ya no queda stock",
+
+    // --- Narrative arc kickers ---
+    arcWhy: "Por qué pasó",
+    arcOps: "Operación y control",
+
+    // --- Mobile chapter nav ---
+    navAria: "Secciones del reporte",
+    navSummary: "Resumen",
+    navPlan: "Qué hacer",
+    navWhy: "Por qué",
+    navOps: "Control",
+
+    // --- Products & inventory table ---
+    inventoryColumn: "Inventario",
+    daysLeftColumn: "Días restantes",
+    trendColumn: "Tendencia",
+    statusColumn: "Estado",
+    productsShowAll: (n: number) => `Ver todos (${n})`,
+    productsShowLess: "Ver menos",
+    inventoryUnlinked: "Sin vincular",
+    inventoryDaysLeft: (n: number) => `≈${n} ${n === 1 ? "día" : "días"}`,
+    inventoryStatusLabel: (kind: string) =>
+      ({
+        riesgo: "Riesgo de agotarse",
+        reabastecer: "Reabastecer",
+        sobrestock: "Sobrestock",
+        estrella: "Producto estrella",
+        "en-caida": "En caída",
+        creciendo: "Creciendo",
+        "baja-rotacion": "Baja rotación",
+        "sin-vincular": "Sin vincular",
+        estable: "Estable",
+      })[kind] ?? "Estable",
+    statusRiesgoDetail: (stock: number) =>
+      `Reabastece hoy: ${stock === 0 ? "ya no queda stock" : `quedan ${stock}`}.`,
+    statusReabastecerDetail: (days: number | null) =>
+      days !== null
+        ? `Programa compra esta semana (≈${Math.max(0, Math.round(days))} ${Math.round(days) === 1 ? "día" : "días"} de stock).`
+        : "Programa compra esta semana.",
+    statusSobrestockDetail: "Frena compras; considera promoción para moverlo.",
+    statusEstrellaDetail: (pct: number) => `Pesa ${pct}% de tu venta: protege su disponibilidad.`,
+    statusEnCaidaDetail: (prev: number, cur: number) =>
+      `Vendió ${prev} → ${cur} u. Revisa precio o exhibición.`,
+    statusCreciendoDetail: "Va subiendo: dale visibilidad y stock.",
+    statusBajaRotacionDetail: "Casi no se mueve; evalúa si sigue en el menú.",
+    statusSinVincularDetail: "Vincula inventario para ver su riesgo de agotarse.",
+    trendNew: "Nuevo",
+    trendUnitsDelta: (from: number, to: number) => `${from} → ${to} u`,
+    trendLost: "Sin ventas este periodo",
+    trendNone: "—",
+
+    // --- Payments contextual lines ---
+    paymentChartSubtitle: "Reparto de tus cobros por método (bruto, antes de devoluciones).",
+    paymentTransactions: (n: number) => `${n} ${n === 1 ? "transacción" : "transacciones"}`,
+    paymentContextCash: (pct: number) =>
+      `El efectivo concentra ${pct}% de tus cobros. Prepara cambio antes del pico y cuadra caja al cierre.`,
+    paymentContextCardHeavy: (pct: number) =>
+      `Tarjeta y transferencia suman ${pct}% de tus cobros. Concilia contra tus depósitos y comisiones.`,
+
+    // --- Refunds & cancellations section ---
+    refundsSectionTitle: "¿Hay devoluciones o cancelaciones preocupantes?",
+    refundsSectionDescription:
+      "Cuánto dinero se regresó y por qué, para detectar patrones antes de que crezcan.",
+    refundsTileRefunds: "Devoluciones",
+    refundsTileCancellations: "Cancelaciones",
+    refundsTileRate: "Tasa de devolución",
+    refundRateNormal: "Nivel normal.",
+    refundRateWatch: "Vale la pena revisar los motivos.",
+    refundRateHigh: "Nivel alto: revisa los motivos abajo.",
+    refundSingleGuard: "Una devolución aislada; no es un patrón.",
+    cancelNormal: "Nivel normal.",
+    cancelWatch: "Revisa si son errores de captura o clientes que se arrepienten.",
+    cancelHigh: "Nivel alto: revisa el flujo de captura.",
+    refundReasonColumn: "Motivo",
+    refundCountColumn: "Devoluciones",
+    refundAmountColumn: "Monto",
+    refundShareColumn: "% del total",
+    refundOther: "Otros",
+    refundsCleanState: "Sin devoluciones ni cancelaciones en este rango. Buena señal operativa.",
+    refundCountValue: (n: number) => `${n} ${n === 1 ? "devolución" : "devoluciones"}`,
+    cancelCountValue: (n: number) => `${n} ${n === 1 ? "cancelación" : "cancelaciones"}`,
+    refundsCalmSummary: (refunds: string, amount: string, cancels: string) =>
+      `${refunds} por ${amount} y ${cancels} — nivel normal.`,
+    refundsShowDetail: "Ver detalle",
+    refundsHideDetail: "Ocultar detalle",
+    refundReasonHint:
+      "Tip: registra el motivo específico al devolver en Caja para ver patrones aquí.",
+
+    // --- Team (employees) ---
+    teamChartTitle: "Ventas por persona",
+    teamChartSubtitle: "Ventas netas cobradas por cada persona en la caja.",
+    teamSingle: (name: string, orders: number, amount: string, avg: string) =>
+      `Solo ${name} cobró en este periodo: ${orders} ${orders === 1 ? "orden" : "órdenes"} por ${amount} (ticket promedio ${avg}). Cuando más personas usen la caja, aquí podrás comparar la contribución del equipo.`,
+    teamPair: (
+      nameA: string,
+      amountA: string,
+      shareA: number,
+      nameB: string,
+      amountB: string,
+      shareB: number,
+    ) =>
+      `${nameA} cobró ${amountA} (${shareA}%) y ${nameB} cobró ${amountB} (${shareB}%).`,
+    teamMemberSubtext: (orders: number, share: number, avg: string, refunds: number) =>
+      `${orders} ${orders === 1 ? "orden" : "órdenes"} · ${share}% del total · ticket ${avg} · ${refunds} ${refunds === 1 ? "devolución" : "devoluciones"}`,
+    teamEven: "El equipo aporta de forma pareja.",
+    teamCaveat:
+      "Las ventas por persona dependen de turnos y horarios. Úsalas como contexto, no como calificación de desempeño.",
+    teamAnalysisDescription:
+      "Compara la contribución del equipo cuando hay más de una persona vendiendo.",
   },
   productStory: {
     title: "Historia del producto",

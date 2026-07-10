@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { ArrowRight, BarChart3, LayoutGrid, ShoppingCart, X } from "lucide-react";
+import { ArrowRight, LayoutGrid, ShoppingCart, X } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
 import { listProducts } from "@/catalog/api";
@@ -8,7 +8,7 @@ import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { trackFunnelEvent } from "@/telemetry/funnel";
 
-type TourKey = "register" | "catalog" | "reports";
+type TourKey = "register" | "catalog";
 
 const tours: Record<TourKey, { icon: typeof ShoppingCart; title: string; body: string; bullets: string[]; cta: string }> = {
   register: {
@@ -25,19 +25,11 @@ const tours: Record<TourKey, { icon: typeof ShoppingCart; title: string; body: s
     bullets: copy.tour.catalogBullets,
     cta: copy.tour.catalogCta,
   },
-  reports: {
-    icon: BarChart3,
-    title: copy.tour.reportsTitle,
-    body: copy.tour.reportsBody,
-    bullets: copy.tour.reportsBullets,
-    cta: copy.tour.reportsCta,
-  },
 };
 
 function tourKey(pathname: string): TourKey | null {
   if (pathname === "/register") return "register";
   if (pathname === "/catalog") return "catalog";
-  if (pathname === "/reports") return "reports";
   return null;
 }
 

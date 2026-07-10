@@ -44,7 +44,9 @@ services:
     build:
       context: ./frontend
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      # "backend" is the Compose service's DNS name on the shared network —
+      # "localhost" here would resolve to the frontend container itself.
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://backend:8000}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:

@@ -111,7 +111,11 @@ export default defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        // Defaults to localhost for native `npm run dev`; docker-compose.yml
+        // overrides this to the "backend" service name for container-to-
+        // container networking (localhost inside the frontend container is
+        // the container itself, not the backend service).
+        target: process.env.VITE_API_BASE_URL || "http://localhost:8000",
         changeOrigin: true,
       },
     },
@@ -121,6 +125,17 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
+          // Recharts and its transitive deps (react-redux, react-is, d3-*, ...) must be
+          // matched before the generic "react" rule below, otherwise the substring match
+          // pulls them into the eager vendor-react chunk and they load on every route.
+          // This chunk is only imported by the lazy /reports route, so it loads on demand.
+          if (
+            /recharts|victory-vendor|d3-|react-smooth|react-redux|@reduxjs|reselect|immer|use-sync-external-store|es-toolkit|decimal\.js-light|eventemitter3|react-is/.test(
+              id,
+            )
+          ) {
+            return "vendor-charts";
+          }
           if (id.includes("react") || id.includes("react-router-dom")) return "vendor-react";
           if (id.includes("dexie")) return "vendor-offline";
           if (id.includes("lucide-react")) return "vendor-icons";
