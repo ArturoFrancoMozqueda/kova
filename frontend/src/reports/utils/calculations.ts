@@ -105,17 +105,6 @@ export function toneFromGrowth(growth: GrowthResult): "up" | "down" | "neutral" 
 // Sales-by-day helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Average daily net sales across the rows provided. Callers pass rows padded to
- * one entry per calendar day in the range (zero-sales days included) so the
- * average reflects the whole period, not just active days.
- */
-export function salesByDayAverage(rows: Array<{ net_sales: string }>): number {
-  if (rows.length === 0) return 0;
-  const total = rows.reduce((sum, row) => sum + Number(row.net_sales), 0);
-  return total / rows.length;
-}
-
 export function bestDayRow(story: BusinessStoryReport) {
   const row = [...story.sales_by_day].sort(
     (a, b) => Number(b.net_sales) - Number(a.net_sales),

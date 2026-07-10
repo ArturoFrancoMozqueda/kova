@@ -5,7 +5,6 @@ import type { ProductTrendRow } from "../types";
 import {
   calculateSafeGrowth,
   getInventoryStatus,
-  salesByDayAverage,
   toneFromGrowth,
 } from "./calculations";
 
@@ -62,17 +61,6 @@ describe("calculateSafeGrowth", () => {
     expect(toneFromGrowth({ kind: "new" })).toBe("up");
     expect(toneFromGrowth({ kind: "no-previous" })).toBe("neutral");
     expect(toneFromGrowth({ kind: "insufficient-base", from: 2, to: 9 })).toBe("up");
-  });
-});
-
-describe("salesByDayAverage", () => {
-  it("averages across all provided days, including zero-sales days", () => {
-    const rows = [{ net_sales: "300" }, { net_sales: "0" }, { net_sales: "600" }];
-    expect(salesByDayAverage(rows)).toBe(300);
-  });
-
-  it("returns 0 for an empty range", () => {
-    expect(salesByDayAverage([])).toBe(0);
   });
 });
 

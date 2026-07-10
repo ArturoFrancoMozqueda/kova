@@ -2,7 +2,13 @@ import { copy } from "../../i18n/messages";
 import { formatMoney } from "../../orders/format";
 import type { InventoryVelocityItem, StockItem } from "../../inventory/types";
 import type { BusinessStoryReport } from "../types";
-import { MIN_COUNT_BASE, MIN_MONEY_BASE, calculateSafeGrowth, parseDaysUntilOut } from "./calculations";
+import {
+  INVENTORY_THRESHOLDS,
+  MIN_COUNT_BASE,
+  MIN_MONEY_BASE,
+  calculateSafeGrowth,
+  parseDaysUntilOut,
+} from "./calculations";
 
 export type RecommendationPriority = "alta" | "media" | "baja";
 
@@ -63,6 +69,10 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
   const { story, previousStory, trackedIds, stockByProduct, velocityByProduct, rangeDays } = input;
   const summary = story.summary;
   const out: Recommendation[] = [];
+  // Single source of truth: recommendation triggers share the same thresholds
+  // as the inventory/trend badges in calculations.ts (T0.4). A product badged
+  // "en caída" or "sin-vincular" in the table now also drives its recommendation.
+  const T = INVENTORY_THRESHOLDS;
 
   const previousComparable =
     previousStory && previousStory.summary.completed_orders >= MIN_COUNT_BASE
@@ -101,7 +111,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
     const days = parseDaysUntilOut(velocity?.days_until_out);
     const stockOnHand = stock?.stock_on_hand ?? velocity?.stock_on_hand ?? null;
     const outNow = stockOnHand === 0 && driver.quantity_sold > 0;
-    const daysCritical = days !== null && days <= 3;
+    const daysCritical = days !== null && days <= T.criticalDays;
     if (!outNow && !daysCritical) continue;
     driverCriticalIds.add(driver.product_id);
     const perDay = velocity ? Number(velocity.units_per_day_7d) : 0;
@@ -156,7 +166,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
     const velocity = velocityByProduct.get(driver.product_id);
     const days = parseDaysUntilOut(velocity?.days_until_out);
     const lowStock = stock?.is_low_stock ?? false;
-    if (!lowStock && !(days !== null && days <= 7)) continue;
+    if (!lowStock && !(days !== null && days <= T.restockDays)) continue;
     out.push({
       id: "R4",
       subjectId: driver.product_id,
@@ -171,7 +181,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
   // --- R5: Estrella sin inventario vinculado (Media) ---
   for (const driver of drivers) {
     if (trackedIds.has(driver.product_id)) continue;
-    if (driver.sales_share_pct < 15) continue;
+    if (driver.sales_share_pct < T.unlinkedMinSharePct) continue;
     out.push({
       id: "R5",
       subjectId: driver.product_id,
@@ -200,7 +210,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
 
   // --- R7: Productos en caída (Media), aggregated when ≥3 ---
   const declining = (story.product_trends?.declining ?? []).filter(
-    (row) => row.delta_pct <= -30 && row.previous_units >= 10,
+    (row) => row.delta_pct <= T.decliningDeltaPct && row.previous_units >= T.decliningMinPrevUnits,
   );
   if (declining.length >= 3) {
     out.push({
