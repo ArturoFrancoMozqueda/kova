@@ -18,6 +18,7 @@ PRODUCT_A = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")
 PRODUCT_B = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2")
 USER_A = uuid.UUID("33333333-3333-3333-3333-3333333333a3")
 USER_B = uuid.UUID("44444444-4444-4444-4444-4444444444b4")
+ANON_EVENT = uuid.UUID("55555555-5555-5555-5555-5555555555c5")
 
 
 @pytest.fixture
@@ -165,3 +166,45 @@ def test_cross_tenant_update_is_rejected(kova_app_engine, rls_seed):  # noqa: AR
                 {"b": TENANT_B, "pa": PRODUCT_A},
             )
         assert "row-level security" in str(exc.value).lower()
+
+
+def test_anonymous_telemetry_is_not_rls_gated(kova_app_engine, owner_engine):
+    client_event_id = "landing_viewed:rls-regression"
+    with owner_engine.begin() as conn:
+        conn.execute(
+            text(
+                "DELETE FROM anonymous_telemetry_events "
+                "WHERE id = :id OR client_event_id = :client_event_id"
+            ),
+            {"id": ANON_EVENT, "client_event_id": client_event_id},
+        )
+
+    try:
+        with kova_app_engine.begin() as conn:
+            rls_state = conn.execute(
+                text(
+                    "SELECT relrowsecurity, relforcerowsecurity "
+                    "FROM pg_class WHERE relname = 'anonymous_telemetry_events'"
+                )
+            ).one()
+            assert tuple(rls_state) == (False, False)
+
+            conn.execute(
+                text(
+                    "INSERT INTO anonymous_telemetry_events "
+                    "(id, event_name, client_id, client_event_id, properties, created_at) "
+                    "VALUES "
+                    "(:id, 'landing_viewed', 'visitor-rls-regression', "
+                    ":client_event_id, '{}'::json, now())"
+                ),
+                {"id": ANON_EVENT, "client_event_id": client_event_id},
+            )
+    finally:
+        with owner_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "DELETE FROM anonymous_telemetry_events "
+                    "WHERE id = :id OR client_event_id = :client_event_id"
+                ),
+                {"id": ANON_EVENT, "client_event_id": client_event_id},
+            )
