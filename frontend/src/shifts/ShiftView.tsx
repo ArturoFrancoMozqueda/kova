@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewHeader } from "@/components/ui/view-header";
 import { useToast } from "@/components/ui/toast";
 import {
   Clock,
@@ -199,15 +200,7 @@ export default function ShiftView() {
 
   return (
     <main className="flex-1 p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">
-          {copy.app.dashboard}
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {copy.shiftView.title}
-        </h1>
-      </div>
+      <ViewHeader title={copy.shiftView.title} />
 
       {/* Active shift card */}
       {currentShift ? (
@@ -372,7 +365,48 @@ export default function ShiftView() {
             <CardTitle>{copy.shiftView.closedShifts}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            {/* Mobile: stacked cards; desktop: table (same dual pattern as
+                Órdenes) so the closed-shift list never needs sideways scroll
+                on a phone. */}
+            <div className="grid gap-3 sm:hidden">
+              {closedShifts.slice(0, 10).map((shift) => (
+                <div key={shift.id} className="rounded-lg border bg-background p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">{copy.shiftView.openedAt}</p>
+                        <p className="text-sm font-medium">{formatShiftDateTime(shift.opened_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">{copy.shiftView.closedAt}</p>
+                        <p className="text-sm font-medium">
+                          {shift.closed_at ? formatShiftDateTime(shift.closed_at) : "-"}
+                        </p>
+                      </div>
+                    </div>
+                    {shift.reconciliation_status ? (
+                      <Badge
+                        variant={shift.reconciliation_status === "balanced" ? "success" : "warning"}
+                      >
+                        {localizeReconciliationStatus(shift.reconciliation_status)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full"
+                    onClick={() => setCorteShift(shift)}
+                  >
+                    <Printer className="mr-2 h-4 w-4" />
+                    {copy.shiftView.printCorte}
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">

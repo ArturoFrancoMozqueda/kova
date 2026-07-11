@@ -15,7 +15,7 @@ import { VoidModal } from "./VoidModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { resolveApiErrorMessage } from "@/lib/apiError";
+import { apiErrorDetail, apiErrorStatus, resolveApiErrorMessage } from "@/lib/apiError";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
@@ -26,6 +26,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
+  | { status: "not-found" }
   | { status: "loaded"; order: Order; receipt: Receipt };
 
 export default function OrderDetail() {
@@ -47,8 +48,15 @@ export default function OrderDetail() {
     try {
       const [order, receipt] = await Promise.all([getOrder(orderId), getReceipt(orderId)]);
       setLoadState({ status: "loaded", order, receipt });
-    } catch {
-      setLoadState({ status: "error", message: copy.orderDetail.loadError });
+    } catch (err) {
+      // A missing order (bad link, deleted) is a distinct dead-end, not a
+      // transient failure — show a "not found" state with a way back instead of
+      // a retry button that will keep 404-ing.
+      if (apiErrorStatus(err) === 404) {
+        setLoadState({ status: "not-found" });
+        return;
+      }
+      setLoadState({ status: "error", message: resolveApiErrorMessage(err, copy.orderDetail.loadError) });
     }
   }, [orderId]);
 
@@ -65,16 +73,11 @@ export default function OrderDetail() {
       toast(copy.orderDetail.refundSuccess, "success");
       await load();
     } catch (err) {
-      let mapped: string | null = null;
-      try {
-        const body = JSON.parse((err as Error).message);
-        const detail = body?.detail;
-        if (detail && typeof detail === "object" && detail.code === "REFUND_QTY_EXCEEDS_AVAILABLE") {
-          mapped = copy.orderDetail.refundQtyExceeds(detail.available ?? 0);
-        }
-      } catch {
-        // not JSON — fall through
-      }
+      const detail = apiErrorDetail(err);
+      const mapped =
+        detail?.code === "REFUND_QTY_EXCEEDS_AVAILABLE"
+          ? copy.orderDetail.refundQtyExceeds(Number(detail.available) || 0)
+          : null;
       toast(mapped ?? resolveApiErrorMessage(err, copy.orderDetail.operationError), "error");
     } finally {
       setOperationPending(false);
@@ -90,6 +93,15 @@ export default function OrderDetail() {
       toast(copy.orderDetail.voidSuccess, "success");
       await load();
     } catch (err) {
+      // 409 = the order already changed underneath us (e.g. voided in another
+      // tab). Reconcile by reloading and telling the user, rather than showing a
+      // generic error that leaves stale state on screen.
+      if (apiErrorStatus(err) === 409) {
+        setActiveModal(null);
+        toast(copy.orderDetail.conflictReload, "warning");
+        await load();
+        return;
+      }
       toast(resolveApiErrorMessage(err, copy.orderDetail.operationError), "error");
     } finally {
       setOperationPending(false);
@@ -104,6 +116,26 @@ export default function OrderDetail() {
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
+      </main>
+    );
+  }
+
+  if (loadState.status === "not-found") {
+    return (
+      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Package className="mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-base font-semibold">{copy.orderDetail.notFoundTitle}</p>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              {copy.orderDetail.notFoundBody}
+            </p>
+            <Link to="/orders" className={cn("mt-4", buttonVariants({ variant: "outline", size: "sm" }))}>
+              <ArrowLeft className="h-4 w-4" />
+              {copy.orderDetail.backToOrders}
+            </Link>
+          </CardContent>
+        </Card>
       </main>
     );
   }

@@ -7,6 +7,7 @@ import { listOrders } from "./api";
 import type { OrderFilters } from "./api";
 import { formatMoney, formatDateTime } from "./format";
 import { Card, CardContent } from "@/components/ui/card";
+import { ViewHeader } from "@/components/ui/view-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,14 +106,11 @@ export default function OrderListView() {
 
   return (
     <main className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.orderList.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            {data?.total ?? 0} {copy.orderList.total}
-          </p>
-        </div>
+      <div className="mb-6">
+        <ViewHeader
+          title={copy.orderList.title}
+          meta={`${data?.total ?? 0} ${copy.orderList.total}`}
+        />
       </div>
 
       {/* Filter bar */}
