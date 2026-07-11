@@ -103,13 +103,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
       <div
-        className="fixed z-[100] flex flex-col gap-2 pointer-events-none"
-        style={{
-          // Respect notch/safe areas so toasts don't tuck under the status bar
-          // or rounded corners on mobile.
-          top: "max(1rem, env(safe-area-inset-top))",
-          right: "max(1rem, env(safe-area-inset-right))",
-        }}
+        // On mobile, clear the app top bar (logo + TrialChip live top-right) so
+        // a success toast never covers the "prueba gratis" chip; on desktop the
+        // chip is in the sidebar, so toasts sit tight in the top-right corner.
+        // Right offset respects the notch on both.
+        className={cn(
+          "fixed z-[100] flex flex-col gap-2 pointer-events-none",
+          "right-[max(1rem,env(safe-area-inset-right))]",
+          "top-[calc(env(safe-area-inset-top)+4.25rem)]",
+          "lg:top-[max(1rem,env(safe-area-inset-top))]",
+        )}
       >
         {toasts.map((t) => (
           <div
