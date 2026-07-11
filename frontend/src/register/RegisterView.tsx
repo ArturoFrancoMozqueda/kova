@@ -834,29 +834,28 @@ export default function RegisterView() {
                         addProduct(product);
                       }}
                       className={cn(
-                        "group flex sm:flex-col items-stretch sm:justify-between gap-3 sm:gap-0 rounded-xl border bg-card p-3 text-left transition-all hover:border-primary/40 hover:shadow-md active:scale-[0.97]",
-                        isOut && "opacity-60 cursor-not-allowed hover:border-border hover:shadow-none active:scale-100",
+                        "group flex sm:flex-col items-stretch sm:justify-between gap-3 sm:gap-0 rounded-xl border bg-card p-2.5 sm:p-3 text-left transition-all hover:border-primary/40 shadow-kova-card hover:shadow-kova-card-hover active:scale-[0.97]",
+                        isOut && "opacity-60 cursor-not-allowed hover:border-border hover:shadow-kova-card active:scale-100",
                       )}
                     >
                       <div className="flex sm:block items-center gap-3 sm:gap-0 sm:space-y-2 flex-1 min-w-0">
-                        <div className="aspect-square w-16 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50 transition-transform group-hover:scale-[1.03]">
-                          {product.image_url ? (
+                        {/* Image only when present. A text-only catalog (common
+                            for SMBs) skips the placeholder so mobile rows stay
+                            compact and more products fit above the fold. */}
+                        {product.image_url && (
+                          <div className="aspect-square w-12 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50 transition-transform group-hover:scale-[1.03]">
                             <img
                               src={productImageSrc(product.image_url, 400)}
                               srcSet={productImageSrcSet(product.image_url)}
-                              sizes="(max-width: 640px) 64px, (max-width: 1024px) 33vw, 200px"
+                              sizes="(max-width: 640px) 48px, (max-width: 1024px) 33vw, 200px"
                               alt=""
                               loading="lazy"
                               decoding="async"
                               className="h-full w-full"
                               style={productImageStyle(product)}
                             />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
-                              <ShoppingBag className="h-7 w-7" aria-hidden="true" />
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <div className="flex items-start justify-between gap-1 flex-1 min-w-0">
                           <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors flex-1 min-w-0">
                             {product.name}
