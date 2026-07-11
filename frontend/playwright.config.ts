@@ -8,6 +8,11 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   reporter: "list",
+  // The CI smoke job runs against the live Vercel deployment, so a request can
+  // transiently time out while the deploy is still propagating (seen as
+  // "Request context disposed" on the first landing fetch). Retry on CI so a
+  // single infra blip doesn't fail the whole smoke run — and block deploy.
+  retries: process.env.CI ? 2 : 0,
   use: {
     baseURL,
     trace: "on-first-retry",
