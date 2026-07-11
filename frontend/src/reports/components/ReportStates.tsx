@@ -1,10 +1,9 @@
-import { AlertCircle, RefreshCw, ShieldOff, ShoppingCart } from "lucide-react";
-import { Link as RouterLink } from "react-router-dom";
+import { ShoppingCart } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewEmpty, ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 
 export function LoadingState() {
   return (
@@ -32,57 +31,35 @@ export function LoadingState() {
 
 export function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-        <AlertCircle className="mb-3 h-10 w-10 text-destructive" />
-        <p className="text-sm font-medium text-destructive" role="alert">
-          {copy.reportsView.loadError}
-        </p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {copy.reportsView.retry}
-        </Button>
-      </CardContent>
-    </Card>
+    <ViewError
+      message={copy.reportsView.loadError}
+      onRetry={onRetry}
+      retryLabel={copy.reportsView.retry}
+    />
   );
 }
 
 export function EmptyBusinessState({ onPickToday }: { onPickToday?: () => void }) {
   return (
-    <Card className="border-kova-blue/20 bg-kova-blue/[0.03]">
-      <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10">
-          <ShoppingCart className="h-6 w-6 text-kova-blue" />
-        </div>
-        <div className="flex-1">
-          <p className="text-base font-semibold">{copy.reportsView.emptyStoryTitle}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{copy.reportsView.emptyStoryBody}</p>
-        </div>
-        <div className="flex flex-wrap gap-2 sm:shrink-0">
-          <RouterLink to="/register" className={buttonVariants({ size: "sm" })}>
-            {copy.reportsView.emptyStoryCta}
-          </RouterLink>
-          {onPickToday ? (
-            <Button variant="outline" size="sm" onClick={onPickToday}>
-              {copy.reportsView.emptyStorySecondaryCta}
-            </Button>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+    <ViewEmpty
+      icon={<ShoppingCart className="h-6 w-6" />}
+      title={copy.reportsView.emptyStoryTitle}
+      body={copy.reportsView.emptyStoryBody}
+      primaryCta={{ label: copy.reportsView.emptyStoryCta, to: "/register" }}
+      secondaryCta={
+        onPickToday
+          ? { label: copy.reportsView.emptyStorySecondaryCta, onClick: onPickToday }
+          : undefined
+      }
+    />
   );
 }
 
 export function PermissionDenied() {
   return (
-    <main className="flex-1 p-6">
-      <div className="mb-6 flex items-center gap-3">
-        <ShieldOff className="h-6 w-6 text-muted-foreground" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{copy.reportsView.title}</h1>
-          <p className="text-sm text-muted-foreground">{copy.reportsView.permissionHidden}</p>
-        </div>
-      </div>
-    </main>
+    <ViewPermissionDenied
+      title={copy.reportsView.title}
+      description={copy.reportsView.permissionHidden}
+    />
   );
 }
