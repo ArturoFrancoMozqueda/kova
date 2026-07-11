@@ -16,17 +16,26 @@ export function StatTile({
   value,
   icon,
   children,
+  className,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   icon: ReactNode;
   children?: ReactNode;
+  /** Optional surface override — e.g. `bg-kova-grad-blue` for a pastel wash on
+   * Panel KPIs. The opaque gradient paints over the default white surface. */
+  className?: string;
 }) {
   return (
     // Phones get a compact row (value + delta side by side, no icon) so the
     // three KPIs cost about a third of the vertical space before "Qué hacer
     // ahora"; from `sm` up it's the full tile.
-    <div className="rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card sm:p-5">
+    <div
+      className={cn(
+        "rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card sm:p-5",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">{label}</p>
         <span className="hidden h-9 w-9 items-center justify-center rounded-kova-md bg-kova-mist text-kova-muted sm:flex">
@@ -52,11 +61,16 @@ export function DeltaChip({
   current,
   previous,
   format,
+  compareLabel,
 }: {
   growth: GrowthResult;
   current: number;
   previous: number;
   format: "money" | "count";
+  /** Optional comparison anchor appended after the percentage (e.g. "vs ayer"
+   * on Panel, where the period toggle changes what "previous" means). Reportes
+   * omits it — the period is already explicit in its header. */
+  compareLabel?: string;
 }) {
   const absDelta = current - previous;
   const absLabel =
@@ -74,7 +88,7 @@ export function DeltaChip({
     return (
       <span className="flex items-center gap-0.5 text-xs text-kova-muted">
         <Minus className="h-3 w-3" />
-        {copy.reportsView.deltaVsPrevious}
+        {compareLabel ?? copy.reportsView.deltaVsPrevious}
       </span>
     );
   }
@@ -92,6 +106,7 @@ export function DeltaChip({
       {tone === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
       <span className="tabular-nums">
         {pctLabel}
+        {compareLabel ? <span className="text-kova-muted">{compareLabel} </span> : null}
         <span className="text-kova-muted">({absLabel})</span>
       </span>
     </span>

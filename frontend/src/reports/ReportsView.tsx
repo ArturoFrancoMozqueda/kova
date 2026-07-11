@@ -4,6 +4,7 @@ import { useTenantTimezone } from "@/hooks/useTenantTimezone";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
+import { ArcKicker } from "@/components/ui/arc-kicker";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
 import { ExecutiveSummary, QuickFacts } from "./components/ExecutiveSummary";
@@ -24,16 +25,6 @@ import { useReportData } from "./hooks/useReportData";
 import type { BusinessStoryReport } from "./types";
 import { activePreset, daysBetweenInclusive, presetRange, type ReportPreset } from "./utils/dateRange";
 import { buildRecommendations } from "./utils/recommendations";
-
-/** Narrative-arc divider: makes the story structure explicit between blocks
- * (Resumen → Qué hacer ahora → Por qué pasó → Operación y control). */
-function ArcKicker({ label, id }: { label: string; id?: string }) {
-  return (
-    <p id={id} className="scroll-mt-14 pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-kova-tertiary">
-      {label}
-    </p>
-  );
-}
 
 const CHAPTERS = [
   { id: "reporte-resumen", label: copy.reportsView.navSummary },

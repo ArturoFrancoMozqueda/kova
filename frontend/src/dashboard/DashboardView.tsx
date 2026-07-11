@@ -27,6 +27,10 @@ import { BusinessHealthCard } from "./BusinessHealthCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatTile, DeltaChip } from "@/components/ui/stat-tile";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ArcKicker } from "@/components/ui/arc-kicker";
+import { calculateSafeGrowth, MIN_COUNT_BASE, MIN_MONEY_BASE } from "@/lib/growth";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
@@ -35,7 +39,6 @@ import { CountUp } from "@/components/brand/RealTime";
 import {
   DollarSign,
   ShoppingCart,
-  TrendingUp,
   ArrowRight,
   Package,
   BarChart3,
@@ -44,8 +47,6 @@ import {
   Receipt,
   RotateCcw,
   AlertCircle,
-  TrendingDown,
-  Minus,
   CheckCircle2,
   Circle,
   Sparkles,
@@ -136,50 +137,6 @@ function periodSubtitle(period: Period, timezone: string = DEFAULT_TIMEZONE): st
   if (period === "month") return copy.dashboard.subtitleMonth;
   const formatted = formatDayLong(todayInTimezone(timezone));
   return copy.dashboard.subtitleToday(formatted);
-}
-
-type DeltaBadgeProps = {
-  current: number;
-  previous: number | null;
-  format?: "money" | "count";
-  compareLabel?: string;
-};
-
-function DeltaBadge({ current, previous, compareLabel = copy.dashboard.vsYesterday }: DeltaBadgeProps) {
-  if (previous === null || previous === 0) {
-    return <span className="text-xs text-muted-foreground">{copy.dashboard.deltaNoData}</span>;
-  }
-  // Suppress misleading red -100% on fresh/zero-activity periods: when current is 0,
-  // we render a neutral "Aún sin comparación" instead of a destructive red badge.
-  if (current === 0) {
-    return <span className="text-xs text-muted-foreground">{copy.dashboard.deltaWarmingUp}</span>;
-  }
-  const pct = ((current - previous) / previous) * 100;
-  const abs = Math.abs(pct);
-  const label = `${abs < 1 ? "<1" : Math.round(abs)}%`;
-
-  if (pct > 0.5) {
-    return (
-      <span className="flex items-center gap-0.5 text-xs font-medium text-kova-growth">
-        <TrendingUp className="h-3 w-3" />
-        {label} {compareLabel}
-      </span>
-    );
-  }
-  if (pct < -0.5) {
-    return (
-      <span className="flex items-center gap-0.5 text-xs font-medium text-destructive">
-        <TrendingDown className="h-3 w-3" />
-        {label} {compareLabel}
-      </span>
-    );
-  }
-  return (
-    <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-      <Minus className="h-3 w-3" />
-      {compareLabel}
-    </span>
-  );
 }
 
 function OnboardingChecklist({
@@ -369,10 +326,11 @@ function OnboardingChecklist({
 }
 
 const kpiCards = [
-  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, iconClass: "bg-kova-mist text-kova-tertiary" },
-  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, iconClass: "bg-kova-mist text-kova-tertiary" },
-  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: Receipt, iconClass: "bg-kova-mist text-kova-tertiary" },
-  { key: "refunds", label: () => copy.dashboard.refunds, icon: RotateCcw, iconClass: "bg-kova-mist text-kova-tertiary" },
+  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, wash: "bg-kova-grad-blue" },
+  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, wash: "bg-kova-grad-mint" },
+  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: Receipt, wash: "bg-kova-grad-sky" },
+  // Refunds stays neutral white — it isn't a KPI to celebrate with a wash.
+  { key: "refunds", label: () => copy.dashboard.refunds, icon: RotateCcw, wash: undefined },
 ] as const;
 
 export default function DashboardView() {
@@ -459,54 +417,53 @@ export default function DashboardView() {
 
   return (
     <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground mb-1">{greeting}</p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">{tenantName || copy.app.dashboard}</h1>
-          </div>
-          <p className="text-muted-foreground mt-1">{periodSubtitle(period, tenantTimezone)}</p>
-        </div>
-        <div className="sm:pt-1">
-          <div
-            role="radiogroup"
-            aria-label={copy.dashboard.periodLabel}
-            className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
-            onKeyDown={(e) =>
-              handleRadioGroupKeyDown(
-                e,
-                [{ value: "day" }, { value: "week" }, { value: "month" }] as const,
-                period,
-                setPeriod,
-              )
-            }
-          >
-            {([
-              { value: "day", label: copy.dashboard.periodDay },
-              { value: "week", label: copy.dashboard.periodWeek },
-              { value: "month", label: copy.dashboard.periodMonth },
-            ] as const).map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                data-radio-value={value}
-                tabIndex={period === value ? 0 : -1}
-                aria-checked={period === value}
-                onClick={() => setPeriod(value)}
-                className={cn(
-                  "rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors",
-                  period === value
-                    ? "bg-[color:var(--kova-ink)] text-white"
-                    : "text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)]",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Header — shared ViewHeader anatomy: greeting eyebrow, tenant title,
+          period subtitle, and the period toggle as the actions slot. */}
+      <div className="mb-8">
+        <ViewHeader
+          eyebrow={greeting}
+          title={tenantName || copy.app.dashboard}
+          meta={periodSubtitle(period, tenantTimezone)}
+          actions={
+            <div
+              role="radiogroup"
+              aria-label={copy.dashboard.periodLabel}
+              className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
+              onKeyDown={(e) =>
+                handleRadioGroupKeyDown(
+                  e,
+                  [{ value: "day" }, { value: "week" }, { value: "month" }] as const,
+                  period,
+                  setPeriod,
+                )
+              }
+            >
+              {([
+                { value: "day", label: copy.dashboard.periodDay },
+                { value: "week", label: copy.dashboard.periodWeek },
+                { value: "month", label: copy.dashboard.periodMonth },
+              ] as const).map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  data-radio-value={value}
+                  tabIndex={period === value ? 0 : -1}
+                  aria-checked={period === value}
+                  onClick={() => setPeriod(value)}
+                  className={cn(
+                    "rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors",
+                    period === value
+                      ? "bg-[color:var(--kova-ink)] text-white"
+                      : "text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)]",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          }
+        />
       </div>
 
       {loadState.status === "loading" && (
@@ -563,9 +520,10 @@ export default function DashboardView() {
             tenantName={tenantName}
           />
 
-          {/* KPI Cards */}
+          {/* Tu día — KPIs with the shared StatTile + honest DeltaChip */}
+          <ArcKicker label={copy.dashboard.arcNow} />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {kpiCards.map(({ key, label, icon: Icon, iconClass }) => {
+            {kpiCards.map(({ key, label, icon: Icon, wash }) => {
               const { summary, yesterday } = loadState;
               let sub = "";
               let currentNum = 0;
@@ -596,39 +554,43 @@ export default function DashboardView() {
                 sub = formatMoney(summary.refund_total);
               }
 
+              // Honest period-over-period growth: never "+900% desde $1". The
+              // shared calc suppresses noise below a min base and caps runaway
+              // percentages, falling back to the absolute delta.
+              const growth = calculateSafeGrowth(currentNum, prevNum, {
+                minBase: isMoney ? MIN_MONEY_BASE : MIN_COUNT_BASE,
+              });
+
               return (
-                <Card key={key} className="bg-gradient-to-br from-white to-kova-mist/40 shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-xs font-medium uppercase tracking-[0.08em] text-kova-tertiary">
-                      {label()}
-                    </CardTitle>
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass}`}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-2xl font-bold tabular-nums tracking-tight text-kova-ink">
-                      <CountUp
-                        value={currentNum}
-                        format={isMoney
-                          ? (n) => formatMoney(n)
-                          : (n) => String(Math.round(n))}
-                      />
-                    </p>
-                    <p className="text-xs text-kova-muted mt-0.5 tabular-nums">{sub}</p>
-                    <div className="mt-1.5">
-                      <DeltaBadge
-                        current={currentNum}
-                        previous={prevNum}
-                        compareLabel={loadState.compareLabel}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatTile
+                  key={key}
+                  label={label()}
+                  icon={<Icon className="h-4 w-4" />}
+                  className={cn(wash, "transition-shadow hover:shadow-kova-card-hover")}
+                  value={
+                    <CountUp
+                      value={currentNum}
+                      format={isMoney ? (n) => formatMoney(n) : (n) => String(Math.round(n))}
+                    />
+                  }
+                >
+                  <p className="text-xs text-kova-muted tabular-nums">{sub}</p>
+                  <div className="mt-1">
+                    <DeltaChip
+                      growth={growth}
+                      current={currentNum}
+                      previous={prevNum ?? 0}
+                      format={isMoney ? "money" : "count"}
+                      compareLabel={loadState.compareLabel}
+                    />
+                  </div>
+                </StatTile>
               );
             })}
           </div>
 
+          {/* Salud del negocio */}
+          <ArcKicker label={copy.dashboard.arcHealth} />
           <BusinessHealthCard
             summary={loadState.summary}
             yesterday={loadState.yesterday}
@@ -636,6 +598,9 @@ export default function DashboardView() {
             lowStockCount={loadState.lowStockCount}
             compareLabel={loadState.compareLabel}
           />
+
+          {/* Qué hacer ahora */}
+          <ArcKicker label={copy.dashboard.arcActions} />
           <InsightStrip
             show="actions"
             summary={loadState.summary}
