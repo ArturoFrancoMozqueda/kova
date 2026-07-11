@@ -18,6 +18,8 @@ PRODUCT_A = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")
 PRODUCT_B = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2")
 USER_A = uuid.UUID("33333333-3333-3333-3333-3333333333a3")
 USER_B = uuid.UUID("44444444-4444-4444-4444-4444444444b4")
+SUBSCRIPTION_A = uuid.UUID("55555555-5555-5555-5555-5555555555a5")
+SUBSCRIPTION_B = uuid.UUID("66666666-6666-6666-6666-6666666666b6")
 
 
 @pytest.fixture
@@ -55,10 +57,22 @@ def rls_seed(owner_engine):
             ),
             {"a": TENANT_A, "b": TENANT_B, "ua": USER_A, "ub": USER_B},
         )
+        conn.execute(
+            text(
+                "INSERT INTO subscriptions (id, tenant_id, stripe_subscription_id, status) "
+                "VALUES (:sa, :a, 'sub_rls_a', 'active'), "
+                "(:sb, :b, 'sub_rls_b', 'active')"
+            ),
+            {"sa": SUBSCRIPTION_A, "sb": SUBSCRIPTION_B, "a": TENANT_A, "b": TENANT_B},
+        )
     try:
         yield
     finally:
         with owner_engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM subscriptions WHERE id IN (:sa, :sb)"),
+                {"sa": SUBSCRIPTION_A, "sb": SUBSCRIPTION_B},
+            )
             conn.execute(
                 text("DELETE FROM memberships WHERE user_id IN (:ua, :ub)"),
                 {"ua": USER_A, "ub": USER_B},
@@ -135,6 +149,18 @@ def test_tenant_name_is_visible_only_for_current_tenant(
             )
         }
     assert names == {"RLS A"}
+
+
+def test_billing_policy_denies_empty_tenant_context_without_uuid_cast_error(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        conn.execute(text("SELECT set_config('app.tenant_id', '', false)"))
+        count = conn.execute(
+            text("SELECT count(*) FROM subscriptions WHERE id IN (:sa, :sb)"),
+            {"sa": SUBSCRIPTION_A, "sb": SUBSCRIPTION_B},
+        ).scalar()
+    assert count == 0
 
 
 def test_cross_tenant_insert_is_rejected(kova_app_engine, rls_seed):  # noqa: ARG001
