@@ -146,7 +146,7 @@ test("owner closes a shift and sees reconciliation result", async ({ page }) => 
   await page.locator("form").getByRole("button", { name: "Cerrar turno", exact: true }).click();
 
   await expect(page.getByRole("status")).toHaveText(/turno cerrado correctamente/i);
-  await expect(page.getByText(/caja cuadrada/i)).toBeVisible();
+  await expect(page.getByRole("table").getByText(/caja cuadrada/i)).toBeVisible();
 });
 
 test("staff user without open permission does not see Open Shift button", async ({ page }) => {
