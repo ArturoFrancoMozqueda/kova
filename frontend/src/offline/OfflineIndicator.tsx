@@ -3,9 +3,40 @@ import { Wifi, WifiOff, CloudUpload } from "lucide-react";
 import { copy } from "../i18n/messages";
 import { useIsOnline, useSyncQueue } from "./useSyncQueue";
 
-export function OfflineIndicator() {
+export function OfflineIndicator({ compact = false }: { compact?: boolean } = {}) {
   const isOnline = useIsOnline();
   const { pendingCount } = useSyncQueue();
+
+  // Compact variant for the mobile top bar (light surface): connection state is
+  // always visible so offline/queue status persists during POS, where the
+  // sidebar footer is hidden. Online collapses to a single icon; offline and a
+  // non-empty queue expand with a label / count.
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        {isOnline ? (
+          <span className="flex items-center text-kova-growth" title={copy.register.online}>
+            <Wifi className="h-4 w-4" aria-label={copy.register.online} />
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 font-medium text-warning">
+            <WifiOff className="h-4 w-4" />
+            {copy.register.offline}
+          </span>
+        )}
+        {pendingCount > 0 && (
+          <Link
+            to="/sync-queue"
+            aria-label={copy.register.pendingSales(pendingCount)}
+            className="flex items-center gap-1 rounded-md bg-warning/10 px-1.5 py-0.5 font-medium text-warning-foreground"
+          >
+            <CloudUpload className="h-3.5 w-3.5" />
+            <span className="tabular-nums">{pendingCount}</span>
+          </Link>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 text-xs">

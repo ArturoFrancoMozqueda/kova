@@ -236,21 +236,23 @@ export default function AppShell() {
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
         {/* Mobile top bar */}
-        <header className="flex items-center gap-3 border-b bg-background px-4 py-3 lg:hidden shrink-0">
+        <header className="flex items-center gap-2 border-b bg-background px-3 py-3 lg:hidden shrink-0">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
-            className="flex h-11 w-11 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
           >
             <Menu className="h-5 w-5" />
           </button>
           <LogoMark size={24} circuitColor="var(--kova-ink)" />
-          <span className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</span>
-          <div className="ml-auto">
-            <TrialChip />
-          </div>
+          {/* Tenant name yields space first so the status/trial chips always fit. */}
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{tenantName || copy.app.homeTitle}</span>
+          {/* Persistent online/offline + queue visibility on mobile, where the
+              sidebar footer (its only home before) is hidden during POS. */}
+          <OfflineIndicator compact />
+          <TrialChip compact />
         </header>
 
         {/* Desktop trial chip — top-right of content area */}
