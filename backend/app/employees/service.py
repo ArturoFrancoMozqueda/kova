@@ -159,6 +159,41 @@ def invite_employee(
     return invitation
 
 
+def revoke_invitation(
+    db: Session, *, tenant_id: UUID, user_id: UUID, invitation_id: UUID
+) -> None:
+    """Revoke a pending invitation so its link stops working. Tenant-scoped:
+    an invitation from another tenant is treated as not found, never revealed.
+    Only pending invitations can be revoked (already-accepted/revoked ones are
+    a no-op error rather than silently mutating final state)."""
+    invitation = (
+        db.query(MembershipInvitation)
+        .filter(
+            MembershipInvitation.id == invitation_id,
+            MembershipInvitation.tenant_id == tenant_id,
+        )
+        .first()
+    )
+    if invitation is None:
+        raise not_found("Invitation not found")
+    if invitation.status != "pending":
+        raise bad_request("Invitation is no longer pending")
+
+    invitation.status = "revoked"
+    invitation.revoked_at = datetime.now(UTC)
+
+    audit_service.log(
+        db,
+        action="employee.invitation_revoked",
+        tenant_id=tenant_id,
+        user_id=user_id,
+        resource_type="membership_invitation",
+        resource_id=invitation.id,
+        changes={"email": invitation.email, "role": invitation.role},
+    )
+    db.commit()
+
+
 def preview_invitation(db: Session, *, token: str) -> dict:
     """Return tenant name + email + role for the invitation accept screen."""
     invitation = (

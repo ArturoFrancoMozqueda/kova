@@ -4,10 +4,12 @@ import { useAuth } from "@/auth/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewHeader } from "@/components/ui/view-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
@@ -20,6 +22,8 @@ import {
   inviteEmployee,
   listEmployees,
   listInvitations,
+  resendInvitation,
+  revokeInvitation,
   saveBusinessProfile,
   saveReceiptSettings,
   updateEmployeeRole,
@@ -93,6 +97,21 @@ function roleLabel(role: Role | string): string {
 
 function roleDescription(role: Role | string): string {
   return roleOptions.find((option) => option.value === role)?.description ?? "";
+}
+
+function invitationStatusLabel(status: string): string {
+  switch (status) {
+    case "pending":
+      return copy.settings.inviteStatusPending;
+    case "revoked":
+      return copy.settings.inviteStatusRevoked;
+    case "accepted":
+      return copy.settings.inviteStatusAccepted;
+    case "expired":
+      return copy.settings.inviteStatusExpired;
+    default:
+      return status;
+  }
 }
 
 export default function SettingsView() {
@@ -249,10 +268,7 @@ export default function SettingsView() {
 
   return (
     <main className="max-w-5xl mx-auto p-6 lg:p-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{copy.settings.title}</h1>
-        <p className="text-sm text-muted-foreground">{copy.settings.subtitle}</p>
-      </div>
+      <ViewHeader title={copy.settings.title} meta={copy.settings.subtitle} />
 
       <nav
         aria-label={copy.settings.tabsLabel}
@@ -395,11 +411,57 @@ export default function SettingsView() {
           </div>
 
           {invitations.length > 0 && (
-            <div className="rounded-lg bg-muted/40 p-3 text-sm">
-              <p className="font-medium mb-2">{copy.settings.pendingInvites}</p>
-              {invitations.map((row) => (
-                <p key={row.id} className="text-muted-foreground">{row.email} - {roleLabel(row.role)} - {row.status}</p>
-              ))}
+            <div className="rounded-lg bg-muted/40 p-3">
+              <p className="mb-2 text-sm font-medium">{copy.settings.pendingInvites}</p>
+              <div className="space-y-2">
+                {invitations.map((row) => {
+                  const isPending = row.status === "pending";
+                  return (
+                    <div
+                      key={row.id}
+                      className="flex flex-col gap-2 rounded-lg border bg-background p-3 sm:flex-row sm:items-center"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{row.email}</p>
+                        <p className="text-xs text-muted-foreground">{roleLabel(row.role)}</p>
+                      </div>
+                      <Badge variant={isPending ? "warning" : "secondary"} className="shrink-0">
+                        {invitationStatusLabel(row.status)}
+                      </Badge>
+                      {isPending && (
+                        <div className="flex shrink-0 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              void resendInvitation(row).then(() => {
+                                toast(copy.settings.resendInviteSuccess, "success");
+                                return load();
+                              })
+                            }
+                          >
+                            {copy.settings.resendInvite}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setPendingAction({
+                                title: copy.settings.revokeInviteConfirmTitle,
+                                body: copy.settings.revokeInviteConfirmBody(row.email),
+                                confirmLabel: copy.settings.revokeInviteConfirmAction,
+                                run: () => revokeInvitation(row.id).then(load),
+                              })
+                            }
+                          >
+                            {copy.settings.revokeInvite}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </CardContent>

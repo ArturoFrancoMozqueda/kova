@@ -21,6 +21,7 @@ from app.auth import repository as auth_repo
 from app.auth import service as auth_service
 from app.auth.models import Membership
 from app.employees import service
+from app.employees.models import MembershipInvitation
 from app.employees.schemas import EmployeeRoleUpdate, InvitationCreate
 
 
@@ -171,3 +172,69 @@ def test_second_owner_can_be_demoted(client, db):
         body=EmployeeRoleUpdate(role="manager"),
     )
     assert updated.role == "manager"
+
+
+# ── Invitation revoke ───────────────────────────────────────────────────────
+
+
+def _invite(db, signup: dict) -> MembershipInvitation:
+    return service.invite_employee(
+        db,
+        tenant_id=UUID(signup["tenant_id"]),
+        user_id=UUID(signup["user_id"]),
+        actor_role="owner",
+        body=InvitationCreate(email=f"invitee-{uuid4().hex}@example.com", role="cashier"),
+    )
+
+
+def test_revoke_pending_invitation(client, db):
+    signup = _signup(client, f"owner-{uuid4().hex}@example.com", "RBAC Revoke")
+    invitation = _invite(db, signup)
+    assert invitation.status == "pending"
+
+    service.revoke_invitation(
+        db,
+        tenant_id=UUID(signup["tenant_id"]),
+        user_id=UUID(signup["user_id"]),
+        invitation_id=invitation.id,
+    )
+    db.refresh(invitation)
+    assert invitation.status == "revoked"
+    assert invitation.revoked_at is not None
+
+
+def test_revoke_invitation_is_tenant_scoped(client, db):
+    """An invitation belonging to another tenant is 404, never revealed/mutated."""
+    owner = _signup(client, f"owner-{uuid4().hex}@example.com", "RBAC Revoke A")
+    invitation = _invite(db, owner)
+    other = _signup(client, f"other-{uuid4().hex}@example.com", "RBAC Revoke B")
+
+    with pytest.raises(HTTPException) as exc:
+        service.revoke_invitation(
+            db,
+            tenant_id=UUID(other["tenant_id"]),
+            user_id=UUID(other["user_id"]),
+            invitation_id=invitation.id,
+        )
+    assert exc.value.status_code == 404
+    db.refresh(invitation)
+    assert invitation.status == "pending"
+
+
+def test_revoke_non_pending_invitation_rejected(client, db):
+    signup = _signup(client, f"owner-{uuid4().hex}@example.com", "RBAC Revoke Twice")
+    invitation = _invite(db, signup)
+    service.revoke_invitation(
+        db,
+        tenant_id=UUID(signup["tenant_id"]),
+        user_id=UUID(signup["user_id"]),
+        invitation_id=invitation.id,
+    )
+    with pytest.raises(HTTPException) as exc:
+        service.revoke_invitation(
+            db,
+            tenant_id=UUID(signup["tenant_id"]),
+            user_id=UUID(signup["user_id"]),
+            invitation_id=invitation.id,
+        )
+    assert exc.value.status_code == 400
