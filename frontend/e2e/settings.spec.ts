@@ -243,7 +243,12 @@ test("settings employees invite role change and deactivate work at mobile width"
   await page.getByLabel("Rol").selectOption("manager");
   await page.getByRole("button", { name: /invitar/i }).click();
   await expect(page.getByText(/invitaci[oó]n de empleado creada/i)).toBeVisible();
-  await expect(page.getByText("barista@bakery.com - Gerente - pending")).toBeVisible();
+  // The pending invitation renders as a structured row (T2.5): email, role, and
+  // a localized status badge ("Pendiente") instead of a raw "email - role -
+  // status" line.
+  const inviteRow = page.getByText("barista@bakery.com").locator("..").locator("..");
+  await expect(inviteRow.getByText("Gerente")).toBeVisible();
+  await expect(inviteRow.getByText("Pendiente")).toBeVisible();
 
   const employeeRow = page.getByText("cashier@bakery.com").locator("..").locator("..");
   // Role change now confirms before mutating (PLAN-UX-01): the select opens a
