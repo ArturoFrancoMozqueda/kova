@@ -430,7 +430,7 @@ export default function CatalogView() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-10 w-10 lg:h-8 lg:w-8"
+                      className="h-11 w-11 lg:h-8 lg:w-8"
                       aria-label={`Editar ${cat.name}`}
                       onClick={() => setModal({ type: "category-edit", category: cat })}
                     >
@@ -441,7 +441,7 @@ export default function CatalogView() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-10 w-10 lg:h-8 lg:w-8 text-destructive hover:text-destructive"
+                      className="h-11 w-11 lg:h-8 lg:w-8 text-destructive hover:text-destructive"
                       aria-label={`Desactivar ${cat.name}`}
                       onClick={() =>
                         setConfirmRequest({
@@ -592,7 +592,7 @@ export default function CatalogView() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-10 w-10 lg:h-8 lg:w-8"
+                          className="h-11 w-11 lg:h-8 lg:w-8"
                           aria-label={copy.productStory.storyButton}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -605,7 +605,7 @@ export default function CatalogView() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-10 w-10 lg:h-8 lg:w-8"
+                            className="h-11 w-11 lg:h-8 lg:w-8"
                             aria-label={`Editar ${product.name}`}
                             onClick={(e) => {
                               e.stopPropagation();

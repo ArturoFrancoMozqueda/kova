@@ -16,7 +16,7 @@ function daysUntil(iso: string): number {
 
 const REFRESH_INTERVAL_MS = 60_000;
 
-export function TrialChip({ className }: { className?: string }) {
+export function TrialChip({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { state } = useAuth();
   const [billing, setBilling] = useState<BillingSubscription | null>(null);
   const [, setTick] = useState(0);
@@ -106,8 +106,17 @@ export function TrialChip({ className }: { className?: string }) {
       )}
     >
       {warm ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-      <span className="uppercase tracking-[0.08em] opacity-80">{copy.trialChip.label}</span>
-      <span className="font-semibold">· {label}</span>
+      {/* Compact (mobile top bar) drops the "PRUEBA ·" eyebrow so the chip
+          doesn't crowd the tenant name; the icon + day count still read as the
+          trial status, and the tooltip/label carry the rest. */}
+      {compact ? (
+        <span className="font-semibold">{label}</span>
+      ) : (
+        <>
+          <span className="uppercase tracking-[0.08em] opacity-80">{copy.trialChip.label}</span>
+          <span className="font-semibold">· {label}</span>
+        </>
+      )}
     </Link>
   );
 }
