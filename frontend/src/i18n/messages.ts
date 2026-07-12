@@ -898,6 +898,7 @@ export const copy = {
     lowStockDetail: (stock: number, threshold: number | null) =>
       stock <= 0 ? "Ya agotado" : `${stock} disponible${threshold === null ? "." : `, umbral ${threshold}.`}`,
     stockVelocity: "Riesgo de agotarse",
+    velocityBasis: "Estimado según tus ventas de los últimos 7 días.",
     daysUntilOut: (name: string, days: number) =>
       `${name} se agotará en ~${days} días con el ritmo actual.`,
     reorderSuggestion: "Sugerencia: preparar reabasto.",
