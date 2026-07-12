@@ -27,6 +27,7 @@ interface CloseShiftModalProps {
 
 export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShiftModalProps) {
   const [actualCash, setActualCash] = useState("");
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const { pendingCount, failedEntries } = useSyncQueue();
   // Sales still queued or failed offline aren't on the server yet, so they're
   // not in this shift's expected cash. Warn before closing so the cut isn't
@@ -34,9 +35,14 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
   // trap the cashier from ever closing.
   const unsyncedCount = pendingCount + failedEntries.length;
 
+  // Explain that the actual cash count is required to close, instead of only
+  // greying the button.
+  const cashError = actualCash.trim() === "" ? copy.closeShiftModal.actualCashRequired : null;
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!actualCash) {
+    if (cashError) {
+      setSubmitAttempted(true);
       return;
     }
     onSubmit({
@@ -170,7 +176,14 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
               placeholder="0.00"
               disabled={pending}
               required
+              aria-invalid={submitAttempted && cashError ? true : undefined}
+              aria-describedby={submitAttempted && cashError ? "actual-cash-error" : undefined}
             />
+            {submitAttempted && cashError && (
+              <p id="actual-cash-error" role="alert" className="text-xs font-medium text-destructive">
+                {cashError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -178,7 +191,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
             {copy.closeShiftModal.cancel}
           </Button>
-          <Button type="submit" disabled={pending || !actualCash}>
+          <Button type="submit" disabled={pending}>
             {pending ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { apiErrorStatus } from "@/lib/apiError";
 import { listStock, listVelocity } from "../../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../../inventory/types";
 import { getBusinessStory, getSalesByHour } from "../api";
@@ -7,7 +8,7 @@ import type { BusinessStoryReport, SalesByHourRow } from "../types";
 import { addDays, daysBetweenInclusive, previousComparableRange } from "../utils/dateRange";
 
 export type ReportDataState = {
-  status: "loading" | "error" | "loaded";
+  status: "loading" | "error" | "subscription-inactive" | "loaded";
   story: BusinessStoryReport | null;
   /** Previous comparable period, or null when it failed / had no sales. */
   previousStory: BusinessStoryReport | null;
@@ -77,8 +78,14 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
         stock: stock ?? [],
         velocity: velocity ?? [],
       });
-    } catch {
-      setState((prev) => ({ ...prev, status: "error" }));
+    } catch (err) {
+      // A 402 on the primary story means the plan is inactive — a dead-end that
+      // retrying won't fix, so surface the "activate plan" state instead of the
+      // generic retry error.
+      setState((prev) => ({
+        ...prev,
+        status: apiErrorStatus(err) === 402 ? "subscription-inactive" : "error",
+      }));
     }
   }, [enabled, startDate, endDate]);
 

@@ -31,10 +31,17 @@ export function CashMovementModal({
   const [type, setType] = useState<"cash_in" | "cash_out">(initialType);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  // Explain which field blocks the submit instead of only greying the button.
+  const amountError = Number(amount) > 0 ? null : copy.cashMovementModal.amountRequired;
+  const reasonError = reason.trim() ? null : copy.cashMovementModal.reasonRequired;
+  const isValid = !amountError && !reasonError;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!amount || !reason) {
+    if (!isValid) {
+      setSubmitAttempted(true);
       return;
     }
     onSubmit({
@@ -43,8 +50,6 @@ export function CashMovementModal({
       reason,
     });
   };
-
-  const isValid = amount && reason;
 
   return (
     <Dialog open onClose={onCancel}>
@@ -94,7 +99,14 @@ export function CashMovementModal({
               placeholder="0.00"
               disabled={pending}
               required
+              aria-invalid={submitAttempted && amountError ? true : undefined}
+              aria-describedby={submitAttempted && amountError ? "movement-amount-error" : undefined}
             />
+            {submitAttempted && amountError && (
+              <p id="movement-amount-error" role="alert" className="text-xs font-medium text-destructive">
+                {amountError}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -107,7 +119,14 @@ export function CashMovementModal({
               placeholder={copy.cashMovementModal.reasonPlaceholder}
               disabled={pending}
               required
+              aria-invalid={submitAttempted && reasonError ? true : undefined}
+              aria-describedby={submitAttempted && reasonError ? "movement-reason-error" : undefined}
             />
+            {submitAttempted && reasonError && (
+              <p id="movement-reason-error" role="alert" className="text-xs font-medium text-destructive">
+                {reasonError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -115,7 +134,7 @@ export function CashMovementModal({
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
             {copy.cashMovementModal.cancel}
           </Button>
-          <Button type="submit" disabled={pending || !isValid}>
+          <Button type="submit" disabled={pending}>
             {pending ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

@@ -5,6 +5,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
 import { ArcKicker } from "@/components/ui/arc-kicker";
+import { SubscriptionInactivePanel } from "@/billing/SubscriptionInactivePanel";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
 import { ExecutiveSummary, QuickFacts } from "./components/ExecutiveSummary";
@@ -133,6 +134,7 @@ export default function ReportsView() {
 
       {data.status === "loading" ? <LoadingState /> : null}
       {data.status === "error" ? <ErrorState onRetry={data.reload} /> : null}
+      {data.status === "subscription-inactive" ? <SubscriptionInactivePanel /> : null}
 
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}
 

@@ -41,6 +41,15 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   const [verificationToken, setVerificationToken] = useState("");
   const [state, setState] = useState<ActionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>(copy.auth.operationError);
+  // Cooldown before the verification email can be resent, so a nervous user
+  // can't hammer the endpoint (and hit the rate limiter).
+  const [resendCountdown, setResendCountdown] = useState(0);
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const id = window.setTimeout(() => setResendCountdown((s) => s - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCountdown]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -69,6 +78,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       if (response.reason === "verification_resent") {
         setVerificationToken(response.dev_verification_token ?? "");
         setState("verification_resent");
+        setResendCountdown(30);
         return;
       }
       queueFunnelEvent("signup_completed", {
@@ -76,18 +86,45 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       });
       setVerificationToken(response.dev_verification_token ?? "");
       setState("created");
+      setResendCountdown(30);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401 || err.status === 403) {
           setErrorMessage(copy.auth.loginInvalidCredentials);
         } else if (err.status === 429) {
           setErrorMessage(copy.auth.loginRateLimited);
+        } else if (err.status === 422) {
+          // Malformed email (and other unprocessable input) — a clear "check the
+          // email" beats the generic "something went wrong".
+          setErrorMessage(copy.auth.signupInvalidEmail);
         } else {
           setErrorMessage(copy.auth.operationError);
         }
       } else {
         setErrorMessage(copy.auth.operationError);
       }
+      setState("error");
+    }
+  };
+
+  const resendVerification = async () => {
+    if (resendCountdown > 0 || mode !== "signup") return;
+    try {
+      const response = await signup({
+        email,
+        password,
+        tenant_name: tenantName,
+        accepted_terms: acceptedTerms,
+      });
+      setVerificationToken(response.dev_verification_token ?? "");
+      setState("verification_resent");
+      setResendCountdown(30);
+    } catch (err) {
+      setErrorMessage(
+        err instanceof ApiError && err.status === 429
+          ? copy.auth.loginRateLimited
+          : copy.auth.operationError,
+      );
       setState("error");
     }
   };
@@ -268,6 +305,17 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                     </Button>
                   </div>
                 )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => void resendVerification()}
+                  disabled={resendCountdown > 0}
+                  className="w-full text-sm"
+                >
+                  {resendCountdown > 0
+                    ? copy.auth.resendVerificationCountdown(resendCountdown)
+                    : copy.auth.resendVerification}
+                </Button>
               </div>
             )}
 
@@ -341,6 +389,17 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                     </Button>
                   </div>
                 )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => void resendVerification()}
+                  disabled={resendCountdown > 0}
+                  className="w-full text-sm"
+                >
+                  {resendCountdown > 0
+                    ? copy.auth.resendVerificationCountdown(resendCountdown)
+                    : copy.auth.resendVerification}
+                </Button>
               </div>
             )}
 

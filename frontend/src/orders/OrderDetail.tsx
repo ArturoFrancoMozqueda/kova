@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { apiErrorDetail, apiErrorStatus, resolveApiErrorMessage } from "@/lib/apiError";
+import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
@@ -38,6 +39,7 @@ export default function OrderDetail() {
   const canRefund = usePermission(ORDER_REFUND_PERMISSION);
   const canVoid = usePermission(ORDER_VOID_PERMISSION);
   const { toast } = useToast();
+  const handleBillingBlocked = useBillingBlocked();
 
   const load = useCallback(async () => {
     if (!orderId) {
@@ -73,6 +75,7 @@ export default function OrderDetail() {
       toast(copy.orderDetail.refundSuccess, "success");
       await load();
     } catch (err) {
+      if (handleBillingBlocked(err)) return;
       const detail = apiErrorDetail(err);
       const mapped =
         detail?.code === "REFUND_QTY_EXCEEDS_AVAILABLE"
@@ -93,6 +96,7 @@ export default function OrderDetail() {
       toast(copy.orderDetail.voidSuccess, "success");
       await load();
     } catch (err) {
+      if (handleBillingBlocked(err)) return;
       // 409 = the order already changed underneath us (e.g. voided in another
       // tab). Reconcile by reloading and telling the user, rather than showing a
       // generic error that leaves stale state on screen.

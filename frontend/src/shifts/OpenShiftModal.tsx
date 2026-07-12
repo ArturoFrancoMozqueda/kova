@@ -23,8 +23,13 @@ interface OpenShiftModalProps {
 export function OpenShiftModal({ pending, onSubmit, onCancel }: OpenShiftModalProps) {
   const [amount, setAmount] = useState("");
 
+  // Opening cash is optional, but if provided it can't be negative — say so
+  // inline rather than silently coercing or relying on the number input alone.
+  const amountError = amount.trim() !== "" && Number(amount) < 0 ? copy.openShiftModal.negativeAmount : null;
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (amountError) return;
     onSubmit({
       opening_cash_amount: amount || undefined,
     });
@@ -56,7 +61,14 @@ export function OpenShiftModal({ pending, onSubmit, onCancel }: OpenShiftModalPr
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               disabled={pending}
+              aria-invalid={amountError ? true : undefined}
+              aria-describedby={amountError ? "opening-cash-error" : undefined}
             />
+            {amountError && (
+              <p id="opening-cash-error" role="alert" className="text-xs font-medium text-destructive">
+                {amountError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -64,7 +76,7 @@ export function OpenShiftModal({ pending, onSubmit, onCancel }: OpenShiftModalPr
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
             {copy.openShiftModal.cancel}
           </Button>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || amountError !== null}>
             {pending ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
