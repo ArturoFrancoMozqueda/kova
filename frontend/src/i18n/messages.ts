@@ -607,6 +607,9 @@ export const copy = {
     verificationToken: "Token de verificación",
     verifyEmail: "Verificar correo",
     verified: "Correo verificado. Ya puedes iniciar sesión.",
+    resendVerification: "Reenviar correo de verificación",
+    resendVerificationCountdown: (seconds: number) => `Reenviar en ${seconds}s`,
+    signupInvalidEmail: "Revisa el correo: no parece una dirección válida.",
     operationError: "No pudimos completar la acción. Revisa tus datos e inténtalo de nuevo.",
     loginInvalidCredentials: "Correo o contraseña incorrectos.",
     loginRateLimited: "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
@@ -809,6 +812,7 @@ export const copy = {
     optional: "Puedes abrir el turno sin efectivo inicial.",
     submit: "Abrir turno",
     cancel: "Cancelar",
+    negativeAmount: "El efectivo inicial no puede ser negativo.",
   },
   closeShiftModal: {
     title: "Cerrar turno",
@@ -821,6 +825,7 @@ export const copy = {
     enterActualCash: "Efectivo real en caja",
     submit: "Cerrar turno",
     cancel: "Cancelar",
+    actualCashRequired: "Ingresa el efectivo real en caja para cerrar el turno.",
     pendingSalesTitle: "Tienes ventas sin sincronizar",
     pendingSalesWarning: (n: number) =>
       n === 1
@@ -837,6 +842,8 @@ export const copy = {
     reasonPlaceholder: "ej. depósito bancario, reembolso a cliente",
     submit: "Registrar",
     cancel: "Cancelar",
+    amountRequired: "Ingresa un monto mayor a 0.",
+    reasonRequired: "Indica el motivo del movimiento.",
   },
   onboarding: {
     presetTitle: "Empieza con un menú base",
@@ -927,6 +934,11 @@ export const copy = {
     reasonPlaceholder: "ej. conteo inicial, producto dañado",
     submit: "Guardar",
     cancel: "Cancelar",
+    amountRequired: "Ingresa una cantidad.",
+    wouldLeaveNegative: (resulting: number) =>
+      `Este ajuste dejaría el stock en ${resulting}. Reduce la cantidad a retirar.`,
+    negativeCount: "La cantidad contada no puede ser negativa.",
+    negativeThreshold: "El umbral no puede ser negativo.",
   },
   reportsView: {
     title: "Reportes",
@@ -1857,5 +1869,10 @@ export const copy = {
     endsTomorrow: "Termina mañana",
     expired: "Prueba terminada",
     tooltip: "Administrar plan",
+  },
+  subscriptionInactive: {
+    title: "Tu plan está inactivo",
+    body: "Activa tu plan para volver a usar esta sección: reportes, ventas, inventario y turnos.",
+    cta: "Activar plan",
   },
 };

@@ -10,6 +10,7 @@ import { formatMoney } from "../orders/format";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { CorteTemplate } from "./CorteTemplate";
 import { resolveApiErrorMessage } from "@/lib/apiError";
+import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { trackFunnelEvent } from "@/telemetry/funnel";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
@@ -77,6 +78,7 @@ export default function ShiftView() {
     state.status === "authenticated" ? state.tenantName : "",
   );
   const { toast } = useToast();
+  const handleBillingBlocked = useBillingBlocked();
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -113,6 +115,7 @@ export default function ShiftView() {
       toast(copy.shiftView.openSuccess, "success");
       await load();
     } catch (err) {
+      if (handleBillingBlocked(err)) return;
       toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
       setOperationPending(false);
@@ -130,6 +133,7 @@ export default function ShiftView() {
       toast(copy.shiftView.closeSuccess, "success");
       await load();
     } catch (err) {
+      if (handleBillingBlocked(err)) return;
       toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
       setOperationPending(false);
@@ -147,6 +151,7 @@ export default function ShiftView() {
       toast(copy.shiftView.movementSuccess, "success");
       await load();
     } catch (err) {
+      if (handleBillingBlocked(err)) return;
       toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
       setOperationPending(false);

@@ -18,6 +18,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { resolveApiErrorMessage } from "@/lib/apiError";
+import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search } from "lucide-react";
 
 type LoadState =
@@ -48,6 +49,7 @@ export default function InventoryView() {
   });
   const [stockSort, setStockSort] = useState<StockSort>("name_asc");
   const { toast } = useToast();
+  const handleBillingBlocked = useBillingBlocked();
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -113,6 +115,7 @@ export default function InventoryView() {
       setModal(null);
       await load();
     } catch (err) {
+      if (handleBillingBlocked(err)) return;
       toast(resolveApiErrorMessage(err, copy.inventoryView.operationError), "error");
     } finally {
       setPending(false);
@@ -481,9 +484,27 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
         ? copy.inventoryModal.countedQuantity
         : copy.inventoryModal.threshold;
 
+  // Explain *why* the action is blocked instead of only disabling the button:
+  // an empty/NaN amount, a stock-take/threshold that went negative, or an
+  // adjustment that would drive stock below zero.
+  const numeric = Number(amount);
+  const amountMissing = amount.trim() === "" || Number.isNaN(numeric);
+  let validationError: string | null = null;
+  if (amountMissing) {
+    validationError = copy.inventoryModal.amountRequired;
+  } else if (modal.type === "adjust") {
+    const resulting = modal.item.stock_on_hand + numeric;
+    if (resulting < 0) validationError = copy.inventoryModal.wouldLeaveNegative(resulting);
+  } else if (modal.type === "stockTake" && numeric < 0) {
+    validationError = copy.inventoryModal.negativeCount;
+  } else if (modal.type === "threshold" && numeric < 0) {
+    validationError = copy.inventoryModal.negativeThreshold;
+  }
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void onSubmit({ amount: Number(amount), reason: reason || "threshold_update" });
+    if (validationError) return;
+    void onSubmit({ amount: numeric, reason: reason || "threshold_update" });
   };
 
   return (
@@ -501,13 +522,20 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             inputMode="decimal"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
-            aria-describedby={modal.type === "threshold" ? "inv-amount-help" : undefined}
+            aria-invalid={validationError ? true : undefined}
+            aria-describedby={
+              validationError ? "inv-amount-error" : modal.type === "threshold" ? "inv-amount-help" : undefined
+            }
           />
-          {modal.type === "threshold" && (
+          {validationError ? (
+            <p id="inv-amount-error" role="alert" className="text-xs font-medium text-destructive">
+              {validationError}
+            </p>
+          ) : modal.type === "threshold" ? (
             <p id="inv-amount-help" className="text-xs text-muted-foreground">
               {copy.inventoryModal.thresholdHint}
             </p>
-          )}
+          ) : null}
         </div>
         {modal.type !== "threshold" && (
           <div className="space-y-2">
@@ -523,7 +551,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
         )}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>{copy.inventoryModal.cancel}</Button>
-          <Button type="submit" disabled={pending}>{copy.inventoryModal.submit}</Button>
+          <Button type="submit" disabled={pending || validationError !== null}>{copy.inventoryModal.submit}</Button>
         </DialogFooter>
       </form>
     </Dialog>
