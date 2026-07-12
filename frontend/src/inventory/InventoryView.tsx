@@ -1,17 +1,19 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
 import type { InventoryVelocityItem, MovementHistoryItem, StockItem } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -133,30 +135,30 @@ export default function InventoryView() {
   if (loadState.status === "error") {
     return (
       <main className="p-6 lg:p-8 max-w-6xl mx-auto">
-        <Card className="border-destructive/50">
-          <CardContent className="flex items-center gap-4 p-6">
-            <AlertCircle className="h-8 w-8 text-destructive" />
-            <p className="font-medium">{copy.inventoryView.loadError}</p>
-            <Button variant="outline" onClick={() => void load()} className="ml-auto">{copy.inventoryView.retry}</Button>
-          </CardContent>
-        </Card>
+        <ViewError
+          message={copy.inventoryView.loadError}
+          onRetry={() => void load()}
+          retryLabel={copy.inventoryView.retry}
+        />
       </main>
     );
   }
 
   return (
     <main className="p-6 lg:p-8 max-w-6xl mx-auto animate-fade-in">
-      <div className="flex items-start justify-between gap-3 mb-6 flex-wrap">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">{copy.inventoryView.title}</h1>
-          <p className="text-sm text-muted-foreground">{copy.inventoryView.trackedProducts(loadState.stock.length)}</p>
-        </div>
-        {loadState.lowStock.length > 0 && (
-          <Badge variant="warning" className="text-sm gap-1.5 py-1 px-3 shrink-0">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            {loadState.lowStock.length} {copy.inventoryView.lowStock}
-          </Badge>
-        )}
+      <div className="mb-6">
+        <ViewHeader
+          title={copy.inventoryView.title}
+          meta={copy.inventoryView.trackedProducts(loadState.stock.length)}
+          actions={
+            loadState.lowStock.length > 0 ? (
+              <Badge variant="warning" className="text-sm gap-1.5 py-1 px-3 shrink-0">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {loadState.lowStock.length} {copy.inventoryView.lowStock}
+              </Badge>
+            ) : undefined
+          }
+        />
       </div>
 
       {!canAdjust && (
@@ -204,9 +206,17 @@ export default function InventoryView() {
                   <div key={item.id} className="rounded-lg border bg-background p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold">{item.title}</p>
-                      <Badge variant={item.tone}>{item.tone === "secondary" ? copy.inventoryView.stockVelocity : copy.inventoryView.lowStock}</Badge>
+                      <Badge
+                        variant={item.tone}
+                        title={item.tone === "secondary" ? copy.inventoryView.velocityBasis : undefined}
+                      >
+                        {item.tone === "secondary" ? copy.inventoryView.stockVelocity : copy.inventoryView.lowStock}
+                      </Badge>
                     </div>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                    {item.tone === "secondary" && (
+                      <p className="mt-1 text-[11px] text-muted-foreground/70">{copy.inventoryView.velocityBasis}</p>
+                    )}
                     <p className="mt-2 text-xs font-medium text-kova-blue">
                       {copy.inventoryView.reorderSuggestion}
                     </p>
@@ -219,16 +229,12 @@ export default function InventoryView() {
 
       {/* Stock grid */}
       {loadState.stock.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center px-6 py-16 text-center">
-            <Package className="h-12 w-12 text-muted-foreground/30 mb-3" />
-            <p className="font-semibold">{copy.inventoryView.noStock}</p>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">{copy.inventoryView.noStockBody}</p>
-            <Link className={cn("mt-4", buttonVariants())} to="/catalog?inventory=activate">
-              {copy.inventoryView.activateInventory}
-            </Link>
-          </CardContent>
-        </Card>
+        <ViewEmpty
+          icon={<Package className="h-6 w-6" />}
+          title={copy.inventoryView.noStock}
+          body={copy.inventoryView.noStockBody}
+          primaryCta={{ label: copy.inventoryView.activateInventory, to: "/catalog?inventory=activate" }}
+        />
       ) : (
         <>
           <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_220px]">
@@ -349,7 +355,7 @@ function StockCard({
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div>

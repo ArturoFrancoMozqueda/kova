@@ -54,6 +54,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ViewError } from "@/components/ui/view-states";
 import { useToast } from "@/components/ui/toast";
 import {
   Plus,
@@ -65,8 +67,6 @@ import {
   ChevronDown,
   ChevronUp,
   Tag,
-  AlertCircle,
-  RefreshCw,
   Sparkles,
   Loader2,
   BarChart2,
@@ -254,18 +254,11 @@ export default function CatalogView() {
   if (loadState.status === "error") {
     return (
       <main className="flex-1 p-6">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="p-8 text-center space-y-4">
-            <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-              <AlertCircle className="h-6 w-6 text-destructive" />
-            </div>
-            <p className="text-sm text-muted-foreground" role="alert">{copy.catalog.loadError}</p>
-            <Button variant="outline" onClick={() => void load()}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {copy.catalog.retry}
-            </Button>
-          </CardContent>
-        </Card>
+        <ViewError
+          message={copy.catalog.loadError}
+          onRetry={() => void load()}
+          retryLabel={copy.catalog.retry}
+        />
       </main>
     );
   }
@@ -293,17 +286,7 @@ export default function CatalogView() {
   return (
     <main className="flex-1 p-6 space-y-6">
       {/* Page header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <Package className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{copy.catalog.title}</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{copy.catalog.setupIntro}</p>
-          </div>
-        </div>
-      </div>
+      <ViewHeader title={copy.catalog.title} meta={copy.catalog.setupIntro} />
 
       {/* Preset banner — shown only when catalog is empty and user can create */}
       {activeProducts.length === 0 && canCreate && (
