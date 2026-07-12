@@ -110,6 +110,23 @@ export function inviteEmployee(body: { email: string; role: "owner" | "manager" 
   });
 }
 
+/**
+ * Re-sends a pending invitation. The backend `POST /invitations` revokes the
+ * prior pending token for the email and issues + emails a fresh one, so a
+ * plain re-invite is the resend.
+ */
+export function resendInvitation(invitation: Invitation): Promise<Invitation> {
+  return inviteEmployee({ email: invitation.email, role: invitation.role });
+}
+
+export async function revokeInvitation(invitationId: string): Promise<void> {
+  const response = await fetch(`/api/v1/employees/invitations/${invitationId}`, {
+    method: "DELETE",
+    headers: { ...csrfHeaders("DELETE") },
+  });
+  if (!response.ok) throw new ApiError(await response.text(), response.status);
+}
+
 export function updateEmployeeRole(
   membershipId: string,
   role: "owner" | "manager" | "cashier",

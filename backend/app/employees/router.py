@@ -60,6 +60,23 @@ def invite_employee(
     )
 
 
+@router.delete("/invitations/{invitation_id}", status_code=204)
+def revoke_invitation(
+    invitation_id: UUID,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_permission(Permission.USERS_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    service.revoke_invitation(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        invitation_id=invitation_id,
+    )
+
+
 @router.get("/invitations/preview", response_model=InvitationPreview)
 def preview_invitation(
     token: str = Query(..., min_length=1),

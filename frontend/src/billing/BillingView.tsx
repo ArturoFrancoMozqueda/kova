@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewHeader } from "@/components/ui/view-header";
 import { useToast } from "@/components/ui/toast";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
 import { trackFunnelEvent, trackFunnelEventOnce } from "@/telemetry/funnel";
@@ -199,7 +200,9 @@ export default function BillingView() {
   if (!canViewBilling) {
     return (
       <main className="p-6 lg:p-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold tracking-tight mb-4">{copy.billingView.title}</h1>
+        <div className="mb-4">
+          <ViewHeader title={copy.billingView.title} />
+        </div>
         <Card>
           <CardContent className="flex items-center gap-3 p-6">
             <AlertCircle className="h-5 w-5 text-muted-foreground" />
@@ -213,8 +216,7 @@ export default function BillingView() {
   return (
     <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">{copy.billingView.title}</h1>
-        <p className="text-sm text-muted-foreground">{copy.billingView.subtitle}</p>
+        <ViewHeader title={copy.billingView.title} meta={copy.billingView.subtitle} />
       </div>
 
       {loadState.status === "loading" && (

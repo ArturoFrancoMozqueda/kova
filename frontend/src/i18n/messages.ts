@@ -548,6 +548,17 @@ export const copy = {
     inactive: "Acceso desactivado",
     deactivate: "Desactivar",
     pendingInvites: "Invitaciones pendientes",
+    inviteStatusPending: "Pendiente",
+    inviteStatusRevoked: "Revocada",
+    inviteStatusAccepted: "Aceptada",
+    inviteStatusExpired: "Expirada",
+    resendInvite: "Reenviar",
+    resendInviteSuccess: "Invitación reenviada. Le llegará un correo con un enlace nuevo.",
+    revokeInvite: "Revocar",
+    revokeInviteConfirmTitle: "¿Revocar la invitación?",
+    revokeInviteConfirmBody: (email: string) =>
+      `El enlace de ${email} dejará de funcionar. Podrás volver a invitarlo cuando quieras.`,
+    revokeInviteConfirmAction: "Revocar invitación",
     loadError: "No se pudo cargar la configuración.",
     deactivateConfirmTitle: "¿Desactivar acceso?",
     deactivateConfirmBody: (email: string) =>
