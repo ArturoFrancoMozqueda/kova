@@ -117,9 +117,12 @@ export default function IntroAnimation({
         <div className={styles.textBlock}>
           {showWordmark ? (
             <>
-              <h1 className={styles.wordmark} data-anim>
+              {/* Decorative brand wordmark, not a document heading — the page's
+                  real <h1> is the hero title. Kept as a div so the landing has a
+                  single H1 (SEO) without changing the visual. */}
+              <div className={styles.wordmark} data-anim>
                 kova<span className={styles.wordmarkDot}>.</span>
-              </h1>
+              </div>
               <p className={styles.tagline} data-anim>
                 Tu negocio, en flujo constante.
               </p>
