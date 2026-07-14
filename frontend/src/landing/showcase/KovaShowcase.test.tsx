@@ -64,6 +64,37 @@ describe("KovaShowcase", () => {
     expect(container.querySelector(".ksw-cursor")).toBeNull();
   });
 
+  it("wraps every preview scene in the real app-shell replica", () => {
+    stubReducedMotion();
+    const { container } = renderShowcase();
+
+    // Una réplica por escena de preview (la CTA no lleva frame), cada una con
+    // el nav completo del rol owner en el orden del AppShell real.
+    const frames = container.querySelectorAll(".ksw-app");
+    expect(frames).toHaveLength(4);
+    const firstNavLabels = Array.from(
+      frames[0].querySelectorAll(".ksw-app-nav-item"),
+    ).map((el) => el.textContent);
+    expect(firstNavLabels).toEqual([
+      "Panel",
+      "Caja",
+      "Catálogo",
+      "Órdenes",
+      "Inventario",
+      "Turnos",
+      "Reportes",
+      "Configuración",
+      "Facturación",
+    ]);
+
+    // El item activo del sidebar sigue a la escena: POS → Caja,
+    // inventario → Inventario, caja → Turnos, reportes → Reportes.
+    const activeByFrame = Array.from(frames).map(
+      (frame) => frame.querySelector('.ksw-app-nav-item[data-active="true"]')?.textContent,
+    );
+    expect(activeByFrame).toEqual(["Caja", "Inventario", "Turnos", "Reportes"]);
+  });
+
   it("advances scenes every 6s and loops back after five", () => {
     vi.useFakeTimers();
     const { container } = renderShowcase();
