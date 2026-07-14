@@ -2,20 +2,27 @@
 // KovaShowcase — cinematic product showcase ("marketing video") component.
 //
 // Renders the real Kova product previews (the no-auth "$186 Sweet Home" demo
-// UI) inside a CSS laptop/browser mockup on a dark branded backdrop with a
-// large faint `kova` wordmark, auto-playing through a deterministic story:
+// UI, live React components — not screenshots) inside a CSS laptop/browser
+// mockup on a dark branded backdrop, auto-playing through a story:
 //
-//   POS  →  Inventario  →  Caja  →  Reportes  →  Final CTA
+//   POS (con cursor que cobra)  →  Inventario  →  Caja  →  Reportes  →  CTA
+//
+// A tiny JS director (useShowcaseDirector: fixed 6s setInterval + key-remount
+// of the active scene) drives WHICH scene is on; all motion is CSS: layer
+// crossfades via [data-active], a roaming accent glow + subtle laptop tilt via
+// [data-scene] on the stage, and the previews' own entry animations
+// (count-ups, pops, growing bars) re-fire on each remount.
 //
 // Two surfaces use it:
-//   • Embedded on the landing (`variant="embedded"`, landscape) — loops, and
-//     respects prefers-reduced-motion (renders a single static frame).
+//   • Embedded on the landing (`variant="embedded"`, landscape) — plays only
+//     in-viewport and respects prefers-reduced-motion (static first frame).
 //   • Standalone export route /kova-showcase-video (`variant="standalone"`) —
 //     always animates so it can be screen-recorded for social video.
 //
 // ── HOW TO RECORD / EXPORT A VIDEO ─────────────────────────────────────────
-// The animation is a single, fully deterministic CSS keyframe timeline (no JS
-// timers, no Math.random) so every capture is frame-identical.
+// The loop is deterministic per cycle: a fixed 6000ms interval, five scenes,
+// 30s total, every in-scene animation has fixed duration/delay/easing — each
+// 30s pass is visually identical (there are JS timers now, but no randomness).
 //
 //   1. Run the app:  `npm run dev`  (inside /frontend).
 //   2. Open the standalone route at the exact social size you want:
@@ -24,68 +31,65 @@
 //        • Landscape 1600×1200 →  /kova-showcase-video?format=landscape
 //      The route locks the page to those pixel dimensions (see
 //      routes/KovaShowcaseVideo.tsx) so the stage fills the frame exactly.
-//   3. Make sure the OS "reduce motion" accessibility setting is OFF, then set
-//      the browser viewport to the same size (DevTools device toolbar, or just
-//      maximize at that resolution) and zoom to 100%.
-//   4. Record one full loop. ONE LOOP = `SEQUENCE_SECONDS` (see below) — five
-//      6s sections = 30s total. Capture with OBS, the browser's built-in
-//      recorder, QuickTime, or headless Puppeteer `page.screencast({...})`.
-//   5. For a perfectly seamless GIF/MP4 loop, trim to exactly 30.0s — the last
-//      section cross-fades back into the first at the loop boundary.
-//
-// Tip (Puppeteer): set viewport {width:1080,height:1350,deviceScaleFactor:2},
-// goto the route, wait 500ms for fonts, then screencast for 30s.
+//   3. Make sure the OS "reduce motion" accessibility setting is OFF (the
+//      previews' internal micro-animations honor it and would freeze), set the
+//      browser viewport to the same size and zoom to 100%.
+//   4. Record one full loop = `SEQUENCE_SECONDS` (five 6s scenes = 30s). Start
+//      the capture on a scene-1 entry (POS cursor coming in) for a clean trim.
+//   5. For a perfectly seamless GIF/MP4 loop, trim to exactly 30.0s.
 // ─────────────────────────────────────────────────────────────────────────
+import { useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LogoMark } from "@/components/brand/Logo";
 import { copy } from "@/i18n/messages";
+import CashRegisterPreview from "@/landing/previews/CashRegisterPreview";
+import InventoryStatePreview from "@/landing/previews/InventoryStatePreview";
+import ReportsPreview from "@/landing/previews/ReportsPreview";
+import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
+import ShowcaseCursor from "@/landing/showcase/ShowcaseCursor";
+import { useInView, useShowcaseDirector } from "@/landing/showcase/useShowcaseDirector";
 
 const sc = copy.landing.showcase;
 const steps = copy.landing.story.steps;
 
-// One section per 6s slot; five slots → a 30s seamless loop. Keep this in sync
-// with the `animation-delay` values + `ksw-seq` keyframe percentages below.
+// One scene per 6s slot; five slots → a 30s loop. SEQUENCE_SECONDS is the
+// recording unit for the standalone route.
+const SCENE_MS = 6000;
 const SEQUENCE_SECONDS = 30;
 
-// Story beats. The four product screens are REAL snapshots captured from a live
-// Kova tenant (see scripts/capture-showcase.mjs → public/showcase/<id>.png).
-// Captions reuse the landing story copy; the climax is the Panel (Dashboard).
-type ImageSection = { id: string; kind: "image"; caption: { title: string; callout: string } };
-type CtaSection = { id: "cta"; kind: "cta"; caption: null };
-type Section = ImageSection | CtaSection;
+// The POS scene's choreography: the fake cursor "clicks" the oat-cookie tile
+// at POS_CLICK_MS (wired into the preview via entryDelayMs → the cookie pops
+// into the ticket and the total counts $130→$186 right under the click), then
+// travels to Cobrar, whose pulse fires at POS_CLICK_MS + POS_CHARGE_OFFSET_MS
+// (wired via --lp-pulse-offset). Keep in sync with the ksw-cursor-* keyframes.
+const POS_CLICK_MS = 2000;
+const POS_CHARGE_OFFSET_MS = 1520;
 
-const SECTIONS: Section[] = [
-  { id: "pos", kind: "image", caption: steps[0] }, // /register — cobras
-  { id: "caja", kind: "image", caption: steps[2] }, // /shifts — la caja cuadra
-  { id: "reportes", kind: "image", caption: sc.reportesCaption }, // /reports
-  { id: "panel", kind: "image", caption: steps[3] }, // /dashboard — climax
-  { id: "cta", kind: "cta", caption: null },
+// Story beats: the four live product previews, then the CTA. `render` gets
+// `animate` — true only for the ACTIVE scene while the director is playing, so
+// inactive layers show their static final state (what a crossfade-out should
+// look like) and only one scene runs rAF count-ups at a time.
+type PreviewScene = {
+  id: "pos" | "inventory" | "cash" | "reports";
+  caption: { title: string; callout: string };
+  render: (animate: boolean) => ReactNode;
+};
+type CtaScene = { id: "cta"; caption: null; render?: undefined };
+type Scene = PreviewScene | CtaScene;
+
+const SCENES: Scene[] = [
+  {
+    id: "pos",
+    caption: steps[0],
+    render: (animate) => (
+      <SweetHomePOSPreview interactive={false} animateEntry={animate} entryDelayMs={POS_CLICK_MS} />
+    ),
+  },
+  { id: "inventory", caption: steps[1], render: (animate) => <InventoryStatePreview animate={animate} /> },
+  { id: "cash", caption: steps[2], render: (animate) => <CashRegisterPreview animate={animate} /> },
+  { id: "reports", caption: steps[3], render: (animate) => <ReportsPreview animate={animate} /> },
+  { id: "cta", caption: null },
 ];
-
-// Real screenshot for a story beat. The branded fallback sits behind the image
-// so a not-yet-captured screen shows a clean Kova placeholder, never a broken
-// image. The PNG fills the screen exactly (captures are 16/10, like the viewport).
-function ScreenShot({ id }: { id: string }) {
-  return (
-    <div className="ksw-shot">
-      <div className="ksw-shot-fallback">
-        <LogoMark size={40} coreColor="var(--accent)" circuitColor="var(--page-fg)" />
-        <span>{sc.fallback}</span>
-      </div>
-      <img
-        className="ksw-shot-img"
-        src={`/showcase/${id}.png`}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        onError={(e) => {
-          // Reveal the branded fallback if the capture hasn't been run yet.
-          e.currentTarget.style.visibility = "hidden";
-        }}
-      />
-    </div>
-  );
-}
 
 export type KovaShowcaseProps = {
   format: "landscape" | "portrait";
@@ -94,19 +98,37 @@ export type KovaShowcaseProps = {
 
 export default function KovaShowcase({ format, variant = "embedded" }: KovaShowcaseProps) {
   const ctaTarget = "/signup";
+  const standalone = variant === "standalone";
+  const stageRef = useRef<HTMLDivElement>(null);
+  // Embedded: play only while the stage is on screen. Standalone: always.
+  const inView = useInView(stageRef, { threshold: 0.35, disabled: standalone });
+  const { scene, cycle, playing } = useShowcaseDirector({
+    sceneCount: SCENES.length,
+    sceneMs: SCENE_MS,
+    inView,
+    forceMotion: standalone,
+  });
 
   const stage = (
-    <div className="ksw-stage" data-format={format} data-variant={variant} aria-hidden="true">
+    <div
+      className="ksw-stage"
+      ref={stageRef}
+      data-format={format}
+      data-variant={variant}
+      data-scene={scene}
+      aria-hidden="true"
+    >
       <style dangerouslySetInnerHTML={{ __html: SHOWCASE_STYLES }} />
 
-      {/* Branded backdrop + giant faint wordmark behind the laptop */}
+      {/* Branded backdrop + roaming accent glow + giant faint wordmark */}
       <div className="ksw-bg" />
+      <div className="ksw-glow" />
       <div className="ksw-wordmark">kova</div>
 
-      {/* Per-section captions, cross-fading in sync with the screen below */}
+      {/* Per-scene captions, cross-fading in sync with the screen below */}
       <div className="ksw-captions">
-        {SECTIONS.map((s) => (
-          <div className="ksw-layer ksw-caption" key={s.id}>
+        {SCENES.map((s, i) => (
+          <div className="ksw-layer ksw-caption" data-active={scene === i ? "true" : "false"} key={s.id}>
             {s.caption ? (
               <>
                 <span className="ksw-caption-title">{s.caption.title}</span>
@@ -117,48 +139,78 @@ export default function KovaShowcase({ format, variant = "embedded" }: KovaShowc
         ))}
       </div>
 
-      {/* Laptop / browser mockup */}
+      {/* Laptop / browser mockup. Float (outer) and per-scene tilt (inner)
+          live on separate elements so their transforms don't fight. */}
       <div className="ksw-laptop">
-        <div className="ksw-lid">
-          <div className="ksw-screen">
-            <div className="ksw-browser">
-              <span className="ksw-dots">
-                <i /><i /><i />
-              </span>
-              <span className="ksw-urlpill">
-                <LogoMark size={12} coreColor="var(--accent)" circuitColor="currentColor" />
-                {sc.urlBar}
-              </span>
-              <span className="ksw-browser-spacer" />
-            </div>
-            <div className="ksw-viewport">
-              {SECTIONS.map((s) =>
-                s.kind === "cta" ? (
-                  <div className="ksw-layer ksw-screen-layer ksw-center" key={s.id}>
-                    <div className="ksw-cta">
-                      <LogoMark size={44} coreColor="var(--accent)" circuitColor="var(--page-fg)" />
-                      <h3 className="ksw-cta-title">{sc.ctaTitle}</h3>
-                      <p className="ksw-cta-line">{sc.ctaLine}</p>
-                      <Link to={ctaTarget} className="ksw-cta-btn">
-                        {sc.ctaButton}
-                      </Link>
+        <div className="ksw-laptop-tilt">
+          <div className="ksw-lid">
+            <div className="ksw-screen">
+              <div className="ksw-browser">
+                <span className="ksw-dots">
+                  <i /><i /><i />
+                </span>
+                <span className="ksw-urlpill">
+                  <LogoMark size={12} coreColor="var(--accent)" circuitColor="currentColor" />
+                  {sc.urlBar}
+                </span>
+                <span className="ksw-browser-spacer" />
+              </div>
+              <div className="ksw-viewport">
+                {SCENES.map((s, i) => {
+                  const active = scene === i;
+                  const animate = active && playing;
+                  if (s.id === "cta") {
+                    // Always mounted and always in the SSR HTML: the prerender
+                    // asserts "Deja de adivinar" on "/" (scripts/prerender.mjs).
+                    return (
+                      <div className="ksw-layer ksw-screen-layer ksw-center" data-active={active ? "true" : "false"} key={s.id}>
+                        <div className="ksw-cta" data-lp-anim={animate ? "on" : "off"} key={animate ? `cta-${cycle}` : "cta"}>
+                          <span className="lp-story-fade" style={{ ["--lp-fade-delay" as string]: "80ms" }}>
+                            <LogoMark size={44} coreColor="var(--accent)" circuitColor="var(--page-fg)" />
+                          </span>
+                          <h3 className="ksw-cta-title lp-story-fade" style={{ ["--lp-fade-delay" as string]: "220ms" }}>
+                            {sc.ctaTitle}
+                          </h3>
+                          <p className="ksw-cta-line lp-story-fade" style={{ ["--lp-fade-delay" as string]: "380ms" }}>
+                            {sc.ctaLine}
+                          </p>
+                          <Link to={ctaTarget} className="ksw-cta-btn lp-story-fade" style={{ ["--lp-fade-delay" as string]: "540ms" }}>
+                            {sc.ctaButton}
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="ksw-layer ksw-screen-layer" data-active={active ? "true" : "false"} key={s.id}>
+                      {/* Remount per cycle re-fires the preview's entry
+                          animations; the inactive key renders the static
+                          final state (identical pixels, no rAF). */}
+                      <div
+                        className="ksw-screen-fit"
+                        key={animate ? `${s.id}-${cycle}` : s.id}
+                        style={
+                          s.id === "pos"
+                            ? { ["--lp-pulse-offset" as string]: `${POS_CHARGE_OFFSET_MS}ms` }
+                            : undefined
+                        }
+                      >
+                        {s.render(animate)}
+                        {s.id === "pos" && animate ? <ShowcaseCursor /> : null}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="ksw-layer ksw-screen-layer ksw-shot-layer" key={s.id}>
-                    <ScreenShot id={s.id} />
-                  </div>
-                ),
-              )}
+                  );
+                })}
+              </div>
             </div>
           </div>
+          <div className="ksw-base" />
         </div>
-        <div className="ksw-base" />
       </div>
     </div>
   );
 
-  if (variant === "standalone") {
+  if (standalone) {
     // The route wraps this in `.lp-root` + dark themeVars + LandingStyleTag and
     // sizes the page, so here we only emit the stage (it fills the frame).
     return stage;
@@ -181,10 +233,10 @@ export default function KovaShowcase({ format, variant = "embedded" }: KovaShowc
    Self-contained, prefixed `ksw-`. Relies on the page-level landing vars
    (--page-bg / --accent / --card-bg …) provided by the surrounding `.lp-root`.
 
-   DETERMINISTIC TIMELINE: every `.ksw-layer` shares ONE keyframe (`ksw-seq`,
-   30s, infinite) and is offset by a positive `animation-delay` of i×6s via
-   :nth-child. The keyframe lights a layer for its 6s slot then hides it, so the
-   five sections fade through in order and loop seamlessly. No JS, no randomness.
+   MOTION MODEL: the JS director flips [data-active] per layer and [data-scene]
+   on the stage; everything visual is CSS transitions/keyframes reacting to
+   those attributes (crossfades, glow travel, laptop tilt, cursor path), so
+   motion stays GPU-composited and deterministic per loop.
    ─────────────────────────────────────────────────────────────────────────── */
 const SHOWCASE_STYLES = `
   .ksw-stage {
@@ -218,8 +270,11 @@ const SHOWCASE_STYLES = `
   }
   .ksw-stage[data-variant="embedded"][data-format="landscape"] { aspect-ratio: 16 / 10; }
   .ksw-stage[data-variant="embedded"][data-format="portrait"] { aspect-ratio: 4 / 5; }
-  /* Standalone export route: fill the exact pixel frame set by the route. */
+  /* Standalone export route: fill the exact pixel frame set by the route. The
+     screen layers center vertically ahí — el viewport 16/10 es más alto que el
+     preview y el hueco repartido se ve mejor en cámara que un void abajo. */
   .ksw-stage[data-variant="standalone"] { height: 100%; min-height: 100%; }
+  .ksw-stage[data-variant="standalone"] .ksw-screen-layer { align-items: center; }
 
   /* Branded backdrop: deep ink + soft accent glow top-left, vignette edges. */
   .ksw-bg {
@@ -227,10 +282,33 @@ const SHOWCASE_STYLES = `
     inset: 0;
     z-index: 0;
     background:
-      radial-gradient(120% 90% at 18% 8%, rgba(123,167,255,0.22), transparent 55%),
-      radial-gradient(120% 120% at 85% 110%, rgba(30,191,138,0.12), transparent 55%),
+      radial-gradient(120% 90% at 18% 8%, rgba(123,167,255,0.14), transparent 55%),
+      radial-gradient(120% 120% at 85% 110%, rgba(30,191,138,0.10), transparent 55%),
       linear-gradient(180deg, #11131b 0%, #0B0D13 100%);
   }
+
+  /* Roaming accent glow: one blurred blob that drifts + recolors per scene.
+     transform/opacity only → composited; the 1400ms travel reads as the
+     "camera light" following the story. */
+  .ksw-glow {
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    top: 45%;
+    width: 56%;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    filter: blur(90px);
+    opacity: 0.4;
+    pointer-events: none;
+    background: rgba(74, 111, 255, 0.42);
+    transform: translate(-95%, -80%);
+    transition: transform 1400ms var(--kova-ease-entrance), background-color 1400ms linear;
+  }
+  .ksw-stage[data-scene="1"] .ksw-glow { background: rgba(30, 191, 138, 0.36); transform: translate(-8%, -85%); }
+  .ksw-stage[data-scene="2"] .ksw-glow { background: rgba(30, 191, 138, 0.32); transform: translate(-92%, -18%); }
+  .ksw-stage[data-scene="3"] .ksw-glow { background: rgba(123, 167, 255, 0.4); transform: translate(-10%, -15%); }
+  .ksw-stage[data-scene="4"] .ksw-glow { background: rgba(74, 111, 255, 0.48); transform: translate(-50%, -55%) scale(1.18); }
 
   /* Giant faint wordmark behind the laptop. */
   .ksw-wordmark {
@@ -302,13 +380,24 @@ const SHOWCASE_STYLES = `
     z-index: 2;
     width: 72%;
     max-width: 1180px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     animation: ksw-float 9s ease-in-out infinite;
     filter: drop-shadow(0 40px 80px rgba(0,0,0,0.55));
   }
   .ksw-stage[data-format="portrait"] .ksw-laptop { width: 88%; }
+
+  /* Per-scene tilt: separate element so the float keyframe (translate) and the
+     tilt transform (perspective/rotate) compose instead of overwriting. */
+  .ksw-laptop-tilt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 1200ms var(--kova-ease-entrance);
+    transform: perspective(1400px) rotateX(1.1deg) rotateY(-1.3deg);
+  }
+  .ksw-stage[data-scene="1"] .ksw-laptop-tilt { transform: perspective(1400px) rotateX(0.5deg) rotateY(1.2deg); }
+  .ksw-stage[data-scene="2"] .ksw-laptop-tilt { transform: perspective(1400px) rotateX(-0.6deg) rotateY(-1deg); }
+  .ksw-stage[data-scene="3"] .ksw-laptop-tilt { transform: perspective(1400px) rotateX(1deg) rotateY(1.3deg) scale(1.01); }
+  .ksw-stage[data-scene="4"] .ksw-laptop-tilt { transform: perspective(1400px) scale(1.02); }
 
   .ksw-lid {
     width: 100%;
@@ -380,50 +469,28 @@ const SHOWCASE_STYLES = `
   .ksw-viewport {
     position: relative;
     width: 100%;
-    /* Captures are 1440×900 (16/10) — match in BOTH formats so the real
-       screenshots fill the screen edge-to-edge with no letterboxing. */
     aspect-ratio: 16 / 10;
     overflow: hidden;
   }
+  .ksw-stage[data-format="portrait"] .ksw-viewport { aspect-ratio: 4 / 3.1; }
   .ksw-screen-layer {
     display: flex;
-    align-items: center;
+    /* Top-align data screens so short previews (reports/caja) sit under the
+       browser chrome like a real app, instead of floating dead-centre. */
+    align-items: flex-start;
     justify-content: center;
+    padding: clamp(16px, 3vmin, 40px);
     overflow: hidden;
   }
   .ksw-screen-layer.ksw-center { align-items: center; } /* CTA screen */
-
-  /* Real product screenshot — fills the whole screen (capture already includes
-     the app's sidebar/chrome). */
-  .ksw-shot-layer { padding: 0; }
-  .ksw-shot { position: relative; width: 100%; height: 100%; }
-  .ksw-shot-img {
-    position: relative;
-    z-index: 1;
+  .ksw-screen-fit {
+    position: relative; /* ancla del cursor decorativo */
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top center;
-    display: block;
-  }
-  /* Branded placeholder shown until scripts/capture-showcase.mjs is run. */
-  .ksw-shot-fallback {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    background: var(--card-bg);
-    color: var(--text-muted);
-    font-size: clamp(12px, 1.6vmin, 16px);
-    font-weight: 500;
-    letter-spacing: 0.02em;
+    max-width: 620px;
+    max-height: 100%;
   }
 
-  /* CTA screen (last section). */
+  /* CTA screen (last scene). */
   .ksw-cta {
     display: flex;
     flex-direction: column;
@@ -460,32 +527,83 @@ const SHOWCASE_STYLES = `
     text-decoration: none;
   }
 
-  /* ── The deterministic layer timeline ──────────────────────────────────── */
+  /* ── Layer crossfade (director-driven) ─────────────────────────────────── */
   .ksw-layer {
     position: absolute;
     inset: 0;
     opacity: 0;
-    animation: ksw-seq ${SEQUENCE_SECONDS}s linear infinite both;
-    will-change: opacity, transform;
+    transform: translateY(14px) scale(0.985);
+    transition: opacity 620ms var(--kova-ease-entrance), transform 720ms var(--kova-ease-entrance);
+    pointer-events: none;
+  }
+  .ksw-layer[data-active="true"] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
   }
   /* Captions are flex-centered; keep that while stacked. */
   .ksw-caption.ksw-layer { display: flex; }
-  .ksw-layer:nth-child(1) { animation-delay: 0s; }
-  .ksw-layer:nth-child(2) { animation-delay: 6s; }
-  .ksw-layer:nth-child(3) { animation-delay: 12s; }
-  .ksw-layer:nth-child(4) { animation-delay: 18s; }
-  .ksw-layer:nth-child(5) { animation-delay: 24s; }
 
-  @keyframes ksw-seq {
-    0%   { opacity: 0; transform: translateY(14px) scale(0.985); }
-    2.5% { opacity: 1; transform: translateY(0) scale(1); }
-    17%  { opacity: 1; transform: translateY(0) scale(1); }
-    20%  { opacity: 0; transform: translateY(-10px) scale(0.99); }
-    100% { opacity: 0; transform: translateY(14px) scale(0.985); }
-  }
   @keyframes ksw-float {
     0%, 100% { transform: translateY(0); }
     50%      { transform: translateY(-10px); }
+  }
+
+  /* ── Cursor falso de la escena POS ─────────────────────────────────────────
+     5600ms, both: entra abajo-derecha, click en la galleta al ~36% (≈2016ms —
+     sincronizado con POS_CLICK_MS/--lp-entry-delay del preview), viaja a
+     Cobrar y hace un segundo click al ~63% (≈3530ms — --lp-pulse-offset),
+     luego se desvanece. Coordenadas en % del .ksw-screen-fit; son estéticas y
+     acopladas a la geometría del mini-POS (grid 4 col + ticket 250px) — si esa
+     retícula cambia, recalibrar aquí. */
+  .ksw-cursor {
+    position: absolute;
+    z-index: 5;
+    left: 0;
+    top: 0;
+    width: 26px;
+    height: 26px;
+    pointer-events: none;
+    animation: ksw-cursor-path 5600ms cubic-bezier(0.5, 0.06, 0.18, 1) both;
+  }
+  .ksw-cursor-pointer {
+    display: block;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.45));
+    animation: ksw-cursor-click 5600ms linear both;
+  }
+  .ksw-cursor-ring {
+    position: absolute;
+    inset: -7px;
+    border-radius: 999px;
+    border: 2px solid var(--kova-blue-light);
+    opacity: 0;
+    animation: ksw-cursor-ping 5600ms linear both;
+  }
+  @keyframes ksw-cursor-path {
+    0%   { left: 94%; top: 108%; opacity: 0; }
+    7%   { opacity: 1; }
+    30%  { left: 22%; top: 59%; }   /* llega al tile de la galleta */
+    40%  { left: 22%; top: 59%; }   /* pausa para el click */
+    60%  { left: 79%; top: 86%; }   /* viaja al botón Cobrar */
+    72%  { left: 79%; top: 86%; opacity: 1; }
+    86%  { left: 82%; top: 96%; opacity: 0; }
+    100% { left: 82%; top: 96%; opacity: 0; }
+  }
+  @keyframes ksw-cursor-click {
+    0%, 34%  { transform: scale(1); }
+    36%      { transform: scale(0.8); }
+    40%      { transform: scale(1); }
+    61%      { transform: scale(1); }
+    63%      { transform: scale(0.8); }
+    67%, 100% { transform: scale(1); }
+  }
+  @keyframes ksw-cursor-ping {
+    0%, 35%  { opacity: 0; transform: scale(0.45); }
+    38%      { opacity: 0.85; transform: scale(0.7); }
+    48%      { opacity: 0; transform: scale(1.5); }
+    62%      { opacity: 0; transform: scale(0.45); }
+    65%      { opacity: 0.85; transform: scale(0.7); }
+    75%, 100% { opacity: 0; transform: scale(1.5); }
   }
 
   @media (max-width: 1100px) {
@@ -527,6 +645,9 @@ const SHOWCASE_STYLES = `
     .ksw-stage[data-variant="embedded"] .ksw-wordmark {
       top: 60%;
     }
+    /* Sin cursor en pantallas táctiles/estrechas: la metáfora de mouse no
+       aplica y el POS recortado invalida sus coordenadas. */
+    .ksw-cursor { display: none; }
   }
 
   @media (max-width: 640px) {
@@ -618,23 +739,36 @@ const SHOWCASE_STYLES = `
     }
   }
 
-  /* Embedded: honor reduced motion — freeze on the first section. */
+  /* Embedded + reduced motion: el director nunca arranca (queda la escena 1
+     estática vía data-active) y la regla global de .lp-root ya anula las
+     transiciones; aquí solo se congela el float y se oculta el cursor. */
   @media (prefers-reduced-motion: reduce) {
-    .ksw-stage[data-variant="embedded"] .ksw-layer { animation: none !important; opacity: 0 !important; }
-    .ksw-stage[data-variant="embedded"] .ksw-layer:nth-child(1) { opacity: 1 !important; transform: none !important; }
     .ksw-stage[data-variant="embedded"] .ksw-laptop { animation: none !important; }
+    .ksw-stage[data-variant="embedded"] .ksw-cursor { display: none !important; }
   }
   /* Standalone export must ALWAYS animate — override the app-wide reduced-motion
      reset in styles.css (higher specificity than its star rule, so this wins). */
   .ksw-stage[data-variant="standalone"] .ksw-layer {
-    animation: ksw-seq ${SEQUENCE_SECONDS}s linear infinite both !important;
+    transition: opacity 620ms var(--kova-ease-entrance), transform 720ms var(--kova-ease-entrance) !important;
   }
-  .ksw-stage[data-variant="standalone"] .ksw-layer:nth-child(1) { animation-delay: 0s !important; }
-  .ksw-stage[data-variant="standalone"] .ksw-layer:nth-child(2) { animation-delay: 6s !important; }
-  .ksw-stage[data-variant="standalone"] .ksw-layer:nth-child(3) { animation-delay: 12s !important; }
-  .ksw-stage[data-variant="standalone"] .ksw-layer:nth-child(4) { animation-delay: 18s !important; }
-  .ksw-stage[data-variant="standalone"] .ksw-layer:nth-child(5) { animation-delay: 24s !important; }
+  .ksw-stage[data-variant="standalone"] .ksw-glow {
+    transition: transform 1400ms var(--kova-ease-entrance), background-color 1400ms linear !important;
+  }
+  .ksw-stage[data-variant="standalone"] .ksw-laptop-tilt {
+    transition: transform 1200ms var(--kova-ease-entrance) !important;
+  }
   .ksw-stage[data-variant="standalone"] .ksw-laptop {
     animation: ksw-float 9s ease-in-out infinite !important;
   }
+  .ksw-stage[data-variant="standalone"] .ksw-cursor {
+    animation: ksw-cursor-path 5600ms cubic-bezier(0.5, 0.06, 0.18, 1) both !important;
+  }
+  .ksw-stage[data-variant="standalone"] .ksw-cursor-pointer {
+    animation: ksw-cursor-click 5600ms linear both !important;
+  }
+  .ksw-stage[data-variant="standalone"] .ksw-cursor-ring {
+    animation: ksw-cursor-ping 5600ms linear both !important;
+  }
 `;
+
+export { SEQUENCE_SECONDS };

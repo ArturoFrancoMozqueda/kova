@@ -57,12 +57,18 @@ export default function SweetHomePOSPreview({
   employeeName = SWEET_HOME_ACTIVE_SALE.attendedBy,
   interactive = true,
   animateEntry = false,
+  entryDelayMs = 280,
 }: {
   products?: readonly SweetHomeProduct[];
   business?: typeof SWEET_HOME_BUSINESS;
   employeeName?: string;
   interactive?: boolean;
   animateEntry?: boolean;
+  /** Retrasa la coreografía de entrada (pop de galleta, count-up del total,
+   *  pulso de Cobrar) — el showcase la sincroniza con el click del cursor.
+   *  Se propaga a CSS vía --lp-entry-delay; el default preserva los tiempos
+   *  históricos (pop 160ms, count 280ms, pulso 640ms). */
+  entryDelayMs?: number;
 }) {
   const [cart, setCart] = useState<Record<string, number>>(initialCart);
   const [filter, setFilter] = useState<CategoryFilter>("all");
@@ -82,7 +88,7 @@ export default function SweetHomePOSPreview({
   const countedTotal = useCountUp(SWEET_HOME_SALE_TOTAL, {
     from: ENTRY_COUNT_FROM,
     durationMs: 300,
-    delayMs: 280,
+    delayMs: entryDelayMs,
     animate: animateEntry,
   });
   const displayTotal = animateEntry && !touched ? countedTotal : total;
@@ -121,6 +127,7 @@ export default function SweetHomePOSPreview({
       className="lp-pos-preview"
       data-lp-anim={animateEntry ? "on" : "off"}
       style={{
+        ["--lp-entry-delay" as string]: `${entryDelayMs}ms`,
         background: "var(--card-bg)",
         borderRadius: 10,
         border: "0.5px solid var(--hairline-color)",

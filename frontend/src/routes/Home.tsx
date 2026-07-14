@@ -14,8 +14,8 @@ import {
   STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
+import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
-import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
 import { LogoMark } from "@/components/brand/Logo";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
@@ -226,7 +226,7 @@ function Hero({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 0.9fr) minmax(360px, 1fr)",
+            gridTemplateColumns: "minmax(0, 0.95fr) minmax(320px, 0.9fr)",
             gap: 52,
             alignItems: "center",
           }}
@@ -318,12 +318,8 @@ function Hero({
             </p>
           </div>
 
-          {/* Producto real arriba del fold (CRO): el mismo mini-POS interactivo
-              de la historia guiada, en vez de la animación del logo. */}
           <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330 }}>
-            <div className="lp-hero-pos">
-              <SweetHomePOSPreview />
-            </div>
+            <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
           </div>
         </div>
 

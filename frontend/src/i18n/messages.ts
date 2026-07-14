@@ -129,8 +129,6 @@ export const copy = {
       title: "Mira cómo Kova trabaja mientras tú cobras.",
       line: "Una venta de $186 actualiza el ticket, baja el stock, mueve la caja y aparece en tus reportes del día.",
       urlBar: "kovasuite.com",
-      fallback: "Captura de Kova",
-      reportesCaption: { title: "Lees tu día", callout: "Qué se vende, cuándo y cuánto entra." },
       ctaTitle: "Deja de adivinar.",
       ctaLine: "Conoce exactamente qué pasa en tu negocio.",
       ctaButton: "Empieza gratis",
