@@ -1,0 +1,86 @@
+// Conductor de escenas del showcase cinemático: una máquina de estados mínima
+// (setInterval fijo + remount por key) en vez de un timeline CSS puro, porque
+// los previews en vivo solo re-disparan sus animaciones de entrada (count-ups,
+// pops, barras) al remontarse. Determinista por loop: sceneMs fijo, sin
+// aleatoriedad — cada vuelta de 30s es visualmente idéntica (suficiente para
+// la ruta de grabación /kova-showcase-video).
+import { useEffect, useState, type RefObject } from "react";
+import { usePrefersReducedMotion } from "@/landing/previews/useCountUp";
+
+/** IntersectionObserver continuo (re-arma al salir), a diferencia del
+ *  useInViewOnce de los previews: el director pausa fuera de viewport y
+ *  reinicia limpio al volver. */
+export function useInView<T extends Element>(
+  ref: RefObject<T | null>,
+  { threshold = 0.35, disabled = false }: { threshold?: number; disabled?: boolean } = {},
+): boolean {
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    if (disabled) {
+      setInView(true);
+      return;
+    }
+    const target = ref.current;
+    if (!target) return;
+    if (!("IntersectionObserver" in window)) {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => setInView(entry.isIntersecting));
+      },
+      { threshold },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [ref, threshold, disabled]);
+
+  return inView;
+}
+
+export type ShowcaseDirector = {
+  /** Escena activa, 0-indexed. */
+  scene: number;
+  /** Aumenta al completar un loop y al pausar/reanudar; va en las keys de
+   *  remount para que la escena activa re-dispare su animación de entrada. */
+  cycle: number;
+  /** true cuando el loop está corriendo (en viewport, sin reduced-motion). */
+  playing: boolean;
+};
+
+export function useShowcaseDirector({
+  sceneCount,
+  sceneMs = 6000,
+  inView,
+  forceMotion = false,
+}: {
+  sceneCount: number;
+  sceneMs?: number;
+  inView: boolean;
+  forceMotion?: boolean;
+}): ShowcaseDirector {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const playing = forceMotion || (!prefersReducedMotion && inView);
+  const [{ scene, cycle }, setState] = useState({ scene: 0, cycle: 0 });
+
+  useEffect(() => {
+    if (!playing) {
+      // Reset limpio: al re-entrar arranca en la escena 1 con cycle nuevo,
+      // así el preview se remonta y re-anima (y no hay saltos a mitad de
+      // escena ni artefactos de intervals throttleados en background).
+      setState((s) => (s.scene === 0 ? s : { scene: 0, cycle: s.cycle + 1 }));
+      return;
+    }
+    const id = window.setInterval(() => {
+      setState(({ scene: current, cycle: c }) => {
+        const next = (current + 1) % sceneCount;
+        return { scene: next, cycle: next === 0 ? c + 1 : c };
+      });
+    }, sceneMs);
+    return () => window.clearInterval(id);
+  }, [playing, sceneMs, sceneCount]);
+
+  return { scene, cycle, playing };
+}

@@ -9,8 +9,10 @@
 //   /kova-showcase-video?format=portrait    → portrait  1080×1350
 //   /kova-showcase-video?format=landscape   → landscape 1600×1200
 //
-// See KovaShowcase.tsx for full recording/export instructions. The animation is
-// a deterministic 30s CSS loop, so any 30s capture is frame-identical.
+// See KovaShowcase.tsx for full recording/export instructions. The showcase is
+// a deterministic 30s loop (fixed 6s scene interval, no randomness), so any
+// 30s capture aligned to a scene-1 entry is visually identical. Record with
+// the OS "reduce motion" setting OFF.
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { LandingStyleTag, themeVars } from "@/landing/landingTheme";
