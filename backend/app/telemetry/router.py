@@ -52,7 +52,8 @@ def create_anonymous_event(
     """Ingest a single pre-authentication funnel event.
 
     Deliberately unauthenticated so the landing (no session yet) can record
-    ``landing_viewed`` / ``landing_cta_clicked`` / ``signup_started``. Safe
+    ``landing_viewed`` / ``landing_section_viewed`` / ``landing_cta_clicked``
+    / ``signup_started``. Safe
     because: the event type is allowlisted (:data:`ANONYMOUS_EVENT_NAMES`), no
     tenant/user identifiers are accepted, the payload is bounded, and the route
     is per-IP rate-limited. It writes only to the non-tenanted

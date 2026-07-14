@@ -156,7 +156,7 @@ function OwnerDashboardPreview() {
 
 export default function OwnerDashboard() {
   return (
-    <section className="lp-section lp-reveal-block">
+    <section id="panel-dueno" className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
         <span className="lp-section-label">{t.kicker}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 720 }}>{t.title}</h2>

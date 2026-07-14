@@ -42,6 +42,14 @@ const LANDING_FAQ = [
     a: "Sí. Si se cae la señal, Kova sigue cobrando y guarda las ventas. Cuando vuelve el internet, sincroniza todo para que no pierdas la fila ni el registro.",
   },
   {
+    q: "¿Necesito comprar algún aparato?",
+    a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware.",
+  },
+  {
+    q: "¿Cuánto tardo en empezar a cobrar?",
+    a: "El camino son cuatro pasos: creas tu cuenta, cargas tus productos, abres tu turno y cobras. Puedes hacer tu primera venta el mismo día que empiezas.",
+  },
+  {
     q: "¿Qué incluye el plan de $299 MXN/mes?",
     a: "Incluye caja, inventario, empleados con roles, reportes, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos.",
   },
