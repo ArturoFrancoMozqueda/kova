@@ -13,7 +13,7 @@ export default function FinalCta({
   onCtaClick?: () => void;
 }) {
   return (
-    <section className="lp-section lp-reveal-block">
+    <section id="cta-final" className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
         <div className="lp-cta-band">
           <h2 className="lp-section-title" style={{ fontSize: "clamp(28px, 3.4vw, 44px)", textAlign: "center" }}>

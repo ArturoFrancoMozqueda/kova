@@ -131,8 +131,23 @@ export const LANDING_STYLES = `
   .lp-hero-visual > * {
     max-width: min(100%, 410px);
   }
-  .lp-hero-logo {
-    width: min(100%, 390px) !important;
+  /* Mini-POS del hero: es interactivo, así que sin deriva (un objetivo que se
+     mueve bajo el cursor se siente roto) y con más ancho que el logo que
+     reemplazó. Los overrides llevan !important porque el preview define su
+     grid con estilos inline. */
+  .lp-root.lp-motion-ready .lp-hero-visual > .lp-hero-pos {
+    animation: none;
+  }
+  .lp-hero-visual > .lp-hero-pos {
+    max-width: min(100%, 560px);
+    width: 100%;
+  }
+  .lp-hero-pos .lp-pos-preview {
+    grid-template-columns: 1fr 210px !important;
+    box-shadow: 0 24px 60px -28px rgba(15, 17, 23, 0.55);
+  }
+  .lp-hero-pos .lp-pos-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
   @keyframes lp-story-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0); }
@@ -525,6 +540,7 @@ export const RESPONSIVE_STYLES = `
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
     .lp-hero-visual { max-width: 100% !important; min-height: 320px !important; overflow: hidden !important; }
     .lp-hero-visual > * { max-width: min(100%, 360px) !important; }
+    .lp-hero-visual > .lp-hero-pos { max-width: min(100%, 560px) !important; }
     .lp-pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
     .lp-cash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-rep-bottom { grid-template-columns: 1fr !important; }
@@ -552,17 +568,10 @@ export const RESPONSIVE_STYLES = `
     .lp-hero-section { padding: 28px 20px 44px !important; }
     .lp-hero-title { font-size: 31px !important; }
     .lp-hero-copy { font-size: 15px !important; margin-top: 14px !important; }
-    .lp-hero-visual { order: -1; min-height: 190px !important; }
-    .lp-hero-visual > * { max-width: min(100%, 220px) !important; }
-    .lp-hero-logo { width: 220px !important; }
-    .lp-hero-logo > div { padding: 0 !important; gap: 0 !important; }
-    .lp-hero-logo > div > div:first-child {
-      width: 150px !important;
-      min-width: 150px !important;
-      max-width: 150px !important;
-    }
-    .lp-hero-logo h1 { font-size: 42px !important; }
-    .lp-hero-logo p { font-size: 12px !important; }
+    /* En pantallas chicas el titular y el CTA mandan: el mini-POS del hero se
+       oculta (el showcase justo debajo ya enseña el producto) para no empujar
+       la propuesta de valor fuera del fold. */
+    .lp-hero-visual { display: none !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
     .lp-benefit-card { min-height: 118px !important; padding: 13px !important; }
     .lp-benefit-card strong { font-size: 13px !important; }

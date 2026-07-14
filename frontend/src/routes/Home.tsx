@@ -14,8 +14,8 @@ import {
   STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
-import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
+import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
 import { LogoMark } from "@/components/brand/Logo";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
@@ -226,7 +226,7 @@ function Hero({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 0.95fr) minmax(320px, 0.9fr)",
+            gridTemplateColumns: "minmax(0, 0.9fr) minmax(360px, 1fr)",
             gap: 52,
             alignItems: "center",
           }}
@@ -318,8 +318,12 @@ function Hero({
             </p>
           </div>
 
+          {/* Producto real arriba del fold (CRO): el mismo mini-POS interactivo
+              de la historia guiada, en vez de la animación del logo. */}
           <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330 }}>
-            <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
+            <div className="lp-hero-pos">
+              <SweetHomePOSPreview />
+            </div>
           </div>
         </div>
 
@@ -340,7 +344,7 @@ function Hero({
 function Problem() {
   const p = t.problem;
   return (
-    <section className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
+    <section id="problema" className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
       <div className="lp-section-inner" style={{ maxWidth: 1000 }}>
         <span className="lp-section-label" style={{ color: "var(--accent)" }}>{p.eyebrow}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 820, color: "var(--kova-on-ink)" }}>{p.title}</h2>
@@ -376,7 +380,7 @@ function Problem() {
 function Differentiation() {
   const d = t.diff;
   return (
-    <section className="lp-section lp-reveal-block">
+    <section id="diferencia" className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
         <span className="lp-section-label">{d.eyebrow}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 760 }}>{d.title}</h2>
@@ -630,6 +634,25 @@ function Pricing({
               ))}
             </ul>
           </div>
+
+          <div
+            style={{
+              marginTop: 18, display: "flex", flexWrap: "wrap", justifyContent: "center",
+              alignItems: "center", gap: "6px 18px", fontSize: 12, color: "var(--text-muted)",
+            }}
+          >
+            {t.pricing.trustItems.map((item) => (
+              <span key={item} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {item}
+              </span>
+            ))}
+            <Link
+              to="/seguridad"
+              style={{ color: "var(--text-muted)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--hairline-color)" }}
+            >
+              {t.pricing.trustSecurityLink}
+            </Link>
+          </div>
         </div>
       </div>
     </section>
@@ -704,6 +727,34 @@ export default function Home(): ReactNode {
   // links to the later authenticated `signup_completed` via the same client_id).
   useEffect(() => {
     trackAnonymousEventOnce("landing_viewed", "landing_viewed");
+  }, []);
+
+  // Scroll-depth por sección: `landing_section_viewed` marca hasta dónde llegó
+  // el visitante (una vez por sección por carga, mismo guard in-memory que
+  // landing_viewed). El hero no se observa — landing_viewed ya lo cubre. El
+  // rootMargin cuenta la sección como vista cuando su borde superior cruza el
+  // 65% del viewport, para que también dispare en secciones más altas que la
+  // pantalla (un threshold por ratio nunca se alcanzaría ahí).
+  useEffect(() => {
+    if (!("IntersectionObserver" in window)) return;
+    const sections = Array.from(
+      document.querySelectorAll<HTMLElement>(".lp-root main > section[id]"),
+    );
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const section = (entry.target as HTMLElement).id;
+          trackAnonymousEventOnce(`section:${section}`, "landing_section_viewed", { section });
+          observer.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -35% 0px", threshold: 0.01 },
+    );
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
   }, []);
 
   const onCtaClick = useCallback(

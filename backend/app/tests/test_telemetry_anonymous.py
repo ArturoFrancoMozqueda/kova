@@ -37,6 +37,26 @@ def test_accepts_allowlisted_anonymous_event(client, db):
     assert not hasattr(row, "user_id")
 
 
+def test_accepts_landing_section_viewed(client, db):
+    # Scroll-depth rung of the landing funnel: one event per section id.
+    resp = client.post(
+        ANON_URL,
+        json={
+            "event_name": "landing_section_viewed",
+            "client_event_id": "landing_section_viewed:precio:1",
+            "client_id": "visitor-scroll",
+            "properties": {"path": "/", "section": "precio"},
+        },
+    )
+    assert resp.status_code == 202
+    assert resp.json() == {"accepted": True}
+
+    rows = db.query(AnonymousTelemetryEvent).filter_by(client_id="visitor-scroll").all()
+    assert len(rows) == 1
+    assert rows[0].event_name == "landing_section_viewed"
+    assert rows[0].properties["section"] == "precio"
+
+
 def test_rejects_non_allowlisted_event_type(client):
     resp = client.post(
         ANON_URL,

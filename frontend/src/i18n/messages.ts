@@ -33,7 +33,9 @@ export const copy = {
       titlePart2: ".",
       subtitle: "Kova conecta cada venta con tu inventario, caja, turnos y reportes para que sepas qué pasó, qué falta y qué conviene hacer después.",
       ctaPrimary: "Empieza gratis",
-      ctaSecondary: "Ver cómo funciona",
+      // "Ver Kova en acción" y no "Ver cómo funciona": el botón salta al
+      // showcase (#producto); "Cómo funciona" en el nav es otra sección.
+      ctaSecondary: "Ver Kova en acción",
       trialBadge: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta.`,
     },
     problem: {
@@ -199,6 +201,8 @@ export const copy = {
         { q: "¿Qué es exactamente Kova?", a: "Es la app para vender, controlar inventario, cuadrar caja y entender tu negocio desde una sola vista. Más que un punto de venta: es donde cada venta se convierte en claridad para decidir." },
         { q: "¿Necesito saber de tecnología?", a: "No. Si manejas WhatsApp o el cajero de un banco, puedes manejar Kova. Está pensado para que cualquier persona del mostrador cobre, consulte productos y cierre turno sin curso largo." },
         { q: "¿Funciona sin internet?", a: "Sí. Si se cae la señal, Kova sigue cobrando y guarda las ventas. Cuando vuelve el internet, sincroniza todo para que no pierdas la fila ni el registro." },
+        { q: "¿Necesito comprar algún aparato?", a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware." },
+        { q: "¿Cuánto tardo en empezar a cobrar?", a: "El camino son cuatro pasos: creas tu cuenta, cargas tus productos, abres tu turno y cobras. Puedes hacer tu primera venta el mismo día que empiezas." },
         { q: `¿Qué incluye el plan de ${STANDARD_PLAN_PRICE_LABEL}?`, a: "Incluye caja, inventario, empleados con roles, reportes, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos." },
         { q: "¿Puedo cancelar?", a: "Sí. Puedes cancelar cuando quieras, sin penalización. Tu información queda respaldada en la nube y separada de la de otros negocios." },
       ],
@@ -219,8 +223,14 @@ export const copy = {
       bridge: "Todo el control del mostrador, por",
       planName: "Plan Standard",
       planSubtitle: "Caja, inventario y reportes claros desde una sola app",
-      ctaButton: "Empieza gratis",
-      ctaFineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
+      // En el momento de mayor fricción (junto al precio) el botón re-enuncia
+      // la oferta completa; el trial vive en el botón, el fineprint no lo repite.
+      ctaButton: `Probar Kova ${BILLING_TRIAL_LABEL} gratis`,
+      ctaFineprint: "Sin tarjeta para empezar. Cancela cuando quieras.",
+      // Señales de confianza reales (nada inventado): las mismas del footer,
+      // repetidas junto al CTA de precio donde pesa la decisión.
+      trustItems: ["Hecho en México 🇲🇽", "Atendido por humanos, no por bots"],
+      trustSecurityLink: "Cómo cuidamos tus datos",
       features: [
         "Cobros en efectivo, transferencia, tarjeta y pagos divididos",
         "Sigue cobrando aunque se vaya el internet",

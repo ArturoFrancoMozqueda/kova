@@ -12,7 +12,12 @@ MAX_PROPERTY_VALUE_LEN = 500
 # accept. Anything not on this list is rejected — the endpoint is unauthenticated
 # so it must never become a general-purpose write vector.
 ANONYMOUS_EVENT_NAMES = frozenset(
-    {"landing_viewed", "landing_cta_clicked", "signup_started"}
+    {
+        "landing_viewed",
+        "landing_section_viewed",
+        "landing_cta_clicked",
+        "signup_started",
+    }
 )
 
 # Property keys an anonymous event must never carry. The endpoint stores no
