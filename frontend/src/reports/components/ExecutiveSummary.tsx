@@ -11,7 +11,7 @@ import {
   bestDaypartRow,
   calculateSafeGrowth,
 } from "../utils/calculations";
-import { DeltaChip, StatTile } from "./StatTile";
+import { DeltaChip, StatTile } from "@/components/ui/stat-tile";
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
