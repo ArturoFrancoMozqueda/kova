@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { LazyMotion, domAnimation } from "motion/react";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
 import { usePermission, REPORTS_VIEW_ALL_PERMISSION, BILLING_VIEW_PERMISSION } from "@/auth/permissions";
@@ -288,10 +289,12 @@ export default function AppShell() {
           <TrialChip />
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
-          <BillingBanner />
-          <Outlet />
-        </div>
+        <LazyMotion features={domAnimation}>
+          <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
+            <BillingBanner />
+            <Outlet />
+          </div>
+        </LazyMotion>
         <FirstUseTour />
 
         {/* Bottom navigation — mobile only */}

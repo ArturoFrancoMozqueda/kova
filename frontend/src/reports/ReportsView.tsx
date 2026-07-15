@@ -5,6 +5,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
 import { ArcKicker } from "@/components/ui/arc-kicker";
+import { Reveal } from "@/components/motion/Reveal";
 import { SubscriptionInactivePanel } from "@/billing/SubscriptionInactivePanel";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
@@ -142,34 +143,50 @@ export default function ReportsView() {
         <div className="space-y-4 sm:space-y-6">
           <ChapterNav />
           <div id="reporte-resumen" className="scroll-mt-14">
-            <ExecutiveSummary
-              story={story}
-              previousStory={data.previousStory}
-              previousFailed={data.previousFailed}
-              rangeDays={daysBetweenInclusive(story.summary.start_date, story.summary.end_date)}
-            />
+            <Reveal y={12} blur={false}>
+              <ExecutiveSummary
+                story={story}
+                previousStory={data.previousStory}
+                previousFailed={data.previousFailed}
+                rangeDays={daysBetweenInclusive(story.summary.start_date, story.summary.end_date)}
+              />
+            </Reveal>
           </div>
           <div id="reporte-plan" className="scroll-mt-14">
-            <RecommendationCards
-              recommendations={recommendationsFor(story, data.previousStory, data.stock, data.velocity)}
-              story={story}
-              previousStory={data.previousStory}
-            />
+            <Reveal y={12} blur={false}>
+              <RecommendationCards
+                recommendations={recommendationsFor(story, data.previousStory, data.stock, data.velocity)}
+                story={story}
+                previousStory={data.previousStory}
+              />
+            </Reveal>
           </div>
-          <QuickFacts story={story} />
+          <Reveal y={12} blur={false}>
+            <QuickFacts story={story} />
+          </Reveal>
           <ArcKicker id="reporte-porque" label={copy.reportsView.arcWhy} />
-          <TimingAnalysis
-            story={story}
-            hourly={data.hourly}
-            hourlyFailed={data.hourlyFailed}
-            previousStory={data.previousStory}
-            trendStory={data.trendStory}
-          />
-          <ProductInventoryAnalysis story={story} stock={data.stock} velocity={data.velocity} />
-          <PaymentAnalysis story={story} previousStory={data.previousStory} />
+          <Reveal y={12} blur={false}>
+            <TimingAnalysis
+              story={story}
+              hourly={data.hourly}
+              hourlyFailed={data.hourlyFailed}
+              previousStory={data.previousStory}
+              trendStory={data.trendStory}
+            />
+          </Reveal>
+          <Reveal y={12} blur={false}>
+            <ProductInventoryAnalysis story={story} stock={data.stock} velocity={data.velocity} />
+          </Reveal>
+          <Reveal y={12} blur={false}>
+            <PaymentAnalysis story={story} previousStory={data.previousStory} />
+          </Reveal>
           <ArcKicker id="reporte-control" label={copy.reportsView.arcOps} />
-          <RefundsAndCancellations story={story} />
-          <EmployeePerformance story={story} />
+          <Reveal y={12} blur={false}>
+            <RefundsAndCancellations story={story} />
+          </Reveal>
+          <Reveal y={12} blur={false}>
+            <EmployeePerformance story={story} />
+          </Reveal>
         </div>
       ) : null}
     </main>

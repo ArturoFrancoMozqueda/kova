@@ -1,6 +1,7 @@
 // CTA final (brief §1.8): cierre con acción única; absorbe FirstDay como
 // mini-fila de 4 pasos. Banda de acento sobre fondo ink.
 import { Link } from "react-router-dom";
+import { Reveal } from "@/components/motion/Reveal";
 import { copy } from "@/i18n/messages";
 
 const t = copy.landing.finalCta;
@@ -13,8 +14,8 @@ export default function FinalCta({
   onCtaClick?: () => void;
 }) {
   return (
-    <section id="cta-final" className="lp-section lp-reveal-block">
-      <div className="lp-section-inner">
+    <section id="cta-final" className="lp-section">
+      <Reveal className="lp-section-inner">
         <div className="lp-cta-band">
           <h2 className="lp-section-title" style={{ fontSize: "clamp(28px, 3.4vw, 44px)", textAlign: "center" }}>
             {t.title}
@@ -60,7 +61,7 @@ export default function FinalCta({
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.fineprint}</span>
           </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

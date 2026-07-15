@@ -16,6 +16,10 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "on-first-retry",
+    // Scroll-entrance reveals (Framer Motion) render their final visible state
+    // instantly under reduced motion, so specs never race an in-progress
+    // animation when asserting on below-the-fold content.
+    reducedMotion: "reduce",
   },
   projects: [
     {

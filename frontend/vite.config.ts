@@ -136,6 +136,12 @@ export default defineConfig({
           ) {
             return "vendor-charts";
           }
+          // Framer Motion (npm "motion"). Matched before the generic "react" rule
+          // below for the same reason as vendor-charts: its files live under
+          // node_modules/motion and would otherwise be swept into vendor-react.
+          if (/[\\/]node_modules[\\/](motion|framer-motion)[\\/]/.test(id)) {
+            return "vendor-motion";
+          }
           if (id.includes("react") || id.includes("react-router-dom")) return "vendor-react";
           if (id.includes("dexie")) return "vendor-offline";
           if (id.includes("lucide-react")) return "vendor-icons";

@@ -2,6 +2,7 @@
 // (dashboard/DashboardView.tsx) — el payoff del dueño. Misma fuente de datos
 // que la historia: la venta de $186 ya está dentro de estos totales.
 import type { CSSProperties, ReactNode } from "react";
+import { Reveal } from "@/components/motion/Reveal";
 import { formatMoney } from "@/orders/format";
 import { copy } from "@/i18n/messages";
 import {
@@ -156,15 +157,15 @@ function OwnerDashboardPreview() {
 
 export default function OwnerDashboard() {
   return (
-    <section id="panel-dueno" className="lp-section lp-reveal-block">
-      <div className="lp-section-inner">
+    <section id="panel-dueno" className="lp-section">
+      <Reveal className="lp-section-inner">
         <span className="lp-section-label">{t.kicker}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 720 }}>{t.title}</h2>
         <p className="lp-section-copy">{t.line}</p>
         <div style={{ marginTop: 36, maxWidth: 980, marginLeft: "auto", marginRight: "auto" }}>
           <OwnerDashboardPreview />
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

@@ -3,6 +3,7 @@
 // labels reales del producto. Las 6 capacidades son las ya publicadas hoy.
 import type { CSSProperties, ReactNode } from "react";
 import { AlertTriangle, BarChart3, Calculator, CreditCard, Package, UsersRound, WifiOff } from "lucide-react";
+import { Reveal } from "@/components/motion/Reveal";
 import { formatMoney } from "@/orders/format";
 import { localizeReconciliationStatus } from "@/shifts/format";
 import { copy } from "@/i18n/messages";
@@ -107,8 +108,8 @@ const audienceTypes = copy.landing.builtFor.types.slice(0, 5).map((type) => type
 
 export default function BentoModules() {
   return (
-    <section id="como-funciona" className="lp-section lp-reveal-block" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
-      <div className="lp-section-inner" style={{ position: "relative" }}>
+    <section id="como-funciona" className="lp-section" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
+      <Reveal className="lp-section-inner" style={{ position: "relative" }}>
         <span id="comercios" style={{ position: "absolute", top: -96 }} aria-hidden="true" />
         <span className="lp-section-label">{t.kicker}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 720 }}>{t.title}</h2>
@@ -131,7 +132,7 @@ export default function BentoModules() {
             </li>
           ))}
         </ul>
-      </div>
+      </Reveal>
     </section>
   );
 }

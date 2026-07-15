@@ -2,11 +2,21 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
 import { Link } from "react-router-dom";
+import {
+  LazyMotion,
+  domAnimation,
+  m,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "motion/react";
+import { Reveal, KOVA_EASE_ENTRANCE, KOVA_EASE_SPRING } from "@/components/motion/Reveal";
 import { useAuth } from "@/auth/useAuth";
 import { trackAnonymousEvent, trackAnonymousEventOnce } from "@/telemetry/funnel";
 import {
@@ -31,79 +41,9 @@ const t = copy.landing;
 // Theme vars + landing CSS (themeVars, LANDING_STYLES, RESPONSIVE_STYLES) live
 // in @/landing/landingTheme so the marketing showcase can reuse them verbatim.
 
-function useLandingRevealMotion() {
-  useEffect(() => {
-    const root = document.querySelector<HTMLElement>(".lp-root");
-    if (!root) return;
-
-    const reduceMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const revealTargets = Array.from(
-      root.querySelectorAll<HTMLElement>(
-        [
-          ".lp-reveal-block",
-          ".lp-hero-grid",
-          ".lp-benefit-strip",
-          ".lp-story-card",
-          ".lp-footer-grid",
-          // Recibo de precio: mismas data-attrs, pero su CSS imprime las
-          // líneas en orden en vez del fade genérico (lp-tkt-print).
-          ".lp-ticket-print",
-        ].join(",")
-      )
-    );
-
-    const seen = new Set<HTMLElement>();
-    revealTargets.forEach((target, index) => {
-      if (seen.has(target)) return;
-      seen.add(target);
-      target.dataset.lpReveal = "true";
-      target.style.setProperty("--lp-reveal-delay", `${Math.min(index % 3, 2) * 80}ms`);
-      if (reduceMotion) target.dataset.lpVisible = "true";
-    });
-
-    root.classList.add("lp-motion-ready");
-
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      seen.forEach((target) => {
-        target.dataset.lpVisible = "true";
-      });
-      return () => {
-        root.classList.remove("lp-motion-ready");
-        seen.forEach((target) => {
-          target.removeAttribute("data-lp-reveal");
-          target.removeAttribute("data-lp-visible");
-          target.style.removeProperty("--lp-reveal-delay");
-        });
-      };
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const target = entry.target as HTMLElement;
-          target.dataset.lpVisible = "true";
-          observer.unobserve(target);
-        });
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 }
-    );
-
-    seen.forEach((target) => observer.observe(target));
-
-    return () => {
-      observer.disconnect();
-      root.classList.remove("lp-motion-ready");
-      seen.forEach((target) => {
-        target.removeAttribute("data-lp-reveal");
-        target.removeAttribute("data-lp-visible");
-        target.style.removeProperty("--lp-reveal-delay");
-      });
-    };
-  }, []);
-}
+/* Scroll-entrance motion now lives in the shared <Reveal> primitive
+   (@/components/motion/Reveal): SSR-safe, reduced-motion-safe, arms only after
+   hydration. The pricing "ticket print" stagger is reproduced inline below. */
 
 /* ─── ThemeToggle ────────────────────────────────────────────────────────── */
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
@@ -224,8 +164,21 @@ function Hero({
     },
   ];
 
+  const heroRef = useRef<HTMLElement>(null);
+  const prefersReduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+  // Subtle scroll parallax on the hero visual — translate only, no pinning.
+  const parallaxY = useTransform(scrollYProgress, [0, 1], [0, -36]);
+
   return (
-    <section className="lp-hero-section" style={{ position: "relative", overflow: "hidden" }}>
+    <section
+      ref={heroRef}
+      className="lp-hero-section"
+      style={{ position: "relative", overflow: "hidden" }}
+    >
       <div className="lp-hero-shell lp-section-inner" style={{ position: "relative" }}>
         <div
           style={{
@@ -322,19 +275,22 @@ function Hero({
             </p>
           </div>
 
-          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330 }}>
+          <m.div
+            className="lp-hero-visual"
+            style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330, y: prefersReduced ? 0 : parallaxY }}
+          >
             <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
-          </div>
+          </m.div>
         </div>
 
-        <div className="lp-benefit-strip lp-reveal-block">
+        <Reveal className="lp-benefit-strip">
           {benefits.map((benefit) => (
             <div className="lp-benefit-card" key={benefit.title}>
               <strong>{benefit.title}</strong>
               <span>{benefit.body}</span>
             </div>
           ))}
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -349,8 +305,8 @@ const SCRAP_ROTATIONS = ["-2.5deg", "1.6deg", "-1.2deg", "2.2deg", "-1.8deg"] as
 function Problem() {
   const p = t.problem;
   return (
-    <section id="problema" className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
-      <div className="lp-section-inner" style={{ maxWidth: 1000 }}>
+    <section id="problema" className="lp-section" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
+      <Reveal className="lp-section-inner" style={{ maxWidth: 1000 }}>
         <span className="lp-section-label" style={{ color: "var(--accent)" }}>{p.eyebrow}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 820, color: "var(--kova-on-ink)" }}>{p.title}</h2>
         <p className="lp-section-copy" style={{ color: "rgba(240,244,255,0.65)" }}>{p.body}</p>
@@ -387,7 +343,7 @@ function Problem() {
         <p style={{ marginTop: 40, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
           {p.punch}
         </p>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -396,8 +352,8 @@ function Problem() {
 function Differentiation() {
   const d = t.diff;
   return (
-    <section id="diferencia" className="lp-section lp-reveal-block">
-      <div className="lp-section-inner">
+    <section id="diferencia" className="lp-section">
+      <Reveal className="lp-section-inner">
         <span className="lp-section-label">{d.eyebrow}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 760 }}>{d.title}</h2>
 
@@ -449,7 +405,7 @@ function Differentiation() {
 
         <p style={{ marginTop: 32, fontSize: "clamp(18px, 2.2vw, 26px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 900, color: "var(--page-fg)" }}>{d.punch}</p>
         <p style={{ marginTop: 16, fontSize: 12, color: "var(--text-tertiary)", maxWidth: 720, lineHeight: 1.4 }}>{d.disclaimer}</p>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -460,8 +416,8 @@ function FAQ() {
   const items = t.faq.items;
 
   return (
-    <section id="faq" className="lp-section lp-section-compact lp-reveal-block">
-      <div className="lp-section-inner" style={{ maxWidth: 980 }}>
+    <section id="faq" className="lp-section lp-section-compact">
+      <Reveal className="lp-section-inner" style={{ maxWidth: 980 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
           <span className="lp-section-label">
             {t.faq.eyebrow}
@@ -545,14 +501,26 @@ function FAQ() {
           </a>
           {t.faq.contactSuffix}
         </p>
-      </div>
+      </Reveal>
     </section>
   );
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-/** Índice de línea del recibo → delay de impresión (var CSS --tkt-i). */
-const tktLine = (i: number): CSSProperties => ({ ["--tkt-i" as string]: String(i) });
+// El recibo "se imprime" línea por línea: cada línea entra con un pequeño
+// retardo escalonado (90ms por índice), reproduciendo el efecto lp-tkt-print
+// original ahora con Framer Motion.
+const TKT_STEP = 0.09;
+const ticketLineVariants = {
+  hidden: { opacity: 0, y: -8, clipPath: "inset(0 0 85% 0)" },
+  visible: { opacity: 1, y: 0, clipPath: "inset(0 0 -8px 0)" },
+};
+const ticketTabVariants = {
+  hidden: { opacity: 0, y: -10, rotate: -1 },
+  visible: { opacity: 1, y: 0, rotate: 0 },
+};
+const ticketLineTransition = { duration: 0.24, ease: KOVA_EASE_ENTRANCE } as const;
+const ticketTabTransition = { duration: 0.42, ease: KOVA_EASE_SPRING } as const;
 
 function Pricing({
   primaryTarget,
@@ -563,8 +531,8 @@ function Pricing({
 }) {
   const feats = t.pricing.features;
   return (
-    <section id="precio" className="lp-section lp-reveal-block">
-      <div className="lp-section-inner">
+    <section id="precio" className="lp-section">
+      <Reveal className="lp-section-inner">
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24, justifyContent: "center" }}>
           <span className="lp-section-label">{t.pricing.eyebrow}</span>
         </div>
@@ -602,12 +570,12 @@ function Pricing({
         <p style={{ marginTop: 36, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
           {t.pricing.bridge}
         </p>
-        <div className="lp-ticket-print" style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
+        <div style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
           {/* El ticket vivo: el plan enunciado como recibo térmico. Las líneas
-              se "imprimen" en orden al entrar en viewport (lp-tkt-print). */}
+              se "imprimen" en orden al entrar en viewport. */}
           <TicketPaper>
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              <div className="lp-tkt-line" style={tktLine(0)}>
+              <Reveal variants={ticketLineVariants} transition={ticketLineTransition} delay={0}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                   <div>
                     <div className="lp-tkt-label" style={{ fontSize: 13 }}>{t.pricing.planName}</div>
@@ -615,29 +583,32 @@ function Pricing({
                   </div>
                   <LogoMark size={26} circuitColor="var(--ticket-muted)" coreColor="var(--kova-blue)" />
                 </div>
-              </div>
+              </Reveal>
 
-              <hr className="lp-tkt-rule lp-tkt-line" style={tktLine(1)} />
+              <Reveal as="hr" className="lp-tkt-rule" variants={ticketLineVariants} transition={ticketLineTransition} delay={TKT_STEP} />
 
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
                 {feats.map((f, i) => (
-                  <li
+                  <Reveal
+                    as="li"
                     key={f}
-                    className="lp-tkt-line"
-                    style={{ ...tktLine(2 + i), display: "flex", alignItems: "baseline", fontSize: 14, color: "var(--ticket-ink)", lineHeight: 1.4 }}
+                    variants={ticketLineVariants}
+                    transition={ticketLineTransition}
+                    delay={(2 + i) * TKT_STEP}
+                    style={{ display: "flex", alignItems: "baseline", fontSize: 14, color: "var(--ticket-ink)", lineHeight: 1.4 }}
                   >
                     <span>{f}</span>
                     <span className="lp-tkt-leader" aria-hidden="true" />
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, alignSelf: "center" }} aria-hidden="true">
                       <path d="M2 6L5 9L10 3" stroke="var(--ticket-ok)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                  </li>
+                  </Reveal>
                 ))}
               </ul>
 
-              <hr className="lp-tkt-rule lp-tkt-line" style={tktLine(2 + feats.length)} />
+              <Reveal as="hr" className="lp-tkt-rule" variants={ticketLineVariants} transition={ticketLineTransition} delay={(2 + feats.length) * TKT_STEP} />
 
-              <div className="lp-tkt-line" style={tktLine(3 + feats.length)}>
+              <Reveal variants={ticketLineVariants} transition={ticketLineTransition} delay={(3 + feats.length) * TKT_STEP}>
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <span className="lp-tkt-label">{t.pricing.receiptTotalLabel}</span>
                   <span className="tabular" style={{ display: "inline-flex", alignItems: "baseline", gap: 5, color: "var(--ticket-ink)" }}>
@@ -646,29 +617,31 @@ function Pricing({
                     <span style={{ fontSize: 14, color: "var(--ticket-muted)" }}>{STANDARD_PLAN_PRICE_CADENCE_ES}</span>
                   </span>
                 </div>
-              </div>
+              </Reveal>
             </div>
           </TicketPaper>
 
           {/* Pestaña desprendible: el CTA como talón cortado del recibo. */}
-          <TicketPaper className="lp-tkt-tab" style={tktLine(4 + feats.length)}>
-            <Link
-              to={primaryTarget}
-              onClick={() => onCtaClick("pricing")}
-              className="lp-cta-fill"
-              style={{
-                width: "100%", background: "var(--cta-blue, var(--kova-blue))", color: "#fff",
-                padding: "14px 16px", borderRadius: 10, border: "none",
-                fontWeight: 600, fontSize: 14, fontFamily: "inherit",
-                textAlign: "center", textDecoration: "none", display: "block",
-              }}
-            >
-              <span>{t.pricing.ctaButton}</span>
-            </Link>
-            <div style={{ textAlign: "center", fontSize: 12, color: "var(--ticket-muted)", marginTop: 10 }}>
-              {t.pricing.ctaFineprint}
-            </div>
-          </TicketPaper>
+          <Reveal variants={ticketTabVariants} transition={ticketTabTransition} delay={(4 + feats.length) * TKT_STEP}>
+            <TicketPaper className="lp-tkt-tab">
+              <Link
+                to={primaryTarget}
+                onClick={() => onCtaClick("pricing")}
+                className="lp-cta-fill"
+                style={{
+                  width: "100%", background: "var(--cta-blue, var(--kova-blue))", color: "#fff",
+                  padding: "14px 16px", borderRadius: 10, border: "none",
+                  fontWeight: 600, fontSize: 14, fontFamily: "inherit",
+                  textAlign: "center", textDecoration: "none", display: "block",
+                }}
+              >
+                <span>{t.pricing.ctaButton}</span>
+              </Link>
+              <div style={{ textAlign: "center", fontSize: 12, color: "var(--ticket-muted)", marginTop: 10 }}>
+                {t.pricing.ctaFineprint}
+              </div>
+            </TicketPaper>
+          </Reveal>
 
           <div
             style={{
@@ -689,7 +662,7 @@ function Pricing({
             </Link>
           </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -699,7 +672,7 @@ function Footer() {
   return (
     <footer style={{ padding: "80px 32px 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 48, alignItems: "start" }} className="lp-footer-grid">
+        <Reveal style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 48, alignItems: "start" }} className="lp-footer-grid">
           <div>
             <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>
               <Logo size={24} circuitColor="currentColor" wordmarkColor="currentColor" coreColor="var(--accent)" />
@@ -726,7 +699,7 @@ function Footer() {
               {SUPPORT_EMAIL}
             </a>
           </div>
-        </div>
+        </Reveal>
         <div style={{ marginTop: 64, paddingTop: 24, borderTop: "0.5px solid var(--hairline-color)", display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-tertiary)", flexWrap: "wrap", gap: 16 }}>
           <span>{t.footer.copyright}</span>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
@@ -753,7 +726,6 @@ export default function Home(): ReactNode {
   const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
-  useLandingRevealMotion();
 
   // Top-of-funnel instrumentation (PLAN-UX-03). Anonymous, client_id-keyed, no
   // PII — makes landing → CTA → signup measurable. `landing_viewed` fires once
@@ -820,24 +792,26 @@ export default function Home(): ReactNode {
   }, []);
 
   return (
-    <div className="lp-root" style={rootStyle}>
-      <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
-      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} onCtaClick={onCtaClick} />
-      <main>
-        <Hero primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
-        {/* Cinematic product showcase (laptop mockup, auto-playing loop).
-            Landscape variant tuned for the landing flow; the same component
-            powers the standalone /kova-showcase-video export route. */}
-        <KovaShowcase format="landscape" variant="embedded" />
-        <Problem />
-        <OwnerDashboard />
-        <BentoModules />
-        <Differentiation />
-        <FAQ />
-        <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
-        <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
-      </main>
-      <Footer />
-    </div>
+    <LazyMotion features={domAnimation} strict>
+      <div className="lp-root" style={rootStyle}>
+        <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
+        <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} onCtaClick={onCtaClick} />
+        <main>
+          <Hero primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
+          {/* Cinematic product showcase (laptop mockup, auto-playing loop).
+              Landscape variant tuned for the landing flow; the same component
+              powers the standalone /kova-showcase-video export route. */}
+          <KovaShowcase format="landscape" variant="embedded" />
+          <Problem />
+          <OwnerDashboard />
+          <BentoModules />
+          <Differentiation />
+          <FAQ />
+          <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
+          <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
+        </main>
+        <Footer />
+      </div>
+    </LazyMotion>
   );
 }

@@ -145,7 +145,7 @@ export const LANDING_STYLES = `
     50%      { transform: translate3d(0, -8px, 0) rotate(-0.4deg); }
   }
 
-  .lp-root.lp-motion-ready .lp-hero-visual > * {
+  .lp-hero-visual > * {
     animation: lp-hero-drift 7s ease-in-out infinite;
   }
   .lp-hero-visual > * {
@@ -395,22 +395,8 @@ export const LANDING_STYLES = `
     margin: 0;
   }
 
-  .lp-root.lp-motion-ready [data-lp-reveal="true"] {
-    opacity: 0;
-    transform: translate3d(0, 18px, 0);
-    filter: blur(3px);
-    transition:
-      opacity 640ms var(--kova-ease-entrance),
-      transform 640ms var(--kova-ease-entrance),
-      filter 640ms var(--kova-ease-entrance);
-    transition-delay: var(--lp-reveal-delay, 0ms);
-    will-change: opacity, transform, filter;
-  }
-  .lp-root.lp-motion-ready [data-lp-reveal="true"][data-lp-visible="true"] {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0);
-  }
+  /* Scroll-entrance reveals moved to the <Reveal> Framer Motion primitive
+     (@/components/motion/Reveal). No data-lp-reveal CSS needed anymore. */
 
   .lp-hero-section {
     padding: 74px 32px 60px;
@@ -547,33 +533,8 @@ export const LANDING_STYLES = `
   .lp-tkt-tab { margin-top: 7px; }
   .lp-tkt-tab .lp-tkt-body { padding: 18px 20px 14px; }
 
-  /* Impresión del recibo: las líneas aparecen en orden al entrar en viewport.
-     Gateado en data-lp-reveal (solo se agrega post-hidratación) + lp-motion-ready,
-     así el HTML prerenderizado y no-JS muestran el recibo completo. */
-  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-reveal="true"] {
-    opacity: 1;
-    transform: none;
-    filter: none;
-    transition: none;
-  }
-  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-reveal="true"] .lp-tkt-line { opacity: 0; }
-  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-visible="true"] .lp-tkt-line {
-    animation: lp-tkt-print 240ms var(--kova-ease-entrance) both;
-    animation-delay: calc(var(--tkt-i, 0) * 90ms);
-  }
-  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-reveal="true"] .lp-tkt-tab { opacity: 0; }
-  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-visible="true"] .lp-tkt-tab {
-    animation: lp-tkt-tab-in 420ms var(--kova-ease-spring) both;
-    animation-delay: calc(var(--tkt-i, 0) * 90ms);
-  }
-  @keyframes lp-tkt-print {
-    from { opacity: 0; transform: translateY(-8px); clip-path: inset(0 0 85% 0); }
-    to   { opacity: 1; transform: translateY(0);    clip-path: inset(0 0 -8px 0); }
-  }
-  @keyframes lp-tkt-tab-in {
-    from { opacity: 0; transform: translateY(-10px) rotate(-1deg); }
-    to   { opacity: 1; transform: translateY(0) rotate(0deg); }
-  }
+  /* La "impresión" línea por línea del recibo ahora la maneja <Reveal> con
+     variantes escalonadas en el componente Pricing (routes/Home.tsx). */
 
   /* Recortes del problema: libreta/Excel/WhatsApp como papeles sueltos. */
   .lp-scraps {
@@ -612,15 +573,10 @@ export const LANDING_STYLES = `
 
   @media (prefers-reduced-motion: reduce) {
     .lp-live-dot { animation: none !important; }
-    .lp-root.lp-motion-ready [data-lp-reveal="true"] {
-      opacity: 1 !important;
-      transform: none !important;
-      filter: none !important;
-    }
-    .lp-root .lp-tkt-line, .lp-root .lp-tkt-tab {
-      opacity: 1 !important;
-      animation: none !important;
-    }
+    /* Los reveals de scroll (opacity/transform/blur) y la impresión del recibo
+       ahora los controla <Reveal>, que ya respeta prefers-reduced-motion y
+       renderiza el estado final al instante. Aquí solo neutralizamos las
+       animaciones CSS que quedan (drift del hero, pulsos, etc.). */
     .lp-root *, .lp-root *::before, .lp-root *::after {
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;

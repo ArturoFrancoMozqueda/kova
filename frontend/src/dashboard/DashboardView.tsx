@@ -30,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile, DeltaChip } from "@/components/ui/stat-tile";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ArcKicker } from "@/components/ui/arc-kicker";
+import { Reveal } from "@/components/motion/Reveal";
 import { calculateSafeGrowth, MIN_COUNT_BASE, MIN_MONEY_BASE } from "@/lib/growth";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -668,7 +669,7 @@ export default function DashboardView() {
             </Card>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2">
+              <Reveal as="div" y={12} blur={false} className="grid gap-4 md:grid-cols-2">
                 {/* Top hours: proportional bar plus period share; deep hourly analysis lives in Reportes */}
                 <Card>
                   <CardHeader>
@@ -811,9 +812,10 @@ export default function DashboardView() {
                     )}
                   </CardContent>
                 </Card>
-              </div>
+              </Reveal>
 
               {/* Top Products — full width below the two-column row */}
+              <Reveal as="div" y={12} blur={false} delay={0.06}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -853,10 +855,12 @@ export default function DashboardView() {
                   )}
                 </CardContent>
               </Card>
+              </Reveal>
             </>
           )}
 
           {loadState.summary.order_count > 0 && (
+            <Reveal as="div" y={12} blur={false} delay={0.06}>
             <Card>
               <CardHeader>
                 <CardTitle>{copy.dashboard.quickActions}</CardTitle>
@@ -895,6 +899,7 @@ export default function DashboardView() {
                 </div>
               </CardContent>
             </Card>
+            </Reveal>
           )}
         </div>
       )}
