@@ -34,6 +34,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewEmpty } from "@/components/ui/view-states";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -53,7 +54,6 @@ import {
   Building2,
   CreditCard,
   Search,
-  Sparkles,
   X,
   ChevronUp,
   Printer,
@@ -795,25 +795,22 @@ export default function RegisterView() {
                 : ""}
             </div>
             {filteredProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-                  <ShoppingBag className="h-7 w-7 text-muted-foreground" />
-                </div>
-                <p className="font-medium">{copy.register.catalogPlaceholder}</p>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">{copy.register.catalogPlaceholderBody}</p>
-                {canManageCatalog && (
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    <Link to="/catalog?new=product" className={cn(buttonVariants({ size: "sm" }))}>
-                      <Plus className="h-4 w-4" />
-                      {copy.register.createFirstProduct}
-                    </Link>
-                    <Link to="/catalog" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                      <Sparkles className="h-4 w-4" />
-                      {copy.register.loadCafePreset}
-                    </Link>
-                  </div>
-                )}
-              </div>
+              <ViewEmpty
+                bare
+                icon={<ShoppingBag className="h-6 w-6" />}
+                title={copy.register.catalogPlaceholder}
+                body={copy.register.catalogPlaceholderBody}
+                primaryCta={
+                  canManageCatalog
+                    ? { label: copy.register.createFirstProduct, to: "/catalog?new=product" }
+                    : undefined
+                }
+                secondaryCta={
+                  canManageCatalog
+                    ? { label: copy.register.loadCafePreset, to: "/catalog" }
+                    : undefined
+                }
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {filteredProducts.map((product) => {
@@ -998,17 +995,17 @@ export default function RegisterView() {
                             <Plus className="h-4 w-4" />
                           </button>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold">
+                        <div className="flex flex-col items-end gap-1">
+                          <p className="text-sm font-bold tabular-nums">
                             {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
                           </p>
                           <button
                             type="button"
                             onClick={() => removeItem(cartKey)}
                             aria-label={copy.register.removeItem(item.product.name)}
-                            className="text-xs text-destructive hover:underline mt-1"
+                            className="flex h-9 w-9 items-center justify-center rounded-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
                           >
-                            <Trash2 className="h-3 w-3 inline" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
@@ -1025,8 +1022,8 @@ export default function RegisterView() {
               <CardContent className="p-4 space-y-4">
                 {/* Total */}
                 <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-sm text-muted-foreground">{copy.register.total}</span>
-                  <span className="text-2xl font-bold">{formatMoney(totalAmount)}</span>
+                  <span className="text-sm font-medium text-muted-foreground">{copy.register.total}</span>
+                  <span className="text-3xl font-bold tabular-nums text-kova-ink">{formatMoney(totalAmount)}</span>
                 </div>
 
                 {!canCreateOrders && (
@@ -1337,12 +1334,13 @@ export default function RegisterView() {
                   </div>
                 )}
 
-                {/* Submit */}
+                {/* Submit — kova-growth: cobrar es la accion que lleva al
+                    estado de exito, que ya usa ese mismo verde. */}
                 <Button
                   type="submit"
                   disabled={!canSubmitSale}
                   size="xl"
-                  className="w-full"
+                  className="w-full bg-kova-growth text-white hover:bg-kova-growth/90"
                   variant="default"
                 >
                   {submitting ? (
@@ -1363,14 +1361,14 @@ export default function RegisterView() {
 
           {/* Completed sale result (desktop card) */}
           {completedOrder && (
-            <Card className="hidden lg:block border-success/30 bg-success/5 animate-fade-in">
+            <Card className="hidden lg:block border-kova-growth/30 bg-kova-growth/5 animate-fade-in">
               <CardContent className="p-4">
                 <div className="mb-3 flex items-start gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-kova-growth/15 text-kova-growth">
                     <CheckCircle2 className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-semibold text-success">{copy.register.saleComplete}</p>
+                    <p className="font-semibold text-kova-growth">{copy.register.saleComplete}</p>
                     <p className="mt-1 text-2xl font-bold tabular-nums text-kova-ink">
                       {formatMoney(completedOrder.total_amount)}
                     </p>

@@ -42,36 +42,56 @@ type ViewEmptyCta =
   | { label: string; to: string }
   | { label: string; onClick: () => void };
 
-/** Inviting empty state with an icon, headline, body, and up to two CTAs. */
+/**
+ * Inviting empty state with an icon, headline, body, and up to two CTAs.
+ * `bare` skips the own Card/CardContent wrapper for call sites that already
+ * render inside another Card (avoids a card-in-card double border/shadow).
+ */
 export function ViewEmpty({
   icon,
   title,
   body,
   primaryCta,
   secondaryCta,
+  bare,
 }: {
   icon: ReactNode;
   title: string;
   body: string;
   primaryCta?: ViewEmptyCta;
   secondaryCta?: ViewEmptyCta;
+  bare?: boolean;
 }) {
+  const content = (
+    <>
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10 text-kova-blue">
+        {icon}
+      </div>
+      <div className="flex-1">
+        <p className="text-base font-semibold">{title}</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
+      </div>
+      {primaryCta || secondaryCta ? (
+        <div className="flex flex-wrap justify-center gap-2 sm:shrink-0 sm:justify-start">
+          {primaryCta ? <CtaButton cta={primaryCta} variant="default" /> : null}
+          {secondaryCta ? <CtaButton cta={secondaryCta} variant="outline" /> : null}
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (bare) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-10 text-center sm:flex-row sm:items-center sm:text-left">
+        {content}
+      </div>
+    );
+  }
+
   return (
     <Card className="border-kova-blue/20 bg-kova-blue/[0.03]">
       <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-kova-blue/10 text-kova-blue">
-          {icon}
-        </div>
-        <div className="flex-1">
-          <p className="text-base font-semibold">{title}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
-        </div>
-        {primaryCta || secondaryCta ? (
-          <div className="flex flex-wrap gap-2 sm:shrink-0">
-            {primaryCta ? <CtaButton cta={primaryCta} variant="default" /> : null}
-            {secondaryCta ? <CtaButton cta={secondaryCta} variant="outline" /> : null}
-          </div>
-        ) : null}
+        {content}
       </CardContent>
     </Card>
   );
