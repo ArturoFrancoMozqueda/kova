@@ -78,7 +78,7 @@ export function ReceiptTemplate({
     <div
       {...containerProps}
       className={cn(
-        "receipt-template rounded-[var(--radius-lg)] border border-[color:var(--kova-border)] bg-white p-4 font-mono text-[11px] leading-snug text-[color:var(--kova-ink)] shadow-sm",
+        "receipt-template rounded-[2px] p-4 font-mono text-[11px] leading-snug text-[color:var(--ticket-ink)]",
         className,
       )}
       style={{ fontVariantNumeric: "tabular-nums" }}
@@ -96,10 +96,10 @@ export function ReceiptTemplate({
         ) : null}
         <p className="text-sm font-semibold tracking-tight">{businessName}</p>
         {taxContactText ? (
-          <p className="whitespace-pre-line text-[10px] text-muted-foreground">{taxContactText}</p>
+          <p className="whitespace-pre-line text-[10px] tkt-caption">{taxContactText}</p>
         ) : null}
-        {receiptNumber ? <p className="text-[10px] text-muted-foreground">{receiptNumber}</p> : null}
-        <p className="text-[10px] text-muted-foreground">{formatDateTime(createdAt)}</p>
+        {receiptNumber ? <p className="text-[10px] tkt-caption">{receiptNumber}</p> : null}
+        <p className="text-[10px] tkt-caption">{formatDateTime(createdAt)}</p>
       </div>
 
       <ReceiptSeparator />
@@ -113,12 +113,12 @@ export function ReceiptTemplate({
               </span>
               <span>{formatMoney(item.line_total_amount)}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] tkt-caption">
               {formatMoney(item.unit_price_amount)} c/u
             </p>
             {(item.modifiers ?? []).map((modifier) => (
               <p
-                className="pl-2 text-[10px] text-muted-foreground"
+                className="pl-2 text-[10px] tkt-caption"
                 key={`${modifier.modifier_group_name ?? "modifier"}-${modifier.modifier_option_name}`}
               >
                 + {modifier.modifier_option_name}
@@ -165,7 +165,7 @@ export function ReceiptTemplate({
               <div key={refund.id}>
                 <ReceiptLine label={reasonLabel(refund.reason)} value={`-${formatMoney(refund.refunded_amount)}`} />
                 {(refund.items ?? []).map((item) => (
-                  <p key={`${refund.id}-${item.label}`} className="text-[10px] text-muted-foreground">
+                  <p key={`${refund.id}-${item.label}`} className="text-[10px] tkt-caption">
                     {item.label} x{item.quantity}
                   </p>
                 ))}
@@ -179,12 +179,12 @@ export function ReceiptTemplate({
         <>
           <ReceiptSeparator />
           <p className="text-center font-semibold text-destructive">{copy.orderDetail.voided}</p>
-          <p className="text-center text-[10px] text-muted-foreground">{reasonLabel(voidReason)}</p>
+          <p className="text-center text-[10px] tkt-caption">{reasonLabel(voidReason)}</p>
         </>
       ) : null}
 
       <ReceiptSeparator />
-      <p className="whitespace-pre-line text-center text-[10px] text-muted-foreground">
+      <p className="whitespace-pre-line text-center text-[10px] tkt-caption">
         {footer || copy.settings.receiptPreviewThanks}
       </p>
     </div>
@@ -192,7 +192,7 @@ export function ReceiptTemplate({
 }
 
 function ReceiptSeparator() {
-  return <div className="my-3 border-t border-dashed border-[color:var(--kova-border)]" />;
+  return <div className="tkt-rule my-3" />;
 }
 
 function ReceiptLine({
@@ -207,9 +207,16 @@ function ReceiptLine({
   muted?: boolean;
 }) {
   return (
-    <div className={cn("flex justify-between gap-3", strong && "font-semibold", muted && "text-muted-foreground")}>
+    <div
+      className={cn(
+        "flex items-baseline gap-3 print:items-center",
+        strong ? "tkt-total text-base font-bold print:justify-between" : "justify-between",
+        muted && "tkt-caption",
+      )}
+    >
       <span>{label}</span>
-      <span>{value}</span>
+      {strong ? <span className="tkt-leader print:hidden" aria-hidden="true" /> : null}
+      <span className={cn(strong && "tkt-money")}>{value}</span>
     </div>
   );
 }

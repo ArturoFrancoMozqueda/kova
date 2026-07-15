@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
 import { ReceiptTemplate } from "@/orders/ReceiptTemplate";
+import { TicketPaper } from "@/components/ui/ticket";
 import { LogoUploadField } from "./LogoUploadField";
 import {
   deactivateEmployee,
@@ -550,26 +551,28 @@ function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {copy.settings.receiptPreviewTitle}
       </p>
-      <ReceiptTemplate
-        aria-label={copy.settings.receiptPreviewTitle}
-        businessName={name}
-        logoUrl={receipt.logo_url.trim() || undefined}
-        taxContactText={receipt.tax_contact_text.trim() || undefined}
-        footer={receipt.footer.trim() || undefined}
-        createdAt={new Date()}
-        items={[
-          {
-            product_name: copy.settings.receiptPreviewItem,
-            quantity: 1,
-            unit_price_amount: "120.00",
-            line_total_amount: "120.00",
-            modifiers: [],
-          },
-        ]}
-        subtotalAmount="120.00"
-        totalAmount="120.00"
-        payments={[{ method: "cash", amount_amount: "120.00" }]}
-      />
+      <TicketPaper className="max-w-xs">
+        <ReceiptTemplate
+          aria-label={copy.settings.receiptPreviewTitle}
+          businessName={name}
+          logoUrl={receipt.logo_url.trim() || undefined}
+          taxContactText={receipt.tax_contact_text.trim() || undefined}
+          footer={receipt.footer.trim() || undefined}
+          createdAt={new Date()}
+          items={[
+            {
+              product_name: copy.settings.receiptPreviewItem,
+              quantity: 1,
+              unit_price_amount: "120.00",
+              line_total_amount: "120.00",
+              modifiers: [],
+            },
+          ]}
+          subtotalAmount="120.00"
+          totalAmount="120.00"
+          payments={[{ method: "cash", amount_amount: "120.00" }]}
+        />
+      </TicketPaper>
     </div>
   );
 }

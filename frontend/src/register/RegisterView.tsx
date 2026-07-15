@@ -14,6 +14,7 @@ import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import { getReceipt } from "../orders/api";
 import { ReceiptTemplate } from "../orders/ReceiptTemplate";
+import { TicketPaper } from "@/components/ui/ticket";
 import type { Order, Receipt } from "../orders/types";
 import { queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
@@ -1396,7 +1397,9 @@ export default function RegisterView() {
                     mobile success overlay (always in the DOM); at print width the
                     lg:block desktop card is display:none, so it never double-prints. */}
                 {receiptProps && (
-                  <ReceiptTemplate {...receiptProps} className="mt-4" />
+                  <TicketPaper className="mt-4">
+                    <ReceiptTemplate {...receiptProps} />
+                  </TicketPaper>
                 )}
               </CardContent>
             </Card>
@@ -1454,7 +1457,9 @@ export default function RegisterView() {
                 complete) is the single print-receipt-root the print CSS targets,
                 for both mobile and desktop. */}
             {receiptProps && (
-              <ReceiptTemplate {...receiptProps} className="print-receipt-root w-full max-w-xs" />
+              <TicketPaper className="w-full max-w-xs">
+                <ReceiptTemplate {...receiptProps} className="print-receipt-root" />
+              </TicketPaper>
             )}
           </div>
           <div className="px-6 pb-6 space-y-2">

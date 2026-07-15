@@ -253,6 +253,15 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+/* Marcador para la fila de total del recibo/corte: solo aporta tamaño en
+   pantalla vía clases Tailwind en el propio componente; el reset a la
+   tipografía mono original de 11px vive en @media print más abajo. */
+.tkt-total {
+}
+/* Texto secundario (fecha, folio, unit price, notas) sobre papel. */
+.tkt-caption {
+  color: var(--ticket-muted);
+}
 
 @media print {
   @page {
@@ -307,6 +316,24 @@
   }
   .tkt-body {
     background: none !important;
+  }
+  /* El recibo/corte en pantalla vive sobre papel color hueso; en térmica
+     debe quedar exactamente como antes de este pase — blanco, mono, 11px. */
+  .receipt-template,
+  .corte-template {
+    background: #fff !important;
+    color: #0f1117 !important;
+  }
+  .tkt-rule {
+    border-top: 1px dashed var(--kova-border) !important;
+  }
+  .tkt-total {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: normal !important;
+  }
+  .tkt-caption {
+    color: hsl(var(--muted-foreground)) !important;
   }
 }
 
