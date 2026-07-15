@@ -19,7 +19,7 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
-import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search } from "lucide-react";
+import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown } from "lucide-react";
 
 type LoadState =
   | { status: "loading" }
@@ -206,7 +206,7 @@ export default function InventoryView() {
                 .filter((item, index, items) => items.findIndex((candidate) => candidate.title === item.title) === index)
                 .slice(0, 3)
                 .map((item) => (
-                  <div key={item.id} className="rounded-lg border bg-background p-3">
+                  <div key={item.id} className="rounded-kova-md border border-kova-border bg-kova-mist/60 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold">{item.title}</p>
                       <Badge
@@ -216,7 +216,10 @@ export default function InventoryView() {
                         {item.tone === "secondary" ? copy.inventoryView.stockVelocity : copy.inventoryView.lowStock}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                    <p className="mt-1 flex items-center gap-1 text-xs leading-5 text-muted-foreground">
+                      {item.tone === "secondary" && <TrendingDown className="h-3 w-3 shrink-0 text-kova-blue" />}
+                      {item.detail}
+                    </p>
                     {item.tone === "secondary" && (
                       <p className="mt-1 text-[11px] text-muted-foreground/70">{copy.inventoryView.velocityBasis}</p>
                     )}
@@ -357,22 +360,38 @@ function StockCard({
     }
   };
 
+  const isOut = item.stock_on_hand <= 0;
+  const isLow = item.is_low_stock && !isOut;
+
   return (
-    <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
+    <Card
+      className={cn(
+        "shadow-kova-card hover:shadow-kova-card-hover transition-shadow",
+        isOut && "border-l-4 border-l-destructive",
+        isLow && "border-l-4 border-l-warning",
+      )}
+    >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div>
             <h3 className="font-semibold text-sm">{item.product_name}</h3>
             <p className="text-xs text-muted-foreground">{item.sku ?? copy.inventoryView.noSku}</p>
           </div>
-          {item.stock_on_hand <= 0 ? (
+          {isOut ? (
             <Badge variant="destructive">{copy.inventoryView.outBadge}</Badge>
-          ) : item.is_low_stock ? (
+          ) : isLow ? (
             <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>
           ) : null}
         </div>
         <div className="flex items-baseline gap-2 mb-2">
-          <span className="text-3xl font-bold">{item.stock_on_hand}</span>
+          <span
+            className={cn(
+              "text-3xl font-bold tabular-nums",
+              isOut ? "text-destructive" : isLow ? "text-warning-foreground" : "text-kova-ink",
+            )}
+          >
+            {item.stock_on_hand}
+          </span>
           <span className="text-sm text-muted-foreground">{copy.inventoryView.onHand}</span>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
@@ -413,7 +432,7 @@ function StockCard({
             {historyLoading && (
               <div className="space-y-2">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-8 rounded bg-muted animate-pulse" />
+                  <Skeleton key={i} className="h-8 rounded-kova-md" />
                 ))}
               </div>
             )}
