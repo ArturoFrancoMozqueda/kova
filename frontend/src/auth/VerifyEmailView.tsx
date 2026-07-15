@@ -3,9 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { verifyEmail, ApiError } from "./api";
 import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import { LogoMark } from "@/components/brand/Logo";
+import { AuthLayout } from "./AuthLayout";
 
 type State = "verifying" | "success" | "error" | "missing" | "expired";
 
@@ -32,17 +31,7 @@ export default function VerifyEmailView() {
   }, [navigate, params]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="mb-4 flex justify-center">
-            <LogoMark size={48} circuitColor="var(--kova-ink)" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.auth.verifyEmail}</h1>
-        </div>
-
-        <Card className="shadow-lg border-border/50">
-          <CardContent className="p-6 text-center">
+    <AuthLayout title={copy.auth.verifyEmail} contentClassName="text-center">
             {state === "verifying" && (
               <div className="flex flex-col items-center gap-3 py-4">
                 <Loader2 className="h-8 w-8 text-kova-blue animate-spin" />
@@ -81,9 +70,6 @@ export default function VerifyEmailView() {
                 <p className="font-medium text-destructive">{copy.auth.verifyMissingToken}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+    </AuthLayout>
   );
 }

@@ -6,9 +6,8 @@ import { useAuth } from "./useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
-import { LogoMark } from "@/components/brand/Logo";
+import { AuthLayout } from "./AuthLayout";
 import { queueFunnelEvent } from "@/telemetry/funnel";
 
 type AuthMode = "login" | "signup";
@@ -140,24 +139,11 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        {/* Brand header */}
-        <div className="text-center mb-8">
-          <div className="mb-4 flex justify-center">
-            <LogoMark size={48} circuitColor="var(--kova-ink)" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {mode === "login" ? copy.auth.loginSubtitle : copy.auth.signupSubtitle}
-          </p>
-        </div>
-
-        <Card className="shadow-lg border-border/50">
-          <CardContent className="p-6">
-            <form onSubmit={(event) => void submit(event)} className="space-y-4">
+    <AuthLayout
+      title={mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
+      subtitle={mode === "login" ? copy.auth.loginSubtitle : copy.auth.signupSubtitle}
+    >
+      <form onSubmit={(event) => void submit(event)} className="space-y-4">
               {mode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="tenantName">{copy.auth.tenantName}</Label>
@@ -412,9 +398,6 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                 {mode === "login" ? copy.auth.needAccount : copy.auth.haveAccount}
               </Link>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+    </AuthLayout>
   );
 }

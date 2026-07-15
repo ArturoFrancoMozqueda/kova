@@ -5,9 +5,8 @@ import { requestPasswordReset } from "./api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
-import { LogoMark } from "@/components/brand/Logo";
+import { AuthLayout } from "./AuthLayout";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type State = "idle" | "submitting" | "sent";
@@ -36,18 +35,7 @@ export default function ForgotPasswordView() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="mb-4 flex justify-center">
-            <LogoMark size={48} circuitColor="var(--kova-ink)" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.auth.forgotPasswordTitle}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{copy.auth.forgotPasswordSubtitle}</p>
-        </div>
-
-        <Card className="shadow-lg border-border/50">
-          <CardContent className="p-6">
+    <AuthLayout title={copy.auth.forgotPasswordTitle} subtitle={copy.auth.forgotPasswordSubtitle}>
             {state === "sent" ? (
               <div className="space-y-4">
                 <div className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
@@ -113,9 +101,6 @@ export default function ForgotPasswordView() {
                 </div>
               </form>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+    </AuthLayout>
   );
 }
