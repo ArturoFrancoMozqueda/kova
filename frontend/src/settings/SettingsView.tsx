@@ -273,14 +273,14 @@ export default function SettingsView() {
 
       <nav
         aria-label={copy.settings.tabsLabel}
-        className="flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border bg-card p-1"
+        className="flex gap-1 overflow-x-auto rounded-kova-md border border-kova-border bg-white p-1"
       >
         {settingsTabs.map((tab) => (
           <Link
             key={tab.id}
             to={tab.to}
             className={cn(
-              "shrink-0 rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors",
+              "shrink-0 rounded-kova-sm px-3 py-2 text-sm font-medium transition-colors",
               activeTab === tab.id
                 ? "bg-kova-ink text-white"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -332,7 +332,7 @@ export default function SettingsView() {
         <CardContent className="space-y-5">
           <div className="grid gap-3 md:grid-cols-3">
             {roleOptions.map((option) => (
-              <div key={option.value} className="rounded-lg border bg-muted/20 p-3">
+              <div key={option.value} className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
                 <p className="text-sm font-medium">{option.label}</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</p>
               </div>
@@ -360,7 +360,7 @@ export default function SettingsView() {
 
           <div className="space-y-2">
             {employees.map((employee) => (
-              <div key={employee.membership_id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center">
+              <div key={employee.membership_id} className="flex flex-col gap-3 rounded-kova-md border border-kova-border p-3 sm:flex-row sm:items-center">
                 <div className="flex-1">
                   <p className="font-medium">{employee.email}</p>
                   <p className="text-xs text-muted-foreground">
@@ -412,7 +412,7 @@ export default function SettingsView() {
           </div>
 
           {invitations.length > 0 && (
-            <div className="rounded-lg bg-muted/40 p-3">
+            <div className="rounded-kova-lg bg-kova-mist/70 p-3">
               <p className="mb-2 text-sm font-medium">{copy.settings.pendingInvites}</p>
               <div className="space-y-2">
                 {invitations.map((row) => {
@@ -420,7 +420,7 @@ export default function SettingsView() {
                   return (
                     <div
                       key={row.id}
-                      className="flex flex-col gap-2 rounded-lg border bg-background p-3 sm:flex-row sm:items-center"
+                      className="flex flex-col gap-2 rounded-kova-md border border-kova-border bg-white p-3 sm:flex-row sm:items-center"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{row.email}</p>
