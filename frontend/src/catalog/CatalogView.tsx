@@ -290,10 +290,10 @@ export default function CatalogView() {
 
       {/* Preset banner — shown only when catalog is empty and user can create */}
       {activeProducts.length === 0 && canCreate && (
-        <div className="rounded-xl border border-primary/20 bg-primary/3 p-5 animate-fade-in">
+        <div className="rounded-kova-lg border border-kova-blue/20 bg-kova-blue/[0.03] p-5 animate-fade-in">
           <div className="flex items-start gap-3 mb-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-              <Sparkles className="h-5 w-5 text-primary" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-kova-md bg-kova-blue/10 shrink-0">
+              <Sparkles className="h-5 w-5 text-kova-blue" />
             </div>
             <div>
               <p className="font-semibold text-sm">{copy.onboarding.presetTitle}</p>
@@ -311,14 +311,14 @@ export default function CatalogView() {
                 type="button"
                 disabled={presetApplying}
                 onClick={() => void handleApplyPreset(preset)}
-                className="flex flex-col rounded-xl border-2 border-border bg-background p-4 text-left transition-all hover:border-primary/40 hover:shadow-sm disabled:opacity-60"
+                className="flex flex-col rounded-kova-lg border-2 border-kova-border bg-white p-4 text-left transition-all hover:border-kova-blue/40 hover:shadow-kova-card-hover disabled:opacity-60"
               >
                 <p className="font-semibold text-sm">{label}</p>
                 <p className="text-xs text-muted-foreground mt-1">{desc}</p>
               </button>
             ))}
             {/* Blank / dismiss */}
-            <div className="flex flex-col rounded-xl border-2 border-dashed border-border bg-background p-4 text-left">
+            <div className="flex flex-col rounded-kova-lg border-2 border-dashed border-kova-border bg-white p-4 text-left">
               <p className="font-semibold text-sm text-muted-foreground">{copy.onboarding.presetBlank}</p>
               <p className="text-xs text-muted-foreground mt-1">{copy.onboarding.presetBlankDesc}</p>
             </div>
@@ -332,7 +332,7 @@ export default function CatalogView() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-card p-5 shadow-kova-card">
+      <div className="rounded-kova-lg border border-kova-border bg-white p-5 shadow-kova-card">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="mb-2 flex items-center gap-2">
@@ -347,21 +347,21 @@ export default function CatalogView() {
             <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{statusBody}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
-            <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
               <p className="text-xs text-muted-foreground">{copy.catalog.products}</p>
               <p className="mt-1 text-sm font-semibold">{copy.catalog.activeProducts(activeProducts.length)}</p>
             </div>
-            <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
               <p className="text-xs text-muted-foreground">{copy.catalog.categories}</p>
               <p className="mt-1 text-sm font-semibold">{copy.catalog.activeCategories(categories.length)}</p>
             </div>
-            <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
               <p className="text-xs text-muted-foreground">{copy.catalog.inventory}</p>
               <p className="mt-1 text-sm font-semibold">{copy.catalog.inventoryTracked(trackedProducts.length)}</p>
             </div>
           </div>
         </div>
-        <p className="mt-4 rounded-lg bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{setupNext}</p>
+        <p className="mt-4 rounded-kova-md bg-kova-mist px-3 py-2 text-sm text-muted-foreground">{setupNext}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
@@ -392,7 +392,7 @@ export default function CatalogView() {
               className={cn(
                 "w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors text-left",
                 selectedCategoryId === null
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-kova-blue/10 text-kova-blue"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
               )}
               onClick={() => setSelectedCategoryId(null)}
@@ -407,7 +407,7 @@ export default function CatalogView() {
                 className={cn(
                   "group flex items-center rounded-md transition-colors",
                   selectedCategoryId === cat.id
-                    ? "bg-primary/10"
+                    ? "bg-kova-blue/10"
                     : "hover:bg-accent",
                 )}
               >
@@ -418,7 +418,7 @@ export default function CatalogView() {
                   className={cn(
                     "flex-1 text-left px-3 py-2 text-sm font-medium transition-colors truncate",
                     selectedCategoryId === cat.id
-                      ? "text-primary"
+                      ? "text-kova-blue"
                       : "text-muted-foreground hover:text-accent-foreground",
                   )}
                   onClick={() => setSelectedCategoryId(cat.id)}
@@ -529,8 +529,8 @@ export default function CatalogView() {
               </div>
             </div>
             {visibleProducts.length === 0 && !modal ? (
-              <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-lg border border-[color:var(--kova-border)] bg-[color:var(--kova-mist)]/40 px-6 py-10 text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-[color:var(--kova-blue)]">
+              <div className="mx-auto flex max-w-md flex-col items-center justify-center rounded-kova-lg border border-kova-border bg-kova-mist/40 px-6 py-10 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-kova-blue">
                   <Package className="h-6 w-6" />
                 </div>
                 <p className="text-base font-semibold">{copy.catalog.emptyProductsTitle}</p>
@@ -560,12 +560,12 @@ export default function CatalogView() {
                   <div
                     key={product.id}
                     className={cn(
-                      "group relative rounded-lg border bg-card p-4 transition-all hover:shadow-md",
+                      "group relative rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card transition-all hover:shadow-kova-card-hover",
                       canUpdate && "cursor-pointer",
                     )}
                     onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}
                   >
-                    <div className="mb-3 flex aspect-video w-full items-center justify-center overflow-hidden rounded-md bg-[color:var(--kova-mist)]">
+                    <div className="mb-3 flex aspect-video w-full items-center justify-center overflow-hidden rounded-kova-md bg-kova-mist">
                       {product.image_url ? (
                         <img
                           src={productImageSrc(product.image_url, 400)}
@@ -618,7 +618,7 @@ export default function CatalogView() {
                       </div>
                     </div>
                     <div className="mt-3">
-                      <span className="text-lg font-bold text-primary">
+                      <span className="text-lg font-bold text-kova-blue tabular-nums">
                         {formatMoney(product.price_amount)}
                       </span>
                     </div>
@@ -899,7 +899,7 @@ function ModifierGroupsPanel({
       )}
 
       {groups.map((group) => (
-        <div key={group.id} className="rounded-lg border p-4 space-y-3">
+        <div key={group.id} className="rounded-kova-md border border-kova-border p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm">{group.name}</span>
@@ -940,7 +940,7 @@ function ModifierGroupsPanel({
             {group.options.map((opt) => (
               <div
                 key={opt.id}
-                className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-muted/50 group/opt"
+                className="flex items-center gap-2 text-sm px-2 py-1 rounded-kova-sm hover:bg-kova-mist/60 group/opt"
               >
                 <span className="flex-1">{opt.name}</span>
                 {parseFloat(opt.price_delta) > 0 && (
