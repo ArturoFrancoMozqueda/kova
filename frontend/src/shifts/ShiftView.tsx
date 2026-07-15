@@ -43,6 +43,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
 import { useToast } from "@/components/ui/toast";
+import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TicketPaper } from "@/components/ui/ticket";
 import {
   Clock,
   ArrowUpCircle,
@@ -53,6 +55,7 @@ import {
   RefreshCw,
   AlertCircle,
   Printer,
+  Receipt,
 } from "lucide-react";
 
 type LoadState =
@@ -71,6 +74,9 @@ export default function ShiftView() {
   // node; the effect below fires the print dialog once it's committed, then
   // clears so a later print targets the right shift.
   const [corteShift, setCorteShift] = useState<Shift | null>(null);
+  // Turno cuyo corte se muestra en pantalla (dato real de un turno ya
+  // cerrado, no se fabrica un corte para el turno en curso).
+  const [viewCorteShift, setViewCorteShift] = useState<Shift | null>(null);
   const canOpen = usePermission(SHIFT_OPEN_PERMISSION);
   const canClose = usePermission(SHIFT_CLOSE_PERMISSION);
   const { state } = useAuth();
@@ -399,15 +405,26 @@ export default function ShiftView() {
                       <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 w-full"
-                    onClick={() => setCorteShift(shift)}
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    {copy.shiftView.printCorte}
-                  </Button>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setViewCorteShift(shift)}
+                    >
+                      <Receipt className="mr-2 h-4 w-4" />
+                      {copy.shiftView.viewCorte}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setCorteShift(shift)}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      {copy.shiftView.printCorte}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -457,14 +474,24 @@ export default function ShiftView() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCorteShift(shift)}
-                        >
-                          <Printer className="mr-2 h-4 w-4" />
-                          {copy.shiftView.printCorte}
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setViewCorteShift(shift)}
+                          >
+                            <Receipt className="mr-2 h-4 w-4" />
+                            {copy.shiftView.viewCorte}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCorteShift(shift)}
+                          >
+                            <Printer className="mr-2 h-4 w-4" />
+                            {copy.shiftView.printCorte}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -485,6 +512,18 @@ export default function ShiftView() {
           />
         </div>
       )}
+
+      {/* Corte en pantalla: solo lectura, dato real del turno ya cerrado. */}
+      <Dialog open={viewCorteShift != null} onClose={() => setViewCorteShift(null)}>
+        <DialogHeader>
+          <DialogTitle>{copy.shiftView.viewCorte}</DialogTitle>
+        </DialogHeader>
+        {viewCorteShift ? (
+          <TicketPaper>
+            <CorteTemplate businessName={businessName} shift={viewCorteShift} />
+          </TicketPaper>
+        ) : null}
+      </Dialog>
 
       {/* Modals */}
       {activeModal === "open" && (

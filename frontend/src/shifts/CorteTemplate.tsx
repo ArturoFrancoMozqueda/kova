@@ -38,14 +38,14 @@ export function CorteTemplate({ businessName, shift, className, ...containerProp
     <div
       {...containerProps}
       className={cn(
-        "corte-template rounded-[var(--radius-lg)] border border-[color:var(--kova-border)] bg-white p-4 font-mono text-[11px] leading-snug text-[color:var(--kova-ink)] shadow-sm",
+        "corte-template rounded-[2px] p-4 font-mono text-[11px] leading-snug text-[color:var(--ticket-ink)]",
         className,
       )}
       style={{ fontVariantNumeric: "tabular-nums" }}
     >
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-sm font-semibold tracking-tight">{businessName}</p>
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{copy.corte.title}</p>
+        <p className="tkt-caption text-[10px] uppercase tracking-wide">{copy.corte.title}</p>
       </div>
 
       <CorteSeparator />
@@ -81,19 +81,19 @@ export function CorteTemplate({ businessName, shift, className, ...containerProp
           value={`${variance > 0 ? "+" : ""}${formatMoney(variance)}`}
           strong
         />
-        <p className="text-right text-[10px] text-muted-foreground">
+        <p className="tkt-caption text-right text-[10px]">
           {localizeReconciliationStatus(shift.reconciliation_status)}
         </p>
       </div>
 
       <CorteSeparator />
-      <p className="text-center text-[10px] text-muted-foreground">{copy.corte.footer}</p>
+      <p className="tkt-caption text-center text-[10px]">{copy.corte.footer}</p>
     </div>
   );
 }
 
 function CorteSeparator() {
-  return <div className="my-3 border-t border-dashed border-[color:var(--kova-border)]" />;
+  return <div className="tkt-rule my-3" />;
 }
 
 function CorteLine({
@@ -108,9 +108,16 @@ function CorteLine({
   muted?: boolean;
 }) {
   return (
-    <div className={cn("flex justify-between gap-3", strong && "font-semibold", muted && "text-muted-foreground")}>
+    <div
+      className={cn(
+        "flex items-baseline gap-3 print:items-center",
+        strong ? "tkt-total text-base font-bold print:justify-between" : "justify-between",
+        muted && "tkt-caption",
+      )}
+    >
       <span>{label}</span>
-      <span>{value}</span>
+      {strong ? <span className="tkt-leader print:hidden" aria-hidden="true" /> : null}
+      <span className={cn(strong && "tkt-money")}>{value}</span>
     </div>
   );
 }

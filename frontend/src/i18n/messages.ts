@@ -806,6 +806,7 @@ export const copy = {
             ? "Faltante"
             : "Cerrado",
     printCorte: "Imprimir corte",
+    viewCorte: "Ver corte",
   },
   corte: {
     title: "Corte de caja",
