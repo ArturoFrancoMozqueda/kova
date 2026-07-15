@@ -90,6 +90,18 @@
     --kova-grad-blue: linear-gradient(135deg, #eef3ff 0%, #e2ebff 55%, #ddf0ff 100%);
     --kova-grad-mint: linear-gradient(135deg, #e9fbf4 0%, #ddf6ec 55%, #e2f3ff 100%);
     --kova-grad-sky: linear-gradient(135deg, #f2f6ff 0%, #e9f1ff 55%, #eef9ff 100%);
+
+    /* Ticket térmico — material del papel, mismos valores que
+       landing/landingTheme.tsx themeVars() (claro/oscuro idénticos ahí).
+       Vive aquí para consumo app-wide vía .tkt-* (ver components/ui/ticket.tsx);
+       la landing sigue fijando su propio --ticket-* inline en .lp-root y no
+       se toca — cero colisión de selectores entre .tkt-* y .lp-tkt-*. */
+    --ticket-paper: #faf7f0;
+    --ticket-paper-deep: #f1ede2;
+    --ticket-ink: #191713;
+    --ticket-muted: rgba(25, 23, 19, 0.55);
+    --ticket-rule: rgba(25, 23, 19, 0.28);
+    --ticket-ok: #0e8a62;
   }
 
   @keyframes kovaLivePulse {
@@ -205,6 +217,43 @@
   animation: toast-slide-out 0.2s ease-in forwards;
 }
 
+/* ── Ticket térmico para la app (primitivo app-wide, distinto de .lp-tkt-*
+   de la landing) — decoración de PANTALLA solamente: papel, perforado y
+   sombra. Nunca es el propio .print-receipt-root/.print-corte-root, que
+   siguen siendo ReceiptTemplate/CorteTemplate; ver el reset en @media print
+   más abajo para que esta decoración jamás llegue a la impresión térmica. */
+.tkt-paper {
+  position: relative;
+  filter: drop-shadow(0 10px 20px rgba(15, 17, 23, 0.14)) drop-shadow(0 2px 6px rgba(15, 17, 23, 0.1));
+}
+.tkt-edge {
+  height: 8px;
+  background-image: radial-gradient(circle at 9px -3px, transparent 7px, var(--ticket-paper) 7.6px);
+  background-size: 18px 8px;
+  background-repeat: repeat-x;
+}
+.tkt-edge[data-side="bottom"] {
+  background-image: radial-gradient(circle at 9px 11px, transparent 7px, var(--ticket-paper-deep) 7.6px);
+}
+.tkt-body {
+  background: linear-gradient(180deg, var(--ticket-paper), var(--ticket-paper-deep));
+}
+.tkt-rule {
+  border: none;
+  border-top: 2px dotted var(--ticket-rule);
+}
+.tkt-leader {
+  flex: 1;
+  min-width: 12px;
+  border-bottom: 2px dotted var(--ticket-rule);
+  transform: translateY(-3px);
+  margin: 0 6px;
+}
+.tkt-money {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 @media print {
   @page {
     margin: 6mm;
@@ -243,6 +292,21 @@
 
   .print-only {
     display: block !important;
+  }
+
+  /* El papel es una decoración de pantalla — nunca debe viajar a la
+     impresión térmica. Un `filter` no-none crea containing block para
+     descendientes con position:absolute, así que neutralizarlo aquí también
+     evita que .print-receipt-root/.print-corte-root (position:absolute)
+     se desplace del origen de la página al imprimir. */
+  .tkt-paper {
+    filter: none !important;
+  }
+  .tkt-edge {
+    display: none !important;
+  }
+  .tkt-body {
+    background: none !important;
   }
 }
 
