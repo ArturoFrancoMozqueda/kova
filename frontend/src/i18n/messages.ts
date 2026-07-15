@@ -807,6 +807,8 @@ export const copy = {
             : "Cerrado",
     printCorte: "Imprimir corte",
     viewCorte: "Ver corte",
+    closedShiftsExpected: "Esperado",
+    closedShiftsVariance: "Variación",
   },
   corte: {
     title: "Corte de caja",
@@ -1654,6 +1656,9 @@ export const copy = {
   syncQueue: {
     title: "Cola de sincronización",
     empty: "Sin ventas pendientes o fallidas.",
+    emptyBody: "Todo lo que vendiste ya está sincronizado con el servidor.",
+    unknownProduct: "Producto sin nombre",
+    technicalDetail: "Detalle técnico",
     pending: "Pendientes",
     failed: "Fallidas",
     retry: "Reintentar",

@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ViewEmpty } from "@/components/ui/view-states";
 import { ExternalLink, AlertCircle, Inbox, X, CheckCircle2, Ban } from "lucide-react";
 
 type StatusFilter = "completed" | "voided" | undefined;
@@ -193,13 +194,11 @@ export default function OrderListView() {
 
       {/* Results */}
       {sortedItems.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Inbox className="h-12 w-12 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">
-              {hasActiveFilter ? copy.orderList.emptyFiltered : copy.orderList.empty}
-            </p>
-            {hasActiveFilter ? (
+        hasActiveFilter ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <Inbox className="h-12 w-12 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground">{copy.orderList.emptyFiltered}</p>
               <button
                 type="button"
                 onClick={clearFilters}
@@ -207,18 +206,16 @@ export default function OrderListView() {
               >
                 {copy.orderList.clearFilters}
               </button>
-            ) : (
-              <>
-                <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  {copy.orderList.emptyBody}
-                </p>
-                <Link to="/register" className={cn("mt-4", buttonVariants())}>
-                  {copy.orderList.emptyCta}
-                </Link>
-              </>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          <ViewEmpty
+            icon={<Inbox className="h-6 w-6" />}
+            title={copy.orderList.empty}
+            body={copy.orderList.emptyBody}
+            primaryCta={{ label: copy.orderList.emptyCta, to: "/register" }}
+          />
+        )
       ) : (
         <Card>
           <CardContent className="p-0">
