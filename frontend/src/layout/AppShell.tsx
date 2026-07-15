@@ -21,6 +21,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { avatarColorFor } from "@/lib/avatarColor";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
 import { LogoMark } from "@/components/brand/Logo";
 import { BillingBanner } from "@/billing/BillingBanner";
@@ -65,10 +66,32 @@ function roleLabel(role: string): string {
   return role;
 }
 
+const SIDEBAR_COLLAPSED_KEY = "kova-sidebar-collapsed";
+
+function readStoredSidebarCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export default function AppShell() {
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      } catch {
+        // Ignore — collapse state is a pure UI preference, safe to lose.
+      }
+      return next;
+    });
+  };
 
   const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
   const tenantName = formatTenantName(tenantNameRaw);
@@ -131,7 +154,7 @@ export default function AppShell() {
         {/* Collapse toggle — desktop only */}
         <button
           type="button"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onClick={toggleSidebarCollapsed}
           aria-label={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
           className={cn(
             "hidden lg:flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors shrink-0",
@@ -158,19 +181,23 @@ export default function AppShell() {
             title={sidebarCollapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
-                "group flex items-center rounded-lg text-sm font-medium transition-all duration-150",
-                sidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
+                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-all duration-150",
+                sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
                 isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                  ? "border-l-kova-blue-light bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "border-l-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
               )
             }
           >
-            {item.icon}
-            {!sidebarCollapsed && (
+            {({ isActive }) => (
               <>
-                <span className="flex-1">{item.label}</span>
-                <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+                <span className={isActive ? "text-kova-blue-light" : undefined}>{item.icon}</span>
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="flex-1">{item.label}</span>
+                    <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+                  </>
+                )}
               </>
             )}
           </NavLink>
@@ -182,7 +209,8 @@ export default function AppShell() {
         {!sidebarCollapsed && <OfflineIndicator />}
         <div className={cn("flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}>
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-xs font-bold uppercase shrink-0"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold uppercase text-white shrink-0"
+            style={{ background: userEmail ? avatarColorFor(userEmail) : undefined }}
             title={sidebarCollapsed ? userEmail : undefined}
           >
             {userEmail.charAt(0)}
@@ -256,7 +284,7 @@ export default function AppShell() {
         </header>
 
         {/* Desktop trial chip — top-right of content area */}
-        <div className="hidden lg:flex items-center justify-end px-8 pt-4">
+        <div className="hidden lg:flex items-center justify-end px-8 pt-3">
           <TrialChip />
         </div>
 
