@@ -746,7 +746,7 @@ export default function RegisterView() {
                     className="flex w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm hover:border-primary/40 hover:bg-muted/30 transition-colors"
                   >
                     <span className="font-medium">{p.name}</span>
-                    <span className="text-primary font-semibold">{formatMoney(p.price_amount)}</span>
+                    <span className="text-primary font-semibold tabular-nums">{formatMoney(p.price_amount)}</span>
                   </button>
                 ))}
               </div>
@@ -1128,14 +1128,14 @@ export default function RegisterView() {
                     <div className="rounded-lg bg-muted/50 p-3 space-y-1">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{copy.register.paymentTotal}</span>
-                        <span className="font-semibold">{formatMoney(centsToMoney(splitPaymentTotalCents))}</span>
+                        <span className="font-semibold tabular-nums">{formatMoney(centsToMoney(splitPaymentTotalCents))}</span>
                       </div>
                       {!splitTotalMatches && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
                             {splitRemainingCents > 0 ? copy.register.remaining : copy.register.splitOver}
                           </span>
-                          <span className="font-semibold text-destructive">
+                          <span className="font-semibold text-destructive tabular-nums">
                             {formatMoney(centsToMoney(Math.abs(splitRemainingCents)))}
                           </span>
                         </div>
@@ -1260,14 +1260,14 @@ export default function RegisterView() {
                             return (
                               <div className="flex justify-between rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm">
                                 <span className="text-destructive">{copy.register.cashShortfall}</span>
-                                <span className="font-bold text-destructive">{formatMoney(centsToMoney(shortfallCents))}</span>
+                                <span className="font-bold text-destructive tabular-nums">{formatMoney(centsToMoney(shortfallCents))}</span>
                               </div>
                             );
                           }
                           return (
                             <div className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
                               <span className="text-muted-foreground">{copy.register.changeDue}</span>
-                              <span className="font-bold text-primary">{formatMoney(centsToMoney(changeDueCents))}</span>
+                              <span className="font-bold text-primary tabular-nums">{formatMoney(centsToMoney(changeDueCents))}</span>
                             </div>
                           );
                         })()}

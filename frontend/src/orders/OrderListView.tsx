@@ -249,7 +249,7 @@ export default function OrderListView() {
                       </Badge>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">{formatMoney(order.total_amount)}</p>
+                      <p className="font-semibold tabular-nums">{formatMoney(order.total_amount)}</p>
                       <p className="mt-2 inline-flex items-center gap-1 text-xs text-primary">
                         {copy.orderList.view}
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -293,7 +293,7 @@ export default function OrderListView() {
                             : copy.orderList.statusCompleted}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold">
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums">
                         {formatMoney(order.total_amount)}
                       </td>
                       <td className="px-4 py-3">

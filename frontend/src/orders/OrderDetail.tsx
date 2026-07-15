@@ -253,7 +253,7 @@ export default function OrderDetail() {
                       )}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold">{formatMoney(item.line_total_amount)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatMoney(item.line_total_amount)}</span>
                 </div>
               );
             })}
