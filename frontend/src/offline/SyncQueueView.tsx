@@ -1,34 +1,60 @@
+import { useEffect, useState } from "react";
 import { copy } from "../i18n/messages";
 import { formatDateTime } from "../orders/format";
 import { useIsOnline, useSyncQueue } from "./useSyncQueue";
+import { readCatalogCache } from "./catalogCache";
+import { useAuth } from "@/auth/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ViewEmpty } from "@/components/ui/view-states";
+import { StatTile } from "@/components/ui/stat-tile";
 import { CloudUpload, RefreshCw, AlertCircle, Inbox, Wifi, WifiOff } from "lucide-react";
 
 export default function SyncQueueView() {
   const isOnline = useIsOnline();
   const { pendingCount, failedEntries, syncNow, retryDeadLetter } = useSyncQueue();
+  const { state } = useAuth();
+  const tenantId = state.status === "authenticated" ? state.tenantId : null;
+
+  // Nombres reales del catalogo offline (solo lectura) para que las lineas de
+  // ventas fallidas digan "Concha" en vez de un id truncado. No toca la cola
+  // ni su logica de reintento — si el cache esta vacio/viejo, cae al id.
+  const [productNames, setProductNames] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!tenantId) return;
+    let cancelled = false;
+    void readCatalogCache(tenantId).then((cached) => {
+      if (cancelled || !cached) return;
+      setProductNames(new Map(cached.products.map((p) => [p.id, p.name])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
 
   return (
     <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.syncQueue.title}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            {isOnline ? (
-              <Badge variant="success" className="gap-1"><Wifi className="h-3 w-3" />{copy.syncQueue.online}</Badge>
-            ) : (
-              <Badge variant="warning" className="gap-1"><WifiOff className="h-3 w-3" />{copy.register.offline}</Badge>
-            )}
-          </div>
+      <div className="mb-6 space-y-2">
+        <ViewHeader
+          title={copy.syncQueue.title}
+          actions={
+            isOnline && pendingCount > 0 ? (
+              <Button onClick={() => void syncNow()} className="self-start">
+                <CloudUpload className="h-4 w-4" />
+                {copy.syncQueue.syncNow}
+              </Button>
+            ) : undefined
+          }
+        />
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <Badge variant="success" className="gap-1"><Wifi className="h-3 w-3" />{copy.syncQueue.online}</Badge>
+          ) : (
+            <Badge variant="warning" className="gap-1"><WifiOff className="h-3 w-3" />{copy.register.offline}</Badge>
+          )}
         </div>
-        {isOnline && pendingCount > 0 && (
-          <Button onClick={() => void syncNow()}>
-            <CloudUpload className="h-4 w-4" />
-            {copy.syncQueue.syncNow}
-          </Button>
-        )}
       </div>
 
       {/* Sync state changes (a sale syncs, a retry fails, the network drops)
@@ -39,34 +65,28 @@ export default function SyncQueueView() {
       </div>
 
       {pendingCount === 0 && failedEntries.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center py-16">
-            <Inbox className="h-12 w-12 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">{copy.syncQueue.empty}</p>
-          </CardContent>
-        </Card>
+        <ViewEmpty
+          icon={<Inbox className="h-6 w-6" />}
+          title={copy.syncQueue.empty}
+          body={copy.syncQueue.emptyBody}
+        />
       )}
 
       {pendingCount > 0 && (
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <CloudUpload className="h-4 w-4 text-primary" />
-              {copy.syncQueue.pending}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <span className="text-lg font-bold text-primary">{pendingCount}</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium">{copy.register.pendingSales(pendingCount)}</p>
-                {!isOnline && <p className="text-xs text-muted-foreground">{copy.syncQueue.willSyncWhenRestored}</p>}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mb-4 max-w-xs">
+          {/* h3 sr-only: preserva el rol de encabezado "Pendientes" que ya
+              asertaban los e2e; StatTile no emite uno propio. */}
+          <h3 className="sr-only">{copy.syncQueue.pending}</h3>
+          <StatTile
+            label={copy.syncQueue.pending}
+            value={pendingCount}
+            icon={<CloudUpload className="h-4 w-4" />}
+            className="bg-kova-grad-sky"
+          >
+            <p className="text-xs text-kova-muted">{copy.register.pendingSales(pendingCount)}</p>
+            {!isOnline && <p className="text-xs text-kova-muted">{copy.syncQueue.willSyncWhenRestored}</p>}
+          </StatTile>
+        </div>
       )}
 
       {failedEntries.length > 0 && (
@@ -97,11 +117,19 @@ export default function SyncQueueView() {
                         {entry.last_error}
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-2 tabular-nums">
-                      {entry.sale.items.map((i) => `${i.quantity}x${i.product_id.slice(0, 8)}`).join(", ")}
-                      {" — "}
-                      {entry.sale.payments.map((p) => `${p.method}:${p.amount}`).join(" + ")}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {entry.sale.items
+                        .map((i) => `${i.quantity}x ${productNames.get(i.product_id) ?? copy.syncQueue.unknownProduct}`)
+                        .join(", ")}
                     </p>
+                    <details className="mt-1 text-[11px] text-muted-foreground/70">
+                      <summary className="cursor-pointer select-none">{copy.syncQueue.technicalDetail}</summary>
+                      <p className="mt-1 tabular-nums">
+                        {entry.sale.items.map((i) => `${i.quantity}x${i.product_id.slice(0, 8)}`).join(", ")}
+                        {" — "}
+                        {entry.sale.payments.map((p) => `${p.method}:${p.amount}`).join(" + ")}
+                      </p>
+                    </details>
                   </div>
                   <Button
                     variant="outline"

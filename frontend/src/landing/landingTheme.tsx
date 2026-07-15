@@ -7,6 +7,10 @@
 // micro-interaction styles. Home.tsx and the showcase both import from here —
 // keeping styling in one place instead of duplicating ~430 lines of CSS.
 import type { CSSProperties } from "react";
+// Display face de la landing (solo titulares). Importada aquí — no en main.tsx —
+// para que el CSS/woff2 caigan en el chunk lazy de Home y las rutas de la app
+// no paguen la fuente. Cubre también /kova-showcase-video vía LandingStyleTag.
+import "@fontsource-variable/bricolage-grotesque/wght.css";
 
 /* ─── Theme ──────────────────────────────────────────────────────────────── */
 export type Theme = "light" | "dark";
@@ -30,6 +34,13 @@ export function themeVars(theme: Theme): CSSProperties {
       "--chip-bg": "rgba(255,255,255,0.06)",
       "--invert-ink-bg": "#FBFBFD",
       "--invert-ink-fg": "var(--kova-ink)",
+      // Ticket térmico — material (papel), no tema: mismos valores en claro/oscuro.
+      "--ticket-paper": "#FAF7F0",
+      "--ticket-paper-deep": "#F1EDE2",
+      "--ticket-ink": "#191713",
+      "--ticket-muted": "rgba(25,23,19,0.55)",
+      "--ticket-rule": "rgba(25,23,19,0.28)",
+      "--ticket-ok": "#0E8A62",
     } as CSSProperties;
   }
   return {
@@ -49,6 +60,12 @@ export function themeVars(theme: Theme): CSSProperties {
     "--chip-bg": "rgba(15,17,23,0.05)",
     "--invert-ink-bg": "var(--kova-ink)",
     "--invert-ink-fg": "var(--kova-on-ink)",
+    "--ticket-paper": "#FAF7F0",
+    "--ticket-paper-deep": "#F1EDE2",
+    "--ticket-ink": "#191713",
+    "--ticket-muted": "rgba(25,23,19,0.55)",
+    "--ticket-rule": "rgba(25,23,19,0.28)",
+    "--ticket-ok": "#0E8A62",
   } as CSSProperties;
 }
 
@@ -56,6 +73,7 @@ export function themeVars(theme: Theme): CSSProperties {
 export const LANDING_STYLES = `
   .lp-root {
     font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --lp-font-display: 'Bricolage Grotesque Variable', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
     background: var(--page-bg);
     color: var(--page-fg);
     -webkit-font-smoothing: antialiased;
@@ -84,13 +102,15 @@ export const LANDING_STYLES = `
     color: var(--text-muted);
   }
   .lp-section-title {
+    font-family: var(--lp-font-display);
     font-size: clamp(32px, 4vw, 54px);
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
     line-height: 1.04;
     margin: 0;
     color: var(--page-fg);
   }
+  .lp-hero-title { font-family: var(--lp-font-display); }
   .lp-section-copy {
     margin: 16px 0 0;
     max-width: 620px;
@@ -475,12 +495,131 @@ export const LANDING_STYLES = `
     animation: lp-cart-pop 220ms var(--kova-ease-spring);
   }
 
+  /* ── Ticket térmico (firma de la landing) ─────────────────────────────────
+     Papel = material, no tema: vive solo en superficies lp-tkt sobre el ink.
+     Perforado con radial-gradient (no mask-image) para soporte amplio; la
+     sombra usa drop-shadow para seguir el contorno perforado. */
+  .lp-tkt {
+    position: relative;
+    filter: drop-shadow(0 18px 30px rgba(0,0,0,0.38)) drop-shadow(0 3px 8px rgba(0,0,0,0.22));
+    text-align: left;
+  }
+  .lp-tkt-edge {
+    height: 10px;
+    background-image: radial-gradient(circle at 9px -3px, transparent 7px, var(--ticket-paper) 7.6px);
+    background-size: 18px 10px;
+    background-repeat: repeat-x;
+  }
+  .lp-tkt-edge[data-side="bottom"] {
+    background-image: radial-gradient(circle at 9px 13px, transparent 7px, var(--ticket-paper-deep) 7.6px);
+  }
+  .lp-tkt-body {
+    background: linear-gradient(180deg, var(--ticket-paper), var(--ticket-paper-deep));
+    color: var(--ticket-ink);
+    padding: 24px 26px;
+  }
+  .lp-tkt-rule {
+    border: none;
+    border-top: 2px dotted var(--ticket-rule);
+    margin: 0;
+  }
+  .lp-tkt-leader {
+    flex: 1;
+    min-width: 18px;
+    border-bottom: 2px dotted var(--ticket-rule);
+    transform: translateY(-4px);
+    margin: 0 8px;
+  }
+  .lp-tkt-money {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .lp-tkt-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ticket-muted);
+  }
+  /* Pestaña desprendible: pieza aparte — el hueco entre perforados = el corte. */
+  .lp-tkt-tab { margin-top: 7px; }
+  .lp-tkt-tab .lp-tkt-body { padding: 18px 20px 14px; }
+
+  /* Impresión del recibo: las líneas aparecen en orden al entrar en viewport.
+     Gateado en data-lp-reveal (solo se agrega post-hidratación) + lp-motion-ready,
+     así el HTML prerenderizado y no-JS muestran el recibo completo. */
+  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-reveal="true"] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-reveal="true"] .lp-tkt-line { opacity: 0; }
+  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-visible="true"] .lp-tkt-line {
+    animation: lp-tkt-print 240ms var(--kova-ease-entrance) both;
+    animation-delay: calc(var(--tkt-i, 0) * 90ms);
+  }
+  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-reveal="true"] .lp-tkt-tab { opacity: 0; }
+  .lp-root.lp-motion-ready .lp-ticket-print[data-lp-visible="true"] .lp-tkt-tab {
+    animation: lp-tkt-tab-in 420ms var(--kova-ease-spring) both;
+    animation-delay: calc(var(--tkt-i, 0) * 90ms);
+  }
+  @keyframes lp-tkt-print {
+    from { opacity: 0; transform: translateY(-8px); clip-path: inset(0 0 85% 0); }
+    to   { opacity: 1; transform: translateY(0);    clip-path: inset(0 0 -8px 0); }
+  }
+  @keyframes lp-tkt-tab-in {
+    from { opacity: 0; transform: translateY(-10px) rotate(-1deg); }
+    to   { opacity: 1; transform: translateY(0) rotate(0deg); }
+  }
+
+  /* Recortes del problema: libreta/Excel/WhatsApp como papeles sueltos. */
+  .lp-scraps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-content: flex-start;
+  }
+  .lp-scrap {
+    position: relative;
+    padding: 13px 18px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(240,244,255,0.72);
+    background: var(--surface);
+    border: 0.5px solid var(--hairline-color);
+    border-radius: 2px;
+    transform: rotate(var(--scrap-rot, 0deg));
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), 88% 100%, 74% calc(100% - 5px), 58% 100%, 45% calc(100% - 7px), 28% 100%, 13% calc(100% - 4px), 0 100%);
+  }
+  .lp-scrap[data-kind="ruled"] {
+    background-image: repeating-linear-gradient(180deg, transparent 0 10px, rgba(123,167,255,0.12) 10px 11px);
+  }
+  .lp-scrap[data-kind="grid"] {
+    background-image:
+      repeating-linear-gradient(180deg, transparent 0 11px, rgba(123,167,255,0.10) 11px 12px),
+      repeating-linear-gradient(90deg, transparent 0 14px, rgba(123,167,255,0.10) 14px 15px);
+  }
+  .lp-scrap[data-kind="bubble"] {
+    clip-path: none;
+    border-radius: 12px 12px 12px 3px;
+  }
+  .lp-scrap[data-kind="dotted"] {
+    background-image: repeating-linear-gradient(180deg, transparent 0 9px, rgba(240,244,255,0.10) 9px 10px);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .lp-live-dot { animation: none !important; }
     .lp-root.lp-motion-ready [data-lp-reveal="true"] {
       opacity: 1 !important;
       transform: none !important;
       filter: none !important;
+    }
+    .lp-root .lp-tkt-line, .lp-root .lp-tkt-tab {
+      opacity: 1 !important;
+      animation: none !important;
     }
     .lp-root *, .lp-root *::before, .lp-root *::after {
       animation-duration: 0.01ms !important;
@@ -530,6 +669,8 @@ export const RESPONSIVE_STYLES = `
     .lp-pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
     .lp-cash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-rep-bottom { grid-template-columns: 1fr !important; }
+    .lp-problem-grid { grid-template-columns: 1fr !important; }
+    .lp-problem-ticket { max-width: 340px !important; }
   }
   @media (max-width: 640px) {
     .lp-section { padding: 58px 20px !important; }
@@ -612,6 +753,16 @@ export const RESPONSIVE_STYLES = `
     .lp-own-secondary { display: none !important; }
     .lp-cta-band { padding: 40px 22px !important; }
     .lp-cta-steps { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .lp-tkt-body { padding: 20px 18px !important; }
+    .lp-tkt-total-num { font-size: 48px !important; }
+    .lp-tkt-edge { background-size: 14px 8px !important; height: 8px !important; }
+    .lp-tkt-edge[data-side="bottom"] {
+      background-image: radial-gradient(circle at 7px 10px, transparent 5.5px, var(--ticket-paper-deep) 6px) !important;
+    }
+    .lp-tkt-edge:not([data-side="bottom"]) {
+      background-image: radial-gradient(circle at 7px -2px, transparent 5.5px, var(--ticket-paper) 6px) !important;
+    }
+    .lp-scrap { padding: 11px 14px 13px !important; font-size: 13px !important; }
   }
   @media (max-width: 360px) {
     .lp-nav-primary { padding: 9px 10px !important; font-size: 12px !important; }

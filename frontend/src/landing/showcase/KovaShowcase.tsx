@@ -613,8 +613,9 @@ const SHOWCASE_STYLES = `
   .ksw-cta-title {
     margin: 6px 0 0;
     color: var(--page-fg);
+    font-family: var(--lp-font-display);
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
     font-size: clamp(24px, 4vmin, 46px);
     line-height: 1.05;
   }

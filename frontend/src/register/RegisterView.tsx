@@ -14,6 +14,7 @@ import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import { getReceipt } from "../orders/api";
 import { ReceiptTemplate } from "../orders/ReceiptTemplate";
+import { TicketPaper } from "@/components/ui/ticket";
 import type { Order, Receipt } from "../orders/types";
 import { queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
@@ -32,6 +33,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ViewHeader } from "@/components/ui/view-header";
+import { ViewEmpty } from "@/components/ui/view-states";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -51,7 +54,6 @@ import {
   Building2,
   CreditCard,
   Search,
-  Sparkles,
   X,
   ChevronUp,
   Printer,
@@ -632,19 +634,22 @@ export default function RegisterView() {
   return (
     <main className="p-4 pb-40 sm:p-6 lg:p-8 lg:pb-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <p className="text-sm text-muted-foreground">{tenantName}</p>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.register.title}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {canManageCatalog && (
-            <Link to="/catalog" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-              <LayoutGrid className="h-4 w-4" />
-              {copy.register.manageCatalog}
-            </Link>
-          )}
-        </div>
+      <div className="mb-6">
+        <ViewHeader
+          eyebrow={tenantName}
+          title={copy.register.title}
+          actions={
+            canManageCatalog ? (
+              <Link
+                to="/catalog"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "self-start")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                {copy.register.manageCatalog}
+              </Link>
+            ) : undefined
+          }
+        />
       </div>
 
       {loadState.status === "ready" && loadState.fromCache && (
@@ -741,7 +746,7 @@ export default function RegisterView() {
                     className="flex w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm hover:border-primary/40 hover:bg-muted/30 transition-colors"
                   >
                     <span className="font-medium">{p.name}</span>
-                    <span className="text-primary font-semibold">{formatMoney(p.price_amount)}</span>
+                    <span className="text-primary font-semibold tabular-nums">{formatMoney(p.price_amount)}</span>
                   </button>
                 ))}
               </div>
@@ -790,25 +795,22 @@ export default function RegisterView() {
                 : ""}
             </div>
             {filteredProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-                  <ShoppingBag className="h-7 w-7 text-muted-foreground" />
-                </div>
-                <p className="font-medium">{copy.register.catalogPlaceholder}</p>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">{copy.register.catalogPlaceholderBody}</p>
-                {canManageCatalog && (
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    <Link to="/catalog?new=product" className={cn(buttonVariants({ size: "sm" }))}>
-                      <Plus className="h-4 w-4" />
-                      {copy.register.createFirstProduct}
-                    </Link>
-                    <Link to="/catalog" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                      <Sparkles className="h-4 w-4" />
-                      {copy.register.loadCafePreset}
-                    </Link>
-                  </div>
-                )}
-              </div>
+              <ViewEmpty
+                bare
+                icon={<ShoppingBag className="h-6 w-6" />}
+                title={copy.register.catalogPlaceholder}
+                body={copy.register.catalogPlaceholderBody}
+                primaryCta={
+                  canManageCatalog
+                    ? { label: copy.register.createFirstProduct, to: "/catalog?new=product" }
+                    : undefined
+                }
+                secondaryCta={
+                  canManageCatalog
+                    ? { label: copy.register.loadCafePreset, to: "/catalog" }
+                    : undefined
+                }
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {filteredProducts.map((product) => {
@@ -993,17 +995,17 @@ export default function RegisterView() {
                             <Plus className="h-4 w-4" />
                           </button>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold">
+                        <div className="flex flex-col items-end gap-1">
+                          <p className="text-sm font-bold tabular-nums">
                             {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
                           </p>
                           <button
                             type="button"
                             onClick={() => removeItem(cartKey)}
                             aria-label={copy.register.removeItem(item.product.name)}
-                            className="text-xs text-destructive hover:underline mt-1"
+                            className="flex h-9 w-9 items-center justify-center rounded-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
                           >
-                            <Trash2 className="h-3 w-3 inline" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </div>
@@ -1020,8 +1022,8 @@ export default function RegisterView() {
               <CardContent className="p-4 space-y-4">
                 {/* Total */}
                 <div className="flex items-center justify-between py-2 border-b">
-                  <span className="text-sm text-muted-foreground">{copy.register.total}</span>
-                  <span className="text-2xl font-bold">{formatMoney(totalAmount)}</span>
+                  <span className="text-sm font-medium text-muted-foreground">{copy.register.total}</span>
+                  <span className="text-3xl font-bold tabular-nums text-kova-ink">{formatMoney(totalAmount)}</span>
                 </div>
 
                 {!canCreateOrders && (
@@ -1126,14 +1128,14 @@ export default function RegisterView() {
                     <div className="rounded-lg bg-muted/50 p-3 space-y-1">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{copy.register.paymentTotal}</span>
-                        <span className="font-semibold">{formatMoney(centsToMoney(splitPaymentTotalCents))}</span>
+                        <span className="font-semibold tabular-nums">{formatMoney(centsToMoney(splitPaymentTotalCents))}</span>
                       </div>
                       {!splitTotalMatches && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">
                             {splitRemainingCents > 0 ? copy.register.remaining : copy.register.splitOver}
                           </span>
-                          <span className="font-semibold text-destructive">
+                          <span className="font-semibold text-destructive tabular-nums">
                             {formatMoney(centsToMoney(Math.abs(splitRemainingCents)))}
                           </span>
                         </div>
@@ -1258,14 +1260,14 @@ export default function RegisterView() {
                             return (
                               <div className="flex justify-between rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm">
                                 <span className="text-destructive">{copy.register.cashShortfall}</span>
-                                <span className="font-bold text-destructive">{formatMoney(centsToMoney(shortfallCents))}</span>
+                                <span className="font-bold text-destructive tabular-nums">{formatMoney(centsToMoney(shortfallCents))}</span>
                               </div>
                             );
                           }
                           return (
                             <div className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
                               <span className="text-muted-foreground">{copy.register.changeDue}</span>
-                              <span className="font-bold text-primary">{formatMoney(centsToMoney(changeDueCents))}</span>
+                              <span className="font-bold text-primary tabular-nums">{formatMoney(centsToMoney(changeDueCents))}</span>
                             </div>
                           );
                         })()}
@@ -1332,12 +1334,13 @@ export default function RegisterView() {
                   </div>
                 )}
 
-                {/* Submit */}
+                {/* Submit — kova-growth: cobrar es la accion que lleva al
+                    estado de exito, que ya usa ese mismo verde. */}
                 <Button
                   type="submit"
                   disabled={!canSubmitSale}
                   size="xl"
-                  className="w-full"
+                  className="w-full bg-kova-growth text-white hover:bg-kova-growth/90"
                   variant="default"
                 >
                   {submitting ? (
@@ -1358,14 +1361,14 @@ export default function RegisterView() {
 
           {/* Completed sale result (desktop card) */}
           {completedOrder && (
-            <Card className="hidden lg:block border-success/30 bg-success/5 animate-fade-in">
+            <Card className="hidden lg:block border-kova-growth/30 bg-kova-growth/5 animate-fade-in">
               <CardContent className="p-4">
                 <div className="mb-3 flex items-start gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-kova-growth/15 text-kova-growth">
                     <CheckCircle2 className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-semibold text-success">{copy.register.saleComplete}</p>
+                    <p className="font-semibold text-kova-growth">{copy.register.saleComplete}</p>
                     <p className="mt-1 text-2xl font-bold tabular-nums text-kova-ink">
                       {formatMoney(completedOrder.total_amount)}
                     </p>
@@ -1392,7 +1395,9 @@ export default function RegisterView() {
                     mobile success overlay (always in the DOM); at print width the
                     lg:block desktop card is display:none, so it never double-prints. */}
                 {receiptProps && (
-                  <ReceiptTemplate {...receiptProps} className="mt-4" />
+                  <TicketPaper className="mt-4">
+                    <ReceiptTemplate {...receiptProps} />
+                  </TicketPaper>
                 )}
               </CardContent>
             </Card>
@@ -1450,7 +1455,9 @@ export default function RegisterView() {
                 complete) is the single print-receipt-root the print CSS targets,
                 for both mobile and desktop. */}
             {receiptProps && (
-              <ReceiptTemplate {...receiptProps} className="print-receipt-root w-full max-w-xs" />
+              <TicketPaper className="w-full max-w-xs">
+                <ReceiptTemplate {...receiptProps} className="print-receipt-root" />
+              </TicketPaper>
             )}
           </div>
           <div className="px-6 pb-6 space-y-2">

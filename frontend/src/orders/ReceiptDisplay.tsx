@@ -4,6 +4,7 @@ import type { Order, Receipt } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Receipt as ReceiptIcon } from "lucide-react";
 import { ReceiptTemplate, type ReceiptTemplateRefund } from "./ReceiptTemplate";
+import { TicketPaper } from "@/components/ui/ticket";
 
 type ReceiptDisplayProps = {
   order: Order;
@@ -40,22 +41,24 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
         </p>
       </CardHeader>
       <CardContent>
-        <ReceiptTemplate
-          businessName={formatTenantName(receipt.tenant_name)}
-          receiptNumber={receipt.receipt_number}
-          createdAt={receipt.created_at}
-          items={receipt.items}
-          subtotalAmount={receipt.subtotal_amount}
-          totalAmount={receipt.total_amount}
-          payments={receipt.payments}
-          totalTendered={receipt.total_tendered}
-          totalChange={receipt.total_change}
-          refundedTotal={showNet ? refundedTotal.toFixed(2) : undefined}
-          netAmount={showNet ? netAmount.toFixed(2) : undefined}
-          refunds={templateRefunds}
-          voidReason={receipt.void?.reason}
-          className="print-receipt-root"
-        />
+        <TicketPaper className="mx-auto max-w-sm">
+          <ReceiptTemplate
+            businessName={formatTenantName(receipt.tenant_name)}
+            receiptNumber={receipt.receipt_number}
+            createdAt={receipt.created_at}
+            items={receipt.items}
+            subtotalAmount={receipt.subtotal_amount}
+            totalAmount={receipt.total_amount}
+            payments={receipt.payments}
+            totalTendered={receipt.total_tendered}
+            totalChange={receipt.total_change}
+            refundedTotal={showNet ? refundedTotal.toFixed(2) : undefined}
+            netAmount={showNet ? netAmount.toFixed(2) : undefined}
+            refunds={templateRefunds}
+            voidReason={receipt.void?.reason}
+            className="print-receipt-root"
+          />
+        </TicketPaper>
       </CardContent>
     </Card>
   );

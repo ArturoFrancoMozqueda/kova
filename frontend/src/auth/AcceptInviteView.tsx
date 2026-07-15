@@ -3,10 +3,9 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogoMark } from "@/components/brand/Logo";
+import { AuthLayout } from "./AuthLayout";
 import { copy } from "@/i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { csrfHeaders } from "@/lib/csrf";
@@ -240,21 +239,8 @@ function ShellCard({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="mb-4 flex justify-center">
-            <LogoMark size={48} circuitColor="var(--kova-ink)" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{heading}</h1>
-          {subtitle && (
-            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-          )}
-        </div>
-        <Card className="shadow-lg border-border/50">
-          <CardContent className="p-6">{children}</CardContent>
-        </Card>
-      </div>
-    </main>
+    <AuthLayout title={heading} subtitle={subtitle}>
+      {children}
+    </AuthLayout>
   );
 }

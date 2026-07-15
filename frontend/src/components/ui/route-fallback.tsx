@@ -11,7 +11,7 @@ export function RouteFallback({ label = "Cargando" }: { label?: string }) {
     <div
       role="status"
       aria-label={label}
-      className="flex min-h-screen items-center justify-center bg-[var(--color-bg)]"
+      className="flex min-h-screen items-center justify-center bg-background"
     >
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       <span className="sr-only">{label}</span>

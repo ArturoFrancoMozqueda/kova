@@ -8,6 +8,7 @@ import { useAuth } from "../auth/useAuth";
 import { copy } from "../i18n/messages";
 import { formatMoney } from "../orders/format";
 import { formatTenantName } from "@/lib/formatTenantName";
+import { cn } from "@/lib/utils";
 import { CorteTemplate } from "./CorteTemplate";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
@@ -42,17 +43,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewEmpty } from "@/components/ui/view-states";
+import { StatTile } from "@/components/ui/stat-tile";
 import { useToast } from "@/components/ui/toast";
+import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TicketPaper } from "@/components/ui/ticket";
 import {
   Clock,
   ArrowUpCircle,
   ArrowDownCircle,
-  PlayCircle,
   StopCircle,
   Banknote,
   RefreshCw,
   AlertCircle,
   Printer,
+  Receipt,
+  Wallet,
 } from "lucide-react";
 
 type LoadState =
@@ -71,6 +77,9 @@ export default function ShiftView() {
   // node; the effect below fires the print dialog once it's committed, then
   // clears so a later print targets the right shift.
   const [corteShift, setCorteShift] = useState<Shift | null>(null);
+  // Turno cuyo corte se muestra en pantalla (dato real de un turno ya
+  // cerrado, no se fabrica un corte para el turno en curso).
+  const [viewCorteShift, setViewCorteShift] = useState<Shift | null>(null);
   const canOpen = usePermission(SHIFT_OPEN_PERMISSION);
   const canClose = usePermission(SHIFT_CLOSE_PERMISSION);
   const { state } = useAuth();
@@ -219,23 +228,18 @@ export default function ShiftView() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {copy.shiftView.openedAt}
-                </p>
-                <p className="text-sm font-medium mt-1">
-                  {formatShiftDateTime(currentShift.opened_at)}
-                </p>
-              </div>
+              <StatTile
+                label={copy.shiftView.openedAt}
+                value={formatShiftDateTime(currentShift.opened_at)}
+                icon={<Clock className="h-4 w-4" />}
+              />
               {currentShift.opening_cash_amount && (
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {copy.shiftView.openingCash}
-                  </p>
-                  <p className="text-sm font-bold mt-1">
-                    {formatMoney(currentShift.opening_cash_amount)}
-                  </p>
-                </div>
+                <StatTile
+                  label={copy.shiftView.openingCash}
+                  value={formatMoney(currentShift.opening_cash_amount)}
+                  icon={<Wallet className="h-4 w-4" />}
+                  className="bg-kova-grad-sky"
+                />
               )}
               {(() => {
                 // Manual movements are shown separately from the backend's live
@@ -254,22 +258,24 @@ export default function ShiftView() {
                   : opening + cashIn - cashOut;
                 return (
                   <>
-                    <div className="rounded-lg bg-kova-growth/10 p-3">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {copy.shiftView.totalCashIn}
-                      </p>
-                      <p className="text-sm font-bold mt-1 text-kova-growth">
-                        +{formatMoney(cashIn)} / −{formatMoney(cashOut)}
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-primary/5 p-3">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {copy.shiftView.expectedCashShort}
-                      </p>
-                      <p className="text-sm font-bold mt-1 text-primary">
-                        {formatMoney(expected)}
-                      </p>
-                    </div>
+                    <StatTile
+                      label={copy.shiftView.totalCashIn}
+                      value={
+                        <span className="tabular-nums">
+                          <span className="text-kova-growth">+{formatMoney(cashIn)}</span>
+                          {" / "}
+                          <span className="text-destructive">−{formatMoney(cashOut)}</span>
+                        </span>
+                      }
+                      icon={<ArrowUpCircle className="h-4 w-4" />}
+                      className="bg-kova-grad-mint"
+                    />
+                    <StatTile
+                      label={copy.shiftView.expectedCashShort}
+                      value={formatMoney(expected)}
+                      icon={<Banknote className="h-4 w-4" />}
+                      className="bg-kova-grad-blue"
+                    />
                   </>
                 );
               })()}
@@ -339,28 +345,12 @@ export default function ShiftView() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Clock className="h-10 w-10 text-muted-foreground mb-3" />
-            <h2 className="text-lg font-semibold mb-1">
-              {copy.shiftView.noOpenShift}
-            </h2>
-            <p className="max-w-md text-sm text-muted-foreground">
-              {canOpen
-                ? copy.shiftView.noOpenShiftBody
-                : copy.shiftView.noOpenShiftAskManager}
-            </p>
-            {canOpen && (
-              <Button
-                className="mt-4"
-                onClick={() => setActiveModal("open")}
-              >
-                <PlayCircle className="mr-2 h-4 w-4" />
-                {copy.shiftView.openShift}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <ViewEmpty
+          icon={<Clock className="h-6 w-6" />}
+          title={copy.shiftView.noOpenShift}
+          body={canOpen ? copy.shiftView.noOpenShiftBody : copy.shiftView.noOpenShiftAskManager}
+          primaryCta={canOpen ? { label: copy.shiftView.openShift, onClick: () => setActiveModal("open") } : undefined}
+        />
       )}
 
       {/* Closed shifts table */}
@@ -388,6 +378,25 @@ export default function ShiftView() {
                           {shift.closed_at ? formatShiftDateTime(shift.closed_at) : "-"}
                         </p>
                       </div>
+                      <div className="flex gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">{copy.shiftView.closedShiftsExpected}</p>
+                          <p className="text-sm font-medium tabular-nums">
+                            {shift.expected_cash_amount != null ? formatMoney(shift.expected_cash_amount) : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">{copy.shiftView.closedShiftsVariance}</p>
+                          <p
+                            className={cn(
+                              "text-sm font-medium tabular-nums",
+                              shift.variance_amount != null && Number(shift.variance_amount) !== 0 && "text-destructive",
+                            )}
+                          >
+                            {shift.variance_amount != null ? formatMoney(shift.variance_amount) : "—"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                     {shift.reconciliation_status ? (
                       <Badge
@@ -399,15 +408,26 @@ export default function ShiftView() {
                       <Badge variant="secondary">{copy.shiftView.badgeClosed}</Badge>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 w-full"
-                    onClick={() => setCorteShift(shift)}
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    {copy.shiftView.printCorte}
-                  </Button>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setViewCorteShift(shift)}
+                    >
+                      <Receipt className="mr-2 h-4 w-4" />
+                      {copy.shiftView.viewCorte}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setCorteShift(shift)}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      {copy.shiftView.printCorte}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -420,6 +440,12 @@ export default function ShiftView() {
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.closedAt}
+                    </th>
+                    <th className="text-right py-3 px-4 font-semibold text-muted-foreground">
+                      {copy.shiftView.closedShiftsExpected}
+                    </th>
+                    <th className="text-right py-3 px-4 font-semibold text-muted-foreground">
+                      {copy.shiftView.closedShiftsVariance}
                     </th>
                     <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.status}
@@ -441,6 +467,17 @@ export default function ShiftView() {
                       <td className="py-3 px-4">
                         {shift.closed_at ? formatShiftDateTime(shift.closed_at) : "-"}
                       </td>
+                      <td className="py-3 px-4 text-right tabular-nums">
+                        {shift.expected_cash_amount != null ? formatMoney(shift.expected_cash_amount) : "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "py-3 px-4 text-right tabular-nums",
+                          shift.variance_amount != null && Number(shift.variance_amount) !== 0 && "text-destructive",
+                        )}
+                      >
+                        {shift.variance_amount != null ? formatMoney(shift.variance_amount) : "—"}
+                      </td>
                       <td className="py-3 px-4">
                         {shift.reconciliation_status ? (
                           <Badge
@@ -457,14 +494,24 @@ export default function ShiftView() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCorteShift(shift)}
-                        >
-                          <Printer className="mr-2 h-4 w-4" />
-                          {copy.shiftView.printCorte}
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setViewCorteShift(shift)}
+                          >
+                            <Receipt className="mr-2 h-4 w-4" />
+                            {copy.shiftView.viewCorte}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCorteShift(shift)}
+                          >
+                            <Printer className="mr-2 h-4 w-4" />
+                            {copy.shiftView.printCorte}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -485,6 +532,18 @@ export default function ShiftView() {
           />
         </div>
       )}
+
+      {/* Corte en pantalla: solo lectura, dato real del turno ya cerrado. */}
+      <Dialog open={viewCorteShift != null} onClose={() => setViewCorteShift(null)}>
+        <DialogHeader>
+          <DialogTitle>{copy.shiftView.viewCorte}</DialogTitle>
+        </DialogHeader>
+        {viewCorteShift ? (
+          <TicketPaper>
+            <CorteTemplate businessName={businessName} shift={viewCorteShift} />
+          </TicketPaper>
+        ) : null}
+      </Dialog>
 
       {/* Modals */}
       {activeModal === "open" && (

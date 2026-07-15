@@ -271,7 +271,7 @@ function OnboardingChecklist({
   }
 
   return (
-    <Card className="border-primary/20 bg-primary/3 animate-fade-in">
+    <Card className="border-kova-blue/20 bg-kova-blue/[0.04] animate-fade-in">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{copy.dashboard.onboardingTitle}</CardTitle>
@@ -477,9 +477,32 @@ export default function DashboardView() {
             ))}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
-            <Card><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader><Skeleton className="h-4 w-32" /></CardHeader>
+                <CardContent className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <div key={j} className="flex items-center gap-3">
+                      <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+                      <Skeleton className="h-2 flex-1 rounded-full" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
           </div>
+          <Card>
+            <CardHeader><Skeleton className="h-4 w-32" /></CardHeader>
+            <CardContent className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-4 w-16 shrink-0" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -681,7 +704,12 @@ export default function DashboardView() {
                               const share = dayTotal > 0 ? Math.round((net / dayTotal) * 100) : 0;
                               return (
                                 <div key={h.hour} className="flex items-center gap-3">
-                                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold shrink-0">
+                                  <span
+                                    className={cn(
+                                      "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0",
+                                      i === 0 ? "bg-kova-blue text-white" : "bg-kova-mist text-kova-ink",
+                                    )}
+                                  >
                                     {i + 1}
                                   </span>
                                   <div className="flex-1 min-w-0">
@@ -691,9 +719,9 @@ export default function DashboardView() {
                                         {formatMoney(h.net_sales)}
                                       </span>
                                     </div>
-                                    <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
+                                    <div className="mt-1.5 h-2 rounded-full bg-kova-mist overflow-hidden">
                                       <div
-                                        className="h-full rounded-full bg-primary transition-all duration-500"
+                                        className="h-full rounded-full bg-kova-blue transition-all duration-500"
                                         style={{ width: `${width}%` }}
                                       />
                                     </div>
@@ -747,7 +775,7 @@ export default function DashboardView() {
                         return (
                           <div className="space-y-4">
                             {/* Single stacked bar */}
-                            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-kova-mist">
                               {loadState.payments.payments.map((p, i) => {
                                 const pct = total > 0 ? (Number(p.amount) / total) * 100 : 0;
                                 return (
@@ -802,7 +830,12 @@ export default function DashboardView() {
                     <div className="space-y-3">
                       {loadState.topProducts.products.slice(0, 5).map((p, i) => (
                         <div key={p.product_id} className="flex items-center gap-3">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-bold shrink-0">
+                          <span
+                            className={cn(
+                              "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0",
+                              i === 0 ? "bg-kova-blue text-white" : "bg-kova-mist text-kova-ink",
+                            )}
+                          >
                             {i + 1}
                           </span>
                           <div className="flex-1 min-w-0">

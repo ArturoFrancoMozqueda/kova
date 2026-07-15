@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
 import { ReceiptTemplate } from "@/orders/ReceiptTemplate";
+import { TicketPaper } from "@/components/ui/ticket";
 import { LogoUploadField } from "./LogoUploadField";
 import {
   deactivateEmployee,
@@ -272,14 +273,14 @@ export default function SettingsView() {
 
       <nav
         aria-label={copy.settings.tabsLabel}
-        className="flex gap-1 overflow-x-auto rounded-[var(--radius-md)] border bg-card p-1"
+        className="flex gap-1 overflow-x-auto rounded-kova-md border border-kova-border bg-white p-1"
       >
         {settingsTabs.map((tab) => (
           <Link
             key={tab.id}
             to={tab.to}
             className={cn(
-              "shrink-0 rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors",
+              "shrink-0 rounded-kova-sm px-3 py-2 text-sm font-medium transition-colors",
               activeTab === tab.id
                 ? "bg-kova-ink text-white"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -331,7 +332,7 @@ export default function SettingsView() {
         <CardContent className="space-y-5">
           <div className="grid gap-3 md:grid-cols-3">
             {roleOptions.map((option) => (
-              <div key={option.value} className="rounded-lg border bg-muted/20 p-3">
+              <div key={option.value} className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
                 <p className="text-sm font-medium">{option.label}</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">{option.description}</p>
               </div>
@@ -359,7 +360,7 @@ export default function SettingsView() {
 
           <div className="space-y-2">
             {employees.map((employee) => (
-              <div key={employee.membership_id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center">
+              <div key={employee.membership_id} className="flex flex-col gap-3 rounded-kova-md border border-kova-border p-3 sm:flex-row sm:items-center">
                 <div className="flex-1">
                   <p className="font-medium">{employee.email}</p>
                   <p className="text-xs text-muted-foreground">
@@ -411,7 +412,7 @@ export default function SettingsView() {
           </div>
 
           {invitations.length > 0 && (
-            <div className="rounded-lg bg-muted/40 p-3">
+            <div className="rounded-kova-lg bg-kova-mist/70 p-3">
               <p className="mb-2 text-sm font-medium">{copy.settings.pendingInvites}</p>
               <div className="space-y-2">
                 {invitations.map((row) => {
@@ -419,7 +420,7 @@ export default function SettingsView() {
                   return (
                     <div
                       key={row.id}
-                      className="flex flex-col gap-2 rounded-lg border bg-background p-3 sm:flex-row sm:items-center"
+                      className="flex flex-col gap-2 rounded-kova-md border border-kova-border bg-white p-3 sm:flex-row sm:items-center"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{row.email}</p>
@@ -550,26 +551,28 @@ function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {copy.settings.receiptPreviewTitle}
       </p>
-      <ReceiptTemplate
-        aria-label={copy.settings.receiptPreviewTitle}
-        businessName={name}
-        logoUrl={receipt.logo_url.trim() || undefined}
-        taxContactText={receipt.tax_contact_text.trim() || undefined}
-        footer={receipt.footer.trim() || undefined}
-        createdAt={new Date()}
-        items={[
-          {
-            product_name: copy.settings.receiptPreviewItem,
-            quantity: 1,
-            unit_price_amount: "120.00",
-            line_total_amount: "120.00",
-            modifiers: [],
-          },
-        ]}
-        subtotalAmount="120.00"
-        totalAmount="120.00"
-        payments={[{ method: "cash", amount_amount: "120.00" }]}
-      />
+      <TicketPaper className="max-w-xs">
+        <ReceiptTemplate
+          aria-label={copy.settings.receiptPreviewTitle}
+          businessName={name}
+          logoUrl={receipt.logo_url.trim() || undefined}
+          taxContactText={receipt.tax_contact_text.trim() || undefined}
+          footer={receipt.footer.trim() || undefined}
+          createdAt={new Date()}
+          items={[
+            {
+              product_name: copy.settings.receiptPreviewItem,
+              quantity: 1,
+              unit_price_amount: "120.00",
+              line_total_amount: "120.00",
+              modifiers: [],
+            },
+          ]}
+          subtotalAmount="120.00"
+          totalAmount="120.00"
+          payments={[{ method: "cash", amount_amount: "120.00" }]}
+        />
+      </TicketPaper>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { LogoMark } from "@/components/brand/Logo";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
+import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
 import KovaShowcase from "@/landing/showcase/KovaShowcase";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { copy } from "@/i18n/messages";
@@ -46,6 +47,9 @@ function useLandingRevealMotion() {
           ".lp-benefit-strip",
           ".lp-story-card",
           ".lp-footer-grid",
+          // Recibo de precio: mismas data-attrs, pero su CSS imprime las
+          // líneas en orden en vez del fade genérico (lp-tkt-print).
+          ".lp-ticket-print",
         ].join(",")
       )
     );
@@ -244,7 +248,7 @@ function Hero({
               style={{
                 fontSize: "clamp(36px, 4.6vw, 60px)",
                 fontWeight: 600,
-                letterSpacing: "-0.025em",
+                letterSpacing: "-0.015em",
                 lineHeight: 1,
                 margin: 0,
                 color: "var(--page-fg)",
@@ -337,6 +341,11 @@ function Hero({
 }
 
 /* ─── Problem ────────────────────────────────────────────────────────────── */
+// Textura y rotación por recorte, alineadas por índice con p.fragments
+// (Libreta=rayado, Excel=celdas, WhatsApp=burbuja, Tickets=punteado, Caja=liso).
+const SCRAP_KINDS = ["ruled", "grid", "bubble", "dotted", "plain"] as const;
+const SCRAP_ROTATIONS = ["-2.5deg", "1.6deg", "-1.2deg", "2.2deg", "-1.8deg"] as const;
+
 function Problem() {
   const p = t.problem;
   return (
@@ -346,25 +355,36 @@ function Problem() {
         <h2 className="lp-section-title" style={{ maxWidth: 820, color: "var(--kova-on-ink)" }}>{p.title}</h2>
         <p className="lp-section-copy" style={{ color: "rgba(240,244,255,0.65)" }}>{p.body}</p>
 
-        <div style={{ marginTop: 32, display: "flex", flexWrap: "wrap", gap: 10 }}>
-          {p.fragments.map((f) => (
-            <span
-              key={f}
-              className="lp-chip-lift"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                padding: "10px 16px", borderRadius: 999,
-                background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
-                fontSize: 14, fontWeight: 500, color: "var(--page-fg)",
-              }}
-            >
-              {f}
-            </span>
-          ))}
+        {/* El desorden (recortes sueltos) contra la respuesta (un corte limpio). */}
+        <div
+          className="lp-problem-grid"
+          style={{
+            marginTop: 36, display: "grid",
+            gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 0.95fr)",
+            gap: "36px 48px", alignItems: "center",
+          }}
+        >
+          <div>
+            <div className="lp-scraps">
+              {p.fragments.map((f, i) => (
+                <span
+                  key={f}
+                  className="lp-scrap"
+                  data-kind={SCRAP_KINDS[i % SCRAP_KINDS.length]}
+                  style={{ ["--scrap-rot" as string]: SCRAP_ROTATIONS[i % SCRAP_ROTATIONS.length] }}
+                >
+                  {f}
+                </span>
+              ))}
+            </div>
+            <p style={{ marginTop: 20, fontSize: 14, color: "var(--text-muted)" }}>{p.fragmentsFoot}</p>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <ProblemTicket />
+          </div>
         </div>
-        <p style={{ marginTop: 18, fontSize: 14, color: "var(--text-muted)" }}>{p.fragmentsFoot}</p>
 
-        <p style={{ marginTop: 32, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
+        <p style={{ marginTop: 40, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
           {p.punch}
         </p>
       </div>
@@ -531,6 +551,9 @@ function FAQ() {
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
+/** Índice de línea del recibo → delay de impresión (var CSS --tkt-i). */
+const tktLine = (i: number): CSSProperties => ({ ["--tkt-i" as string]: String(i) });
+
 function Pricing({
   primaryTarget,
   onCtaClick,
@@ -579,27 +602,56 @@ function Pricing({
         <p style={{ marginTop: 36, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
           {t.pricing.bridge}
         </p>
-        <div style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
-          <div
-            style={{
-              borderRadius: 12, padding: 30,
-              background: "var(--kova-ink)", color: "var(--kova-on-ink)",
-              border: "0.5px solid var(--kova-ink)",
-              boxShadow: "0 24px 60px -20px rgba(15,17,23,0.3)",
-              display: "flex", flexDirection: "column", gap: 22, position: "relative",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--kova-blue-light)" }}>{t.pricing.planName}</div>
-              <div style={{ fontSize: 13, marginTop: 6, color: "rgba(240,244,255,0.6)" }}>{t.pricing.planSubtitle}</div>
-            </div>
+        <div className="lp-ticket-print" style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
+          {/* El ticket vivo: el plan enunciado como recibo térmico. Las líneas
+              se "imprimen" en orden al entrar en viewport (lp-tkt-print). */}
+          <TicketPaper>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              <div className="lp-tkt-line" style={tktLine(0)}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div>
+                    <div className="lp-tkt-label" style={{ fontSize: 13 }}>{t.pricing.planName}</div>
+                    <div style={{ fontSize: 13, marginTop: 6, color: "var(--ticket-muted)", lineHeight: 1.45 }}>{t.pricing.planSubtitle}</div>
+                  </div>
+                  <LogoMark size={26} circuitColor="var(--ticket-muted)" coreColor="var(--kova-blue)" />
+                </div>
+              </div>
 
-            <div className="tabular" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: 16, opacity: 0.7 }}>$</span>
-              <span style={{ fontSize: 64, fontWeight: 600, letterSpacing: "-0.04em", lineHeight: 1 }}>{STANDARD_PLAN_AMOUNT}</span>
-              <span style={{ fontSize: 14, opacity: 0.7 }}>{STANDARD_PLAN_PRICE_CADENCE_ES}</span>
-            </div>
+              <hr className="lp-tkt-rule lp-tkt-line" style={tktLine(1)} />
 
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+                {feats.map((f, i) => (
+                  <li
+                    key={f}
+                    className="lp-tkt-line"
+                    style={{ ...tktLine(2 + i), display: "flex", alignItems: "baseline", fontSize: 14, color: "var(--ticket-ink)", lineHeight: 1.4 }}
+                  >
+                    <span>{f}</span>
+                    <span className="lp-tkt-leader" aria-hidden="true" />
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, alignSelf: "center" }} aria-hidden="true">
+                      <path d="M2 6L5 9L10 3" stroke="var(--ticket-ok)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </li>
+                ))}
+              </ul>
+
+              <hr className="lp-tkt-rule lp-tkt-line" style={tktLine(2 + feats.length)} />
+
+              <div className="lp-tkt-line" style={tktLine(3 + feats.length)}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <span className="lp-tkt-label">{t.pricing.receiptTotalLabel}</span>
+                  <span className="tabular" style={{ display: "inline-flex", alignItems: "baseline", gap: 5, color: "var(--ticket-ink)" }}>
+                    <span style={{ fontSize: 16, color: "var(--ticket-muted)" }}>$</span>
+                    <span className="lp-tkt-money lp-tkt-total-num" style={{ fontSize: 64 }}>{STANDARD_PLAN_AMOUNT}</span>
+                    <span style={{ fontSize: 14, color: "var(--ticket-muted)" }}>{STANDARD_PLAN_PRICE_CADENCE_ES}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </TicketPaper>
+
+          {/* Pestaña desprendible: el CTA como talón cortado del recibo. */}
+          <TicketPaper className="lp-tkt-tab" style={tktLine(4 + feats.length)}>
             <Link
               to={primaryTarget}
               onClick={() => onCtaClick("pricing")}
@@ -613,23 +665,10 @@ function Pricing({
             >
               <span>{t.pricing.ctaButton}</span>
             </Link>
-            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(240,244,255,0.55)", marginTop: -10 }}>
+            <div style={{ textAlign: "center", fontSize: 12, color: "var(--ticket-muted)", marginTop: 10 }}>
               {t.pricing.ctaFineprint}
             </div>
-
-            <div style={{ height: "0.5px", background: "rgba(255,255,255,0.1)" }} />
-
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-              {feats.map((f) => (
-                <li key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(240,244,255,0.85)" }}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-                    <path d="M2 6L5 9L10 3" stroke="var(--kova-blue-light)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </div>
+          </TicketPaper>
 
           <div
             style={{

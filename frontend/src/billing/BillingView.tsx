@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -12,9 +12,46 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
+import { TicketPaper } from "@/components/ui/ticket";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
 import { trackFunnelEvent, trackFunnelEventOnce } from "@/telemetry/funnel";
+
+// Un solo shell para las banderas de estado (activa/trial/bloqueada/vencida/
+// sin suscripcion) — antes cada una repetia su propio rounded-lg+border+px/py;
+// ahora solo cambia el tono. Copy y logica de cuando se muestra cada una
+// quedan identicas.
+const BANNER_TONES = {
+  success: "border-kova-growth/30 bg-kova-growth/10 [&_svg]:text-kova-growth",
+  info: "border-kova-blue/20 bg-kova-blue/10 [&_svg]:text-kova-blue",
+  warning: "bg-warning/20 border-warning/30 [&_svg]:text-warning",
+  destructive: "border-destructive/30 bg-destructive/10 [&_svg]:text-destructive",
+} as const;
+
+function BillingStatusBanner({
+  tone,
+  icon,
+  title,
+  body,
+  bodyClassName,
+}: {
+  tone: keyof typeof BANNER_TONES;
+  icon: ReactNode;
+  title?: string;
+  body: ReactNode;
+  bodyClassName?: string;
+}) {
+  return (
+    <div className={cn("flex items-center gap-3 rounded-kova-md border px-4 py-3 text-sm animate-fade-in", BANNER_TONES[tone])}>
+      <span className="shrink-0 [&_svg]:h-5 [&_svg]:w-5">{icon}</span>
+      <div>
+        {title ? <p className="font-medium">{title}</p> : null}
+        <p className={bodyClassName ?? (title ? "text-muted-foreground" : undefined)}>{body}</p>
+      </div>
+    </div>
+  );
+}
 
 // Days-aware grace copy so the owner sees how long they have to fix billing.
 // Returns null when no grace date is set (fall back to the static banner).
@@ -240,87 +277,88 @@ export default function BillingView() {
       {loadState.status === "loaded" && (
         <div className="space-y-6">
           {hasCheckoutBlockingSubscription(loadState.billing) && (
-            <div className="flex items-center gap-3 rounded-lg border border-kova-growth/30 bg-kova-growth/10 px-4 py-3 text-sm animate-fade-in">
-              <CheckCircle2 className="h-5 w-5 text-kova-growth shrink-0" />
-              <div>
-                <p className="font-medium">
-                  {loadState.billing.subscription?.status === "trialing"
-                    ? copy.billingView.subscriptionTrialingTitle
-                    : copy.billingView.subscriptionActiveTitle}
-                </p>
-                <p className="text-muted-foreground">
-                  {loadState.billing.subscription?.status === "trialing"
-                    ? copy.billingView.subscriptionTrialingBody
-                    : copy.billingView.subscriptionActiveBody}
-                </p>
-              </div>
-            </div>
+            <BillingStatusBanner
+              tone="success"
+              icon={<CheckCircle2 />}
+              title={
+                loadState.billing.subscription?.status === "trialing"
+                  ? copy.billingView.subscriptionTrialingTitle
+                  : copy.billingView.subscriptionActiveTitle
+              }
+              body={
+                loadState.billing.subscription?.status === "trialing"
+                  ? copy.billingView.subscriptionTrialingBody
+                  : copy.billingView.subscriptionActiveBody
+              }
+            />
           )}
 
           {loadState.billing.access.reason === "signup_trial" && (
-            <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm animate-fade-in">
-              <Clock className="h-5 w-5 text-primary shrink-0" />
-              <div>
-                <p className="font-medium">{copy.billingView.trialAccess}</p>
-                <p className="text-muted-foreground">
-                  {copy.billingView.noSubscriptionBanner}
-                </p>
-              </div>
-            </div>
+            <BillingStatusBanner
+              tone="info"
+              icon={<Clock />}
+              title={copy.billingView.trialAccess}
+              body={copy.billingView.noSubscriptionBanner}
+            />
           )}
 
           {!loadState.billing.access.allowed && (
-            <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm animate-fade-in">
-              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-              <div>
-                <p className="font-medium">{copy.billingBanner.blockedTitle}</p>
-                <p className="text-muted-foreground">
-                  {loadState.billing.access.reason === "trial_expired"
-                    ? copy.billingBanner.blockedTrialExpired
-                    : copy.billingBanner.blockedGeneric}
-                </p>
-              </div>
-            </div>
+            <BillingStatusBanner
+              tone="destructive"
+              icon={<AlertTriangle />}
+              title={copy.billingBanner.blockedTitle}
+              body={
+                loadState.billing.access.reason === "trial_expired"
+                  ? copy.billingBanner.blockedTrialExpired
+                  : copy.billingBanner.blockedGeneric
+              }
+            />
           )}
 
           {loadState.billing.subscription?.status === "past_due" && (
-            <div className="flex items-center gap-3 rounded-lg bg-warning/20 border border-warning/30 px-4 py-3 text-sm animate-fade-in">
-              <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
-              <p className="text-warning-foreground">
-                {pastDueGraceUrgency(loadState.billing.subscription.grace_period_ends_at) ??
-                  copy.billingView.pastDueBanner}
-              </p>
-            </div>
+            <BillingStatusBanner
+              tone="warning"
+              icon={<AlertTriangle />}
+              body={
+                pastDueGraceUrgency(loadState.billing.subscription.grace_period_ends_at) ??
+                copy.billingView.pastDueBanner
+              }
+              bodyClassName="text-warning-foreground"
+            />
           )}
 
           {!loadState.billing.subscription && loadState.billing.access.reason !== "signup_trial" && (
-            <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm animate-fade-in">
-              <AlertCircle className="h-5 w-5 text-primary shrink-0" />
-              <p className="text-foreground">
-                {loadState.billing.access.reason === "trial_expired"
+            <BillingStatusBanner
+              tone="info"
+              icon={<AlertCircle />}
+              body={
+                loadState.billing.access.reason === "trial_expired"
                   ? copy.billingView.expiredTrialBanner
-                  : copy.billingView.noSubscriptionBanner}
-              </p>
-            </div>
+                  : copy.billingView.noSubscriptionBanner
+              }
+              bodyClassName="text-foreground"
+            />
           )}
 
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Plan */}
-            <Card className="hover:shadow-md transition-shadow">
+            {/* Plan — recibo termico: el mismo lenguaje visual que la landing */}
+            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow overflow-hidden">
               <CardHeader className="pb-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.plan}</p>
               </CardHeader>
-              <CardContent>
-                <h2 className="text-lg font-bold">{STANDARD_PLAN.name}</h2>
-                <p className="text-2xl font-bold text-primary mt-1">
-                  {formatPlanAmount(loadState.billing.plan.amount_minor_units, loadState.billing.plan.currency)}
-                </p>
-                <p className="text-xs text-muted-foreground">{copy.billingView.monthly}</p>
+              <CardContent className="pt-0">
+                <TicketPaper>
+                  <h2 className="text-base font-bold text-[color:var(--ticket-ink)]">{STANDARD_PLAN.name}</h2>
+                  <p className="tkt-money mt-1 text-2xl font-bold text-[color:var(--ticket-ink)]">
+                    {formatPlanAmount(loadState.billing.plan.amount_minor_units, loadState.billing.plan.currency)}
+                  </p>
+                  <p className="text-xs text-[color:var(--ticket-muted)]">{copy.billingView.monthly}</p>
+                </TicketPaper>
               </CardContent>
             </Card>
 
             {/* Status */}
-            <Card className="hover:shadow-md transition-shadow">
+            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
               <CardHeader className="pb-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.status}</p>
               </CardHeader>
@@ -362,7 +400,7 @@ export default function BillingView() {
               const graceDate = loadState.billing.subscription?.grace_period_ends_at ?? null;
               if (!periodDate && !graceDate) return null;
               return (
-                <Card className="hover:shadow-md transition-shadow">
+                <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
                   <CardHeader className="pb-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">
                       {loadState.billing.access.reason === "signup_trial"
@@ -391,7 +429,7 @@ export default function BillingView() {
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {copy.billingView.valueItems.map((item) => (
                     <div key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-kova-blue" />
                       <span>{item}</span>
                     </div>
                   ))}

@@ -20,6 +20,7 @@ import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
+import { ViewHeader } from "@/components/ui/view-header";
 import { AlertCircle, RotateCcw, Ban, ArrowLeft, Package, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -189,24 +190,28 @@ export default function OrderDetail() {
   return (
     <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-start gap-4 mb-6">
         <Link to="/orders" className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">{copy.orderDetail.title}</h1>
-          <p className="text-sm text-muted-foreground tabular-nums">{orderId?.slice(0, 8)}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">
-            {isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}
-          </Badge>
-          {!isVoided && refundState === "partial" && (
-            <Badge variant="warning" className="text-sm">{copy.orderDetail.refundedPartial}</Badge>
-          )}
-          {!isVoided && refundState === "full" && (
-            <Badge variant="destructive" className="text-sm">{copy.orderDetail.refundedFull}</Badge>
-          )}
+          <ViewHeader
+            title={copy.orderDetail.title}
+            meta={<span className="tabular-nums text-sm">{orderId?.slice(0, 8)}</span>}
+            actions={
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">
+                  {isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}
+                </Badge>
+                {!isVoided && refundState === "partial" && (
+                  <Badge variant="warning" className="text-sm">{copy.orderDetail.refundedPartial}</Badge>
+                )}
+                {!isVoided && refundState === "full" && (
+                  <Badge variant="destructive" className="text-sm">{copy.orderDetail.refundedFull}</Badge>
+                )}
+              </div>
+            }
+          />
         </div>
       </div>
 
@@ -248,7 +253,7 @@ export default function OrderDetail() {
                       )}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold">{formatMoney(item.line_total_amount)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatMoney(item.line_total_amount)}</span>
                 </div>
               );
             })}

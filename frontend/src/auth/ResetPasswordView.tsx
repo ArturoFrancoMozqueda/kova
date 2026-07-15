@@ -5,9 +5,8 @@ import { ApiError, confirmPasswordReset } from "./api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
-import { LogoMark } from "@/components/brand/Logo";
+import { AuthLayout } from "./AuthLayout";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type State = "idle" | "submitting" | "success" | "error";
@@ -61,48 +60,28 @@ export default function ResetPasswordView() {
 
   if (!token) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
-        <div className="w-full max-w-md animate-fade-in">
-          <div className="text-center mb-8">
-            <div className="mb-4 flex justify-center">
-              <LogoMark size={48} circuitColor="var(--kova-ink)" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">{copy.auth.resetTokenMissingTitle}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{copy.auth.resetTokenMissingBody}</p>
-          </div>
-          <Card className="shadow-lg border-border/50">
-            <CardContent className="p-6 space-y-3">
-              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>{copy.auth.resetTokenMissingHint}</span>
-              </div>
-              <Link
-                to="/forgot-password"
-                className="inline-flex items-center gap-1 text-sm font-medium text-kova-blue hover:underline"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                {copy.auth.resetTokenRequestAgain}
-              </Link>
-            </CardContent>
-          </Card>
+      <AuthLayout
+        title={copy.auth.resetTokenMissingTitle}
+        subtitle={copy.auth.resetTokenMissingBody}
+        contentClassName="space-y-3"
+      >
+        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{copy.auth.resetTokenMissingHint}</span>
         </div>
-      </main>
+        <Link
+          to="/forgot-password"
+          className="inline-flex items-center gap-1 text-sm font-medium text-kova-blue hover:underline"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {copy.auth.resetTokenRequestAgain}
+        </Link>
+      </AuthLayout>
     );
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/40 p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="mb-4 flex justify-center">
-            <LogoMark size={48} circuitColor="var(--kova-ink)" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.auth.resetPasswordTitle}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{copy.auth.resetPasswordSubtitle}</p>
-        </div>
-
-        <Card className="shadow-lg border-border/50">
-          <CardContent className="p-6">
+    <AuthLayout title={copy.auth.resetPasswordTitle} subtitle={copy.auth.resetPasswordSubtitle}>
             {state === "success" ? (
               <div className="space-y-3">
                 <div className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
@@ -190,9 +169,6 @@ export default function ResetPasswordView() {
                 </div>
               </form>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+    </AuthLayout>
   );
 }
