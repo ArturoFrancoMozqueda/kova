@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ViewHeader } from "@/components/ui/view-header";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -632,19 +633,22 @@ export default function RegisterView() {
   return (
     <main className="p-4 pb-40 sm:p-6 lg:p-8 lg:pb-8 max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <p className="text-sm text-muted-foreground">{tenantName}</p>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.register.title}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {canManageCatalog && (
-            <Link to="/catalog" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-              <LayoutGrid className="h-4 w-4" />
-              {copy.register.manageCatalog}
-            </Link>
-          )}
-        </div>
+      <div className="mb-6">
+        <ViewHeader
+          eyebrow={tenantName}
+          title={copy.register.title}
+          actions={
+            canManageCatalog ? (
+              <Link
+                to="/catalog"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "self-start")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                {copy.register.manageCatalog}
+              </Link>
+            ) : undefined
+          }
+        />
       </div>
 
       {loadState.status === "ready" && loadState.fromCache && (

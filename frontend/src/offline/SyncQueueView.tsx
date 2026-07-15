@@ -4,6 +4,7 @@ import { useIsOnline, useSyncQueue } from "./useSyncQueue";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ViewHeader } from "@/components/ui/view-header";
 import { CloudUpload, RefreshCw, AlertCircle, Inbox, Wifi, WifiOff } from "lucide-react";
 
 export default function SyncQueueView() {
@@ -12,23 +13,25 @@ export default function SyncQueueView() {
 
   return (
     <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{copy.syncQueue.title}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            {isOnline ? (
-              <Badge variant="success" className="gap-1"><Wifi className="h-3 w-3" />{copy.syncQueue.online}</Badge>
-            ) : (
-              <Badge variant="warning" className="gap-1"><WifiOff className="h-3 w-3" />{copy.register.offline}</Badge>
-            )}
-          </div>
+      <div className="mb-6 space-y-2">
+        <ViewHeader
+          title={copy.syncQueue.title}
+          actions={
+            isOnline && pendingCount > 0 ? (
+              <Button onClick={() => void syncNow()} className="self-start">
+                <CloudUpload className="h-4 w-4" />
+                {copy.syncQueue.syncNow}
+              </Button>
+            ) : undefined
+          }
+        />
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <Badge variant="success" className="gap-1"><Wifi className="h-3 w-3" />{copy.syncQueue.online}</Badge>
+          ) : (
+            <Badge variant="warning" className="gap-1"><WifiOff className="h-3 w-3" />{copy.register.offline}</Badge>
+          )}
         </div>
-        {isOnline && pendingCount > 0 && (
-          <Button onClick={() => void syncNow()}>
-            <CloudUpload className="h-4 w-4" />
-            {copy.syncQueue.syncNow}
-          </Button>
-        )}
       </div>
 
       {/* Sync state changes (a sale syncs, a retry fails, the network drops)
