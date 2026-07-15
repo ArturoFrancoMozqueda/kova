@@ -44,6 +44,11 @@ export const copy = {
       body: "Cuando caja, inventario y reportes viven separados, terminas cerrando el día con libretas, Excel, tickets y dudas.",
       fragments: ["Libreta", "Excel", "WhatsApp", "Tickets", "Caja"],
       fragmentsFoot: "Demasiadas piezas para una respuesta que debería estar lista.",
+      // Mini corte del "ticket vivo": labels del recibo demo que responde a los
+      // recortes; los montos salen de landing/demo/sweetHome, nunca de aquí.
+      ticketTitle: "Corte del día",
+      ticketLines: ["Ventas del día", "Efectivo esperado"],
+      ticketTotalLabel: "Descuadre",
       punch: "Kova junta todo en una sola lectura clara del negocio.",
     },
     threeNodes: {
@@ -219,6 +224,8 @@ export const copy = {
       worthItBody: "Si evita un solo descuadre, una venta perdida o una mala compra, ya valió la pena:",
       worthItItems: ["Un descuadre de caja", "Una venta perdida", "Una mala compra", "Horas haciendo cuentas"],
       bridge: "Todo el control del mostrador, por",
+      // Fila TOTAL del recibo de precio ("el ticket vivo").
+      receiptTotalLabel: "Total mensual",
       planName: "Plan Standard",
       planSubtitle: "Caja, inventario y reportes claros desde una sola app",
       // En el momento de mayor fricción (junto al precio) el botón re-enuncia
