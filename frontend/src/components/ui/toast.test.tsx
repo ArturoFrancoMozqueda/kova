@@ -40,7 +40,9 @@ describe("global unhandledrejection handler", () => {
     const reason = new Error("boom");
     fireUnhandledRejection(reason);
 
-    expect(captureException).toHaveBeenCalledWith(reason);
+    // Reporting is deferred: reportError loads Sentry on demand and flushes
+    // its queue once the module resolves, so the capture lands a tick later.
+    await waitFor(() => expect(captureException).toHaveBeenCalledWith(reason));
     expect(await screen.findByText(copy.errors.unexpected)).toBeInTheDocument();
   });
 
@@ -57,7 +59,7 @@ describe("global unhandledrejection handler", () => {
 
     // Every rejection is reported, but only one toast is shown within the
     // 5s throttle window.
-    expect(captureException).toHaveBeenCalledTimes(3);
+    await waitFor(() => expect(captureException).toHaveBeenCalledTimes(3));
     await waitFor(() =>
       expect(screen.getAllByText(copy.errors.unexpected)).toHaveLength(1),
     );

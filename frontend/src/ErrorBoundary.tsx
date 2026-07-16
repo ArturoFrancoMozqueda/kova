@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from "react";
-import * as Sentry from "@sentry/react";
+import { reportError } from "./observability/errorReporting";
 import { forceReload, isReloadSafePath, isStaleAssetError } from "./pwaUpdate";
 
 type Props = { children: ReactNode };
@@ -45,9 +45,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Report render crashes to Sentry (no-op when DSN is unset) with the
     // component stack so production errors are visible, not just console-only.
-    Sentry.captureException(error, {
-      extra: { componentStack: info.componentStack },
-    });
+    // reportError loads Sentry on demand and queues until it's ready.
+    reportError(error, { componentStack: info.componentStack });
     console.error("ErrorBoundary caught:", error, info);
   }
 

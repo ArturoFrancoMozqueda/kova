@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import * as Sentry from "@sentry/react";
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from "lucide-react";
+import { reportError } from "@/observability/errorReporting";
 import { cn } from "@/lib/utils";
 import { copy } from "@/i18n/messages";
 
@@ -88,7 +88,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const lastUnhandledToastAt = useRef(0);
   useEffect(() => {
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
-      Sentry.captureException(event.reason);
+      reportError(event.reason);
       const now = Date.now();
       if (now - lastUnhandledToastAt.current > 5000) {
         lastUnhandledToastAt.current = now;

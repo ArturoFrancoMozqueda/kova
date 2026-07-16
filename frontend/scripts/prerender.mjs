@@ -6,7 +6,7 @@
 // pipeline (PWA, version.json) is untouched. No inline <script> is added, so
 // the CSP stays intact. Fails the build loudly if anything is off, so a broken
 // prerender can never ship silently.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -97,17 +97,22 @@ const LANDING_STRUCTURED_DATA = {
 
 // Each content-bearing route. `assert` is a substring that MUST appear in the
 // rendered HTML — our guarantee that the route actually rendered its content
-// rather than an empty fallback.
+// rather than an empty fallback. `moduleKey` is the route component's key in
+// dist/.vite/manifest.json, used to modulepreload the route's chunks so the
+// hydrating client doesn't discover them one network hop at a time
+// (index.js → Home.js → KovaShowcase.js).
 const ROUTES = [
   {
     path: "/",
     out: "index.html",
     assert: "Deja de adivinar",
     structuredData: LANDING_STRUCTURED_DATA,
+    moduleKey: "src/routes/Home.tsx",
   },
   {
     path: "/privacy",
     out: "privacy/index.html",
+    moduleKey: "src/routes/LegalPage.tsx",
     title: "Aviso de privacidad · kova",
     description: "Aviso de privacidad de Kova: qué datos tratamos y cómo los protegemos.",
     assert: "Aviso de privacidad",
@@ -118,6 +123,7 @@ const ROUTES = [
     title: "Términos y condiciones · kova",
     description: "Términos y condiciones del servicio Kova.",
     assert: "Términos",
+    moduleKey: "src/routes/LegalPage.tsx",
   },
   {
     path: "/seguridad",
@@ -125,6 +131,7 @@ const ROUTES = [
     title: "Seguridad · kova",
     description: "Cómo Kova protege tus datos y los de tu negocio.",
     assert: "Cómo protegemos tu negocio",
+    moduleKey: "src/routes/LegalPage.tsx",
   },
   {
     path: "/cookies",
@@ -132,8 +139,69 @@ const ROUTES = [
     title: "Política de cookies · kova",
     description: "Política de cookies de Kova: qué cookies usamos y cómo gestionarlas.",
     assert: "cookies",
+    moduleKey: "src/routes/LegalPage.tsx",
   },
 ];
+
+// The two font files that paint above-the-fold text: Bricolage latin (the
+// hero <h1> display face) and Inter latin (body). Without a preload they are
+// discovered only after the CSS parses, delaying the LCP swap. Latin subsets
+// only — preloading more would compete with the LCP for bandwidth. Fails
+// loudly if @fontsource-variable renames its files.
+const CRITICAL_FONT_PATTERNS = [
+  /^bricolage-grotesque-latin-wght-normal-.*\.woff2$/,
+  /^inter-latin-wght-normal-.*\.woff2$/,
+];
+
+function fontPreloadLinks() {
+  const assets = readdirSync(resolve(dist, "assets"));
+  return CRITICAL_FONT_PATTERNS.map((pattern) => {
+    const file = assets.find((name) => pattern.test(name));
+    if (!file) {
+      throw new Error(
+        `prerender: no dist/assets file matches ${pattern} — fontsource file naming changed?`,
+      );
+    }
+    return `    <link rel="preload" href="/assets/${file}" as="font" type="font/woff2" crossorigin>\n`;
+  }).join("");
+}
+
+// Walk the Vite manifest from a route module and collect every hashed JS/CSS
+// file it statically pulls in (Home → KovaShowcase → previews, ...).
+function collectRouteAssets(manifest, moduleKey) {
+  const js = [];
+  const css = [];
+  const seen = new Set();
+  const walk = (key) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    const item = manifest[key];
+    if (!item) return;
+    js.push(item.file);
+    css.push(...(item.css ?? []));
+    for (const imported of item.imports ?? []) walk(imported);
+  };
+  walk(moduleKey);
+  return { js, css };
+}
+
+// Inject modulepreload/stylesheet links for the route's chunks, skipping any
+// file the shell already references (the eager entry + vendors). Duplicate
+// stylesheets are harmless — Vite's dynamic-import preload helper skips links
+// that already exist — but there's no reason to emit them.
+function injectRouteAssets(html, manifest, moduleKey) {
+  const { js, css } = collectRouteAssets(manifest, moduleKey);
+  const links = [
+    ...js
+      .filter((file) => !html.includes(file))
+      .map((file) => `    <link rel="modulepreload" crossorigin href="/${file}">\n`),
+    ...css
+      .filter((file) => !html.includes(file))
+      .map((file) => `    <link rel="stylesheet" crossorigin href="/${file}">\n`),
+  ];
+  if (links.length === 0) return html;
+  return html.replace("</head>", `${links.join("")}  </head>`);
+}
 
 function escapeAttr(value) {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
@@ -174,13 +242,21 @@ function injectHead(html, { path, title, description, structuredData }) {
 
 async function main() {
   const shellPath = resolve(dist, "index.html");
-  const shell = readFileSync(shellPath, "utf8");
+  // Every written page (app-shell included) preloads the two critical fonts.
+  const shell = readFileSync(shellPath, "utf8").replace(
+    "</head>",
+    `${fontPreloadLinks()}  </head>`,
+  );
 
   if (!shell.includes(ROOT_MARKER)) {
     throw new Error(
       `prerender: could not find ${ROOT_MARKER} in dist/index.html — build output changed?`,
     );
   }
+
+  const manifest = JSON.parse(
+    readFileSync(resolve(dist, ".vite", "manifest.json"), "utf8"),
+  );
 
   // 1) Write the app-shell FIRST — this is the SPA catch-all target and the SW
   //    navigation fallback. Its #root must stay empty. It's served for every
@@ -205,13 +281,14 @@ async function main() {
   const { render } = await import(entryUrl);
 
   for (const route of ROUTES) {
-    const appHtml = render(route.path);
+    const appHtml = await render(route.path);
     if (!appHtml.includes(route.assert)) {
       throw new Error(
         `prerender: rendered ${route.path} is missing expected content "${route.assert}" — SSR likely emitted a fallback.`,
       );
     }
     let html = injectHead(shell, route);
+    html = injectRouteAssets(html, manifest, route.moduleKey);
     html = html.replace(ROOT_MARKER, `<div id="root">${appHtml}</div>`);
     const outPath = resolve(dist, route.out);
     mkdirSync(dirname(outPath), { recursive: true });

@@ -18,6 +18,16 @@ export function buildSentryOptions(
   };
 }
 
+// Consumed by observability/errorReporting.ts (the lazy facade). Keep the
+// signature in sync with its `capture` slot.
+export function captureException(error: unknown, extra?: Record<string, unknown>): void {
+  if (extra) {
+    Sentry.captureException(error, { extra });
+  } else {
+    Sentry.captureException(error);
+  }
+}
+
 export function initSentry(dsn: string | undefined, environment: string): void {
   if (!dsn) {
     return;

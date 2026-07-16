@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -43,7 +43,7 @@ describe("ErrorBoundary", () => {
     consoleError.mockRestore();
   });
 
-  it("keeps the fallback and reports stale asset errors on unsafe routes", () => {
+  it("keeps the fallback and reports stale asset errors on unsafe routes", async () => {
     reloadSafe = false;
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -60,7 +60,9 @@ describe("ErrorBoundary", () => {
     );
 
     expect(forceReload).not.toHaveBeenCalled();
-    expect(captureException).toHaveBeenCalledTimes(1);
+    // Reporting is deferred: reportError loads Sentry on demand and flushes
+    // its queue once the module resolves, so the capture lands a tick later.
+    await waitFor(() => expect(captureException).toHaveBeenCalledTimes(1));
     expect(getByRole("alert")).toBeInTheDocument();
     consoleError.mockRestore();
   });

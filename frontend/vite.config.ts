@@ -67,6 +67,17 @@ export default defineConfig({
         // navigation fallback below — they always hit the network, so pricing
         // and landing copy can never be served stale.
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Kova's audience is es-MX: the latin(-ext) subsets cover all real
+        // usage (unicode-range still lets a browser fetch the rest over the
+        // network in the rare case it needs them). OG images only matter to
+        // social crawlers, never to the app. Keeping these out of the precache
+        // saves ~360 KB per install.
+        globIgnores: [
+          "**/*cyrillic*.woff2",
+          "**/*greek*.woff2",
+          "**/*vietnamese*.woff2",
+          "**/og-image*.png",
+        ],
         // The SPA navigation fallback is the EMPTY app-shell, not the
         // prerendered index.html (which is now the landing). app-shell.html is
         // written by scripts/prerender.mjs after this build, so add it to the
@@ -121,6 +132,9 @@ export default defineConfig({
     },
   },
   build: {
+    // Emit dist/.vite/manifest.json so scripts/prerender.mjs can resolve each
+    // prerendered route's hashed chunks and inject modulepreload links.
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -136,6 +150,12 @@ export default defineConfig({
           ) {
             return "vendor-charts";
           }
+          // Sentry is only reached via dynamic import (observability/
+          // errorReporting.ts + idle init in main.tsx). Must be matched before
+          // the generic "react" rule below: "@sentry/react" contains "react",
+          // and landing in the eager vendor-react chunk would drag the whole
+          // Sentry graph back into every first load.
+          if (id.includes("@sentry")) return "vendor-observability";
           if (id.includes("react") || id.includes("react-router-dom")) return "vendor-react";
           if (id.includes("dexie")) return "vendor-offline";
           if (id.includes("lucide-react")) return "vendor-icons";
