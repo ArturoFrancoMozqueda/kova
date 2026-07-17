@@ -9,10 +9,11 @@ import { SubscriptionInactivePanel } from "@/billing/SubscriptionInactivePanel";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
 import { ExecutiveSummary, QuickFacts } from "./components/ExecutiveSummary";
+import { ActionPlanSection } from "./components/ActionPlanSection";
 import { EmployeePerformance } from "./components/EmployeePerformance";
 import { PaymentAnalysis } from "./components/PaymentAnalysis";
+import { PriorityActionCard } from "./components/PriorityActionCard";
 import { ProductInventoryAnalysis } from "./components/ProductInventoryAnalysis";
-import { RecommendationCards } from "./components/RecommendationCards";
 import { RefundsAndCancellations } from "./components/RefundsAndCancellations";
 import { ReportsHeader } from "./components/ReportsHeader";
 import {
@@ -22,8 +23,10 @@ import {
   PermissionDenied,
 } from "./components/ReportStates";
 import { TimingAnalysis } from "./components/TimingAnalysis";
+import { usePlanDoneState } from "./hooks/usePlanDoneState";
 import { useReportData } from "./hooks/useReportData";
 import type { BusinessStoryReport } from "./types";
+import { buildActionPlan } from "./utils/actionPlan";
 import { activePreset, daysBetweenInclusive, presetRange, type ReportPreset } from "./utils/dateRange";
 import { buildRecommendations } from "./utils/recommendations";
 
@@ -95,6 +98,7 @@ export default function ReportsView() {
   }, [tz, tzResolved]);
 
   const data = useReportData(appliedRange.startDate, appliedRange.endDate, canViewReports);
+  const { doneIds, toggleDone } = usePlanDoneState(data.story ?? null);
 
   const setToday = () => {
     const today = todayInTimezone(tz);
@@ -127,6 +131,16 @@ export default function ReportsView() {
   const hasSales = loaded && data.story!.summary.completed_orders > 0;
   const story = data.story;
 
+  const plan =
+    hasSales && story
+      ? buildActionPlan({
+          recommendations: recommendationsFor(story, data.previousStory, data.stock, data.velocity),
+          story,
+          previousStory: data.previousStory,
+        })
+      : null;
+  const heroId = plan?.hero ? `${plan.hero.id}|${plan.hero.subjectId}` : null;
+
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 p-4 sm:p-6">
       <ReportsHeader
@@ -158,10 +172,10 @@ export default function ReportsView() {
             />
           </div>
           <div id="reporte-plan" className="scroll-mt-14">
-            <RecommendationCards
-              recommendations={recommendationsFor(story, data.previousStory, data.stock, data.velocity)}
-              story={story}
-              previousStory={data.previousStory}
+            <PriorityActionCard
+              recommendation={plan?.hero ?? null}
+              done={heroId !== null && doneIds.has(heroId)}
+              onToggleDone={() => heroId && toggleDone(heroId)}
             />
           </div>
           <QuickFacts story={story} />
@@ -178,6 +192,12 @@ export default function ReportsView() {
           <ArcKicker id="reporte-control" label={copy.reportsView.arcOps} />
           <RefundsAndCancellations story={story} />
           <EmployeePerformance story={story} />
+          <ActionPlanSection
+            actions={plan?.actions ?? []}
+            signals={plan?.signals ?? []}
+            doneIds={doneIds}
+            onToggleDone={toggleDone}
+          />
         </div>
       ) : null}
     </main>

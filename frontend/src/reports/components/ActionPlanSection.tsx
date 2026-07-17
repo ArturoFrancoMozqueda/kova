@@ -1,0 +1,105 @@
+import { useState } from "react";
+import { CheckCircle2, Eye, Sparkles } from "lucide-react";
+
+import { copy } from "@/i18n/messages";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import type { ActionPlanItem } from "../utils/actionPlan";
+import { DoneToggle, GoLink } from "./planShared";
+
+/** Hard cap on action rows even when expanded. */
+const MAX_ACTIONS = 8;
+
+function SignalIcon({ tone }: { tone: ActionPlanItem["tone"] }) {
+  if (tone === "ok") {
+    return <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-kova-growth" aria-hidden />;
+  }
+  return <Eye className="mt-0.5 h-4 w-4 shrink-0 text-warning-foreground" aria-hidden />;
+}
+
+function ChecklistRow({
+  item,
+  done,
+  onToggleDone,
+}: {
+  item: ActionPlanItem;
+  done: boolean;
+  onToggleDone: () => void;
+}) {
+  // Only actions are tasks the owner can mark as done; watch/ok signals keep
+  // their state icon.
+  const checkable = item.tone === "action";
+  return (
+    <li className="flex items-start gap-3 rounded-kova-md border border-kova-border bg-white px-4 py-3">
+      {checkable ? (
+        <DoneToggle done={done} onToggle={onToggleDone} priority={item.priority} />
+      ) : (
+        <SignalIcon tone={item.tone} />
+      )}
+      <div className="min-w-0">
+        <p
+          className={cn(
+            "text-sm font-medium leading-5 text-kova-ink",
+            checkable && done && "text-kova-muted line-through",
+          )}
+        >
+          {item.action}
+        </p>
+        {item.evidence ? (
+          <p className="mt-0.5 text-xs leading-5 text-kova-muted">{item.evidence}</p>
+        ) : null}
+        {item.linkTo && !(checkable && done) ? <GoLink to={item.linkTo} /> : null}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * The full operational to-do beyond the priority card: remaining actions plus
+ * derived signals, collapsed by default at the end of the report. Every row
+ * keeps its exact figures in the evidence line; nothing is summarized away.
+ */
+export function ActionPlanSection({
+  actions,
+  signals,
+  doneIds,
+  onToggleDone,
+}: {
+  actions: ActionPlanItem[];
+  signals: ActionPlanItem[];
+  doneIds: Set<string>;
+  onToggleDone: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const items = [...actions.slice(0, MAX_ACTIONS), ...signals];
+  if (items.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-kova-blue" />
+          <CardTitle>{copy.reportsView.recommendationsTitle}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {expanded ? (
+          <ul className="space-y-2">
+            {items.map((item) => (
+              <ChecklistRow
+                key={item.id}
+                item={item}
+                done={doneIds.has(item.id)}
+                onToggleDone={() => onToggleDone(item.id)}
+              />
+            ))}
+          </ul>
+        ) : null}
+        <Button variant="ghost" size="sm" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
+          {expanded ? copy.reportsView.planSectionHide : copy.reportsView.planSectionShow(items.length)}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}

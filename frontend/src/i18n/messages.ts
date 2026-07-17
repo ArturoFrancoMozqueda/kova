@@ -1295,6 +1295,10 @@ export const copy = {
     priorityRecommendationKicker: "Tu prioridad ahora",
     recShowAll: (n: number) => `Ver todas (${n})`,
     recShowLess: "Ver menos",
+    priorityWhyShow: "Ver por qué",
+    priorityWhyHide: "Ocultar detalle",
+    planSectionShow: (n: number) => `Ver plan completo (${n})`,
+    planSectionHide: "Ocultar plan",
     recImpactPrefix: "Impacto",
     priorityLabel: (priority: string) =>
       ({ alta: "Prioridad alta", media: "Prioridad media", baja: "Prioridad baja" })[priority] ??
