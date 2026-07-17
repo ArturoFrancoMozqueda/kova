@@ -44,6 +44,14 @@ def rls_seed(owner_engine):
         )
         conn.execute(
             text(
+                "INSERT INTO tenant_receipt_settings "
+                "(tenant_id, receipt_business_name) VALUES "
+                "(:a, 'Receipt A'), (:b, 'Receipt B')"
+            ),
+            {"a": TENANT_A, "b": TENANT_B},
+        )
+        conn.execute(
+            text(
                 "INSERT INTO users (id, email, hashed_password, is_email_verified) VALUES "
                 "(:ua, 'rls-a@example.com', 'hash-a', true), "
                 "(:ub, 'rls-b@example.com', 'hash-b', true)"
@@ -84,6 +92,10 @@ def rls_seed(owner_engine):
             conn.execute(
                 text("DELETE FROM products WHERE id IN (:pa, :pb)"),
                 {"pa": PRODUCT_A, "pb": PRODUCT_B},
+            )
+            conn.execute(
+                text("DELETE FROM tenant_receipt_settings WHERE tenant_id IN (:a, :b)"),
+                {"a": TENANT_A, "b": TENANT_B},
             )
             conn.execute(
                 text("DELETE FROM tenants WHERE id IN (:a, :b)"),
@@ -161,6 +173,29 @@ def test_billing_policy_denies_empty_tenant_context_without_uuid_cast_error(
             {"sa": SUBSCRIPTION_A, "sb": SUBSCRIPTION_B},
         ).scalar()
     assert count == 0
+
+
+def test_receipt_policy_denies_empty_tenant_context_without_uuid_cast_error(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        conn.execute(text("SELECT set_config('app.tenant_id', '', false)"))
+        count = conn.execute(text("SELECT count(*) FROM tenant_receipt_settings")).scalar()
+    assert count == 0
+
+
+def test_receipt_policy_preserves_tenant_isolation(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        names = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT receipt_business_name FROM tenant_receipt_settings")
+            )
+        }
+    assert names == {"Receipt A"}
 
 
 def test_cross_tenant_insert_is_rejected(kova_app_engine, rls_seed):  # noqa: ARG001
