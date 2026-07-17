@@ -423,8 +423,9 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
 
   await expect(page.getByText("Resumen del periodo")).toBeVisible();
   await expect(page.getByText(/Tarde/).first()).toBeVisible();
-  // Sticky chapter chips: one tap to any act of the story on phones.
-  await expect(page.getByRole("navigation", { name: /secciones del reporte/i })).toBeVisible();
+  // Dashboard layout: the priority action reads before scrolling into charts;
+  // the old chapter-chip navigation is gone with the narrative acts.
+  await expect(page.getByTestId("priority-recommendation")).toBeVisible();
   await expectMobileTaskNavigation(page);
   await expectNoHorizontalOverflow(page);
 

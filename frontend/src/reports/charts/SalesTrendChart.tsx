@@ -133,7 +133,7 @@ export function SalesTrendChart({
             strokeDasharray="4 4"
             label={{
               value: copy.reportsView.salesTrendAverageLabel(formatMoney(String(average))),
-              position: "right",
+              position: "insideBottomRight",
               fill: "var(--kova-muted)",
               fontSize: 10,
             }}
