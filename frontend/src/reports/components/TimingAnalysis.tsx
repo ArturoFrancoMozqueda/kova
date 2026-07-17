@@ -17,7 +17,6 @@ import {
 } from "../utils/calculations";
 import { daysBetweenInclusive } from "../utils/dateRange";
 import { formatSignedPercent } from "../utils/format";
-import { MainTrendPanel } from "./MainTrendPanel";
 import { BentoPanel, PartialFailureNote } from "./ReportSection";
 
 type DaypartRow = BusinessStoryReport["sales_by_daypart"][number];
@@ -250,32 +249,3 @@ export function TopHoursPanel({
   );
 }
 
-/** Interim composition kept for Phase 3 so the current long-scroll view still
- * renders; Phase 4 mounts the panels directly on the dashboard grid. */
-export function TimingAnalysis({
-  story,
-  hourly,
-  hourlyFailed,
-  previousStory,
-  trendStory = null,
-}: {
-  story: BusinessStoryReport;
-  hourly: SalesByHourRow[];
-  hourlyFailed: boolean;
-  previousStory: BusinessStoryReport | null;
-  /** Trailing 7-day story for single-day ranges: the daily chart stays on
-   * screen even on "Hoy", with today pre-selected against its own week. */
-  trendStory?: BusinessStoryReport | null;
-}) {
-  const rangeDays = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
-
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      <MainTrendPanel story={story} previousStory={previousStory} trendStory={trendStory} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <DaypartsPanel story={story} previousStory={previousStory} />
-        <TopHoursPanel hourly={hourly} hourlyFailed={hourlyFailed} rangeDays={rangeDays} />
-      </div>
-    </div>
-  );
-}

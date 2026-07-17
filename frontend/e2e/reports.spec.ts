@@ -237,7 +237,7 @@ test("desktop sidebar covers the viewport after scrolling reports", async ({ pag
   expect(Math.round(sidebar?.height ?? 0)).toBe(768);
 });
 
-test("reports page displays business storytelling layout", async ({ page }) => {
+test("reports page displays analytics dashboard layout", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
   await mockReports(page, storyPayload(), {
@@ -279,40 +279,50 @@ test("reports page displays business storytelling layout", async ({ page }) => {
   await page.getByLabel(/fecha final/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
-  // Qué pasó: summary and executive KPIs. The previous period ($180) is below
-  // MIN_MONEY_BASE, so the headline deliberately avoids a noisy percentage.
+  // KPI row: the four tiles with their exact labels. The previous period
+  // ($180) is below MIN_MONEY_BASE, so the headline deliberately avoids a
+  // noisy percentage.
   await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
   await expect(page.getByText("Resumen del periodo")).toBeVisible();
-  await expect(page.getByText("Vendiste $231.00 con 7 órdenes en estos 7 días.")).toBeVisible();
+  await expect(page.getByText("Ventas netas", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ticket promedio", { exact: true })).toBeVisible();
+  await expect(page.getByText("Devoluciones", { exact: true }).first()).toBeVisible();
   await expect(
     page.getByText("Comparado con el periodo anterior: 6 may – 12 may (7 días)."),
   ).toBeVisible();
-  await expect(page.getByText("Ventas netas", { exact: true })).toBeVisible();
 
-  // Qué hacer: the priority recommendation reads without any interaction.
-  await expect(page.getByText("Qué hacer ahora", { exact: true })).toBeVisible();
+  // Hero chart: the one-line headline lives as its subtitle and the previous
+  // period overlays the bars (legend announces it).
+  await expect(page.getByText("Ventas por día", { exact: true })).toBeVisible();
+  await expect(page.getByText("Vendiste $231.00 con 7 órdenes en estos 7 días.")).toBeVisible();
+  await expect(page.getByText("Periodo anterior", { exact: true })).toBeVisible();
+
+  // The priority action reads without any interaction on the rail.
   const hero = page.getByTestId("priority-recommendation");
   await expect(hero).toBeVisible();
   await expect(hero).toContainText("Tu prioridad ahora");
   await expect(hero).toContainText("Dona necesita reabasto pronto");
-  // The checklist synthesizes signals: with 0 refunds/cancellations the plan
-  // confirms operations are normal right inside the action block.
-  await expect(page.getByText(/Pagos y devoluciones en nivel normal/)).toBeVisible();
 
-  // Por qué pasó: every thematic block framed as a business question, no toggles.
+  // Bento cells: every thematic block framed as a business question.
   await expect(page.getByText("¿Cuándo vendo más?")).toBeVisible();
   await expect(page.getByText("¿Qué producto mueve el negocio?")).toBeVisible();
   await expect(page.getByText("¿Cómo me están pagando?")).toBeVisible();
   await expect(page.getByText("¿Hay devoluciones o cancelaciones preocupantes?")).toBeVisible();
   await expect(page.getByText("¿Quién está vendiendo?")).toBeVisible();
-
-  // Deep-analysis content stays: charts, day blocks and full tables.
-  await expect(page.getByText("Ventas por día", { exact: true })).toBeVisible();
   await expect(page.getByText("Bloques del día")).toBeVisible();
   await expect(page.getByText("Bloque más fuerte")).toBeVisible();
   await expect(page.getByText("Tus 3 mejores horas")).toBeVisible();
+
+  // Full detail survives below the fold: the product/inventory table.
   await expect(page.getByRole("cell", { name: "Dona", exact: true })).toBeVisible();
   await expect(page.getByRole("table").first().getByText("Reabastecer", { exact: true })).toBeVisible();
+
+  // The rest of the plan is collapsed by default; expanding reveals the
+  // synthesized signals (0 refunds/cancellations → operations-normal row).
+  await expect(page.getByText("Qué hacer ahora", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Pagos y devoluciones en nivel normal/)).toHaveCount(0);
+  await page.getByRole("button", { name: /Ver plan completo/ }).click();
+  await expect(page.getByText(/Pagos y devoluciones en nivel normal/)).toBeVisible();
 });
 
 test("reports keeps the latest applied range when an earlier request finishes last", async ({ page }) => {

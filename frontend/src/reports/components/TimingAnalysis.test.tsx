@@ -3,38 +3,33 @@ import { describe, expect, it } from "vitest";
 
 import { copy } from "@/i18n/messages";
 import { makeStory } from "../__fixtures__/story";
-import { TimingAnalysis } from "./TimingAnalysis";
+import { DaypartsPanel, TopHoursPanel } from "./TimingAnalysis";
 
-const todayOnly = makeStory({
-  summary: { ...makeStory().summary, start_date: "2026-07-07", end_date: "2026-07-07" },
+describe("DaypartsPanel", () => {
+  it("answers the strongest block with exact money and share", () => {
+    render(<DaypartsPanel story={makeStory()} previousStory={null} />);
+    // Fixture: tarde = $5,000 (50%).
+    expect(screen.getByText("Tarde concentra $5,000.00 (50% de la venta)")).toBeInTheDocument();
+    expect(screen.getByText(copy.reportsView.daypartGridTitle)).toBeInTheDocument();
+    expect(screen.getByText(copy.reportsView.daypartStrongest)).toBeInTheDocument();
+    // Every block keeps its meter with the exact share.
+    expect(screen.getAllByRole("meter").length).toBe(3);
+  });
 });
 
-describe("TimingAnalysis (single-day range)", () => {
-  it("keeps the daily chart on 'Hoy' using the trailing-7-days context", () => {
-    const trendStory = makeStory(); // 2026-07-01 → 2026-07-07
-    render(
-      <TimingAnalysis
-        story={todayOnly}
-        hourly={[]}
-        hourlyFailed={false}
-        previousStory={null}
-        trendStory={trendStory}
-      />,
-    );
-    expect(screen.getByText(copy.reportsView.salesTrendChartTitle)).toBeInTheDocument();
-    expect(screen.getByText(copy.reportsView.salesTrendContextSubtitle)).toBeInTheDocument();
+describe("TopHoursPanel", () => {
+  it("degrades visibly when the hourly dataset failed", () => {
+    render(<TopHoursPanel hourly={[]} hourlyFailed rangeDays={7} />);
+    expect(screen.getByText(copy.reportsView.hourlyUnavailable)).toBeInTheDocument();
   });
 
-  it("omits the daily chart when the context fetch failed", () => {
-    render(
-      <TimingAnalysis
-        story={todayOnly}
-        hourly={[]}
-        hourlyFailed={false}
-        previousStory={null}
-        trendStory={null}
-      />,
-    );
-    expect(screen.queryByText(copy.reportsView.salesTrendChartTitle)).not.toBeInTheDocument();
+  it("answers the best hour with its exact sales", () => {
+    const hourly = [
+      { hour: 13, net_sales: "2500", order_count: 25 },
+      { hour: 9, net_sales: "1200", order_count: 10 },
+      { hour: 18, net_sales: "800", order_count: 8 },
+    ];
+    render(<TopHoursPanel hourly={hourly} hourlyFailed={false} rangeDays={7} />);
+    expect(screen.getByText("Tu mejor hora: 13:00–14:00 · $2,500.00")).toBeInTheDocument();
   });
 });

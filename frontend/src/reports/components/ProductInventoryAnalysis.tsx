@@ -402,21 +402,3 @@ export function ProductTableSection({
   );
 }
 
-/** Interim composition kept for Phase 3 so the current long-scroll view still
- * renders; Phase 4 mounts the panel and the table separately on the grid. */
-export function ProductInventoryAnalysis({
-  story,
-  stock,
-  velocity,
-}: {
-  story: BusinessStoryReport;
-  stock: StockItem[];
-  velocity: InventoryVelocityItem[];
-}) {
-  return (
-    <div className="space-y-4 sm:space-y-6">
-      <ProductsPanel story={story} stock={stock} velocity={velocity} />
-      <ProductTableSection story={story} stock={stock} velocity={velocity} />
-    </div>
-  );
-}

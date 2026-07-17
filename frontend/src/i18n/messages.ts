@@ -1049,14 +1049,8 @@ export const copy = {
     detailToggleTitle: "Ver análisis detallado",
     detailToggleBody: "Abre solo si quieres revisar horarios, productos, inventario, pagos y operación con más detalle.",
     timingAnalysisTitle: "¿Cuándo vendo más?",
-    timingAnalysisDescription:
-      "Úsalo para decidir cuándo preparar más producto, caja y personal: primero días, luego bloques y hora pico.",
     productInventoryTitle: "¿Qué producto mueve el negocio?",
-    productInventoryDescription:
-      "Prioriza qué vender, proteger o reabastecer conectando ventas, unidades, participación y stock disponible.",
     paymentOperationsTitle: "¿Cómo me están pagando?",
-    paymentOperationsDescription:
-      "Revisa si la forma de cobro o las incidencias pueden afectar conciliación, efectivo o velocidad de caja.",
     grossVsNetNote:
       "Las ventas netas (arriba) ya descuentan devoluciones; los pagos muestran el bruto cobrado.",
     restockAlertsTitle: "Alertas de reabasto",
@@ -1069,8 +1063,6 @@ export const copy = {
     employeeContributionTitle: "Contribución por empleado",
     employeeContributionEven:
       "El equipo aporta de forma pareja; sin un solo punto crítico.",
-    employeeContributionTop: (name: string, share: number) =>
-      `${name} aporta el ${share}% de las ventas netas del periodo.`,
     employeeAnalysisDescription:
       "Compara desempeño solo cuando hay más de una persona vendiendo; con un solo usuario no hay benchmark útil.",
     productColumn: "Producto",
@@ -1243,6 +1235,8 @@ export const copy = {
     kpiNetSalesLabel: "Ventas netas",
     kpiOrdersLabel: "Órdenes",
     kpiAvgTicketLabel: "Ticket promedio",
+    kpiRefundsLabel: "Devoluciones",
+    kpiRefundsCount: (n: number) => `${n} en el periodo`,
     comparisonCaptionMulti: (prevStart: string, prevEnd: string, days: number) =>
       `Comparado con el periodo anterior: ${prevStart} – ${prevEnd} (${days} ${days === 1 ? "día" : "días"}).`,
     comparisonCaptionYesterday: (day: string) => `Comparado con ayer, ${day}.`,
@@ -1263,9 +1257,6 @@ export const copy = {
       `Vendiste ${amount} con ${orders} ${orders === 1 ? "orden" : "órdenes"} en estos ${days} ${days === 1 ? "día" : "días"}.`,
     headlineToday: (amount: string, orders: number) =>
       `Hoy llevas ${amount} con ${orders} ${orders === 1 ? "orden" : "órdenes"}.`,
-    headlineCause: (parts: string[]) => `Lo que más pesó: ${parts.join(" · ")}.`,
-    causeProduct: (name: string, pct: number) => `${name} (${pct}% de la venta)`,
-    causeDaypart: (label: string, pct: number) => `la ${label.toLowerCase()} (${pct}% del periodo)`,
     headlineTodayGrowth: (amount: string, pct: number, moment: string | null) =>
       moment
         ? `Hoy vendiste ${amount}, ${pct}% más que ayer — la ${moment.toLowerCase()} hizo la diferencia.`
@@ -1281,8 +1272,6 @@ export const copy = {
 
     // --- "Qué hacer ahora" action plan ---
     recommendationsTitle: "Qué hacer ahora",
-    recommendationsDescription:
-      "Lo más importante que puedes hacer con estos números, ordenado por prioridad.",
     actionWatchTicketAction: "Vigila el ticket promedio: revisa combos, precios o descuentos.",
     actionWatchTicketEvidence: (amount: string, pct: number) =>
       `Va en ${amount}, ${pct}% abajo del periodo anterior.`,
@@ -1293,8 +1282,6 @@ export const copy = {
     recommendationsEmpty:
       "No hay alertas fuertes en este rango. Mantén el ritmo y revisa inventario, hora pico y cómo te pagaron.",
     priorityRecommendationKicker: "Tu prioridad ahora",
-    recShowAll: (n: number) => `Ver todas (${n})`,
-    recShowLess: "Ver menos",
     priorityWhyShow: "Ver por qué",
     priorityWhyHide: "Ocultar detalle",
     planSectionShow: (n: number) => `Ver plan completo (${n})`,
@@ -1394,7 +1381,6 @@ export const copy = {
       "Tus últimos 7 días, para dar contexto a hoy. La línea marca tu promedio diario.",
     salesTrendAverageLabel: (amount: string) => `Prom. ${amount}`,
     salesTrendBestDayLabel: "Mejor día del periodo",
-    salesTrendTooltipSales: "Ventas",
     salesTrendTooltipOrders: "Órdenes",
     salesTrendTooltipTicket: "Ticket promedio",
     salesTrendVsPrevDay: (label: string) => `vs. día anterior: ${label}`,
@@ -1428,23 +1414,6 @@ export const copy = {
       `Las horas tranquilas de la ${label.toLowerCase()} sirven para preparar el pico, hacer inventario o probar promociones — no son un problema.`,
 
     // --- Products & inventory: actionable reading strip ---
-    productReadingMoney: "Genera más dinero",
-    productReadingRestock: "Por agotarse",
-    productReadingGrowing: "Creciendo",
-    productReadingSlow: "Baja rotación",
-    productReadingOutOfStock: "ya no queda stock",
-
-    // --- Narrative arc kickers ---
-    arcWhy: "Por qué pasó",
-    arcOps: "Operación y control",
-
-    // --- Mobile chapter nav ---
-    navAria: "Secciones del reporte",
-    navSummary: "Resumen",
-    navPlan: "Qué hacer",
-    navWhy: "Por qué",
-    navOps: "Control",
-
     // --- Products & inventory table ---
     inventoryColumn: "Inventario",
     daysLeftColumn: "Días restantes",
@@ -1485,7 +1454,6 @@ export const copy = {
     trendNone: "—",
 
     // --- Payments contextual lines ---
-    paymentChartSubtitle: "Reparto de tus cobros por método (bruto, antes de devoluciones).",
     paymentTransactions: (n: number) => `${n} ${n === 1 ? "transacción" : "transacciones"}`,
     paymentContextCash: (pct: number) =>
       `El efectivo concentra ${pct}% de tus cobros. Prepara cambio antes del pico y cuadra caja al cierre.`,
@@ -1494,8 +1462,6 @@ export const copy = {
 
     // --- Refunds & cancellations section ---
     refundsSectionTitle: "¿Hay devoluciones o cancelaciones preocupantes?",
-    refundsSectionDescription:
-      "Cuánto dinero se regresó y por qué, para detectar patrones antes de que crezcan.",
     refundsTileRefunds: "Devoluciones",
     refundsTileCancellations: "Cancelaciones",
     refundsTileRate: "Tasa de devolución",
@@ -1522,7 +1488,6 @@ export const copy = {
       "Tip: registra el motivo específico al devolver en Caja para ver patrones aquí.",
 
     // --- Team (employees) ---
-    teamChartTitle: "Ventas por persona",
     teamChartSubtitle: "Ventas netas cobradas por cada persona en la caja.",
     teamSingle: (name: string, orders: number, amount: string, avg: string) =>
       `Solo ${name} cobró en este periodo: ${orders} ${orders === 1 ? "orden" : "órdenes"} por ${amount} (ticket promedio ${avg}). Cuando más personas usen la caja, aquí podrás comparar la contribución del equipo.`,
@@ -1537,11 +1502,8 @@ export const copy = {
       `${nameA} cobró ${amountA} (${shareA}%) y ${nameB} cobró ${amountB} (${shareB}%).`,
     teamMemberSubtext: (orders: number, share: number, avg: string, refunds: number) =>
       `${orders} ${orders === 1 ? "orden" : "órdenes"} · ${share}% del total · ticket ${avg} · ${refunds} ${refunds === 1 ? "devolución" : "devoluciones"}`,
-    teamEven: "El equipo aporta de forma pareja.",
     teamCaveat:
       "Las ventas por persona dependen de turnos y horarios. Úsalas como contexto, no como calificación de desempeño.",
-    teamAnalysisDescription:
-      "Compara la contribución del equipo cuando hay más de una persona vendiendo.",
   },
   productStory: {
     title: "Historia del producto",

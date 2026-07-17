@@ -4,16 +4,17 @@ import { useTenantTimezone } from "@/hooks/useTenantTimezone";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
-import { ArcKicker } from "@/components/ui/arc-kicker";
+import { Card, CardContent } from "@/components/ui/card";
 import { SubscriptionInactivePanel } from "@/billing/SubscriptionInactivePanel";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
-import { ExecutiveSummary, QuickFacts } from "./components/ExecutiveSummary";
+import { QuickFactsRail, SummaryKpis, summaryHeadline } from "./components/ExecutiveSummary";
 import { ActionPlanSection } from "./components/ActionPlanSection";
 import { EmployeePerformance } from "./components/EmployeePerformance";
+import { MainTrendPanel } from "./components/MainTrendPanel";
 import { PaymentAnalysis } from "./components/PaymentAnalysis";
 import { PriorityActionCard } from "./components/PriorityActionCard";
-import { ProductInventoryAnalysis } from "./components/ProductInventoryAnalysis";
+import { ProductTableSection, ProductsPanel } from "./components/ProductInventoryAnalysis";
 import { RefundsAndCancellations } from "./components/RefundsAndCancellations";
 import { ReportsHeader } from "./components/ReportsHeader";
 import {
@@ -22,44 +23,13 @@ import {
   LoadingState,
   PermissionDenied,
 } from "./components/ReportStates";
-import { TimingAnalysis } from "./components/TimingAnalysis";
+import { DaypartsPanel, TopHoursPanel } from "./components/TimingAnalysis";
 import { usePlanDoneState } from "./hooks/usePlanDoneState";
 import { useReportData } from "./hooks/useReportData";
 import type { BusinessStoryReport } from "./types";
 import { buildActionPlan } from "./utils/actionPlan";
 import { activePreset, daysBetweenInclusive, presetRange, type ReportPreset } from "./utils/dateRange";
 import { buildRecommendations } from "./utils/recommendations";
-
-const CHAPTERS = [
-  { id: "reporte-resumen", label: copy.reportsView.navSummary },
-  { id: "reporte-plan", label: copy.reportsView.navPlan },
-  { id: "reporte-porque", label: copy.reportsView.navWhy },
-  { id: "reporte-control", label: copy.reportsView.navOps },
-];
-
-/** Phone-only sticky chapter chips: one tap to any act of the story, so the
- * 6+ scroll screens never mean hunting for a section. */
-function ChapterNav() {
-  return (
-    <nav
-      aria-label={copy.reportsView.navAria}
-      className="sticky top-0 z-20 -mx-4 flex gap-2 overflow-x-auto border-b border-kova-border bg-background/95 px-4 py-2 backdrop-blur sm:hidden"
-    >
-      {CHAPTERS.map((chapter) => (
-        <button
-          key={chapter.id}
-          type="button"
-          onClick={() =>
-            document.getElementById(chapter.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
-          }
-          className="shrink-0 rounded-full border border-kova-border bg-white px-3 py-1 text-xs font-medium text-kova-ink"
-        >
-          {chapter.label}
-        </button>
-      ))}
-    </nav>
-  );
-}
 
 function recommendationsFor(
   story: BusinessStoryReport,
@@ -140,6 +110,12 @@ export default function ReportsView() {
         })
       : null;
   const heroId = plan?.hero ? `${plan.hero.id}|${plan.hero.subjectId}` : null;
+  const rangeDays = story
+    ? daysBetweenInclusive(story.summary.start_date, story.summary.end_date)
+    : 0;
+  // Single-day ranges draw the chart from the trailing-7-days context; if that
+  // fetch failed there is nothing to plot and the hero cell collapses.
+  const showTrend = rangeDays > 1 || data.trendStory !== null;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 p-4 sm:p-6">
@@ -162,36 +138,54 @@ export default function ReportsView() {
 
       {hasSales && story ? (
         <div className="space-y-4 sm:space-y-6">
-          <ChapterNav />
-          <div id="reporte-resumen" className="scroll-mt-14">
-            <ExecutiveSummary
-              story={story}
-              previousStory={data.previousStory}
-              previousFailed={data.previousFailed}
-              rangeDays={daysBetweenInclusive(story.summary.start_date, story.summary.end_date)}
-            />
-          </div>
-          <div id="reporte-plan" className="scroll-mt-14">
-            <PriorityActionCard
-              recommendation={plan?.hero ?? null}
-              done={heroId !== null && doneIds.has(heroId)}
-              onToggleDone={() => heroId && toggleDone(heroId)}
-            />
-          </div>
-          <QuickFacts story={story} />
-          <ArcKicker id="reporte-porque" label={copy.reportsView.arcWhy} />
-          <TimingAnalysis
+          <SummaryKpis
             story={story}
-            hourly={data.hourly}
-            hourlyFailed={data.hourlyFailed}
             previousStory={data.previousStory}
-            trendStory={data.trendStory}
+            previousFailed={data.previousFailed}
+            rangeDays={rangeDays}
           />
-          <ProductInventoryAnalysis story={story} stock={data.stock} velocity={data.velocity} />
-          <PaymentAnalysis story={story} previousStory={data.previousStory} />
-          <ArcKicker id="reporte-control" label={copy.reportsView.arcOps} />
-          <RefundsAndCancellations story={story} />
-          <EmployeePerformance story={story} />
+
+          {/* Hero row: main chart 2/3 + rail 1/3. Below `lg` the DOM order
+              flips via `order-*`: the priority action reads before the chart
+              (the action is the differentiator), quick facts after it. */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+            <div className="order-1 lg:order-none lg:col-start-3 lg:row-start-1">
+              <PriorityActionCard
+                recommendation={plan?.hero ?? null}
+                done={heroId !== null && doneIds.has(heroId)}
+                onToggleDone={() => heroId && toggleDone(heroId)}
+              />
+            </div>
+            {showTrend ? (
+              <Card className="order-2 lg:order-none lg:col-span-2 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+                <CardContent className="p-4 sm:p-5">
+                  <MainTrendPanel
+                    story={story}
+                    previousStory={data.previousStory}
+                    trendStory={data.trendStory}
+                    subtitle={summaryHeadline(story, data.previousStory, rangeDays)}
+                    height={320}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
+            <div className="order-3 lg:order-none lg:col-start-3 lg:row-start-2">
+              <QuickFactsRail story={story} />
+            </div>
+          </div>
+
+          {/* Bento: each cell answers one question with the figure up top. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <DaypartsPanel story={story} previousStory={data.previousStory} />
+            <TopHoursPanel hourly={data.hourly} hourlyFailed={data.hourlyFailed} rangeDays={rangeDays} />
+            <ProductsPanel story={story} stock={data.stock} velocity={data.velocity} />
+            <PaymentAnalysis story={story} previousStory={data.previousStory} />
+            <RefundsAndCancellations story={story} />
+            <EmployeePerformance story={story} />
+          </div>
+
+          <ProductTableSection story={story} stock={data.stock} velocity={data.velocity} />
+
           <ActionPlanSection
             actions={plan?.actions ?? []}
             signals={plan?.signals ?? []}

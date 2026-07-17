@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { makeStory } from "../__fixtures__/story";
 import type { StockItem } from "../../inventory/types";
-import { ProductInventoryAnalysis } from "./ProductInventoryAnalysis";
+import { ProductTableSection, ProductsPanel } from "./ProductInventoryAnalysis";
 
 const trackedLowStock: StockItem = {
   product_id: "p1",
@@ -15,7 +15,7 @@ const trackedLowStock: StockItem = {
   is_low_stock: true,
 };
 
-describe("ProductInventoryAnalysis", () => {
+describe("ProductTableSection", () => {
   it("distinguishes untracked products from zero stock", () => {
     const story = makeStory({
       product_drivers: [
@@ -24,17 +24,22 @@ describe("ProductInventoryAnalysis", () => {
       ],
     });
     // Only p1 is tracked; p2 is absent from listStock() → "Sin vincular", never 0.
-    render(<ProductInventoryAnalysis story={story} stock={[trackedLowStock]} velocity={[]} />);
+    render(<ProductTableSection story={story} stock={[trackedLowStock]} velocity={[]} />);
 
-    expect(screen.getAllByText("Sin vincular").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Reabastecer").length).toBeGreaterThan(0);
-    // The untracked row's inventory cell says "Sin vincular", never a fake 0:
-    // the only "0" figures on screen belong to real zero metrics, not p2 stock.
     const table = screen.getByRole("table");
     expect(table).toHaveTextContent("Galleta sin inventario");
-    expect(table).toHaveTextContent("Sin vincular");
+    expect(screen.getAllByText("Sin vincular").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Reabastecer").length).toBeGreaterThan(0);
   });
 
+  it("renders nothing when there are no product drivers", () => {
+    const story = makeStory({ product_drivers: [] });
+    const { container } = render(<ProductTableSection story={story} stock={[]} velocity={[]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("ProductsPanel", () => {
   it("leads with the top product answered in exact figures", () => {
     const story = makeStory({
       product_drivers: [
@@ -42,7 +47,7 @@ describe("ProductInventoryAnalysis", () => {
         { product_id: "p2", product_name: "Concha", quantity_sold: 12, gross_sales: "300", sales_share_pct: 8 },
       ],
     });
-    render(<ProductInventoryAnalysis story={story} stock={[trackedLowStock]} velocity={[]} />);
+    render(<ProductsPanel story={story} stock={[trackedLowStock]} velocity={[]} />);
 
     // "Respuesta primero": the #1 driver with amount + share as the highlight.
     expect(screen.getByText("Latte mediano · $4,000.00 (40% de la venta)")).toBeInTheDocument();
@@ -50,9 +55,9 @@ describe("ProductInventoryAnalysis", () => {
     expect(screen.getByRole("button", { name: /Ver tabla completa/ })).toBeInTheDocument();
   });
 
-  it("renders an empty state when there are no product drivers", () => {
+  it("shows the empty state when there are no product drivers", () => {
     const story = makeStory({ product_drivers: [] });
-    render(<ProductInventoryAnalysis story={story} stock={[]} velocity={[]} />);
+    render(<ProductsPanel story={story} stock={[]} velocity={[]} />);
     expect(screen.getByText(/Sin ventas de productos/i)).toBeInTheDocument();
   });
 });

@@ -62,6 +62,7 @@ export function DeltaChip({
   previous,
   format,
   compareLabel,
+  positiveIsGood = true,
 }: {
   growth: GrowthResult;
   current: number;
@@ -71,6 +72,9 @@ export function DeltaChip({
    * on Panel, where the period toggle changes what "previous" means). Reportes
    * omits it — the period is already explicit in its header. */
   compareLabel?: string;
+  /** Flip the up/down color for metrics where growing is bad (refunds):
+   * the arrow still shows the real direction, only the tone inverts. */
+  positiveIsGood?: boolean;
 }) {
   const absDelta = current - previous;
   const absLabel =
@@ -95,12 +99,13 @@ export function DeltaChip({
 
   const tone = growth.kind === "pct" ? (growth.value > 0 ? "up" : "down") : absDelta >= 0 ? "up" : "down";
   const pctLabel = growth.kind === "pct" ? `${formatSignedPercent(growth.value)} ` : "";
+  const good = positiveIsGood ? tone === "up" : tone === "down";
 
   return (
     <span
       className={cn(
         "flex items-center gap-1 text-xs font-medium",
-        tone === "up" ? "text-kova-growth" : "text-destructive",
+        good ? "text-kova-growth" : "text-destructive",
       )}
     >
       {tone === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
