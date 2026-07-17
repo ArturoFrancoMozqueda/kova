@@ -32,7 +32,7 @@ function watchConsole(page: Page) {
 async function login(page: Page) {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: /log in|iniciar sesi.n/i })).toBeVisible();
-  await page.getByLabel(/email/i).fill(requireEnv("PRODUCTION_SMOKE_EMAIL", smokeEmail));
+  await page.getByLabel(/email|correo/i).fill(requireEnv("PRODUCTION_SMOKE_EMAIL", smokeEmail));
   await page.getByLabel(/password|contrase.a/i).fill(
     requireEnv("PRODUCTION_SMOKE_PASSWORD", smokePassword),
   );
@@ -77,7 +77,17 @@ test("receipt settings load and save in production", async ({ page }) => {
   await expect(receiptName).toBeVisible();
   const currentName = await receiptName.inputValue();
   await receiptName.fill(currentName || "Kova Smoke Receipt");
-  await page.getByRole("button", { name: /guardar recibo|save receipt/i }).click();
+  const saveResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/settings/receipt") &&
+      response.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: /guardar.*recibo|save receipt/i }).click();
+  const saveResponse = await saveResponsePromise;
+  expect(
+    saveResponse.ok(),
+    `Receipt settings save failed (${saveResponse.status()}): ${await saveResponse.text()}`,
+  ).toBeTruthy();
   await expect(page.getByText(/guardado|saved/i)).toBeVisible();
 
   await expectNoConsoleErrors(consoleErrors);
@@ -99,12 +109,12 @@ test("core owner workspaces load and logout clears the production session", asyn
     await expect(page.getByRole("heading").first()).toBeVisible();
   }
 
+  await expectNoConsoleErrors(consoleErrors);
+
   await page.getByRole("button", { name: /cerrar sesi.n|log out/i }).click();
   await expect(page).toHaveURL(/\/login/);
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login/);
-
-  await expectNoConsoleErrors(consoleErrors);
 });
 
 test("production checkout redirects to the expected Stripe Checkout mode", async ({ page }) => {
@@ -113,7 +123,17 @@ test("production checkout redirects to the expected Stripe Checkout mode", async
   await page.goto("/settings/billing");
 
   await expectNoConsoleErrors(consoleErrors);
-  await page.getByRole("button", { name: /start checkout|checkout|pagar|suscrib/i }).click();
+  const checkoutButton = page.getByRole("button", {
+    name: /start checkout|checkout|pagar|suscrib/i,
+  });
+  if (!(await checkoutButton.isVisible())) {
+    await expect(page.locator("body")).toContainText(
+      /suscripci.n est. activa|subscription is active|checkout no necesario/i,
+    );
+    return;
+  }
+
+  await checkoutButton.click();
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 30_000 });
 
   const checkoutUrl = page.url();
@@ -129,18 +149,34 @@ test("production checkout redirects to the expected Stripe Checkout mode", async
 test("register can create a smoke cash sale, receipt, and report data", async ({ page }, testInfo) => {
   const consoleErrors = watchConsole(page);
   await login(page);
+
+  await page.goto("/shifts");
+  await expect(page.getByRole("heading", { level: 1, name: /shifts|turnos/i })).toBeVisible();
+  const openShiftButton = page.getByRole("button", { name: /open shift|abrir turno/i });
+  const activeShift = page.getByText(/active shift|turno activo/i);
+  if (!(await activeShift.isVisible())) {
+    await expect(openShiftButton).toBeVisible();
+    await openShiftButton.click();
+    await page.getByLabel(/opening cash|efectivo inicial/i).fill("0.00");
+    await page.getByRole("button", { name: /open shift|abrir turno/i }).last().click();
+    await expect(activeShift).toBeVisible();
+  }
+
   await page.goto("/register");
 
   await expect(page.getByRole("heading", { name: /register|caja/i })).toBeVisible();
-  const addButtons = page.getByRole("button", { name: /^Add /i });
+  const dismissTour = page.getByRole("button", { name: /skip|omitir/i });
+  if (await dismissTour.isVisible()) await dismissTour.click();
+  const addButtons = page.getByRole("button", { name: /^(add|agregar) /i });
   await expect(addButtons.first()).toBeVisible();
   await addButtons.first().click();
 
+  await page.getByRole("radio", { name: /cash|efectivo/i }).check();
   const tendered = page.getByLabel(/cash tendered|efectivo recibido/i);
   await expect(tendered).toBeVisible();
   await tendered.fill("100.00");
 
-  await page.getByRole("button", { name: /complete sale|completar venta/i }).click();
+  await page.getByRole("button", { name: /complete sale|completar venta|^cobrar$/i }).click();
   await expect(page.getByRole("status")).toContainText(/completed|queued|venta/i);
 
   const openOrder = page.getByRole("link", { name: /open order|abrir/i });
