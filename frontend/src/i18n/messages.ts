@@ -1384,6 +1384,11 @@ export const copy = {
     salesTrendShare: (pct: number) => `${pct}% de las ventas del periodo`,
     salesTrendSrSummary: (start: string, end: string, bestDay: string, bestAmount: string, avg: string) =>
       `Ventas por día del ${start} al ${end}. Mejor día: ${bestDay} con ${bestAmount}. Promedio diario: ${avg}.`,
+    salesTrendSrPrevTotal: (amount: string) =>
+      `El periodo anterior comparable sumó ${amount}.`,
+    trendLegendCurrent: "Este periodo",
+    trendLegendPrevious: "Periodo anterior",
+    trendVsSameDayPrev: (amount: string) => `mismo día del periodo anterior: ${amount}`,
     hourlyChartSubtitle: "Ventas por hora dentro de tu horario activo.",
     hourlyUnavailable: "No pudimos cargar el detalle por hora en este rango.",
     hourlyWorstTitleActive: "Horas con menos venta (dentro de tu horario activo)",

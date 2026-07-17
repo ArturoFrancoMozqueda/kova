@@ -2,72 +2,25 @@ import { useState } from "react";
 import { Clock3 } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
-import { formatDayLong, formatDayShort, formatDayWithWeekday } from "@/i18n/date";
 import { formatMoney } from "@/orders/format";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RankBarChart } from "../charts/RankBarChart";
-import { SalesTrendChart, type SalesDayPoint } from "../charts/SalesTrendChart";
 import type { ChartRow } from "../charts/types";
 import { formatHourRange, topHoursByNetSales } from "../hours";
 import type { BusinessStoryReport, SalesByHourRow } from "../types";
 import {
   MIN_MONEY_BASE,
-  bestDayRow,
   bestDaypartRow,
   calculateSafeGrowth,
 } from "../utils/calculations";
-import { addDays, daysBetweenInclusive } from "../utils/dateRange";
+import { daysBetweenInclusive } from "../utils/dateRange";
 import { formatSignedPercent } from "../utils/format";
+import { MainTrendPanel } from "./MainTrendPanel";
 import { PartialFailureNote, ReportSection } from "./ReportSection";
 
 type DaypartRow = BusinessStoryReport["sales_by_daypart"][number];
-
-function buildDayPoints(story: BusinessStoryReport): SalesDayPoint[] {
-  const byDate = new Map(story.sales_by_day.map((row) => [row.date, row]));
-  const totalNet = story.sales_by_day.reduce((sum, row) => sum + Number(row.net_sales), 0);
-  const start = story.summary.start_date;
-  const end = story.summary.end_date;
-  const days = daysBetweenInclusive(start, end);
-
-  const points: SalesDayPoint[] = [];
-  let cursor = start;
-  let previousValue: number | null = null;
-  for (let i = 0; i < days; i += 1) {
-    const row = byDate.get(cursor);
-    const value = row ? Number(row.net_sales) : 0;
-    let vsPrevLabel: string | null = null;
-    if (previousValue !== null && previousValue > 0 && value > 0) {
-      const pct = Math.round(((value - previousValue) / previousValue) * 100);
-      vsPrevLabel = formatSignedPercent(pct);
-    }
-    points.push({
-      id: cursor,
-      axisLabel: formatDayShort(cursor),
-      fullLabel: formatDayLong(cursor),
-      value,
-      valueLabel: formatMoney(value),
-      orderCount: row?.order_count ?? 0,
-      avgTicketLabel: formatMoney(row?.average_ticket ?? "0"),
-      vsPrevLabel,
-      sharePct: totalNet > 0 ? Math.round((value / totalNet) * 100) : 0,
-      isZero: value === 0,
-    });
-    previousValue = value;
-    cursor = addDays(cursor, 1);
-  }
-  return points;
-}
-
-/** When more than half of the range is zero-days before the first sale, the
- * chart looks broken instead of "young business" — one caption explains it. */
-function firstSaleNote(points: SalesDayPoint[]): string | null {
-  const firstSaleIndex = points.findIndex((point) => !point.isZero);
-  if (firstSaleIndex <= 0) return null;
-  if (firstSaleIndex / points.length <= 0.5) return null;
-  return copy.reportsView.salesTrendStartedNote(points[firstSaleIndex].fullLabel);
-}
 
 function DaypartDelta({ current, previous }: { current: DaypartRow; previous: DaypartRow | null }) {
   if (!previous || previous.order_count < 3) {
@@ -290,18 +243,6 @@ function HourlySection({
   );
 }
 
-function trendSrSummary(source: BusinessStoryReport, average: number): string | undefined {
-  const best = bestDayRow(source);
-  if (!best) return undefined;
-  return copy.reportsView.salesTrendSrSummary(
-    formatDayShort(source.summary.start_date),
-    formatDayShort(source.summary.end_date),
-    formatDayWithWeekday(best.date),
-    formatMoney(best.net_sales),
-    formatMoney(String(average)),
-  );
-}
-
 export function TimingAnalysis({
   story,
   hourly,
@@ -318,13 +259,6 @@ export function TimingAnalysis({
   trendStory?: BusinessStoryReport | null;
 }) {
   const rangeDays = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
-  // On single-day ranges the chart draws from the trailing-7-days context.
-  const trendSource = rangeDays > 1 ? story : trendStory;
-  const points = trendSource ? buildDayPoints(trendSource) : [];
-  // Average over every day in the range (zero-sales days included, since points
-  // are padded), so the reference line reflects the whole period.
-  const average = points.length ? points.reduce((sum, p) => sum + p.value, 0) / points.length : 0;
-  const bestDayId = trendSource ? (bestDayRow(trendSource)?.date ?? null) : null;
 
   return (
     <ReportSection
@@ -333,21 +267,7 @@ export function TimingAnalysis({
       description={copy.reportsView.timingAnalysisDescription}
     >
       <div className="space-y-6">
-        {trendSource && points.length > 1 ? (
-          <SalesTrendChart
-            points={points}
-            average={average}
-            bestDayId={bestDayId}
-            rangeDays={daysBetweenInclusive(
-              trendSource.summary.start_date,
-              trendSource.summary.end_date,
-            )}
-            srSummary={trendSrSummary(trendSource, average)}
-            note={firstSaleNote(points)}
-            subtitle={rangeDays === 1 ? copy.reportsView.salesTrendContextSubtitle : undefined}
-            initialSelectedId={rangeDays === 1 ? story.summary.end_date : undefined}
-          />
-        ) : null}
+        <MainTrendPanel story={story} previousStory={previousStory} trendStory={trendStory} />
         <DaypartGrid story={story} previousStory={previousStory} />
         <HourlySection hourly={hourly} hourlyFailed={hourlyFailed} rangeDays={rangeDays} />
       </div>

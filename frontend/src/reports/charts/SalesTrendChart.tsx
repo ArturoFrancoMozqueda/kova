@@ -3,6 +3,7 @@ import {
   Cell,
   ComposedChart,
   LabelList,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   XAxis,
@@ -29,6 +30,10 @@ export type SalesDayPoint = {
   vsPrevLabel: string | null;
   sharePct: number;
   isZero: boolean;
+  /** Net sales of the same-index day in the previous comparable period.
+   * Undefined when there is no comparable period (the dashed line is hidden). */
+  prevValue?: number;
+  prevValueLabel?: string;
 };
 
 function tickInterval(rangeDays: number): number {
@@ -52,6 +57,7 @@ export function SalesTrendChart({
   note,
   subtitle,
   initialSelectedId,
+  height = 256,
 }: {
   points: SalesDayPoint[];
   average: number;
@@ -64,10 +70,13 @@ export function SalesTrendChart({
   /** Pre-selected bar; defaults to the best day. The "Hoy" context chart
    * pre-selects today so the detail card reads "hoy vs tu semana". */
   initialSelectedId?: string | null;
+  /** Chart height in px; the reports hero uses a taller canvas. */
+  height?: number;
 }) {
   const { activeId, toggle, preview } = useChartSelection(initialSelectedId ?? bestDayId);
   const hasSales = points.some((point) => point.value > 0);
   const activePoint = points.find((point) => point.id === activeId) ?? null;
+  const hasComparison = points.some((point) => point.prevValue !== undefined);
 
   const data = points.map((point) => ({
     ...point,
@@ -82,7 +91,19 @@ export function SalesTrendChart({
       isEmpty={!hasSales}
       emptyLabel={copy.reportsView.salesTrendChartTitle}
     >
-      <ResponsiveContainer width="100%" height={256}>
+      {hasComparison ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-kova-muted" aria-hidden>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-[2px] bg-kova-blue" />
+            {copy.reportsView.trendLegendCurrent}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 border-t-2 border-dashed border-kova-muted" />
+            {copy.reportsView.trendLegendPrevious}
+          </span>
+        </div>
+      ) : null}
+      <ResponsiveContainer width="100%" height={height}>
         {/* No accessibilityLayer: on touch devices it pins a tooltip over the
             chart on load (focus shows index 0, often an empty day). The
             sr-only summary + persistent detail card carry accessibility. */}
@@ -141,6 +162,19 @@ export function SalesTrendChart({
               fontWeight={600}
             />
           </Bar>
+          {hasComparison ? (
+            /* Same-index day of the previous comparable period; dashed so it
+               reads as context, never competing with the current bars. */
+            <Line
+              dataKey="prevValue"
+              stroke="var(--kova-muted)"
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+            />
+          ) : null}
         </ComposedChart>
       </ResponsiveContainer>
       {note ? <p className="mt-2 text-xs text-kova-muted">{note}</p> : null}
@@ -162,6 +196,9 @@ export function SalesTrendChart({
             </span>
             {activePoint.vsPrevLabel ? (
               <span>{copy.reportsView.salesTrendVsPrevDay(activePoint.vsPrevLabel)}</span>
+            ) : null}
+            {activePoint.prevValueLabel ? (
+              <span>{copy.reportsView.trendVsSameDayPrev(activePoint.prevValueLabel)}</span>
             ) : null}
           </div>
         </div>
