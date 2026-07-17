@@ -12,6 +12,7 @@ See ``docs/security/rate-limiting.md`` for the threat model and thresholds.
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections import defaultdict
 from threading import Lock
@@ -98,7 +99,7 @@ class _InMemoryBackend:
             hits[:] = [t for t in hits if t > cutoff]
             if len(hits) >= max_requests:
                 # Retry-After: time until the oldest in-window hit expires.
-                retry = max(1, int(hits[0] + window_seconds - now) + 1)
+                retry = max(1, math.ceil(hits[0] + window_seconds - now))
                 return False, retry
             hits.append(now)
             return True, 0

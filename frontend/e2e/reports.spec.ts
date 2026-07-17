@@ -168,11 +168,19 @@ async function mockReports(
     previousPayload?: ReturnType<typeof storyPayload>;
     lowStock?: unknown[];
     velocity?: unknown[];
+    delayUnexpectedStartMs?: number;
   } = {},
 ) {
   await page.route("**/api/v1/reports/business-story**", async (route) => {
     const url = new URL(route.request().url());
     const start = url.searchParams.get("start_date") ?? url.searchParams.get("start");
+    const expectedStarts = new Set([
+      payload.summary.start_date,
+      options.previousPayload?.summary.start_date,
+    ]);
+    if (options.delayUnexpectedStartMs && !expectedStarts.has(start ?? undefined)) {
+      await new Promise((resolve) => setTimeout(resolve, options.delayUnexpectedStartMs));
+    }
     await route.fulfill({
       json:
         options.previousPayload && start === options.previousPayload.summary.start_date
@@ -305,6 +313,43 @@ test("reports page displays business storytelling layout", async ({ page }) => {
   await expect(page.getByText("Tus 3 mejores horas")).toBeVisible();
   await expect(page.getByRole("cell", { name: "Dona", exact: true })).toBeVisible();
   await expect(page.getByRole("table").first().getByText("Reabastecer", { exact: true })).toBeVisible();
+});
+
+test("reports keeps the latest applied range when an earlier request finishes last", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  await mockReports(page, storyPayload(), {
+    previousPayload: storyPayload({
+      summary: {
+        start_date: "2026-05-06",
+        end_date: "2026-05-12",
+        timezone: "America/Mexico_City",
+        gross_sales: "180.00",
+        refund_total: "0.00",
+        net_sales: "180.00",
+        completed_orders: 5,
+        average_ticket: "36.00",
+        refund_count: 0,
+        cancellation_count: 0,
+      },
+    }),
+    delayUnexpectedStartMs: 400,
+  });
+
+  await page.goto("/reports");
+  await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
+  await page.getByLabel(/fecha final/i).fill("2026-05-19");
+  await page.getByRole("button", { name: /aplicar/i }).click();
+
+  const expectedCaption = page.getByText(
+    "Comparado con el periodo anterior: 6 may – 12 may (7 días).",
+  );
+  await expect(expectedCaption).toBeVisible();
+  await page.waitForTimeout(1_000);
+  await expect(expectedCaption).toBeVisible();
+  await expect(
+    page.getByText("Comparado con el periodo anterior: 13 may – 19 may (7 días)."),
+  ).toHaveCount(0);
 });
 
 test("reports aligns best moment and strongest block when afternoon leads sales", async ({ page }) => {

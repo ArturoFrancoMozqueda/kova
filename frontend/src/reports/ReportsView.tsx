@@ -80,6 +80,7 @@ export default function ReportsView() {
   const { timezone: tz, isResolved: tzResolved } = useTenantTimezone();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [appliedRange, setAppliedRange] = useState({ startDate: "", endDate: "" });
 
   // Seed the range to "today in the tenant timezone" once the timezone
   // resolves, so operators outside CDMX don't start on the wrong day.
@@ -90,25 +91,32 @@ export default function ReportsView() {
     const today = todayInTimezone(tz);
     setStartDate(today);
     setEndDate(today);
+    setAppliedRange({ startDate: today, endDate: today });
   }, [tz, tzResolved]);
 
-  const data = useReportData(startDate, endDate, canViewReports);
+  const data = useReportData(appliedRange.startDate, appliedRange.endDate, canViewReports);
 
   const setToday = () => {
     const today = todayInTimezone(tz);
     setStartDate(today);
     setEndDate(today);
+    setAppliedRange({ startDate: today, endDate: today });
   };
 
   const applyPreset = (preset: ReportPreset) => {
     const range = presetRange(preset, tz);
     setStartDate(range.startDate);
     setEndDate(range.endDate);
+    setAppliedRange(range);
   };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    data.reload();
+    if (startDate === appliedRange.startDate && endDate === appliedRange.endDate) {
+      data.reload();
+      return;
+    }
+    setAppliedRange({ startDate, endDate });
   };
 
   if (!canViewReports) {

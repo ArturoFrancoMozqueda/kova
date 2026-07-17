@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiErrorStatus } from "@/lib/apiError";
 import { listStock, listVelocity } from "../../inventory/api";
@@ -35,6 +35,7 @@ export type ReportDataState = {
  * `listLowStock`, so the view can tell "untracked" apart from "zero on hand".
  */
 export function useReportData(startDate: string, endDate: string, enabled: boolean): ReportDataState {
+  const requestIdRef = useRef(0);
   const [state, setState] = useState<Omit<ReportDataState, "reload">>({
     status: "loading",
     story: null,
@@ -48,7 +49,11 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
   });
 
   const load = useCallback(async () => {
-    if (!enabled || !startDate || !endDate) return;
+    if (!enabled || !startDate || !endDate) {
+      requestIdRef.current += 1;
+      return;
+    }
+    const requestId = ++requestIdRef.current;
     setState((prev) => ({ ...prev, status: "loading" }));
     try {
       // These endpoints never resolve to null on success, so a null result
@@ -67,6 +72,7 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
           ? getBusinessStory(addDays(endDate, -6), endDate).catch(() => null)
           : Promise.resolve(null),
       ]);
+      if (requestId !== requestIdRef.current) return;
       setState({
         status: "loaded",
         story,
@@ -82,6 +88,7 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
       // A 402 on the primary story means the plan is inactive — a dead-end that
       // retrying won't fix, so surface the "activate plan" state instead of the
       // generic retry error.
+      if (requestId !== requestIdRef.current) return;
       setState((prev) => ({
         ...prev,
         status: apiErrorStatus(err) === 402 ? "subscription-inactive" : "error",
@@ -91,6 +98,9 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
 
   useEffect(() => {
     void load();
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [load]);
 
   return { ...state, reload: () => void load() };
