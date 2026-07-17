@@ -11,6 +11,10 @@ import uuid
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.business_settings import service as business_settings_service
+from app.business_settings.schemas import ReceiptSettingsUpsert
 
 TENANT_A = uuid.UUID("11111111-1111-1111-1111-1111111111a1")
 TENANT_B = uuid.UUID("22222222-2222-2222-2222-2222222222b2")
@@ -95,6 +99,10 @@ def rls_seed(owner_engine):
             )
             conn.execute(
                 text("DELETE FROM tenant_receipt_settings WHERE tenant_id IN (:a, :b)"),
+                {"a": TENANT_A, "b": TENANT_B},
+            )
+            conn.execute(
+                text("DELETE FROM audit_logs WHERE tenant_id IN (:a, :b)"),
                 {"a": TENANT_A, "b": TENANT_B},
             )
             conn.execute(
@@ -196,6 +204,22 @@ def test_receipt_policy_preserves_tenant_isolation(
             )
         }
     assert names == {"Receipt A"}
+
+
+def test_receipt_upsert_restores_rls_context_before_post_commit_refresh(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with Session(kova_app_engine) as db:
+        _set_tenant(db, TENANT_A)
+        settings = business_settings_service.upsert_receipt_settings(
+            db,
+            tenant_id=TENANT_A,
+            user_id=USER_A,
+            body=ReceiptSettingsUpsert(receipt_business_name="Receipt A updated"),
+        )
+
+        assert settings.tenant_id == TENANT_A
+        assert settings.receipt_business_name == "Receipt A updated"
 
 
 def test_cross_tenant_insert_is_rejected(kova_app_engine, rls_seed):  # noqa: ARG001

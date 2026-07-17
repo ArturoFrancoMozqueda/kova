@@ -1,12 +1,22 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.business_settings import repository
 from app.business_settings.models import BusinessProfile, ReceiptSettings
 from app.business_settings.schemas import BusinessProfileUpsert, ReceiptSettingsUpsert
+
+
+def _refresh_with_tenant_context(db: Session, instance: object, tenant_id: UUID) -> None:
+    """Restore transaction-local RLS context after commit before refreshing."""
+    db.execute(
+        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+        {"tenant_id": str(tenant_id)},
+    )
+    db.refresh(instance)
 
 
 def get_business_profile(db: Session, *, tenant_id: UUID) -> BusinessProfile | None:
@@ -41,7 +51,7 @@ def upsert_business_profile(
         changes=body.model_dump(),
     )
     db.commit()
-    db.refresh(profile)
+    _refresh_with_tenant_context(db, profile, tenant_id)
     return profile
 
 
@@ -70,5 +80,5 @@ def upsert_receipt_settings(
         changes=body.model_dump(),
     )
     db.commit()
-    db.refresh(settings)
+    _refresh_with_tenant_context(db, settings, tenant_id)
     return settings
