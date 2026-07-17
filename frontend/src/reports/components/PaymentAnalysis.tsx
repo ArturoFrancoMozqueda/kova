@@ -4,7 +4,8 @@ import { copy } from "@/i18n/messages";
 import { formatMoney, reasonLabel } from "@/orders/format";
 import { DistributionBar, type DistributionSegment } from "../charts/DistributionBar";
 import type { BusinessStoryReport } from "../types";
-import { ReportSection } from "./ReportSection";
+import { InfoDisclosure } from "./InfoDisclosure";
+import { BentoPanel } from "./ReportSection";
 
 function contextLine(story: BusinessStoryReport, previousStory: BusinessStoryReport | null): string {
   const mix = story.payment_mix;
@@ -53,27 +54,34 @@ export function PaymentAnalysis({
     segments.length > 0
       ? segments.map((segment) => `${segment.label}: ${segment.sharePct}%`).join(", ") + "."
       : undefined;
+  const dominant = story.dominant_payment;
+  const highlight = dominant
+    ? copy.reportsView.highlightPayment(
+        reasonLabel(dominant.method),
+        dominant.sales_share_pct,
+        formatMoney(dominant.amount),
+      )
+    : null;
 
   return (
-    <ReportSection
+    <BentoPanel
       icon={<CreditCard className="h-5 w-5 text-muted-foreground" />}
       title={copy.reportsView.paymentOperationsTitle}
-      description={copy.reportsView.paymentOperationsDescription}
+      highlight={highlight}
     >
       {/* Composition, not ranking: one 100% bar shows how the whole cobro
           splits by method; the legend carries each number exactly once. */}
       <DistributionBar
-        subtitle={copy.reportsView.paymentChartSubtitle}
         segments={segments}
         emptyLabel={copy.reportsView.noPayments}
         srSummary={srSummary}
       />
       {segments.length > 0 ? (
-        <p className="mt-3 rounded-kova-md border border-kova-border bg-kova-mist/40 p-3 text-sm leading-6 text-kova-ink">
+        <p className="mt-3 text-sm leading-6 text-kova-muted">
           {contextLine(story, previousStory)}
         </p>
       ) : null}
-      <p className="mt-2 text-xs text-muted-foreground">{copy.reportsView.grossVsNetNote}</p>
-    </ReportSection>
+      <InfoDisclosure>{copy.reportsView.grossVsNetNote}</InfoDisclosure>
+    </BentoPanel>
   );
 }

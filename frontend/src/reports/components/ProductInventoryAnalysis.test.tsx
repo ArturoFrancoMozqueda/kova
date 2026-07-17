@@ -28,11 +28,14 @@ describe("ProductInventoryAnalysis", () => {
 
     expect(screen.getAllByText("Sin vincular").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Reabastecer").length).toBeGreaterThan(0);
-    // Untracked product gets the link advice, not a stock recommendation.
-    expect(screen.getAllByText(/Vincula inventario/i).length).toBeGreaterThan(0);
+    // The untracked row's inventory cell says "Sin vincular", never a fake 0:
+    // the only "0" figures on screen belong to real zero metrics, not p2 stock.
+    const table = screen.getByRole("table");
+    expect(table).toHaveTextContent("Galleta sin inventario");
+    expect(table).toHaveTextContent("Sin vincular");
   });
 
-  it("leads with an actionable reading strip before the table", () => {
+  it("leads with the top product answered in exact figures", () => {
     const story = makeStory({
       product_drivers: [
         { product_id: "p1", product_name: "Latte mediano", quantity_sold: 40, gross_sales: "4000", sales_share_pct: 40 },
@@ -41,10 +44,10 @@ describe("ProductInventoryAnalysis", () => {
     });
     render(<ProductInventoryAnalysis story={story} stock={[trackedLowStock]} velocity={[]} />);
 
-    // Money maker: the #1 driver with amount + share.
-    expect(screen.getByText("Genera más dinero")).toBeInTheDocument();
-    // Restock: p1 is low-stock → surfaces in the "Por agotarse" reading.
-    expect(screen.getByText("Por agotarse")).toBeInTheDocument();
+    // "Respuesta primero": the #1 driver with amount + share as the highlight.
+    expect(screen.getByText("Latte mediano · $4,000.00 (40% de la venta)")).toBeInTheDocument();
+    // The bento cell links to the full table for the rest of the detail.
+    expect(screen.getByRole("button", { name: /Ver tabla completa/ })).toBeInTheDocument();
   });
 
   it("renders an empty state when there are no product drivers", () => {

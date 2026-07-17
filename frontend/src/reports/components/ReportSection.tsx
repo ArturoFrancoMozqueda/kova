@@ -32,6 +32,37 @@ export function ReportSection({
   );
 }
 
+/** Compact bento cell: question title + the exact one-line answer (highlight),
+ * then the visual. No prose descriptions — precision lives in the highlight
+ * and the chart's detail-on-demand. `h-full` equalizes heights per grid row. */
+export function BentoPanel({
+  icon,
+  title,
+  highlight,
+  children,
+}: {
+  icon?: ReactNode;
+  title: string;
+  /** "Respuesta primero": the panel's question answered with exact figures. */
+  highlight?: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="h-full">
+      <CardHeader className="p-4 pb-2.5">
+        <div className="flex items-center gap-2">
+          {icon}
+          <CardTitle className="text-base">{title}</CardTitle>
+        </div>
+        {highlight ? (
+          <p className="text-sm font-semibold leading-6 tabular-nums text-kova-ink">{highlight}</p>
+        ) : null}
+      </CardHeader>
+      <CardContent className="p-4 pt-0">{children}</CardContent>
+    </Card>
+  );
+}
+
 /** Inline muted note used when a secondary dataset failed to load, so a section
  * degrades visibly instead of rendering as silently empty. */
 export function PartialFailureNote({ message }: { message: string }) {

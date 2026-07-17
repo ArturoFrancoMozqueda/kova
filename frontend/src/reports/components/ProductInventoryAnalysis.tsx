@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Package } from "lucide-react";
+import { ArrowRight, Package, Table2 } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
@@ -14,12 +14,15 @@ import {
   parseDaysUntilOut,
 } from "../utils/calculations";
 import { formatSignedPercent } from "../utils/format";
-import { ReportSection } from "./ReportSection";
+import { BentoPanel, ReportSection } from "./ReportSection";
 
-const COLLAPSED_ROWS = 10;
-// Phones pay ~150px per product card; five visible rows keep the section
-// scannable and the rest stays behind the existing toggle.
-const COLLAPSED_ROWS_MOBILE = 5;
+// The detailed table shows five rows everywhere before the toggle: enough to
+// cover the drivers that matter, short enough to keep the dashboard scannable.
+const COLLAPSED_ROWS = 5;
+/** Products listed in the bento cell. */
+const PANEL_ROWS = 5;
+
+export const PRODUCT_TABLE_ID = "reporte-productos";
 
 type ProductRow = {
   productId: string;
@@ -50,24 +53,14 @@ function statusBadgeVariant(kind: InventoryStatus["kind"]) {
   }
 }
 
+/** Prose detail only where it changes a decision: risk states carry the exact
+ * stock/days; every other state is already said by its badge. */
 function statusDetail(status: InventoryStatus): string | null {
   switch (status.kind) {
     case "riesgo":
       return copy.reportsView.statusRiesgoDetail(status.stockOnHand);
     case "reabastecer":
       return copy.reportsView.statusReabastecerDetail(status.daysUntilOut);
-    case "sobrestock":
-      return copy.reportsView.statusSobrestockDetail;
-    case "estrella":
-      return copy.reportsView.statusEstrellaDetail(status.sharePct);
-    case "en-caida":
-      return copy.reportsView.statusEnCaidaDetail(status.previousUnits, status.currentUnits);
-    case "creciendo":
-      return copy.reportsView.statusCreciendoDetail;
-    case "baja-rotacion":
-      return copy.reportsView.statusBajaRotacionDetail;
-    case "sin-vincular":
-      return copy.reportsView.statusSinVincularDetail;
     default:
       return null;
   }
@@ -110,7 +103,7 @@ function daysLabel(row: ProductRow): string {
   return copy.reportsView.inventoryDaysLeft(Math.max(0, Math.round(row.daysUntilOut)));
 }
 
-function buildRows(
+export function buildRows(
   story: BusinessStoryReport,
   stock: StockItem[],
   velocity: InventoryVelocityItem[],
@@ -162,90 +155,11 @@ function buildRows(
   });
 }
 
-type Reading = { key: string; label: string; product: string; detail: string };
-
-/** The four decisions the owner actually makes with this table, surfaced as a
- * reading strip: what earns money, what runs out, what grows, what stalls.
- * Each card is derived from the first matching row; missing ones are omitted. */
-function buildReadings(rows: ProductRow[]): Reading[] {
-  const readings: Reading[] = [];
-  const money = rows[0];
-  if (money && Number(money.grossSales) > 0) {
-    readings.push({
-      key: "money",
-      label: copy.reportsView.productReadingMoney,
-      product: money.productName,
-      detail: `${formatMoney(money.grossSales)} · ${copy.reportsView.chartShare(money.salesSharePct)}`,
-    });
-  }
-  const restock = rows.find((row) => row.status.kind === "riesgo" || row.status.kind === "reabastecer");
-  if (restock) {
-    readings.push({
-      key: "restock",
-      label: copy.reportsView.productReadingRestock,
-      product: restock.productName,
-      detail:
-        restock.stockOnHand === 0
-          ? copy.reportsView.productReadingOutOfStock
-          : restock.daysUntilOut !== null
-            ? copy.reportsView.inventoryDaysLeft(Math.max(0, Math.round(restock.daysUntilOut)))
-            : copy.reportsView.inventoryStatusLabel(restock.status.kind),
-    });
-  }
-  const growing = rows.find(
-    (row) => row.status.kind === "creciendo" || row.trend?.trend === "new",
-  );
-  if (growing && growing.productId !== money?.productId) {
-    readings.push({
-      key: "growing",
-      label: copy.reportsView.productReadingGrowing,
-      product: growing.productName,
-      detail: `${growing.quantitySold} ${copy.reportsView.chartUnits.toLowerCase()}`,
-    });
-  }
-  // Never contradict the money reading: the top earner can't also be shown
-  // as the slow mover, even if its unit trend is flat.
-  const slow = rows.find(
-    (row) =>
-      (row.status.kind === "baja-rotacion" || row.status.kind === "sobrestock") &&
-      row.productId !== money?.productId,
-  );
-  if (slow) {
-    readings.push({
-      key: "slow",
-      label: copy.reportsView.productReadingSlow,
-      product: slow.productName,
-      detail: `${formatMoney(slow.grossSales)} · ${copy.reportsView.chartShare(slow.salesSharePct)}`,
-    });
-  }
-  return readings.slice(0, 4);
-}
-
-function ProductReadingStrip({ rows }: { rows: ProductRow[] }) {
-  const readings = buildReadings(rows);
-  if (readings.length === 0) return null;
-  return (
-    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {readings.map((reading) => (
-        <div key={reading.key} className="rounded-kova-md border border-kova-border bg-kova-mist/40 px-3 py-2.5">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">
-            {reading.label}
-          </p>
-          <p className="mt-0.5 truncate text-sm font-semibold text-kova-ink" title={reading.product}>
-            {reading.product}
-          </p>
-          <p className="truncate text-xs tabular-nums text-kova-muted">{reading.detail}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function CriticalRestockStrip({ story }: { story: BusinessStoryReport }) {
-  const critical = (story.restock_alerts ?? []).filter((a) => a.severity === "critical").slice(0, 3);
+  const critical = (story.restock_alerts ?? []).filter((a) => a.severity === "critical").slice(0, 2);
   if (critical.length === 0) return null;
   return (
-    <div className="mb-4 space-y-2">
+    <div className="mb-3 space-y-2">
       {critical.map((alert) => (
         <div
           key={alert.product_id}
@@ -262,7 +176,99 @@ function CriticalRestockStrip({ story }: { story: BusinessStoryReport }) {
   );
 }
 
-export function ProductInventoryAnalysis({
+/** "¿Qué producto mueve el negocio?" as a bento cell: top earner answered up
+ * top, critical restocks first, then the top products with money + share. */
+export function ProductsPanel({
+  story,
+  stock,
+  velocity,
+}: {
+  story: BusinessStoryReport;
+  stock: StockItem[];
+  velocity: InventoryVelocityItem[];
+}) {
+  const rows = buildRows(story, stock, velocity);
+  const top = rows.slice(0, PANEL_ROWS);
+  const first = top[0];
+  const highlight =
+    first && Number(first.grossSales) > 0
+      ? copy.reportsView.highlightTopProduct(
+          first.productName,
+          formatMoney(first.grossSales),
+          first.salesSharePct,
+        )
+      : null;
+
+  return (
+    <BentoPanel
+      icon={<Package className="h-5 w-5 text-muted-foreground" />}
+      title={copy.reportsView.productInventoryTitle}
+      highlight={highlight}
+    >
+      {rows.length === 0 ? (
+        <p className="rounded-kova-md border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
+          {copy.reportsView.noProducts}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <CriticalRestockStrip story={story} />
+          <div className="space-y-3">
+            {top.map((row) => (
+              <div key={row.productId}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-kova-ink" title={row.productName}>
+                    {row.productName}
+                  </p>
+                  <p className="text-sm font-semibold tabular-nums text-kova-ink">
+                    {formatMoney(row.grossSales)}
+                  </p>
+                </div>
+                <div
+                  className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-kova-mist"
+                  role="meter"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={row.salesSharePct}
+                  aria-label={`${row.productName}: ${copy.reportsView.chartShare(row.salesSharePct)}`}
+                >
+                  <div
+                    className="h-full rounded-full bg-kova-blue"
+                    style={{ width: `${Math.min(100, Math.max(2, row.salesSharePct))}%` }}
+                  />
+                </div>
+                <p className="mt-1 flex items-center gap-2 text-xs tabular-nums text-kova-muted">
+                  {copy.reportsView.chartShare(row.salesSharePct)} · {row.quantitySold}{" "}
+                  {copy.reportsView.chartUnits.toLowerCase()}
+                  {row.status.kind !== "estable" ? (
+                    <Badge variant={statusBadgeVariant(row.status.kind)}>
+                      {copy.reportsView.inventoryStatusLabel(row.status.kind)}
+                    </Badge>
+                  ) : null}
+                </p>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById(PRODUCT_TABLE_ID)
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            className="inline-flex items-center gap-1 text-xs font-medium text-kova-blue hover:underline"
+          >
+            {copy.reportsView.productsPanelViewTable}
+            <ArrowRight className="h-3 w-3" aria-hidden />
+          </button>
+        </div>
+      )}
+    </BentoPanel>
+  );
+}
+
+/** Full-width product + inventory table: every driver with stock, days left,
+ * trend and status. Collapsed to five rows on every breakpoint. */
+export function ProductTableSection({
   story,
   stock,
   velocity,
@@ -274,134 +280,143 @@ export function ProductInventoryAnalysis({
   const [expanded, setExpanded] = useState(false);
   const rows = buildRows(story, stock, velocity);
   const visible = expanded ? rows : rows.slice(0, COLLAPSED_ROWS);
-  const visibleMobile = expanded ? rows : rows.slice(0, COLLAPSED_ROWS_MOBILE);
-  const hasMore = rows.length > COLLAPSED_ROWS_MOBILE;
+  const hasMore = rows.length > COLLAPSED_ROWS;
+
+  if (rows.length === 0) return null;
 
   return (
-    <ReportSection
-      icon={<Package className="h-5 w-5 text-muted-foreground" />}
-      title={copy.reportsView.productInventoryTitle}
-      description={copy.reportsView.productInventoryDescription}
-    >
-      <CriticalRestockStrip story={story} />
-      <ProductReadingStrip rows={rows} />
-      {rows.length === 0 ? (
-        <p className="rounded-kova-md border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">
-          {copy.reportsView.noProducts}
-        </p>
-      ) : (
-        <>
-          {/* Mobile: stacked cards */}
-          <div className="space-y-3 sm:hidden">
-            {visibleMobile.map((row) => {
-              const inventory = inventoryLabel(row);
-              const detail = statusDetail(row.status);
-              return (
-                <div key={row.productId} className="space-y-2 rounded-kova-md border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="line-clamp-2 flex-1 text-sm font-medium leading-snug" title={row.productName}>
-                      {row.productName}
-                    </p>
-                    <Badge variant={statusBadgeVariant(row.status.kind)} className="shrink-0">
-                      {copy.reportsView.inventoryStatusLabel(row.status.kind)}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {copy.reportsView.salesColumn}
-                      </p>
-                      <p className="font-semibold tabular-nums">{formatMoney(row.grossSales)}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {copy.reportsView.chartShare(row.salesSharePct)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {copy.reportsView.unitsColumn}
-                      </p>
-                      <p className="font-semibold tabular-nums">{row.quantitySold}</p>
-                      <p className={cn("text-[11px]", inventory.muted && "text-muted-foreground")}>
-                        {copy.reportsView.inventoryColumn}: {inventory.value}
-                      </p>
-                    </div>
-                  </div>
-                  {detail ? (
-                    <p className="border-t pt-2 text-xs leading-5 text-muted-foreground">{detail}</p>
-                  ) : null}
+    <div id={PRODUCT_TABLE_ID} className="scroll-mt-14">
+      <ReportSection
+        icon={<Table2 className="h-5 w-5 text-muted-foreground" />}
+        title={copy.reportsView.productTableTitle}
+      >
+        {/* Mobile: stacked cards */}
+        <div className="space-y-3 sm:hidden">
+          {visible.map((row) => {
+            const inventory = inventoryLabel(row);
+            const detail = statusDetail(row.status);
+            return (
+              <div key={row.productId} className="space-y-2 rounded-kova-md border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="line-clamp-2 flex-1 text-sm font-medium leading-snug" title={row.productName}>
+                    {row.productName}
+                  </p>
+                  <Badge variant={statusBadgeVariant(row.status.kind)} className="shrink-0">
+                    {copy.reportsView.inventoryStatusLabel(row.status.kind)}
+                  </Badge>
                 </div>
-              );
-            })}
-          </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {copy.reportsView.salesColumn}
+                    </p>
+                    <p className="font-semibold tabular-nums">{formatMoney(row.grossSales)}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {copy.reportsView.chartShare(row.salesSharePct)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {copy.reportsView.unitsColumn}
+                    </p>
+                    <p className="font-semibold tabular-nums">{row.quantitySold}</p>
+                    <p className={cn("text-[11px]", inventory.muted && "text-muted-foreground")}>
+                      {copy.reportsView.inventoryColumn}: {inventory.value}
+                    </p>
+                  </div>
+                </div>
+                {detail ? (
+                  <p className="border-t pt-2 text-xs leading-5 text-muted-foreground">{detail}</p>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
 
-          {/* Tablet/desktop: table (Tendencia column hidden below lg) */}
-          <div className="hidden overflow-x-auto rounded-kova-md border sm:block">
-            <table className="min-w-full text-sm">
-              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">{copy.reportsView.productColumn}</th>
-                  <th className="px-4 py-3 font-medium">{copy.reportsView.salesColumn}</th>
-                  <th className="px-4 py-3 font-medium">{copy.reportsView.unitsColumn}</th>
-                  <th className="px-4 py-3 font-medium">{copy.reportsView.inventoryColumn}</th>
-                  <th className="px-4 py-3 font-medium">{copy.reportsView.daysLeftColumn}</th>
-                  <th className="hidden px-4 py-3 font-medium lg:table-cell">{copy.reportsView.trendColumn}</th>
-                  <th className="px-4 py-3 font-medium">{copy.reportsView.statusColumn}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {visible.map((row) => {
-                  const inventory = inventoryLabel(row);
-                  const detail = statusDetail(row.status);
-                  return (
-                    <tr key={row.productId} className="align-top">
-                      <td className="max-w-[220px] px-4 py-3 font-medium">
-                        <span className="line-clamp-2" title={row.productName}>
-                          {row.productName}
-                        </span>
-                        <span className="mt-1 block lg:hidden">
-                          <TrendChip trend={row.trend} />
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatMoney(row.grossSales)}
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {copy.reportsView.chartShare(row.salesSharePct)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">{row.quantitySold}</td>
-                      <td className={cn("px-4 py-3 tabular-nums", inventory.muted && "text-muted-foreground")}>
-                        {inventory.value}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums text-muted-foreground">{daysLabel(row)}</td>
-                      <td className="hidden px-4 py-3 lg:table-cell">
+        {/* Tablet/desktop: table (Tendencia column hidden below lg) */}
+        <div className="hidden overflow-x-auto rounded-kova-md border sm:block">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.productColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.salesColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.unitsColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.inventoryColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.daysLeftColumn}</th>
+                <th className="hidden px-4 py-3 font-medium lg:table-cell">{copy.reportsView.trendColumn}</th>
+                <th className="px-4 py-3 font-medium">{copy.reportsView.statusColumn}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {visible.map((row) => {
+                const inventory = inventoryLabel(row);
+                const detail = statusDetail(row.status);
+                return (
+                  <tr key={row.productId} className="align-top">
+                    <td className="max-w-[220px] px-4 py-3 font-medium">
+                      <span className="line-clamp-2" title={row.productName}>
+                        {row.productName}
+                      </span>
+                      <span className="mt-1 block lg:hidden">
                         <TrendChip trend={row.trend} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={statusBadgeVariant(row.status.kind)}>
-                          {copy.reportsView.inventoryStatusLabel(row.status.kind)}
-                        </Badge>
-                        {detail ? (
-                          <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">{detail}</p>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {formatMoney(row.grossSales)}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {copy.reportsView.chartShare(row.salesSharePct)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">{row.quantitySold}</td>
+                    <td className={cn("px-4 py-3 tabular-nums", inventory.muted && "text-muted-foreground")}>
+                      {inventory.value}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">{daysLabel(row)}</td>
+                    <td className="hidden px-4 py-3 lg:table-cell">
+                      <TrendChip trend={row.trend} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusBadgeVariant(row.status.kind)}>
+                        {copy.reportsView.inventoryStatusLabel(row.status.kind)}
+                      </Badge>
+                      {detail ? (
+                        <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">{detail}</p>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
-          {hasMore ? (
-            // On sm+ the table already shows up to COLLAPSED_ROWS, so the
-            // toggle only renders there when it actually reveals more rows.
-            <div className={cn("mt-3", rows.length <= COLLAPSED_ROWS && "sm:hidden")}>
-              <Button variant="ghost" size="sm" onClick={() => setExpanded((value) => !value)}>
-                {expanded ? copy.reportsView.productsShowLess : copy.reportsView.productsShowAll(rows.length)}
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
-    </ReportSection>
+        {hasMore ? (
+          <div className="mt-3">
+            <Button variant="ghost" size="sm" onClick={() => setExpanded((value) => !value)}>
+              {expanded ? copy.reportsView.productsShowLess : copy.reportsView.productsShowAll(rows.length)}
+            </Button>
+          </div>
+        ) : null}
+      </ReportSection>
+    </div>
+  );
+}
+
+/** Interim composition kept for Phase 3 so the current long-scroll view still
+ * renders; Phase 4 mounts the panel and the table separately on the grid. */
+export function ProductInventoryAnalysis({
+  story,
+  stock,
+  velocity,
+}: {
+  story: BusinessStoryReport;
+  stock: StockItem[];
+  velocity: InventoryVelocityItem[];
+}) {
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <ProductsPanel story={story} stock={stock} velocity={velocity} />
+      <ProductTableSection story={story} stock={stock} velocity={velocity} />
+    </div>
   );
 }

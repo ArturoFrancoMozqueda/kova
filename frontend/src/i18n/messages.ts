@@ -1299,6 +1299,22 @@ export const copy = {
     priorityWhyHide: "Ocultar detalle",
     planSectionShow: (n: number) => `Ver plan completo (${n})`,
     planSectionHide: "Ocultar plan",
+
+    // --- Bento panel highlights: the exact answer to each panel's question ---
+    highlightDaypart: (label: string, amount: string, pct: number) =>
+      `${label} concentra ${amount} (${pct}% de la venta)`,
+    highlightTopHour: (range: string, amount: string) => `Tu mejor hora: ${range} · ${amount}`,
+    highlightPayment: (method: string, pct: number, amount: string) =>
+      `${method}: ${pct}% de lo cobrado · ${amount}`,
+    highlightTopProduct: (name: string, amount: string, pct: number) =>
+      `${name} · ${amount} (${pct}% de la venta)`,
+    highlightTopSeller: (name: string, pct: number) => `${name} lidera con ${pct}% de la venta`,
+    highlightTeamEven: "Venta repartida de forma pareja",
+    highlightRefunds: (refunds: string, amount: string, cancels: string) =>
+      `${refunds} (${amount}) · ${cancels}`,
+    productsPanelViewTable: "Ver tabla completa",
+    productTableTitle: "Detalle de productos e inventario",
+    infoNoteAria: "Nota metodológica",
     recImpactPrefix: "Impacto",
     priorityLabel: (priority: string) =>
       ({ alta: "Prioridad alta", media: "Prioridad media", baja: "Prioridad baja" })[priority] ??

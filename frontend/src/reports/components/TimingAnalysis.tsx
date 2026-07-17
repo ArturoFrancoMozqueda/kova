@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock3 } from "lucide-react";
+import { Clock3, TimerReset } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
@@ -18,7 +18,7 @@ import {
 import { daysBetweenInclusive } from "../utils/dateRange";
 import { formatSignedPercent } from "../utils/format";
 import { MainTrendPanel } from "./MainTrendPanel";
-import { PartialFailureNote, ReportSection } from "./ReportSection";
+import { BentoPanel, PartialFailureNote } from "./ReportSection";
 
 type DaypartRow = BusinessStoryReport["sales_by_daypart"][number];
 
@@ -41,95 +41,6 @@ function DaypartDelta({ current, previous }: { current: DaypartRow; previous: Da
     >
       {formatSignedPercent(growth.value)} {copy.reportsView.deltaVsPrevious}
     </span>
-  );
-}
-
-function DaypartGrid({
-  story,
-  previousStory,
-}: {
-  story: BusinessStoryReport;
-  previousStory: BusinessStoryReport | null;
-}) {
-  // When the previous period had no sales at all, the summary caption already
-  // says so once — repeating "Sin comparación" per block is noise.
-  const prevComparable = (previousStory?.summary.completed_orders ?? 0) > 0;
-  const prevByKey = new Map((previousStory?.sales_by_daypart ?? []).map((row) => [row.key, row]));
-  // Hide madrugada when it never had an order in the whole range (closed hours).
-  const dayparts = story.sales_by_daypart.filter(
-    (row) => row.key !== "madrugada" || row.order_count > 0,
-  );
-  const best = bestDaypartRow(story);
-  const recommendation = daypartRecommendation(story, previousStory);
-
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-kova-ink">{copy.reportsView.daypartGridTitle}</h3>
-      {/* One row on desktop: an orphan block on a second line reads unbalanced.
-          Columns match the visible daypart count (3, or 4 with madrugada). */}
-      <div
-        className={cn(
-          "grid gap-3 sm:grid-cols-2",
-          dayparts.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3",
-        )}
-      >
-        {dayparts.map((row) => {
-          const isBest = best?.key === row.key && Number(row.net_sales) > 0;
-          const zero = Number(row.net_sales) <= 0;
-          return (
-            <div
-              key={row.key}
-              className={cn(
-                "rounded-kova-md border p-4",
-                isBest ? "border-kova-blue/40 bg-kova-blue/5" : "border-kova-border bg-white",
-                zero && "opacity-70",
-              )}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-kova-ink">{row.label}</p>
-                {isBest ? <Badge variant="secondary">{copy.reportsView.daypartStrongest}</Badge> : null}
-              </div>
-              {zero ? (
-                <p className="mt-2 text-sm text-kova-muted">{copy.reportsView.daypartNoSales}</p>
-              ) : (
-                <>
-                  <p className="mt-2 text-lg font-bold tabular-nums text-kova-ink">
-                    {formatMoney(row.net_sales)}
-                  </p>
-                  <div
-                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-kova-mist"
-                    role="meter"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={row.sales_share_pct}
-                    aria-label={`${row.label}: ${copy.reportsView.chartShare(row.sales_share_pct)}`}
-                  >
-                    <div
-                      className="h-full rounded-full bg-kova-blue"
-                      style={{ width: `${Math.min(100, Math.max(2, row.sales_share_pct))}%` }}
-                    />
-                  </div>
-                  <p className="mt-1.5 text-xs tabular-nums text-kova-muted">
-                    {copy.reportsView.chartShare(row.sales_share_pct)} · {row.order_count}{" "}
-                    {copy.reportsView.orders.toLowerCase()} · {formatMoney(row.average_ticket)}
-                  </p>
-                  {prevComparable ? (
-                    <div className="mt-1">
-                      <DaypartDelta current={row} previous={prevByKey.get(row.key) ?? null} />
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {recommendation ? (
-        <p className="rounded-kova-md border border-kova-border bg-kova-mist/40 p-3 text-sm leading-6 text-kova-ink">
-          {recommendation}
-        </p>
-      ) : null}
-    </div>
   );
 }
 
@@ -168,6 +79,96 @@ function daypartRecommendation(
   return null;
 }
 
+/** "¿Cuándo vendo más?" as a bento cell: the strongest block answered with its
+ * exact money and share up top, then one compact meter row per daypart. */
+export function DaypartsPanel({
+  story,
+  previousStory,
+}: {
+  story: BusinessStoryReport;
+  previousStory: BusinessStoryReport | null;
+}) {
+  // When the previous period had no sales at all, the summary caption already
+  // says so once — repeating "Sin comparación" per block is noise.
+  const prevComparable = (previousStory?.summary.completed_orders ?? 0) > 0;
+  const prevByKey = new Map((previousStory?.sales_by_daypart ?? []).map((row) => [row.key, row]));
+  // Hide madrugada when it never had an order in the whole range (closed hours).
+  const dayparts = story.sales_by_daypart.filter(
+    (row) => row.key !== "madrugada" || row.order_count > 0,
+  );
+  const best = bestDaypartRow(story);
+  const recommendation = daypartRecommendation(story, previousStory);
+  const highlight =
+    best && Number(best.net_sales) > 0
+      ? copy.reportsView.highlightDaypart(best.label, formatMoney(best.net_sales), best.sales_share_pct)
+      : null;
+
+  return (
+    <BentoPanel
+      icon={<Clock3 className="h-5 w-5 text-muted-foreground" />}
+      title={copy.reportsView.timingAnalysisTitle}
+      highlight={highlight}
+    >
+      <div className="space-y-3">
+        <h3 className="text-[11px] font-medium uppercase tracking-wide text-kova-tertiary">
+          {copy.reportsView.daypartGridTitle}
+        </h3>
+        <div className="space-y-3">
+          {dayparts.map((row) => {
+            const isBest = best?.key === row.key && Number(row.net_sales) > 0;
+            const zero = Number(row.net_sales) <= 0;
+            return (
+              <div key={row.key} className={cn(zero && "opacity-70")}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="flex items-center gap-2 text-sm font-medium text-kova-ink">
+                    {row.label}
+                    {isBest ? <Badge variant="secondary">{copy.reportsView.daypartStrongest}</Badge> : null}
+                  </p>
+                  <p className="text-sm font-semibold tabular-nums text-kova-ink">
+                    {zero ? copy.reportsView.daypartNoSales : formatMoney(row.net_sales)}
+                  </p>
+                </div>
+                {!zero ? (
+                  <>
+                    <div
+                      className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-kova-mist"
+                      role="meter"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={row.sales_share_pct}
+                      aria-label={`${row.label}: ${copy.reportsView.chartShare(row.sales_share_pct)}`}
+                    >
+                      <div
+                        className="h-full rounded-full bg-kova-blue"
+                        style={{ width: `${Math.min(100, Math.max(2, row.sales_share_pct))}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs tabular-nums text-kova-muted">
+                      {copy.reportsView.chartShare(row.sales_share_pct)} · {row.order_count}{" "}
+                      {copy.reportsView.orders.toLowerCase()} · {formatMoney(row.average_ticket)}
+                      {prevComparable ? (
+                        <>
+                          {" · "}
+                          <DaypartDelta current={row} previous={prevByKey.get(row.key) ?? null} />
+                        </>
+                      ) : null}
+                    </p>
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+        {recommendation ? (
+          <p className="rounded-kova-md border border-kova-border bg-kova-mist/40 p-3 text-sm leading-6 text-kova-ink">
+            {recommendation}
+          </p>
+        ) : null}
+      </div>
+    </BentoPanel>
+  );
+}
+
 function hourRows(rows: SalesByHourRow[]): ChartRow[] {
   return topHoursByNetSales(rows, 3).map((row) => ({
     id: String(row.hour),
@@ -195,7 +196,9 @@ function worstHourRows(rows: SalesByHourRow[], rangeDays: number): ChartRow[] {
     }));
 }
 
-function HourlySection({
+/** "Tus 3 mejores horas" as a bento cell, best hour answered up top. The
+ * worst-hours ranking stays one tap away (progressive disclosure). */
+export function TopHoursPanel({
   hourly,
   hourlyFailed,
   rangeDays,
@@ -204,45 +207,51 @@ function HourlySection({
   hourlyFailed: boolean;
   rangeDays: number;
 }) {
-  // Progressive disclosure: the worst-hours ranking duplicates the shape of
-  // "mejores horas" and only matters on longer reads, so it stays one tap away.
   const [showWorst, setShowWorst] = useState(false);
-  if (hourlyFailed) {
-    return <PartialFailureNote message={copy.reportsView.hourlyUnavailable} />;
-  }
   const top = hourRows(hourly);
   const worst = worstHourRows(hourly, rangeDays);
-  if (top.length === 0) {
-    return <PartialFailureNote message={copy.reportsView.noHourlySales} />;
-  }
+  const highlight =
+    top.length > 0 ? copy.reportsView.highlightTopHour(top[0].label, top[0].valueLabel) : null;
+
   return (
-    <div className="space-y-3">
-      <div className="grid gap-6 xl:grid-cols-2">
-        <RankBarChart
-          title={copy.reportsView.hourlyTopTitle}
-          subtitle={copy.reportsView.hourlyChartSubtitle}
-          rows={top}
-          emptyLabel={copy.reportsView.noHourlySales}
-          valueFormatter={(value) => formatMoney(value)}
-        />
-        {worst.length > 0 && showWorst ? (
+    <BentoPanel
+      icon={<TimerReset className="h-5 w-5 text-muted-foreground" />}
+      title={copy.reportsView.hourlyTopTitle}
+      highlight={highlight}
+    >
+      {hourlyFailed ? (
+        <PartialFailureNote message={copy.reportsView.hourlyUnavailable} />
+      ) : top.length === 0 ? (
+        <PartialFailureNote message={copy.reportsView.noHourlySales} />
+      ) : (
+        <div className="space-y-3">
           <RankBarChart
-            title={copy.reportsView.hourlyWorstTitleActive}
-            rows={worst}
+            subtitle={copy.reportsView.hourlyChartSubtitle}
+            rows={top}
             emptyLabel={copy.reportsView.noHourlySales}
             valueFormatter={(value) => formatMoney(value)}
           />
-        ) : null}
-      </div>
-      {worst.length > 0 ? (
-        <Button variant="ghost" size="sm" onClick={() => setShowWorst((value) => !value)}>
-          {showWorst ? copy.reportsView.hourlyWorstHide : copy.reportsView.hourlyWorstShow}
-        </Button>
-      ) : null}
-    </div>
+          {worst.length > 0 && showWorst ? (
+            <RankBarChart
+              title={copy.reportsView.hourlyWorstTitleActive}
+              rows={worst}
+              emptyLabel={copy.reportsView.noHourlySales}
+              valueFormatter={(value) => formatMoney(value)}
+            />
+          ) : null}
+          {worst.length > 0 ? (
+            <Button variant="ghost" size="sm" onClick={() => setShowWorst((value) => !value)}>
+              {showWorst ? copy.reportsView.hourlyWorstHide : copy.reportsView.hourlyWorstShow}
+            </Button>
+          ) : null}
+        </div>
+      )}
+    </BentoPanel>
   );
 }
 
+/** Interim composition kept for Phase 3 so the current long-scroll view still
+ * renders; Phase 4 mounts the panels directly on the dashboard grid. */
 export function TimingAnalysis({
   story,
   hourly,
@@ -261,16 +270,12 @@ export function TimingAnalysis({
   const rangeDays = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
 
   return (
-    <ReportSection
-      icon={<Clock3 className="h-5 w-5 text-muted-foreground" />}
-      title={copy.reportsView.timingAnalysisTitle}
-      description={copy.reportsView.timingAnalysisDescription}
-    >
-      <div className="space-y-6">
-        <MainTrendPanel story={story} previousStory={previousStory} trendStory={trendStory} />
-        <DaypartGrid story={story} previousStory={previousStory} />
-        <HourlySection hourly={hourly} hourlyFailed={hourlyFailed} rangeDays={rangeDays} />
+    <div className="space-y-4 sm:space-y-6">
+      <MainTrendPanel story={story} previousStory={previousStory} trendStory={trendStory} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <DaypartsPanel story={story} previousStory={previousStory} />
+        <TopHoursPanel hourly={hourly} hourlyFailed={hourlyFailed} rangeDays={rangeDays} />
       </div>
-    </ReportSection>
+    </div>
   );
 }

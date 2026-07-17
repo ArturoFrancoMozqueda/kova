@@ -13,7 +13,7 @@ import {
   refundRatePct,
   refundSeverityLevel,
 } from "../utils/calculations";
-import { ReportSection } from "./ReportSection";
+import { BentoPanel } from "./ReportSection";
 
 const SEVERITY_TEXT: Record<Severity, string> = {
   info: "text-kova-muted",
@@ -81,15 +81,14 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
 
   if (refundCount === 0 && cancelCount === 0) {
     return (
-      <ReportSection
+      <BentoPanel
         icon={<RotateCcw className="h-5 w-5 text-muted-foreground" />}
         title={copy.reportsView.refundsSectionTitle}
-        description={copy.reportsView.refundsSectionDescription}
       >
         <p className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/5 p-4 text-sm tabular-nums text-kova-ink">
           {copy.reportsView.refundsCleanState}
         </p>
-      </ReportSection>
+      </BentoPanel>
     );
   }
 
@@ -97,6 +96,13 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
   const cancelRate = cancelRatePct(summary);
   const refund = refundSeverity(refundRate, refundCount);
   const cancel = cancelSeverity(cancelRate, cancelCount);
+
+  // "Respuesta primero": exact counts, money and rate — never an adjective.
+  const highlight = copy.reportsView.highlightRefunds(
+    copy.reportsView.refundCountValue(refundCount),
+    formatMoney(summary.refund_total),
+    copy.reportsView.cancelCountValue(cancelCount),
+  );
 
   const reasons = [...story.refunds_by_reason].sort(
     (a, b) => Number(b.refunded_amount) - Number(a.refunded_amount),
@@ -112,10 +118,10 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
   const calm = refund.tone === "info" && cancel.tone === "info";
   if (calm && !detailOpen) {
     return (
-      <ReportSection
+      <BentoPanel
         icon={<RotateCcw className="h-5 w-5 text-muted-foreground" />}
         title={copy.reportsView.refundsSectionTitle}
-        description={copy.reportsView.refundsSectionDescription}
+        highlight={highlight}
       >
         <p className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/5 p-4 text-sm text-kova-ink">
           {copy.reportsView.refundsCalmSummary(
@@ -129,17 +135,17 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
             {copy.reportsView.refundsShowDetail}
           </Button>
         </div>
-      </ReportSection>
+      </BentoPanel>
     );
   }
 
   return (
-    <ReportSection
+    <BentoPanel
       icon={<RotateCcw className="h-5 w-5 text-muted-foreground" />}
       title={copy.reportsView.refundsSectionTitle}
-      description={copy.reportsView.refundsSectionDescription}
+      highlight={highlight}
     >
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Tile
           label={copy.reportsView.refundsTileRefunds}
           value={String(refundCount)}
@@ -200,6 +206,6 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
           </Button>
         </div>
       ) : null}
-    </ReportSection>
+    </BentoPanel>
   );
 }
