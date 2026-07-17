@@ -6,6 +6,7 @@ const smokePassword = process.env.PRODUCTION_SMOKE_PASSWORD;
 const expectedStripeMode = process.env.PRODUCTION_SMOKE_STRIPE_MODE ?? "test";
 
 test.skip(!productionSmokeEnabled, "Set PRODUCTION_SMOKE=1 to run production smoke checks.");
+test.describe.configure({ mode: "serial" });
 
 function requireEnv(name: string, value: string | undefined): string {
   if (!value) {
@@ -78,6 +79,30 @@ test("receipt settings load and save in production", async ({ page }) => {
   await receiptName.fill(currentName || "Kova Smoke Receipt");
   await page.getByRole("button", { name: /guardar recibo|save receipt/i }).click();
   await expect(page.getByText(/guardado|saved/i)).toBeVisible();
+
+  await expectNoConsoleErrors(consoleErrors);
+});
+
+test("core owner workspaces load and logout clears the production session", async ({ page }) => {
+  const consoleErrors = watchConsole(page);
+  await login(page);
+
+  for (const path of [
+    "/catalog",
+    "/inventory",
+    "/shifts",
+    "/orders",
+    "/settings/employees",
+  ]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(new RegExp(`${path.replace("/", "\\/")}(?:$|\\?)`));
+    await expect(page.getByRole("heading").first()).toBeVisible();
+  }
+
+  await page.getByRole("button", { name: /cerrar sesi.n|log out/i }).click();
+  await expect(page).toHaveURL(/\/login/);
+  await page.goto("/dashboard");
+  await expect(page).toHaveURL(/\/login/);
 
   await expectNoConsoleErrors(consoleErrors);
 });
