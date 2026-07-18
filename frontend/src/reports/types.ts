@@ -169,6 +169,17 @@ export type BusinessStoryReport = {
       products_without_cost: number;
     }>;
   };
+  operating_expenses?: {
+    total: string;
+    expense_count: number;
+    approximate_operating_profit: string | null;
+    margin_complete: boolean;
+    by_category: Array<{
+      category: "renta" | "nomina" | "servicios" | "transporte" | "mantenimiento" | "marketing" | "comisiones" | "impuestos" | "otro";
+      amount: string;
+      expense_count: number;
+    }>;
+  };
   dominant_payment: {
     method: string;
     amount: string;

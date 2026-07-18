@@ -18,6 +18,7 @@ const BillingView = lazy(() => import("./billing/BillingView"));
 const CatalogView = lazy(() => import("./catalog/CatalogView"));
 const DashboardView = lazy(() => import("./dashboard/DashboardView"));
 const InventoryView = lazy(() => import("./inventory/InventoryView"));
+const ExpensesView = lazy(() => import("./expenses/ExpensesView"));
 const OrderDetail = lazy(() => import("./orders/OrderDetail"));
 const OrderListView = lazy(() => import("./orders/OrderListView"));
 const SyncQueueView = lazy(() => import("./offline/SyncQueueView"));
@@ -100,6 +101,7 @@ export function AppRoutes() {
               <Route path="/register" element={<RegisterView />} />
               <Route path="/catalog" element={<CatalogView />} />
               <Route path="/inventory" element={<InventoryView />} />
+              <Route path="/expenses" element={<ExpensesView />} />
               <Route path="/orders" element={<OrderListView />} />
               <Route path="/orders/:orderId" element={<OrderDetail />} />
               <Route path="/reports" element={<ReportsView />} />
@@ -117,6 +119,7 @@ export function AppRoutes() {
               <Route path="/caja" element={<Navigate to="/register" replace />} />
               <Route path="/ordenes" element={<Navigate to="/orders" replace />} />
               <Route path="/inventario" element={<Navigate to="/inventory" replace />} />
+              <Route path="/gastos" element={<Navigate to="/expenses" replace />} />
               <Route path="/configuracion" element={<Navigate to="/settings" replace />} />
               <Route path="/reportes" element={<Navigate to="/reports" replace />} />
               <Route path="/catalogo" element={<Navigate to="/catalog" replace />} />

@@ -7,6 +7,7 @@ export const ORDER_CREATE_PERMISSION = "orders.create";
 export const ORDER_REFUND_PERMISSION = "orders.refund";
 export const ORDER_VOID_PERMISSION = "orders.void";
 export const INVENTORY_ADJUST_PERMISSION = "inventory.adjust";
+export const EXPENSES_MANAGE_PERMISSION = "expenses.manage";
 export const REPORTS_VIEW_ALL_PERMISSION = "reports.view_all";
 export const SHIFT_OPEN_PERMISSION = "shifts.open";
 export const SHIFT_CLOSE_PERMISSION = "shifts.close";
@@ -22,6 +23,7 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     INVENTORY_ADJUST_PERMISSION,
+    EXPENSES_MANAGE_PERMISSION,
     REPORTS_VIEW_ALL_PERMISSION,
     SHIFT_OPEN_PERMISSION,
     SHIFT_CLOSE_PERMISSION,
@@ -36,6 +38,7 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     ORDER_REFUND_PERMISSION,
     ORDER_VOID_PERMISSION,
     INVENTORY_ADJUST_PERMISSION,
+    EXPENSES_MANAGE_PERMISSION,
     REPORTS_VIEW_ALL_PERMISSION,
     SHIFT_OPEN_PERMISSION,
     SHIFT_CLOSE_PERMISSION,

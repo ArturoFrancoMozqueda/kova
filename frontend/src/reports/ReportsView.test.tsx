@@ -84,6 +84,15 @@ describe("ReportsView", () => {
           units_without_cost: 0,
           complete: true,
         },
+        operating_expenses: {
+          total: "1000.00",
+          expense_count: 1,
+          approximate_operating_profit: "5000.00",
+          margin_complete: true,
+          by_category: [
+            { category: "renta", amount: "1000.00", expense_count: 1 },
+          ],
+        },
       }),
     );
     renderView();
@@ -91,6 +100,7 @@ describe("ReportsView", () => {
     expect(await screen.findByTestId("margin-analysis")).toBeInTheDocument();
     expect(screen.getByText("$6,000.00")).toBeInTheDocument();
     expect(screen.getByText("60.00% de margen bruto")).toBeInTheDocument();
+    expect(screen.getByTestId("operating-expense-analysis")).toBeInTheDocument();
   });
 
   it("shows the error state with a working retry", async () => {
