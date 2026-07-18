@@ -3,6 +3,7 @@ import type {
   Category,
   CategoryCreate,
   CategoryUpdate,
+  CatalogImportResponse,
   ModifierGroup,
   ModifierOption,
   Product,
@@ -37,6 +38,35 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 function ikey(): string {
   return crypto.randomUUID();
 }
+
+async function sendCatalogImport(
+  file: File,
+  dryRun: boolean,
+): Promise<CatalogImportResponse> {
+  const response = await fetch(`/api/v1/catalog/import?dry_run=${dryRun}`, {
+    method: "POST",
+    headers: {
+      "content-type": "text/csv",
+      ...csrfHeaders("POST"),
+      ...(dryRun ? {} : { "Idempotency-Key": ikey() }),
+    },
+    body: file,
+  });
+  if (!response.ok) {
+    throw new ApiError(await response.text(), response.status);
+  }
+  return (await response.json()) as CatalogImportResponse;
+}
+
+export function previewCatalogImport(file: File): Promise<CatalogImportResponse> {
+  return sendCatalogImport(file, true);
+}
+
+export function commitCatalogImport(file: File): Promise<CatalogImportResponse> {
+  return sendCatalogImport(file, false);
+}
+
+export const catalogImportTemplateUrl = "/api/v1/catalog/import/template";
 
 export function listCategories(): Promise<Category[]> {
   return requestJson<Category[]>("/api/v1/catalog/categories");

@@ -151,6 +151,70 @@ test("catalog page hides edit controls for cashier", async ({ page }) => {
   await expect(page.getByText(/sin costo/i)).not.toBeVisible();
 });
 
+test("catalog imports a reviewed CSV only after owner confirmation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  await mockCatalogApis(page);
+  const importRequests: Array<{ dryRun: boolean; body: string }> = [];
+  const preview = {
+    dry_run: true,
+    total_rows: 1,
+    valid_rows: 1,
+    error_rows: 0,
+    rows: [{
+      row_number: 2,
+      status: "valid",
+      normalized: {
+        name: "Rol de canela",
+        sku: "ROL-1",
+        price_amount: "42.00",
+        cost_price: "18.00",
+        category_name: "Pan dulce",
+        track_inventory: true,
+        initial_stock: 12,
+        low_stock_threshold: 3,
+      },
+      errors: [],
+    }],
+    created_products: 0,
+    created_categories: 0,
+    initial_stock_movements: 0,
+  };
+  await page.route("**/api/v1/catalog/import?dry_run=*", async (route) => {
+    const dryRun = new URL(route.request().url()).searchParams.get("dry_run") === "true";
+    importRequests.push({ dryRun, body: route.request().postData() ?? "" });
+    await route.fulfill({
+      status: dryRun ? 200 : 201,
+      json: dryRun ? preview : {
+        ...preview,
+        dry_run: false,
+        created_products: 1,
+        created_categories: 1,
+        initial_stock_movements: 1,
+      },
+    });
+  });
+
+  await page.goto("/catalog");
+  await page.getByRole("button", { name: /importar csv/i }).click();
+  await page.getByLabel(/elegir archivo csv/i).setInputFiles({
+    name: "catalogo.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("nombre,sku,precio\nRol de canela,ROL-1,42.00\n"),
+  });
+
+  await expect(page.getByText("Rol de canela")).toBeVisible();
+  expect(importRequests).toHaveLength(1);
+  expect(importRequests[0].dryRun).toBe(true);
+
+  await page.getByRole("button", { name: /importar productos/i }).click();
+  await expect(page.getByText(/1 producto importado correctamente/i)).toBeVisible();
+  expect(importRequests).toHaveLength(2);
+  expect(importRequests[1].dryRun).toBe(false);
+  expect(importRequests[1].body).toContain("Rol de canela");
+});
+
 test("catalog supports product search category filtering and sorting at mobile width", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await markFirstUseToursSeen(page);

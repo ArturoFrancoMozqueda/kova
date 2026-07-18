@@ -44,6 +44,7 @@ import { compressImage } from "@/lib/compressImage";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "./imageUrl";
 import { ImagePositionEditor } from "./ImagePositionEditor";
+import { CatalogImportDialog } from "./CatalogImportDialog";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +76,7 @@ import {
   X as XIcon,
   CircleDollarSign,
   Save,
+  Upload,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { cn } from "@/lib/utils";
@@ -133,6 +135,7 @@ export default function CatalogView() {
   const [productSearch, setProductSearch] = useState("");
   const [productSort, setProductSort] = useState<ProductSort>("name_asc");
   const [showCostEditor, setShowCostEditor] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -504,6 +507,16 @@ export default function CatalogView() {
               {canCreate && (
                 <Button
                   size="sm"
+                  variant="outline"
+                  onClick={() => setShowImport(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  {copy.catalog.importCsv}
+                </Button>
+              )}
+              {canCreate && (
+                <Button
+                  size="sm"
                   onClick={() => setModal({ type: "product-create" })}
                 >
                   <Plus className="h-4 w-4" />
@@ -867,6 +880,16 @@ export default function CatalogView() {
         busy={pending}
         onConfirm={() => void runConfirmRequest()}
         onCancel={() => setConfirmRequest(null)}
+      />
+
+      <CatalogImportDialog
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        onImported={async (result) => {
+          setShowImport(false);
+          showNotice(copy.catalog.importCompleted(result.created_products));
+          await load();
+        }}
       />
     </main>
   );
