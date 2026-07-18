@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -105,6 +106,11 @@ def create_app() -> FastAPI:
             "X-CSRF-Token",
         ],
     )
+    # Report payloads (business-story) are large JSON; compress anything over
+    # 1 KB when the client negotiates it. Registered before the http
+    # middlewares so it runs innermost: it compresses the route response while
+    # body-size/csrf/security-headers keep their existing (outer) ordering.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.middleware("http")(security_headers_middleware)
     app.middleware("http")(csrf_middleware)
     app.middleware("http")(request_context_middleware)
