@@ -38,6 +38,12 @@ export type Invitation = {
   created_at: string;
 };
 
+export type AccountDeletionStatus = {
+  status: "none" | "pending" | "canceled";
+  requested_at: string | null;
+  purge_after: string | null;
+};
+
 class ApiError extends Error {
   constructor(
     message: string,
@@ -140,4 +146,36 @@ export function updateEmployeeRole(
 export async function deactivateEmployee(membershipId: string): Promise<void> {
   const response = await fetch(`/api/v1/employees/${membershipId}`, { method: "DELETE", headers: { ...csrfHeaders("DELETE") } });
   if (!response.ok) throw new ApiError(await response.text(), response.status);
+}
+
+export async function downloadAccountExport(): Promise<void> {
+  const response = await fetch("/api/v1/export/account");
+  if (!response.ok) throw new ApiError(await response.text(), response.status);
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? "kova-export.zip";
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export function getAccountDeletionStatus(): Promise<AccountDeletionStatus> {
+  return requestJson<AccountDeletionStatus>("/api/v1/account/deletion");
+}
+
+export function scheduleAccountDeletion(body: {
+  password: string;
+  tenant_name: string;
+}): Promise<AccountDeletionStatus> {
+  return requestJson<AccountDeletionStatus>("/api/v1/account/deletion", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function cancelAccountDeletion(): Promise<AccountDeletionStatus> {
+  return requestJson<AccountDeletionStatus>("/api/v1/account/deletion", { method: "DELETE" });
 }

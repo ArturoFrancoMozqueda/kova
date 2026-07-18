@@ -583,6 +583,24 @@ export const copy = {
     roleChangeConfirmBody: (email: string, from: string, to: string) =>
       `${email} pasará de ${from} a ${to}. Esto cambia lo que puede ver y hacer en Kova.`,
     roleChangeConfirmAction: "Cambiar rol",
+    accountDataTitle: "Tus datos y tu cuenta",
+    accountExportTitle: "Exportar datos del negocio",
+    accountExportHint: "Descarga un ZIP con archivos CSV de los datos de tu negocio. La exportación usa la información real disponible al momento de descargarla.",
+    accountExportAction: "Descargar exportación",
+    accountExportReady: "La exportación de tu cuenta está lista.",
+    accountDeletionTitle: "Eliminar cuenta del negocio",
+    accountDeletionHint: "La suscripción se cancelará al final del periodo pagado. Programaremos la eliminación definitiva para dentro de al menos 30 días; durante ese plazo puedes cancelar la solicitud. Exporta tus datos antes de continuar.",
+    accountDeletionNameLabel: (tenantName: string) =>
+      `Escribe “${tenantName}” para confirmar`,
+    accountDeletionPassword: "Contraseña actual",
+    accountDeletionAction: "Programar eliminación",
+    accountDeletionPending: (date: string) =>
+      `La eliminación definitiva está programada para el ${date}. Tu negocio seguirá disponible hasta entonces y puedes cancelar la solicitud.`,
+    accountDeletionCancel: "Cancelar eliminación",
+    accountDeletionScheduled: "Eliminación programada. Puedes cancelarla durante el periodo de espera.",
+    accountDeletionCanceled: "La solicitud de eliminación fue cancelada.",
+    accountDeletionConfirmError: "No pudimos confirmar la solicitud. Revisa el nombre del negocio y tu contraseña.",
+    accountLifecycleError: "No pudimos completar la acción. Revisa tu conexión e inténtalo de nuevo.",
   },
   tour: {
     dismiss: "Cerrar recorrido",

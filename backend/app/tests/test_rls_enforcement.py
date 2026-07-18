@@ -26,6 +26,8 @@ SUBSCRIPTION_A = uuid.UUID("55555555-5555-5555-5555-5555555555a5")
 SUBSCRIPTION_B = uuid.UUID("66666666-6666-6666-6666-6666666666b6")
 EXPENSE_A = uuid.UUID("77777777-7777-7777-7777-7777777777a7")
 EXPENSE_B = uuid.UUID("88888888-8888-8888-8888-8888888888b8")
+DELETION_A = uuid.UUID("99999999-9999-9999-9999-9999999999a9")
+DELETION_B = uuid.UUID("99999999-9999-9999-9999-9999999999b9")
 
 
 @pytest.fixture
@@ -88,10 +90,23 @@ def rls_seed(owner_engine):
             ),
             {"sa": SUBSCRIPTION_A, "sb": SUBSCRIPTION_B, "a": TENANT_A, "b": TENANT_B},
         )
+        conn.execute(
+            text(
+                "INSERT INTO account_deletion_requests "
+                "(id, tenant_id, status, requested_at, purge_after) VALUES "
+                "(:da, :a, 'pending', now(), now() + interval '30 days'), "
+                "(:db, :b, 'pending', now(), now() + interval '30 days')"
+            ),
+            {"da": DELETION_A, "db": DELETION_B, "a": TENANT_A, "b": TENANT_B},
+        )
     try:
         yield
     finally:
         with owner_engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM account_deletion_requests WHERE id IN (:da, :db)"),
+                {"da": DELETION_A, "db": DELETION_B},
+            )
             conn.execute(
                 text("DELETE FROM subscriptions WHERE id IN (:sa, :sb)"),
                 {"sa": SUBSCRIPTION_A, "sb": SUBSCRIPTION_B},
@@ -159,6 +174,21 @@ def test_expenses_are_visible_only_to_the_current_tenant(
             )
         }
     assert amounts == {100}
+
+
+def test_account_deletion_requests_are_tenant_isolated(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        ids = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT id FROM account_deletion_requests WHERE id IN (:da, :db)"),
+                {"da": DELETION_A, "db": DELETION_B},
+            )
+        }
+    assert ids == {DELETION_A}
 
 
 def test_expense_cross_tenant_insert_is_rejected(

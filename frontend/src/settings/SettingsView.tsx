@@ -17,7 +17,10 @@ import { ReceiptTemplate } from "@/orders/ReceiptTemplate";
 import { TicketPaper } from "@/components/ui/ticket";
 import { LogoUploadField } from "./LogoUploadField";
 import {
+  cancelAccountDeletion,
   deactivateEmployee,
+  downloadAccountExport,
+  getAccountDeletionStatus,
   getBusinessProfile,
   getReceiptSettings,
   inviteEmployee,
@@ -27,9 +30,11 @@ import {
   revokeInvitation,
   saveBusinessProfile,
   saveReceiptSettings,
+  scheduleAccountDeletion,
   updateEmployeeRole,
   type Employee,
   type Invitation,
+  type AccountDeletionStatus,
 } from "./api";
 import { cn } from "@/lib/utils";
 
@@ -149,7 +154,14 @@ export default function SettingsView() {
     run: () => Promise<void>;
   } | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [deletionStatus, setDeletionStatus] = useState<AccountDeletionStatus | null>(null);
+  const [deletionConfirmation, setDeletionConfirmation] = useState({
+    tenantName: "",
+    password: "",
+  });
   const activeTab = tabFromPath(location.pathname);
+  const isOwner = state.status === "authenticated" && state.user.role === "owner";
 
   const runPendingAction = useCallback(async () => {
     if (!pendingAction) return;
@@ -200,6 +212,54 @@ export default function SettingsView() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!isOwner) return;
+    void getAccountDeletionStatus().then(setDeletionStatus).catch(() => null);
+  }, [isOwner]);
+
+  async function exportAccount() {
+    setLifecycleBusy(true);
+    try {
+      await downloadAccountExport();
+      toast(copy.settings.accountExportReady, "success");
+    } catch {
+      toast(copy.settings.accountLifecycleError, "error");
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
+
+  async function submitDeletion(event: FormEvent) {
+    event.preventDefault();
+    setLifecycleBusy(true);
+    try {
+      const status = await scheduleAccountDeletion({
+        password: deletionConfirmation.password,
+        tenant_name: deletionConfirmation.tenantName,
+      });
+      setDeletionStatus(status);
+      setDeletionConfirmation({ tenantName: "", password: "" });
+      toast(copy.settings.accountDeletionScheduled, "success");
+    } catch {
+      toast(copy.settings.accountDeletionConfirmError, "error");
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
+
+  async function undoDeletion() {
+    setLifecycleBusy(true);
+    try {
+      await cancelAccountDeletion();
+      setDeletionStatus({ status: "none", requested_at: null, purge_after: null });
+      toast(copy.settings.accountDeletionCanceled, "success");
+    } catch {
+      toast(copy.settings.accountLifecycleError, "error");
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
 
   async function submitBusiness(event: FormEvent) {
     event.preventDefault();
@@ -470,6 +530,7 @@ export default function SettingsView() {
       )}
 
       {activeTab === "advanced" && (
+        <>
         <Card>
           <CardHeader>
             <CardTitle>{copy.settings.advanced}</CardTitle>
@@ -501,6 +562,89 @@ export default function SettingsView() {
             </form>
           </CardContent>
         </Card>
+        {isOwner && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{copy.settings.accountDataTitle}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col gap-3 rounded-kova-md border border-kova-border p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">{copy.settings.accountExportTitle}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {copy.settings.accountExportHint}
+                  </p>
+                </div>
+                <Button variant="outline" disabled={lifecycleBusy} onClick={() => void exportAccount()}>
+                  {copy.settings.accountExportAction}
+                </Button>
+              </div>
+
+              <div className="rounded-kova-md border border-red-200 bg-red-50/40 p-4">
+                <p className="font-medium text-red-900">{copy.settings.accountDeletionTitle}</p>
+                {deletionStatus?.status === "pending" ? (
+                  <div className="mt-2 space-y-3">
+                    <p className="text-sm leading-6 text-red-800">
+                      {copy.settings.accountDeletionPending(
+                        deletionStatus.purge_after
+                          ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(
+                              new Date(deletionStatus.purge_after),
+                            )
+                          : "",
+                      )}
+                    </p>
+                    <Button variant="outline" disabled={lifecycleBusy} onClick={() => void undoDeletion()}>
+                      {copy.settings.accountDeletionCancel}
+                    </Button>
+                  </div>
+                ) : (
+                  <form className="mt-2 grid max-w-xl gap-4" onSubmit={submitDeletion}>
+                    <p className="text-sm leading-6 text-red-800">
+                      {copy.settings.accountDeletionHint}
+                    </p>
+                    <Field
+                      label={copy.settings.accountDeletionNameLabel(tenantName)}
+                      value={deletionConfirmation.tenantName}
+                      onChange={(value) =>
+                        setDeletionConfirmation((current) => ({ ...current, tenantName: value }))
+                      }
+                      required
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="account-deletion-password">
+                        {copy.settings.accountDeletionPassword}
+                      </Label>
+                      <Input
+                        id="account-deletion-password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={deletionConfirmation.password}
+                        onChange={(event) =>
+                          setDeletionConfirmation((current) => ({
+                            ...current,
+                            password: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                    <Button
+                      className="justify-self-start"
+                      variant="destructive"
+                      disabled={
+                        lifecycleBusy || deletionConfirmation.tenantName !== tenantName
+                      }
+                      type="submit"
+                    >
+                      {copy.settings.accountDeletionAction}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        </>
       )}
 
       <ConfirmDialog

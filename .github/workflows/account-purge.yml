@@ -1,0 +1,27 @@
+name: Purge scheduled accounts
+
+on:
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: account-purge
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Purge accounts whose grace period ended
+        env:
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$INTERNAL_API_KEY"
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-all-errors \
+            -X POST \
+            -H "X-Internal-Key: $INTERNAL_API_KEY" \
+            https://pos-project-backend.fly.dev/api/v1/account/internal/deletions/purge

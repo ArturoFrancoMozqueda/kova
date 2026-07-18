@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     billing_trial_days: int = 7
     billing_grace_period_days: int = 7
     internal_api_key: str | None = None
+    account_deletion_grace_days: int = 30
     resend_api_key: str | None = None
     # Rate limiting — when both are set, the limiter uses Upstash Redis; otherwise
     # it falls back to a single-process in-memory limiter (tolerable for local dev

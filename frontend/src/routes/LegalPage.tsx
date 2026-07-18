@@ -95,14 +95,14 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
           "• OPOSICIÓN: Oponerse al tratamiento de sus datos para finalidades secundarias.",
           "• PORTABILIDAD (principio GDPR aplicable): Recibir sus datos en formato estructurado.",
           "• REVOCACIÓN DEL CONSENTIMIENTO: Retirar su consentimiento para tratamientos no esenciales.",
-          `Para ejercer sus derechos, envíe solicitud a ${SUPPORT_EMAIL} con asunto “Derechos ARCO” indicando: nombre completo, descripción del derecho a ejercer, documentación que acredite su identidad, y el dato o tratamiento sobre el que ejerce el derecho. Responderemos en un plazo máximo de 20 días hábiles conforme a la LFPDPPP.`,
+          `Puede descargar los datos de su negocio y programar la eliminación de su cuenta desde Configuración. También puede ejercer sus derechos enviando una solicitud a ${SUPPORT_EMAIL} con asunto “Derechos ARCO” indicando: nombre completo, descripción del derecho a ejercer, documentación que acredite su identidad, y el dato o tratamiento sobre el que ejerce el derecho. Responderemos en un plazo máximo de 20 días hábiles conforme a la LFPDPPP.`,
         ],
       },
       {
         heading: "VI. Retención y eliminación de datos",
         body: [
           "• Mientras la cuenta permanezca activa en la plataforma.",
-          "• Hasta 180 días naturales posteriores a la cancelación de la cuenta, salvo solicitud de eliminación anticipada.",
+          "• Cuando el titular programe la eliminación de su cuenta, se aplicará un plazo reversible de al menos 30 días antes de la purga definitiva.",
           "• El tiempo adicional necesario para cumplir obligaciones legales, fiscales o contables (hasta 5 años conforme a legislación fiscal mexicana).",
           "• El tiempo necesario para resolver disputas o reclamaciones pendientes.",
           "Transcurridos estos períodos, los datos serán eliminados de forma segura o anonimizados de manera irreversible.",
@@ -214,9 +214,9 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         heading: "10. Cancelación y eliminación de cuenta",
         body: [
           `10.1 El usuario puede cancelar su cuenta en cualquier momento desde la configuración de su perfil o solicitándolo a ${SUPPORT_EMAIL}.`,
-          "10.2 Tras la cancelación, Kova conservará los datos del usuario por un período máximo de 180 días naturales para posibilitar la reactivación y para fines de seguridad y cumplimiento legal.",
+          "10.2 La eliminación solicitada por el usuario se programa con un plazo reversible de al menos 30 días. Después de la purga, Kova conservará únicamente la información que deba retener para cumplir obligaciones legales, fiscales, contables, de seguridad o para resolver reclamaciones pendientes.",
           "10.3 Kova puede terminar la cuenta del usuario si: (i) viola estos Términos de forma grave o reiterada; (ii) no paga el servicio transcurrido el período de gracia; (iii) la cuenta presenta actividad fraudulenta o ilegal.",
-          `10.4 El usuario tiene derecho a exportar sus datos antes de la cancelación. Kova facilitará esta exportación en formato estándar mediante solicitud a ${SUPPORT_EMAIL}.`,
+          `10.4 El usuario puede exportar sus datos en formato estándar desde Configuración antes de la eliminación, o solicitar asistencia a ${SUPPORT_EMAIL}.`,
         ],
       },
       {
