@@ -29,6 +29,7 @@ import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
+import { trapTabKey } from "@/lib/focusTrap";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -155,6 +156,7 @@ export default function RegisterView() {
   const cashTenderedRef = useRef<HTMLInputElement | null>(null);
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const successPrimaryRef = useRef<HTMLButtonElement | null>(null);
+  const successOverlayRef = useRef<HTMLDivElement | null>(null);
 
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -246,12 +248,24 @@ export default function RegisterView() {
   // Focus the primary CTA + handle Escape on mobile success overlay.
   useEffect(() => {
     if (!saleResultVisible) return;
+    // Remember where focus was so it returns there when the overlay closes
+    // (same guard as the Dialog primitive uses).
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     successPrimaryRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") resetSale();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (
+        previouslyFocused &&
+        typeof previouslyFocused.focus === "function" &&
+        document.contains(previouslyFocused)
+      ) {
+        previouslyFocused.focus();
+      }
+    };
   }, [resetSale, saleResultVisible]);
 
   // Fetch the printable receipt for the completed sale so the cashier can print
@@ -1276,6 +1290,7 @@ export default function RegisterView() {
                         className="grid grid-cols-3 gap-2"
                         role="radiogroup"
                         aria-labelledby="paymentMethodLabel"
+                        tabIndex={-1}
                         onKeyDown={(e) =>
                           handleRadioGroupKeyDown(
                             e,
@@ -1414,6 +1429,7 @@ export default function RegisterView() {
                         {copy.register.advancedOptions}
                       </span>
                     </summary>
+                    {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- checkbox is nested and labelled by the visible spans; static analysis can't see the expression text */}
                     <label className="flex items-start gap-2 cursor-pointer pt-1">
                       <input
                         type="checkbox"
@@ -1561,12 +1577,20 @@ export default function RegisterView() {
 
       {/* Mobile full-screen success state */}
       {saleResultVisible && (
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- keydown implements the APG modal focus trap for this dialog
         <div
+          ref={successOverlayRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="sale-success-title"
           className="fixed inset-0 z-50 flex flex-col bg-background animate-fade-in lg:hidden"
           style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          // Container-scoped trap (APG modal pattern): on desktop this overlay
+          // is display:none, so focus never lands inside it and the handler
+          // never fires there.
+          onKeyDown={(e) => {
+            if (successOverlayRef.current) trapTabKey(e, successOverlayRef.current);
+          }}
         >
           <div className="flex justify-end p-3">
             <button

@@ -1,5 +1,6 @@
 import { type ReactNode, createContext, useContext, useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { trapTabKey } from "@/lib/focusTrap";
 import { X } from "lucide-react";
 
 interface DialogProps {
@@ -12,15 +13,6 @@ interface DialogProps {
 // Shares the generated title id from Dialog down to DialogTitle so the dialog
 // can reference its own accessible name via aria-labelledby.
 const DialogTitleContext = createContext<string | undefined>(undefined);
-
-const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "textarea:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
 
 export function Dialog({ open, onClose, children, className }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -43,29 +35,8 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
         onClose();
         return;
       }
-      if (e.key !== "Tab" || !panel) return;
-
-      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-      if (items.length === 0) {
-        // No focusable child — keep focus on the container.
-        e.preventDefault();
-        panel.focus();
-        return;
-      }
-
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement;
-
-      if (e.shiftKey) {
-        if (active === first || active === panel || !panel.contains(active)) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else if (active === last || !panel.contains(active)) {
-        e.preventDefault();
-        first.focus();
-      }
+      if (!panel) return;
+      trapTabKey(e, panel);
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -90,6 +61,9 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
   return (
     <div
       ref={overlayRef}
+      // Decorative dismiss backdrop: keyboard users close via Escape or the
+      // labelled close button, so the click shortcut carries no semantics.
+      role="presentation"
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 animate-fade-in"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
@@ -134,6 +108,7 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
 export function DialogTitle({ className, id, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   const titleId = useContext(DialogTitleContext);
   return (
+    // eslint-disable-next-line jsx-a11y/heading-has-content -- children arrive via props spread
     <h2
       id={id ?? titleId}
       className={cn("text-lg font-semibold leading-none tracking-tight text-kova-ink", className)}
