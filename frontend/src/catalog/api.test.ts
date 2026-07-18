@@ -12,6 +12,7 @@ function mockProductResponse() {
       description: null,
       sku: null,
       price_amount: "18.00",
+      cost_price: "8.50",
       track_inventory: false,
       low_stock_threshold: null,
       image_url: null,
@@ -37,6 +38,7 @@ const POLLUTED = {
   description: null,
   sku: null,
   price_amount: "18.00",
+  cost_price: "8.50",
   category_id: null,
   track_inventory: false,
   low_stock_threshold: null,
@@ -64,6 +66,7 @@ describe("catalog api product payloads", () => {
     expect(body).not.toHaveProperty("modifier_group_ids");
     expect(body.name).toBe("Concha");
     expect(body.price_amount).toBe("18.00");
+    expect(body.cost_price).toBe("8.50");
   });
 
   it("updateProduct sends only schema fields", async () => {
@@ -77,6 +80,7 @@ describe("catalog api product payloads", () => {
     expect(body).not.toHaveProperty("image_remove");
     expect(body).not.toHaveProperty("modifier_group_ids");
     expect(body.name).toBe("Concha");
+    expect(body.cost_price).toBe("8.50");
   });
 
   it("setProductModifierGroups skips blank ids and compacts sort order", async () => {

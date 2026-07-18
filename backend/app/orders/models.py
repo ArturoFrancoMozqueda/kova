@@ -45,6 +45,12 @@ class Order(Base):
 
 class OrderItem(Base):
     __tablename__ = "order_items"
+    __table_args__ = (
+        CheckConstraint(
+            "unit_cost IS NULL OR unit_cost >= 0",
+            name="ck_order_items_unit_cost_nonnegative",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -53,6 +59,7 @@ class OrderItem(Base):
     product_name: Mapped[str] = mapped_column(String(160), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     line_total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
 

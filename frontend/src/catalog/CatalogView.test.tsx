@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ProductForm } from "./CatalogView";
+import { ProductCostEditor, ProductForm } from "./CatalogView";
 import type { Product } from "./types";
 import { ToastProvider } from "@/components/ui/toast";
 
@@ -25,6 +25,7 @@ const product: Product = {
   description: null,
   sku: "PAN-ALF-001",
   price_amount: "32.00",
+  cost_price: null,
   track_inventory: true,
   low_stock_threshold: 8,
   image_url: "/api/v1/catalog/products/product-1/image?v=1",
@@ -203,5 +204,67 @@ describe("ProductForm image positioning", () => {
       objectPosition: "50% 50%",
       transform: "",
     });
+  });
+
+  it("submits a nullable decimal product cost", async () => {
+    const onSubmit = vi.fn(async () => undefined);
+    render(
+      <ToastProvider>
+        <ProductForm
+          initial={product}
+          categories={[]}
+          availableModifierGroups={[]}
+          defaultCategoryId={null}
+          pending={false}
+          onCancel={vi.fn()}
+          onSubmit={onSubmit}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Costo unitario"), {
+      target: { value: "12.40" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar producto" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ cost_price: "12.40" }),
+    );
+  });
+});
+
+describe("ProductCostEditor", () => {
+  it("saves changed costs and preserves blank values as unknown", async () => {
+    const onSave = vi.fn(async () => undefined);
+    const secondProduct: Product = {
+      ...product,
+      id: "product-2",
+      name: "Concha",
+      sku: "PAN-CON-001",
+      cost_price: "8.00",
+    };
+    render(
+      <ProductCostEditor
+        products={[product, secondProduct]}
+        pending={false}
+        onCancel={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Costo unitario · Alfajores"), {
+      target: { value: "12.40" },
+    });
+    fireEvent.change(screen.getByLabelText("Costo unitario · Concha"), {
+      target: { value: "" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar costos" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith([
+      { id: "product-1", cost_price: "12.40" },
+      { id: "product-2", cost_price: null },
+    ]);
   });
 });

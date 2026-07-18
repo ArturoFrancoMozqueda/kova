@@ -51,6 +51,7 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     sku: Mapped[str | None] = mapped_column(String(100), nullable=True)
     price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    cost_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     track_inventory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     low_stock_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -65,6 +66,10 @@ class Product(Base):
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "sku", name="uq_products_tenant_sku"),
+        CheckConstraint(
+            "cost_price IS NULL OR cost_price >= 0",
+            name="ck_products_cost_price_nonnegative",
+        ),
         CheckConstraint(
             "image_position_x >= 0 AND image_position_x <= 100",
             name="ck_products_image_position_x_range",
