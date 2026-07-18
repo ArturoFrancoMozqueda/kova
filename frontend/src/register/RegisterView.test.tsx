@@ -151,7 +151,11 @@ describe("RegisterView cash-without-shift guard", () => {
     fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
 
     await waitFor(() => expect(queueOfflineSale).toHaveBeenCalledTimes(1));
-    expect(queueOfflineSale).toHaveBeenCalledWith(expect.anything(), "shift-123");
+    expect(queueOfflineSale).toHaveBeenCalledWith(
+      expect.anything(),
+      "shift-123",
+      expect.anything(),
+    );
   });
 
   it("does not block cash when shift state is unknown (fail open)", async () => {
@@ -254,6 +258,48 @@ describe("RegisterView cash-without-shift guard", () => {
 
     fireEvent.click(printButtons[0]);
     expect(printSpy).toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("prints a clearly marked local receipt before an offline sale syncs", async () => {
+    getOpenShift.mockRejectedValue(new Error("offline"));
+    queueOfflineSale.mockImplementation(
+      async (_sale: unknown, _shiftId: unknown, receiptSnapshot: unknown) => ({
+        client_uuid: "abcd1234-0000-4000-8000-000000000001",
+        receipt_snapshot: receiptSnapshot,
+      }),
+    );
+    syncOfflineSales.mockRejectedValue(new TypeError("Failed to fetch"));
+    const printSpy = vi.fn();
+    vi.stubGlobal("print", printSpy);
+
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    expect(
+      (await screen.findAllByText(copy.register.offlineSaleSavedTitle)).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(copy.register.pendingSync).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(copy.register.localReceiptNumber("ABCD1234")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 x Concha/).length).toBeGreaterThan(0);
+    expect(getReceipt).not.toHaveBeenCalled();
+    expect(queueOfflineSale).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+      expect.objectContaining({
+        business_name: "Sweet Home",
+        total_amount: "50.00",
+        items: [expect.objectContaining({ product_name: "Concha" })],
+      }),
+    );
+
+    const printButtons = screen.getAllByRole("button", { name: copy.register.printReceipt });
+    fireEvent.click(printButtons[0]);
+    expect(printSpy).toHaveBeenCalledTimes(1);
 
     vi.unstubAllGlobals();
   });

@@ -49,6 +49,7 @@ type ReceiptTemplateProps = {
   netAmount?: string;
   refunds?: ReceiptTemplateRefund[];
   voidReason?: string;
+  pendingSync?: boolean;
   className?: string;
 } & HTMLAttributes<HTMLDivElement>;
 
@@ -69,6 +70,7 @@ export function ReceiptTemplate({
   netAmount,
   refunds = [],
   voidReason,
+  pendingSync = false,
   className,
   ...containerProps
 }: ReceiptTemplateProps) {
@@ -99,6 +101,11 @@ export function ReceiptTemplate({
           <p className="whitespace-pre-line text-[10px] tkt-caption">{taxContactText}</p>
         ) : null}
         {receiptNumber ? <p className="text-[10px] tkt-caption">{receiptNumber}</p> : null}
+        {pendingSync ? (
+          <p className="rounded-sm border border-current px-2 py-1 text-[9px] font-semibold uppercase tracking-wide">
+            {copy.register.pendingSync}
+          </p>
+        ) : null}
         <p className="text-[10px] tkt-caption">{formatDateTime(createdAt)}</p>
       </div>
 
