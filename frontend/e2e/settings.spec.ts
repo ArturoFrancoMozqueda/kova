@@ -11,6 +11,11 @@ async function mockAuthAsOwner(page: Page) {
       },
     });
   });
+  await page.route("**/api/v1/account/deletion**", async (route) => {
+    await route.fulfill({
+      json: { status: "none", requested_at: null, purge_after: null },
+    });
+  });
 }
 
 test("settings receipt logo upload updates the preview", async ({ page }) => {
@@ -262,4 +267,96 @@ test("settings employees invite role change and deactivate work at mobile width"
   await page.getByRole("button", { name: /desactivar acceso/i }).click();
   await expect(page.getByText(/acceso desactivado/i)).toBeVisible();
   await expect(employeeRow.getByRole("button", { name: /desactivar/i })).toBeDisabled();
+});
+
+test("owner exports data and controls deferred deletion at mobile width", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockAuthAsOwner(page);
+
+  await page.route("**/api/v1/settings/business-profile", async (route) => {
+    await route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        public_name: "Bakery",
+        support_email: null,
+        support_phone: null,
+        timezone: "America/Mexico_City",
+        locale: "es-MX",
+        currency: "MXN",
+      },
+    });
+  });
+  await page.route("**/api/v1/settings/receipt", async (route) => {
+    await route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        receipt_business_name: "Bakery",
+        footer: null,
+        tax_contact_text: null,
+        logo_url: null,
+      },
+    });
+  });
+  await page.route("**/api/v1/employees", async (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/employees/invitations", async (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: { subscription: null, access: { status: "trial_active", reason: "trial_active" } },
+    });
+  });
+
+  let deletionPending = false;
+  await page.route("**/api/v1/account/deletion**", async (route) => {
+    if (route.request().method() === "POST") {
+      expect(JSON.parse(route.request().postData() ?? "{}")).toEqual({
+        password: "S3cur3pass!",
+        tenant_name: "Bakery",
+      });
+      deletionPending = true;
+    } else if (route.request().method() === "DELETE") {
+      deletionPending = false;
+      await route.fulfill({
+        json: { status: "canceled", requested_at: null, purge_after: null },
+      });
+      return;
+    }
+    await route.fulfill({
+      json: deletionPending
+        ? {
+            status: "pending",
+            requested_at: "2026-07-18T00:00:00Z",
+            purge_after: "2026-08-17T18:00:00Z",
+          }
+        : { status: "none", requested_at: null, purge_after: null },
+    });
+  });
+  await page.route("**/api/v1/export/account", async (route) => {
+    await route.fulfill({
+      contentType: "application/zip",
+      headers: { "Content-Disposition": 'attachment; filename="kova-export-2026-07-18.zip"' },
+      body: Buffer.from("zip-content"),
+    });
+  });
+
+  await page.goto("/settings/advanced");
+  const accountHeading = page.getByRole("heading", { name: "Tus datos y tu cuenta" });
+  await expect(accountHeading).toBeVisible();
+  if (process.env.KOVA_QA_SCREENSHOT) {
+    await accountHeading.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: process.env.KOVA_QA_SCREENSHOT });
+  }
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Descargar exportación" }).click();
+  await expect((await download).suggestedFilename()).toBe("kova-export-2026-07-18.zip");
+
+  await page.getByLabel(/escribe.*bakery/i).fill("Bakery");
+  await page.getByLabel("Contraseña actual").fill("S3cur3pass!");
+  await page.getByRole("button", { name: "Programar eliminación" }).click();
+  await expect(page.getByText(/17 de agosto de 2026/i)).toBeVisible();
+
+  await page.getByRole("button", { name: "Cancelar eliminación" }).click();
+  await expect(page.getByRole("button", { name: "Programar eliminación" })).toBeVisible();
 });

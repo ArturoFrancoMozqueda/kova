@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.account_lifecycle.router import router as account_lifecycle_router
 from app.auth.router import router as auth_router
 from app.billing import service as billing_service
 from app.billing.router import router as billing_router
@@ -131,6 +132,7 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
     app.include_router(health_router)
+    app.include_router(account_lifecycle_router)
     app.include_router(auth_router)
     app.include_router(billing_router)
     app.include_router(business_settings_router)
