@@ -1,9 +1,10 @@
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
 from app.audit.models import AuditLog
-from app.orders.models import InventoryMovement
+from app.orders.models import InventoryMovement, OrderItem
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
@@ -29,11 +30,17 @@ def _create_product(
     name: str = "Concha",
     price: str = "18.50",
     track_inventory: bool = False,
+    cost: str | None = None,
 ) -> dict:
     response = client.post(
         "/api/v1/catalog/products",
         headers={"Idempotency-Key": f"product-{name}-{track_inventory}"},
-        json={"name": name, "price_amount": price, "track_inventory": track_inventory},
+        json={
+            "name": name,
+            "price_amount": price,
+            "cost_price": cost,
+            "track_inventory": track_inventory,
+        },
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -90,6 +97,53 @@ def test_cash_order_uses_server_prices_and_writes_audit(client, db):
         .one()
     )
     assert str(audit.resource_id) == body["id"]
+
+
+def test_order_item_snapshots_server_cost_and_keeps_history_immutable(client, db):
+    signup = _signup_verify_login(client, "order-cost@example.com", "Order Cost Bakery")
+    _open_shift(client)
+    product = _create_product(client, name="Costed Concha", cost="7.25")
+
+    response = _create_cash_order(client, product["id"], key="order-cost-snapshot")
+
+    assert response.status_code == 201, response.text
+    item = (
+        db.query(OrderItem)
+        .filter(
+            OrderItem.tenant_id == UUID(signup["tenant_id"]),
+            OrderItem.order_id == UUID(response.json()["id"]),
+        )
+        .one()
+    )
+    assert item.unit_cost == Decimal("7.25")
+
+    update = client.patch(
+        f"/api/v1/catalog/products/{product['id']}",
+        headers={"Idempotency-Key": "order-cost-product-update"},
+        json={"cost_price": "8.10"},
+    )
+    assert update.status_code == 200, update.text
+    db.refresh(item)
+    assert item.unit_cost == Decimal("7.25")
+
+
+def test_order_item_keeps_unknown_cost_as_null(client, db):
+    signup = _signup_verify_login(client, "order-no-cost@example.com", "No Cost Bakery")
+    _open_shift(client)
+    product = _create_product(client, name="Unknown Cost")
+
+    response = _create_cash_order(client, product["id"], key="order-null-cost")
+
+    assert response.status_code == 201, response.text
+    item = (
+        db.query(OrderItem)
+        .filter(
+            OrderItem.tenant_id == UUID(signup["tenant_id"]),
+            OrderItem.order_id == UUID(response.json()["id"]),
+        )
+        .one()
+    )
+    assert item.unit_cost is None
 
 
 def test_bank_transfer_order_records_manual_payment(client):

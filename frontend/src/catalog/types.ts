@@ -36,6 +36,9 @@ export type Product = {
   description: string | null;
   sku: string | null;
   price_amount: string;
+  // Optional for compatibility with catalog rows cached by older PWA bundles.
+  // The API returns null when cost is unknown or hidden for the current role.
+  cost_price?: string | null;
   track_inventory: boolean;
   low_stock_threshold: number | null;
   image_url: string | null;
@@ -64,6 +67,7 @@ export type ProductCreate = {
   description?: string | null;
   sku?: string | null;
   price_amount: string;
+  cost_price?: string | null;
   category_id?: string | null;
   track_inventory?: boolean;
   low_stock_threshold?: number | null;
@@ -77,6 +81,7 @@ export type ProductUpdate = {
   description?: string | null;
   sku?: string | null;
   price_amount?: string;
+  cost_price?: string | null;
   category_id?: string | null;
   track_inventory?: boolean;
   low_stock_threshold?: number | null;

@@ -38,6 +38,7 @@ const products = [
     description: null,
     sku: "CON-001",
     price_amount: "18.50",
+    cost_price: null,
     track_inventory: false,
     low_stock_threshold: null,
     is_active: true,
@@ -60,6 +61,7 @@ const cafeProducts = [
     description: "Cafe con leche",
     sku: "LAT-001",
     price_amount: "55.00",
+    cost_price: "21.50",
     track_inventory: true,
     low_stock_threshold: 5,
     is_active: true,
@@ -73,6 +75,7 @@ const cafeProducts = [
     description: "Cafe negro",
     sku: "AME-001",
     price_amount: "42.00",
+    cost_price: "12.00",
     track_inventory: false,
     low_stock_threshold: null,
     is_active: true,
@@ -144,6 +147,8 @@ test("catalog page hides edit controls for cashier", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /cat[áa]logo/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /nueva categor[íi]a/i })).not.toBeVisible();
   await expect(page.getByRole("button", { name: /nuevo producto/i })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: /editar costos/i })).not.toBeVisible();
+  await expect(page.getByText(/sin costo/i)).not.toBeVisible();
 });
 
 test("catalog supports product search category filtering and sorting at mobile width", async ({ page }) => {
@@ -214,16 +219,58 @@ test("catalog product create edit and inventory activation work at mobile width"
   await expect(page.getByLabel(/controlar inventario/i)).toBeChecked();
   await page.getByLabel(/nombre del producto/i).fill("QA Kova Audit Latte");
   await page.getByLabel(/precio/i).fill("54");
+  await page.getByLabel(/costo unitario/i).fill("22.40");
   await page.getByLabel(/sku/i).fill("QA-LATTE");
   await page.getByRole("button", { name: /guardar producto/i }).click();
   await expect(page.getByText(/producto creado/i)).toBeVisible();
   await expect(page.getByText("QA Kova Audit Latte")).toBeVisible();
+  await expect(page.getByText("Costo $22.40")).toBeVisible();
 
   await page.getByText("QA Kova Audit Latte").click();
   await page.getByLabel(/precio/i).fill("58");
   await page.getByRole("button", { name: /guardar producto/i }).click();
   await expect(page.getByText(/producto actualizado/i)).toBeVisible();
   await expect(page.getByText("$58.00")).toBeVisible();
+});
+
+test("catalog lets owner update known and unknown costs from the compact editor", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+
+  let productList = [
+    { ...products[0], cost_price: null },
+    { ...cafeProducts[1], cost_price: "21.50" },
+  ];
+  const updates: Array<{ id: string; cost_price: string | null }> = [];
+  await page.route("**/api/v1/catalog/categories", async (route) => {
+    await route.fulfill({ json: cafeCategories });
+  });
+  await page.route("**/api/v1/catalog/products", async (route) => {
+    await route.fulfill({ json: productList });
+  });
+  await page.route("**/api/v1/catalog/products/*", async (route) => {
+    const id = route.request().url().split("/").at(-1)!;
+    const body = JSON.parse(route.request().postData() ?? "{}");
+    updates.push({ id, cost_price: body.cost_price ?? null });
+    productList = productList.map((product) => (product.id === id ? { ...product, ...body } : product));
+    await route.fulfill({ json: productList.find((product) => product.id === id) });
+  });
+  await page.route("**/api/v1/catalog/modifier-groups", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+
+  await page.goto("/catalog");
+  await expect(page.getByText("Sin costo")).toBeVisible();
+  await page.getByRole("button", { name: /editar costos/i }).click();
+  await page.getByLabel(/costo unitario · concha/i).fill("8.25");
+  await page.getByLabel(/costo unitario · latte/i).fill("");
+  await page.getByRole("button", { name: /guardar costos/i }).click();
+
+  await expect(page.getByText(/2 costos actualizados/i)).toBeVisible();
+  expect(updates).toEqual([
+    { id: "prod-1", cost_price: "8.25" },
+    { id: "prod-2", cost_price: null },
+  ]);
 });
 
 test("catalog product create shows billing recovery when access is blocked", async ({ page }) => {

@@ -155,6 +155,83 @@ def test_product_price_uses_decimal_response(client):
     assert Decimal(response.json()["price_amount"]) == Decimal("12.30")
 
 
+def test_product_cost_create_update_clear_and_audit(client, db):
+    signup = _signup_verify_login(client, "catalog-cost@example.com", "Cost Bakery")
+
+    create = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "cost-product-create"},
+        json={"name": "Costed Product", "price_amount": "25.00", "cost_price": "10.40"},
+    )
+
+    assert create.status_code == 201, create.text
+    product = create.json()
+    assert product["cost_price"] == "10.40"
+
+    update = client.patch(
+        f"/api/v1/catalog/products/{product['id']}",
+        headers={"Idempotency-Key": "cost-product-update"},
+        json={"cost_price": "11.25"},
+    )
+    assert update.status_code == 200, update.text
+    assert update.json()["cost_price"] == "11.25"
+
+    clear = client.patch(
+        f"/api/v1/catalog/products/{product['id']}",
+        headers={"Idempotency-Key": "cost-product-clear"},
+        json={"cost_price": None},
+    )
+    assert clear.status_code == 200, clear.text
+    assert clear.json()["cost_price"] is None
+
+    rejected = client.patch(
+        f"/api/v1/catalog/products/{product['id']}",
+        headers={"Idempotency-Key": "cost-product-negative"},
+        json={"cost_price": "-0.01"},
+    )
+    assert rejected.status_code == 422
+
+    cost_audits = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.tenant_id == UUID(signup["tenant_id"]),
+            AuditLog.action == "catalog.product.update",
+        )
+        .all()
+    )
+    assert [audit.changes["cost_price"] for audit in cost_audits] == ["11.25", None]
+
+
+def test_product_cost_is_masked_for_cashier_catalog_reads(client, db):
+    signup = _signup_verify_login(client, "catalog-cost-mask@example.com", "Cost Mask Bakery")
+    product = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "cost-mask-product"},
+        json={"name": "Secret Cost", "price_amount": "25.00", "cost_price": "10.40"},
+    ).json()
+    membership = (
+        db.query(Membership)
+        .filter(
+            Membership.user_id == UUID(signup["user_id"]),
+            Membership.tenant_id == UUID(signup["tenant_id"]),
+        )
+        .one()
+    )
+    membership.role = "cashier"
+    db.commit()
+    client.post("/api/v1/auth/logout")
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "catalog-cost-mask@example.com", "password": "S3cur3pass!"},
+    )
+
+    listed = client.get("/api/v1/catalog/products")
+
+    assert listed.status_code == 200, listed.text
+    [masked] = [item for item in listed.json() if item["id"] == product["id"]]
+    assert masked["cost_price"] is None
+
+
 def test_product_image_upload_and_get_returns_stored_bytes(client):
     _signup_verify_login(client, "catalog-image-get@example.com", "Image Get Bakery")
     product = client.post(

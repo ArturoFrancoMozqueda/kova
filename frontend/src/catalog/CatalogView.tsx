@@ -73,6 +73,8 @@ import {
   Search,
   ImagePlus,
   X as XIcon,
+  CircleDollarSign,
+  Save,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { cn } from "@/lib/utils";
@@ -130,6 +132,7 @@ export default function CatalogView() {
   const [storyProduct, setStoryProduct] = useState<Product | null>(null);
   const [productSearch, setProductSearch] = useState("");
   const [productSort, setProductSort] = useState<ProductSort>("name_asc");
+  const [showCostEditor, setShowCostEditor] = useState(false);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -486,17 +489,56 @@ export default function CatalogView() {
               <Tag className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.products}
             </CardTitle>
-            {canCreate && (
-              <Button
-                size="sm"
-                onClick={() => setModal({ type: "product-create" })}
-              >
-                <Plus className="h-4 w-4" />
-                {copy.catalog.newProduct}
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {canUpdate && visibleProducts.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowCostEditor((value) => !value)}
+                  aria-expanded={showCostEditor}
+                >
+                  <CircleDollarSign className="h-4 w-4" />
+                  {copy.catalog.editCosts}
+                </Button>
+              )}
+              {canCreate && (
+                <Button
+                  size="sm"
+                  onClick={() => setModal({ type: "product-create" })}
+                >
+                  <Plus className="h-4 w-4" />
+                  {copy.catalog.newProduct}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
+            {showCostEditor && canUpdate && (
+              <ProductCostEditor
+                key={visibleProducts
+                  .map((product) => `${product.id}:${product.cost_price ?? ""}`)
+                  .join("|")}
+                products={visibleProducts}
+                pending={pending}
+                onCancel={() => setShowCostEditor(false)}
+                onSave={async (updates) => {
+                  setPending(true);
+                  try {
+                    for (const update of updates) {
+                      await updateProduct(update.id, { cost_price: update.cost_price });
+                    }
+                    showNotice(copy.catalog.costsUpdated(updates.length));
+                    setShowCostEditor(false);
+                    await load();
+                  } catch (error) {
+                    showCatalogError(error);
+                    await load();
+                  } finally {
+                    setPending(false);
+                  }
+                }}
+              />
+            )}
             <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -617,10 +659,17 @@ export default function CatalogView() {
                         )}
                       </div>
                     </div>
-                    <div className="mt-3">
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-lg font-bold text-kova-blue tabular-nums">
                         {formatMoney(product.price_amount)}
                       </span>
+                      {canUpdate && (
+                        <Badge variant={product.cost_price == null ? "warning" : "secondary"}>
+                          {product.cost_price == null
+                            ? copy.catalog.productCostMissing
+                            : copy.catalog.productCostKnown(formatMoney(product.cost_price))}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -820,6 +869,125 @@ export default function CatalogView() {
         onCancel={() => setConfirmRequest(null)}
       />
     </main>
+  );
+}
+
+type ProductCostUpdate = {
+  id: string;
+  cost_price: string | null;
+};
+
+function sameCost(left: string | null | undefined, right: string): boolean {
+  if (right.trim() === "") return left == null;
+  if (left == null) return false;
+  return Number(left) === Number(right);
+}
+
+export function ProductCostEditor({
+  products,
+  pending,
+  onCancel,
+  onSave,
+}: {
+  products: Product[];
+  pending: boolean;
+  onCancel: () => void;
+  onSave: (updates: ProductCostUpdate[]) => Promise<void>;
+}) {
+  const [drafts, setDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(products.map((product) => [product.id, product.cost_price ?? ""])),
+  );
+  const hasInvalidCost = products.some((product) => {
+    const value = drafts[product.id] ?? "";
+    return value.trim() !== "" && (!/^\d+(?:\.\d{0,2})?$/.test(value) || Number(value) < 0);
+  });
+  const updates = products
+    .filter((product) => !sameCost(product.cost_price, drafts[product.id] ?? ""))
+    .map((product) => ({
+      id: product.id,
+      cost_price: drafts[product.id]?.trim() || null,
+    }));
+
+  return (
+    <section
+      aria-labelledby="product-cost-editor-title"
+      className="mb-5 rounded-kova-lg border border-kova-blue/20 bg-kova-blue/[0.03] p-4"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-kova-md bg-kova-blue/10 text-kova-blue">
+          <CircleDollarSign className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 id="product-cost-editor-title" className="font-semibold">
+            {copy.catalog.costEditorTitle}
+          </h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {copy.catalog.costEditorBody}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 divide-y divide-kova-border overflow-hidden rounded-kova-md border border-kova-border bg-white">
+        {products.map((product) => {
+          const value = drafts[product.id] ?? "";
+          const invalid =
+            value.trim() !== "" && (!/^\d+(?:\.\d{0,2})?$/.test(value) || Number(value) < 0);
+          return (
+            <div
+              key={product.id}
+              className="grid gap-3 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_130px_150px] sm:items-center"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{product.name}</p>
+                <p className="text-xs text-muted-foreground">{product.sku ?? "—"}</p>
+              </div>
+              <div className="text-sm sm:text-right">
+                <span className="text-xs text-muted-foreground sm:block">
+                  {copy.catalog.salePrice}
+                </span>
+                <span className="font-semibold tabular-nums">{formatMoney(product.price_amount)}</span>
+              </div>
+              <div>
+                <Label className="sr-only" htmlFor={`product-cost-${product.id}`}>
+                  {copy.catalog.productCost} · {product.name}
+                </Label>
+                <Input
+                  id={`product-cost-${product.id}`}
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  placeholder={copy.catalog.productCostMissing}
+                  value={value}
+                  onChange={(event) =>
+                    setDrafts((current) => ({
+                      ...current,
+                      [product.id]: event.target.value.replace(/^-/, ""),
+                    }))
+                  }
+                  aria-invalid={invalid ? "true" : undefined}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hasInvalidCost && (
+        <p className="mt-2 text-sm text-destructive">{copy.catalog.productCostInvalid}</p>
+      )}
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
+          {copy.catalog.cancel}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => void onSave(updates)}
+          disabled={pending || hasInvalidCost || updates.length === 0}
+        >
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {copy.catalog.saveCosts}
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -1146,6 +1314,7 @@ type ProductFormValues = {
   description: string | null;
   sku: string | null;
   price_amount: string;
+  cost_price: string | null;
   category_id: string | null;
   track_inventory: boolean;
   low_stock_threshold: number | null;
@@ -1189,6 +1358,7 @@ export function ProductForm({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [sku, setSku] = useState(initial?.sku ?? "");
   const [price, setPrice] = useState(initial?.price_amount ?? "");
+  const [cost, setCost] = useState(initial?.cost_price ?? "");
   const [categoryId, setCategoryId] = useState(
     initial?.category_id ?? defaultCategoryId ?? "",
   );
@@ -1248,10 +1418,19 @@ export function ProductForm({
         : priceNum < 0
           ? copy.catalog.productPriceNegative
           : null;
+  const costNum = Number(cost);
+  const costError =
+    cost.trim() === ""
+      ? null
+      : Number.isNaN(costNum) || !/^\d+(?:\.\d{0,2})?$/.test(cost)
+        ? copy.catalog.productCostInvalid
+        : costNum < 0
+          ? copy.catalog.productCostNegative
+          : null;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (price.trim() === "" || Number.isNaN(priceNum) || priceNum < 0) {
+    if (price.trim() === "" || Number.isNaN(priceNum) || priceNum < 0 || costError) {
       return;
     }
     if (/<[^>]+>/.test(name)) {
@@ -1262,6 +1441,7 @@ export function ProductForm({
       description: description.trim() || null,
       sku: sku.trim() || null,
       price_amount: price,
+      cost_price: cost.trim() || null,
       category_id: categoryId || null,
       track_inventory: trackInventory,
       low_stock_threshold: trackInventory && threshold ? Number(threshold) : null,
@@ -1358,6 +1538,27 @@ export function ProductForm({
           {priceError && (
             <p id="prod-price-error" className="text-xs text-destructive">
               {priceError}
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-cost">{copy.catalog.productCost}</Label>
+          <Input
+            id="prod-cost"
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min="0"
+            value={cost}
+            onChange={(e) => setCost(e.target.value.replace(/^-/, ""))}
+            aria-invalid={costError ? "true" : undefined}
+            aria-describedby={costError ? "prod-cost-error" : "prod-cost-hint"}
+          />
+          {costError ? (
+            <p id="prod-cost-error" className="text-xs text-destructive">{costError}</p>
+          ) : (
+            <p id="prod-cost-hint" className="text-xs text-muted-foreground">
+              {copy.catalog.productCostHint}
             </p>
           )}
         </div>

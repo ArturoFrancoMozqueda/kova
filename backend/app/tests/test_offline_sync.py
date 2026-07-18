@@ -1,6 +1,9 @@
-from uuid import uuid4
+from decimal import Decimal
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
+
+from app.orders.models import OrderItem
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
@@ -20,11 +23,16 @@ def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> di
     return signup
 
 
-def _create_product(client: TestClient, *, name: str = "Offline Concha") -> dict:
+def _create_product(
+    client: TestClient,
+    *,
+    name: str = "Offline Concha",
+    cost: str | None = None,
+) -> dict:
     response = client.post(
         "/api/v1/catalog/products",
         headers={"Idempotency-Key": f"offline-product-{name}"},
-        json={"name": name, "price_amount": "18.50"},
+        json={"name": name, "price_amount": "18.50", "cost_price": cost},
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -55,6 +63,29 @@ def test_offline_sale_sync_creates_order(client):
     assert result["status"] == "synced"
     assert result["client_uuid"] == client_uuid
     assert result["order"]["total_amount"] == "37.00"
+
+
+def test_offline_sale_snapshots_cost_only_from_server_catalog(client, db):
+    signup = _signup_verify_login(client, "offline-cost@example.com", "Offline Cost Bakery")
+    product = _create_product(client, name="Offline Costed Concha", cost="6.75")
+
+    response = client.post(
+        "/api/v1/sync/offline-sales",
+        json={"sales": [_offline_sale_payload(str(uuid4()), product["id"])]},
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["results"][0]
+    assert result["status"] == "synced"
+    item = (
+        db.query(OrderItem)
+        .filter(
+            OrderItem.tenant_id == UUID(signup["tenant_id"]),
+            OrderItem.order_id == UUID(result["order_id"]),
+        )
+        .one()
+    )
+    assert item.unit_cost == Decimal("6.75")
 
 
 def test_offline_sale_replay_returns_same_order(client):

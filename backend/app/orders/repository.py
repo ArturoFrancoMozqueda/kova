@@ -99,6 +99,7 @@ def create_order_item(
         unit_price_amount=(
             unit_price_amount if unit_price_amount is not None else product.price_amount
         ),
+        unit_cost=product.cost_price,
         line_total_amount=line_total_amount,
     )
     db.add(item)

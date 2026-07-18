@@ -16,7 +16,7 @@ from app.catalog.schemas import (
 )
 from app.db import get_db
 from app.modifiers import service as modifier_service
-from app.rbac.permissions import Permission
+from app.rbac.permissions import Permission, has_permission
 from app.shared.dependencies import get_current_session
 from app.shared.exceptions import bad_request
 
@@ -112,10 +112,13 @@ def list_products(
     ctx: tuple[User, Membership, UserSession] = Depends(get_current_session),
 ) -> list[ProductResponse]:
     _, membership, _ = ctx
+    can_view_cost = has_permission(membership.role, Permission.CATALOG_UPDATE)
     products = service.list_products(db, tenant_id=membership.tenant_id)
     result = []
     for product in products:
         p = ProductResponse.model_validate(product)
+        if not can_view_cost:
+            p.cost_price = None
         p.modifier_groups = modifier_service.get_product_modifier_groups(
             db, tenant_id=membership.tenant_id, product_id=product.id
         )

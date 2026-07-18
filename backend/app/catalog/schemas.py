@@ -45,6 +45,7 @@ class ProductCreate(StrictModel):
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
     price_amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
+    cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
     track_inventory: bool = False
     low_stock_threshold: int | None = Field(default=None, ge=0)
@@ -63,6 +64,7 @@ class ProductUpdate(StrictModel):
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
     price_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
     track_inventory: bool | None = None
     low_stock_threshold: int | None = Field(default=None, ge=0)
@@ -87,6 +89,7 @@ class ProductResponse(BaseModel):
     description: str | None
     sku: str | None
     price_amount: Decimal
+    cost_price: Decimal | None
     track_inventory: bool
     low_stock_threshold: int | None
     image_url: str | None = None
