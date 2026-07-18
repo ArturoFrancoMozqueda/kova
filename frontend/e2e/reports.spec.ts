@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 import { markFirstUseToursSeen } from "./helpers";
 
-async function mockAuthAs(page: Page, role: string) {
+async function mockAuthAs(page: Page, role: string, marginReports = false) {
   await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({
       json: {
@@ -9,6 +9,7 @@ async function mockAuthAs(page: Page, role: string) {
         user: { id: "user-1", email: "test@bakery.com", tenant_id: "tenant-1", role },
         tenant_id: "tenant-1",
         tenant_name: "Bakery",
+        feature_flags: { margin_reports: marginReports },
       },
     });
   });
@@ -103,6 +104,38 @@ function storyPayload(overrides = {}) {
         sales_share_pct: 26,
       },
     ],
+    margin: {
+      summary: {
+        net_sales: "231.00",
+        cogs: "92.40",
+        gross_profit: "138.60",
+        gross_margin_pct: "60.00",
+        sold_products: 2,
+        sold_products_without_cost: 0,
+        complete: true,
+      },
+      by_day: [],
+      by_product: [
+        {
+          product_id: "product-1",
+          product_name: "Dona",
+          quantity_sold: 12,
+          net_sales: "120.00",
+          cogs: "48.00",
+          gross_profit: "72.00",
+          gross_margin_pct: "60.00",
+          missing_cost: false,
+        },
+      ],
+    },
+    inventory_valuation: {
+      value: "840.00",
+      known_value: "840.00",
+      tracked_products: 2,
+      products_without_cost: 0,
+      units_without_cost: 0,
+      complete: true,
+    },
     dominant_payment: {
       method: "cash",
       amount: "192.00",
@@ -323,6 +356,20 @@ test("reports page displays analytics dashboard layout", async ({ page }) => {
   await expect(page.getByText(/Pagos y devoluciones en nivel normal/)).toHaveCount(0);
   await page.getByRole("button", { name: /Ver plan completo/ }).click();
   await expect(page.getByText(/Pagos y devoluciones en nivel normal/)).toBeVisible();
+});
+
+test("margin report is tenant-flagged and shows only exact profit", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner", true);
+  await mockReports(page);
+
+  await page.goto("/reports");
+
+  const panel = page.getByTestId("margin-analysis");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText("$138.60")).toBeVisible();
+  await expect(panel.getByText("60.00% de margen bruto")).toBeVisible();
+  await expect(panel.getByText("$840.00")).toBeVisible();
 });
 
 test("reports keeps the latest applied range when an earlier request finishes last", async ({ page }) => {

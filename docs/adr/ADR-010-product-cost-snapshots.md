@@ -46,3 +46,17 @@ not join historical sales to the product's current value.
 - Verify online and offline sales snapshot the server's current cost.
 - Verify changing the product later does not change an existing order-item snapshot.
 
+## Reporting completeness
+
+- COGS is `order_items.unit_cost × net quantity sold` after itemized refunds.
+- Gross profit is net product sales minus COGS. Gross margin is gross profit divided
+  by net product sales.
+- A product, day, or period with any net sold item whose `unit_cost` is `NULL` has
+  `NULL` COGS, gross profit, and margin. Kova reports how many sold products are
+  missing cost instead of extrapolating from the known subset.
+- Inventory valuation uses current positive on-hand quantity multiplied by the
+  product's latest known cost. The total is `NULL` when any positive-stock tracked
+  product has unknown cost; the known subset remains separately labeled.
+- Refunds reverse both revenue and the original sale-time cost snapshot. Later
+  product cost changes never rewrite historical margin.
+- R1 cost excludes modifier-specific input costs, as modifier costs are not modeled.
