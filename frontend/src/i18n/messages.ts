@@ -282,6 +282,7 @@ export const copy = {
     settings: "Configuración",
     openMenu: "Abrir menú de navegación",
     closeMenu: "Cerrar menú de navegación",
+    skipToContent: "Saltar al contenido",
     more: "Más",
   },
   documentTitles: {

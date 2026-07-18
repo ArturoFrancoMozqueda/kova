@@ -248,6 +248,12 @@ export default function AppShell() {
 
   return (
     <div className="flex h-[100dvh] min-h-screen overflow-hidden">
+      <a
+        href="#contenido-principal"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-kova-ink focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-kova-on-ink focus:shadow-kova-card"
+      >
+        {copy.app.skipToContent}
+      </a>
       {/* Mobile backdrop overlay */}
       {sidebarOpen && (
         <div
@@ -296,7 +302,9 @@ export default function AppShell() {
           <TrialChip />
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-16 lg:pb-0">
+        {/* Skip-link target. Kept as a <div>: each routed view renders its own
+            <main> landmark, so a second one here would nest landmarks. */}
+        <div id="contenido-principal" tabIndex={-1} className="flex-1 overflow-y-auto pb-16 lg:pb-0 focus:outline-none">
           <BillingBanner />
           <Outlet />
         </div>
