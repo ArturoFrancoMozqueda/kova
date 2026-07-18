@@ -211,6 +211,13 @@ def test_internal_key_bypasses_csrf(db, monkeypatch):
     )
 
 
+def test_constant_time_text_compare_handles_non_ascii_without_error():
+    from app.middleware.csrf import _constant_time_text_equal
+
+    assert _constant_time_text_equal("clave-segura", "clave-segura") is True
+    assert _constant_time_text_equal("clave-segura", "\ufeffclave-segura") is False
+
+
 def test_unauthenticated_post_does_not_require_csrf(db):
     """A POST with no auth cookies should be evaluated by the route, not blocked by CSRF."""
     c = _raw_client(db)
