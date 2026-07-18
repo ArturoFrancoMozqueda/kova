@@ -215,6 +215,79 @@ test("catalog imports a reviewed CSV only after owner confirmation", async ({ pa
   expect(importRequests[1].body).toContain("Rol de canela");
 });
 
+test("catalog blocks CSV commit while preview rows have errors", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  await mockCatalogApis(page);
+  const importRequests: Array<{ dryRun: boolean; body: string }> = [];
+
+  await page.route("**/api/v1/catalog/import?dry_run=*", async (route) => {
+    const dryRun = new URL(route.request().url()).searchParams.get("dry_run") === "true";
+    importRequests.push({ dryRun, body: route.request().postData() ?? "" });
+    await route.fulfill({
+      json: {
+        dry_run: true,
+        total_rows: 2,
+        valid_rows: 1,
+        error_rows: 1,
+        rows: [
+          {
+            row_number: 2,
+            status: "valid",
+            normalized: {
+              name: "Rol de canela",
+              sku: "ROL-1",
+              price_amount: "42.00",
+              cost_price: "18.00",
+              category_name: "Pan dulce",
+              track_inventory: false,
+              initial_stock: null,
+              low_stock_threshold: null,
+            },
+            errors: [],
+          },
+          {
+            row_number: 3,
+            status: "error",
+            normalized: {
+              name: "Concha",
+              sku: "CON-2",
+              price_amount: "",
+              cost_price: null,
+              category_name: "Pan dulce",
+              track_inventory: false,
+              initial_stock: null,
+              low_stock_threshold: null,
+            },
+            errors: ["El precio es obligatorio y debe tener máximo dos decimales."],
+          },
+        ],
+        created_products: 0,
+        created_categories: 0,
+        initial_stock_movements: 0,
+      },
+    });
+  });
+
+  await page.goto("/catalog");
+  await page.getByRole("button", { name: /importar csv/i }).click();
+  await page.getByLabel(/elegir archivo csv/i).setInputFiles({
+    name: "catalogo-con-errores.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("nombre,sku,precio\nRol de canela,ROL-1,42.00\nConcha,CON-2,\n"),
+  });
+
+  const dialog = page.getByLabel("Importar catálogo");
+  await expect(dialog.getByText("Rol de canela")).toBeVisible();
+  await expect(dialog.getByText("Concha")).toBeVisible();
+  await expect(dialog.getByText(/el precio es obligatorio/i)).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /importar productos/i })).toBeDisabled();
+  expect(importRequests).toHaveLength(1);
+  expect(importRequests[0]).toMatchObject({ dryRun: true });
+  expect(importRequests[0].body).toContain("Concha,CON-2");
+});
+
 test("catalog supports product search category filtering and sorting at mobile width", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await markFirstUseToursSeen(page);

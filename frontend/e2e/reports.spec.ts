@@ -269,6 +269,283 @@ async function mockReports(
   });
 }
 
+test("product cost flows through a completed sale into exact margin", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner", true);
+  const category = {
+    id: "category-1",
+    tenant_id: "tenant-1",
+    name: "Pan dulce",
+    description: null,
+    sort_order: 0,
+    is_active: true,
+  };
+  let product = {
+    id: "product-1",
+    tenant_id: "tenant-1",
+    category_id: category.id,
+    name: "Concha",
+    description: null,
+    sku: "CON-001",
+    price_amount: "18.50",
+    cost_price: null as string | null,
+    track_inventory: false,
+    low_stock_threshold: null,
+    is_active: true,
+    modifier_groups: [],
+  };
+  let capturedSale: {
+    items: Array<{ product_id: string; quantity: number }>;
+    payments: Array<{ method: string; amount: string }>;
+  } | null = null;
+
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [category] }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) =>
+    route.fulfill({ json: [product] }),
+  );
+  await page.route("**/api/v1/catalog/products/product-1", async (route) => {
+    const body = route.request().postDataJSON() as { cost_price?: string | null };
+    product = { ...product, cost_price: body.cost_price ?? null };
+    await route.fulfill({ json: product });
+  });
+  await page.route("**/api/v1/catalog/modifier-groups", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/telemetry/events", (route) =>
+    route.fulfill({ status: 204, body: "" }),
+  );
+  await page.route("**/api/v1/inventory/stock", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({
+      json: {
+        id: "shift-1",
+        status: "open",
+        opening_cash_amount: "100.00",
+        opened_at: "2026-07-18T12:00:00Z",
+      },
+    }),
+  );
+  await page.route("**/api/v1/sync/offline-sales", async (route) => {
+    const body = route.request().postDataJSON() as {
+      sales: Array<{
+        client_uuid: string;
+        order: {
+          items: Array<{ product_id: string; quantity: number }>;
+          payments: Array<{ method: string; amount: string }>;
+        };
+      }>;
+    };
+    capturedSale = body.sales[0].order;
+    await route.fulfill({
+      json: {
+        results: [{
+          client_uuid: body.sales[0].client_uuid,
+          status: "synced",
+          order_id: "order-1",
+          order: {
+            id: "order-1",
+            tenant_id: "tenant-1",
+            status: "completed",
+            subtotal_amount: "18.50",
+            total_amount: "18.50",
+            items: [{
+              id: "item-1",
+              product_id: "product-1",
+              product_name: "Concha",
+              quantity: 1,
+              unit_price_amount: "18.50",
+              line_total_amount: "18.50",
+              modifiers: [],
+            }],
+            payments: [{
+              id: "payment-1",
+              method: "cash",
+              amount_amount: "18.50",
+              amount_tendered_amount: "20.00",
+              change_due_amount: "1.50",
+              reference: null,
+            }],
+          },
+          error: null,
+        }],
+      },
+    });
+  });
+  await page.route("**/api/v1/orders/order-1/receipt", (route) =>
+    route.fulfill({ status: 404, json: { detail: "Receipt not needed by this flow" } }),
+  );
+
+  await page.goto("/catalog");
+  await expect(page.getByText("Sin costo")).toBeVisible();
+  await page.getByRole("button", { name: /editar costos/i }).click();
+  await page.getByLabel(/costo unitario · concha/i).fill("8.00");
+  await page.getByRole("button", { name: /guardar costos/i }).click();
+  await expect(page.getByText(/1 costo actualizado/i)).toBeVisible();
+  expect(product.cost_price).toBe("8.00");
+
+  await page.goto("/register");
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
+  await expect(
+    page.getByRole("main").getByText("Venta completada.", { exact: true }),
+  ).toBeVisible();
+  expect(capturedSale).toMatchObject({
+    items: [{ product_id: "product-1", quantity: 1 }],
+    payments: [{ method: "cash", amount: "18.50" }],
+  });
+
+  await mockReports(page, storyPayload({
+    summary: {
+      start_date: "2026-07-18",
+      end_date: "2026-07-18",
+      timezone: "America/Mexico_City",
+      gross_sales: "18.50",
+      refund_total: "0.00",
+      net_sales: "18.50",
+      completed_orders: 1,
+      average_ticket: "18.50",
+      refund_count: 0,
+      cancellation_count: 0,
+    },
+    margin: {
+      summary: {
+        net_sales: "18.50",
+        cogs: "8.00",
+        gross_profit: "10.50",
+        gross_margin_pct: "56.76",
+        sold_products: 1,
+        sold_products_without_cost: 0,
+        complete: true,
+      },
+      by_day: [],
+      by_product: [{
+        product_id: "product-1",
+        product_name: "Concha",
+        quantity_sold: 1,
+        net_sales: "18.50",
+        cogs: "8.00",
+        gross_profit: "10.50",
+        gross_margin_pct: "56.76",
+        missing_cost: false,
+      }],
+    },
+  }));
+
+  await page.goto("/reports");
+  const margin = page.getByTestId("margin-analysis");
+  await expect(margin.getByText("$10.50").first()).toBeVisible();
+  await expect(margin.getByText("56.76% de margen bruto")).toBeVisible();
+  await expect(margin.getByText("Concha", { exact: true })).toBeVisible();
+});
+
+test("typed waste remains visible in kardex and its valued report", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner", true);
+  let stockOnHand = 10;
+  let capturedAdjustment: {
+    quantity_delta: number;
+    reason: string;
+    reason_code: string;
+  } | null = null;
+  const stock = () => [{
+    product_id: "product-1",
+    product_name: "Leche entera",
+    sku: "LEC-1",
+    track_inventory: true,
+    stock_on_hand: stockOnHand,
+    low_stock_threshold: 3,
+    is_low_stock: stockOnHand <= 3,
+  }];
+
+  await page.route("**/api/v1/inventory/stock", (route) =>
+    route.fulfill({ json: stock() }),
+  );
+  await page.route("**/api/v1/inventory/low-stock", (route) =>
+    route.fulfill({ json: stock().filter((item) => item.is_low_stock) }),
+  );
+  await page.route("**/api/v1/inventory/velocity", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/inventory/products/product-1/adjustments", async (route) => {
+    capturedAdjustment = route.request().postDataJSON() as typeof capturedAdjustment;
+    stockOnHand += capturedAdjustment?.quantity_delta ?? 0;
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: "movement-1",
+        product_id: "product-1",
+        movement_type: "adjustment",
+        quantity_delta: capturedAdjustment?.quantity_delta,
+        stock_on_hand: stockOnHand,
+        reason: capturedAdjustment?.reason,
+        reason_code: capturedAdjustment?.reason_code,
+      },
+    });
+  });
+  await page.route("**/api/v1/inventory/products/product-1/movements?*", (route) =>
+    route.fulfill({
+      json: {
+        items: capturedAdjustment ? [{
+          id: "movement-1",
+          movement_type: "adjustment",
+          quantity_delta: capturedAdjustment.quantity_delta,
+          stock_on_hand_after: stockOnHand,
+          reason: capturedAdjustment.reason,
+          reason_code: capturedAdjustment.reason_code,
+          created_by_user_id: "user-1",
+          created_at: "2026-07-18T14:00:00Z",
+        }] : [],
+        total: capturedAdjustment ? 1 : 0,
+        limit: 20,
+        offset: 0,
+      },
+    }),
+  );
+
+  await page.goto("/inventory");
+  await page.getByRole("button", { name: /ajustar/i }).click();
+  await page.getByLabel(/cambio de cantidad/i).fill("-2");
+  await page.getByLabel(/tipo de salida/i).selectOption("merma");
+  await page.getByLabel(/^motivo$/i).fill("Envases dañados");
+  await page.getByRole("button", { name: /guardar/i }).click();
+  await expect(page.getByText(/stock ajustado/i)).toBeVisible();
+  expect(capturedAdjustment).toEqual({
+    quantity_delta: -2,
+    reason: "Envases dañados",
+    reason_code: "merma",
+  });
+
+  await page.getByRole("button", { name: /^historial$/i }).click();
+  await expect(page.getByText("Historial de movimientos")).toBeVisible();
+  await expect(page.getByText("Merma", { exact: true })).toBeVisible();
+  await expect(page.getByText("-2", { exact: true })).toBeVisible();
+
+  await mockReports(page, storyPayload({
+    waste: {
+      units: 2,
+      movement_count: 1,
+      value: "24.00",
+      known_value: "24.00",
+      products_without_cost: 0,
+      complete: true,
+      by_reason: [
+        { reason_code: "merma", units: 2, value: "24.00", products_without_cost: 0 },
+      ],
+    },
+  }));
+
+  await page.goto("/reports");
+  const waste = page.getByTestId("waste-analysis");
+  await expect(waste.getByText("$24.00").first()).toBeVisible();
+  await expect(waste.getByText("Merma", { exact: true })).toBeVisible();
+  await expect(waste.getByText(/2 unidades en 1 movimiento/i)).toBeVisible();
+});
+
 test("desktop sidebar covers the viewport after scrolling reports", async ({ page }) => {
   await page.setViewportSize({ width: 1365, height: 768 });
   await markFirstUseToursSeen(page);

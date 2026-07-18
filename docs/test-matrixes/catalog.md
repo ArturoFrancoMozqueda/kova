@@ -12,3 +12,5 @@ Spec:
 | CATALOG-003 | specs/catalog/catalog_foundation.feature | Tenants cannot see each other's catalog products | Backend BDD | backend/app/tests/bdd/test_catalog_foundation.py | @p0 @catalog @tenant-isolation | Beta | Required | Cross-tenant read isolation |
 | CATALOG-004 | specs/catalog/products.md | Product price remains Decimal | Unit | backend/app/tests/test_catalog.py | @money | Beta | Required | No float math |
 | CATALOG-005 | specs/catalog/categories.md | Idempotency key replay returns stored response | Integration | backend/app/tests/test_catalog.py | @idempotency | Beta | Required | Create replay |
+| CATALOG-006 | frontend/e2e/catalog.spec.ts | Owner reviews and confirms a valid CSV import | E2E | frontend/e2e/catalog.spec.ts | @ui @catalog @import | Beta | Automated | Commit occurs only after a clean dry-run preview |
+| CATALOG-007 | frontend/e2e/catalog.spec.ts | CSV rows with errors block import confirmation | E2E | frontend/e2e/catalog.spec.ts | @ui @catalog @import | Beta | Automated | Shows row-level feedback and sends no commit request |
