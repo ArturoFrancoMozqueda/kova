@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTenantTimezone } from "@/hooks/useTenantTimezone";
 import { useFeature } from "@/auth/useFeature";
@@ -75,6 +75,22 @@ export default function ReportsView() {
   const data = useReportData(appliedRange.startDate, appliedRange.endDate, canViewReports);
   const { doneIds, toggleDone } = usePlanDoneState(data.story ?? null);
 
+  // Recommendations + action plan build Sets/Maps over stock, velocity and the
+  // full story; memoized so typing in the date inputs (or any unrelated state
+  // change) doesn't recompute them. Hoisted above the permission early-return
+  // to keep hook order unconditional.
+  const plan = useMemo(() => {
+    const story = data.story;
+    if (data.status !== "loaded" || !story || story.summary.completed_orders === 0) {
+      return null;
+    }
+    return buildActionPlan({
+      recommendations: recommendationsFor(story, data.previousStory, data.stock, data.velocity),
+      story,
+      previousStory: data.previousStory,
+    });
+  }, [data.status, data.story, data.previousStory, data.stock, data.velocity]);
+
   const setToday = () => {
     const today = todayInTimezone(tz);
     setStartDate(today);
@@ -106,14 +122,6 @@ export default function ReportsView() {
   const hasSales = loaded && data.story!.summary.completed_orders > 0;
   const story = data.story;
 
-  const plan =
-    hasSales && story
-      ? buildActionPlan({
-          recommendations: recommendationsFor(story, data.previousStory, data.stock, data.velocity),
-          story,
-          previousStory: data.previousStory,
-        })
-      : null;
   const heroId = plan?.hero ? `${plan.hero.id}|${plan.hero.subjectId}` : null;
   const rangeDays = story
     ? daysBetweenInclusive(story.summary.start_date, story.summary.end_date)

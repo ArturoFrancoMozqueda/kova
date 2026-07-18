@@ -58,13 +58,13 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
     try {
       // These endpoints never resolve to null on success, so a null result
       // unambiguously signals that the individual fetch was caught and failed.
-      const [story, hourly] = await Promise.all([
-        getBusinessStory(startDate, endDate),
-        getSalesByHour(startDate, endDate).catch(() => null),
-      ]);
+      // All six fetches are independent, so they go out in a single wave —
+      // only the primary story is uncaught (it drives the 402/error states).
       const previousRange = previousComparableRange(startDate, endDate);
       const singleDay = daysBetweenInclusive(startDate, endDate) === 1;
-      const [previous, stock, velocity, trend] = await Promise.all([
+      const [story, hourly, previous, stock, velocity, trend] = await Promise.all([
+        getBusinessStory(startDate, endDate),
+        getSalesByHour(startDate, endDate).catch(() => null),
         getBusinessStory(previousRange.startDate, previousRange.endDate).catch(() => null),
         listStock().catch(() => null),
         listVelocity().catch(() => null),
