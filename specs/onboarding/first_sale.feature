@@ -33,6 +33,12 @@ Feature: First sale onboarding
     Then cafe products are created only for that tenant
     And no preset data appears before the owner chooses it
 
+  Scenario: Grocery preset starts inventory without inventing margin
+    Given an owner has an empty catalog
+    When they choose the abarrotes preset from catalog setup
+    Then grocery products with inventory are created only for that tenant
+    And every preset product remains without a cost until the owner captures the real cost
+
   Scenario: Activating inventory completes the optional inventory step
     Given an owner has at least one product
     When they follow the checklist action for inventory setup

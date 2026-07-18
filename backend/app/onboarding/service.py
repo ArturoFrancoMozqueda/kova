@@ -77,6 +77,11 @@ def apply_preset(
             description=prod_data.get("description"),
             sku=prod_data.get("sku"),
             price_amount=Decimal(prod_data["price_amount"]),
+            cost_price=(
+                Decimal(prod_data["cost_price"])
+                if prod_data.get("cost_price") is not None
+                else None
+            ),
             track_inventory=prod_data.get("track_inventory", False),
             low_stock_threshold=prod_data.get("low_stock_threshold"),
             is_active=True,

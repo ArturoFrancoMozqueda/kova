@@ -306,8 +306,13 @@ export default function CatalogView() {
               <p className="text-sm text-muted-foreground mt-0.5">{copy.onboarding.presetSubtitle}</p>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {([
+              {
+                preset: "abarrotes" as PresetName,
+                label: copy.onboarding.presetGroceries,
+                desc: copy.onboarding.presetGroceriesDesc,
+              },
               { preset: "cafe" as PresetName, label: copy.onboarding.presetCafe, desc: copy.onboarding.presetCafeDesc },
               { preset: "bakery" as PresetName, label: copy.onboarding.presetBakery, desc: copy.onboarding.presetBakeryDesc },
               { preset: "retail" as PresetName, label: copy.onboarding.presetRetail, desc: copy.onboarding.presetRetailDesc },
@@ -324,7 +329,7 @@ export default function CatalogView() {
               </button>
             ))}
             {/* Blank / dismiss */}
-            <div className="flex flex-col rounded-kova-lg border-2 border-dashed border-kova-border bg-white p-4 text-left">
+            <div className="flex flex-col rounded-kova-lg border-2 border-dashed border-kova-border bg-white p-4 text-left sm:col-span-2 xl:col-span-4">
               <p className="font-semibold text-sm text-muted-foreground">{copy.onboarding.presetBlank}</p>
               <p className="text-xs text-muted-foreground mt-1">{copy.onboarding.presetBlankDesc}</p>
             </div>
