@@ -16,6 +16,7 @@ from app.config import settings
 from app.email import service as email_service
 from app.shared.exceptions import bad_request, forbidden, unauthorized
 from app.tenants import repository as tenant_repo
+from app.tenants.feature_flags import resolve_feature_flags
 
 # ── Passwords ─────────────────────────────────────────────────────────────────
 
@@ -415,4 +416,5 @@ def get_me(db: Session, *, user: User, membership: Membership) -> MeResponse:
         ),
         tenant_id=membership.tenant_id,
         tenant_name=tenant.name if tenant else "",
+        feature_flags=resolve_feature_flags(tenant.feature_overrides if tenant else None),
     )

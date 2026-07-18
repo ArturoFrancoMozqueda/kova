@@ -37,13 +37,21 @@ export type MeResponse = {
   };
   tenant_id: string;
   tenant_name: string;
+  feature_flags: Record<string, boolean>;
 };
 
 export type SessionProbeResponse =
-  | { authenticated: false; user?: null; tenant_id?: null; tenant_name?: null }
+  | {
+      authenticated: false;
+      user?: null;
+      tenant_id?: null;
+      tenant_name?: null;
+      feature_flags?: null;
+    }
   | {
       authenticated: true;
       user: MeResponse["user"];
       tenant_id: string;
       tenant_name: string;
+      feature_flags: Record<string, boolean>;
     };

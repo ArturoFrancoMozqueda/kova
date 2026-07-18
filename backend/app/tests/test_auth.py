@@ -182,6 +182,7 @@ def test_me_returns_user_and_tenant(client):
     assert body["user"]["email"] == "owner@example.com"
     assert body["user"]["role"] == "owner"
     assert body["tenant_id"]
+    assert body["feature_flags"] == {"margin_reports": False}
 
 
 def test_me_unauthenticated_returns_401(client):
@@ -197,6 +198,7 @@ def test_session_probe_returns_false_without_cookie(client):
         "user": None,
         "tenant_id": None,
         "tenant_name": None,
+        "feature_flags": None,
     }
 
 
@@ -207,6 +209,7 @@ def test_session_probe_returns_user_and_tenant_when_authenticated(client):
     body = r.json()
     assert body["authenticated"] is True
     assert body["user"]["email"] == "owner@example.com"
+    assert body["feature_flags"] == {"margin_reports": False}
     assert body["tenant_name"] == "Acme Bakery"
 
 

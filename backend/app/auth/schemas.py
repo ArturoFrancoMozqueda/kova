@@ -78,6 +78,7 @@ class MeResponse(BaseModel):
     user: UserResponse
     tenant_id: UUID
     tenant_name: str
+    feature_flags: dict[str, bool]
 
 
 class SessionProbeResponse(BaseModel):
@@ -85,6 +86,7 @@ class SessionProbeResponse(BaseModel):
     user: UserResponse | None = None
     tenant_id: UUID | None = None
     tenant_name: str | None = None
+    feature_flags: dict[str, bool] | None = None
 
 
 class RefreshResponse(BaseModel):

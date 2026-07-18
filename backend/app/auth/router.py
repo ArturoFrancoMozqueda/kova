@@ -243,4 +243,5 @@ def session_probe(
         user=me_response.user,
         tenant_id=me_response.tenant_id,
         tenant_name=me_response.tenant_name,
+        feature_flags=me_response.feature_flags,
     )

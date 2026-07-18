@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { getSession, logout as apiLogout, refreshSession } from "./api";
+import { normalizeFeatureFlags, type FeatureFlags } from "./featureFlags";
 
 export type AuthUser = {
   id: string;
@@ -12,7 +13,13 @@ export type AuthUser = {
 type AuthState =
   | { status: "loading" }
   | { status: "unauthenticated" }
-  | { status: "authenticated"; user: AuthUser; tenantId: string; tenantName: string };
+  | {
+      status: "authenticated";
+      user: AuthUser;
+      tenantId: string;
+      tenantName: string;
+      featureFlags: FeatureFlags;
+    };
 
 type AuthContextValue = {
   state: AuthState;
@@ -58,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session.user,
       tenantId: session.tenant_id,
       tenantName: session.tenant_name,
+      featureFlags: normalizeFeatureFlags(session.feature_flags),
     };
     setState(next);
     return next;
