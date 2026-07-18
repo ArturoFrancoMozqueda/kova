@@ -435,22 +435,22 @@ export default function ShiftView() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    <th scope="col" className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.openedAt}
                     </th>
-                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    <th scope="col" className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.closedAt}
                     </th>
-                    <th className="text-right py-3 px-4 font-semibold text-muted-foreground">
+                    <th scope="col" className="text-right py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.closedShiftsExpected}
                     </th>
-                    <th className="text-right py-3 px-4 font-semibold text-muted-foreground">
+                    <th scope="col" className="text-right py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.closedShiftsVariance}
                     </th>
-                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
+                    <th scope="col" className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.status}
                     </th>
-                    <th className="py-3 px-4">
+                    <th scope="col" className="py-3 px-4">
                       <span className="sr-only">{copy.shiftView.printCorte}</span>
                     </th>
                   </tr>

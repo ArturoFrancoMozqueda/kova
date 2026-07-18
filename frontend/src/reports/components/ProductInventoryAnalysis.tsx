@@ -338,13 +338,13 @@ export function ProductTableSection({
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="px-4 py-3 font-medium">{copy.reportsView.productColumn}</th>
-                <th className="px-4 py-3 font-medium">{copy.reportsView.salesColumn}</th>
-                <th className="px-4 py-3 font-medium">{copy.reportsView.unitsColumn}</th>
-                <th className="px-4 py-3 font-medium">{copy.reportsView.inventoryColumn}</th>
-                <th className="px-4 py-3 font-medium">{copy.reportsView.daysLeftColumn}</th>
-                <th className="hidden px-4 py-3 font-medium lg:table-cell">{copy.reportsView.trendColumn}</th>
-                <th className="px-4 py-3 font-medium">{copy.reportsView.statusColumn}</th>
+                <th scope="col" className="px-4 py-3 font-medium">{copy.reportsView.productColumn}</th>
+                <th scope="col" className="px-4 py-3 font-medium">{copy.reportsView.salesColumn}</th>
+                <th scope="col" className="px-4 py-3 font-medium">{copy.reportsView.unitsColumn}</th>
+                <th scope="col" className="px-4 py-3 font-medium">{copy.reportsView.inventoryColumn}</th>
+                <th scope="col" className="px-4 py-3 font-medium">{copy.reportsView.daysLeftColumn}</th>
+                <th scope="col" className="hidden px-4 py-3 font-medium lg:table-cell">{copy.reportsView.trendColumn}</th>
+                <th scope="col" className="px-4 py-3 font-medium">{copy.reportsView.statusColumn}</th>
               </tr>
             </thead>
             <tbody className="divide-y">

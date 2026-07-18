@@ -263,10 +263,10 @@ export default function OrderListView() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left px-4 py-3 font-semibold">{copy.orderList.date}</th>
-                    <th className="text-left px-4 py-3 font-semibold">{copy.orderList.status}</th>
-                    <th className="text-right px-4 py-3 font-semibold">{copy.orderList.amount}</th>
-                    <th className="px-4 py-3 w-20" />
+                    <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.date}</th>
+                    <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.status}</th>
+                    <th scope="col" className="text-right px-4 py-3 font-semibold">{copy.orderList.amount}</th>
+                    <th scope="col" className="px-4 py-3 w-20" />
                   </tr>
                 </thead>
                 <tbody>

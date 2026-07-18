@@ -165,10 +165,10 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="px-4 py-2.5 font-medium">{copy.reportsView.refundReasonColumn}</th>
-                <th className="px-4 py-2.5 font-medium">{copy.reportsView.refundCountColumn}</th>
-                <th className="px-4 py-2.5 font-medium">{copy.reportsView.refundAmountColumn}</th>
-                <th className="px-4 py-2.5 font-medium">{copy.reportsView.refundShareColumn}</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">{copy.reportsView.refundReasonColumn}</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">{copy.reportsView.refundCountColumn}</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">{copy.reportsView.refundAmountColumn}</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">{copy.reportsView.refundShareColumn}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
