@@ -25,7 +25,7 @@ import { trackFunnelEvent, trackFunnelEventOnce } from "@/telemetry/funnel";
 const BANNER_TONES = {
   success: "border-kova-growth/30 bg-kova-growth/10 [&_svg]:text-kova-growth",
   info: "border-kova-blue/20 bg-kova-blue/10 [&_svg]:text-kova-blue",
-  warning: "bg-warning/20 border-warning/30 [&_svg]:text-warning",
+  warning: "bg-warning/20 border-warning/30 [&_svg]:text-warning-strong",
   destructive: "border-destructive/30 bg-destructive/10 [&_svg]:text-destructive",
 } as const;
 

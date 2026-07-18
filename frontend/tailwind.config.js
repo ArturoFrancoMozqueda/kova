@@ -52,6 +52,7 @@ export default {
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
+          strong: "hsl(var(--warning-strong))",
         },
         // Kova brand palette (Phase 1 foundation — not yet applied to
         // component semantics; consume via `kova-*` utility classes).

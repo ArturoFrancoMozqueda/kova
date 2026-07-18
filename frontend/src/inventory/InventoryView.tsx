@@ -175,7 +175,7 @@ export default function InventoryView() {
         <Card className="border-warning/30 bg-warning/5 mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertTriangle className="h-4 w-4 text-warning-strong" />
               {copy.inventoryView.attentionTitle}
             </CardTitle>
             <p className="text-sm text-muted-foreground">{copy.inventoryView.attentionBody}</p>

@@ -44,7 +44,7 @@ let toastId = 0;
 const icons: Record<ToastVariant, ReactNode> = {
   success: <CheckCircle2 className="h-4 w-4 text-kova-growth" />,
   error: <XCircle className="h-4 w-4 text-destructive" />,
-  warning: <AlertTriangle className="h-4 w-4 text-warning" />,
+  warning: <AlertTriangle className="h-4 w-4 text-warning-strong" />,
   info: <Info className="h-4 w-4 text-kova-blue" />,
 };
 

@@ -17,7 +17,7 @@ export function SubscriptionInactivePanel({ className }: { className?: string })
   return (
     <Card className={cn("border-warning/30 bg-warning/[0.04]", className)}>
       <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning-strong">
           <Lock className="h-6 w-6" />
         </div>
         <div className="flex-1">

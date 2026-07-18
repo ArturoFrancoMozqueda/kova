@@ -38,6 +38,11 @@
 
     --warning: 38 92% 55%;
     --warning-foreground: 38 80% 14%;
+    /* Darker amber for warning text/icons on light surfaces. --warning itself
+       stays put (it drives bg-warning/10..20 tints product-wide) but at
+       1.99:1 on white it fails WCAG 1.4.3/1.4.11 as a foreground; this one
+       measures 4.90:1 on white, 4.54:1 on kova-mist, 4.57:1 on warning/10. */
+    --warning-strong: 35 90% 33.5%;
 
     --border: 214 18% 88%;
     --input: 214 18% 88%;
@@ -51,7 +56,7 @@
     --sidebar-accent: 225 19% 17%;     /* ≈ #23283A  (lifted ink for hover/active) */
     --sidebar-accent-foreground: 222 100% 97%;
     --sidebar-border: 225 24% 15%;     /* ≈ #1E2330  (kova-ink-border) */
-    --sidebar-muted: 220 12% 60%;      /* ≈ #8892A4  (kova-tertiary) */
+    --sidebar-muted: 220 12% 60%;      /* ≈ #8892A4 — 6.21:1 on the dark sidebar */
 
     /* ── Kova brand tokens (Phase 1 foundation) ───────────────────────────
        Defined but not yet applied to component semantics. Wired into Tailwind
@@ -62,8 +67,11 @@
     --kova-ink: #0F1117;
     --kova-mist: #F5F6FA;
     --kova-growth: #1EBF8A;
-    --kova-muted: #6B7A99;
-    --kova-tertiary: #8892A4;
+    /* Muted text tokens darkened for WCAG 1.4.3 (same hue, lightness only):
+       kova-muted 4.89:1 on white / 4.53:1 on kova-mist (was 4.31 / 3.99);
+       kova-tertiary 4.92:1 on white / 4.56:1 on kova-mist (was 3.14 / 2.90). */
+    --kova-muted: #61728C;
+    --kova-tertiary: #667185;
     --kova-border: #E2E6EF;
     --kova-danger: #DC2626;
     --kova-danger-foreground: #FFFFFF;

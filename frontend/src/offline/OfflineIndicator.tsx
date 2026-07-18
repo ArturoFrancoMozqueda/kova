@@ -19,7 +19,7 @@ export function OfflineIndicator({ compact = false }: { compact?: boolean } = {}
             <Wifi className="h-4 w-4" aria-label={copy.register.online} />
           </span>
         ) : (
-          <span className="flex items-center gap-1 font-medium text-warning">
+          <span className="flex items-center gap-1 font-medium text-warning-strong">
             <WifiOff className="h-4 w-4" />
             {copy.register.offline}
           </span>
