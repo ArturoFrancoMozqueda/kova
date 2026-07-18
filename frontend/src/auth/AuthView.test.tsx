@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import AuthView from "./AuthView";
 import { AuthProvider } from "./AuthContext";
 
@@ -141,6 +142,43 @@ describe("AuthView signup recovery flows", () => {
     expect((submit as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it("announces a failed login and marks the credential fields invalid", async () => {
+    mockFetch((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/v1/auth/session")) {
+        return new Response(JSON.stringify({ authenticated: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.includes("/api/v1/auth/login") && init?.method === "POST") {
+        return new Response(JSON.stringify({ detail: "Invalid credentials" }), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("", { status: 404 });
+    });
+
+    renderAt("/login");
+
+    fireEvent.change(screen.getByLabelText(/Correo/i), {
+      target: { value: "owner@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), {
+      target: { value: "wrong-pass" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Iniciar sesión/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Correo o contraseña incorrectos.");
+
+    const email = screen.getByLabelText(/Correo/i);
+    expect(email.getAttribute("aria-invalid")).toBe("true");
+    expect(email.getAttribute("aria-describedby")).toBe("auth-error");
+    expect(screen.getByLabelText(/Contraseña/i).getAttribute("aria-invalid")).toBe("true");
+  });
+
   it("prefills the login email from the ?email= query string", async () => {
     mockFetch(() =>
       new Response(JSON.stringify({ authenticated: false }), {
@@ -153,5 +191,20 @@ describe("AuthView signup recovery flows", () => {
 
     const input = await screen.findByLabelText(/Correo/i);
     expect((input as HTMLInputElement).value).toBe("owner@example.com");
+  });
+
+  it("has no axe violations on the login form", async () => {
+    mockFetch(() =>
+      new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const { container } = renderAt("/login");
+    await screen.findByLabelText(/Correo/i);
+
+    const results = await axe(container);
+    expect(results.violations).toEqual([]);
   });
 });

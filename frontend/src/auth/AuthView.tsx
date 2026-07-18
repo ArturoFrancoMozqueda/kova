@@ -138,6 +138,8 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     }
   };
 
+  const hasError = state === "error";
+
   return (
     <AuthLayout
       title={mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
@@ -167,6 +169,8 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   placeholder={copy.auth.emailPlaceholder}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
+                  aria-invalid={hasError || undefined}
+                  aria-describedby={hasError ? "auth-error" : undefined}
                 />
               </div>
               <div className="space-y-2">
@@ -189,6 +193,8 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   placeholder={mode === "login" ? copy.auth.passwordPlaceholderLogin : copy.auth.passwordPlaceholderSignup}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  aria-invalid={hasError || undefined}
+                  aria-describedby={hasError ? "auth-error" : undefined}
                 />
               </div>
 
@@ -261,7 +267,11 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             </form>
 
             {state === "error" && (
-              <div className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in">
+              <div
+                role="alert"
+                id="auth-error"
+                className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in"
+              >
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {errorMessage}
               </div>
@@ -269,7 +279,10 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
 
             {state === "created" && (
               <div className="mt-4 space-y-3 animate-fade-in">
-                <div className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
+                <div
+                  role="status"
+                  className="flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success"
+                >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
                   {verificationToken ? copy.auth.devVerifyReady : copy.auth.checkEmail}
                 </div>
@@ -306,7 +319,10 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
             )}
 
             {state === "verified" && (
-              <div className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success animate-fade-in">
+              <div
+                role="status"
+                className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success animate-fade-in"
+              >
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 {copy.auth.verified}
               </div>
@@ -346,7 +362,10 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
 
             {state === "verification_resent" && (
               <div className="mt-4 space-y-3 animate-fade-in">
-                <div className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success"
+                >
                   <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium">
