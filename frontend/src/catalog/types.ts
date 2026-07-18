@@ -90,3 +90,30 @@ export type ProductUpdate = {
   image_zoom?: number;
   is_active?: boolean;
 };
+
+export type CatalogImportRow = {
+  row_number: number;
+  status: "valid" | "error";
+  normalized: {
+    name: string;
+    sku: string | null;
+    price_amount: string | null;
+    cost_price: string | null;
+    category_name: string | null;
+    track_inventory: boolean;
+    initial_stock: number;
+    low_stock_threshold: number | null;
+  };
+  errors: string[];
+};
+
+export type CatalogImportResponse = {
+  dry_run: boolean;
+  total_rows: number;
+  valid_rows: number;
+  error_rows: number;
+  rows: CatalogImportRow[];
+  created_products: number;
+  created_categories: number;
+  initial_stock_movements: number;
+};
