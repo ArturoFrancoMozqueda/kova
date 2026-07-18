@@ -155,6 +155,20 @@ export type BusinessStoryReport = {
     units_without_cost: number;
     complete: boolean;
   };
+  waste?: {
+    units: number;
+    movement_count: number;
+    value: string | null;
+    known_value: string;
+    products_without_cost: number;
+    complete: boolean;
+    by_reason: Array<{
+      reason_code: "merma" | "caducidad" | "robo" | "daño" | "autoconsumo" | "otro";
+      units: number;
+      value: string | null;
+      products_without_cost: number;
+    }>;
+  };
   dominant_payment: {
     method: string;
     amount: string;

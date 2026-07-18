@@ -94,6 +94,7 @@ test("inventory marks zero or negative tracked stock as sold out", async ({ page
 test("inventory page supports adjustment, stock take, and threshold UI", async ({ page }) => {
   await mockAuthAs(page, "owner");
   let stock = [stockItem];
+  const adjustmentBodies: Array<Record<string, unknown>> = [];
 
   await page.route("**/api/v1/inventory/stock", async (route) => {
     await route.fulfill({ json: stock });
@@ -102,16 +103,20 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
     await route.fulfill({ json: stock.filter((item) => item.is_low_stock) });
   });
   await page.route("**/api/v1/inventory/products/product-1/adjustments", async (route) => {
-    stock = [{ ...stockItem, stock_on_hand: 7, is_low_stock: false }];
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    adjustmentBodies.push(body);
+    const nextStock = stock[0].stock_on_hand + Number(body.quantity_delta);
+    stock = [{ ...stockItem, stock_on_hand: nextStock, is_low_stock: nextStock <= 5 }];
     await route.fulfill({
       status: 201,
       json: {
         id: "movement-1",
         product_id: "product-1",
         movement_type: "adjustment",
-        quantity_delta: 4,
-        stock_on_hand: 7,
-        reason: "opening_count",
+        quantity_delta: body.quantity_delta,
+        stock_on_hand: nextStock,
+        reason: body.reason,
+        reason_code: body.reason_code,
       },
     });
   });
@@ -143,6 +148,18 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
   await page.getByLabel(/motivo/i).fill("opening_count");
   await page.getByRole("button", { name: /guardar/i }).click();
   await expect(page.getByText(/stock ajustado/i)).toBeVisible();
+
+  await page.getByRole("button", { name: /ajustar/i }).click();
+  await page.getByLabel(/cambio de cantidad/i).fill("-2");
+  await page.getByLabel(/tipo de salida/i).selectOption("caducidad");
+  await page.getByLabel(/^motivo$/i).fill("Caducó en vitrina");
+  await page.getByRole("button", { name: /guardar/i }).click();
+  await expect(page.getByText(/stock ajustado/i)).toBeVisible();
+  expect(adjustmentBodies[1]).toMatchObject({
+    quantity_delta: -2,
+    reason: "Caducó en vitrina",
+    reason_code: "caducidad",
+  });
 
   await page.getByRole("button", { name: /^conteo$/i }).click();
   await page.getByLabel(/cantidad contada/i).fill("5");

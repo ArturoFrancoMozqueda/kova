@@ -78,6 +78,7 @@ def create_movement(
     movement_type: str,
     quantity_delta: int,
     reason: str,
+    reason_code: str | None = None,
 ) -> InventoryMovement:
     movement = InventoryMovement(
         tenant_id=tenant_id,
@@ -86,6 +87,7 @@ def create_movement(
         movement_type=movement_type,
         quantity_delta=quantity_delta,
         reason=reason,
+        reason_code=reason_code,
         created_by_user_id=user_id,
     )
     db.add(movement)

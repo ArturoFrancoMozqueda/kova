@@ -258,3 +258,21 @@ def tracked_products(db: Session, *, tenant_id: UUID) -> list[Product]:
         )
         .all()
     )
+
+
+def waste_movements_between(
+    db: Session, *, tenant_id: UUID, start: datetime, end: datetime
+) -> list:
+    return (
+        db.query(InventoryMovement, Product)
+        .join(Product, Product.id == InventoryMovement.product_id)
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            Product.tenant_id == tenant_id,
+            InventoryMovement.quantity_delta < 0,
+            InventoryMovement.reason_code.isnot(None),
+            InventoryMovement.created_at >= start,
+            InventoryMovement.created_at <= end,
+        )
+        .all()
+    )

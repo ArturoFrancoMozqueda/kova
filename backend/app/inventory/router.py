@@ -134,6 +134,7 @@ def list_movements(
                 "quantity_delta": m.quantity_delta,
                 "stock_on_hand_after": m.stock_on_hand_after,
                 "reason": m.reason,
+                "reason_code": m.reason_code,
                 "created_by_user_id": m.created_by_user_id,
                 "created_at": m.created_at,
             }

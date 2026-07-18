@@ -202,6 +202,7 @@ def adjust_stock(
         movement_type="adjustment",
         quantity_delta=body.quantity_delta,
         reason=body.reason,
+        reason_code=body.reason_code,
     )
     response_body = {
         "id": str(movement.id),
@@ -210,6 +211,7 @@ def adjust_stock(
         "quantity_delta": movement.quantity_delta,
         "stock_on_hand": repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id),
         "reason": movement.reason or "",
+        "reason_code": movement.reason_code,
     }
     audit_service.log(
         db,
