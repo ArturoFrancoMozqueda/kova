@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import { ProductCostEditor, ProductForm } from "./CatalogView";
 import type { Product } from "./types";
 import { ToastProvider } from "@/components/ui/toast";
@@ -204,6 +205,29 @@ describe("ProductForm image positioning", () => {
       objectPosition: "50% 50%",
       transform: "",
     });
+  });
+
+  it("has no axe violations on the product form", async () => {
+    const { container } = render(
+      <ToastProvider>
+        <ProductForm
+          initial={product}
+          categories={[]}
+          availableModifierGroups={[]}
+          defaultCategoryId={null}
+          pending={false}
+          onCancel={vi.fn()}
+          onSubmit={vi.fn()}
+        />
+      </ToastProvider>,
+    );
+
+    const results = await axe(container, {
+      // The form renders standalone here; in the app it lives inside the
+      // Dialog, which provides the landmark/heading structure.
+      rules: { region: { enabled: false } },
+    });
+    expect(results.violations).toEqual([]);
   });
 
   it("submits a nullable decimal product cost", async () => {

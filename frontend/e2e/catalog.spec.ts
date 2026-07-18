@@ -103,7 +103,7 @@ test("catalog page loads categories and products for owner", async ({ page }) =>
   await page.goto("/catalog");
 
   await expect(page.getByRole("heading", { name: /cat[áa]logo/i })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Pan" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pan", exact: true })).toBeVisible();
   await expect(page.getByText("Concha")).toBeVisible();
   await expect(page.getByRole("button", { name: /nueva categor[íi]a/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /nuevo producto/i })).toBeVisible();
@@ -301,7 +301,9 @@ test("catalog supports product search category filtering and sorting at mobile w
   await expect(page.getByText("Concha")).not.toBeVisible();
 
   await page.getByLabel(/buscar productos/i).clear();
-  await page.getByRole("option", { name: "Bebidas" }).click();
+  await page.getByRole("button", { name: "Bebidas", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Bebidas", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Todos los productos", exact: true })).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByText("Latte")).toBeVisible();
   await expect(page.getByText("Americano")).toBeVisible();
   await expect(page.getByText("Concha")).not.toBeVisible();

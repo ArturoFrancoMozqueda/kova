@@ -398,8 +398,7 @@ export default function CatalogView() {
             {/* All products filter */}
             <button
               type="button"
-              role="option"
-              aria-selected={selectedCategoryId === null}
+              aria-pressed={selectedCategoryId === null}
               className={cn(
                 "w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors text-left",
                 selectedCategoryId === null
@@ -424,8 +423,7 @@ export default function CatalogView() {
               >
                 <button
                   type="button"
-                  role="option"
-                  aria-selected={selectedCategoryId === cat.id}
+                  aria-pressed={selectedCategoryId === cat.id}
                   className={cn(
                     "flex-1 text-left px-3 py-2 text-sm font-medium transition-colors truncate",
                     selectedCategoryId === cat.id
@@ -617,6 +615,10 @@ export default function CatalogView() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {visibleProducts.map((product) => (
+                  /* Mouse-only convenience target: the card body duplicates the
+                     labelled "Editar {product.name}" button inside it, which is
+                     the keyboard/SR path to the same action. */
+                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                   <div
                     key={product.id}
                     className={cn(
@@ -1297,7 +1299,6 @@ function CategoryForm({
           onChange={(e) => setName(e.target.value)}
           required
           maxLength={120}
-          autoFocus
         />
       </div>
       <div className="space-y-2">
@@ -1526,6 +1527,7 @@ export function ProductForm({
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
+          aria-label={copy.catalog.productImageUpload}
           onChange={handleImagePick}
         />
       </div>
@@ -1539,7 +1541,6 @@ export function ProductForm({
             onChange={(e) => setName(e.target.value)}
             required
             maxLength={160}
-            autoFocus
             aria-invalid={/<[^>]+>/.test(name) ? "true" : undefined}
             aria-describedby={/<[^>]+>/.test(name) ? "prod-name-error" : undefined}
           />
