@@ -223,6 +223,30 @@ class WasteReport(BaseModel):
     by_reason: list[WasteByReasonRow]
 
 
+class OperatingExpenseCategoryRow(BaseModel):
+    category: Literal[
+        "renta",
+        "nomina",
+        "servicios",
+        "transporte",
+        "mantenimiento",
+        "marketing",
+        "comisiones",
+        "impuestos",
+        "otro",
+    ]
+    amount: Decimal
+    expense_count: int
+
+
+class OperatingExpenseReport(BaseModel):
+    total: Decimal
+    expense_count: int
+    approximate_operating_profit: Decimal | None
+    margin_complete: bool
+    by_category: list[OperatingExpenseCategoryRow]
+
+
 class BusinessStoryPaymentDriver(BaseModel):
     method: str
     amount: Decimal
@@ -256,6 +280,7 @@ class BusinessStoryReportResponse(BaseModel):
     margin: MarginReport
     inventory_valuation: InventoryValuation
     waste: WasteReport
+    operating_expenses: OperatingExpenseReport
     product_trends: ProductTrends
     restock_alerts: list[RestockAlertRow]
     dominant_payment: BusinessStoryPaymentDriver | None

@@ -15,6 +15,7 @@ from app.catalog.router import router as catalog_router
 from app.config import settings
 from app.db import assert_rls_active
 from app.employees.router import router as employees_router
+from app.expenses.router import router as expenses_router
 from app.health.router import router as health_router
 from app.inventory.router import router as inventory_router
 from app.middleware.body_size import body_size_limit_middleware
@@ -136,6 +137,7 @@ def create_app() -> FastAPI:
     app.include_router(catalog_router)
     app.include_router(catalog_image_router)
     app.include_router(employees_router)
+    app.include_router(expenses_router)
     app.include_router(modifiers_router)
     app.include_router(inventory_router)
     app.include_router(onboarding_router)

@@ -11,6 +11,7 @@ class Permission(StrEnum):
     SHIFTS_OPEN = "shifts.open"
     SHIFTS_CLOSE = "shifts.close"
     INVENTORY_ADJUST = "inventory.adjust"
+    EXPENSES_MANAGE = "expenses.manage"
     REPORTS_VIEW_ALL = "reports.view_all"
     USERS_MANAGE = "users.manage"
     BILLING_VIEW = "billing.view"
@@ -30,6 +31,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.SHIFTS_OPEN,
         Permission.SHIFTS_CLOSE,
         Permission.INVENTORY_ADJUST,
+        Permission.EXPENSES_MANAGE,
         Permission.REPORTS_VIEW_ALL,
         Permission.SETTINGS_MANAGE,
     },

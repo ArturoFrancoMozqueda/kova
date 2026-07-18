@@ -453,6 +453,13 @@ def business_story(
     )
     inventory_valuation = _inventory_valuation(db, tenant_id=tenant_id)
     waste = _waste_report(db, tenant_id=tenant_id, start=start, end=end)
+    operating_expenses = _operating_expense_report(
+        db,
+        tenant_id=tenant_id,
+        start_date=start_date,
+        end_date=end_date,
+        gross_profit=margin["summary"]["gross_profit"],
+    )
     top_product_by_sales = product_rows[0] if product_rows else None
     top_product_by_units = None
     if product_rows:
@@ -529,6 +536,7 @@ def business_story(
         "margin": margin,
         "inventory_valuation": inventory_valuation,
         "waste": waste,
+        "operating_expenses": operating_expenses,
         "product_trends": product_trends,
         "restock_alerts": restock_alerts,
         "dominant_payment": dominant_payment,
@@ -998,6 +1006,39 @@ def _waste_report(
         "products_without_cost": len(missing_product_ids),
         "complete": complete,
         "by_reason": by_reason,
+    }
+
+
+def _operating_expense_report(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    start_date: date,
+    end_date: date,
+    gross_profit: Decimal | None,
+) -> dict:
+    rows = repository.operating_expenses_between(
+        db, tenant_id=tenant_id, start_date=start_date, end_date=end_date
+    )
+    totals: dict[str, dict] = {}
+    total = Decimal("0.00")
+    for expense in rows:
+        total = calculator.money(total + expense.amount)
+        category = totals.setdefault(
+            expense.category,
+            {"category": expense.category, "amount": Decimal("0.00"), "expense_count": 0},
+        )
+        category["amount"] = calculator.money(category["amount"] + expense.amount)
+        category["expense_count"] += 1
+    by_category = sorted(totals.values(), key=lambda row: row["amount"], reverse=True)
+    return {
+        "total": total,
+        "expense_count": len(rows),
+        "approximate_operating_profit": (
+            calculator.money(gross_profit - total) if gross_profit is not None else None
+        ),
+        "margin_complete": gross_profit is not None,
+        "by_category": by_category,
     }
 
 

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
-import { usePermission, REPORTS_VIEW_ALL_PERMISSION, BILLING_VIEW_PERMISSION } from "@/auth/permissions";
+import { useFeature } from "@/auth/useFeature";
+import { usePermission, REPORTS_VIEW_ALL_PERMISSION, BILLING_VIEW_PERMISSION, EXPENSES_MANAGE_PERMISSION } from "@/auth/permissions";
 import {
   ShoppingCart,
   LayoutGrid,
@@ -11,6 +12,7 @@ import {
   Clock,
   BarChart3,
   CreditCard,
+  WalletCards,
   Settings,
   LogOut,
   LayoutDashboard,
@@ -35,6 +37,7 @@ type NavItem = {
   label: string;
   icon: React.ReactNode;
   permission?: string;
+  feature?: "margin_reports";
 };
 
 const adminNavItems: NavItem[] = [
@@ -45,6 +48,7 @@ const adminNavItems: NavItem[] = [
   { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" /> },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" /> },
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, permission: "reports.view_all" },
+  { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, permission: "expenses.manage", feature: "margin_reports" },
   { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" /> },
   { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, permission: "billing.view" },
 ];
@@ -99,6 +103,8 @@ export default function AppShell() {
   const userRole = state.status === "authenticated" ? state.user.role : "";
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
+  const canManageExpenses = usePermission(EXPENSES_MANAGE_PERMISSION);
+  const marginReportsEnabled = useFeature("margin_reports");
 
   const navItems = isAdminRole(userRole) ? adminNavItems : cashierNavItems;
 
@@ -117,6 +123,8 @@ export default function AppShell() {
   const filteredNavItems = navItems.filter((item) => {
     if (item.permission === "reports.view_all") return canViewReports;
     if (item.permission === "billing.view") return canViewBilling;
+    if (item.permission === "expenses.manage" && !canManageExpenses) return false;
+    if (item.feature === "margin_reports" && !marginReportsEnabled) return false;
     return true;
   });
 

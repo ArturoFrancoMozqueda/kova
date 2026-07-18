@@ -24,6 +24,8 @@ USER_A = uuid.UUID("33333333-3333-3333-3333-3333333333a3")
 USER_B = uuid.UUID("44444444-4444-4444-4444-4444444444b4")
 SUBSCRIPTION_A = uuid.UUID("55555555-5555-5555-5555-5555555555a5")
 SUBSCRIPTION_B = uuid.UUID("66666666-6666-6666-6666-6666666666b6")
+EXPENSE_A = uuid.UUID("77777777-7777-7777-7777-7777777777a7")
+EXPENSE_B = uuid.UUID("88888888-8888-8888-8888-8888888888b8")
 
 
 @pytest.fixture
@@ -53,6 +55,15 @@ def rls_seed(owner_engine):
                 "(:a, 'Receipt A'), (:b, 'Receipt B')"
             ),
             {"a": TENANT_A, "b": TENANT_B},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO expenses "
+                "(id, tenant_id, category, amount, expense_date, created_at, updated_at) "
+                "VALUES (:ea, :a, 'renta', 100.00, CURRENT_DATE, now(), now()), "
+                "(:eb, :b, 'servicios', 200.00, CURRENT_DATE, now(), now())"
+            ),
+            {"ea": EXPENSE_A, "eb": EXPENSE_B, "a": TENANT_A, "b": TENANT_B},
         )
         conn.execute(
             text(
@@ -98,6 +109,10 @@ def rls_seed(owner_engine):
                 {"pa": PRODUCT_A, "pb": PRODUCT_B},
             )
             conn.execute(
+                text("DELETE FROM expenses WHERE id IN (:ea, :eb)"),
+                {"ea": EXPENSE_A, "eb": EXPENSE_B},
+            )
+            conn.execute(
                 text("DELETE FROM tenant_receipt_settings WHERE tenant_id IN (:a, :b)"),
                 {"a": TENANT_A, "b": TENANT_B},
             )
@@ -129,6 +144,40 @@ def test_cross_tenant_read_is_blocked(kova_app_engine, rls_seed):  # noqa: ARG00
             )
         }
     assert names == {"Prod A"}, f"tenant A must only see its own product, saw {names}"
+
+
+def test_expenses_are_visible_only_to_the_current_tenant(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        amounts = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT amount FROM expenses WHERE id IN (:ea, :eb)"),
+                {"ea": EXPENSE_A, "eb": EXPENSE_B},
+            )
+        }
+    assert amounts == {100}
+
+
+def test_expense_cross_tenant_insert_is_rejected(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    from sqlalchemy.exc import DBAPIError
+
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        with pytest.raises(DBAPIError) as exc:
+            conn.execute(
+                text(
+                    "INSERT INTO expenses "
+                    "(tenant_id, category, amount, expense_date, created_at, updated_at) "
+                    "VALUES (:b, 'otro', 1.00, CURRENT_DATE, now(), now())"
+                ),
+                {"b": TENANT_B},
+            )
+        assert "row-level security" in str(exc.value).lower()
 
 
 def test_no_context_sees_nothing(kova_app_engine, rls_seed):  # noqa: ARG001

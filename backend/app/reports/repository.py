@@ -3,7 +3,7 @@
 The service layer is responsible for timezone normalization, aggregation,
 and storytelling. This module only knows how to fetch rows.
 """
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.business_settings.models import BusinessProfile
 from app.catalog.models import Product
+from app.expenses.models import Expense
 from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, RefundItem, Void
 
 # Sale time = client ring-time when present, else server INSERT time. Reports
@@ -273,6 +274,20 @@ def waste_movements_between(
             InventoryMovement.reason_code.isnot(None),
             InventoryMovement.created_at >= start,
             InventoryMovement.created_at <= end,
+        )
+        .all()
+    )
+
+
+def operating_expenses_between(
+    db: Session, *, tenant_id: UUID, start_date: date, end_date: date
+) -> list[Expense]:
+    return (
+        db.query(Expense)
+        .filter(
+            Expense.tenant_id == tenant_id,
+            Expense.expense_date >= start_date,
+            Expense.expense_date <= end_date,
         )
         .all()
     )

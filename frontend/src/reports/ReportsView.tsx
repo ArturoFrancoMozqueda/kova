@@ -14,6 +14,7 @@ import { ActionPlanSection } from "./components/ActionPlanSection";
 import { EmployeePerformance } from "./components/EmployeePerformance";
 import { MainTrendPanel } from "./components/MainTrendPanel";
 import { MarginAnalysis } from "./components/MarginAnalysis";
+import { OperatingExpenseAnalysis } from "./components/OperatingExpenseAnalysis";
 import { WasteAnalysis } from "./components/WasteAnalysis";
 import { PaymentAnalysis } from "./components/PaymentAnalysis";
 import { PriorityActionCard } from "./components/PriorityActionCard";
@@ -151,6 +152,7 @@ export default function ReportsView() {
 
           {marginReportsEnabled ? <MarginAnalysis story={story} /> : null}
           {marginReportsEnabled ? <WasteAnalysis story={story} /> : null}
+          {marginReportsEnabled ? <OperatingExpenseAnalysis story={story} /> : null}
 
           {/* Hero row: main chart 2/3 + rail 1/3. Below `lg` the DOM order
               flips via `order-*`: the priority action reads before the chart

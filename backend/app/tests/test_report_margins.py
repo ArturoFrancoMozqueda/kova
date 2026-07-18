@@ -1,5 +1,7 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 
 def _signup_verify_login(client) -> None:
@@ -101,6 +103,18 @@ def test_margin_uses_sale_snapshot_nets_refunds_and_never_estimates_missing_cost
     )
     assert update.status_code == 200, update.text
 
+    expense = client.post(
+        "/api/v1/expenses",
+        headers={"Idempotency-Key": f"margin-expense-{uuid4().hex}"},
+        json={
+            "category": "servicios",
+            "amount": "5.00",
+            "expense_date": datetime.now(ZoneInfo("America/Mexico_City")).date().isoformat(),
+            "note": "Gas",
+        },
+    )
+    assert expense.status_code == 201, expense.text
+
     complete = client.get("/api/v1/reports/business-story")
     assert complete.status_code == 200, complete.text
     story = complete.json()
@@ -116,6 +130,12 @@ def test_margin_uses_sale_snapshot_nets_refunds_and_never_estimates_missing_cost
     assert Decimal(day["gross_profit"]) == Decimal("24.00")
     assert day["complete"] is True
     assert Decimal(story["inventory_valuation"]["value"]) == Decimal("72.00")
+    operating = story["operating_expenses"]
+    assert Decimal(operating["total"]) == Decimal("5.00")
+    assert operating["expense_count"] == 1
+    assert Decimal(operating["approximate_operating_profit"]) == Decimal("19.00")
+    assert operating["margin_complete"] is True
+    assert operating["by_category"][0]["category"] == "servicios"
 
     unknown = _create_product(client, name="Unknown Cost Muffin", cost=None)
     _add_stock(client, unknown["id"], 5)
@@ -146,6 +166,8 @@ def test_margin_uses_sale_snapshot_nets_refunds_and_never_estimates_missing_cost
     assert Decimal(valuation["known_value"]) == Decimal("72.00")
     assert valuation["products_without_cost"] == 1
     assert valuation["units_without_cost"] == 4
+    assert story["operating_expenses"]["approximate_operating_profit"] is None
+    assert story["operating_expenses"]["margin_complete"] is False
 
 
 def test_waste_report_values_only_typed_negative_movements(client):

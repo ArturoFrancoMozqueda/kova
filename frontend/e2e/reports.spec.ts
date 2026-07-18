@@ -148,6 +148,16 @@ function storyPayload(overrides = {}) {
         { reason_code: "daño", units: 1, value: "12.00", products_without_cost: 0 },
       ],
     },
+    operating_expenses: {
+      total: "45.00",
+      expense_count: 2,
+      approximate_operating_profit: "93.60",
+      margin_complete: true,
+      by_category: [
+        { category: "servicios", amount: "30.00", expense_count: 1 },
+        { category: "transporte", amount: "15.00", expense_count: 1 },
+      ],
+    },
     dominant_payment: {
       method: "cash",
       amount: "192.00",
@@ -386,6 +396,10 @@ test("margin report is tenant-flagged and shows only exact profit", async ({ pag
   await expect(waste).toBeVisible();
   await expect(waste.getByText("$36.00")).toBeVisible();
   await expect(waste.getByText("Caducidad")).toBeVisible();
+  const operating = page.getByTestId("operating-expense-analysis");
+  await expect(operating).toBeVisible();
+  await expect(operating.getByText("$93.60")).toBeVisible();
+  await expect(operating.getByText("$45.00")).toBeVisible();
 });
 
 test("reports keeps the latest applied range when an earlier request finishes last", async ({ page }) => {
