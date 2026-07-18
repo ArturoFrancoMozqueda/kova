@@ -20,6 +20,7 @@ import { queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
 import { triggerSync } from "../offline/syncWorker";
 import { readCatalogCache, saveCatalogCache } from "../offline/catalogCache";
+import type { OfflineReceiptSnapshot, OfflineSaleQueueItem } from "../offline/types";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
 import type { SelectedModifier } from "./ModifierSelectionModal";
 import { getOpenShift } from "@/shifts/api";
@@ -57,6 +58,7 @@ import {
   X,
   ChevronUp,
   Printer,
+  CloudOff,
 } from "lucide-react";
 import { trackFunnelEventOnce } from "@/telemetry/funnel";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
@@ -139,11 +141,15 @@ export default function RegisterView() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
-  // The completed-sale response has no receipt number / business name / timestamp
-  // (those live on the receipt), so we fetch the printable receipt after a synced
-  // sale. Null until it loads (or if the fetch fails); an offline-queued sale
-  // never sets completedOrder, so no receipt is offered until it syncs.
+  const [pendingReceipt, setPendingReceipt] = useState<{
+    clientUuid: string;
+    snapshot: OfflineReceiptSnapshot;
+  } | null>(null);
+  // The completed-sale response has no receipt number / business name / timestamp,
+  // so a synced sale fetches the official receipt. A queued sale uses the local
+  // immutable snapshot stored with its idempotent queue row.
   const [saleReceipt, setSaleReceipt] = useState<Receipt | null>(null);
+  const activeSaleClientUuidRef = useRef<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const skuInputRef = useRef<HTMLInputElement | null>(null);
   const cashTenderedRef = useRef<HTMLInputElement | null>(null);
@@ -163,6 +169,10 @@ export default function RegisterView() {
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skuMatches, setSkuMatches] = useState<Product[]>([]);
+  const saleResultVisible = completedOrder !== null || pendingReceipt !== null;
+  const isPendingSync = pendingReceipt !== null;
+  const displayedSaleTotal =
+    completedOrder?.total_amount ?? pendingReceipt?.snapshot.total_amount ?? "0.00";
 
   const resetSale = useCallback(() => {
     setCart({});
@@ -172,6 +182,8 @@ export default function RegisterView() {
     setSplitPaymentsEnabled(false);
     setSplitPayments([createPaymentDraft("cash")]);
     setCompletedOrder(null);
+    setPendingReceipt(null);
+    activeSaleClientUuidRef.current = null;
   }, []);
 
   const load = useCallback(async () => {
@@ -210,14 +222,14 @@ export default function RegisterView() {
 
   // Focus the primary CTA + handle Escape on mobile success overlay.
   useEffect(() => {
-    if (!completedOrder) return;
+    if (!saleResultVisible) return;
     successPrimaryRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") resetSale();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [completedOrder, resetSale]);
+  }, [resetSale, saleResultVisible]);
 
   // Fetch the printable receipt for the completed sale so the cashier can print
   // it in one tap without leaving the register. Non-blocking: the sale is already
@@ -243,19 +255,36 @@ export default function RegisterView() {
   // Map the fetched receipt to ReceiptTemplate props (same shape OrderDetail uses).
   // A fresh sale has no refunds/void, so those are omitted.
   const receiptProps = useMemo(() => {
-    if (!saleReceipt) return null;
+    if (saleReceipt) {
+      return {
+        businessName: formatTenantName(saleReceipt.tenant_name),
+        receiptNumber: saleReceipt.receipt_number,
+        createdAt: saleReceipt.created_at,
+        items: saleReceipt.items,
+        subtotalAmount: saleReceipt.subtotal_amount,
+        totalAmount: saleReceipt.total_amount,
+        payments: saleReceipt.payments,
+        totalTendered: saleReceipt.total_tendered,
+        totalChange: saleReceipt.total_change,
+      };
+    }
+    if (!pendingReceipt) return null;
+    const snapshot = pendingReceipt.snapshot;
     return {
-      businessName: formatTenantName(saleReceipt.tenant_name),
-      receiptNumber: saleReceipt.receipt_number,
-      createdAt: saleReceipt.created_at,
-      items: saleReceipt.items,
-      subtotalAmount: saleReceipt.subtotal_amount,
-      totalAmount: saleReceipt.total_amount,
-      payments: saleReceipt.payments,
-      totalTendered: saleReceipt.total_tendered,
-      totalChange: saleReceipt.total_change,
+      businessName: snapshot.business_name,
+      receiptNumber: copy.register.localReceiptNumber(
+        pendingReceipt.clientUuid.split("-")[0].toUpperCase(),
+      ),
+      createdAt: snapshot.created_at,
+      items: snapshot.items,
+      subtotalAmount: snapshot.subtotal_amount,
+      totalAmount: snapshot.total_amount,
+      payments: snapshot.payments,
+      totalTendered: snapshot.total_tendered,
+      totalChange: snapshot.total_change,
+      pendingSync: true,
     };
-  }, [saleReceipt]);
+  }, [pendingReceipt, saleReceipt]);
 
   // Best-effort refresh of the open-shift state. Leaves state at `undefined`
   // (unknown) on failure so we never block cash just because the check failed.
@@ -402,7 +431,7 @@ export default function RegisterView() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (completedOrder || isEditableTarget(event.target)) return;
+      if (saleResultVisible || isEditableTarget(event.target)) return;
       if (event.key === "/" && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         skuInputRef.current?.focus();
@@ -428,7 +457,7 @@ export default function RegisterView() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [canSubmitSale, completedOrder]);
+  }, [canSubmitSale, saleResultVisible]);
 
   const addProduct = (product: Product) => {
     if ((product.modifier_groups ?? []).length > 0) {
@@ -557,35 +586,90 @@ export default function RegisterView() {
           ],
     };
 
-    const queueItem = await queueOfflineSale(sale, openShift?.id);
+    const cashSettlement = sale.payments.reduce(
+      (totals, payment) => {
+        if (payment.method !== "cash") return totals;
+        const amountCents = moneyToCents(payment.amount);
+        const tenderedCentsForPayment = moneyToCents(
+          "amount_tendered" in payment ? payment.amount_tendered : payment.amount,
+        );
+        return {
+          tenderedCents: totals.tenderedCents + tenderedCentsForPayment,
+          changeCents: totals.changeCents + Math.max(0, tenderedCentsForPayment - amountCents),
+        };
+      },
+      { tenderedCents: 0, changeCents: 0 },
+    );
+    const receiptSnapshot: OfflineReceiptSnapshot = {
+      business_name: tenantName,
+      created_at: new Date().toISOString(),
+      items: cartItems.map((item) => ({
+        product_name: item.product.name,
+        quantity: item.quantity,
+        unit_price_amount: item.product.price_amount,
+        line_total_amount: centsToMoney(
+          moneyToCents(item.effectiveUnitPrice) * item.quantity,
+        ),
+        modifiers: item.selectedModifiers.map((modifier) => ({
+          modifier_group_name: modifier.groupName,
+          modifier_option_name: modifier.optionName,
+          price_delta_amount: modifier.priceDelta,
+        })),
+      })),
+      subtotal_amount: totalAmount,
+      total_amount: totalAmount,
+      payments: sale.payments.map((payment) => ({
+        method: payment.method,
+        amount_amount: payment.amount,
+      })),
+      total_tendered: centsToMoney(cashSettlement.tenderedCents),
+      total_change: centsToMoney(cashSettlement.changeCents),
+    };
+
+    let queueItem: OfflineSaleQueueItem;
+    try {
+      queueItem = await queueOfflineSale(sale, openShift?.id, receiptSnapshot);
+    } catch {
+      toast(copy.register.saleError, "error");
+      setSubmitting(false);
+      return;
+    }
+
+    activeSaleClientUuidRef.current = queueItem.client_uuid;
+    setCompletedOrder(null);
+    setPendingReceipt({ clientUuid: queueItem.client_uuid, snapshot: receiptSnapshot });
 
     setCart({});
     setCashTendered("");
     setReference("");
     setSplitPaymentsEnabled(false);
     setSplitPayments([createPaymentDraft("cash")]);
+    setSubmitting(false);
 
-    try {
-      const results = await syncOfflineSales([queueItem]);
-      const result = results[0];
-      if (result.status === "synced" && result.order) {
-        setCompletedOrder(result.order as Order);
-        trackFunnelEventOnce("first_sale", "first_sale_completed", {
-          order_id: result.order.id,
-          total_amount: result.order.total_amount,
-        });
-        // Toast is retained as the accessible status announcement
-        // (aria-live region) for screen readers — visual de-duplication with
-        // the success card is left for a future polish pass.
-        toast(copy.register.saleComplete, "success");
-      } else {
-        toast(copy.register.saleQueued, "warning");
-      }
-    } catch {
-      toast(copy.register.saleQueued, "warning");
-    } finally {
-      setSubmitting(false);
-    }
+    void syncOfflineSales([queueItem])
+      .then((results) => {
+        const result = results[0];
+        if (result.status === "synced" && result.order) {
+          trackFunnelEventOnce("first_sale", "first_sale_completed", {
+            order_id: result.order.id,
+            total_amount: result.order.total_amount,
+          });
+          if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
+          setPendingReceipt(null);
+          setCompletedOrder(result.order as Order);
+          // Toast is retained as the accessible status announcement
+          // (aria-live region) for screen readers — visual de-duplication with
+          // the success card is left for a future polish pass.
+          toast(copy.register.saleComplete, "success");
+        } else if (activeSaleClientUuidRef.current === queueItem.client_uuid) {
+          toast(copy.register.saleQueued, "warning");
+        }
+      })
+      .catch(() => {
+        if (activeSaleClientUuidRef.current === queueItem.client_uuid) {
+          toast(copy.register.saleQueued, "warning");
+        }
+      });
   };
 
   if (loadState.status === "loading") {
@@ -1360,19 +1444,50 @@ export default function RegisterView() {
           </Card>
 
           {/* Completed sale result (desktop card) */}
-          {completedOrder && (
-            <Card className="hidden lg:block border-kova-growth/30 bg-kova-growth/5 animate-fade-in">
+          {saleResultVisible && (
+            <Card
+              className={cn(
+                "hidden lg:block animate-fade-in",
+                isPendingSync
+                  ? "border-warning/40 bg-warning/10"
+                  : "border-kova-growth/30 bg-kova-growth/5",
+              )}
+            >
               <CardContent className="p-4">
                 <div className="mb-3 flex items-start gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-kova-growth/15 text-kova-growth">
-                    <CheckCircle2 className="h-5 w-5" />
+                  <div
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg",
+                      isPendingSync
+                        ? "bg-warning/20 text-warning-foreground"
+                        : "bg-kova-growth/15 text-kova-growth",
+                    )}
+                  >
+                    {isPendingSync ? (
+                      <CloudOff className="h-5 w-5" />
+                    ) : (
+                      <CheckCircle2 className="h-5 w-5" />
+                    )}
                   </div>
                   <div>
-                    <p className="font-semibold text-kova-growth">{copy.register.saleComplete}</p>
-                    <p className="mt-1 text-2xl font-bold tabular-nums text-kova-ink">
-                      {formatMoney(completedOrder.total_amount)}
+                    <p
+                      className={cn(
+                        "font-semibold",
+                        isPendingSync ? "text-warning-foreground" : "text-kova-growth",
+                      )}
+                    >
+                      {isPendingSync
+                        ? copy.register.offlineSaleSavedTitle
+                        : copy.register.saleComplete}
                     </p>
-                    <p className="text-xs text-muted-foreground">{copy.register.saleSuccessSubtitle}</p>
+                    <p className="mt-1 text-2xl font-bold tabular-nums text-kova-ink">
+                      {formatMoney(displayedSaleTotal)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {isPendingSync
+                        ? copy.register.offlineSaleSavedSubtitle
+                        : copy.register.saleSuccessSubtitle}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1382,10 +1497,12 @@ export default function RegisterView() {
                       {copy.register.printReceipt}
                     </Button>
                   )}
-                  <Link to={`/orders/${completedOrder.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    {copy.register.openOrder}
-                  </Link>
+                  {completedOrder && (
+                    <Link to={`/orders/${completedOrder.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {copy.register.openOrder}
+                    </Link>
+                  )}
                   <Button size="sm" onClick={resetSale}>
                     <RotateCcw className="h-3.5 w-3.5" />
                     {copy.register.newSale}
@@ -1420,7 +1537,7 @@ export default function RegisterView() {
       )}
 
       {/* Mobile full-screen success state */}
-      {completedOrder && (
+      {saleResultVisible && (
         <div
           role="dialog"
           aria-modal="true"
@@ -1439,16 +1556,31 @@ export default function RegisterView() {
             </button>
           </div>
           <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 pb-4">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-kova-growth/15 animate-scale-in">
-              <CheckCircle2 className="h-14 w-14 text-kova-growth" strokeWidth={2.25} />
+            <div
+              className={cn(
+                "flex h-24 w-24 items-center justify-center rounded-full animate-scale-in",
+                isPendingSync ? "bg-warning/20" : "bg-kova-growth/15",
+              )}
+            >
+              {isPendingSync ? (
+                <CloudOff className="h-14 w-14 text-warning-foreground" strokeWidth={2.25} />
+              ) : (
+                <CheckCircle2 className="h-14 w-14 text-kova-growth" strokeWidth={2.25} />
+              )}
             </div>
             <div className="text-center space-y-1">
               <h2 id="sale-success-title" className="text-2xl font-bold tracking-tight text-kova-ink">
-                {copy.register.saleSuccessTitle}
+                {isPendingSync
+                  ? copy.register.offlineSaleSavedTitle
+                  : copy.register.saleSuccessTitle}
               </h2>
-              <p className="text-sm text-kova-muted">{copy.register.saleSuccessSubtitle}</p>
+              <p className="text-sm text-kova-muted">
+                {isPendingSync
+                  ? copy.register.offlineSaleSavedSubtitle
+                  : copy.register.saleSuccessSubtitle}
+              </p>
               <p className="pt-3 text-4xl font-bold tabular-nums tracking-tight text-kova-ink">
-                {formatMoney(completedOrder.total_amount)}
+                {formatMoney(displayedSaleTotal)}
               </p>
             </div>
             {/* Printable receipt: this node (always in the DOM whenever a sale is
@@ -1481,13 +1613,15 @@ export default function RegisterView() {
                 {copy.register.printReceipt}
               </Button>
             )}
-            <Link
-              to={`/orders/${completedOrder.id}`}
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}
-            >
-              <ExternalLink className="h-4 w-4" />
-              {copy.register.openOrder}
-            </Link>
+            {completedOrder && (
+              <Link
+                to={`/orders/${completedOrder.id}`}
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}
+              >
+                <ExternalLink className="h-4 w-4" />
+                {copy.register.openOrder}
+              </Link>
+            )}
           </div>
         </div>
       )}

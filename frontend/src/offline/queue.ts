@@ -1,12 +1,18 @@
 import { offlineDb } from "./db";
-import type { OfflineSaleDraft, OfflineSaleQueueItem, OfflineSaleStatus } from "./types";
+import type {
+  OfflineReceiptSnapshot,
+  OfflineSaleDraft,
+  OfflineSaleQueueItem,
+  OfflineSaleStatus,
+} from "./types";
 
 const nowIso = () => new Date().toISOString();
 
 export function makeQueuedSale(
   sale: OfflineSaleDraft,
   clientUuid = crypto.randomUUID(),
-  shiftId?: string
+  shiftId?: string,
+  receiptSnapshot?: OfflineReceiptSnapshot,
 ): OfflineSaleQueueItem {
   const now = nowIso();
   return {
@@ -14,6 +20,7 @@ export function makeQueuedSale(
     status: "pending",
     sale,
     ...(shiftId ? { shift_id: shiftId } : {}),
+    ...(receiptSnapshot ? { receipt_snapshot: receiptSnapshot } : {}),
     attempt_count: 0,
     created_at: now,
     updated_at: now,
@@ -22,9 +29,10 @@ export function makeQueuedSale(
 
 export async function queueOfflineSale(
   sale: OfflineSaleDraft,
-  shiftId?: string
+  shiftId?: string,
+  receiptSnapshot?: OfflineReceiptSnapshot,
 ): Promise<OfflineSaleQueueItem> {
-  const item = makeQueuedSale(sale, undefined, shiftId);
+  const item = makeQueuedSale(sale, undefined, shiftId, receiptSnapshot);
   await offlineDb.offline_sales.put(item);
   return item;
 }

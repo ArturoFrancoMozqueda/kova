@@ -77,11 +77,26 @@ describe("syncOfflineSales", () => {
       }),
     );
 
-    await syncOfflineSales([queueItem()]);
+    await syncOfflineSales([
+      queueItem({
+        receipt_snapshot: {
+          business_name: "Panadería Kova",
+          created_at: "2026-07-01T23:50:00.000Z",
+          items: [],
+          subtotal_amount: "18.50",
+          total_amount: "18.50",
+          payments: [{ method: "cash", amount_amount: "18.50" }],
+          total_tendered: "20.00",
+          total_change: "1.50",
+        },
+      }),
+    ]);
 
     expect(capturedBody).toBeDefined();
     const parsed = JSON.parse(capturedBody as string);
     expect(parsed.sales[0].occurred_at).toBe("2026-07-01T23:50:00.000Z");
+    expect(parsed.sales[0].receipt_snapshot).toBeUndefined();
+    expect(parsed.sales[0].order.receipt_snapshot).toBeUndefined();
   });
 
   it("throws RateLimitError honoring Retry-After on 429 and rolls back to pending", async () => {

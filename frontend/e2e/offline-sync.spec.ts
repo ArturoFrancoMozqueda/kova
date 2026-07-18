@@ -106,7 +106,10 @@ test("network-error sale appears in pending sync and clears after manual sync", 
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await page.getByRole("button", { name: /^cobrar$/i }).click();
-  await expect(page.getByRole("status")).toContainText(/en cola/i);
+  await expect(
+    page.getByRole("paragraph").filter({ hasText: "Venta guardada en este dispositivo" }),
+  ).toBeVisible();
+  await expect(page.getByText(/pendiente de sincronizar/i).first()).toBeVisible();
 
   // Sync queue shows 1 pending entry
   await page.goto("/sync-queue");
@@ -213,10 +216,54 @@ test("cold offline: register renders catalog from IndexedDB cache and queues a s
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await page.getByRole("button", { name: /^cobrar$/i }).click();
-  await expect(page.getByRole("status")).toContainText(/en cola/i);
+  await expect(
+    page.getByRole("paragraph").filter({ hasText: "Venta guardada en este dispositivo" }),
+  ).toBeVisible();
+  await expect(page.getByText(/pendiente de sincronizar/i).first()).toBeVisible();
 
   await page.goto("/sync-queue");
   await expect(page.getByRole("heading", { name: /pendientes/i })).toBeVisible();
+});
+
+test("offline sale exposes a printable local receipt before synchronization", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: CASHIER_SESSION }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) =>
+    route.fulfill({ json: CATALOG }),
+  );
+  await page.route("**/api/v1/catalog/categories", (route) =>
+    route.fulfill({ json: [] }),
+  );
+
+  await page.goto("/register");
+  await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
+
+  await page.evaluate(() => {
+    Object.defineProperty(window, "print", {
+      configurable: true,
+      value: () => document.body.setAttribute("data-print-called", "true"),
+    });
+  });
+  await page.context().setOffline(true);
+
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
+
+  const receiptDialog = page.getByRole("dialog", { name: /venta guardada/i });
+  await expect(receiptDialog).toBeVisible();
+  await expect(receiptDialog.getByText(/pendiente de sincronizar/i)).toBeVisible();
+  await expect(receiptDialog.getByText(/folio local [a-f0-9]{8}/i)).toBeVisible();
+  await expect(receiptDialog.getByText(/1 x Concha/i)).toBeVisible();
+  await expect(receiptDialog.getByRole("link", { name: /abrir orden/i })).toHaveCount(0);
+
+  await receiptDialog.getByRole("button", { name: /imprimir recibo/i }).click();
+  await expect(page.locator("body")).toHaveAttribute("data-print-called", "true");
 });
 
 test("duplicate sync of same client_uuid returns same order (idempotency)", async ({ page }) => {
