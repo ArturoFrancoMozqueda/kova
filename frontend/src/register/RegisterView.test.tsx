@@ -304,3 +304,74 @@ describe("RegisterView cash-without-shift guard", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("RegisterView cache-first catalog", () => {
+  const cachedProduct: Product = { ...product, id: "product-cached", name: "Concha", sku: "PAN-001" };
+  const freshProduct: Product = { ...product, id: "product-fresh", name: "Bolillo", sku: "PAN-002" };
+  const cachedCatalog = {
+    tenant_id: "tenant-1",
+    products: [cachedProduct],
+    categories: [],
+    cached_at: "2026-07-17T16:30:00.000Z",
+  };
+
+  beforeEach(() => {
+    getOpenShift.mockResolvedValue(openShift);
+    getReceipt.mockRejectedValue(new Error("no receipt"));
+    catalogCache.readCatalogCache.mockResolvedValue(cachedCatalog);
+    catalogCache.saveCatalogCache.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("paints the cached catalog before the network resolves, without the offline notice", async () => {
+    // Network fetch that never settles during the assertion window.
+    let resolveProducts: (products: Product[]) => void = () => undefined;
+    catalogApi.listProducts.mockImplementation(
+      () => new Promise<Product[]>((resolve) => (resolveProducts = resolve)),
+    );
+    catalogApi.listCategories.mockResolvedValue([]);
+
+    renderRegister();
+
+    // Cached product is usable while the request is still in flight...
+    expect(
+      await screen.findByRole("button", { name: `${copy.register.add} ${cachedProduct.name}` }),
+    ).toBeInTheDocument();
+    // ...and the offline notice is NOT shown: the network verdict isn't in yet.
+    expect(screen.queryByText(copy.register.offlineCatalogNotice)).not.toBeInTheDocument();
+
+    resolveProducts([cachedProduct]);
+  });
+
+  it("replaces the cached catalog and re-saves the cache when the fetch resolves", async () => {
+    catalogApi.listProducts.mockResolvedValue([freshProduct]);
+    catalogApi.listCategories.mockResolvedValue([]);
+
+    renderRegister();
+
+    expect(
+      await screen.findByRole("button", { name: `${copy.register.add} ${freshProduct.name}` }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: `${copy.register.add} ${cachedProduct.name}` }))
+        .not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText(copy.register.offlineCatalogNotice)).not.toBeInTheDocument();
+    expect(catalogCache.saveCatalogCache).toHaveBeenCalledWith("tenant-1", [freshProduct], []);
+  });
+
+  it("keeps the cached catalog and shows the offline notice when the fetch fails", async () => {
+    catalogApi.listProducts.mockRejectedValue(new Error("offline"));
+    catalogApi.listCategories.mockRejectedValue(new Error("offline"));
+
+    renderRegister();
+
+    expect(await screen.findByText(copy.register.offlineCatalogNotice)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `${copy.register.add} ${cachedProduct.name}` }),
+    ).toBeInTheDocument();
+  });
+});

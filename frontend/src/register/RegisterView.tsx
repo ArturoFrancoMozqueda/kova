@@ -188,6 +188,22 @@ export default function RegisterView() {
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
+    // Cache-first: paint the tenant's cached catalog immediately so the
+    // register is usable while the network fetch runs. The cached paint
+    // deliberately omits `fromCache` — the offline notice only appears once
+    // the fetch actually fails, so opening online never flashes it.
+    let paintedFromCache = false;
+    if (tenantId) {
+      const cached = await readCatalogCache(tenantId).catch(() => undefined);
+      if (cached) {
+        paintedFromCache = true;
+        setLoadState({
+          status: "ready",
+          products: cached.products.filter((product) => product.is_active),
+          categories: cached.categories,
+        });
+      }
+    }
     try {
       const [allProducts, categories] = await Promise.all([
         listProducts(),
@@ -202,8 +218,15 @@ export default function RegisterView() {
       const products = allProducts.filter((product) => product.is_active);
       setLoadState({ status: "ready", products, categories });
     } catch {
-      // Offline / fetch failed. Fall back to the cached catalog so the cashier
-      // can still open the register and queue sales without connectivity.
+      // Offline / fetch failed. Keep (or fall back to) the cached catalog so
+      // the cashier can still open the register and queue sales without
+      // connectivity — now the notice is warranted.
+      if (paintedFromCache) {
+        setLoadState((prev) =>
+          prev.status === "ready" ? { ...prev, fromCache: true } : prev,
+        );
+        return;
+      }
       if (tenantId) {
         const cached = await readCatalogCache(tenantId).catch(() => undefined);
         if (cached) {
