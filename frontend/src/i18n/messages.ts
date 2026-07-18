@@ -882,8 +882,10 @@ export const copy = {
     reasonRequired: "Indica el motivo del movimiento.",
   },
   onboarding: {
-    presetTitle: "Empieza con un menú base",
-    presetSubtitle: "Carga productos típicos para una cafetería o crea tu menú desde cero.",
+    presetTitle: "Acelera tu primer catálogo",
+    presetSubtitle: "Elige una plantilla sólo si quieres crear estos productos en tu cuenta. Podrás cambiar nombres y precios; los costos quedan vacíos para que captures los reales.",
+    presetGroceries: "Abarrotes",
+    presetGroceriesDesc: "Despensa, bebidas, botanas y limpieza. 16 productos con inventario y sin costos inventados.",
     presetCafe: "Cafetería",
     presetCafeDesc: "Café caliente, bebidas frías, pan dulce y alimentos. 12 productos.",
     presetBakery: "Panadería",
@@ -893,7 +895,7 @@ export const copy = {
     presetBlank: "Empezar vacío",
     presetBlankDesc: "Crea tu propio catálogo desde cero.",
     presetApplying: "Cargando catálogo…",
-    presetApplied: (n: number) => `${n} productos cargados. Ya puedes vender.`,
+    presetApplied: (n: number) => `${n} productos creados. Revisa los precios y captura tus costos reales para medir el margen.`,
     presetSkipped: "Tu catálogo ya tiene productos.",
   },
   inventoryView: {

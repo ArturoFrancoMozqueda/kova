@@ -6,7 +6,7 @@ from app.shared.validation import StrictModel
 
 
 class PresetApplyRequest(StrictModel):
-    preset: Literal["cafe", "bakery", "retail"]
+    preset: Literal["cafe", "bakery", "retail", "abarrotes"]
 
 
 class PresetApplyResponse(BaseModel):

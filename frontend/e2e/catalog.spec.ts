@@ -388,3 +388,57 @@ test("catalog product create shows billing recovery when access is blocked", asy
   await expect(page.getByRole("button", { name: /ver facturaci[óo]n/i })).toBeVisible();
   await expect(page.getByText(/algo sali[óo] mal/i)).not.toBeVisible();
 });
+
+test("owner explicitly loads the abarrotes preset without invented costs", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  let categoryList: typeof categories = [];
+  let productList: typeof products = [];
+  let appliedPreset: string | null = null;
+
+  await page.route("**/api/v1/catalog/categories", async (route) => {
+    await route.fulfill({ json: categoryList });
+  });
+  await page.route("**/api/v1/catalog/products", async (route) => {
+    await route.fulfill({ json: productList });
+  });
+  await page.route("**/api/v1/catalog/modifier-groups", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+  await page.route("**/api/v1/onboarding/apply-preset", async (route) => {
+    appliedPreset = JSON.parse(route.request().postData() ?? "{}").preset;
+    categoryList = categories;
+    productList = [{
+      ...products[0],
+      name: "Arroz 1 kg",
+      sku: "AB-DES-001",
+      price_amount: "38.00",
+      cost_price: null,
+      track_inventory: true,
+      low_stock_threshold: 6,
+    }];
+    await route.fulfill({
+      json: {
+        preset: "abarrotes",
+        categories_created: 4,
+        products_created: 16,
+        skipped: false,
+      },
+    });
+  });
+
+  await page.goto("/catalog");
+  await expect(page.getByText(/costos quedan vacíos/i)).toBeVisible();
+  await expect(page.getByText(/sin costos inventados/i)).toBeVisible();
+  if (process.env.KOVA_QA_SCREENSHOT) {
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: process.env.KOVA_QA_SCREENSHOT });
+  }
+  await page.getByRole("button", { name: "Abarrotes" }).click();
+
+  expect(appliedPreset).toBe("abarrotes");
+  await expect(page.getByText("Arroz 1 kg")).toBeVisible();
+  await expect(page.getByText(/16 productos creados.*captura tus costos reales/i)).toBeVisible();
+  await expect(page.getByText("Sin costo")).toBeVisible();
+});

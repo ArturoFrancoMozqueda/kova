@@ -1,5 +1,5 @@
 import { csrfHeaders } from "../lib/csrf";
-export type PresetName = "cafe" | "bakery" | "retail";
+export type PresetName = "cafe" | "bakery" | "retail" | "abarrotes";
 
 export type PresetApplyResponse = {
   preset: string;

@@ -1,0 +1,28 @@
+{
+  "name": "abarrotes",
+  "label": "Abarrotes / Miscelánea",
+  "categories": [
+    { "name": "Despensa", "description": "Básicos de cocina y alimentos empacados", "sort_order": 0 },
+    { "name": "Bebidas", "description": "Agua, refrescos, leche y bebidas envasadas", "sort_order": 1 },
+    { "name": "Botanas y dulces", "description": "Productos de compra rápida para mostrador", "sort_order": 2 },
+    { "name": "Limpieza e higiene", "description": "Artículos esenciales para el hogar y cuidado personal", "sort_order": 3 }
+  ],
+  "products": [
+    { "name": "Arroz 1 kg", "category": "Despensa", "price_amount": "38.00", "cost_price": null, "sku": "AB-DES-001", "track_inventory": true, "low_stock_threshold": 6 },
+    { "name": "Frijol 900 g", "category": "Despensa", "price_amount": "42.00", "cost_price": null, "sku": "AB-DES-002", "track_inventory": true, "low_stock_threshold": 6 },
+    { "name": "Azúcar 1 kg", "category": "Despensa", "price_amount": "35.00", "cost_price": null, "sku": "AB-DES-003", "track_inventory": true, "low_stock_threshold": 6 },
+    { "name": "Aceite vegetal 850 ml", "category": "Despensa", "price_amount": "49.00", "cost_price": null, "sku": "AB-DES-004", "track_inventory": true, "low_stock_threshold": 5 },
+    { "name": "Leche entera 1 L", "category": "Bebidas", "price_amount": "29.00", "cost_price": null, "sku": "AB-BEB-001", "track_inventory": true, "low_stock_threshold": 8 },
+    { "name": "Refresco 600 ml", "category": "Bebidas", "price_amount": "22.00", "cost_price": null, "sku": "AB-BEB-002", "track_inventory": true, "low_stock_threshold": 12 },
+    { "name": "Agua purificada 1.5 L", "category": "Bebidas", "price_amount": "18.00", "cost_price": null, "sku": "AB-BEB-003", "track_inventory": true, "low_stock_threshold": 10 },
+    { "name": "Jugo envasado 1 L", "category": "Bebidas", "price_amount": "34.00", "cost_price": null, "sku": "AB-BEB-004", "track_inventory": true, "low_stock_threshold": 6 },
+    { "name": "Papas fritas 45 g", "category": "Botanas y dulces", "price_amount": "20.00", "cost_price": null, "sku": "AB-BOT-001", "track_inventory": true, "low_stock_threshold": 12 },
+    { "name": "Galletas 170 g", "category": "Botanas y dulces", "price_amount": "18.00", "cost_price": null, "sku": "AB-BOT-002", "track_inventory": true, "low_stock_threshold": 10 },
+    { "name": "Chocolate 35 g", "category": "Botanas y dulces", "price_amount": "16.00", "cost_price": null, "sku": "AB-BOT-003", "track_inventory": true, "low_stock_threshold": 10 },
+    { "name": "Chicle paquete", "category": "Botanas y dulces", "price_amount": "12.00", "cost_price": null, "sku": "AB-BOT-004", "track_inventory": true, "low_stock_threshold": 15 },
+    { "name": "Detergente en polvo 500 g", "category": "Limpieza e higiene", "price_amount": "38.00", "cost_price": null, "sku": "AB-LIM-001", "track_inventory": true, "low_stock_threshold": 5 },
+    { "name": "Cloro 1 L", "category": "Limpieza e higiene", "price_amount": "20.00", "cost_price": null, "sku": "AB-LIM-002", "track_inventory": true, "low_stock_threshold": 5 },
+    { "name": "Papel higiénico 4 rollos", "category": "Limpieza e higiene", "price_amount": "42.00", "cost_price": null, "sku": "AB-LIM-003", "track_inventory": true, "low_stock_threshold": 6 },
+    { "name": "Jabón de tocador", "category": "Limpieza e higiene", "price_amount": "18.00", "cost_price": null, "sku": "AB-LIM-004", "track_inventory": true, "low_stock_threshold": 8 }
+  ]
+}
