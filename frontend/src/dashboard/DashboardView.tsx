@@ -431,6 +431,9 @@ export default function DashboardView() {
             <div
               role="radiogroup"
               aria-label={copy.dashboard.periodLabel}
+              // Focus lives on the roving-tabindex radios; -1 makes the group
+              // itself programmatically focusable without adding a tab stop.
+              tabIndex={-1}
               className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
               onKeyDown={(e) =>
                 handleRadioGroupKeyDown(

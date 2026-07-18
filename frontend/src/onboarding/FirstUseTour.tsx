@@ -101,7 +101,6 @@ export function FirstUseTour() {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-16 z-[80] flex justify-center px-4 py-3 sm:bottom-5 sm:right-5 sm:left-auto sm:block sm:w-[380px] sm:max-w-[calc(100vw-2rem)]">
       <section
-        role="region"
         aria-labelledby="first-use-tour-title"
         className={cn(
           "pointer-events-auto w-full rounded-[var(--radius-lg)] border bg-card p-4 text-card-foreground shadow-2xl animate-scale-in sm:p-5",

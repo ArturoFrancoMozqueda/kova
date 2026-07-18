@@ -15,6 +15,7 @@ function Group({ disabledC = false }: { disabledC?: boolean }) {
     <div
       role="radiogroup"
       aria-label="grupo"
+      tabIndex={-1}
       onKeyDown={(e) => handleRadioGroupKeyDown(e, options, value, setValue)}
     >
       {options.map((o) => (
