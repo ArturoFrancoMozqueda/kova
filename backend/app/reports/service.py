@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.inventory.repository import stock_on_hand, stock_on_hand_for_products
+from app.inventory.repository import stock_on_hand_for_products
 from app.orders.models import Order, Refund
 from app.pricing import calculator
 from app.reports import repository
@@ -443,14 +443,12 @@ def business_story(
             "sales_share_pct": _pct(peak_hour_row["net_sales"], net_sales),
         }
 
-    product_rows = _product_drivers(db, tenant_id=tenant_id, order_ids=order_ids)
-    margin = _margin_report(
-        db,
-        tenant_id=tenant_id,
-        orders=orders,
-        order_ids=order_ids,
-        tz=tz,
-    )
+    # One pass over the window's order/refund items feeds product drivers,
+    # margin and the current side of product trends — previously each of them
+    # re-queried and re-aggregated the same rows.
+    item_rows = _net_item_rows(db, tenant_id=tenant_id, order_ids=order_ids)
+    product_rows = _product_drivers(item_rows)
+    margin = _margin_report(orders=orders, item_rows=item_rows, tz=tz)
     inventory_valuation = _inventory_valuation(db, tenant_id=tenant_id)
     waste = _waste_report(db, tenant_id=tenant_id, start=start, end=end)
     operating_expenses = _operating_expense_report(
@@ -504,7 +502,12 @@ def business_story(
     )
 
     product_trends = _product_trends(
-        db, tenant_id=tenant_id, tz=tz, start_date=start_date, end_date=end_date
+        db,
+        tenant_id=tenant_id,
+        tz=tz,
+        start_date=start_date,
+        end_date=end_date,
+        current_item_rows=item_rows,
     )
     restock_alerts = restock_for_actions
 
@@ -582,6 +585,18 @@ def _previous_period(start_date: date, end_date: date) -> tuple[date, date]:
     return prev_start, prev_end
 
 
+def _units_by_product(item_rows: list[dict]) -> dict[UUID, dict]:
+    return {
+        row["product_id"]: {
+            "product_id": row["product_id"],
+            "product_name": row["product_name"],
+            "units": int(row["quantity_sold"] or 0),
+            "gross": calculator.money(row["gross_sales"] or Decimal("0.00")),
+        }
+        for row in _net_product_totals_from_rows(item_rows).values()
+    }
+
+
 def _product_units_in_window(
     db: Session,
     *,
@@ -590,18 +605,11 @@ def _product_units_in_window(
     end: datetime,
 ) -> dict[UUID, dict]:
     orders = _completed_orders_between(db, tenant_id=tenant_id, start=start, end=end)
-    rows = _net_product_totals(
-        db, tenant_id=tenant_id, order_ids=[order.id for order in orders]
-    ).values()
-    return {
-        row["product_id"]: {
-            "product_id": row["product_id"],
-            "product_name": row["product_name"],
-            "units": int(row["quantity_sold"] or 0),
-            "gross": calculator.money(row["gross_sales"] or Decimal("0.00")),
-        }
-        for row in rows
-    }
+    return _units_by_product(
+        _net_item_rows(
+            db, tenant_id=tenant_id, order_ids=[order.id for order in orders]
+        )
+    )
 
 
 def _product_trends(
@@ -611,11 +619,11 @@ def _product_trends(
     tz: ZoneInfo,
     start_date: date,
     end_date: date,
+    current_item_rows: list[dict],
 ) -> dict:
-    current_start, current_end = _local_bounds(start_date, end_date, tz)
-    current = _product_units_in_window(
-        db, tenant_id=tenant_id, start=current_start, end=current_end
-    )
+    # The current window's orders/items were already fetched by business_story;
+    # reuse them instead of re-querying. Only the previous window hits the db.
+    current = _units_by_product(current_item_rows)
 
     prev_start_date, prev_end_date = _previous_period(start_date, end_date)
     prev_start, prev_end = _local_bounds(prev_start_date, prev_end_date, tz)
@@ -696,8 +704,12 @@ def _restock_alerts(
     sold_by_product = {row.product_id: abs(int(row.units or 0)) for row in sales_rows}
 
     alerts: list[dict] = []
-    for product in repository.tracked_products(db, tenant_id=tenant_id):
-        stock = stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+    products = repository.tracked_products(db, tenant_id=tenant_id)
+    stock_by_product = stock_on_hand_for_products(
+        db, tenant_id=tenant_id, product_ids=[product.id for product in products]
+    )
+    for product in products:
+        stock = stock_by_product.get(product.id, 0)
         sold = sold_by_product.get(product.id, 0)
         units_per_day = (Decimal(sold) / Decimal("7")).quantize(Decimal("0.01"))
         days_until_out: Decimal | None = None
@@ -746,8 +758,8 @@ def _restock_alerts(
     return alerts[:10]
 
 
-def _product_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> list[dict]:
-    product_totals = _net_product_totals(db, tenant_id=tenant_id, order_ids=order_ids)
+def _product_drivers(item_rows: list[dict]) -> list[dict]:
+    product_totals = _net_product_totals_from_rows(item_rows)
     product_gross_total = calculator.money(
         sum((row["gross_sales"] for row in product_totals.values()), Decimal("0.00"))
     )
@@ -792,18 +804,16 @@ def _net_item_rows(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> li
 
 
 def _margin_report(
-    db: Session,
     *,
-    tenant_id: UUID,
     orders: list[Order],
-    order_ids: list[UUID],
+    item_rows: list[dict],
     tz: ZoneInfo,
 ) -> dict:
     order_dates = {order.id: _sale_time(order).astimezone(tz).date() for order in orders}
     products: dict[UUID, dict] = {}
     days: dict[date, dict] = {}
 
-    for row in _net_item_rows(db, tenant_id=tenant_id, order_ids=order_ids):
+    for row in item_rows:
         item = row["item"]
         net_quantity = row["net_quantity"]
         net_sales = row["net_sales"]
@@ -1043,8 +1053,14 @@ def _operating_expense_report(
 
 
 def _net_product_totals(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> dict[UUID, dict]:
+    return _net_product_totals_from_rows(
+        _net_item_rows(db, tenant_id=tenant_id, order_ids=order_ids)
+    )
+
+
+def _net_product_totals_from_rows(item_rows: list[dict]) -> dict[UUID, dict]:
     product_totals: dict[UUID, dict] = {}
-    for item_row in _net_item_rows(db, tenant_id=tenant_id, order_ids=order_ids):
+    for item_row in item_rows:
         item = item_row["item"]
         net_quantity = item_row["net_quantity"]
         net_gross = item_row["net_sales"]
