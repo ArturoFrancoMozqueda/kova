@@ -81,7 +81,7 @@ def _is_cookie_auth_request(request: Request) -> bool:
 def _is_internal_key_request(request: Request) -> bool:
     key = request.headers.get("x-internal-key")
     expected = settings.internal_api_key
-    return bool(expected) and bool(key) and hmac.compare_digest(key, expected)
+    return bool(expected) and bool(key) and _constant_time_text_equal(key, expected)
 
 
 def _is_exempt(request: Request) -> bool:
@@ -95,7 +95,12 @@ def _is_exempt(request: Request) -> bool:
 def _tokens_match(cookie_value: str, header_value: str) -> bool:
     if not cookie_value or not header_value:
         return False
-    return hmac.compare_digest(cookie_value, header_value)
+    return _constant_time_text_equal(cookie_value, header_value)
+
+
+def _constant_time_text_equal(left: str, right: str) -> bool:
+    """Compare arbitrary header text without compare_digest's ASCII-only str limit."""
+    return hmac.compare_digest(left.encode("utf-8"), right.encode("utf-8"))
 
 
 async def csrf_middleware(
