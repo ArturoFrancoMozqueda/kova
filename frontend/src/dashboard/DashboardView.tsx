@@ -11,7 +11,7 @@ import {
   yesterdayInTimezone,
 } from "@/i18n/date";
 import { formatMoney } from "@/orders/format";
-import { getBusinessStory, getSalesByHour, getSalesSummary, getPaymentBreakdown, getTopProducts } from "@/reports/api";
+import { getBusinessStory, getSalesByHour, getSalesSummary } from "@/reports/api";
 import { listProducts } from "@/catalog/api";
 import { listLowStock, listStock } from "@/inventory/api";
 import { getBillingSubscription } from "@/billing/api";
@@ -24,6 +24,7 @@ import { formatHourRange, topHoursByNetSales, totalNetSales } from "@/reports/ho
 import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
+import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -349,11 +350,13 @@ export default function DashboardView() {
       const tz = profileEarly?.timezone || DEFAULT_TIMEZONE;
       const { current, previous, compareLabel } = periodRanges(selected, tz);
 
+      // The current-period story already contains the sales summary, payment
+      // mix and product drivers, so those three endpoints are no longer
+      // fetched; adapters below reshape the story into their exact shapes.
+      // The story becomes the one hard-required fetch (it shares the same
+      // billing/permission gate as the endpoints it replaces).
       const [
-        summary,
-        payments,
         hourly,
-        topProducts,
         productsResult,
         stock,
         lowStock,
@@ -364,10 +367,7 @@ export default function DashboardView() {
         closedShifts,
         story,
       ] = await Promise.all([
-        getSalesSummary(current.start, current.end),
-        getPaymentBreakdown(current.start, current.end),
         getSalesByHour(current.start, current.end).catch(() => [] as SalesByHourRow[]),
-        getTopProducts(current.start, current.end),
         listProducts().catch(() => [] as Awaited<ReturnType<typeof listProducts>>),
         listStock().catch(() => [] as Awaited<ReturnType<typeof listStock>>),
         listLowStock().catch(() => [] as Awaited<ReturnType<typeof listLowStock>>),
@@ -376,9 +376,12 @@ export default function DashboardView() {
         getSalesSummary(previous.start, previous.end).catch(() => null),
         listEmployees().catch(() => [] as Awaited<ReturnType<typeof listEmployees>>),
         listClosedShifts().catch(() => [] as Awaited<ReturnType<typeof listClosedShifts>>),
-        getBusinessStory(current.start, current.end).catch(() => null),
+        getBusinessStory(current.start, current.end),
       ]);
       const profile = profileEarly;
+      const summary = summaryFromStory(story);
+      const payments = paymentsFromStory(story);
+      const topProducts = topProductsFromStory(story);
 
       const subscriptionStatus = billing?.subscription?.status;
 
