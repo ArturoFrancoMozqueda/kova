@@ -79,6 +79,13 @@ class Payment(Base):
 
 class InventoryMovement(Base):
     __tablename__ = "inventory_movements"
+    __table_args__ = (
+        CheckConstraint(
+            "reason_code IS NULL OR reason_code IN "
+            "('merma', 'caducidad', 'robo', 'daño', 'autoconsumo', 'otro')",
+            name="ck_inventory_movements_reason_code",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -88,6 +95,7 @@ class InventoryMovement(Base):
     quantity_delta: Mapped[int] = mapped_column(Integer, nullable=False)
     stock_on_hand_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    reason_code: Mapped[str | None] = mapped_column(String(30), nullable=True)
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

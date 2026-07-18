@@ -46,11 +46,12 @@ export function adjustStock(
   productId: string,
   quantityDelta: number,
   reason: string,
+  reasonCode?: string | null,
 ): Promise<MovementResponse> {
   return requestJson<MovementResponse>(`/api/v1/inventory/products/${productId}/adjustments`, {
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify({ quantity_delta: quantityDelta, reason }),
+    body: JSON.stringify({ quantity_delta: quantityDelta, reason, reason_code: reasonCode }),
   });
 }
 

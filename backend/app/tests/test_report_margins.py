@@ -146,3 +146,49 @@ def test_margin_uses_sale_snapshot_nets_refunds_and_never_estimates_missing_cost
     assert Decimal(valuation["known_value"]) == Decimal("72.00")
     assert valuation["products_without_cost"] == 1
     assert valuation["units_without_cost"] == 4
+
+
+def test_waste_report_values_only_typed_negative_movements(client):
+    _signup_verify_login(client)
+    costed = _create_product(client, name="Waste Concha", cost="8.00")
+    unknown = _create_product(client, name="Waste Unknown", cost=None)
+    _add_stock(client, costed["id"], 10)
+    _add_stock(client, unknown["id"], 5)
+
+    legacy = client.post(
+        f"/api/v1/inventory/products/{costed['id']}/adjustments",
+        headers={"Idempotency-Key": f"waste-legacy-{uuid4().hex}"},
+        json={"quantity_delta": -1, "reason": "legacy note"},
+    )
+    assert legacy.status_code == 201, legacy.text
+    typed = client.post(
+        f"/api/v1/inventory/products/{costed['id']}/adjustments",
+        headers={"Idempotency-Key": f"waste-typed-{uuid4().hex}"},
+        json={
+            "quantity_delta": -2,
+            "reason": "expired in display",
+            "reason_code": "caducidad",
+        },
+    )
+    assert typed.status_code == 201, typed.text
+    assert typed.json()["reason_code"] == "caducidad"
+
+    complete = client.get("/api/v1/reports/business-story").json()["waste"]
+    assert complete["complete"] is True
+    assert complete["units"] == 2
+    assert complete["movement_count"] == 1
+    assert Decimal(complete["value"]) == Decimal("16.00")
+    assert complete["by_reason"][0]["reason_code"] == "caducidad"
+
+    missing = client.post(
+        f"/api/v1/inventory/products/{unknown['id']}/adjustments",
+        headers={"Idempotency-Key": f"waste-unknown-{uuid4().hex}"},
+        json={"quantity_delta": -1, "reason": "damaged", "reason_code": "daño"},
+    )
+    assert missing.status_code == 201, missing.text
+
+    incomplete = client.get("/api/v1/reports/business-story").json()["waste"]
+    assert incomplete["complete"] is False
+    assert incomplete["value"] is None
+    assert Decimal(incomplete["known_value"]) == Decimal("16.00")
+    assert incomplete["products_without_cost"] == 1

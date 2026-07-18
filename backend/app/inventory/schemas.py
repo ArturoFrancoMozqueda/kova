@@ -1,10 +1,13 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
 from app.shared.validation import StrictModel
+
+InventoryReasonCode = Literal["merma", "caducidad", "robo", "daño", "autoconsumo", "otro"]
 
 
 class InventoryStockItem(BaseModel):
@@ -24,11 +27,13 @@ class InventoryMovementResponse(BaseModel):
     quantity_delta: int
     stock_on_hand: int
     reason: str
+    reason_code: InventoryReasonCode | None = None
 
 
 class InventoryAdjustmentCreate(StrictModel):
     quantity_delta: int
     reason: str = Field(min_length=1, max_length=255)
+    reason_code: InventoryReasonCode | None = None
 
     @field_validator("quantity_delta")
     @classmethod
@@ -53,6 +58,7 @@ class MovementHistoryItem(BaseModel):
     quantity_delta: int
     stock_on_hand_after: int | None
     reason: str | None
+    reason_code: InventoryReasonCode | None = None
     created_by_user_id: UUID | None
     created_at: datetime
 

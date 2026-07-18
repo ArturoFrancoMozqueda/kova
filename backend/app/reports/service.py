@@ -452,6 +452,7 @@ def business_story(
         tz=tz,
     )
     inventory_valuation = _inventory_valuation(db, tenant_id=tenant_id)
+    waste = _waste_report(db, tenant_id=tenant_id, start=start, end=end)
     top_product_by_sales = product_rows[0] if product_rows else None
     top_product_by_units = None
     if product_rows:
@@ -527,6 +528,7 @@ def business_story(
         "product_drivers": product_rows,
         "margin": margin,
         "inventory_valuation": inventory_valuation,
+        "waste": waste,
         "product_trends": product_trends,
         "restock_alerts": restock_alerts,
         "dominant_payment": dominant_payment,
@@ -941,6 +943,61 @@ def _inventory_valuation(db: Session, *, tenant_id: UUID) -> dict:
         "products_without_cost": products_without_cost,
         "units_without_cost": units_without_cost,
         "complete": complete,
+    }
+
+
+def _waste_report(
+    db: Session, *, tenant_id: UUID, start: datetime, end: datetime
+) -> dict:
+    totals: dict[str, dict] = {}
+    missing_product_ids: set[UUID] = set()
+    known_value = Decimal("0.00")
+    units = 0
+    rows = repository.waste_movements_between(
+        db, tenant_id=tenant_id, start=start, end=end
+    )
+    for movement, product in rows:
+        movement_units = abs(movement.quantity_delta)
+        units += movement_units
+        reason = totals.setdefault(
+            movement.reason_code,
+            {
+                "reason_code": movement.reason_code,
+                "units": 0,
+                "known_value": Decimal("0.00"),
+                "missing_product_ids": set(),
+            },
+        )
+        reason["units"] += movement_units
+        if product.cost_price is None:
+            missing_product_ids.add(product.id)
+            reason["missing_product_ids"].add(product.id)
+            continue
+        movement_value = calculator.money(product.cost_price * movement_units)
+        known_value = calculator.money(known_value + movement_value)
+        reason["known_value"] = calculator.money(reason["known_value"] + movement_value)
+
+    by_reason = []
+    for reason in totals.values():
+        complete = not reason["missing_product_ids"]
+        by_reason.append(
+            {
+                "reason_code": reason["reason_code"],
+                "units": reason["units"],
+                "value": reason["known_value"] if complete else None,
+                "products_without_cost": len(reason["missing_product_ids"]),
+            }
+        )
+    by_reason.sort(key=lambda row: row["units"], reverse=True)
+    complete = not missing_product_ids
+    return {
+        "units": units,
+        "movement_count": len(rows),
+        "value": known_value if complete else None,
+        "known_value": known_value,
+        "products_without_cost": len(missing_product_ids),
+        "complete": complete,
+        "by_reason": by_reason,
     }
 
 

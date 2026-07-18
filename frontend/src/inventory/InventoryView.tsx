@@ -4,7 +4,7 @@ import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions"
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
-import type { InventoryVelocityItem, MovementHistoryItem, StockItem } from "./types";
+import type { InventoryReasonCode, InventoryVelocityItem, MovementHistoryItem, StockItem } from "./types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -96,12 +96,12 @@ export default function InventoryView() {
     });
   }, [loadState, stockFilter, stockSearch, stockSort]);
 
-  const submitModal = async (values: { amount: number; reason: string }) => {
+  const submitModal = async (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null }) => {
     if (!modal) return;
     setPending(true);
     try {
       if (modal.type === "adjust") {
-        await adjustStock(modal.item.product_id, values.amount, values.reason);
+        await adjustStock(modal.item.product_id, values.amount, values.reason, values.reasonCode);
         toast(copy.inventoryView.adjustmentSuccess, "success");
       }
       if (modal.type === "stockTake") {
@@ -330,6 +330,10 @@ function movementTypeLabel(type: string): string {
   return map[type] ?? copy.inventoryView.movementTypeUnknown;
 }
 
+function reasonCodeLabel(code: InventoryReasonCode): string {
+  return copy.inventoryModal.reasonCodes[code];
+}
+
 function StockCard({
   item,
   canAdjust,
@@ -458,6 +462,7 @@ function StockCard({
                         {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
                       </span>
                       <span className="text-muted-foreground truncate">{movementTypeLabel(m.movement_type)}</span>
+                      {m.reason_code ? <Badge variant="secondary">{reasonCodeLabel(m.reason_code)}</Badge> : null}
                     </div>
                     <div className="shrink-0 text-right">
                       {m.stock_on_hand_after !== null && (
@@ -482,7 +487,7 @@ type InventoryModalProps = {
   modal: Exclude<ModalState, null>;
   pending: boolean;
   onCancel: () => void;
-  onSubmit: (values: { amount: number; reason: string }) => Promise<void>;
+  onSubmit: (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null }) => Promise<void>;
 };
 
 function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalProps) {
@@ -490,6 +495,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
     modal.type === "threshold" ? String(modal.item.low_stock_threshold ?? "") : "0",
   );
   const [reason, setReason] = useState("");
+  const [reasonCode, setReasonCode] = useState<InventoryReasonCode | "">("");
   const title =
     modal.type === "adjust"
       ? copy.inventoryModal.adjustmentTitle
@@ -514,6 +520,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   } else if (modal.type === "adjust") {
     const resulting = modal.item.stock_on_hand + numeric;
     if (resulting < 0) validationError = copy.inventoryModal.wouldLeaveNegative(resulting);
+    else if (numeric < 0 && !reasonCode) validationError = copy.inventoryModal.reasonCodeRequired;
   } else if (modal.type === "stockTake" && numeric < 0) {
     validationError = copy.inventoryModal.negativeCount;
   } else if (modal.type === "threshold" && numeric < 0) {
@@ -523,7 +530,11 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (validationError) return;
-    void onSubmit({ amount: numeric, reason: reason || "threshold_update" });
+    void onSubmit({
+      amount: numeric,
+      reason: reason || "threshold_update",
+      reasonCode: reasonCode || null,
+    });
   };
 
   return (
@@ -557,16 +568,34 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
           ) : null}
         </div>
         {modal.type !== "threshold" && (
-          <div className="space-y-2">
-            <Label htmlFor="inv-reason">{copy.inventoryModal.reason}</Label>
-            <Input
-              id="inv-reason"
-              value={reason}
-              placeholder={copy.inventoryModal.reasonPlaceholder}
-              onChange={(event) => setReason(event.target.value)}
-              required
-            />
-          </div>
+          <>
+            {modal.type === "adjust" && numeric < 0 ? (
+              <div className="space-y-2">
+                <Label htmlFor="inv-reason-code">{copy.inventoryModal.reasonCode}</Label>
+                <Select
+                  id="inv-reason-code"
+                  value={reasonCode}
+                  onChange={(event) => setReasonCode(event.target.value as InventoryReasonCode | "")}
+                  required
+                >
+                  <option value="">{copy.inventoryModal.reasonCodePlaceholder}</option>
+                  {Object.entries(copy.inventoryModal.reasonCodes).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="inv-reason">{copy.inventoryModal.reason}</Label>
+              <Input
+                id="inv-reason"
+                value={reason}
+                placeholder={copy.inventoryModal.reasonPlaceholder}
+                onChange={(event) => setReason(event.target.value)}
+                required
+              />
+            </div>
+          </>
         )}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>{copy.inventoryModal.cancel}</Button>

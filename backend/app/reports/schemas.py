@@ -206,6 +206,23 @@ class InventoryValuation(BaseModel):
     complete: bool
 
 
+class WasteByReasonRow(BaseModel):
+    reason_code: Literal["merma", "caducidad", "robo", "daño", "autoconsumo", "otro"]
+    units: int
+    value: Decimal | None
+    products_without_cost: int
+
+
+class WasteReport(BaseModel):
+    units: int
+    movement_count: int
+    value: Decimal | None
+    known_value: Decimal
+    products_without_cost: int
+    complete: bool
+    by_reason: list[WasteByReasonRow]
+
+
 class BusinessStoryPaymentDriver(BaseModel):
     method: str
     amount: Decimal
@@ -238,6 +255,7 @@ class BusinessStoryReportResponse(BaseModel):
     product_drivers: list[BusinessStoryProductDriver]
     margin: MarginReport
     inventory_valuation: InventoryValuation
+    waste: WasteReport
     product_trends: ProductTrends
     restock_alerts: list[RestockAlertRow]
     dominant_payment: BusinessStoryPaymentDriver | None

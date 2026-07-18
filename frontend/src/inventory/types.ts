@@ -15,7 +15,10 @@ export type MovementResponse = {
   quantity_delta: number;
   stock_on_hand: number;
   reason: string;
+  reason_code?: InventoryReasonCode | null;
 };
+
+export type InventoryReasonCode = "merma" | "caducidad" | "robo" | "daño" | "autoconsumo" | "otro";
 
 export type MovementHistoryItem = {
   id: string;
@@ -23,6 +26,7 @@ export type MovementHistoryItem = {
   quantity_delta: number;
   stock_on_hand_after: number | null;
   reason: string | null;
+  reason_code?: InventoryReasonCode | null;
   created_by_user_id: string | null;
   created_at: string;
 };

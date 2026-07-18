@@ -950,6 +950,17 @@ export const copy = {
     thresholdHint: "Cuando el stock llegue a este número, Kova te marcará el producto para reabastecer.",
     reason: "Motivo",
     reasonPlaceholder: "ej. conteo inicial, producto dañado",
+    reasonCode: "Tipo de salida",
+    reasonCodePlaceholder: "Selecciona un motivo",
+    reasonCodeRequired: "Selecciona el tipo de salida para registrar la merma.",
+    reasonCodes: {
+      merma: "Merma",
+      caducidad: "Caducidad",
+      robo: "Robo",
+      daño: "Daño",
+      autoconsumo: "Autoconsumo",
+      otro: "Otro",
+    },
     submit: "Guardar",
     cancel: "Cancelar",
     amountRequired: "Ingresa una cantidad.",
@@ -1071,6 +1082,15 @@ export const copy = {
       `${amount} con costo conocido; faltan ${count} producto${count === 1 ? "" : "s"}.`,
     marginByProduct: "Utilidad por producto",
     productWithoutCost: "Sin costo",
+    wasteTitle: "Merma del periodo",
+    wasteBody: "Salidas tipificadas valuadas con el último costo conocido del producto.",
+    wasteComplete: "Valuación completa",
+    wasteIncomplete: "Faltan costos",
+    wasteValue: "Valor de la merma",
+    wasteUnits: (units: number, movements: number) =>
+      `${units} unidad${units === 1 ? "" : "es"} en ${movements} movimiento${movements === 1 ? "" : "s"}.`,
+    wasteKnownValue: (amount: string, count: number) =>
+      `${amount} con costo conocido; faltan ${count} producto${count === 1 ? "" : "s"}.`,
     paymentOperationsTitle: "¿Cómo me están pagando?",
     grossVsNetNote:
       "Las ventas netas (arriba) ya descuentan devoluciones; los pagos muestran el bruto cobrado.",
