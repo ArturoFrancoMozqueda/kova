@@ -117,6 +117,44 @@ export type BusinessStoryReport = {
     gross_sales: string;
     sales_share_pct: number;
   }>;
+  margin?: {
+    summary: {
+      net_sales: string;
+      cogs: string | null;
+      gross_profit: string | null;
+      gross_margin_pct: string | null;
+      sold_products: number;
+      sold_products_without_cost: number;
+      complete: boolean;
+    };
+    by_day: Array<{
+      date: string;
+      net_sales: string;
+      cogs: string | null;
+      gross_profit: string | null;
+      gross_margin_pct: string | null;
+      products_without_cost: number;
+      complete: boolean;
+    }>;
+    by_product: Array<{
+      product_id: string;
+      product_name: string;
+      quantity_sold: number;
+      net_sales: string;
+      cogs: string | null;
+      gross_profit: string | null;
+      gross_margin_pct: string | null;
+      missing_cost: boolean;
+    }>;
+  };
+  inventory_valuation?: {
+    value: string | null;
+    known_value: string;
+    tracked_products: number;
+    products_without_cost: number;
+    units_without_cost: number;
+    complete: boolean;
+  };
   dominant_payment: {
     method: string;
     amount: string;

@@ -160,6 +160,52 @@ class BusinessStoryProductDriver(BaseModel):
     sales_share_pct: int
 
 
+class MarginSummary(BaseModel):
+    net_sales: Decimal
+    cogs: Decimal | None
+    gross_profit: Decimal | None
+    gross_margin_pct: Decimal | None
+    sold_products: int
+    sold_products_without_cost: int
+    complete: bool
+
+
+class MarginDayRow(BaseModel):
+    date: date
+    net_sales: Decimal
+    cogs: Decimal | None
+    gross_profit: Decimal | None
+    gross_margin_pct: Decimal | None
+    products_without_cost: int
+    complete: bool
+
+
+class MarginProductRow(BaseModel):
+    product_id: UUID
+    product_name: str
+    quantity_sold: int
+    net_sales: Decimal
+    cogs: Decimal | None
+    gross_profit: Decimal | None
+    gross_margin_pct: Decimal | None
+    missing_cost: bool
+
+
+class MarginReport(BaseModel):
+    summary: MarginSummary
+    by_day: list[MarginDayRow]
+    by_product: list[MarginProductRow]
+
+
+class InventoryValuation(BaseModel):
+    value: Decimal | None
+    known_value: Decimal
+    tracked_products: int
+    products_without_cost: int
+    units_without_cost: int
+    complete: bool
+
+
 class BusinessStoryPaymentDriver(BaseModel):
     method: str
     amount: Decimal
@@ -190,6 +236,8 @@ class BusinessStoryReportResponse(BaseModel):
     top_product_by_sales: BusinessStoryProductDriver | None
     top_product_by_units: BusinessStoryProductDriver | None
     product_drivers: list[BusinessStoryProductDriver]
+    margin: MarginReport
+    inventory_valuation: InventoryValuation
     product_trends: ProductTrends
     restock_alerts: list[RestockAlertRow]
     dominant_payment: BusinessStoryPaymentDriver | None

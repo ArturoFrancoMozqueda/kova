@@ -10,6 +10,7 @@ vi.mock("@/hooks/useDocumentTitle", () => ({ useDocumentTitle: () => {} }));
 vi.mock("@/hooks/useTenantTimezone", () => ({
   useTenantTimezone: () => ({ timezone: "America/Mexico_City", isResolved: true }),
 }));
+vi.mock("@/auth/useFeature", () => ({ useFeature: vi.fn() }));
 vi.mock("../auth/permissions", () => ({
   REPORTS_VIEW_ALL_PERMISSION: "reports.view.all",
   usePermission: () => true,
@@ -22,6 +23,7 @@ vi.mock("@/auth/useAuth", () => ({
 
 import { getBusinessStory, getSalesByHour } from "./api";
 import { listStock, listVelocity } from "../inventory/api";
+import { useFeature } from "@/auth/useFeature";
 import ReportsView from "./ReportsView";
 
 const today = todayInTimezone("America/Mexico_City");
@@ -35,6 +37,7 @@ function renderView() {
 }
 
 beforeEach(() => {
+  (useFeature as Mock).mockReturnValue(false);
   (getSalesByHour as Mock).mockResolvedValue([]);
   (listStock as Mock).mockResolvedValue([]);
   (listVelocity as Mock).mockResolvedValue([]);
@@ -53,6 +56,41 @@ describe("ReportsView", () => {
     expect(screen.getByText(copy.reportsView.refundsSectionTitle)).toBeInTheDocument();
     // The priority action must be readable without any interaction.
     expect(screen.getByTestId("priority-recommendation")).toBeInTheDocument();
+    expect(screen.queryByTestId("margin-analysis")).not.toBeInTheDocument();
+  });
+
+  it("shows exact margin only when the tenant flag is enabled", async () => {
+    (useFeature as Mock).mockReturnValue(true);
+    (getBusinessStory as Mock).mockResolvedValue(
+      makeStory({
+        margin: {
+          summary: {
+            net_sales: "10000.00",
+            cogs: "4000.00",
+            gross_profit: "6000.00",
+            gross_margin_pct: "60.00",
+            sold_products: 1,
+            sold_products_without_cost: 0,
+            complete: true,
+          },
+          by_day: [],
+          by_product: [],
+        },
+        inventory_valuation: {
+          value: "2500.00",
+          known_value: "2500.00",
+          tracked_products: 1,
+          products_without_cost: 0,
+          units_without_cost: 0,
+          complete: true,
+        },
+      }),
+    );
+    renderView();
+
+    expect(await screen.findByTestId("margin-analysis")).toBeInTheDocument();
+    expect(screen.getByText("$6,000.00")).toBeInTheDocument();
+    expect(screen.getByText("60.00% de margen bruto")).toBeInTheDocument();
   });
 
   it("shows the error state with a working retry", async () => {

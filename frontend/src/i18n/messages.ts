@@ -1050,6 +1050,27 @@ export const copy = {
     detailToggleBody: "Abre solo si quieres revisar horarios, productos, inventario, pagos y operación con más detalle.",
     timingAnalysisTitle: "¿Cuándo vendo más?",
     productInventoryTitle: "¿Qué producto mueve el negocio?",
+    marginTitle: "¿Cuánto me deja la venta?",
+    marginBody: "Utilidad bruta basada en el costo guardado al momento de cada venta.",
+    marginComplete: "Costos completos",
+    marginIncompleteBadge: (count: number) =>
+      `${count} producto${count === 1 ? "" : "s"} sin costo`,
+    grossProfit: "Utilidad bruta",
+    grossMarginPct: (value: string) => `${value}% de margen bruto`,
+    marginUnavailable: "Margen aún no disponible",
+    marginMissingCost: (count: number) =>
+      `Falta capturar el costo de ${count} producto${count === 1 ? " vendido" : "s vendidos"}. Kova no estimará la utilidad.`,
+    marginOpenCatalog: "Completar costos en catálogo",
+    marginNetSales: "Ventas netas de productos",
+    cogs: "Costo de ventas",
+    notAvailable: "No disponible",
+    marginMethodNote: "Las devoluciones reducen venta y costo. En esta primera versión, los extras no agregan costo propio.",
+    inventoryValuation: "Inventario a costo",
+    inventoryValuationIncomplete: "Valuación incompleta",
+    inventoryKnownValue: (amount: string, count: number) =>
+      `${amount} con costo conocido; faltan ${count} producto${count === 1 ? "" : "s"}.`,
+    marginByProduct: "Utilidad por producto",
+    productWithoutCost: "Sin costo",
     paymentOperationsTitle: "¿Cómo me están pagando?",
     grossVsNetNote:
       "Las ventas netas (arriba) ya descuentan devoluciones; los pagos muestran el bruto cobrado.",

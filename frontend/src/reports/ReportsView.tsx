@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { useTenantTimezone } from "@/hooks/useTenantTimezone";
+import { useFeature } from "@/auth/useFeature";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
@@ -12,6 +13,7 @@ import { QuickFactsRail, SummaryKpis, summaryHeadline } from "./components/Execu
 import { ActionPlanSection } from "./components/ActionPlanSection";
 import { EmployeePerformance } from "./components/EmployeePerformance";
 import { MainTrendPanel } from "./components/MainTrendPanel";
+import { MarginAnalysis } from "./components/MarginAnalysis";
 import { PaymentAnalysis } from "./components/PaymentAnalysis";
 import { PriorityActionCard } from "./components/PriorityActionCard";
 import { ProductTableSection, ProductsPanel } from "./components/ProductInventoryAnalysis";
@@ -50,6 +52,7 @@ function recommendationsFor(
 export default function ReportsView() {
   useDocumentTitle(copy.documentTitles.reports);
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
+  const marginReportsEnabled = useFeature("margin_reports");
   const { timezone: tz, isResolved: tzResolved } = useTenantTimezone();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -144,6 +147,8 @@ export default function ReportsView() {
             previousFailed={data.previousFailed}
             rangeDays={rangeDays}
           />
+
+          {marginReportsEnabled ? <MarginAnalysis story={story} /> : null}
 
           {/* Hero row: main chart 2/3 + rail 1/3. Below `lg` the DOM order
               flips via `order-*`: the priority action reads before the chart

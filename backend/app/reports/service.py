@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from app.inventory.repository import stock_on_hand
+from app.inventory.repository import stock_on_hand, stock_on_hand_for_products
 from app.orders.models import Order, Refund
 from app.pricing import calculator
 from app.reports import repository
@@ -96,6 +96,12 @@ def _pct(value: Decimal, total: Decimal) -> int:
     if total <= Decimal("0.00"):
         return 0
     return int(((value / total) * Decimal("100")).quantize(Decimal("1")))
+
+
+def _margin_pct(profit: Decimal, net_sales: Decimal) -> Decimal | None:
+    if net_sales <= Decimal("0.00"):
+        return None
+    return ((profit / net_sales) * Decimal("100")).quantize(Decimal("0.01"))
 
 
 def _average_ticket(net_sales: Decimal, order_count: int) -> Decimal:
@@ -438,6 +444,14 @@ def business_story(
         }
 
     product_rows = _product_drivers(db, tenant_id=tenant_id, order_ids=order_ids)
+    margin = _margin_report(
+        db,
+        tenant_id=tenant_id,
+        orders=orders,
+        order_ids=order_ids,
+        tz=tz,
+    )
+    inventory_valuation = _inventory_valuation(db, tenant_id=tenant_id)
     top_product_by_sales = product_rows[0] if product_rows else None
     top_product_by_units = None
     if product_rows:
@@ -511,6 +525,8 @@ def business_story(
         "top_product_by_sales": top_product_by_sales,
         "top_product_by_units": top_product_by_units,
         "product_drivers": product_rows,
+        "margin": margin,
+        "inventory_valuation": inventory_valuation,
         "product_trends": product_trends,
         "restock_alerts": restock_alerts,
         "dominant_payment": dominant_payment,
@@ -732,9 +748,7 @@ def _product_drivers(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> 
     return sorted(rows, key=lambda row: (row["gross_sales"], row["quantity_sold"]), reverse=True)
 
 
-def _net_product_totals(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> dict[UUID, dict]:
-    product_totals: dict[UUID, dict] = {}
-    items = repository.order_items_for_orders(db, tenant_id=tenant_id, order_ids=order_ids)
+def _net_item_rows(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> list[dict]:
     refunded_by_item = {
         row.order_item_id: {
             "quantity": int(row.quantity or 0),
@@ -744,12 +758,198 @@ def _net_product_totals(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) 
             db, tenant_id=tenant_id, order_ids=order_ids
         )
     }
-    for item in items:
+    rows: list[dict] = []
+    for item in repository.order_items_for_orders(
+        db, tenant_id=tenant_id, order_ids=order_ids
+    ):
         refunded = refunded_by_item.get(
             item.id, {"quantity": 0, "line_total_amount": Decimal("0.00")}
         )
         net_quantity = max(item.quantity - refunded["quantity"], 0)
-        net_gross = calculator.money(item.line_total_amount - refunded["line_total_amount"])
+        net_sales = calculator.money(
+            max(item.line_total_amount - refunded["line_total_amount"], Decimal("0.00"))
+        )
+        if net_quantity <= 0 and net_sales <= Decimal("0.00"):
+            continue
+        rows.append(
+            {
+                "item": item,
+                "net_quantity": net_quantity,
+                "net_sales": net_sales,
+            }
+        )
+    return rows
+
+
+def _margin_report(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    orders: list[Order],
+    order_ids: list[UUID],
+    tz: ZoneInfo,
+) -> dict:
+    order_dates = {order.id: _sale_time(order).astimezone(tz).date() for order in orders}
+    products: dict[UUID, dict] = {}
+    days: dict[date, dict] = {}
+
+    for row in _net_item_rows(db, tenant_id=tenant_id, order_ids=order_ids):
+        item = row["item"]
+        net_quantity = row["net_quantity"]
+        net_sales = row["net_sales"]
+        missing_cost = item.unit_cost is None and net_quantity > 0
+        cogs = (
+            None
+            if missing_cost
+            else calculator.money((item.unit_cost or Decimal("0.00")) * net_quantity)
+        )
+
+        product = products.setdefault(
+            item.product_id,
+            {
+                "product_id": item.product_id,
+                "product_name": item.product_name,
+                "quantity_sold": 0,
+                "net_sales": Decimal("0.00"),
+                "known_cogs": Decimal("0.00"),
+                "missing_cost": False,
+            },
+        )
+        product["quantity_sold"] += net_quantity
+        product["net_sales"] = calculator.money(product["net_sales"] + net_sales)
+        product["missing_cost"] = product["missing_cost"] or missing_cost
+        if cogs is not None:
+            product["known_cogs"] = calculator.money(product["known_cogs"] + cogs)
+
+        sale_date = order_dates[item.order_id]
+        day = days.setdefault(
+            sale_date,
+            {
+                "date": sale_date,
+                "net_sales": Decimal("0.00"),
+                "known_cogs": Decimal("0.00"),
+                "missing_product_ids": set(),
+            },
+        )
+        day["net_sales"] = calculator.money(day["net_sales"] + net_sales)
+        if missing_cost:
+            day["missing_product_ids"].add(item.product_id)
+        elif cogs is not None:
+            day["known_cogs"] = calculator.money(day["known_cogs"] + cogs)
+
+    product_rows = []
+    for product in products.values():
+        complete = not product["missing_cost"]
+        cogs = product["known_cogs"] if complete else None
+        profit = calculator.money(product["net_sales"] - cogs) if cogs is not None else None
+        product_rows.append(
+            {
+                "product_id": product["product_id"],
+                "product_name": product["product_name"],
+                "quantity_sold": product["quantity_sold"],
+                "net_sales": product["net_sales"],
+                "cogs": cogs,
+                "gross_profit": profit,
+                "gross_margin_pct": (
+                    _margin_pct(profit, product["net_sales"]) if profit is not None else None
+                ),
+                "missing_cost": not complete,
+            }
+        )
+    product_rows.sort(
+        key=lambda row: (
+            row["gross_profit"] is not None,
+            row["gross_profit"] or Decimal("0.00"),
+            row["net_sales"],
+        ),
+        reverse=True,
+    )
+
+    day_rows = []
+    for day in sorted(days.values(), key=lambda value: value["date"]):
+        complete = not day["missing_product_ids"]
+        cogs = day["known_cogs"] if complete else None
+        profit = calculator.money(day["net_sales"] - cogs) if cogs is not None else None
+        day_rows.append(
+            {
+                "date": day["date"],
+                "net_sales": day["net_sales"],
+                "cogs": cogs,
+                "gross_profit": profit,
+                "gross_margin_pct": (
+                    _margin_pct(profit, day["net_sales"]) if profit is not None else None
+                ),
+                "products_without_cost": len(day["missing_product_ids"]),
+                "complete": complete,
+            }
+        )
+
+    sold_without_cost = sum(1 for product in products.values() if product["missing_cost"])
+    complete = sold_without_cost == 0
+    total_net_sales = calculator.money(
+        sum((product["net_sales"] for product in products.values()), Decimal("0.00"))
+    )
+    total_cogs = (
+        calculator.money(
+            sum((product["known_cogs"] for product in products.values()), Decimal("0.00"))
+        )
+        if complete
+        else None
+    )
+    total_profit = (
+        calculator.money(total_net_sales - total_cogs) if total_cogs is not None else None
+    )
+    return {
+        "summary": {
+            "net_sales": total_net_sales,
+            "cogs": total_cogs,
+            "gross_profit": total_profit,
+            "gross_margin_pct": (
+                _margin_pct(total_profit, total_net_sales) if total_profit is not None else None
+            ),
+            "sold_products": len(products),
+            "sold_products_without_cost": sold_without_cost,
+            "complete": complete,
+        },
+        "by_day": day_rows,
+        "by_product": product_rows,
+    }
+
+
+def _inventory_valuation(db: Session, *, tenant_id: UUID) -> dict:
+    products = repository.tracked_products(db, tenant_id=tenant_id)
+    stock = stock_on_hand_for_products(
+        db, tenant_id=tenant_id, product_ids=[product.id for product in products]
+    )
+    known_value = Decimal("0.00")
+    products_without_cost = 0
+    units_without_cost = 0
+    for product in products:
+        units = max(stock.get(product.id, 0), 0)
+        if units <= 0:
+            continue
+        if product.cost_price is None:
+            products_without_cost += 1
+            units_without_cost += units
+            continue
+        known_value = calculator.money(known_value + product.cost_price * units)
+    complete = products_without_cost == 0
+    return {
+        "value": known_value if complete else None,
+        "known_value": known_value,
+        "tracked_products": len(products),
+        "products_without_cost": products_without_cost,
+        "units_without_cost": units_without_cost,
+        "complete": complete,
+    }
+
+
+def _net_product_totals(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> dict[UUID, dict]:
+    product_totals: dict[UUID, dict] = {}
+    for item_row in _net_item_rows(db, tenant_id=tenant_id, order_ids=order_ids):
+        item = item_row["item"]
+        net_quantity = item_row["net_quantity"]
+        net_gross = item_row["net_sales"]
         if net_quantity <= 0 and net_gross <= Decimal("0.00"):
             continue
         row = product_totals.setdefault(
