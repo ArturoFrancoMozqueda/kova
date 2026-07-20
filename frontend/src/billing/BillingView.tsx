@@ -16,7 +16,12 @@ import { TicketPaper } from "@/components/ui/ticket";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
-import { trackFunnelEvent, trackFunnelEventOnce } from "@/telemetry/funnel";
+import {
+  trackCheckoutStateViewed,
+  trackFunnelEvent,
+  trackFunnelEventOnce,
+  type CheckoutState,
+} from "@/telemetry/funnel";
 
 // Un solo shell para las banderas de estado (activa/trial/bloqueada/vencida/
 // sin suscripcion) — antes cada una repetia su propio rounded-lg+border+px/py;
@@ -122,6 +127,30 @@ function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean 
   return billing.subscription?.status === "active" || billing.subscription?.status === "trialing";
 }
 
+function checkoutTelemetryState(
+  billing: BillingSubscription,
+  returnState: "success" | "cancel" | null,
+): CheckoutState {
+  if (returnState === "cancel") return "return_cancel";
+  if (returnState === "success") {
+    return billing.subscription?.status === "active"
+      ? "return_success_active"
+      : "return_success_pending";
+  }
+  const status = billing.subscription?.status;
+  if (
+    status === "trialing" ||
+    status === "active" ||
+    status === "past_due" ||
+    status === "incomplete" ||
+    status === "canceled" ||
+    status === "unpaid"
+  ) {
+    return status;
+  }
+  return billing.access.reason === "signup_trial" ? "trialing" : "available";
+}
+
 export default function BillingView() {
   useDocumentTitle(copy.documentTitles.billing);
   const location = useLocation();
@@ -214,12 +243,13 @@ export default function BillingView() {
 
   useEffect(() => {
     if (loadState.status !== "loaded") return;
+    void trackCheckoutStateViewed(
+      checkoutTelemetryState(loadState.billing, checkoutReturnState),
+    );
     if (loadState.billing.subscription?.status === "active") {
-      trackFunnelEventOnce("trial_to_paid", "trial_to_paid", {
-        subscription_id: loadState.billing.subscription.id,
-      });
+      trackFunnelEventOnce("trial_to_paid", "trial_to_paid");
     }
-  }, [loadState]);
+  }, [checkoutReturnState, loadState]);
 
   const requestCancel = async () => {
     setActionState("cancel");

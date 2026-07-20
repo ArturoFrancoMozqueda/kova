@@ -41,6 +41,25 @@ def test_telemetry_rejects_oversized_value() -> None:
         )
 
 
+@pytest.mark.parametrize("key", ["email", "password", "total_amount", "query_string"])
+def test_telemetry_rejects_pii_and_financial_properties(key: str) -> None:
+    with pytest.raises(ValidationError):
+        TelemetryEventCreate(
+            event_name="test.event",
+            client_event_id="abc",
+            properties={key: "must-not-be-stored"},
+        )
+
+
+def test_telemetry_rejects_email_like_attribution() -> None:
+    with pytest.raises(ValidationError):
+        TelemetryEventCreate(
+            event_name="test.event",
+            client_event_id="abc",
+            properties={"source": "owner@example.com"},
+        )
+
+
 def test_telemetry_accepts_normal_payload() -> None:
     event = TelemetryEventCreate(
         event_name="funnel.first_sale",

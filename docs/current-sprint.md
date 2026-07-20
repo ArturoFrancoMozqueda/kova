@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-07-10
+Last updated: 2026-07-20
 
 ## Source Of Truth
 
@@ -34,6 +34,18 @@ Merged into `main` as of 2026-07-10 (closed, do not re-open here):
 Open (tracked in `PLAN-DESIGN.md`): Épicas 1–4 (shared kit + per-tab redesign + state completeness +
 backend hardening PLAN-05/B5) and Épica 6 (operational gates below). PLAN-UX-04/05 detail specs live
 in `docs/audits/`.
+
+## Active CRO execution
+
+The active conversion backlog is [`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CRO-FUNNEL.md).
+Execute one epic per PR, merge only after required checks are green, then continue in order.
+
+- [x] Epic CRO-0 — measurement context, diagnostic events, protected 30-day export and baseline.
+- [ ] Epic CRO-1 — mobile home and showcase.
+- [ ] Epic CRO-2 — clear, recoverable signup.
+- [ ] Epic CRO-3 — POS cart without premature anxiety.
+- [ ] Epic CRO-4 — trustworthy billing and checkout.
+- [ ] Epic CRO-5 — rollout and learning loop.
 
 ## Current Focus: Paid Beta Readiness
 

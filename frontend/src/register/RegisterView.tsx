@@ -61,7 +61,7 @@ import {
   Printer,
   CloudOff,
 } from "lucide-react";
-import { trackFunnelEventOnce } from "@/telemetry/funnel";
+import { trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -592,7 +592,23 @@ export default function RegisterView() {
 
   const submitSale = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canSubmitSale) return;
+    if (!canSubmitSale) {
+      if (submitting) return;
+      if (!canCreateOrders) {
+        void trackSaleValidationBlocked("permission", "permission_denied");
+      } else if (cartItems.length === 0) {
+        void trackSaleValidationBlocked("cart", "empty_cart");
+      } else if (cashBlocked) {
+        void trackSaleValidationBlocked("open_shift", "cash_requires_shift");
+      } else if (splitPaymentsEnabled && !splitCashIsValid) {
+        void trackSaleValidationBlocked("cash_tendered", "insufficient_cash");
+      } else if (splitPaymentsEnabled && !splitTotalMatches) {
+        void trackSaleValidationBlocked("payment_total", "split_mismatch");
+      } else if (!cashIsValid) {
+        void trackSaleValidationBlocked("cash_tendered", "insufficient_cash");
+      }
+      return;
+    }
 
     setSubmitting(true);
 
@@ -687,10 +703,7 @@ export default function RegisterView() {
       .then((results) => {
         const result = results[0];
         if (result.status === "synced" && result.order) {
-          trackFunnelEventOnce("first_sale", "first_sale_completed", {
-            order_id: result.order.id,
-            total_amount: result.order.total_amount,
-          });
+          trackFunnelEventOnce("first_sale", "first_sale_completed");
           if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
           setPendingReceipt(null);
           setCompletedOrder(result.order as Order);

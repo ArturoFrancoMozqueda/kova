@@ -28,6 +28,19 @@ Este documento organiza las mejoras de conversión de Kova como un backlog CRO i
 4. Consistencia del CTA para usuarios autenticados.
 5. Experimentos controlados y revisión de ICE.
 
+## Estado de ejecución
+
+- [x] **Epic CRO-0 — Medición y baseline** (2026-07-20). Contexto común y eventos
+  categóricos implementados; exportación interna documentada en
+  [`docs/runbooks/cro-telemetry-export.md`](../runbooks/cro-telemetry-export.md); baseline de
+  producción y tres corridas Lighthouse en
+  [`docs/audits/CRO-BASELINE-2026-07-20.md`](../audits/CRO-BASELINE-2026-07-20.md).
+- [ ] **Epic CRO-1 — Home y demostración mobile**.
+- [ ] **Epic CRO-2 — Signup claro y recuperable**.
+- [ ] **Epic CRO-3 — Carrito POS sin ansiedad prematura**.
+- [ ] **Epic CRO-4 — Billing y checkout confiables**.
+- [ ] **Epic CRO-5 — Rollout y aprendizaje**.
+
 ---
 
 ## Epic CRO-0 — Medición y baseline

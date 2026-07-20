@@ -10,6 +10,7 @@ const reconcileCheckout = vi.fn();
 const invalidateBillingSubscription = vi.fn();
 const startCheckout = vi.fn();
 const cancelSubscription = vi.fn();
+const trackCheckoutStateViewed = vi.fn();
 
 vi.mock("./api", () => ({
   ApiError: class ApiError extends Error {
@@ -34,6 +35,7 @@ vi.mock("../auth/permissions", () => ({
 }));
 
 vi.mock("@/telemetry/funnel", () => ({
+  trackCheckoutStateViewed: (...args: unknown[]) => trackCheckoutStateViewed(...args),
   trackFunnelEvent: vi.fn(),
   trackFunnelEventOnce: vi.fn(),
 }));
@@ -101,6 +103,8 @@ describe("BillingView success-page reconciliation", () => {
     await waitFor(() => expect(reconcileCheckout).toHaveBeenCalledWith("cs_test_123"));
     // Converges to the active status without a manual refresh.
     expect(await screen.findByText("Activo")).toBeInTheDocument();
+    expect(trackCheckoutStateViewed).toHaveBeenCalledWith("return_success_pending");
+    expect(trackCheckoutStateViewed).toHaveBeenCalledWith("return_success_active");
   });
 
   it("does not reconcile when the subscription is already active", async () => {

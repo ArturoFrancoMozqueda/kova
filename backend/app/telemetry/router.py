@@ -1,11 +1,18 @@
-from fastapi import APIRouter, Depends
+import hmac
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, Header
+from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
-from app.db import get_db
+from app.config import settings
+from app.db import get_db, get_privileged_db
 from app.middleware.rate_limit import rate_limit
 from app.shared.dependencies import get_current_session
+from app.shared.exceptions import forbidden
+from app.telemetry import export
 from app.telemetry.models import AnonymousTelemetryEvent, TelemetryEvent
 from app.telemetry.schemas import (
     AnonymousTelemetryEventCreate,
@@ -74,3 +81,28 @@ def create_anonymous_event(
         # Duplicate client_event_id (retry / double-fire) — idempotent no-op.
         db.rollback()
     return TelemetryEventResponse()
+
+
+@router.get("/internal/cro-export", include_in_schema=False)
+def export_cro_funnel(
+    x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
+    db: Session = Depends(get_privileged_db),
+) -> Response:
+    """Operator-only 30-day CSV across anonymous and authenticated events."""
+    expected = settings.internal_api_key
+    if (
+        not expected
+        or not x_internal_key
+        or not hmac.compare_digest(
+            x_internal_key.encode("utf-8"), expected.encode("utf-8")
+        )
+    ):
+        raise forbidden("Invalid or missing internal API key")
+    stamp = datetime.now(UTC).date().isoformat()
+    return Response(
+        content=export.build_cro_export(db, days=30),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="kova-cro-30d-{stamp}.csv"'
+        },
+    )

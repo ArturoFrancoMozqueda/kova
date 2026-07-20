@@ -8,7 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { AuthLayout } from "./AuthLayout";
-import { queueFunnelEvent } from "@/telemetry/funnel";
+import {
+  queueFunnelEvent,
+  trackAnonymousEvent,
+  trackSignupValidationFailed,
+  type SignupValidationField,
+  type SignupValidationReason,
+} from "@/telemetry/funnel";
 
 type AuthMode = "login" | "signup";
 type ActionState =
@@ -19,6 +25,44 @@ type ActionState =
   | "verified"
   | "email_in_use"
   | "verification_resent";
+
+function signupValidationCategory(error: ApiError): {
+  field: SignupValidationField;
+  reason: SignupValidationReason;
+} {
+  try {
+    const payload = JSON.parse(error.message) as {
+      detail?: Array<{ loc?: unknown[]; type?: string }>;
+    };
+    const first = Array.isArray(payload.detail) ? payload.detail[0] : null;
+    const backendField = first?.loc?.at(-1);
+    const field: SignupValidationField =
+      backendField === "tenant_name"
+        ? "business"
+        : backendField === "email"
+          ? "email"
+          : backendField === "password"
+            ? "password"
+            : backendField === "accepted_terms"
+              ? "terms"
+              : "form";
+    const reason: SignupValidationReason =
+      first?.type === "missing"
+        ? "required"
+        : first?.type === "string_too_short"
+          ? "too_short"
+          : first?.type === "string_too_long"
+            ? "too_long"
+            : field === "email"
+              ? "invalid_format"
+              : field === "password" && first?.type === "value_error"
+                ? "weak_password"
+                : "server_validation";
+    return { field, reason };
+  } catch {
+    return { field: "form", reason: "server_validation" };
+  }
+}
 
 export default function AuthView({ mode }: { mode: AuthMode }) {
   const navigate = useNavigate();
@@ -50,6 +94,33 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     return () => window.clearTimeout(id);
   }, [resendCountdown]);
 
+  const reportClientValidation = (event: FormEvent<HTMLFormElement>) => {
+    if (mode !== "signup") return;
+    const input = event.target as HTMLInputElement;
+    const field: SignupValidationField =
+      input.id === "tenantName"
+        ? "business"
+        : input.id === "email"
+          ? "email"
+          : input.id === "password"
+            ? "password"
+            : input.id === "acceptedTerms"
+              ? "terms"
+              : "form";
+    const reason: SignupValidationReason = input.validity.valueMissing
+      ? field === "terms"
+        ? "not_accepted"
+        : "required"
+      : input.validity.typeMismatch
+        ? "invalid_format"
+        : input.validity.tooShort
+          ? "too_short"
+          : input.validity.tooLong
+            ? "too_long"
+            : "server_validation";
+    void trackSignupValidationFailed(field, reason);
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setState("submitting");
@@ -57,8 +128,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       if (mode === "login") {
         await login({ email, password });
         const next = await refresh();
-        // Queued (like signup_completed) so it flushes once AppShell mounts
-        // authenticated — fills the funnel's `login` rung.
+        // Queue until AppShell mounts authenticated — fills the funnel's login rung.
         queueFunnelEvent("login");
         const role = next.status === "authenticated" ? next.user.role : "";
         navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
@@ -80,9 +150,9 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         setResendCountdown(30);
         return;
       }
-      queueFunnelEvent("signup_completed", {
-        tenant_id: response.tenant_id,
-      });
+      // Signup completes before a session exists; send it immediately through
+      // the cookieless path so abandoned verification/login flows are counted.
+      void trackAnonymousEvent("signup_completed");
       setVerificationToken(response.dev_verification_token ?? "");
       setState("created");
       setResendCountdown(30);
@@ -93,6 +163,10 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         } else if (err.status === 429) {
           setErrorMessage(copy.auth.loginRateLimited);
         } else if (err.status === 422) {
+          if (mode === "signup") {
+            const failure = signupValidationCategory(err);
+            void trackSignupValidationFailed(failure.field, failure.reason);
+          }
           // Malformed email (and other unprocessable input) — a clear "check the
           // email" beats the generic "something went wrong".
           setErrorMessage(copy.auth.signupInvalidEmail);
@@ -119,6 +193,10 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       setState("verification_resent");
       setResendCountdown(30);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 422) {
+        const failure = signupValidationCategory(err);
+        void trackSignupValidationFailed(failure.field, failure.reason);
+      }
       setErrorMessage(
         err instanceof ApiError && err.status === 429
           ? copy.auth.loginRateLimited
@@ -145,7 +223,11 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       title={mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle}
       subtitle={mode === "login" ? copy.auth.loginSubtitle : copy.auth.signupSubtitle}
     >
-      <form onSubmit={(event) => void submit(event)} className="space-y-4">
+      <form
+        onSubmit={(event) => void submit(event)}
+        onInvalid={reportClientValidation}
+        className="space-y-4"
+      >
               {mode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="tenantName">{copy.auth.tenantName}</Label>

@@ -5,6 +5,14 @@ import { axe } from "vitest-axe";
 import AuthView from "./AuthView";
 import { AuthProvider } from "./AuthContext";
 
+const telemetry = vi.hoisted(() => ({
+  queueFunnelEvent: vi.fn(),
+  trackAnonymousEvent: vi.fn().mockResolvedValue(undefined),
+  trackSignupValidationFailed: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/telemetry/funnel", () => telemetry);
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -28,9 +36,90 @@ function mockFetch(handler: (input: RequestInfo | URL, init?: RequestInit) => Re
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 describe("AuthView signup recovery flows", () => {
+  it("records signup completion immediately without tenant identity", async () => {
+    mockFetch((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/v1/auth/session")) {
+        return new Response(JSON.stringify({ authenticated: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            message: "created",
+            reason: "account_created",
+            user_id: "user-secret",
+            tenant_id: "tenant-secret",
+            dev_verification_token: "token",
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("", { status: 404 });
+    });
+
+    renderAt("/signup");
+    fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), {
+      target: { value: "Sweet Home" },
+    });
+    fireEvent.change(screen.getByLabelText(/Correo/i), {
+      target: { value: "owner@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), {
+      target: { value: "S3cur3pass!" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+
+    await waitFor(() =>
+      expect(telemetry.trackAnonymousEvent).toHaveBeenCalledWith("signup_completed"),
+    );
+  });
+
+  it("records only categorized signup validation metadata", async () => {
+    mockFetch((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/v1/auth/session")) {
+        return new Response(JSON.stringify({ authenticated: false }), { status: 200 });
+      }
+      if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            detail: [{ loc: ["body", "password"], type: "string_too_short" }],
+          }),
+          { status: 422 },
+        );
+      }
+      return new Response("", { status: 404 });
+    });
+
+    renderAt("/signup");
+    fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), {
+      target: { value: "Sweet Home" },
+    });
+    fireEvent.change(screen.getByLabelText(/Correo/i), {
+      target: { value: "owner@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+
+    await waitFor(() =>
+      expect(telemetry.trackSignupValidationFailed).toHaveBeenCalledWith(
+        "password",
+        "too_short",
+      ),
+    );
+  });
+
   it("shows the 'email in use' panel with login CTA when the API returns email_in_use", async () => {
     mockFetch((input, init) => {
       const url = typeof input === "string" ? input : input.toString();

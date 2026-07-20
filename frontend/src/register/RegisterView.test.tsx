@@ -29,7 +29,10 @@ vi.mock("../offline/sync", () => ({
 }));
 vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn() }));
 vi.mock("../orders/api", () => ({ getReceipt: (...args: unknown[]) => getReceipt(...args) }));
-vi.mock("@/telemetry/funnel", () => ({ trackFunnelEventOnce: vi.fn() }));
+vi.mock("@/telemetry/funnel", () => ({
+  trackFunnelEventOnce: vi.fn(),
+  trackSaleValidationBlocked: vi.fn(),
+}));
 vi.mock("../inventory/api", () => ({ listStock: () => Promise.resolve([]) }));
 vi.mock("../offline/catalogCache", () => ({
   readCatalogCache: (...args: unknown[]) => catalogCache.readCatalogCache(...args),
