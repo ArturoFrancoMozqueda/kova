@@ -135,6 +135,8 @@ export default function RegisterView() {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashTendered, setCashTendered] = useState("");
+  const [cashTenderedTouched, setCashTenderedTouched] = useState(false);
+  const [cashSubmitAttempted, setCashSubmitAttempted] = useState(false);
   const [reference, setReference] = useState("");
   const [splitPaymentsEnabled, setSplitPaymentsEnabled] = useState(false);
   const [splitPayments, setSplitPayments] = useState<PaymentDraft[]>([
@@ -154,6 +156,7 @@ export default function RegisterView() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const skuInputRef = useRef<HTMLInputElement | null>(null);
   const cashTenderedRef = useRef<HTMLInputElement | null>(null);
+  const cashValidationTrackedRef = useRef(false);
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const successPrimaryRef = useRef<HTMLButtonElement | null>(null);
   const successOverlayRef = useRef<HTMLDivElement | null>(null);
@@ -176,17 +179,32 @@ export default function RegisterView() {
   const displayedSaleTotal =
     completedOrder?.total_amount ?? pendingReceipt?.snapshot.total_amount ?? "0.00";
 
+  const resetCashInteraction = useCallback(() => {
+    setCashTenderedTouched(false);
+    setCashSubmitAttempted(false);
+    cashValidationTrackedRef.current = false;
+  }, []);
+
   const resetSale = useCallback(() => {
     setCart({});
     setPaymentMethod("cash");
     setCashTendered("");
+    resetCashInteraction();
     setReference("");
     setSplitPaymentsEnabled(false);
     setSplitPayments([createPaymentDraft("cash")]);
     setCompletedOrder(null);
     setPendingReceipt(null);
     activeSaleClientUuidRef.current = null;
-  }, []);
+  }, [resetCashInteraction]);
+
+  const selectPaymentMethod = useCallback((next: PaymentMethod) => {
+    if (next !== paymentMethod) {
+      setCashTendered("");
+      resetCashInteraction();
+    }
+    setPaymentMethod(next);
+  }, [paymentMethod, resetCashInteraction]);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -360,9 +378,9 @@ export default function RegisterView() {
   // cash so the cashier isn't stuck on a blocked method.
   useEffect(() => {
     if (hasOpenShift === false && !splitPaymentsEnabled && paymentMethod === "cash") {
-      setPaymentMethod("bank_transfer");
+      selectPaymentMethod("bank_transfer");
     }
-  }, [hasOpenShift, splitPaymentsEnabled, paymentMethod]);
+  }, [hasOpenShift, splitPaymentsEnabled, paymentMethod, selectPaymentMethod]);
 
   // Map category_id → category name for readable filter pills
   const categoryMap = useMemo<Map<string, string>>(() => {
@@ -421,8 +439,12 @@ export default function RegisterView() {
   // Auto-open the mobile cart sheet on the first item added; closes when cart empties.
   useEffect(() => {
     if (cartItems.length > 0) setCartSheetOpen(true);
-    else setCartSheetOpen(false);
-  }, [cartItems.length]);
+    else {
+      setCartSheetOpen(false);
+      setCashTendered("");
+      resetCashInteraction();
+    }
+  }, [cartItems.length, resetCashInteraction]);
   const totalCents = useMemo(
     () =>
       cartItems.reduce(
@@ -465,6 +487,36 @@ export default function RegisterView() {
     (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
     !cashBlocked &&
     !submitting;
+  const hasCashTendered = cashTendered.trim().length > 0;
+  const cashPaymentNeedsAmount =
+    !splitPaymentsEnabled &&
+    paymentMethod === "cash" &&
+    cartItems.length > 0 &&
+    !cashBlocked &&
+    !cashIsValid;
+  const showCashValidationError =
+    cashPaymentNeedsAmount &&
+    (hasCashTendered || cashTenderedTouched || cashSubmitAttempted);
+
+  const reportCashValidationBlocked = useCallback(() => {
+    if (cashValidationTrackedRef.current) return;
+    cashValidationTrackedRef.current = true;
+    void trackSaleValidationBlocked("cash_tendered", "insufficient_cash");
+  }, []);
+
+  const updateCashTenderedFromInteraction = (nextValue: string) => {
+    const sanitized = nextValue.replace(/^-/, "");
+    setCashTendered(sanitized);
+    if (sanitized.trim() && moneyToCents(sanitized) < totalCents) {
+      reportCashValidationBlocked();
+    }
+  };
+
+  const revealCashValidationAfterAttempt = useCallback(() => {
+    if (!cashPaymentNeedsAmount) return;
+    setCashSubmitAttempted(true);
+    reportCashValidationBlocked();
+  }, [cashPaymentNeedsAmount, reportCashValidationBlocked]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -484,17 +536,22 @@ export default function RegisterView() {
         if (event.key === "1" || event.key === "2" || event.key === "3") {
           event.preventDefault();
           setSplitPaymentsEnabled(false);
-          setPaymentMethod(event.key === "1" ? "cash" : event.key === "2" ? "bank_transfer" : "manual_card");
+          selectPaymentMethod(event.key === "1" ? "cash" : event.key === "2" ? "bank_transfer" : "manual_card");
         }
       }
-      if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && canSubmitSale) {
-        event.preventDefault();
-        formRef.current?.requestSubmit();
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        if (canSubmitSale) {
+          event.preventDefault();
+          formRef.current?.requestSubmit();
+        } else if (cashPaymentNeedsAmount) {
+          event.preventDefault();
+          revealCashValidationAfterAttempt();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [canSubmitSale, saleResultVisible]);
+  }, [canSubmitSale, cashPaymentNeedsAmount, revealCashValidationAfterAttempt, saleResultVisible, selectPaymentMethod]);
 
   const addProduct = (product: Product) => {
     if ((product.modifier_groups ?? []).length > 0) {
@@ -556,6 +613,8 @@ export default function RegisterView() {
   };
 
   const toggleSplitPayments = (enabled: boolean) => {
+    setCashTendered("");
+    resetCashInteraction();
     setSplitPaymentsEnabled(enabled);
     if (enabled) {
       setSplitPayments([
@@ -605,7 +664,7 @@ export default function RegisterView() {
       } else if (splitPaymentsEnabled && !splitTotalMatches) {
         void trackSaleValidationBlocked("payment_total", "split_mismatch");
       } else if (!cashIsValid) {
-        void trackSaleValidationBlocked("cash_tendered", "insufficient_cash");
+        revealCashValidationAfterAttempt();
       }
       return;
     }
@@ -694,6 +753,7 @@ export default function RegisterView() {
 
     setCart({});
     setCashTendered("");
+    resetCashInteraction();
     setReference("");
     setSplitPaymentsEnabled(false);
     setSplitPayments([createPaymentDraft("cash")]);
@@ -1312,7 +1372,7 @@ export default function RegisterView() {
                               disabled: value === "cash" && hasOpenShift === false,
                             })),
                             paymentMethod,
-                            setPaymentMethod,
+                            selectPaymentMethod,
                           )
                         }
                       >
@@ -1330,7 +1390,7 @@ export default function RegisterView() {
                               onClick={() =>
                                 isCashDisabled
                                   ? toast(copy.register.cashRequiresShift, "warning")
-                                  : setPaymentMethod(value)
+                                  : selectPaymentMethod(value)
                               }
                               className={cn(
                                 "flex min-h-[60px] flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-medium transition-all",
@@ -1361,8 +1421,18 @@ export default function RegisterView() {
                           inputMode="decimal"
                           placeholder={copy.register.amountTendered}
                           value={cashTendered}
-                          onChange={(event) =>
-                            setCashTendered(event.target.value.replace(/^-/, ""))
+                          onChange={(event) => updateCashTenderedFromInteraction(event.target.value)}
+                          onBlur={() => {
+                            setCashTenderedTouched(true);
+                            if (cashPaymentNeedsAmount) reportCashValidationBlocked();
+                          }}
+                          aria-invalid={showCashValidationError || undefined}
+                          aria-describedby={
+                            showCashValidationError
+                              ? "cashTendered-error"
+                              : hasCashTendered
+                                ? "cashTendered-status"
+                                : "cashTendered-help"
                           }
                         />
                         {/* Quick cash: common MXN bills + exact amount, so the
@@ -1372,7 +1442,7 @@ export default function RegisterView() {
                             <button
                               key={bill}
                               type="button"
-                              onClick={() => setCashTendered(String(bill))}
+                              onClick={() => updateCashTenderedFromInteraction(String(bill))}
                               className="rounded-lg border bg-background px-3 py-1.5 text-sm font-medium tabular-nums hover:border-primary/40 hover:bg-muted/30 transition-colors"
                             >
                               {formatMoney(bill)}
@@ -1380,18 +1450,15 @@ export default function RegisterView() {
                           ))}
                           <button
                             type="button"
-                            onClick={() => setCashTendered(totalAmount)}
+                            onClick={() => updateCashTenderedFromInteraction(totalAmount)}
                             className="rounded-lg border bg-background px-3 py-1.5 text-sm font-medium hover:border-primary/40 hover:bg-muted/30 transition-colors"
                           >
                             {copy.register.exactCash}
                           </button>
                         </div>
                         {(() => {
-                          const shortfallCents =
-                            tenderedCents > 0 && tenderedCents < totalCents
-                              ? totalCents - tenderedCents
-                              : 0;
-                          if (shortfallCents > 0) {
+                          if (showCashValidationError) {
+                            const shortfallCents = totalCents - tenderedCents;
                             return (
                               <div className="flex justify-between rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm">
                                 <span className="text-destructive">{copy.register.cashShortfall}</span>
@@ -1399,15 +1466,25 @@ export default function RegisterView() {
                               </div>
                             );
                           }
+                          if (!hasCashTendered) {
+                            return (
+                              <p
+                                id="cashTendered-help"
+                                className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground"
+                              >
+                                {copy.register.cashTenderedHint}
+                              </p>
+                            );
+                          }
                           return (
-                            <div className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
+                            <div id="cashTendered-status" className="flex justify-between rounded-lg bg-muted/50 p-3 text-sm">
                               <span className="text-muted-foreground">{copy.register.changeDue}</span>
                               <span className="font-bold text-primary tabular-nums">{formatMoney(centsToMoney(changeDueCents))}</span>
                             </div>
                           );
                         })()}
-                        {!cashIsValid && cartItems.length > 0 && (
-                          <p className="flex items-center gap-1.5 text-xs text-destructive">
+                        {showCashValidationError && (
+                          <p id="cashTendered-error" className="flex items-center gap-1.5 text-xs text-destructive">
                             <AlertCircle className="h-3.5 w-3.5" />
                             {copy.register.cashTooLow}
                           </p>
@@ -1474,9 +1551,18 @@ export default function RegisterView() {
                     estado de exito, que ya usa ese mismo verde. */}
                 <Button
                   type="submit"
-                  disabled={!canSubmitSale}
+                  disabled={!canSubmitSale && !cashPaymentNeedsAmount}
+                  aria-disabled={!canSubmitSale}
+                  onClick={(event) => {
+                    if (canSubmitSale) return;
+                    event.preventDefault();
+                    revealCashValidationAfterAttempt();
+                  }}
                   size="xl"
-                  className="w-full bg-kova-growth text-white hover:bg-kova-growth/90"
+                  className={cn(
+                    "w-full bg-kova-growth text-white hover:bg-kova-growth/90",
+                    !canSubmitSale && cashPaymentNeedsAmount && "cursor-not-allowed opacity-50",
+                  )}
                   variant="default"
                 >
                   {submitting ? (

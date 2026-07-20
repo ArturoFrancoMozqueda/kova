@@ -45,7 +45,10 @@ Execute one epic per PR, merge only after required checks are green, then contin
 - [x] Epic CRO-2 — clear, recoverable signup: backend-aligned password rules, field-specific 422
   recovery with accessible focus, adjacent trial trust copy, and PII-free validation telemetry;
   evidence in [`docs/audits/CRO-2-SIGNUP-2026-07-20.md`](audits/CRO-2-SIGNUP-2026-07-20.md).
-- [ ] Epic CRO-3 — POS cart without premature anxiety.
+- [x] Epic CRO-3 — POS cart without premature anxiety: neutral untouched-cash guidance,
+  interaction-gated validation and telemetry, preserved financial guards, and mobile coverage at
+  320×844 and 390×844; evidence in
+  [`docs/audits/CRO-3-POS-CASH-2026-07-20.md`](audits/CRO-3-POS-CASH-2026-07-20.md).
 - [ ] Epic CRO-4 — trustworthy billing and checkout.
 - [ ] Epic CRO-5 — rollout and learning loop.
 

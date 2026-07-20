@@ -41,7 +41,10 @@ Este documento organiza las mejoras de conversión de Kova como un backlog CRO i
 - [x] **Epic CRO-2 — Signup claro y recuperable** (2026-07-20). Reglas de contraseña alineadas con
   backend, errores 422 por campo con foco accesible, confianza junto al CTA y telemetría sin PII;
   evidencia en [`docs/audits/CRO-2-SIGNUP-2026-07-20.md`](../audits/CRO-2-SIGNUP-2026-07-20.md).
-- [ ] **Epic CRO-3 — Carrito POS sin ansiedad prematura**.
+- [x] **Epic CRO-3 — Carrito POS sin ansiedad prematura** (2026-07-20). El efectivo inicia con
+  ayuda neutral, conserva las guardas de cobro, reinicia la interacción entre ventas y registra
+  bloqueos únicamente después de interacción; evidencia en
+  [`docs/audits/CRO-3-POS-CASH-2026-07-20.md`](../audits/CRO-3-POS-CASH-2026-07-20.md).
 - [ ] **Epic CRO-4 — Billing y checkout confiables**.
 - [ ] **Epic CRO-5 — Rollout y aprendizaje**.
 

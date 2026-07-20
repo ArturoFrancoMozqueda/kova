@@ -513,6 +513,79 @@ test("register quick sale keeps CTAs above mobile navigation", async ({ page }) 
   await expectNoHorizontalOverflow(page);
 });
 
+test("cash checkout waits for interaction before showing an error on common phone widths", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockCommon(page);
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: { id: "shift-cro-3", tenant_id: "tenant-1", status: "open" } }),
+  );
+
+  const telemetryEvents: Array<{ event_name?: string; properties?: Record<string, unknown> }> = [];
+  await page.route("**/api/v1/telemetry/events", async (route) => {
+    telemetryEvents.push(route.request().postDataJSON());
+    await route.fulfill({ json: { ok: true } });
+  });
+
+  for (const viewport of [
+    { width: 320, height: 844 },
+    { width: 390, height: 844 },
+  ]) {
+    telemetryEvents.length = 0;
+    await page.setViewportSize(viewport);
+    await page.goto("/register");
+    await page.getByRole("button", { name: "Agregar Concha" }).click();
+
+    const cashInput = page.getByLabel(/efectivo recibido/i);
+    const chargeButton = page.getByRole("button", { name: /^cobrar$/i });
+    await expect(cashInput).toBeVisible();
+    await expect(
+      page.getByText(/ingresa el efectivo recibido o elige un monto rápido/i),
+    ).toBeVisible();
+    await expect(page.getByText(/aún no cubre el total/i)).toHaveCount(0);
+    await expect(cashInput).not.toHaveAttribute("aria-invalid", "true");
+    await expect(chargeButton).toHaveAttribute("aria-disabled", "true");
+    expect(telemetryEvents).toHaveLength(0);
+
+    // A shorter visual viewport approximates the space left by an open mobile
+    // keyboard. The payment selector and CTA must remain reachable in-sheet.
+    await cashInput.focus();
+    await page.setViewportSize({ width: viewport.width, height: 500 });
+    const paymentSelector = page.getByRole("radiogroup", { name: /método de pago/i });
+    await paymentSelector.scrollIntoViewIfNeeded();
+    await expect(paymentSelector).toBeVisible();
+
+    // Playwright treats aria-disabled as non-actionable. Scroll the CTA into
+    // the safe area and send a real pointer event to verify the touch path.
+    await chargeButton.scrollIntoViewIfNeeded();
+    const chargeBox = await chargeButton.boundingBox();
+    expect(chargeBox).not.toBeNull();
+    expect(chargeBox!.y + chargeBox!.height).toBeLessThanOrEqual(500 - 56);
+    await page.mouse.click(
+      chargeBox!.x + chargeBox!.width / 2,
+      chargeBox!.y + chargeBox!.height / 2,
+    );
+    await expect(page.getByText(/aún no cubre el total/i)).toBeVisible();
+    await expect(cashInput).toHaveAttribute("aria-invalid", "true");
+    await expect.poll(() => telemetryEvents.filter(
+      (event) => event.event_name === "sale_validation_blocked",
+    )).toHaveLength(1);
+    expect(telemetryEvents.find(
+      (event) => event.event_name === "sale_validation_blocked",
+    )?.properties).toMatchObject({
+      field: "cash_tendered",
+      reason_code: "insufficient_cash",
+      device_class: "mobile",
+      viewport_bucket: viewport.width < 360 ? "mobile_320" : "mobile_390",
+    });
+
+    await cashInput.fill("20.00");
+    await expect(page.getByText(/cambio/i).last()).toBeVisible();
+    await expect(page.getByText(/\$1\.50/).first()).toBeVisible();
+    await expect(chargeButton).toHaveAttribute("aria-disabled", "false");
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
 test("inventory low-stock workflow fits phone and tablet", async ({ page }) => {
   await mockCommon(page, {
     stock: [STOCK_ITEM],
