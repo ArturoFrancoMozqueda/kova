@@ -5,6 +5,7 @@ import {
   trackAnonymousEvent,
   trackAnonymousEventOnce,
   trackFunnelEvent,
+  trackSignupValidationFailed,
 } from "./funnel";
 
 describe("anonymous funnel path", () => {
@@ -52,6 +53,27 @@ describe("anonymous funnel path", () => {
     await expect(
       trackAnonymousEvent("landing_viewed"),
     ).resolves.toBeUndefined();
+  });
+
+  it("sends signup failures with categorical metadata only", async () => {
+    await trackSignupValidationFailed("password", "weak_password");
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.event_name).toBe("signup_validation_failed");
+    expect(body.properties).toMatchObject({
+      field: "password",
+      reason_code: "weak_password",
+    });
+    expect(Object.keys(body.properties).sort()).toEqual([
+      "campaign",
+      "device_class",
+      "field",
+      "medium",
+      "path",
+      "reason_code",
+      "source",
+      "viewport_bucket",
+    ]);
   });
 
   it("fires a once-per-load event only once", async () => {

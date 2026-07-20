@@ -82,7 +82,7 @@ describe("AuthView signup recovery flows", () => {
     );
   });
 
-  it("records only categorized signup validation metadata", async () => {
+  it("maps a password 422 to the password field, focuses it, and records only categories", async () => {
     mockFetch((input, init) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/api/v1/auth/session")) {
@@ -107,7 +107,7 @@ describe("AuthView signup recovery flows", () => {
       target: { value: "owner@example.com" },
     });
     fireEvent.change(screen.getByLabelText(/Contraseña/i), {
-      target: { value: "12345678" },
+      target: { value: "S3cur3pass!" },
     });
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
@@ -118,6 +118,124 @@ describe("AuthView signup recovery flows", () => {
         "too_short",
       ),
     );
+    const password = screen.getByLabelText(/Contraseña/i);
+    expect(password).toBe(document.activeElement);
+    expect(password.getAttribute("aria-invalid")).toBe("true");
+    expect(password.getAttribute("aria-describedby")).toBe(
+      "password-requirements password-error",
+    );
+    expect(screen.getByText(/debe tener al menos 8 caracteres/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Correo/i).getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("maps every supported FastAPI location and focuses the first invalid field", async () => {
+    mockFetch((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/v1/auth/session")) {
+        return new Response(JSON.stringify({ authenticated: false }), { status: 200 });
+      }
+      if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            detail: [
+              { loc: ["body", "tenant_name"], type: "string_too_long" },
+              { loc: ["body", "email"], type: "value_error" },
+              { loc: ["body", "password"], type: "value_error" },
+            ],
+          }),
+          { status: 422 },
+        );
+      }
+      return new Response("", { status: 404 });
+    });
+
+    renderAt("/signup");
+    fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), {
+      target: { value: "Sweet Home" },
+    });
+    fireEvent.change(screen.getByLabelText(/Correo/i), {
+      target: { value: "owner@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), {
+      target: { value: "S3cur3pass!" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+
+    await screen.findByText(/120 caracteres o menos/i);
+    expect(screen.getByText(/no parece una dirección válida/i)).toBeTruthy();
+    expect(screen.getByText(/Incluye al menos una letra y un número/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Nombre del negocio/i)).toBe(document.activeElement);
+    expect(telemetry.trackSignupValidationFailed).toHaveBeenCalledWith(
+      "business",
+      "too_long",
+    );
+    expect(telemetry.trackSignupValidationFailed).toHaveBeenCalledWith(
+      "email",
+      "invalid_format",
+    );
+    expect(telemetry.trackSignupValidationFailed).toHaveBeenCalledWith(
+      "password",
+      "weak_password",
+    );
+  });
+
+  it("shows the backend-aligned password rules and trial trust copy before submit", async () => {
+    mockFetch(() =>
+      new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    renderAt("/signup");
+
+    const password = await screen.findByLabelText(/Contraseña/i);
+    expect(password.getAttribute("minlength")).toBe("8");
+    expect(password.getAttribute("maxlength")).toBe("128");
+    expect(password.getAttribute("pattern")).toBe(
+      "(?=.*[A-Za-z])(?=.*[0-9]).{8,128}",
+    );
+    expect(
+      screen.getByText("8 caracteres, al menos una letra y un número"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("7 días gratis. Sin tarjeta para empezar."),
+    ).toBeTruthy();
+  });
+
+  it("blocks a weak password in the browser and reports only its category", async () => {
+    const fetchMock = mockFetch(() =>
+      new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    renderAt("/signup");
+    fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), {
+      target: { value: "Sweet Home" },
+    });
+    fireEvent.change(screen.getByLabelText(/Correo/i), {
+      target: { value: "owner@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+
+    await waitFor(() =>
+      expect(telemetry.trackSignupValidationFailed).toHaveBeenCalledWith(
+        "password",
+        "weak_password",
+      ),
+    );
+    expect(
+      fetchMock.mock.calls.some(([input, init]) =>
+        input.toString().includes("/api/v1/auth/signup") && init?.method === "POST",
+      ),
+    ).toBe(false);
   });
 
   it("shows the 'email in use' panel with login CTA when the API returns email_in_use", async () => {
