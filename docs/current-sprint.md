@@ -41,7 +41,7 @@ The active conversion backlog is [`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CR
 Execute one epic per PR, merge only after required checks are green, then continue in order.
 
 - [x] Epic CRO-0 — measurement context, diagnostic events, protected 30-day export and baseline.
-- [ ] Epic CRO-1 — mobile home and showcase.
+- [x] Epic CRO-1 — mobile home and showcase.
 - [ ] Epic CRO-2 — clear, recoverable signup.
 - [ ] Epic CRO-3 — POS cart without premature anxiety.
 - [ ] Epic CRO-4 — trustworthy billing and checkout.
