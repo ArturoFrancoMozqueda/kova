@@ -1,13 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const trackAnonymousEvent = vi.fn();
 const trackAnonymousEventOnce = vi.fn();
+const trackExperimentExposed = vi.fn();
+const assignCtaSpecificityExperiment = vi.fn();
 
 vi.mock("@/telemetry/funnel", () => ({
   trackAnonymousEvent: (...args: unknown[]) => trackAnonymousEvent(...args),
   trackAnonymousEventOnce: (...args: unknown[]) => trackAnonymousEventOnce(...args),
+  trackExperimentExposed: (...args: unknown[]) => trackExperimentExposed(...args),
+  assignCtaSpecificityExperiment: (...args: unknown[]) =>
+    assignCtaSpecificityExperiment(...args),
+  hasFunnelClientId: () => false,
 }));
 
 // Unauthenticated visitor → primary CTAs point to /signup.
@@ -29,6 +35,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   beforeEach(() => {
     trackAnonymousEvent.mockClear();
     trackAnonymousEventOnce.mockClear();
+    trackExperimentExposed.mockClear();
+    assignCtaSpecificityExperiment.mockReset();
+    assignCtaSpecificityExperiment.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -97,6 +106,51 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(trackAnonymousEvent).toHaveBeenCalledWith(
       "signup_started",
       expect.objectContaining({ cta: expect.any(String) }),
+    );
+  });
+
+  it("shows the verified trial treatment and records one EXP-01 exposure", async () => {
+    assignCtaSpecificityExperiment.mockReturnValue("treatment");
+    renderHome();
+
+    const treatmentCta = await screen.findByRole("link", {
+      name: /Prueba Kova 7 días gratis/i,
+    });
+    expect(treatmentCta).toHaveAttribute("href", "/signup");
+    await waitFor(() => {
+      expect(trackExperimentExposed).toHaveBeenCalledWith(
+        "exp_01_cta_specificity",
+        "treatment",
+        "hero",
+      );
+    });
+    fireEvent.click(treatmentCta);
+    expect(trackAnonymousEvent).toHaveBeenCalledWith(
+      "landing_cta_clicked",
+      {
+        cta: "hero",
+        experiment_id: "exp_01_cta_specificity",
+        variant: "treatment",
+      },
+    );
+  });
+
+  it("keeps hero copy outside the reveal gate used below the fold", () => {
+    const { container } = renderHome();
+    expect(container.querySelector(".lp-hero-grid")).not.toHaveAttribute("data-lp-reveal");
+    expect(container.querySelector(".lp-hero-copy")).toBeVisible();
+  });
+
+  it("tracks the embedded showcase CTA at the same signup destination", () => {
+    const { container } = renderHome();
+    const cta = container.querySelector<HTMLAnchorElement>(
+      '.ksw-cta-btn[href="/signup"]',
+    );
+    expect(cta).not.toBeNull();
+    fireEvent.click(cta!);
+    expect(trackAnonymousEvent).toHaveBeenCalledWith(
+      "landing_cta_clicked",
+      { cta: "showcase" },
     );
   });
 });

@@ -297,14 +297,61 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /empieza gratis/i }).first()).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /empieza gratis|prueba kova 7 días gratis/i }).first(),
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     if (viewport.width < 768) {
+      const heroContent = page.locator(".lp-hero-content");
+      const heroVisual = page.locator(".lp-hero-visual");
+      const heroCta = page.locator('.lp-hero-actions a[href="/signup"]').first();
+      await expect(heroContent).toBeVisible();
+      await expect(heroCta).toBeVisible();
+      const [contentBox, visualBox, ctaBox] = await Promise.all([
+        heroContent.boundingBox(),
+        heroVisual.boundingBox(),
+        heroCta.boundingBox(),
+      ]);
+      expect(contentBox).not.toBeNull();
+      expect(visualBox).not.toBeNull();
+      expect(ctaBox).not.toBeNull();
+      expect(contentBox!.y).toBeLessThan(visualBox!.y);
+      expect(ctaBox!.y + ctaBox!.height).toBeLessThanOrEqual(viewport.height);
       await expect(page.getByRole("link", { name: "Producto" })).toBeHidden();
       await expect(page.getByRole("link", { name: "Precio" })).toBeHidden();
     }
   }
+});
+
+test("mobile hero and showcase share the signup destination", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.goto("/");
+
+  const heroCta = page.locator('.lp-hero-actions a[href="/signup"]').first();
+  await expect(heroCta).toBeVisible();
+  await expect(page.locator('.ksw-cta-btn[href="/signup"]')).toHaveCount(1);
+  await heroCta.click();
+  await expect(page).toHaveURL(/\/signup$/);
+});
+
+test("landing brand motion is neutralized when reduced motion is requested", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.goto("/");
+
+  const logo = page.locator(".lp-hero-logo");
+  await expect(logo).toHaveAttribute("data-reduced-motion", "true");
+  const animationNames = await logo.locator("[data-anim]").evaluateAll((elements) =>
+    elements.map((element) => window.getComputedStyle(element).animationName),
+  );
+  expect(animationNames.every((name) => name === "none")).toBe(true);
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

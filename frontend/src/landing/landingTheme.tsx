@@ -148,6 +148,9 @@ export const LANDING_STYLES = `
   .lp-root.lp-motion-ready .lp-hero-visual > * {
     animation: lp-hero-drift 7s ease-in-out infinite;
   }
+  .lp-root:not(.lp-motion-ready) .lp-hero-logo [data-anim] {
+    animation-play-state: paused !important;
+  }
   .lp-hero-visual > * {
     max-width: min(100%, 410px);
   }
@@ -637,6 +640,14 @@ export const RESPONSIVE_STYLES = `
     background: var(--page-bg);
   }
   .lp-root > section { width: 100%; }
+  /* Keep the full prerendered marketing story available to crawlers and
+     assistive technology, while letting the browser skip layout/paint work
+     for sections that are still far below the first viewport. */
+  .lp-root main > section:not(.lp-hero-section),
+  .lp-root > footer {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 760px;
+  }
   .lp-root *, .lp-root *::before, .lp-root *::after {
     box-sizing: border-box;
   }
@@ -673,6 +684,11 @@ export const RESPONSIVE_STYLES = `
     .lp-problem-ticket { max-width: 340px !important; }
   }
   @media (max-width: 640px) {
+    /* Prevent mobile font downloads and late swaps from redefining the LCP. */
+    .lp-root,
+    .lp-root * {
+      font-family: ui-sans-serif, system-ui, sans-serif !important;
+    }
     .lp-section { padding: 58px 20px !important; }
     .lp-section-compact { padding: 52px 20px !important; }
     .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
@@ -694,8 +710,12 @@ export const RESPONSIVE_STYLES = `
     }
     .lp-hero-section { padding: 28px 20px 44px !important; }
     .lp-hero-title { font-size: 31px !important; }
-    .lp-hero-copy { font-size: 15px !important; margin-top: 14px !important; }
-    .lp-hero-visual { order: -1; min-height: 190px !important; }
+    .lp-hero-copy {
+      font-size: 15px !important;
+      margin-top: 14px !important;
+    }
+    .lp-hero-content { order: 1; }
+    .lp-hero-visual { order: 2; min-height: 170px !important; }
     .lp-hero-visual > * { max-width: min(100%, 220px) !important; }
     .lp-hero-logo { width: 220px !important; }
     .lp-hero-logo > div { padding: 0 !important; gap: 0 !important; }

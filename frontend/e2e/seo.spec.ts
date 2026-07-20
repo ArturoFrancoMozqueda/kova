@@ -16,6 +16,14 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).toContain("Conoce exactamente");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
+    expect(html).toContain('src="/hydrate-prerender.js"');
+    expect(html).not.toContain('rel="modulepreload"');
+  });
+
+  test("landing bootstrap hydrates the prerendered HTML", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
+    await expect(page.locator(".lp-hero-copy")).toBeVisible();
   });
 
   test("legal pages are prerendered with their own title", async ({ request }) => {
@@ -48,5 +56,7 @@ test.describe("technical SEO (prerendered build only)", () => {
     const res = await request.get("/dashboard");
     const html = await res.text();
     expect(html).not.toContain("Conoce exactamente");
+    expect(html).toContain('<script type="module"');
+    expect(html).not.toContain('src="/hydrate-prerender.js"');
   });
 });
