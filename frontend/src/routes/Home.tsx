@@ -8,12 +8,20 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
-import { trackAnonymousEvent, trackAnonymousEventOnce } from "@/telemetry/funnel";
+import {
+  assignCtaSpecificityExperiment,
+  hasFunnelClientId,
+  trackAnonymousEvent,
+  trackAnonymousEventOnce,
+  trackExperimentExposed,
+  type ExperimentVariant,
+} from "@/telemetry/funnel";
 import {
   STANDARD_PLAN_AMOUNT,
   STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
+import { BILLING_TRIAL_CTA_LABEL_ES } from "@/billing/trial";
 import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
@@ -43,7 +51,6 @@ function useLandingRevealMotion() {
       root.querySelectorAll<HTMLElement>(
         [
           ".lp-reveal-block",
-          ".lp-hero-grid",
           ".lp-benefit-strip",
           ".lp-story-card",
           ".lp-footer-grid",
@@ -200,9 +207,11 @@ function Navbar({
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({
   primaryTarget,
+  primaryCtaLabel,
   onCtaClick,
 }: {
   primaryTarget: string;
+  primaryCtaLabel: string;
   onCtaClick: (cta: string) => void;
 }) {
   const benefits = [
@@ -236,7 +245,7 @@ function Hero({
           }}
           className="lp-hero-grid"
         >
-          <div>
+          <div className="lp-hero-content">
             <span
               className="lp-section-label"
               style={{ marginBottom: 18, color: "var(--accent)" }}
@@ -284,7 +293,7 @@ function Hero({
                   display: "inline-flex", alignItems: "center", gap: 8,
                 }}
               >
-                <span>{t.hero.ctaPrimary}</span>
+                <span>{primaryCtaLabel}</span>
                 <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                   <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -750,6 +759,8 @@ export default function Home(): ReactNode {
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
+  const [newFunnelVisitor] = useState(() => !hasFunnelClientId());
+  const [ctaExperimentVariant, setCtaExperimentVariant] = useState<ExperimentVariant | null>(null);
   const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
@@ -763,6 +774,17 @@ export default function Home(): ReactNode {
   useEffect(() => {
     trackAnonymousEventOnce("landing_viewed", "landing_viewed");
   }, []);
+
+  useEffect(() => {
+    const variant = assignCtaSpecificityExperiment(
+      state.status === "unauthenticated",
+      newFunnelVisitor,
+    );
+    setCtaExperimentVariant(variant);
+    if (variant) {
+      trackExperimentExposed("exp_01_cta_specificity", variant, "hero");
+    }
+  }, [newFunnelVisitor, state.status]);
 
   // Scroll-depth por sección: `landing_section_viewed` marca hasta dónde llegó
   // el visitante (una vez por sección por carga, mismo guard in-memory que
@@ -794,13 +816,23 @@ export default function Home(): ReactNode {
 
   const onCtaClick = useCallback(
     (cta: string) => {
-      void trackAnonymousEvent("landing_cta_clicked", { cta });
+      const experiment =
+        cta === "hero" && ctaExperimentVariant
+          ? {
+              experiment_id: "exp_01_cta_specificity",
+              variant: ctaExperimentVariant,
+            }
+          : {};
+      void trackAnonymousEvent("landing_cta_clicked", { cta, ...experiment });
       if (primaryTarget === "/signup") {
-        void trackAnonymousEvent("signup_started", { cta });
+        void trackAnonymousEvent("signup_started", { cta, ...experiment });
       }
     },
-    [primaryTarget],
+    [ctaExperimentVariant, primaryTarget],
   );
+
+  const primaryCtaLabel =
+    ctaExperimentVariant === "treatment" ? BILLING_TRIAL_CTA_LABEL_ES : t.hero.ctaPrimary;
 
   // Paint html/body with the same landing background while this view is mounted.
   // Prevents the white body bg from showing on viewports wider than the natural
@@ -824,11 +856,20 @@ export default function Home(): ReactNode {
       <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} onCtaClick={onCtaClick} />
       <main>
-        <Hero primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
+        <Hero
+          primaryTarget={primaryTarget}
+          primaryCtaLabel={primaryCtaLabel}
+          onCtaClick={onCtaClick}
+        />
         {/* Cinematic product showcase (laptop mockup, auto-playing loop).
             Landscape variant tuned for the landing flow; the same component
             powers the standalone /kova-showcase-video export route. */}
-        <KovaShowcase format="landscape" variant="embedded" />
+        <KovaShowcase
+          format="landscape"
+          variant="embedded"
+          ctaTarget={primaryTarget}
+          onCtaClick={() => onCtaClick("showcase")}
+        />
         <Problem />
         <OwnerDashboard />
         <BentoModules />

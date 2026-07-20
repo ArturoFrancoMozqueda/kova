@@ -3,6 +3,7 @@ import { csrfHeaders } from "../lib/csrf";
 const QUEUE_KEY = "kova:funnel-events";
 const CLIENT_ID_KEY = "kova:funnel-client-id";
 const FIRST_TOUCH_KEY = "kova:funnel-first-touch";
+const CTA_SPECIFICITY_EXPERIMENT_KEY = "kova:experiment:exp_01_cta_specificity";
 
 type FunnelEvent = {
   event_name: string;
@@ -77,6 +78,50 @@ export function clientId(): string {
     return next;
   } catch {
     return newClientId();
+  }
+}
+
+export function hasFunnelClientId(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return Boolean(window.localStorage.getItem(CLIENT_ID_KEY));
+  } catch {
+    return false;
+  }
+}
+
+function experimentVariantForClient(value: string): ExperimentVariant {
+  // FNV-1a keeps the split deterministic without sending another identifier.
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 2 === 0 ? "control" : "treatment";
+}
+
+/**
+ * Assign EXP-01 only on the first anonymous mobile visit. Existing clients are
+ * deliberately excluded; once assigned, a client keeps the same variant.
+ */
+export function assignCtaSpecificityExperiment(
+  eligible: boolean,
+  newVisitor = !hasFunnelClientId(),
+): ExperimentVariant | null {
+  if (typeof window === "undefined" || !eligible || window.innerWidth >= 768) return null;
+
+  try {
+    const assigned = window.localStorage.getItem(CTA_SPECIFICITY_EXPERIMENT_KEY);
+    if (assigned === "control" || assigned === "treatment") return assigned;
+
+    if (!newVisitor) return null;
+
+    const variant = experimentVariantForClient(clientId());
+    window.localStorage.setItem(CTA_SPECIFICITY_EXPERIMENT_KEY, variant);
+    return variant;
+  } catch {
+    // Storage-restricted browsers may participate for this page load only.
+    return experimentVariantForClient(clientId());
   }
 }
 

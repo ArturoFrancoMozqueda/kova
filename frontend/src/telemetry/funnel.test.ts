@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { trackAnonymousEvent, trackAnonymousEventOnce, trackFunnelEvent } from "./funnel";
+import {
+  assignCtaSpecificityExperiment,
+  hasFunnelClientId,
+  trackAnonymousEvent,
+  trackAnonymousEventOnce,
+  trackFunnelEvent,
+} from "./funnel";
 
 describe("anonymous funnel path", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -90,6 +96,37 @@ describe("anonymous funnel path", () => {
       campaign: "julio-pos",
     });
     expect(JSON.stringify(first)).not.toContain("ignored");
+  });
+
+  it("assigns EXP-01 once to a new mobile visitor and keeps the variant stable", () => {
+    expect(hasFunnelClientId()).toBe(false);
+    const first = assignCtaSpecificityExperiment(true);
+    const second = assignCtaSpecificityExperiment(true);
+
+    expect(first).toMatch(/^(control|treatment)$/);
+    expect(second).toBe(first);
+    expect(window.localStorage.getItem("kova:funnel-client-id")).toBeTruthy();
+    expect(window.localStorage.getItem("kova:experiment:exp_01_cta_specificity")).toBe(first);
+  });
+
+  it("preserves first-visit eligibility when landing telemetry creates the id first", async () => {
+    const newVisitor = !hasFunnelClientId();
+    await trackAnonymousEvent("landing_viewed");
+
+    expect(hasFunnelClientId()).toBe(true);
+    expect(assignCtaSpecificityExperiment(true, newVisitor)).toMatch(/^(control|treatment)$/);
+  });
+
+  it("excludes returning, desktop, and authenticated visitors from EXP-01", () => {
+    window.localStorage.setItem("kova:funnel-client-id", "returning-client");
+    expect(assignCtaSpecificityExperiment(true)).toBeNull();
+
+    window.localStorage.clear();
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
+    expect(assignCtaSpecificityExperiment(true)).toBeNull();
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    expect(assignCtaSpecificityExperiment(false)).toBeNull();
   });
 
   it("drops PII and monetary properties from authenticated events", async () => {

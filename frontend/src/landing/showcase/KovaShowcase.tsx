@@ -98,10 +98,16 @@ const SCENES: Scene[] = [
 export type KovaShowcaseProps = {
   format: "landscape" | "portrait";
   variant?: "embedded" | "standalone";
+  ctaTarget?: string;
+  onCtaClick?: () => void;
 };
 
-export default function KovaShowcase({ format, variant = "embedded" }: KovaShowcaseProps) {
-  const ctaTarget = "/signup";
+export default function KovaShowcase({
+  format,
+  variant = "embedded",
+  ctaTarget = "/signup",
+  onCtaClick,
+}: KovaShowcaseProps) {
   const standalone = variant === "standalone";
   const stageRef = useRef<HTMLDivElement>(null);
   // Embedded: play only while the stage is on screen. Standalone: always.
@@ -120,7 +126,7 @@ export default function KovaShowcase({ format, variant = "embedded" }: KovaShowc
       data-format={format}
       data-variant={variant}
       data-scene={scene}
-      aria-hidden="true"
+      aria-label={standalone ? undefined : sc.eyebrow}
     >
       <style dangerouslySetInnerHTML={{ __html: SHOWCASE_STYLES }} />
 
@@ -179,7 +185,12 @@ export default function KovaShowcase({ format, variant = "embedded" }: KovaShowc
                           <p className="ksw-cta-line lp-story-fade" style={{ ["--lp-fade-delay" as string]: "380ms" }}>
                             {sc.ctaLine}
                           </p>
-                          <Link to={ctaTarget} className="ksw-cta-btn lp-story-fade" style={{ ["--lp-fade-delay" as string]: "540ms" }}>
+                          <Link
+                            to={ctaTarget}
+                            onClick={onCtaClick}
+                            className="ksw-cta-btn lp-story-fade"
+                            style={{ ["--lp-fade-delay" as string]: "540ms" }}
+                          >
                             {sc.ctaButton}
                           </Link>
                         </div>

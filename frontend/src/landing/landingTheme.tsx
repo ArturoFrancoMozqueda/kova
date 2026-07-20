@@ -148,6 +148,9 @@ export const LANDING_STYLES = `
   .lp-root.lp-motion-ready .lp-hero-visual > * {
     animation: lp-hero-drift 7s ease-in-out infinite;
   }
+  .lp-root:not(.lp-motion-ready) .lp-hero-logo [data-anim] {
+    animation-play-state: paused !important;
+  }
   .lp-hero-visual > * {
     max-width: min(100%, 410px);
   }
@@ -695,7 +698,8 @@ export const RESPONSIVE_STYLES = `
     .lp-hero-section { padding: 28px 20px 44px !important; }
     .lp-hero-title { font-size: 31px !important; }
     .lp-hero-copy { font-size: 15px !important; margin-top: 14px !important; }
-    .lp-hero-visual { order: -1; min-height: 190px !important; }
+    .lp-hero-content { order: 1; }
+    .lp-hero-visual { order: 2; min-height: 170px !important; }
     .lp-hero-visual > * { max-width: min(100%, 220px) !important; }
     .lp-hero-logo { width: 220px !important; }
     .lp-hero-logo > div { padding: 0 !important; gap: 0 !important; }
