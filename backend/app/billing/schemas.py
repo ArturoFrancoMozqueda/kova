@@ -1,7 +1,15 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+BILLING_PERIOD_FRESHNESS_MAX_AGE = timedelta(hours=24)
+PeriodFreshness = Literal["verified", "stale", "unavailable"]
+
+
+def _utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 class StandardPlanResponse(BaseModel):
@@ -22,6 +30,7 @@ class SubscriptionResponse(BaseModel):
     amount_minor_units: int
     current_period_start: datetime | None
     current_period_end: datetime | None
+    stripe_period_synced_at: datetime | None = Field(default=None, exclude=True)
     trial_ends_at: datetime | None
     past_due_at: datetime | None
     grace_period_ends_at: datetime | None
@@ -29,6 +38,22 @@ class SubscriptionResponse(BaseModel):
     canceled_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def period_freshness(self) -> PeriodFreshness:
+        if self.current_period_end is None:
+            return "unavailable"
+        now = datetime.now(UTC)
+        if (
+            _utc(self.current_period_end) > now
+            and self.stripe_period_synced_at is not None
+            and now - BILLING_PERIOD_FRESHNESS_MAX_AGE
+            <= _utc(self.stripe_period_synced_at)
+            <= now
+        ):
+            return "verified"
+        return "stale"
 
 
 class BillingAccessResponse(BaseModel):

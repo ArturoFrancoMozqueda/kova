@@ -5,7 +5,6 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } fr
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, cancelSubscription } from "./api";
-import { STANDARD_PLAN } from "./standardPlan";
 import type { BillingSubscription } from "./types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { TicketPaper } from "@/components/ui/ticket";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { SUPPORT_MAILTO } from "@/lib/support";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Loader2, ExternalLink, XCircle } from "lucide-react";
 import {
   trackCheckoutStateViewed,
@@ -77,6 +77,7 @@ type LoadState =
   | { status: "loaded"; billing: BillingSubscription };
 
 type ActionState = "idle" | "checkout" | "cancel" | "error";
+type CheckoutConfirmationState = "idle" | "confirming" | "confirmed" | "delayed";
 
 const statusLabels: Record<string, string> = {
   incomplete: copy.billingView.statusIncomplete,
@@ -96,8 +97,15 @@ const statusVariants: Record<string, "success" | "warning" | "destructive" | "se
   incomplete: "warning",
 };
 
-function formatPlanAmount(amountMinorUnits: number, currency: string): string {
-  return new Intl.NumberFormat("es-MX", { style: "currency", currency }).format(amountMinorUnits / 100);
+function formatPlanPrice(plan: BillingSubscription["plan"]): string {
+  const amount = plan.amount_minor_units / 100;
+  const hasFraction = plan.amount_minor_units % 100 !== 0;
+  const formattedAmount = new Intl.NumberFormat("es-MX", {
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: hasFraction ? 2 : 0,
+  }).format(amount);
+  const interval = plan.interval === "month" ? "mes" : plan.interval === "year" ? "año" : plan.interval;
+  return `$${formattedAmount} ${plan.currency.toUpperCase()}/${interval}`;
 }
 
 function formatDate(value: string | null): string {
@@ -163,6 +171,8 @@ export default function BillingView() {
   const canManageBilling = usePermission(BILLING_MANAGE_PERMISSION);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [actionState, setActionState] = useState<ActionState>("idle");
+  const [checkoutConfirmationState, setCheckoutConfirmationState] =
+    useState<CheckoutConfirmationState>(checkoutReturnState === "success" ? "confirming" : "idle");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   // Ref (not state) so marking the reconcile as started never re-triggers the
   // effect below and cancels its own in-flight retry loop.
@@ -181,7 +191,7 @@ export default function BillingView() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    if (checkoutReturnState === "success") toast(copy.billingView.checkoutSuccess, "success");
+    if (checkoutReturnState === "success") toast(copy.billingView.checkoutConfirmingTitle, "info");
     if (checkoutReturnState === "cancel") toast(copy.billingView.checkoutCanceled, "warning");
   }, [checkoutReturnState, toast]);
 
@@ -194,13 +204,17 @@ export default function BillingView() {
   const shouldReconcile =
     checkoutReturnState === "success" &&
     loadState.status === "loaded" &&
-    loadState.billing.subscription?.status !== "active";
+    !hasCheckoutBlockingSubscription(loadState.billing);
   useEffect(() => {
     if (!shouldReconcile || reconcileStartedRef.current) return;
     const sessionId = new URLSearchParams(location.search).get("session_id");
-    if (!sessionId) return;
+    if (!sessionId) {
+      setCheckoutConfirmationState("delayed");
+      return;
+    }
 
     reconcileStartedRef.current = true;
+    setCheckoutConfirmationState("confirming");
     let cancelled = false;
     void (async () => {
       for (let attempt = 0; attempt < 3 && !cancelled; attempt += 1) {
@@ -208,12 +222,16 @@ export default function BillingView() {
           const billing = await reconcileCheckout(sessionId);
           if (cancelled) return;
           setLoadState({ status: "loaded", billing });
-          if (billing.subscription?.status === "active") return;
+          if (hasCheckoutBlockingSubscription(billing)) {
+            setCheckoutConfirmationState("confirmed");
+            return;
+          }
         } catch {
           // Ignore and retry; the webhook may still be in flight.
         }
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 800));
       }
+      if (!cancelled) setCheckoutConfirmationState("delayed");
     })();
     return () => { cancelled = true; };
   }, [shouldReconcile, location.search]);
@@ -306,6 +324,26 @@ export default function BillingView() {
 
       {loadState.status === "loaded" && (
         <div className="space-y-6">
+          {checkoutReturnState === "success" &&
+            !hasCheckoutBlockingSubscription(loadState.billing) && (
+              <BillingStatusBanner
+                tone={checkoutConfirmationState === "delayed" ? "warning" : "info"}
+                icon={checkoutConfirmationState === "delayed" ? <AlertTriangle /> : <Loader2 className="animate-spin" />}
+                title={copy.billingView.checkoutConfirmingTitle}
+                body={
+                  checkoutConfirmationState === "delayed" ? (
+                    <>
+                      {copy.billingView.checkoutConfirmationDelayed}{" "}
+                      <a className="font-semibold underline" href={SUPPORT_MAILTO}>
+                        {copy.billingView.checkoutSupport}
+                      </a>
+                    </>
+                  ) : copy.billingView.checkoutConfirmingBody
+                }
+                bodyClassName={checkoutConfirmationState === "delayed" ? "text-warning-foreground" : undefined}
+              />
+            )}
+
           {hasCheckoutBlockingSubscription(loadState.billing) && (
             <BillingStatusBanner
               tone="success"
@@ -378,11 +416,10 @@ export default function BillingView() {
               </CardHeader>
               <CardContent className="pt-0">
                 <TicketPaper>
-                  <h2 className="text-base font-bold text-[color:var(--ticket-ink)]">{STANDARD_PLAN.name}</h2>
+                  <h2 className="text-base font-bold text-[color:var(--ticket-ink)]">{loadState.billing.plan.name}</h2>
                   <p className="tkt-money mt-1 text-2xl font-bold text-[color:var(--ticket-ink)]">
-                    {formatPlanAmount(loadState.billing.plan.amount_minor_units, loadState.billing.plan.currency)}
+                    {formatPlanPrice(loadState.billing.plan)}
                   </p>
-                  <p className="text-xs text-[color:var(--ticket-muted)]">{copy.billingView.monthly}</p>
                 </TicketPaper>
               </CardContent>
             </Card>
@@ -423,23 +460,35 @@ export default function BillingView() {
 
             {/* Period */}
             {(() => {
-              const periodDate =
-                loadState.billing.access.reason === "signup_trial"
-                  ? loadState.billing.access.trial_ends_at
-                  : loadState.billing.subscription?.current_period_end ?? null;
-              const graceDate = loadState.billing.subscription?.grace_period_ends_at ?? null;
-              if (!periodDate && !graceDate) return null;
+              const signupTrial = loadState.billing.access.reason === "signup_trial";
+              const subscription = loadState.billing.subscription;
+              const periodDate = signupTrial
+                ? loadState.billing.access.trial_ends_at
+                : subscription?.current_period_end ?? null;
+              const graceDate = subscription?.grace_period_ends_at ?? null;
+              const verifiedPeriod =
+                !signupTrial && subscription?.period_freshness === "verified" && periodDate;
+              if (signupTrial && !periodDate) return null;
+              if (!signupTrial && !subscription && !graceDate) return null;
               return (
                 <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
                   <CardHeader className="pb-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                      {loadState.billing.access.reason === "signup_trial"
+                      {signupTrial
                         ? copy.billingView.trialEnds
-                        : copy.billingView.currentPeriodEnd}
+                        : verifiedPeriod
+                          ? subscription?.cancel_at_period_end
+                            ? copy.billingView.accessUntil
+                            : copy.billingView.nextRenewal
+                          : copy.billingView.billingPeriod}
                     </p>
                   </CardHeader>
                   <CardContent>
-                    {periodDate && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
+                    {signupTrial && periodDate && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
+                    {verifiedPeriod && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
+                    {!signupTrial && !verifiedPeriod && (
+                      <p className="text-sm text-muted-foreground">{copy.billingView.periodVerifying}</p>
+                    )}
                     {graceDate && (
                       <p className="text-xs text-muted-foreground mt-1">
                         {copy.billingView.graceEnds} {formatDate(graceDate)}
@@ -473,7 +522,7 @@ export default function BillingView() {
                       {actionState === "checkout" ? (
                         <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
                       ) : (
-                        <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout}</>
+                        <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout(formatPlanPrice(loadState.billing.plan))}</>
                       )}
                     </Button>
                   ) : (
