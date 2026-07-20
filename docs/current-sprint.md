@@ -42,7 +42,9 @@ Execute one epic per PR, merge only after required checks are green, then contin
 
 - [x] Epic CRO-0 — measurement context, diagnostic events, protected 30-day export and baseline.
 - [x] Epic CRO-1 — mobile home and showcase.
-- [ ] Epic CRO-2 — clear, recoverable signup.
+- [x] Epic CRO-2 — clear, recoverable signup: backend-aligned password rules, field-specific 422
+  recovery with accessible focus, adjacent trial trust copy, and PII-free validation telemetry;
+  evidence in [`docs/audits/CRO-2-SIGNUP-2026-07-20.md`](audits/CRO-2-SIGNUP-2026-07-20.md).
 - [ ] Epic CRO-3 — POS cart without premature anxiety.
 - [ ] Epic CRO-4 — trustworthy billing and checkout.
 - [ ] Epic CRO-5 — rollout and learning loop.

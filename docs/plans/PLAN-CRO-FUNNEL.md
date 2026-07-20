@@ -38,7 +38,9 @@ Este documento organiza las mejoras de conversión de Kova como un backlog CRO i
 - [x] **Epic CRO-1 — Home y demostración mobile** (2026-07-20). Hero y CTA priorizados en mobile,
   showcase consistente, EXP-01 preregistrado y gate Lighthouse aprobado con LCP mediano 1.773 s;
   evidencia en [`docs/audits/CRO-1-HOME-2026-07-20.md`](../audits/CRO-1-HOME-2026-07-20.md).
-- [ ] **Epic CRO-2 — Signup claro y recuperable**.
+- [x] **Epic CRO-2 — Signup claro y recuperable** (2026-07-20). Reglas de contraseña alineadas con
+  backend, errores 422 por campo con foco accesible, confianza junto al CTA y telemetría sin PII;
+  evidencia en [`docs/audits/CRO-2-SIGNUP-2026-07-20.md`](../audits/CRO-2-SIGNUP-2026-07-20.md).
 - [ ] **Epic CRO-3 — Carrito POS sin ansiedad prematura**.
 - [ ] **Epic CRO-4 — Billing y checkout confiables**.
 - [ ] **Epic CRO-5 — Rollout y aprendizaje**.

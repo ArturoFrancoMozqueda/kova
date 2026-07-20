@@ -26,41 +26,89 @@ type ActionState =
   | "email_in_use"
   | "verification_resent";
 
-function signupValidationCategory(error: ApiError): {
+type SignupValidationFailure = {
   field: SignupValidationField;
   reason: SignupValidationReason;
-} {
+  message: string;
+};
+
+type SignupFieldErrors = Partial<Record<SignupValidationField, string>>;
+
+const SIGNUP_FIELD_IDS: Partial<Record<SignupValidationField, string>> = {
+  business: "tenantName",
+  email: "email",
+  password: "password",
+  terms: "acceptedTerms",
+};
+
+function signupValidationMessage(
+  field: SignupValidationField,
+  reason: SignupValidationReason,
+): string {
+  if (field === "business") {
+    if (reason === "required") return copy.auth.signupBusinessRequired;
+    if (reason === "too_long") return copy.auth.signupBusinessTooLong;
+  }
+  if (field === "email") return copy.auth.signupInvalidEmail;
+  if (field === "password") {
+    if (reason === "required") return copy.auth.signupPasswordRequired;
+    if (reason === "too_short") return copy.auth.signupPasswordTooShort;
+    if (reason === "too_long") return copy.auth.signupPasswordTooLong;
+    if (reason === "weak_password") return copy.auth.signupPasswordWeak;
+  }
+  if (field === "terms") return copy.auth.signupTermsRequired;
+  return copy.auth.signupFieldInvalid;
+}
+
+function signupValidationFailures(error: ApiError): SignupValidationFailure[] {
   try {
     const payload = JSON.parse(error.message) as {
       detail?: Array<{ loc?: unknown[]; type?: string }>;
     };
-    const first = Array.isArray(payload.detail) ? payload.detail[0] : null;
-    const backendField = first?.loc?.at(-1);
-    const field: SignupValidationField =
-      backendField === "tenant_name"
-        ? "business"
-        : backendField === "email"
-          ? "email"
-          : backendField === "password"
-            ? "password"
-            : backendField === "accepted_terms"
-              ? "terms"
-              : "form";
-    const reason: SignupValidationReason =
-      first?.type === "missing"
-        ? "required"
-        : first?.type === "string_too_short"
-          ? "too_short"
-          : first?.type === "string_too_long"
-            ? "too_long"
-            : field === "email"
-              ? "invalid_format"
-              : field === "password" && first?.type === "value_error"
-                ? "weak_password"
-                : "server_validation";
-    return { field, reason };
+    if (!Array.isArray(payload.detail) || payload.detail.length === 0) {
+      return [{
+        field: "form",
+        reason: "server_validation",
+        message: copy.auth.operationError,
+      }];
+    }
+
+    const seen = new Set<SignupValidationField>();
+    return payload.detail.flatMap((detail) => {
+      const backendField = detail.loc?.at(-1);
+      const field: SignupValidationField =
+        backendField === "tenant_name"
+          ? "business"
+          : backendField === "email"
+            ? "email"
+            : backendField === "password"
+              ? "password"
+              : backendField === "accepted_terms"
+                ? "terms"
+                : "form";
+      if (seen.has(field)) return [];
+      seen.add(field);
+
+      const reason: SignupValidationReason =
+        detail.type === "missing"
+          ? "required"
+          : detail.type === "string_too_short"
+            ? "too_short"
+            : detail.type === "string_too_long"
+              ? "too_long"
+              : field === "email"
+                ? "invalid_format"
+                : field === "password" && detail.type === "value_error"
+                  ? "weak_password"
+                  : "server_validation";
+      return [{ field, reason, message: signupValidationMessage(field, reason) }];
+    });
   } catch {
-    return { field: "form", reason: "server_validation" };
+    return [{
+      field: "form",
+      reason: "server_validation",
+      message: copy.auth.operationError,
+    }];
   }
 }
 
@@ -84,6 +132,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   const [verificationToken, setVerificationToken] = useState("");
   const [state, setState] = useState<ActionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>(copy.auth.operationError);
+  const [signupFieldErrors, setSignupFieldErrors] = useState<SignupFieldErrors>({});
   // Cooldown before the verification email can be resent, so a nervous user
   // can't hammer the endpoint (and hit the rate limiter).
   const [resendCountdown, setResendCountdown] = useState(0);
@@ -117,12 +166,45 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
           ? "too_short"
           : input.validity.tooLong
             ? "too_long"
-            : "server_validation";
+            : field === "password" && input.validity.patternMismatch
+              ? "weak_password"
+              : "server_validation";
     void trackSignupValidationFailed(field, reason);
+  };
+
+  const clearSignupFieldError = (field: SignupValidationField) => {
+    setSignupFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const applySignupValidationFailures = (error: ApiError) => {
+    const failures = signupValidationFailures(error);
+    const fieldErrors: SignupFieldErrors = {};
+    failures.forEach((failure) => {
+      void trackSignupValidationFailed(failure.field, failure.reason);
+      if (failure.field !== "form") fieldErrors[failure.field] = failure.message;
+    });
+    setSignupFieldErrors(fieldErrors);
+    setErrorMessage(
+      failures.some((failure) => failure.field === "form")
+        ? copy.auth.operationError
+        : copy.auth.signupValidationSummary,
+    );
+    setState("error");
+
+    const firstFieldId = failures
+      .map((failure) => SIGNUP_FIELD_IDS[failure.field])
+      .find(Boolean);
+    if (firstFieldId) document.getElementById(firstFieldId)?.focus();
   };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    setSignupFieldErrors({});
     setState("submitting");
     try {
       if (mode === "login") {
@@ -164,8 +246,8 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
           setErrorMessage(copy.auth.loginRateLimited);
         } else if (err.status === 422) {
           if (mode === "signup") {
-            const failure = signupValidationCategory(err);
-            void trackSignupValidationFailed(failure.field, failure.reason);
+            applySignupValidationFailures(err);
+            return;
           }
           // Malformed email (and other unprocessable input) — a clear "check the
           // email" beats the generic "something went wrong".
@@ -194,8 +276,8 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       setResendCountdown(30);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
-        const failure = signupValidationCategory(err);
-        void trackSignupValidationFailed(failure.field, failure.reason);
+        applySignupValidationFailures(err);
+        return;
       }
       setErrorMessage(
         err instanceof ApiError && err.status === 429
@@ -217,6 +299,7 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
   };
 
   const hasError = state === "error";
+  const loginHasError = mode === "login" && hasError;
 
   return (
     <AuthLayout
@@ -234,11 +317,22 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   <Input
                     id="tenantName"
                     required
+                    maxLength={120}
                     autoComplete="organization"
                     placeholder={copy.auth.tenantNamePlaceholder}
                     value={tenantName}
-                    onChange={(event) => setTenantName(event.target.value)}
+                    onChange={(event) => {
+                      setTenantName(event.target.value);
+                      clearSignupFieldError("business");
+                    }}
+                    aria-invalid={Boolean(signupFieldErrors.business) || undefined}
+                    aria-describedby={signupFieldErrors.business ? "tenantName-error" : undefined}
                   />
+                  {signupFieldErrors.business && (
+                    <p id="tenantName-error" className="text-xs text-destructive">
+                      {signupFieldErrors.business}
+                    </p>
+                  )}
                 </div>
               )}
               <div className="space-y-2">
@@ -250,10 +344,24 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   autoComplete="email"
                   placeholder={copy.auth.emailPlaceholder}
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  aria-invalid={hasError || undefined}
-                  aria-describedby={hasError ? "auth-error" : undefined}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (mode === "signup") clearSignupFieldError("email");
+                  }}
+                  aria-invalid={loginHasError || Boolean(signupFieldErrors.email) || undefined}
+                  aria-describedby={
+                    loginHasError
+                      ? "auth-error"
+                      : signupFieldErrors.email
+                        ? "email-error"
+                        : undefined
+                  }
                 />
+                {mode === "signup" && signupFieldErrors.email && (
+                  <p id="email-error" className="text-xs text-destructive">
+                    {signupFieldErrors.email}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -274,10 +382,34 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   placeholder={mode === "login" ? copy.auth.passwordPlaceholderLogin : copy.auth.passwordPlaceholderSignup}
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  aria-invalid={hasError || undefined}
-                  aria-describedby={hasError ? "auth-error" : undefined}
+                  minLength={mode === "signup" ? 8 : undefined}
+                  maxLength={mode === "signup" ? 128 : undefined}
+                  pattern={mode === "signup" ? "(?=.*[A-Za-z])(?=.*[0-9]).{8,128}" : undefined}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    if (mode === "signup") clearSignupFieldError("password");
+                  }}
+                  aria-invalid={loginHasError || Boolean(signupFieldErrors.password) || undefined}
+                  aria-describedby={
+                    loginHasError
+                      ? "auth-error"
+                      : mode === "signup"
+                        ? ["password-requirements", signupFieldErrors.password ? "password-error" : ""]
+                            .filter(Boolean)
+                            .join(" ")
+                        : undefined
+                  }
                 />
+                {mode === "signup" && (
+                  <p id="password-requirements" className="text-xs text-muted-foreground">
+                    {copy.auth.signupPasswordRequirements}
+                  </p>
+                )}
+                {mode === "signup" && signupFieldErrors.password && (
+                  <p id="password-error" className="text-xs text-destructive">
+                    {signupFieldErrors.password}
+                  </p>
+                )}
               </div>
 
               {mode === "signup" && (
@@ -288,7 +420,12 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                       type="checkbox"
                       required
                       checked={acceptedTerms}
-                      onChange={(event) => setAcceptedTerms(event.target.checked)}
+                      onChange={(event) => {
+                        setAcceptedTerms(event.target.checked);
+                        clearSignupFieldError("terms");
+                      }}
+                      aria-invalid={Boolean(signupFieldErrors.terms) || undefined}
+                      aria-describedby={signupFieldErrors.terms ? "acceptedTerms-error" : undefined}
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-[0.5px] border-kova-border accent-kova-blue cursor-pointer"
                     />
                     <span>
@@ -323,6 +460,11 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                       .
                     </span>
                   </label>
+                  {signupFieldErrors.terms && (
+                    <p id="acceptedTerms-error" className="mt-1 text-xs text-destructive">
+                      {signupFieldErrors.terms}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -346,6 +488,11 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
                   </>
                 )}
               </Button>
+              {mode === "signup" && (
+                <p className="text-center text-xs text-muted-foreground">
+                  {copy.auth.signupTrustLine}
+                </p>
+              )}
             </form>
 
             {state === "error" && (
