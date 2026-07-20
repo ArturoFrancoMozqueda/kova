@@ -57,6 +57,47 @@ def test_accepts_landing_section_viewed(client, db):
     assert rows[0].properties["section"] == "precio"
 
 
+def test_accepts_categorized_signup_validation_without_pii(client, db):
+    resp = client.post(
+        ANON_URL,
+        json={
+            "event_name": "signup_validation_failed",
+            "client_event_id": "signup_validation_failed:1",
+            "client_id": "visitor-validation",
+            "properties": {
+                "path": "/signup",
+                "device_class": "mobile",
+                "viewport_bucket": "mobile_390",
+                "source": "google",
+                "medium": "cpc",
+                "campaign": "julio-pos",
+                "field": "password",
+                "reason_code": "too_short",
+            },
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    row = db.query(AnonymousTelemetryEvent).filter_by(client_id="visitor-validation").one()
+    assert row.properties["field"] == "password"
+    assert "email" not in row.properties
+
+
+def test_rejects_free_text_diagnostic_categories(client):
+    resp = client.post(
+        ANON_URL,
+        json={
+            "event_name": "signup_validation_failed",
+            "client_event_id": "signup_validation_failed:bad",
+            "client_id": "visitor-validation",
+            "properties": {
+                "field": "the value entered by the user",
+                "reason_code": "password was hunter2",
+            },
+        },
+    )
+    assert resp.status_code == 422
+
+
 def test_rejects_non_allowlisted_event_type(client):
     resp = client.post(
         ANON_URL,
@@ -78,6 +119,19 @@ def test_rejects_tenant_field_in_properties(client):
             "client_event_id": "cta:1",
             "client_id": "visitor-abc",
             "properties": {"tenant_id": "11111111-1111-1111-1111-111111111111"},
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_rejects_money_in_anonymous_properties(client):
+    resp = client.post(
+        ANON_URL,
+        json={
+            "event_name": "signup_completed",
+            "client_event_id": "signup_completed:money",
+            "client_id": "visitor-abc",
+            "properties": {"total_amount": "299.00"},
         },
     )
     assert resp.status_code == 422
@@ -166,6 +220,35 @@ def test_kova_app_can_insert_anonymous_event_under_rls(kova_app_engine):
                     :event_id,
                     'visitor-rls',
                     '{}'::json,
+                    now()
+                )
+                """
+            ),
+            {"id": uuid4(), "event_id": event_id},
+        )
+
+
+def test_kova_app_can_insert_landing_section_under_rls(kova_app_engine):
+    event_id = f"landing_section_viewed:{uuid4()}"
+
+    with kova_app_engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO anonymous_telemetry_events (
+                    id,
+                    event_name,
+                    client_event_id,
+                    client_id,
+                    properties,
+                    created_at
+                )
+                VALUES (
+                    :id,
+                    'landing_section_viewed',
+                    :event_id,
+                    'visitor-section-rls',
+                    '{"section": "precio"}'::json,
                     now()
                 )
                 """
