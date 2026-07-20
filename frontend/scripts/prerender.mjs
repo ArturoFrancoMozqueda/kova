@@ -203,6 +203,28 @@ function injectRouteAssets(html, manifest, moduleKey) {
   return html.replace("</head>", `${links.join("")}  </head>`);
 }
 
+// Public prerendered pages already contain their useful content and working
+// links. Keep CSS on the critical path, but defer downloading their React
+// graph until after the first paint. The empty app-shell is untouched because
+// authenticated/client-only routes still need JavaScript immediately.
+function deferPrerenderHydration(html) {
+  const entryPattern = /<script type="module" crossorigin src="([^"]+)"><\/script>/;
+  const entry = html.match(entryPattern)?.[1];
+  if (!entry) {
+    throw new Error("prerender: could not find the Vite client entry script");
+  }
+  return html
+    .replace(
+      entryPattern,
+      `<script defer src="/hydrate-prerender.js" data-entry="${escapeAttr(entry)}"></script>`,
+    )
+    .replace(/\s*<link rel="modulepreload"[^>]*>\n?/g, "")
+    .replace(
+      /(<link rel="preload"[^>]+as="font"[^>]+crossorigin)>/g,
+      '$1 media="(min-width: 641px)">',
+    );
+}
+
 function escapeAttr(value) {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
@@ -289,6 +311,7 @@ async function main() {
     }
     let html = injectHead(shell, route);
     html = injectRouteAssets(html, manifest, route.moduleKey);
+    html = deferPrerenderHydration(html);
     html = html.replace(ROOT_MARKER, `<div id="root">${appHtml}</div>`);
     const outPath = resolve(dist, route.out);
     mkdirSync(dirname(outPath), { recursive: true });
