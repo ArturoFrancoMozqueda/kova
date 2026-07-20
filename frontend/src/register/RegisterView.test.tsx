@@ -19,6 +19,10 @@ const catalogCache = vi.hoisted(() => ({
   readCatalogCache: vi.fn(),
   saveCatalogCache: vi.fn(),
 }));
+const telemetry = vi.hoisted(() => ({
+  trackFunnelEventOnce: vi.fn(),
+  trackSaleValidationBlocked: vi.fn(),
+}));
 
 vi.mock("@/shifts/api", () => ({ getOpenShift: () => getOpenShift() }));
 vi.mock("../offline/queue", () => ({
@@ -29,10 +33,7 @@ vi.mock("../offline/sync", () => ({
 }));
 vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn() }));
 vi.mock("../orders/api", () => ({ getReceipt: (...args: unknown[]) => getReceipt(...args) }));
-vi.mock("@/telemetry/funnel", () => ({
-  trackFunnelEventOnce: vi.fn(),
-  trackSaleValidationBlocked: vi.fn(),
-}));
+vi.mock("@/telemetry/funnel", () => telemetry);
 vi.mock("../inventory/api", () => ({ listStock: () => Promise.resolve([]) }));
 vi.mock("../offline/catalogCache", () => ({
   readCatalogCache: (...args: unknown[]) => catalogCache.readCatalogCache(...args),
@@ -170,6 +171,90 @@ describe("RegisterView cash-without-shift guard", () => {
     // No banner, no disable: unknown state must keep the register usable offline.
     expect(screen.queryByText(copy.register.noShiftWarning)).not.toBeInTheDocument();
     expect(cashRadio).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("shows neutral cash guidance before interaction and keeps the financial guard", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    await addProductToCart();
+
+    const cashInput = screen.getByLabelText(copy.register.amountTendered);
+    expect(screen.getByText(copy.register.cashTenderedHint)).toBeInTheDocument();
+    expect(screen.queryByText(copy.register.cashTooLow)).not.toBeInTheDocument();
+    expect(cashInput).not.toHaveAttribute("aria-invalid", "true");
+    expect(cashInput).toHaveAttribute("aria-describedby", "cashTendered-help");
+    const submit = screen.getByRole("button", { name: copy.register.completeSale });
+    expect(submit).toHaveAttribute("aria-disabled", "true");
+    expect(submit).not.toBeDisabled();
+    expect(telemetry.trackSaleValidationBlocked).not.toHaveBeenCalled();
+  });
+
+  it("reveals and tracks insufficient cash only after input, blur, or a charge attempt", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    await addProductToCart();
+    const cashInput = screen.getByLabelText(copy.register.amountTendered);
+
+    fireEvent.change(cashInput, { target: { value: "20.00" } });
+    expect(screen.getByText(copy.register.cashTooLow)).toBeInTheDocument();
+    expect(cashInput).toHaveAttribute("aria-invalid", "true");
+    expect(cashInput).toHaveAttribute("aria-describedby", "cashTendered-error");
+    expect(telemetry.trackSaleValidationBlocked).toHaveBeenCalledTimes(1);
+    expect(telemetry.trackSaleValidationBlocked).toHaveBeenCalledWith(
+      "cash_tendered",
+      "insufficient_cash",
+    );
+
+    fireEvent.change(cashInput, { target: { value: "" } });
+    fireEvent.blur(cashInput);
+    expect(screen.getByText(copy.register.cashTooLow)).toBeInTheDocument();
+    expect(telemetry.trackSaleValidationBlocked).toHaveBeenCalledTimes(1);
+  });
+
+  it("reveals empty-cash guidance as an error only when the disabled charge is attempted", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    await addProductToCart();
+    const submit = screen.getByRole("button", { name: copy.register.completeSale });
+    expect(screen.queryByText(copy.register.cashTooLow)).not.toBeInTheDocument();
+
+    fireEvent.click(submit);
+
+    expect(screen.getByText(copy.register.cashTooLow)).toBeInTheDocument();
+    expect(telemetry.trackSaleValidationBlocked).toHaveBeenCalledWith(
+      "cash_tendered",
+      "insufficient_cash",
+    );
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+  });
+
+  it("clears cash interaction state when the payment method changes or the cart empties", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    await addProductToCart();
+    const submit = screen.getByRole("button", { name: copy.register.completeSale });
+    const cashInput = screen.getByLabelText(copy.register.amountTendered);
+    fireEvent.change(cashInput, { target: { value: "10.00" } });
+    expect(screen.getByText(copy.register.cashTooLow)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: copy.register.bankTransfer }));
+    fireEvent.click(screen.getByRole("radio", { name: copy.register.cash }));
+    expect(screen.getByLabelText(copy.register.amountTendered)).toHaveValue(null);
+    expect(screen.getByText(copy.register.cashTenderedHint)).toBeInTheDocument();
+    expect(screen.queryByText(copy.register.cashTooLow)).not.toBeInTheDocument();
+
+    fireEvent.click(submit);
+    expect(screen.getByText(copy.register.cashTooLow)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.removeItem(product.name) }));
+    await screen.findByText(copy.register.paymentEmptyTitle);
+
+    await addProductToCart();
+    expect(screen.getByText(copy.register.cashTenderedHint)).toBeInTheDocument();
+    expect(screen.queryByText(copy.register.cashTooLow)).not.toBeInTheDocument();
   });
 
   it("renders the saved catalog when product and category fetches fail offline", async () => {
