@@ -8,5 +8,5 @@
   // links. Let that content paint before downloading the React application.
   window.setTimeout(() => {
     void import(entry);
-  }, 250);
+  }, 750);
 })();
