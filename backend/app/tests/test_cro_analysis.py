@@ -13,6 +13,7 @@ def _row(
     device_class: str = "mobile",
     source: str = "direct",
     medium: str = "none",
+    campaign: str = "not_set",
 ) -> dict[str, str]:
     return {
         "date": date,
@@ -22,7 +23,7 @@ def _row(
         "viewport_bucket": "mobile_390" if device_class == "mobile" else "desktop",
         "source": source,
         "medium": medium,
-        "campaign": "not_set",
+        "campaign": campaign,
         "cta": cta,
         "section": "",
         "experiment_id": "exp_01_cta_specificity" if variant else "",
@@ -46,6 +47,7 @@ def test_analysis_deduplicates_exposure_and_counts_only_post_exposure_outcomes()
             device_class="desktop",
             source="google",
             medium="cpc",
+            campaign="julio-pos",
         ),
         _row("2026-07-20T10:02:00Z", "signup_validation_failed", "treatment-1"),
     ]
@@ -69,6 +71,10 @@ def test_analysis_deduplicates_exposure_and_counts_only_post_exposure_outcomes()
     assert {item["value"] for item in result["segments"]["channel"]} == {
         "direct/none",
         "google/cpc",
+    }
+    assert {item["value"] for item in result["segments"]["campaign"]} == {
+        "julio-pos",
+        "not_set",
     }
 
 
@@ -107,6 +113,7 @@ def test_markdown_reports_intervals_segments_and_inconclusive_decision() -> None
     assert "95% CI" in report
     assert "device_class" in report
     assert "channel" in report
+    assert "campaign" in report
     assert "inconclusive_insufficient_sample" in report
     low, high = wilson_interval(0, 1)
     assert low == 0
