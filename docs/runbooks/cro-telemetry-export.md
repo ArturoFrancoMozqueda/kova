@@ -46,3 +46,35 @@ Comprueba que el archivo contiene estas columnas:
 4. Genera el CSV y comprueba que el estado de conversión avanza por prioridad:
    landing → CTA → signup iniciado → signup completado → activado → pagado.
 5. Si falta volumen, registra el resultado como inconcluso; no declares uplift ni causalidad.
+
+## Análisis reproducible de 7 y 30 días
+
+El analizador opera únicamente sobre este CSV acotado y nunca imprime `client_id`. Deduplica
+exposiciones por cliente, descarta asignaciones contradictorias y solo atribuye acciones ocurridas
+después de la primera exposición de la ventana.
+
+```bash
+cd backend
+uv run python scripts/analyze_cro_export.py ../kova-cro-30d-AAAA-MM-DD.csv \
+  --days 7 --as-of AAAA-MM-DDT00:15:00Z \
+  > ../cro-exp-01-7d-AAAA-MM-DD.md
+
+uv run python scripts/analyze_cro_export.py ../kova-cro-30d-AAAA-MM-DD.csv \
+  --days 30 --as-of AAAA-MM-DDT00:15:00Z \
+  > ../cro-exp-01-30d-AAAA-MM-DD.md
+```
+
+El reporte incluye por variante:
+
+- clientes expuestos y tasas de CTA hero, signup, CTA secundario y error de validación;
+- intervalo Wilson de 95% para cada tasa;
+- uplift relativo y diferencia absoluta tratamiento − control con intervalo Newcombe-Wilson;
+- cortes por `device_class`, `viewport_bucket` y canal `source/medium`;
+- decisión automática `winner`, `loser` o `inconclusive*` con la muestra preregistrada de 2,759
+  clientes por variante.
+
+La decisión automática es un gate, no una autorización para publicar causalidad. Revisa tráfico
+interno/bots, calidad de segmentos, guardrails y el registro del experimento antes de cambiar copy.
+Después de cada corte, adjunta el Markdown generado a `docs/audits/` y recalcula ICE con la muestra
+y el efecto observados. Si la ventana todavía no ha transcurrido, registra el checkpoint como
+pendiente; no adelantes el `--as-of` ni mezcles días pre-rollout.
