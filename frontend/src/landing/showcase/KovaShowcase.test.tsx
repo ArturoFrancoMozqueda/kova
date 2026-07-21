@@ -49,15 +49,15 @@ describe("KovaShowcase", () => {
 
     // The four story captions (same copy as landing story.steps).
     for (const title of ["Cobras", "El stock baja", "La caja cuadra", "Ves el día completo"]) {
-      expect(screen.getByText(title)).toBeInTheDocument();
+      expect(screen.getAllByText(title).length).toBeGreaterThan(0);
     }
 
     // The $186 sale stays traceable across the four live previews, which are
     // all mounted (stacked layers) in their final static state.
     expect(screen.getByText("Cobrar $186.00")).toBeInTheDocument(); // POS
-    expect(screen.getByText("Stock bajo")).toBeInTheDocument(); // Inventario
-    expect(screen.getByText("Turno activo")).toBeInTheDocument(); // Caja
-    expect(screen.getByText("Cómo te pagaron")).toBeInTheDocument(); // Reportes
+    expect(screen.getByAltText("Vista real sanitizada del inventario de Kova")).toHaveAttribute("src", "/showcase/inventory.png");
+    expect(screen.getByAltText("Vista real sanitizada de turnos en Kova")).toHaveAttribute("src", "/showcase/shifts.png");
+    expect(screen.getByAltText("Vista real sanitizada de reportes en Kova")).toHaveAttribute("src", "/showcase/reports.png");
 
     // Reduced motion: parked on scene 1, no decorative cursor.
     expect(screenLayers(container)[0]).toHaveAttribute("data-active", "true");
@@ -151,5 +151,15 @@ describe("KovaShowcase", () => {
     expect(layers[0]).toHaveAttribute("data-active", "true");
     expect(layers[1]).toHaveAttribute("data-active", "false");
     expect(container.querySelector(".ksw-cursor")).toBeNull();
+  });
+
+  it("lets the visitor select a scene and stops autoplay after manual control", () => {
+    vi.useFakeTimers();
+    const { container } = renderShowcase();
+    fireEvent.click(screen.getByRole("button", { name: "02 El stock baja" }));
+    const layers = screenLayers(container);
+    expect(layers[1]).toHaveAttribute("data-active", "true");
+    act(() => vi.advanceTimersByTime(12000));
+    expect(layers[1]).toHaveAttribute("data-active", "true");
   });
 });

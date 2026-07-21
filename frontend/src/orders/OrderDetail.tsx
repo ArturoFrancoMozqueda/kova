@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { AlertCircle, RotateCcw, Ban, ArrowLeft, Package, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -115,19 +116,19 @@ export default function OrderDetail() {
 
   if (loadState.status === "loading") {
     return (
-      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+      <ViewLayout width="focused" className="max-w-4xl">
         <Skeleton className="h-8 w-48 mb-6" />
         <div className="grid gap-4 md:grid-cols-2">
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
-      </main>
+      </ViewLayout>
     );
   }
 
   if (loadState.status === "not-found") {
     return (
-      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+      <ViewLayout width="focused" className="max-w-4xl">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Package className="mb-3 h-10 w-10 text-muted-foreground/50" />
@@ -141,13 +142,13 @@ export default function OrderDetail() {
             </Link>
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   if (loadState.status === "error") {
     return (
-      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+      <ViewLayout width="focused" className="max-w-4xl">
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-4 p-6">
             <AlertCircle className="h-8 w-8 text-destructive" />
@@ -157,7 +158,7 @@ export default function OrderDetail() {
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
@@ -188,7 +189,7 @@ export default function OrderDetail() {
         : "partial";
 
   return (
-    <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+    <ViewLayout width="focused" className="max-w-4xl animate-fade-in">
       {/* Header */}
       <div className="flex items-start gap-4 mb-6">
         <Link to="/orders" className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
@@ -315,6 +316,6 @@ export default function OrderDetail() {
           onSubmit={submitVoid}
         />
       )}
-    </main>
+    </ViewLayout>
   );
 }

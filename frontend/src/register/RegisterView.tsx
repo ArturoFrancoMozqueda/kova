@@ -36,6 +36,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
+import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -784,7 +786,7 @@ export default function RegisterView() {
 
   if (loadState.status === "loading") {
     return (
-      <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      <ViewLayout width="wide">
         <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
           <Card>
             <CardContent className="p-6">
@@ -802,13 +804,13 @@ export default function RegisterView() {
             </CardContent>
           </Card>
         </div>
-      </main>
+      </ViewLayout>
     );
   }
 
   if (loadState.status === "error") {
     return (
-      <main className="p-6 lg:p-8 max-w-7xl mx-auto">
+      <ViewLayout width="wide">
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-4 p-6">
             <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
@@ -821,12 +823,12 @@ export default function RegisterView() {
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   return (
-    <main className="p-4 pb-40 sm:p-6 lg:p-8 lg:pb-8 max-w-7xl mx-auto animate-fade-in">
+    <ViewLayout width="wide" className="pb-40 lg:pb-8 animate-fade-in">
       {/* Header */}
       <div className="mb-6">
         <ViewHeader
@@ -1012,71 +1014,43 @@ export default function RegisterView() {
                   const isOut = stock?.track_inventory && stock.stock_on_hand === 0;
                   const isLow = stock?.is_low_stock && !isOut;
                   return (
-                    <button
+                    <RegisterProductCard
                       key={product.id}
-                      type="button"
-                      aria-label={
+                      ariaLabel={
                         isOut
                           ? `${product.name} — sin stock. Actualiza inventario para vender.`
                           : `${copy.register.add} ${product.name}`
                       }
-                      aria-disabled={isOut ? "true" : undefined}
-                      title={isOut ? "Sin stock — actualiza inventario para vender" : undefined}
-                      onClick={() => {
+                      disabled={isOut}
+                      name={product.name}
+                      price={product.price_amount}
+                      status={isOut
+                        ? { label: copy.inventoryView.outBadge, tone: "muted" }
+                        : isLow
+                          ? { label: copy.inventoryView.lowBadge, tone: "warning" }
+                          : undefined}
+                      image={product.image_url ? (
+                        <div className="aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 transition-transform group-hover:scale-[1.03] sm:w-full">
+                          <img
+                            src={productImageSrc(product.image_url, 400)}
+                            srcSet={productImageSrcSet(product.image_url)}
+                            sizes="(max-width: 640px) 48px, (max-width: 1024px) 33vw, 200px"
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full"
+                            style={productImageStyle(product)}
+                          />
+                        </div>
+                      ) : undefined}
+                      onAdd={() => {
                         if (isOut) {
                           toast(copy.register.outOfStockBlocked(product.name), "warning");
                           return;
                         }
                         addProduct(product);
                       }}
-                      className={cn(
-                        "group flex sm:flex-col items-stretch sm:justify-between gap-3 sm:gap-0 rounded-xl border bg-card p-2.5 sm:p-3 text-left transition-all hover:border-primary/40 shadow-kova-card hover:shadow-kova-card-hover active:scale-[0.97]",
-                        isOut && "opacity-60 cursor-not-allowed hover:border-border hover:shadow-kova-card active:scale-100",
-                      )}
-                    >
-                      <div className="flex sm:block items-center gap-3 sm:gap-0 sm:space-y-2 flex-1 min-w-0">
-                        {/* Image only when present. A text-only catalog (common
-                            for SMBs) skips the placeholder so mobile rows stay
-                            compact and more products fit above the fold. */}
-                        {product.image_url && (
-                          <div className="aspect-square w-12 sm:w-full shrink-0 overflow-hidden rounded-lg bg-muted/50 transition-transform group-hover:scale-[1.03]">
-                            <img
-                              src={productImageSrc(product.image_url, 400)}
-                              srcSet={productImageSrcSet(product.image_url)}
-                              sizes="(max-width: 640px) 48px, (max-width: 1024px) 33vw, 200px"
-                              alt=""
-                              loading="lazy"
-                              decoding="async"
-                              className="h-full w-full"
-                              style={productImageStyle(product)}
-                            />
-                          </div>
-                        )}
-                        <div className="flex items-start justify-between gap-1 flex-1 min-w-0">
-                          <p className="font-medium text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors flex-1 min-w-0">
-                            {product.name}
-                          </p>
-                          {isOut && (
-                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-muted text-muted-foreground">
-                              {copy.inventoryView.outBadge}
-                            </span>
-                          )}
-                          {isLow && (
-                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-0.5 bg-warning/15 text-warning-foreground">
-                              {copy.inventoryView.lowBadge}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 sm:justify-between sm:mt-3 shrink-0">
-                        <span className="text-base font-bold text-primary tabular-nums">
-                          {formatMoney(product.price_amount)}
-                        </span>
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary opacity-60 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                          <Plus className="h-3.5 w-3.5" />
-                        </span>
-                      </div>
-                    </button>
+                    />
                   );
                 })}
               </div>
@@ -1359,11 +1333,18 @@ export default function RegisterView() {
                     {/* Payment method button group */}
                     <div>
                       <Label id="paymentMethodLabel" className="mb-2 block">{copy.register.paymentMethod}</Label>
-                      <div
-                        className="grid grid-cols-3 gap-2"
-                        role="radiogroup"
-                        aria-labelledby="paymentMethodLabel"
-                        tabIndex={-1}
+                      <RegisterPaymentMethodSelector
+                        label={copy.register.paymentMethod}
+                        labelledBy="paymentMethodLabel"
+                        value={paymentMethod}
+                        options={paymentMethodOptions.map(({ value, label, icon }) => ({
+                          value,
+                          label,
+                          icon,
+                          disabled: value === "cash" && hasOpenShift === false,
+                          onDisabledSelect: () => toast(copy.register.cashRequiresShift, "warning"),
+                        }))}
+                        onChange={selectPaymentMethod}
                         onKeyDown={(e) =>
                           handleRadioGroupKeyDown(
                             e,
@@ -1375,38 +1356,7 @@ export default function RegisterView() {
                             selectPaymentMethod,
                           )
                         }
-                      >
-                        {paymentMethodOptions.map(({ value, label, icon }) => {
-                          const isCashDisabled = value === "cash" && hasOpenShift === false;
-                          return (
-                            <button
-                              key={value}
-                              type="button"
-                              role="radio"
-                              data-radio-value={value}
-                              tabIndex={paymentMethod === value ? 0 : -1}
-                              aria-checked={paymentMethod === value}
-                              aria-disabled={isCashDisabled}
-                              onClick={() =>
-                                isCashDisabled
-                                  ? toast(copy.register.cashRequiresShift, "warning")
-                                  : selectPaymentMethod(value)
-                              }
-                              className={cn(
-                                "flex min-h-[60px] flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-3 text-xs font-medium transition-all",
-                                isCashDisabled
-                                  ? "cursor-not-allowed border-kova-border bg-muted/40 text-muted-foreground/50"
-                                  : paymentMethod === value
-                                    ? "border-kova-blue bg-kova-blue/5 text-kova-blue shadow-sm"
-                                    : "border-kova-border text-kova-muted hover:border-kova-blue/40 hover:text-kova-ink",
-                              )}
-                            >
-                              {icon}
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      />
                     </div>
 
                     {paymentMethod === "cash" && (
@@ -1772,6 +1722,6 @@ export default function RegisterView() {
         </div>
       )}
 
-    </main>
+    </ViewLayout>
   );
 }

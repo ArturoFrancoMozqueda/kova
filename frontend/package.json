@@ -14,6 +14,7 @@
     "test": "vitest",
     "test:e2e": "playwright test",
     "test:production-smoke": "playwright test e2e/production-smoke.spec.ts --project=chromium",
+    "capture:showcase": "node scripts/capture-showcase.mjs",
     "check:bundle-secrets": "node scripts/check-bundle-secrets.mjs",
     "optimize:og": "node scripts/optimize-og.mjs"
   },

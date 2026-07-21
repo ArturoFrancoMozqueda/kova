@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown } from "lucide-react";
+import { inventoryVelocityAttention, isActionableInventoryVelocity } from "./attention";
+import { ViewLayout } from "@/components/ui/view-layout";
 
 type LoadState =
   | { status: "loading" }
@@ -124,31 +126,31 @@ export default function InventoryView() {
 
   if (loadState.status === "loading") {
     return (
-      <main className="p-6 lg:p-8 max-w-6xl mx-auto">
+      <ViewLayout width="standard">
         <Skeleton className="h-8 w-48 mb-6" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-40" />
           ))}
         </div>
-      </main>
+      </ViewLayout>
     );
   }
 
   if (loadState.status === "error") {
     return (
-      <main className="p-6 lg:p-8 max-w-6xl mx-auto">
+      <ViewLayout width="standard">
         <ViewError
           message={copy.inventoryView.loadError}
           onRetry={() => void load()}
           retryLabel={copy.inventoryView.retry}
         />
-      </main>
+      </ViewLayout>
     );
   }
 
   return (
-    <main className="p-6 lg:p-8 max-w-6xl mx-auto animate-fade-in">
+    <ViewLayout width="standard" className="animate-fade-in">
       <div className="mb-6">
         <ViewHeader
           title={copy.inventoryView.title}
@@ -171,7 +173,7 @@ export default function InventoryView() {
         </div>
       )}
 
-      {(loadState.lowStock.length > 0 || loadState.velocity.some((item) => item.days_until_out !== null)) && (
+      {(loadState.lowStock.length > 0 || loadState.velocity.some(isActionableInventoryVelocity)) && (
         <Card className="border-warning/30 bg-warning/5 mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -190,7 +192,7 @@ export default function InventoryView() {
                   tone: item.stock_on_hand <= 0 ? "destructive" as const : "warning" as const,
                 })),
                 ...loadState.velocity
-                  .filter((item) => item.days_until_out !== null)
+                  .filter(isActionableInventoryVelocity)
                   .map((item) => ({
                     id: `velocity-${item.product_id}`,
                     title: item.product_name,
@@ -200,7 +202,9 @@ export default function InventoryView() {
                           item.product_name,
                           Math.ceil(Number(item.days_until_out)),
                         ),
-                    tone: "secondary" as const,
+                    tone: inventoryVelocityAttention(item) === "critical"
+                      ? "destructive" as const
+                      : "secondary" as const,
                   })),
               ]
                 .filter((item, index, items) => items.findIndex((candidate) => candidate.title === item.title) === index)
@@ -211,16 +215,16 @@ export default function InventoryView() {
                       <p className="text-sm font-semibold">{item.title}</p>
                       <Badge
                         variant={item.tone}
-                        title={item.tone === "secondary" ? copy.inventoryView.velocityBasis : undefined}
+                        title={item.id.startsWith("velocity-") ? copy.inventoryView.velocityBasis : undefined}
                       >
-                        {item.tone === "secondary" ? copy.inventoryView.stockVelocity : copy.inventoryView.lowStock}
+                        {item.id.startsWith("velocity-") ? copy.inventoryView.stockVelocity : copy.inventoryView.lowStock}
                       </Badge>
                     </div>
                     <p className="mt-1 flex items-center gap-1 text-xs leading-5 text-muted-foreground">
-                      {item.tone === "secondary" && <TrendingDown className="h-3 w-3 shrink-0 text-kova-blue" />}
+                      {item.id.startsWith("velocity-") && <TrendingDown className="h-3 w-3 shrink-0 text-kova-blue" />}
                       {item.detail}
                     </p>
-                    {item.tone === "secondary" && (
+                    {item.id.startsWith("velocity-") && (
                       <p className="mt-1 text-[11px] text-muted-foreground/70">{copy.inventoryView.velocityBasis}</p>
                     )}
                     <p className="mt-2 text-xs font-medium text-kova-blue">
@@ -315,7 +319,7 @@ export default function InventoryView() {
       {modal && (
         <InventoryModal modal={modal} pending={pending} onCancel={() => setModal(null)} onSubmit={submitModal} />
       )}
-    </main>
+    </ViewLayout>
   );
 }
 

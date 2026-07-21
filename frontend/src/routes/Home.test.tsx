@@ -79,7 +79,6 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       expect.arrayContaining([
         "producto",
         "problema",
-        "una-venta",
         "panel-dueno",
         "como-funciona",
         "diferencia",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
@@ -31,6 +31,7 @@ import { TrialChip } from "@/billing/TrialChip";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { FirstUseTour } from "@/onboarding/FirstUseTour";
 import { flushFunnelEvents } from "@/telemetry/funnel";
+import { ShellRouteFallback } from "@/components/ui/route-fallback";
 
 type NavItem = {
   to: string;
@@ -306,7 +307,9 @@ export default function AppShell() {
             <main> landmark, so a second one here would nest landmarks. */}
         <div id="contenido-principal" tabIndex={-1} className="flex-1 overflow-y-auto pb-16 lg:pb-0 focus:outline-none">
           <BillingBanner />
-          <Outlet />
+          <Suspense fallback={<ShellRouteFallback />}>
+            <Outlet />
+          </Suspense>
         </div>
         <FirstUseTour />
 

@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ViewEmpty, ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
@@ -104,7 +105,7 @@ export default function ExpensesView() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <ViewLayout width="standard" className="space-y-6">
       <ViewHeader
         eyebrow={copy.expenses.eyebrow}
         title={copy.expenses.title}
@@ -142,7 +143,7 @@ export default function ExpensesView() {
 
       {editing ? <ExpenseDialog expense={editing === "new" ? null : editing} busy={busy} onCancel={() => setEditing(null)} onSave={save} /> : null}
       <ConfirmDialog open={deleting !== null} title={copy.expenses.deleteTitle} description={copy.expenses.deleteBody} confirmLabel={copy.expenses.deleteConfirm} busy={busy} onCancel={() => setDeleting(null)} onConfirm={() => void remove()} />
-    </main>
+    </ViewLayout>
   );
 }
 

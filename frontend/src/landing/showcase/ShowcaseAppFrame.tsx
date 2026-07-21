@@ -54,10 +54,12 @@ const OWNER_ROLE = "Propietaria";
 export default function ShowcaseAppFrame({
   active,
   children,
+  capture = false,
 }: {
   active: ShowcaseAppNav;
   /** El preview en vivo (y opcionalmente el cursor decorativo como sibling). */
   children: ReactNode;
+  capture?: boolean;
 }) {
   return (
     <div className="ksw-app">
@@ -85,8 +87,8 @@ export default function ShowcaseAppFrame({
           </span>
         </div>
       </div>
-      <div className="ksw-app-content" style={themeVars("light")}>
-        <div className="ksw-app-preview">{children}</div>
+      <div className={capture ? "ksw-app-content ksw-app-content-capture" : "ksw-app-content"} style={themeVars("light")}>
+        <div className={capture ? "ksw-app-preview ksw-app-preview-capture" : "ksw-app-preview"}>{children}</div>
       </div>
     </div>
   );

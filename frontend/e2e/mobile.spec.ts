@@ -294,6 +294,8 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
     { width: 390, height: 844 },
     { width: 430, height: 932 },
     { width: 768, height: 1024 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/");
@@ -324,6 +326,24 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   }
 });
 
+test("showcase stays navigable and keeps the real register anatomy", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+  await page.goto("/");
+
+  const showcase = page.locator(".ksw-stage");
+  await showcase.scrollIntoViewIfNeeded();
+  await expect(showcase.getByPlaceholder(/sku \/ nombre del producto/i)).toBeVisible();
+  await expect(showcase.getByText("Galleta de avena", { exact: true }).first()).toBeVisible();
+  await expect(showcase.getByText("$186.00", { exact: true }).first()).toBeVisible();
+  await expect(showcase.locator(".ksw-cursor")).toBeHidden();
+
+  await showcase.getByRole("button", { name: "02 El stock baja" }).click();
+  await expect(showcase.locator('.ksw-screen-layer[data-active="true"] img[src="/showcase/inventory.png"]')).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test("mobile hero and showcase share the signup destination", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/v1/auth/session", (route) =>
@@ -338,7 +358,7 @@ test("mobile hero and showcase share the signup destination", async ({ page }) =
   await expect(page).toHaveURL(/\/signup$/);
 });
 
-test("landing brand motion is neutralized when reduced motion is requested", async ({ page }) => {
+test("landing product motion is neutralized when reduced motion is requested", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) =>
@@ -346,12 +366,13 @@ test("landing brand motion is neutralized when reduced motion is requested", asy
   );
   await page.goto("/");
 
-  const logo = page.locator(".lp-hero-logo");
-  await expect(logo).toHaveAttribute("data-reduced-motion", "true");
-  const animationNames = await logo.locator("[data-anim]").evaluateAll((elements) =>
-    elements.map((element) => window.getComputedStyle(element).animationName),
-  );
-  expect(animationNames.every((name) => name === "none")).toBe(true);
+  await expect(page.locator(".lp-hero-frame")).toBeVisible();
+  const showcase = page.locator(".ksw-stage");
+  await showcase.scrollIntoViewIfNeeded();
+  await expect(showcase.locator(".ksw-cursor")).toBeHidden();
+  await expect(showcase.locator('.ksw-screen-layer[data-active="true"]')).toHaveCount(1);
+  await page.waitForTimeout(6500);
+  await expect(showcase.locator('.ksw-screen-layer[data-active="true"] img[src="/showcase/inventory.png"]')).toHaveCount(0);
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

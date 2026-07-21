@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
@@ -307,28 +308,28 @@ export default function SettingsView() {
 
   if (loadState === "loading") {
     return (
-      <main className="max-w-5xl mx-auto p-6 lg:p-8 space-y-4">
+      <ViewLayout width="focused" className="space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64 w-full" />
-      </main>
+      </ViewLayout>
     );
   }
 
   if (loadState === "error") {
     return (
-      <main className="max-w-5xl mx-auto p-6 lg:p-8">
+      <ViewLayout width="focused">
         <Card>
           <CardContent className="p-6">
             <p className="font-medium">{copy.settings.loadError}</p>
             <Button className="mt-4" onClick={() => void load()}>{copy.dashboard.retry}</Button>
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   return (
-    <main className="max-w-5xl mx-auto p-6 lg:p-8 space-y-6">
+    <ViewLayout width="focused" className="space-y-6">
       <ViewHeader title={copy.settings.title} meta={copy.settings.subtitle} />
 
       <nav
@@ -656,7 +657,7 @@ export default function SettingsView() {
         onConfirm={() => void runPendingAction()}
         onCancel={() => setPendingAction(null)}
       />
-    </main>
+    </ViewLayout>
   );
 }
 

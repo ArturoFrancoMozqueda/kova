@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { TicketPaper } from "@/components/ui/ticket";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -284,7 +285,7 @@ export default function BillingView() {
 
   if (!canViewBilling) {
     return (
-      <main className="p-6 lg:p-8 max-w-4xl mx-auto">
+      <ViewLayout width="focused" className="max-w-4xl">
         <div className="mb-4">
           <ViewHeader title={copy.billingView.title} />
         </div>
@@ -294,12 +295,12 @@ export default function BillingView() {
             <p className="text-muted-foreground">{copy.billingView.permissionHidden}</p>
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   return (
-    <main className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+    <ViewLayout width="focused" className="max-w-4xl animate-fade-in">
       <div className="mb-6">
         <ViewHeader title={copy.billingView.title} meta={copy.billingView.subtitle} />
       </div>
@@ -592,6 +593,6 @@ export default function BillingView() {
           </Card>
         </div>
       )}
-    </main>
+    </ViewLayout>
   );
 }

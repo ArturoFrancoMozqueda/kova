@@ -5,6 +5,7 @@ import { useFeature } from "@/auth/useFeature";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { todayInTimezone } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubscriptionInactivePanel } from "@/billing/SubscriptionInactivePanel";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
@@ -131,7 +132,7 @@ export default function ReportsView() {
   const showTrend = rangeDays > 1 || data.trendStory !== null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 space-y-6 p-4 sm:p-6">
+    <ViewLayout width="standard" className="space-y-6">
       <ReportsHeader
         startDate={startDate}
         endDate={endDate}
@@ -211,6 +212,6 @@ export default function ReportsView() {
           />
         </div>
       ) : null}
-    </main>
+    </ViewLayout>
   );
 }
