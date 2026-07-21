@@ -727,6 +727,7 @@ def test_get_subscription_resyncs_stale_period_from_stripe(
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["subscription"]["current_period_end"] is not None
+    assert body["subscription"]["period_freshness"] == "verified"
     assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_resync"
     db.refresh(subscription)
     assert int(subscription.current_period_end.timestamp()) == 2_000_000_000
@@ -773,6 +774,7 @@ def test_get_subscription_resyncs_future_period_when_local_value_differs(
     response = client.get("/api/v1/billing/subscription")
 
     assert response.status_code == 200, response.text
+    assert response.json()["subscription"]["period_freshness"] == "verified"
     assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_resync_future"
     db.refresh(subscription)
     assert subscription.current_period_start is not None
@@ -808,6 +810,7 @@ def test_get_subscription_skips_live_resync_when_period_was_recently_synced(
     response = client.get("/api/v1/billing/subscription")
 
     assert response.status_code == 200, response.text
+    assert response.json()["subscription"]["period_freshness"] == "verified"
     assert fake_subscription.retrieve_calls == []
     db.refresh(subscription)
     assert subscription.current_period_end is not None
@@ -839,11 +842,35 @@ def test_get_subscription_keeps_local_period_when_live_resync_fails(
     response = client.get("/api/v1/billing/subscription")
 
     assert response.status_code == 200, response.text
+    assert response.json()["subscription"]["period_freshness"] == "stale"
     assert fake_subscription.retrieve_calls[0]["stripe_subscription_id"] == "sub_resync_failure"
     db.refresh(subscription)
     assert subscription.current_period_end is not None
     assert int(subscription.current_period_end.timestamp()) == 2_000_000_000
     assert subscription.stripe_period_synced_at is None
+
+
+def test_get_subscription_reports_period_unavailable_without_a_date(
+    client: TestClient, db: Session
+) -> None:
+    tenant = _signup_verify_login(
+        client, f"period-unavailable-{uuid4().hex}@example.com", "Period Unavailable"
+    )
+    subscription = Subscription(
+        tenant_id=UUID(tenant["tenant_id"]),
+        stripe_customer_id="cus_period_unavailable",
+        status="active",
+    )
+    db.add(subscription)
+    db.commit()
+
+    response = client.get("/api/v1/billing/subscription")
+
+    assert response.status_code == 200, response.text
+    body = response.json()["subscription"]
+    assert body["current_period_end"] is None
+    assert body["period_freshness"] == "unavailable"
+    assert "stripe_period_synced_at" not in body
 
 
 def test_invoice_payment_failed_marks_subscription_past_due(

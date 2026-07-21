@@ -1,6 +1,6 @@
 # Billing State Copy Matrix
 
-Last updated: 2026-05-21
+Last updated: 2026-07-20
 
 Single reference for every billing state surfaced in the Kova UI. Source of truth for
 `frontend/src/billing/BillingBanner.tsx`, `frontend/src/billing/BillingView.tsx`, and the
@@ -68,6 +68,22 @@ the underlying state changes.
    never shown for blocked states.
 5. **Sentry / telemetry:** Blocked responses log `billing_blocked` with `{ reason }` to the
    telemetry router so we can detect false positives.
+
+## Period freshness on the billing page
+
+`GET /api/v1/billing/subscription` adds `subscription.period_freshness` without exposing the
+internal Stripe synchronization timestamp.
+
+| Value | Backend meaning | Billing UI |
+|---|---|---|
+| `verified` | `current_period_end` is in the future and the Stripe period was synchronized within the previous 24 hours. | Shows `Próxima renovación` and the verified date; when cancellation is scheduled, shows `Acceso hasta`. |
+| `stale` | A local period exists, but it is expired or was not synchronized with Stripe in the previous 24 hours. | Hides the date and says that Kova is verifying the next renewal; current access is unchanged. |
+| `unavailable` | No period end is available. | Uses the same verification/reassurance copy and does not invent a date. |
+
+The success return from Stripe is also non-authoritative: it says `Estamos confirmando tu
+suscripción` until the billing API or bounded reconciliation returns `active` or `trialing`. If
+confirmation remains delayed, the UI tells the owner not to repeat the payment and provides the
+official support link.
 
 ## When to update which surface
 

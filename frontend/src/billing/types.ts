@@ -14,6 +14,7 @@ export type Subscription = {
   amount_minor_units: number;
   current_period_start: string | null;
   current_period_end: string | null;
+  period_freshness: "verified" | "stale" | "unavailable";
   trial_ends_at: string | null;
   past_due_at: string | null;
   grace_period_ends_at: string | null;

@@ -55,6 +55,7 @@ function billing(overrides: Partial<BillingSubscription["subscription"]> | null)
           amount_minor_units: 29900,
           current_period_start: null,
           current_period_end: null,
+          period_freshness: "unavailable" as const,
           trial_ends_at: null,
           past_due_at: null,
           grace_period_ends_at: null,
@@ -79,9 +80,34 @@ function billing(overrides: Partial<BillingSubscription["subscription"]> | null)
   };
 }
 
+function activeBilling(
+  overrides: Partial<NonNullable<BillingSubscription["subscription"]>>,
+): BillingSubscription {
+  const result = billing(overrides);
+  return {
+    ...result,
+    access: {
+      ...result.access,
+      reason: "active",
+      trialing: false,
+      trial_ends_at: null,
+    },
+  };
+}
+
 function renderSuccess(search = "?session_id=cs_test_123") {
   return render(
     <MemoryRouter initialEntries={[`/settings/billing/success${search}`]}>
+      <ToastProvider>
+        <BillingView />
+      </ToastProvider>
+    </MemoryRouter>,
+  );
+}
+
+function renderBilling() {
+  return render(
+    <MemoryRouter initialEntries={["/settings/billing"]}>
       <ToastProvider>
         <BillingView />
       </ToastProvider>
@@ -94,6 +120,24 @@ afterEach(() => {
 });
 
 describe("BillingView success-page reconciliation", () => {
+  it("keeps the return state pending until the backend confirms the subscription", async () => {
+    let confirmCheckout: (value: BillingSubscription) => void = () => undefined;
+    getBillingSubscription.mockResolvedValue(billing({ status: "incomplete" }));
+    reconcileCheckout.mockReturnValue(
+      new Promise<BillingSubscription>((resolve) => {
+        confirmCheckout = resolve;
+      }),
+    );
+
+    renderSuccess();
+
+    expect(await screen.findByText("Estamos confirmando tu suscripción")).toBeInTheDocument();
+    expect(screen.queryByText("Tu suscripción está activa")).not.toBeInTheDocument();
+
+    confirmCheckout(billing({ status: "active" }));
+    expect(await screen.findByText("Tu suscripción está activa")).toBeInTheDocument();
+  });
+
   it("reconciles the checkout session when the subscription is not yet active", async () => {
     getBillingSubscription.mockResolvedValue(billing({ status: "incomplete" }));
     reconcileCheckout.mockResolvedValue(billing({ status: "active" }));
@@ -124,5 +168,68 @@ describe("BillingView success-page reconciliation", () => {
     // Let the load settle.
     await waitFor(() => expect(getBillingSubscription).toHaveBeenCalled());
     expect(reconcileCheckout).not.toHaveBeenCalled();
+    expect(await screen.findByText(/No repitas el pago/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Contactar soporte" })).toHaveAttribute(
+      "href",
+      "mailto:posprojectsupport@gmail.com",
+    );
+  });
+
+  it("does not reconcile a backend-confirmed trialing subscription", async () => {
+    getBillingSubscription.mockResolvedValue(billing({ status: "trialing" }));
+
+    renderSuccess();
+
+    expect(await screen.findByText("Tu suscripción está en prueba")).toBeInTheDocument();
+    expect(reconcileCheckout).not.toHaveBeenCalled();
+  });
+});
+
+describe("BillingView plan and period trust", () => {
+  it("renders the canonical monthly price from the billing plan response", async () => {
+    getBillingSubscription.mockResolvedValue(billing(null));
+
+    renderBilling();
+
+    expect(await screen.findByText("$299 MXN/mes")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activar por $299 MXN/mes" })).toBeEnabled();
+    expect(screen.queryByText("$299.00")).not.toBeInTheDocument();
+  });
+
+  it("shows a renewal date only when the backend marks the period verified", async () => {
+    getBillingSubscription.mockResolvedValue(
+      activeBilling({
+        status: "active",
+        current_period_end: "2026-08-20T18:00:00Z",
+        period_freshness: "verified",
+      }),
+    );
+
+    renderBilling();
+
+    expect(await screen.findByText("Próxima renovación")).toBeInTheDocument();
+    expect(screen.getByText(/20 ago 2026/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Estamos verificando tu próxima fecha/i)).not.toBeInTheDocument();
+  });
+
+  it("hides a stale period date and explains that verification is in progress", async () => {
+    getBillingSubscription.mockResolvedValue(
+      activeBilling({
+        status: "active",
+        current_period_end: "2026-06-01T00:00:00Z",
+        period_freshness: "stale",
+      }),
+    );
+
+    renderBilling();
+
+    expect(await screen.findByText("Periodo de facturación")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Estamos verificando tu próxima fecha de renovación. Tu acceso actual no cambia.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Próxima renovación")).not.toBeInTheDocument();
+    expect(screen.queryByText(/1 jun 2026/i)).not.toBeInTheDocument();
   });
 });

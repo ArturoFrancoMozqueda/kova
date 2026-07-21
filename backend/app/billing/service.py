@@ -15,6 +15,7 @@ from app.auth.models import Membership, User
 from app.billing import repository
 from app.billing.access import get_billing_access_status, serialize_billing_access
 from app.billing.models import Subscription, WebhookEvent
+from app.billing.schemas import BILLING_PERIOD_FRESHNESS_MAX_AGE
 from app.billing.stripe_client import (
     StripeCheckoutClient,
     StripeCheckoutError,
@@ -40,7 +41,7 @@ STANDARD_PLAN_NAME = "Standard Plan"
 STANDARD_PLAN_AMOUNT_MINOR_UNITS = 29_900
 STANDARD_PLAN_CURRENCY = "MXN"
 STANDARD_PLAN_INTERVAL = "month"
-BILLING_PERIOD_RESYNC_TTL = timedelta(hours=24)
+BILLING_PERIOD_RESYNC_TTL = BILLING_PERIOD_FRESHNESS_MAX_AGE
 
 checkout_client = StripeCheckoutClient()
 price_client = StripePriceClient()

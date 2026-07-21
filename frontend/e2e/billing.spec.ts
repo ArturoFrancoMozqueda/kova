@@ -25,6 +25,7 @@ const activeSubscription = {
   amount_minor_units: 29900,
   current_period_start: "2026-05-01T00:00:00Z",
   current_period_end: "2026-06-01T00:00:00Z",
+  period_freshness: "stale",
   trial_ends_at: null,
   past_due_at: null,
   grace_period_ends_at: null,
@@ -63,12 +64,37 @@ test("billing page displays the Standard Plan and active subscription", async ({
   await page.goto("/settings/billing");
 
   await expect(page.getByRole("heading", { name: /facturaci[óo]n/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /plan standard/i })).toBeVisible();
-  await expect(page.getByText(/\$299\.00/).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: /standard plan/i })).toBeVisible();
+  await expect(page.getByText("$299 MXN/mes")).toBeVisible();
   await expect(page.getByText(/activo/i).first()).toBeVisible();
   await expect(page.getByText(/tu suscripci[oó]n est[aá] activa/i)).toBeVisible();
   await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
+  await expect(page.getByText(/estamos verificando tu pr[óo]xima fecha de renovaci[óo]n/i)).toBeVisible();
+  await expect(page.getByText(/^pr[óo]xima renovaci[óo]n$/i)).toHaveCount(0);
   await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
+});
+
+test("billing page displays a renewal date only for a verified period", async ({ page }) => {
+  await mockAuthAs(page, "owner");
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({
+      json: {
+        plan,
+        subscription: {
+          ...activeSubscription,
+          current_period_end: "2026-08-20T18:00:00Z",
+          period_freshness: "verified",
+        },
+        access: activeAccess,
+      },
+    });
+  });
+
+  await page.goto("/settings/billing");
+
+  await expect(page.getByText(/^pr[óo]xima renovaci[óo]n$/i)).toBeVisible();
+  await expect(page.getByText(/20 ago 2026/i)).toBeVisible();
+  await expect(page.getByText(/estamos verificando tu pr[óo]xima fecha/i)).toHaveCount(0);
 });
 
 test("billing page redirects to checkout and handles cancellation", async ({ page }) => {
@@ -163,7 +189,12 @@ test("billing page shows past due recovery and return states", async ({ page }) 
 
   await page.goto("/settings/billing/success");
 
-  await expect(page.getByText(/pago completado\. actualizando el estado de la suscripci[óo]n/i).first()).toBeVisible();
+  await expect(page.getByText(/estamos confirmando tu suscripci[óo]n/i).first()).toBeVisible();
+  await expect(page.getByText(/no repitas el pago/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
+    "href",
+    "mailto:posprojectsupport@gmail.com",
+  );
   await expect(page.getByText(/pago vencido\. recupera la facturaci[óo]n para mantener acceso sin interrupciones/i)).toBeVisible();
   await expect(page.getByText(/fin del periodo de gracia/i)).toBeVisible();
 });
