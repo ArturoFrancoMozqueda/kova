@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -22,7 +23,6 @@ import {
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
 import { BILLING_TRIAL_CTA_LABEL_ES } from "@/billing/trial";
-import IntroAnimation from "@/components/brand/IntroAnimation";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import OwnerDashboard from "@/landing/OwnerDashboard";
@@ -30,7 +30,10 @@ import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
 import KovaShowcase from "@/landing/showcase/KovaShowcase";
+import SaleStory from "@/landing/SaleStory";
+import HeroProductFrame from "@/landing/HeroProductFrame";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
+import { useLandingRevealMotion } from "@/landing/useRevealMotion";
 import { copy } from "@/i18n/messages";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
 
@@ -38,82 +41,18 @@ const t = copy.landing;
 
 // Theme vars + landing CSS (themeVars, LANDING_STYLES, RESPONSIVE_STYLES) live
 // in @/landing/landingTheme so the marketing showcase can reuse them verbatim.
+// El reveal-on-scroll (useLandingRevealMotion) vive en @/landing/useRevealMotion
+// para que SaleStory y otras secciones reusen el mismo mecanismo.
 
-function useLandingRevealMotion() {
-  useEffect(() => {
-    const root = document.querySelector<HTMLElement>(".lp-root");
-    if (!root) return;
-
-    const reduceMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const revealTargets = Array.from(
-      root.querySelectorAll<HTMLElement>(
-        [
-          ".lp-reveal-block",
-          ".lp-benefit-strip",
-          ".lp-story-card",
-          ".lp-footer-grid",
-          // Recibo de precio: mismas data-attrs, pero su CSS imprime las
-          // líneas en orden en vez del fade genérico (lp-tkt-print).
-          ".lp-ticket-print",
-        ].join(",")
-      )
-    );
-
-    const seen = new Set<HTMLElement>();
-    revealTargets.forEach((target, index) => {
-      if (seen.has(target)) return;
-      seen.add(target);
-      target.dataset.lpReveal = "true";
-      target.style.setProperty("--lp-reveal-delay", `${Math.min(index % 3, 2) * 80}ms`);
-      if (reduceMotion) target.dataset.lpVisible = "true";
-    });
-
-    root.classList.add("lp-motion-ready");
-
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      seen.forEach((target) => {
-        target.dataset.lpVisible = "true";
-      });
-      return () => {
-        root.classList.remove("lp-motion-ready");
-        seen.forEach((target) => {
-          target.removeAttribute("data-lp-reveal");
-          target.removeAttribute("data-lp-visible");
-          target.style.removeProperty("--lp-reveal-delay");
-        });
-      };
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const target = entry.target as HTMLElement;
-          target.dataset.lpVisible = "true";
-          observer.unobserve(target);
-        });
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 }
-    );
-
-    seen.forEach((target) => observer.observe(target));
-
-    return () => {
-      observer.disconnect();
-      root.classList.remove("lp-motion-ready");
-      seen.forEach((target) => {
-        target.removeAttribute("data-lp-reveal");
-        target.removeAttribute("data-lp-visible");
-        target.style.removeProperty("--lp-reveal-delay");
-      });
-    };
-  }, []);
-}
-
-/* ─── ThemeToggle ────────────────────────────────────────────────────────── */
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
+const NAV_LINKS = [
+  { label: t.nav.howItWorks, href: "#como-funciona" },
+  { label: t.nav.whatItLooksLike, href: "#producto" },
+  { label: t.nav.isItForMe, href: "#comercios" },
+  { label: t.nav.questions, href: "#faq" },
+  { label: t.nav.price, href: "#precio" },
+];
+
 function Navbar({
   primaryTarget,
   isAuthenticated,
@@ -123,24 +62,48 @@ function Navbar({
   isAuthenticated: boolean;
   onCtaClick: (cta: string) => void;
 }) {
+  // Estado "scrolled": se activa post-hidratación vía efecto (nunca en SSR), así
+  // el HTML prerenderizado siempre nace en el estado tope-de-página y la
+  // hidratación coincide. El listener es passive + rAF-throttled.
+  const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setScrolled(window.scrollY > 12);
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  // Escape cierra el menú móvil y devuelve el foco al botón (disclosure, no modal).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   return (
-    <nav
-      style={{
-        position: "sticky", top: 0, zIndex: 50,
-        background: "color-mix(in srgb, var(--page-bg) 85%, transparent)",
-        backdropFilter: "saturate(140%) blur(12px)",
-        WebkitBackdropFilter: "saturate(140%) blur(12px)",
-        borderBottom: "0.5px solid var(--hairline-color)",
-      }}
-    >
-      <div
-        className="lp-nav-shell"
-        style={{
-          maxWidth: 1280, margin: "0 auto",
-          padding: "14px 32px",
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32,
-        }}
-      >
+    <nav className="lp-nav" data-scrolled={scrolled ? "true" : "false"}>
+      <div className="lp-nav-shell">
         <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>
           <Logo
             variant="horizontal"
@@ -153,16 +116,8 @@ function Navbar({
         </span>
 
         <div className="lp-desktop-nav" style={{ display: "flex", gap: 28, fontSize: 13, fontWeight: 500, color: "var(--text-muted)" }}>
-          {[
-            { label: t.nav.howItWorks, href: "#como-funciona" },
-            { label: t.nav.whatItLooksLike, href: "#producto" },
-            { label: t.nav.isItForMe, href: "#comercios" },
-            { label: t.nav.questions, href: "#faq" },
-            { label: t.nav.price, href: "#precio" },
-          ].map((l) => (
-            <a key={l.label} href={l.href} style={{ color: "inherit", textDecoration: "none", transition: "color 150ms" }}
-               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--page-fg)")}
-               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+          {NAV_LINKS.map((l) => (
+            <a key={l.label} href={l.href} className="lp-nav-link" style={{ color: "inherit", textDecoration: "none" }}>
               {l.label}
             </a>
           ))}
@@ -193,10 +148,42 @@ function Navbar({
             }}
           >
             <span>{isAuthenticated ? t.nav.goToDashboard : t.nav.createAccount}</span>
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
               <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
+          <button
+            ref={toggleRef}
+            type="button"
+            className="lp-nav-toggle"
+            aria-expanded={menuOpen}
+            aria-controls="lp-mobile-menu"
+            aria-label={menuOpen ? t.nav.menuClose : t.nav.menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              {menuOpen ? (
+                <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              ) : (
+                <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              )}
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="lp-mobile-menu" className="lp-mobile-menu" data-open={menuOpen ? "true" : "false"}>
+        <div className="lp-mobile-menu-inner">
+          {NAV_LINKS.map((l) => (
+            <a key={l.label} href={l.href} className="lp-mobile-link" onClick={closeMenu}>
+              {l.label}
+            </a>
+          ))}
+          {!isAuthenticated && (
+            <Link to="/login" className="lp-mobile-link" onClick={closeMenu}>
+              {t.nav.login}
+            </Link>
+          )}
         </div>
       </div>
     </nav>
@@ -239,7 +226,7 @@ function Hero({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 0.95fr) minmax(320px, 0.9fr)",
+            gridTemplateColumns: "minmax(0, 0.9fr) minmax(0, 1.05fr)",
             gap: 52,
             alignItems: "center",
           }}
@@ -331,8 +318,8 @@ function Hero({
             </p>
           </div>
 
-          <div className="lp-hero-visual" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 330 }}>
-            <IntroAnimation embedded skippable={false} className="lp-hero-logo" />
+          <div className="lp-hero-visual">
+            <HeroProductFrame />
           </div>
         </div>
 
@@ -469,26 +456,28 @@ function FAQ() {
   const items = t.faq.items;
 
   return (
-    <section id="faq" className="lp-section lp-section-compact lp-reveal-block">
+    <section id="faq" className="lp-section lp-section-compact">
       <div className="lp-section-inner" style={{ maxWidth: 980 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24 }}>
-          <span className="lp-section-label">
+        <div data-lp-stagger-group>
+          <span className="lp-section-label" data-lp-stagger-item style={{ marginBottom: 24 }}>
             {t.faq.eyebrow}
           </span>
+          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>
+            {t.faq.title}
+          </h2>
         </div>
-        <h2 className="lp-section-title" style={{ maxWidth: 720 }}>
-          {t.faq.title}
-        </h2>
 
-        <div style={{ marginTop: 34, borderTop: "0.5px solid var(--hairline-color)" }}>
+        <div data-lp-reveal-opt style={{ marginTop: 34, borderTop: "0.5px solid var(--hairline-color)" }}>
           {items.map((it, i) => {
             const isOpen = open === i;
             return (
               <div key={i} style={{ borderBottom: "0.5px solid var(--hairline-color)" }}>
                 <button
                   type="button"
+                  id={`lp-faq-q-${i}`}
                   onClick={() => setOpen(isOpen ? null : i)}
                   aria-expanded={isOpen}
+                  aria-controls={`lp-faq-a-${i}`}
                   style={{
                     width: "100%",
                     background: "transparent",
@@ -525,20 +514,20 @@ function FAQ() {
                     </svg>
                   </span>
                 </button>
-                {isOpen && (
-                  <div
-                    style={{
-                      padding: "0 4px 20px",
-                      fontSize: 15,
-                      lineHeight: 1.6,
-                      color: "var(--text-muted)",
-                      maxWidth: 760,
-                      animation: "lp-feed-in 240ms var(--kova-ease-entrance)",
-                    }}
-                  >
-                    {it.a}
+                {/* Respuesta siempre montada (SEO + animación grid-rows). Cerrada
+                    se colapsa a 0fr y visibility:hidden la saca del orden de
+                    tabulación y del lector de pantalla. */}
+                <div
+                  id={`lp-faq-a-${i}`}
+                  role="region"
+                  aria-labelledby={`lp-faq-q-${i}`}
+                  className="lp-faq-panel"
+                  data-open={isOpen ? "true" : "false"}
+                >
+                  <div className="lp-faq-panel-inner">
+                    <div className="lp-faq-answer">{it.a}</div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
@@ -871,6 +860,7 @@ export default function Home(): ReactNode {
           onCtaClick={() => onCtaClick("showcase")}
         />
         <Problem />
+        <SaleStory />
         <OwnerDashboard />
         <BentoModules />
         <Differentiation />

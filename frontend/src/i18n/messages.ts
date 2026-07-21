@@ -25,6 +25,8 @@ export const copy = {
       login: "Iniciar sesión",
       goToDashboard: "Ir al dashboard",
       createAccount: "Empieza gratis",
+      menuOpen: "Abrir menú",
+      menuClose: "Cerrar menú",
     },
     hero: {
       eyebrow: "Una venta lo mueve todo",
@@ -124,6 +126,37 @@ export const copy = {
         { title: "El stock baja", line: "Sin capturar nada dos veces.", callout: "Inventario actualizado sin doble captura." },
         { title: "La caja cuadra", line: "Efectivo claro, turno por turno.", callout: "Cada peso queda en el turno." },
         { title: "Ves el día completo", line: "Tu día, explicado.", callout: "Reportes listos para decidir." },
+      ],
+    },
+    // Sección "Una venta lo mueve todo" (SaleStory): 4 filas alternadas que
+    // siguen la MISMA venta de $186 (los montos salen de landing/demo/sweetHome,
+    // no de aquí — se referencian en copy solo por narrativa). Voz de dueño,
+    // orientada a resultados, sin claims inventados.
+    saleStory: {
+      kicker: "Una venta lo mueve todo",
+      title: "Cobras una vez. Kova acomoda el resto.",
+      line: "Sigue una sola venta de $186 en Sweet Home y mira cómo el mismo cobro mueve tu inventario, tu caja y tus reportes, sin capturar nada dos veces.",
+      steps: [
+        {
+          eyebrow: "La venta",
+          title: "Cobras en segundos, sin complicarte.",
+          body: "Un latte, un cheesecake y dos galletas: cierras en $186, cobras en efectivo y el recibo queda listo. La venta ya quedó registrada.",
+        },
+        {
+          eyebrow: "El inventario",
+          title: "El stock baja solo, en el mismo momento.",
+          body: "Cada producto de esa venta sale de tu inventario sin captura aparte. El Cheesecake de fresa cruza su mínimo y Kova te avisa antes de que se acabe en hora pico.",
+        },
+        {
+          eyebrow: "La caja",
+          title: "Tu turno cuadra peso por peso.",
+          body: "Los $186 en efectivo entran al turno y tu efectivo esperado sube de $1,854 a $2,040. Al cerrar sabes cuánto debe haber en caja, sin sumar tickets.",
+        },
+        {
+          eyebrow: "Los reportes",
+          title: "Al final del día, ves lo que de verdad pasó.",
+          body: "La misma venta ya está en tus totales, junto a tus productos más vendidos y tus horas fuertes. Datos reales para decidir qué reponer y a qué hora conviene tener más gente.",
+        },
       ],
     },
     // Cinematic showcase (laptop mockup) — used on the landing and on the

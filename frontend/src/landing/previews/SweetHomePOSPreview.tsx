@@ -164,6 +164,7 @@ export default function SweetHomePOSPreview({
               type="button"
               onClick={() => interactive && setFilter(c.id)}
               aria-pressed={filter === c.id}
+              disabled={!interactive}
               style={{
                 border: "0.5px solid var(--hairline-color)",
                 background: filter === c.id ? "var(--invert-ink-bg)" : "var(--surface)",
@@ -273,6 +274,7 @@ export default function SweetHomePOSPreview({
                 type="button"
                 onClick={() => interactive && setMethod(m.id)}
                 aria-pressed={method === m.id}
+                disabled={!interactive}
                 style={{
                   border: method === m.id ? "1px solid var(--accent)" : "0.5px solid var(--hairline-color)",
                   background: method === m.id ? "var(--accent-soft)" : "var(--surface)",

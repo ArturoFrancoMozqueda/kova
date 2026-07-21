@@ -140,22 +140,61 @@ export const LANDING_STYLES = `
     70%  { transform: scale(1.08); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
-  @keyframes lp-hero-drift {
-    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
-    50%      { transform: translate3d(0, -8px, 0) rotate(-0.4deg); }
+  /* Hero visual = marco de producto (HeroProductFrame): una ventana de navegador
+     que enmarca el POS real en tema claro. El frame nace visible (SSR/no-JS) y
+     solo con .lp-motion-ready corre un one-shot de entrada — nunca queda oculto
+     sin JS. */
+  .lp-hero-visual {
+    position: relative;
+    min-width: 0;
+    width: 100%;
   }
-
-  .lp-root.lp-motion-ready .lp-hero-visual > * {
-    animation: lp-hero-drift 7s ease-in-out infinite;
+  .lp-hero-frame {
+    position: relative;
+    width: 100%;
+    border-radius: 16px;
+    border: 0.5px solid var(--hairline-strong);
+    background: #0F1117;
+    overflow: hidden;
+    box-shadow:
+      0 40px 90px -48px rgba(0,0,0,0.9),
+      0 10px 30px -18px rgba(0,0,0,0.6);
   }
-  .lp-root:not(.lp-motion-ready) .lp-hero-logo [data-anim] {
-    animation-play-state: paused !important;
+  .lp-root.lp-motion-ready .lp-hero-frame {
+    animation: lp-hero-frame-in 700ms var(--kova-ease-entrance) both;
   }
-  .lp-hero-visual > * {
-    max-width: min(100%, 410px);
+  @keyframes lp-hero-frame-in {
+    from { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.985); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   }
-  .lp-hero-logo {
-    width: min(100%, 390px) !important;
+  .lp-hero-frame-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #1A1D28;
+    border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  }
+  .lp-hero-frame-url {
+    flex: 1;
+    text-align: center;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #8892A4;
+    background: #0F1117;
+    border: 0.5px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 4px 12px;
+    max-width: 260px;
+    margin: 0 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lp-hero-frame-screen {
+    background: #F8FAFB;
+    padding: clamp(12px, 2vw, 20px);
   }
   @keyframes lp-story-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0); }
@@ -326,6 +365,79 @@ export const LANDING_STYLES = `
     padding: 16px;
   }
 
+  /* ── SaleStory ("Una venta lo mueve todo") ────────────────────────────────
+     Filas alternadas copy | preview. La copy revela escalonada; el preview usa
+     la variante "frame". Una spine vertical sutil (≥900px) refuerza la idea de
+     que una sola venta fluye a través de los cuatro pasos. */
+  .lp-story-rows {
+    position: relative;
+    margin-top: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+  .lp-sale-row {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.05fr);
+    gap: clamp(28px, 5vw, 64px);
+    align-items: center;
+  }
+  .lp-sale-row[data-reverse="1"] .lp-sale-copy { order: 2; }
+  .lp-sale-row[data-reverse="1"] .lp-sale-visual { order: 1; }
+  .lp-sale-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .lp-sale-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    flex-shrink: 0;
+  }
+  .lp-sale-title {
+    font-family: var(--lp-font-display);
+    font-size: clamp(22px, 2.6vw, 30px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    color: var(--page-fg);
+    margin: 16px 0 0;
+  }
+  .lp-sale-body {
+    margin: 12px 0 0;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 440px;
+  }
+  .lp-sale-visual {
+    position: relative;
+    min-width: 0;
+  }
+  .lp-sale-frame {
+    border-radius: 14px;
+    border: 0.5px solid var(--hairline-color);
+    background: var(--page-bg);
+    padding: 14px;
+    box-shadow: 0 26px 64px -36px rgba(0,0,0,0.62);
+  }
+
   .lp-bento {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -379,6 +491,34 @@ export const LANDING_STYLES = `
     background: var(--surface-2);
   }
 
+  /* ── FAQ accordion ────────────────────────────────────────────────────────
+     Respuestas siempre montadas; abren con grid-template-rows 0fr→1fr. La
+     visibility gestiona foco/lectura (cerrada = fuera del orden de tabulación).
+     El bloque de reduced-motion global colapsa la transición a instantánea. */
+  .lp-faq-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 280ms var(--kova-ease-entrance);
+  }
+  .lp-faq-panel[data-open="true"] { grid-template-rows: 1fr; }
+  .lp-faq-panel-inner {
+    min-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: visibility 0s linear 280ms;
+  }
+  .lp-faq-panel[data-open="true"] .lp-faq-panel-inner {
+    visibility: visible;
+    transition: visibility 0s;
+  }
+  .lp-faq-answer {
+    padding: 0 4px 20px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 760px;
+  }
+
   .lp-cta-band {
     display: flex;
     flex-direction: column;
@@ -414,6 +554,89 @@ export const LANDING_STYLES = `
     transform: translate3d(0, 0, 0) scale(1);
     filter: blur(0);
   }
+
+  /* Variantes de reveal (data-lp-reveal-variant). "rise" = default (18px, blur).
+     "rise-lg" para titulares/superficies grandes; "frame" para previews de
+     producto (translate + micro-escala, sin blur — más barato en superficies
+     grandes compuestas). Todas heredan el gate .lp-motion-ready + easing. */
+  .lp-root.lp-motion-ready [data-lp-reveal="true"][data-lp-reveal-variant="rise-lg"] {
+    transform: translate3d(0, 28px, 0);
+    transition-duration: 700ms;
+  }
+  .lp-root.lp-motion-ready [data-lp-reveal="true"][data-lp-reveal-variant="frame"] {
+    transform: translate3d(0, 20px, 0) scale(0.985);
+    filter: none;
+    transition:
+      opacity 640ms var(--kova-ease-entrance),
+      transform 640ms var(--kova-ease-entrance);
+    transition-delay: var(--lp-reveal-delay, 0ms);
+  }
+  .lp-root.lp-motion-ready [data-lp-reveal="true"][data-lp-reveal-variant="frame"][data-lp-visible="true"] {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  /* ── Navbar ─────────────────────────────────────────────────────────────
+     Estado base = tope de página (SSR/no-JS). data-scrolled lo agrega un efecto
+     tras hidratar: fondo más sólido, sombra suave y padding más compacto. */
+  .lp-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--page-bg) 85%, transparent);
+    backdrop-filter: saturate(140%) blur(12px);
+    -webkit-backdrop-filter: saturate(140%) blur(12px);
+    border-bottom: 0.5px solid var(--hairline-color);
+    transition:
+      background 220ms var(--kova-ease-entrance),
+      border-color 220ms var(--kova-ease-entrance),
+      box-shadow 220ms var(--kova-ease-entrance);
+  }
+  .lp-nav[data-scrolled="true"] {
+    background: color-mix(in srgb, var(--page-bg) 94%, transparent);
+    border-bottom-color: var(--hairline-strong);
+    box-shadow: 0 10px 30px -22px rgba(0,0,0,0.75);
+  }
+  .lp-nav-shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    transition: padding 220ms var(--kova-ease-entrance);
+  }
+  .lp-nav[data-scrolled="true"] .lp-nav-shell {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .lp-nav-link { transition: color 150ms var(--kova-ease-entrance); }
+  .lp-nav-link:hover { color: var(--page-fg) !important; }
+  .lp-nav-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 0.5px solid var(--hairline-color);
+    background: var(--surface);
+    color: var(--page-fg);
+    cursor: pointer;
+    padding: 0;
+    transition:
+      border-color 150ms var(--kova-ease-entrance),
+      background 150ms var(--kova-ease-entrance);
+  }
+  .lp-nav-toggle:hover { border-color: var(--hairline-strong); background: var(--surface-2); }
+  .lp-nav-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  /* Disclosure móvil: oculto en desktop (los anchors del desktop-nav ya sirven).
+     En móvil colapsa con grid-template-rows 0fr→1fr; visibility gestiona el
+     orden de tabulación (los links cerrados no son alcanzables por teclado). */
+  .lp-mobile-menu { display: none; }
 
   .lp-hero-section {
     padding: 74px 32px 60px;
@@ -550,6 +773,24 @@ export const LANDING_STYLES = `
   .lp-tkt-tab { margin-top: 7px; }
   .lp-tkt-tab .lp-tkt-body { padding: 18px 20px 14px; }
 
+  /* Halo ambiental detrás del recibo de precio: más presencia en desktop sin
+     tocar montos ni el material del papel. Decorativo (pointer-events: none). */
+  .lp-ticket-print { position: relative; }
+  .lp-ticket-print::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 46%;
+    width: 150%;
+    height: 130%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, var(--accent-soft), transparent 72%);
+    opacity: 0.7;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .lp-ticket-print > * { position: relative; z-index: 1; }
+
   /* Impresión del recibo: las líneas aparecen en orden al entrar en viewport.
      Gateado en data-lp-reveal (solo se agrega post-hidratación) + lp-motion-ready,
      así el HTML prerenderizado y no-JS muestran el recibo completo. */
@@ -675,13 +916,20 @@ export const RESPONSIVE_STYLES = `
       line-height: 1 !important;
     }
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
-    .lp-hero-visual { max-width: 100% !important; min-height: 320px !important; overflow: hidden !important; }
-    .lp-hero-visual > * { max-width: min(100%, 360px) !important; }
+    .lp-hero-visual { max-width: 560px !important; margin: 0 auto !important; width: 100% !important; }
     .lp-pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
     .lp-cash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-rep-bottom { grid-template-columns: 1fr !important; }
     .lp-problem-grid { grid-template-columns: 1fr !important; }
     .lp-problem-ticket { max-width: 340px !important; }
+    /* SaleStory: copy siempre antes del preview (orden de lectura natural). */
+    .lp-sale-row {
+      grid-template-columns: 1fr !important;
+      gap: 22px !important;
+    }
+    .lp-sale-row .lp-sale-copy { order: 1 !important; }
+    .lp-sale-row .lp-sale-visual { order: 2 !important; }
+    .lp-sale-body { max-width: 100% !important; }
   }
   @media (max-width: 640px) {
     /* Prevent mobile font downloads and late swaps from redefining the LCP. */
@@ -708,6 +956,40 @@ export const RESPONSIVE_STYLES = `
       padding: 9px 12px !important;
       white-space: nowrap !important;
     }
+    .lp-nav-toggle { display: inline-flex !important; }
+    .lp-mobile-menu {
+      display: grid !important;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 260ms var(--kova-ease-entrance);
+      background: color-mix(in srgb, var(--page-bg) 96%, transparent);
+      border-top: 0.5px solid transparent;
+    }
+    .lp-mobile-menu[data-open="true"] {
+      grid-template-rows: 1fr;
+      border-top-color: var(--hairline-color);
+    }
+    .lp-mobile-menu-inner {
+      min-height: 0;
+      overflow: hidden;
+      visibility: hidden;
+      transition: visibility 0s linear 260ms;
+      display: flex;
+      flex-direction: column;
+      padding: 0 20px;
+    }
+    .lp-mobile-menu[data-open="true"] .lp-mobile-menu-inner {
+      visibility: visible;
+      transition: visibility 0s;
+    }
+    .lp-mobile-link {
+      padding: 14px 4px;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--page-fg);
+      text-decoration: none;
+      border-bottom: 0.5px solid var(--hairline-color);
+    }
+    .lp-mobile-menu-inner .lp-mobile-link:last-child { border-bottom: none; }
     .lp-hero-section { padding: 28px 20px 44px !important; }
     .lp-hero-title { font-size: 31px !important; }
     .lp-hero-copy {
@@ -715,19 +997,16 @@ export const RESPONSIVE_STYLES = `
       margin-top: 14px !important;
     }
     .lp-hero-content { order: 1; }
-    .lp-hero-visual { order: 2; min-height: 170px !important; }
-    .lp-hero-visual > * { max-width: min(100%, 220px) !important; }
-    .lp-hero-logo { width: 220px !important; }
-    .lp-hero-logo > div { padding: 0 !important; gap: 0 !important; }
-    .lp-hero-logo > div > div:first-child {
-      width: 150px !important;
-      min-width: 150px !important;
-      max-width: 150px !important;
+    /* El marco de producto va debajo de la copy y se recorta a su porción
+       superior (catálogo) con una máscara de desvanecido: muestra la Kova real
+       sin ocupar toda la pantalla. */
+    .lp-hero-visual { order: 2; max-width: 100% !important; margin-top: 6px !important; }
+    .lp-hero-frame-screen {
+      max-height: 320px !important;
+      overflow: hidden !important;
+      -webkit-mask-image: linear-gradient(180deg, #000 80%, transparent) !important;
+      mask-image: linear-gradient(180deg, #000 80%, transparent) !important;
     }
-    /* Wordmark del IntroAnimation (div desde PR #43, antes h1; su clase es
-       CSS-module así que se apunta por estructura: composition > textBlock > wordmark). */
-    .lp-hero-logo > div > div:last-child > div { font-size: 42px !important; }
-    .lp-hero-logo p { font-size: 12px !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
     .lp-benefit-card { min-height: 118px !important; padding: 13px !important; }
     .lp-benefit-card strong { font-size: 13px !important; }
@@ -788,6 +1067,27 @@ export const RESPONSIVE_STYLES = `
     .lp-nav-primary { padding: 9px 10px !important; font-size: 12px !important; }
     .lp-hero-title { font-size: 30px !important; }
     .lp-hero-copy { font-size: 16px !important; }
+  }
+  @media (min-width: 900px) {
+    /* Spine conectora: una sola venta fluye por los 4 pasos. Vive en el gutter
+       central; los rows/cards tienen fondo y la tapan salvo en los espacios. */
+    .lp-story-rows::before {
+      content: "";
+      position: absolute;
+      top: 44px;
+      bottom: 44px;
+      left: 50%;
+      width: 1px;
+      transform: translateX(-0.5px);
+      background: linear-gradient(180deg, transparent, var(--hairline-strong) 12%, var(--hairline-strong) 88%, transparent);
+      z-index: 0;
+      pointer-events: none;
+    }
+  }
+  @media (min-width: 1024px) {
+    /* Overflow controlado: el marco del hero sangra apenas hacia el borde
+       derecho (seguro: .lp-root tiene overflow-x: clip). */
+    .lp-hero-visual { margin-right: clamp(-56px, -3vw, 0px); }
   }
 `;
 

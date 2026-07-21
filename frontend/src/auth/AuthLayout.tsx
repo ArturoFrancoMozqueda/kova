@@ -30,17 +30,25 @@ export function AuthLayout({
           WebkitMaskImage: "linear-gradient(180deg, black, transparent)",
         }}
       />
-      <div className="relative w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
+      {/* Entrada en dos tiempos: primero el encabezado, luego la Card. Con
+          prefers-reduced-motion cada animación se desactiva (motion-reduce:
+          animate-none) para mostrar el contenido de inmediato, sin delays. */}
+      <div className="relative w-full max-w-md">
+        <div className="text-center mb-8 animate-fade-in motion-reduce:animate-none">
           <div className="mb-4 flex justify-center">
             <LogoMark size={48} circuitColor="var(--kova-ink)" />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           {subtitle ? <p className="text-sm text-muted-foreground mt-1">{subtitle}</p> : null}
         </div>
-        <Card className="shadow-kova-hero">
-          <CardContent className={cn("p-6", contentClassName)}>{children}</CardContent>
-        </Card>
+        <div
+          className="animate-slide-up motion-reduce:animate-none"
+          style={{ animationDelay: "90ms", animationFillMode: "backwards" }}
+        >
+          <Card className="shadow-kova-hero">
+            <CardContent className={cn("p-6", contentClassName)}>{children}</CardContent>
+          </Card>
+        </div>
       </div>
     </main>
   );
