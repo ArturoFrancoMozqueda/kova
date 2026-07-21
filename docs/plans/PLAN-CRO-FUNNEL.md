@@ -48,7 +48,9 @@ Este documento organiza las mejoras de conversión de Kova como un backlog CRO i
 - [ ] **Epic CRO-4 — Billing y checkout confiables**. CRO-4.1–4.4 implementados y validados
   localmente el 2026-07-20; CRO-4.5–4.6 siguen como gates operativos con Stripe. Evidencia en
   [`docs/audits/CRO-4-BILLING-2026-07-20.md`](../audits/CRO-4-BILLING-2026-07-20.md).
-- [ ] **Epic CRO-5 — Rollout y aprendizaje**.
+- [ ] **Epic CRO-5 — Rollout y aprendizaje**. CRO-5.1/5.2 completados; analizador de CRO-5.3 listo.
+  Los cortes reales de 7 y 30 días quedan pendientes hasta 2026-07-28 y 2026-08-20; evidencia en
+  [`docs/audits/CRO-5-ROLLOUT-2026-07-21.md`](../audits/CRO-5-ROLLOUT-2026-07-21.md).
 
 ---
 

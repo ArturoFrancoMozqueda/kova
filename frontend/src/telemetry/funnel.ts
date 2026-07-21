@@ -4,6 +4,7 @@ const QUEUE_KEY = "kova:funnel-events";
 const CLIENT_ID_KEY = "kova:funnel-client-id";
 const FIRST_TOUCH_KEY = "kova:funnel-first-touch";
 const CTA_SPECIFICITY_EXPERIMENT_KEY = "kova:experiment:exp_01_cta_specificity";
+const EXPERIMENT_EXPOSURE_SESSION_PREFIX = "kova:experiment-exposed:";
 
 type FunnelEvent = {
   event_name: string;
@@ -338,11 +339,20 @@ export function trackExperimentExposed(
   variant: ExperimentVariant,
   cta: string,
 ) {
-  return trackAnonymousEventOnce(
-    `experiment:${experiment_id}`,
-    "experiment_exposed",
-    { experiment_id, variant, cta },
-  );
+  if (typeof window === "undefined") return;
+  const sessionKey = `${EXPERIMENT_EXPOSURE_SESSION_PREFIX}${experiment_id}:${variant}`;
+  try {
+    if (window.sessionStorage.getItem(sessionKey)) return;
+    window.sessionStorage.setItem(sessionKey, "1");
+  } catch {
+    // Storage-restricted browsers still receive once-per-load deduplication.
+    return trackAnonymousEventOnce(
+      `experiment:${experiment_id}:${variant}`,
+      "experiment_exposed",
+      { experiment_id, variant, cta },
+    );
+  }
+  void trackAnonymousEvent("experiment_exposed", { experiment_id, variant, cta });
 }
 
 async function sendEvent(event: FunnelEvent): Promise<boolean> {

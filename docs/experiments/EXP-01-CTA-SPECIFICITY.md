@@ -13,7 +13,7 @@ signup ni el LCP.
 - Fuente del tratamiento: `BILLING_TRIAL_CTA_LABEL_ES`, derivada de la constante canónica de 7 días.
 - Asignación: 50/50 determinística por `client_id`; un cliente conserva su variante.
 - Elegibilidad inicial: viewport menor a 768 px, sesión no autenticada y sin `client_id` previo.
-- Exposición: `experiment_exposed` al renderizar el CTA del hero, una vez por carga.
+- Exposición: `experiment_exposed` al renderizar el CTA del hero, una vez por sesión y variante.
 - Atribución: los clics del hero y `signup_started` incluyen `experiment_id` y `variant`.
 
 ## Métricas y guardrails
@@ -41,6 +41,9 @@ días no reemplaza este mínimo.
 - Perdedor: intervalo de confianza de 95% desfavorable o guardrail deteriorado más de 10%.
 - En cualquier otro caso: **inconcluso**. No se detiene por una diferencia temprana favorable.
 - Solo EXP-01 puede modificar este CTA mientras esté activo.
+- El registro de superficies activas vive en
+  [`EXPERIMENT-REGISTRY.md`](EXPERIMENT-REGISTRY.md); no se activa otro experimento de landing hero
+  o signup hasta cerrar o pausar EXP-01.
 
 ## Rollback
 

@@ -4,6 +4,7 @@ import {
   hasFunnelClientId,
   trackAnonymousEvent,
   trackAnonymousEventOnce,
+  trackExperimentExposed,
   trackFunnelEvent,
   trackSignupValidationFailed,
 } from "./funnel";
@@ -13,6 +14,7 @@ describe("anonymous funnel path", () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     window.history.replaceState({}, "", "/");
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
@@ -129,6 +131,28 @@ describe("anonymous funnel path", () => {
     expect(second).toBe(first);
     expect(window.localStorage.getItem("kova:funnel-client-id")).toBeTruthy();
     expect(window.localStorage.getItem("kova:experiment:exp_01_cta_specificity")).toBe(first);
+  });
+
+  it("records an experiment exposure once per browser session and variant", async () => {
+    trackExperimentExposed("exp_01_cta_specificity", "treatment", "hero");
+    trackExperimentExposed("exp_01_cta_specificity", "treatment", "hero");
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body).toMatchObject({
+      event_name: "experiment_exposed",
+      properties: {
+        experiment_id: "exp_01_cta_specificity",
+        variant: "treatment",
+        cta: "hero",
+      },
+    });
+    expect(
+      window.sessionStorage.getItem(
+        "kova:experiment-exposed:exp_01_cta_specificity:treatment",
+      ),
+    ).toBe("1");
   });
 
   it("preserves first-visit eligibility when landing telemetry creates the id first", async () => {
