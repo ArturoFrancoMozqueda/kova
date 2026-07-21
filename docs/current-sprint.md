@@ -54,8 +54,8 @@ Execute one epic per PR, merge only after required checks are green, then contin
   requires a separate Stripe test-mode environment for CRO-4.6. Evidence in
   [`docs/audits/CRO-4-BILLING-2026-07-20.md`](audits/CRO-4-BILLING-2026-07-20.md).
 - [ ] Epic CRO-5 — rollout and learning loop: small-batch rollout and experiment isolation are
-  complete; reproducible 7/30-day analysis is ready, with calendar checkpoints pending on
-  2026-07-28 and 2026-08-20. Evidence in
+  complete; the 3.81-hour preliminary checkpoint was inconclusive as required, and reproducible
+  7/30-day analysis remains scheduled for 2026-07-28 and 2026-08-20. Evidence in
   [`docs/audits/CRO-5-ROLLOUT-2026-07-21.md`](audits/CRO-5-ROLLOUT-2026-07-21.md).
 
 ## Current Focus: Paid Beta Readiness

@@ -178,7 +178,7 @@ def analyze_experiment(
         decision = "inconclusive"
 
     segments: dict[str, list[dict[str, Any]]] = {}
-    for dimension in ("device_class", "viewport_bucket", "channel"):
+    for dimension in ("device_class", "viewport_bucket", "channel", "campaign"):
         grouped: defaultdict[tuple[str, str], set[str]] = defaultdict(set)
         for client_id, (variant, _, row) in exposures.items():
             value = (
@@ -253,7 +253,7 @@ def render_markdown(result: dict[str, Any]) -> str:
             "",
         ]
     )
-    for dimension in ("device_class", "viewport_bucket", "channel"):
+    for dimension in ("device_class", "viewport_bucket", "channel", "campaign"):
         lines.extend(
             [
                 f"## {dimension}",

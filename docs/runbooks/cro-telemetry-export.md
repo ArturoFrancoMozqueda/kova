@@ -69,7 +69,7 @@ El reporte incluye por variante:
 - clientes expuestos y tasas de CTA hero, signup, CTA secundario y error de validación;
 - intervalo Wilson de 95% para cada tasa;
 - uplift relativo y diferencia absoluta tratamiento − control con intervalo Newcombe-Wilson;
-- cortes por `device_class`, `viewport_bucket` y canal `source/medium`;
+- cortes por `device_class`, `viewport_bucket`, canal `source/medium` y campaña;
 - decisión automática `winner`, `loser` o `inconclusive*` con la muestra preregistrada de 2,759
   clientes por variante.
 

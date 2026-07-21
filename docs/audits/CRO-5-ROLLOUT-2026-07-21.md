@@ -43,6 +43,12 @@ son:
 - 7 días: 2026-07-28 00:15 UTC.
 - 30 días: 2026-08-20 00:15 UTC.
 
+El checkpoint preliminar solicitado a las 3.81 horas confirmó que la exportación y el análisis
+operan con datos reales, pero resultó `inconclusive_insufficient_sample`: 14 clientes control y
+15 tratamiento, sin clics ni signups atribuibles. No sustituye los cortes formales ni cambia el
+experimento. Evidencia en
+[`CRO-5-3-PRELIMINARY-2026-07-21.md`](CRO-5-3-PRELIMINARY-2026-07-21.md).
+
 `backend/scripts/analyze_cro_export.py` genera el reporte preregistrado desde el CSV protegido:
 muestra, tasas, intervalos de 95%, uplift, mobile/desktop, viewport y canales. La decisión seguirá
 siendo inconclusa si no alcanza 2,759 clientes por variante. ICE se recalculará únicamente al
@@ -53,7 +59,7 @@ adjuntar cada resultado real; no se declara ganador en esta entrega.
 - Vitest focal de Home/funnel: 17/17; suite frontend completa: 288/288.
 - ESLint, typecheck focal y build Vite/SSR con prerender: aprobados.
 - Pytest focal del analizador: 3/3; cubre deduplicación, orden temporal, conflictos, segmentos,
-  intervalos y decisión por muestra. Ruff focal: aprobado.
+  intervalos, campañas y decisión por muestra. Ruff focal: aprobado.
 - El analizador es local y de solo lectura. No añade endpoint, migración ni dependencia.
 - No se consultan ni exponen correos, nombres, tenants, importes o credenciales. `client_id` se usa
   solo en memoria para deduplicar y nunca aparece en el reporte.
