@@ -49,9 +49,9 @@ Execute one epic per PR, merge only after required checks are green, then contin
   interaction-gated validation and telemetry, preserved financial guards, and mobile coverage at
   320×844 and 390×844; evidence in
   [`docs/audits/CRO-3-POS-CASH-2026-07-20.md`](audits/CRO-3-POS-CASH-2026-07-20.md).
-- [ ] Epic CRO-4 — trustworthy billing and checkout: CRO-4.1–4.4 implemented and locally
-  validated; Stripe tenant/log diagnosis and hosted Checkout test-mode gate remain open in
-  CRO-4.5–4.6. Evidence in
+- [ ] Epic CRO-4 — trustworthy billing and checkout: CRO-4.1–4.5 completed, including the
+  production Stripe tenant/log diagnosis; hosted Checkout validation remains open because it
+  requires a separate Stripe test-mode environment for CRO-4.6. Evidence in
   [`docs/audits/CRO-4-BILLING-2026-07-20.md`](audits/CRO-4-BILLING-2026-07-20.md).
 - [ ] Epic CRO-5 — rollout and learning loop: small-batch rollout and experiment isolation are
   complete; reproducible 7/30-day analysis is ready, with calendar checkpoints pending on

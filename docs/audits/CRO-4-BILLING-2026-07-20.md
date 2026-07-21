@@ -1,7 +1,6 @@
 # Evidencia CRO-4 — Billing y checkout confiables
 
-Estado: **CRO-4.1–4.4 aprobados localmente; CRO-4.5–4.6 pendientes de validación operacional con
-Stripe**.
+Estado: **CRO-4.1–4.5 aprobados; CRO-4.6 pendiente de un entorno Stripe test mode separado**.
 
 ## Precio y contrato de periodo
 
@@ -37,29 +36,43 @@ Stripe**.
 - TypeScript, ESLint focal, Ruff, `git diff --check` y build de producción con SSR/prerender:
   aprobados.
 
-## Gate operativo pendiente: CRO-4.5
+## Gate operativo completado: CRO-4.5
 
-No se inspeccionaron tenants, eventos ni logs de Stripe desde el entorno local, por lo que todavía
-no hay evidencia para atribuir la fecha vencida observada a un modo, webhook o suscripción
-específicos, ni para enumerar tenants afectados. Antes de reconciliar en un entorno conectado:
+Diagnóstico de solo lectura ejecutado el 2026-07-21 contra el backend desplegado y la API de
+Stripe, sin imprimir claves, IDs, tenants ni datos personales:
 
-1. Confirmar explícitamente si el entorno usa test o live y mantener separados sus claves, Price
-   IDs, Customer IDs y Subscription IDs.
-2. Para cada tenant afectado, correlacionar el ID de suscripción persistido con los eventos
-   `checkout.session.completed`, `customer.subscription.updated`, `invoice.payment_succeeded` y
-   `invoice.payment_failed`; registrar último evento recibido, respuesta HTTP y reintentos.
-3. Consultar la suscripción a Stripe y comparar estado, periodo del item y marca de sincronización
-   local. No editar manualmente fechas ni identificadores.
-4. Usar el endpoint de reconciliación ya autorizado solo con el `session_id` del mismo tenant, o
-   provocar el resync seguro mediante la lectura de Billing. Verificar después contrato, acceso y
-   auditoría; escalar a soporte si no converge.
+- El entorno de producción usa una clave Stripe **live**, sin override de test mode. El Price
+  configurado está activo, es live y coincide con `$299 MXN` cada mes.
+- El endpoint webhook live está habilitado para `checkout.session.completed`,
+  `customer.subscription.created/updated/deleted`, `invoice.paid` e
+  `invoice.payment_failed`. El backend trata `invoice.paid` y `invoice.payment_succeeded` como
+  alias equivalentes.
+- Tres de cuatro suscripciones locales tienen Subscription ID. Las tres se recuperaron desde
+  Stripe live y coincidieron en modo, estado y fin de periodo futuro.
+- No existen webhooks con estado `failed`. Hay eventos procesados de checkout, actualización,
+  pago y fallo de pago; los eventos históricos `ignored` se conservaron sin reintento ni edición.
+- Un solo tenant tiene una fila local `active` con periodo vencido. La fila se creó el 2026-05-21
+  sin Customer ID, Subscription ID, Price ID ni Checkout Session ID; tampoco tiene evento Stripe
+  o auditoría de activación. Por tanto, la causa es una activación local histórica, no un periodo
+  vencido recibido desde Stripe ni un fallo de reconciliación.
+
+La excepción afecta a un tenant. No se editó su estado ni su periodo porque hacerlo podría retirar
+acceso a una operación interna o controlada sin una decisión del owner. La recuperación segura es
+clasificar primero el tenant: si debe pagar, completar un Checkout nuevo y dejar que webhook/backend
+creen el vínculo autoritativo; si es una cuenta interna, registrar una excepción de acceso explícita
+en un flujo diseñado y auditado; si no debe conservar acceso, revocarlo mediante una operación
+administrativa aprobada. Nunca completar IDs o fechas manualmente ni reconciliar una sesión de otro
+tenant.
 
 ## Gate operativo pendiente: CRO-4.6
 
-Playwright usa respuestas controladas y **no** sustituye el Checkout alojado. En Stripe test mode
-queda por revisar manualmente: resumen `Standard Plan`, `$299 MXN`, cadencia mensual, campos y
-errores, cancelación, ruta de regreso, estado pendiente y posterior confirmación backend. Usar solo
-un método de prueba de Stripe; no introducir tarjeta real ni completar un cargo live.
+Playwright usa respuestas controladas y **no** sustituye el Checkout alojado. El único entorno
+conectado disponible usa Stripe live y rechaza test mode por configuración, por lo que no se cambió
+producción ni se inició un cargo para forzar esta prueba. Se necesita un backend staging/local con
+una clave, Price, webhook y URLs de retorno exclusivamente test. Allí queda por revisar manualmente:
+resumen `Standard Plan`, `$299 MXN`, cadencia mensual, campos y errores, cancelación, ruta de
+regreso, estado pendiente y posterior confirmación backend. Usar solo un método de prueba de Stripe;
+no introducir tarjeta real ni completar un cargo live.
 
 ## Seguridad y rollback
 
