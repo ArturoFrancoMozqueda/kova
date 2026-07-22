@@ -194,7 +194,30 @@ export const LANDING_STYLES = `
   }
   .lp-hero-frame-screen {
     background: #F8FAFB;
-    padding: clamp(12px, 2vw, 20px);
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+  }
+  .lp-hero-product-capture {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+  }
+  .lp-hero-capture-label {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 2;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 999px;
+    background: rgba(15,17,23,0.88);
+    padding: 6px 10px;
+    color: #F0F4FF;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(8px);
   }
   @keyframes lp-story-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0); }
@@ -895,6 +918,26 @@ export const RESPONSIVE_STYLES = `
   .lp-pos-preview {
     max-width: 100%;
   }
+  .lp-pos-container {
+    container-type: inline-size;
+    width: 100%;
+  }
+  .lp-pos-preview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .lp-pos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 8px;
+  }
+  @container (min-width: 560px) and (max-width: 879px) {
+    .lp-pos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @container (min-width: 880px) {
+    .lp-pos-preview { grid-template-columns: minmax(0, 1fr) minmax(320px, 38%); }
+  }
   @media (max-width: 900px) {
     .lp-section { padding: 72px 24px !important; }
     .lp-section-compact { padding: 60px 24px !important; }
@@ -917,7 +960,6 @@ export const RESPONSIVE_STYLES = `
     }
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
     .lp-hero-visual { max-width: 560px !important; margin: 0 auto !important; width: 100% !important; }
-    .lp-pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
     .lp-cash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-rep-bottom { grid-template-columns: 1fr !important; }
     .lp-problem-grid { grid-template-columns: 1fr !important; }
@@ -1001,12 +1043,7 @@ export const RESPONSIVE_STYLES = `
        superior (catálogo) con una máscara de desvanecido: muestra la Kova real
        sin ocupar toda la pantalla. */
     .lp-hero-visual { order: 2; max-width: 100% !important; margin-top: 6px !important; }
-    .lp-hero-frame-screen {
-      max-height: 320px !important;
-      overflow: hidden !important;
-      -webkit-mask-image: linear-gradient(180deg, #000 80%, transparent) !important;
-      mask-image: linear-gradient(180deg, #000 80%, transparent) !important;
-    }
+    .lp-hero-frame-screen { max-height: 320px !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
     .lp-benefit-card { min-height: 118px !important; padding: 13px !important; }
     .lp-benefit-card strong { font-size: 13px !important; }
@@ -1025,9 +1062,7 @@ export const RESPONSIVE_STYLES = `
       border-right: none !important;
       border-bottom: 0.5px solid var(--hairline-color) !important;
     }
-    .lp-pos-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    }
+    .lp-pos-grid { grid-template-columns: minmax(0, 1fr) !important; }
     .lp-pos-lines { max-height: 132px !important; }
     .lp-pos-methods { display: none !important; }
     /* Historia en mobile: cada preview se recorta a su núcleo (brief §6). */

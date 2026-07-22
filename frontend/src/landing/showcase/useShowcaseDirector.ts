@@ -4,7 +4,7 @@
 // pops, barras) al remontarse. Determinista por loop: sceneMs fijo, sin
 // aleatoriedad — cada vuelta de 30s es visualmente idéntica (suficiente para
 // la ruta de grabación /kova-showcase-video).
-import { useEffect, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { usePrefersReducedMotion } from "@/landing/previews/useCountUp";
 
 /** IntersectionObserver continuo (re-arma al salir), a diferencia del
@@ -67,6 +67,7 @@ export function useShowcaseDirector({
   const prefersReducedMotion = usePrefersReducedMotion();
   const playing = forceMotion || (!prefersReducedMotion && inView && !paused);
   const [{ scene, cycle }, setState] = useState({ scene: 0, cycle: 0 });
+  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!playing) {
@@ -75,18 +76,30 @@ export function useShowcaseDirector({
       // escena ni artefactos de intervals throttleados en background).
       return;
     }
-    const id = window.setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       setState(({ scene: current, cycle: c }) => {
         const next = (current + 1) % sceneCount;
         return { scene: next, cycle: next === 0 ? c + 1 : c };
       });
     }, sceneMs);
-    return () => window.clearInterval(id);
+    return () => {
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [playing, sceneMs, sceneCount]);
 
-  const selectScene = (nextScene: number) => {
+  const selectScene = useCallback((nextScene: number) => {
+    // Stop the active tick synchronously. Waiting for the paused prop to
+    // re-render leaves a narrow window where the previous interval can undo
+    // a visitor's manual selection.
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     setState((current) => ({ scene: nextScene, cycle: current.cycle + 1 }));
-  };
+  }, []);
 
   return { scene, cycle, playing, selectScene };
 }

@@ -52,8 +52,8 @@ describe("KovaShowcase", () => {
       expect(screen.getAllByText(title).length).toBeGreaterThan(0);
     }
 
-    // The $186 sale stays traceable across the four live previews, which are
-    // all mounted (stacked layers) in their final static state.
+    // The local $186 demo and the three real captures are all mounted as
+    // stacked layers in their final static state.
     expect(screen.getByText("Cobrar $186.00")).toBeInTheDocument(); // POS
     expect(screen.getByAltText("Vista real sanitizada del inventario de Kova")).toHaveAttribute("src", "/showcase/inventory.png");
     expect(screen.getByAltText("Vista real sanitizada de turnos en Kova")).toHaveAttribute("src", "/showcase/shifts.png");
@@ -64,35 +64,18 @@ describe("KovaShowcase", () => {
     expect(container.querySelector(".ksw-cursor")).toBeNull();
   });
 
-  it("wraps every preview scene in the real app-shell replica", () => {
+  it("distinguishes the local demo from full real-product captures", () => {
     stubReducedMotion();
     const { container } = renderShowcase();
 
-    // Una réplica por escena de preview (la CTA no lleva frame), cada una con
-    // el nav completo del rol owner en el orden del AppShell real.
-    const frames = container.querySelectorAll(".ksw-app");
-    expect(frames).toHaveLength(4);
-    const firstNavLabels = Array.from(
-      frames[0].querySelectorAll(".ksw-app-nav-item"),
-    ).map((el) => el.textContent);
-    expect(firstNavLabels).toEqual([
-      "Panel",
-      "Caja",
-      "Catálogo",
-      "Órdenes",
-      "Inventario",
-      "Turnos",
-      "Reportes",
-      "Configuración",
-      "Facturación",
-    ]);
+    expect(screen.getByText("Demo interactiva")).toBeInTheDocument();
+    expect(screen.getByText("Pruébala con datos locales. No registra ventas.")).toBeInTheDocument();
+    expect(container.querySelector(".ksw-app")).toBeNull();
+    expect(container.querySelectorAll(".ksw-capture-surface img")).toHaveLength(3);
 
-    // El item activo del sidebar sigue a la escena: POS → Caja,
-    // inventario → Inventario, caja → Turnos, reportes → Reportes.
-    const activeByFrame = Array.from(frames).map(
-      (frame) => frame.querySelector('.ksw-app-nav-item[data-active="true"]')?.textContent,
-    );
-    expect(activeByFrame).toEqual(["Caja", "Inventario", "Turnos", "Reportes"]);
+    fireEvent.click(screen.getByRole("button", { name: "02 El stock baja" }));
+    expect(screen.getByText("Vista real del producto")).toBeInTheDocument();
+    expect(screen.getByText("Captura sanitizada del tenant productivo.")).toBeInTheDocument();
   });
 
   it("uses the host CTA destination and reports embedded clicks", () => {

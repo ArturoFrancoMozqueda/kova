@@ -75,7 +75,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const duration = opts.durationMs ?? (opts.action ? 6000 : 4000);
       toastId += 1;
       const id = toastId;
-      setToasts((prev) => [...prev, { id, message, variant, action: opts.action }]);
+      setToasts((prev) => [
+        ...prev.filter((item) => item.message !== message || item.variant !== variant),
+        { id, message, variant, action: opts.action },
+      ]);
       setTimeout(() => dismissToast(id), duration);
     },
     [dismissToast],

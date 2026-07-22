@@ -216,7 +216,10 @@ export default function AppShell() {
       {/* Footer */}
       <div className={cn("border-t border-sidebar-border space-y-3", sidebarCollapsed ? "p-2" : "p-4")}>
         {!sidebarCollapsed && <OfflineIndicator />}
-        <div className={cn("flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}>
+        <div
+          data-capture-account
+          className={cn("flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}
+        >
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold uppercase text-white shrink-0"
             style={{ background: userEmail ? avatarColorFor(userEmail) : undefined }}
@@ -226,7 +229,7 @@ export default function AppShell() {
           </div>
           {!sidebarCollapsed && (
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-sidebar-muted truncate">{userEmail}</p>
+              <p data-capture-email className="text-xs text-sidebar-muted truncate">{userEmail}</p>
               <p className="text-[10px] text-sidebar-muted">{roleLabel(userRole)}</p>
             </div>
           )}

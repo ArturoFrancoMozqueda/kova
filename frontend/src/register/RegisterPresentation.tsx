@@ -11,6 +11,7 @@ export type RegisterProductCardProps = {
   quantity?: number;
   disabled?: boolean;
   onAdd?: () => void;
+  onDisabledSelect?: () => void;
   ariaLabel: string;
   compact?: boolean;
 };
@@ -24,6 +25,7 @@ export function RegisterProductCard({
   quantity,
   disabled = false,
   onAdd,
+  onDisabledSelect,
   ariaLabel,
   compact = false,
 }: RegisterProductCardProps) {
@@ -32,7 +34,7 @@ export function RegisterProductCard({
       type="button"
       aria-label={ariaLabel}
       aria-disabled={disabled || undefined}
-      onClick={disabled ? undefined : onAdd}
+      onClick={disabled ? onDisabledSelect : onAdd}
       className={cn(
         "group relative flex items-stretch gap-3 rounded-xl border bg-card p-2.5 text-left shadow-kova-card transition-all hover:border-primary/40 hover:shadow-kova-card-hover active:scale-[0.97]",
         !compact && "sm:flex-col sm:justify-between sm:gap-0 sm:p-3",

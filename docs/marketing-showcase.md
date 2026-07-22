@@ -1,38 +1,37 @@
-# Marketing showcase híbrido
+# Showcase de marketing fiel al producto
 
-La landing usa una demostración híbrida para mantener fidelidad sin llevar datos demo al producto:
+La landing separa con claridad evidencia y experimentación:
 
-- **Caja:** React interactivo con estado local de Sweet Home. Sus tarjetas de producto y métodos de pago vienen de `register/RegisterPresentation.tsx`, el mismo módulo presentacional consumido por `RegisterView`.
-- **Inventario, Turnos y Reportes:** capturas reales y sanitizadas en `frontend/public/showcase/`.
-- **Orquestación:** `KovaShowcase` mantiene el cursor guiado, autoavance, controles manuales y modo de movimiento reducido.
+- **Hero:** `register.png`, una captura estática, actual y sanitizada de la Caja productiva.
+- **Demo interactiva:** una única Caja React con estado exclusivamente local. Reproduce una venta de $186 y nunca consume APIs autenticadas ni registra ventas.
+- **Vistas reales:** Inventario, Turnos y Reportes son capturas completas del producto, con el AppShell real y la etiqueta `Vista real del producto`.
+- **Orquestación:** `KovaShowcase` mantiene autoavance, controles manuales, pausa por interacción/viewport y movimiento reducido. El cursor sólo aparece durante la reproducción automática de la demo.
 
-La historia larga `SaleStory` ya no se monta en Home. Los cuatro efectos de la venta de $186 viven en un solo recorrido.
+La historia larga `SaleStory` no se monta en Home. El recorrido compacto conserva venta → inventario → turno → reporte → CTA.
 
 ## Regenerar capturas
 
-Usa un tenant local sembrado. Desde `frontend/`:
+Desde `frontend/`:
 
 ```powershell
-$env:KOVA_CAPTURE_EMAIL="<usuario-local>"
-$env:KOVA_CAPTURE_PASSWORD="<contraseña-local>"
-$env:KOVA_CAPTURE_BASE_URL="http://localhost:5173" # opcional
+$env:KOVA_CAPTURE_EMAIL="<usuario>"
+$env:KOVA_CAPTURE_PASSWORD="<contraseña>"
+$env:KOVA_CAPTURE_BASE_URL="https://kovasuite.com"
+$env:KOVA_CAPTURE_ALLOW_PRODUCTION="1"
 npm run capture:showcase
 ```
 
-El script:
+Las credenciales viven sólo en el entorno local. No se escriben en código, documentación, capturas ni logs. El modo producción debe utilizarse únicamente con un tenant autorizado y en lectura.
 
-- recibe credenciales sólo por variables de entorno y no las imprime;
-- colapsa el sidebar y captura únicamente el contenido principal;
-- usa viewport determinista de 1440×900 y movimiento reducido;
-- rechaza cualquier correo visible en el área capturable;
-- bloquea producción salvo `KOVA_CAPTURE_ALLOW_PRODUCTION=1`.
-
-Antes de publicar, revisar los tres PNG visualmente. No deben contener correos, nombres privados, identificadores de cuenta ni datos reales de clientes.
+El script abre Caja, prepara localmente Cold brew ($62), Capuchino mediano ($56) y Yogurt con granola ($68), verifica el total de $186 y captura sin pulsar `Cobrar`. Después visita Inventario, Turnos y Reportes. Cualquier request de escritura posterior al login se bloquea; las imágenes finales se validan a 1440×900 y se rechazan si queda un correo visible.
 
 ## Verificación
 
-- Caja responde localmente sin requests ni creación de ventas.
-- Los pasos manuales detienen el autoavance.
-- Hover, foco y salida de viewport pausan el recorrido.
+- El hero no contiene controles interactivos ni una segunda demo.
+- La demo responde localmente sin requests ni creación de ventas.
+- Los controles permanecen deshabilitados hasta terminar la hidratación.
+- Una selección manual cancela inmediatamente el temporizador y detiene el autoavance.
+- Hover, foco y salida del viewport pausan el recorrido.
 - `prefers-reduced-motion` conserva navegación manual y elimina cursor/autoavance.
-- En móvil no aparece cursor y la Caja conserva catálogo y carrito legibles.
+- Las capturas usan `object-fit: contain`; no recortan encabezados, gráficos ni tablas.
+- En móvil no existe overflow horizontal y la Caja responde al ancho del contenedor.
