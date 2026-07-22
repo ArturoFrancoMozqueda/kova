@@ -35,15 +35,12 @@ function makePreviousStory() {
 }
 
 describe("MainTrendPanel", () => {
-  it("overlays the previous comparable period aligned by day index", () => {
+  it("keeps the previous comparable value in the detail without drawing a trend line", () => {
     const { container } = render(
       <MainTrendPanel story={makeStory()} previousStory={makePreviousStory()} />,
     );
-    // Legend announces the comparison.
-    expect(screen.getByText("Este periodo")).toBeInTheDocument();
-    expect(screen.getByText("Periodo anterior")).toBeInTheDocument();
-    // The dashed overlay draws as a Recharts line.
-    expect(container.querySelector(".recharts-line")).toBeInTheDocument();
+    expect(screen.queryByText("Periodo anterior")).not.toBeInTheDocument();
+    expect(container.querySelector(".recharts-line")).not.toBeInTheDocument();
     // Best day (5 jul, index 4) is pre-selected; the previous period's day at
     // the same index (28 jun) had $3,100 — exact figure, no ambiguity.
     expect(screen.getByRole("status")).toHaveTextContent(

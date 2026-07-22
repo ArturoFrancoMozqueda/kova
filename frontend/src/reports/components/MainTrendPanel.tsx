@@ -92,10 +92,10 @@ function trendSrSummary(
 }
 
 /**
- * The report's main chart: daily net sales with a dashed same-length previous
- * period overlay. On single-day ranges it draws from the trailing-7-days story
- * (today pre-selected) without the overlay — those dates don't align with the
- * previous comparable day.
+ * The report's main chart: daily net sales as bars. Previous-period values stay
+ * available in the selected-day detail without adding another visual series.
+ * On single-day ranges it draws from the trailing-7-days story because those
+ * dates don't align with the previous comparable day.
  */
 export function MainTrendPanel({
   story,
