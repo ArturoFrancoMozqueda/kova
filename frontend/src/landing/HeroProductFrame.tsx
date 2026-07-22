@@ -1,22 +1,14 @@
-// Marco de producto del hero: una ventana de navegador refinada que enmarca el
-// POS real (SweetHomePOSPreview) renderizado en el tema CLARO del producto, para
-// que lo primero arriba del pliegue sea la Kova real y no un mockup inventado.
-//
-// Determinismo de prerender: estático (interactive=false → todos los controles
-// deshabilitados y fuera del orden de tabulación; sin animateEntry → sin rAF).
-// Renderiza los mismos pixeles en servidor y cliente. Decorativo: aria-hidden
-// para no exponer un POS falso a lectores de pantalla — la historia la cuenta la
-// copy del hero.
+// Vista estática y sanitizada de la Caja productiva. La única superficie
+// operable de marketing vive en KovaShowcase, así el hero nunca parece una demo
+// rota o parcialmente interactiva.
 import type { CSSProperties } from "react";
-import SweetHomeRegisterDemo from "@/landing/demo/SweetHomeRegisterDemo";
-import { themeVars } from "@/landing/landingTheme";
 import { copy } from "@/i18n/messages";
 
 const trafficDot: CSSProperties = { width: 10, height: 10, borderRadius: 999, display: "inline-block" };
 
 export default function HeroProductFrame() {
   return (
-    <div className="lp-hero-frame" aria-hidden="true">
+    <figure className="lp-hero-frame">
       <div className="lp-hero-frame-bar">
         <span style={{ display: "inline-flex", gap: 6, flexShrink: 0 }}>
           <span style={{ ...trafficDot, background: "#FF5F57" }} />
@@ -26,9 +18,18 @@ export default function HeroProductFrame() {
         <span className="lp-hero-frame-url">{copy.landing.showcase.urlBar}</span>
         <span style={{ width: 44, flexShrink: 0 }} />
       </div>
-      <div className="lp-hero-frame-screen" style={themeVars("light")}>
-        <SweetHomeRegisterDemo interactive={false} />
+      <div className="lp-hero-frame-screen">
+        <img
+          src="/showcase/register.png"
+          alt="Vista real sanitizada de la Caja de Kova con un carrito de $186.00"
+          className="lp-hero-product-capture"
+          width={1440}
+        height={900}
+        loading="eager"
+        decoding="async"
+        />
       </div>
-    </div>
+      <figcaption className="lp-hero-capture-label">Vista real del producto</figcaption>
+    </figure>
   );
 }

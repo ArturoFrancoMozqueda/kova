@@ -1022,6 +1022,7 @@ export default function RegisterView() {
                           : `${copy.register.add} ${product.name}`
                       }
                       disabled={isOut}
+                      onDisabledSelect={() => toast(copy.register.outOfStockBlocked(product.name), "warning")}
                       name={product.name}
                       price={product.price_amount}
                       status={isOut
@@ -1043,13 +1044,7 @@ export default function RegisterView() {
                           />
                         </div>
                       ) : undefined}
-                      onAdd={() => {
-                        if (isOut) {
-                          toast(copy.register.outOfStockBlocked(product.name), "warning");
-                          return;
-                        }
-                        addProduct(product);
-                      }}
+                      onAdd={() => addProduct(product)}
                     />
                   );
                 })}

@@ -3,6 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 const deployedUrl = process.env.PLAYWRIGHT_BASE_URL;
 const localUrl = "http://127.0.0.1:5174";
 const baseURL = deployedUrl ?? localUrl;
+const localServerCommand = process.env.PLAYWRIGHT_USE_PREVIEW === "1"
+  ? "npm run preview -- --host 127.0.0.1 --port 5174 --strictPort"
+  : "npm run dev -- --host 127.0.0.1 --port 5174 --strictPort";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -36,7 +39,7 @@ export default defineConfig({
   webServer: deployedUrl
     ? undefined
     : {
-        command: "npm run dev -- --host 127.0.0.1 --port 5174 --strictPort",
+        command: localServerCommand,
         url: localUrl,
         reuseExistingServer: false,
         timeout: 120_000,

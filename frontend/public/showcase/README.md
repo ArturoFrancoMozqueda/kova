@@ -1,7 +1,18 @@
-# Capturas del producto para marketing
+# Capturas reales para marketing
 
-Estas imágenes muestran vistas reales de Kova sin el sidebar ni información de cuenta. La Caja no usa una captura: comparte sus componentes presentacionales con la aplicación.
+`register.png`, `inventory.png`, `shifts.png` y `reports.png` son capturas sanitizadas del producto real a 1440×900. Incluyen el AppShell vigente; no se deben envolver en una réplica manual de la navegación.
 
-Para regenerarlas, usa un tenant local con datos sembrados y ejecuta `npm run capture:showcase` definiendo `KOVA_CAPTURE_EMAIL` y `KOVA_CAPTURE_PASSWORD`. `KOVA_CAPTURE_BASE_URL` es opcional y apunta a `http://localhost:5173` por defecto.
+La captura de Caja se usa de forma estática en el hero. La única experiencia operable está en “Kova en acción”, usa estado y activos locales y muestra explícitamente `Demo interactiva · No registra ventas`.
 
-El script rechaza correos dentro del área capturada y bloquea producción salvo autorización explícita mediante `KOVA_CAPTURE_ALLOW_PRODUCTION=1`. Revisa visualmente cada PNG antes de publicarlo.
+Para regenerar las imágenes, desde `frontend/` define `KOVA_CAPTURE_EMAIL` y `KOVA_CAPTURE_PASSWORD` sólo como variables de entorno y ejecuta `npm run capture:showcase`. `KOVA_CAPTURE_BASE_URL` apunta a `http://localhost:5173` por defecto. Para una auditoría productiva de sólo lectura también se requiere `KOVA_CAPTURE_ALLOW_PRODUCTION=1`.
+
+El script:
+
+- conserva el AppShell completo y oculta el área de cuenta;
+- prepara localmente, sin cobrar, Cold brew + Capuchino mediano + Yogurt con granola = $186;
+- bloquea cualquier request de escritura después del inicio de sesión;
+- espera encabezados, fuentes e imágenes antes de capturar;
+- rechaza correos visibles y valida que cada vista mida exactamente 1440×900;
+- extrae a `products/` las fotografías usadas por la demo local.
+
+Antes de publicar, revisar visualmente las cuatro capturas. No deben contener correos, nombres de personas, identificadores privados ni datos de clientes. Nunca pulsar `Cobrar`, `Cerrar turno`, `Ajustar`, `Aplicar` ni ninguna acción de escritura durante la captura.

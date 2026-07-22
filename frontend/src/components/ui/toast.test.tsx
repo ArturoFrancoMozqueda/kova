@@ -67,6 +67,17 @@ describe("global unhandledrejection handler", () => {
 });
 
 describe("toast announcement politeness", () => {
+  it("replaces an identical visible toast instead of stacking duplicates", async () => {
+    render(
+      <ToastProvider>
+        <ToastTrigger variant="success" />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByText("disparar"));
+    fireEvent.click(screen.getByText("disparar"));
+    await waitFor(() => expect(screen.getAllByText("Mensaje de prueba")).toHaveLength(1));
+  });
+
   it("announces error toasts assertively (role=alert)", async () => {
     render(
       <ToastProvider>

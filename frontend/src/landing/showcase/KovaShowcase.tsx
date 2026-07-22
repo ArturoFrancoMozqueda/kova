@@ -1,17 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────
 // KovaShowcase — cinematic product showcase ("marketing video") component.
 //
-// Renders the real Kova product previews (the no-auth "$186 Sweet Home" demo
-// UI, live React components — not screenshots) inside a CSS laptop/browser
-// mockup on a dark branded backdrop, auto-playing through a story:
+// Renders one no-auth local Caja demo plus current, sanitized product captures
+// inside a CSS laptop/browser mockup on a dark branded backdrop:
 //
 //   POS (con cursor que cobra)  →  Inventario  →  Caja  →  Reportes  →  CTA
 //
 // A tiny JS director (useShowcaseDirector: fixed 6s setInterval + key-remount
 // of the active scene) drives WHICH scene is on; all motion is CSS: layer
 // crossfades via [data-active], a roaming accent glow + subtle laptop tilt via
-// [data-scene] on the stage, and the previews' own entry animations
-// (count-ups, pops, growing bars) re-fire on each remount.
+// [data-scene] on the stage, and the local demo's entry animation.
 //
 // Two surfaces use it:
 //   • Embedded on the landing (`variant="embedded"`, landscape) — plays only
@@ -38,12 +36,11 @@
 //      the capture on a scene-1 entry (POS cursor coming in) for a clean trim.
 //   5. For a perfectly seamless GIF/MP4 loop, trim to exactly 30.0s.
 // ─────────────────────────────────────────────────────────────────────────
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LogoMark } from "@/components/brand/Logo";
 import { copy } from "@/i18n/messages";
 import SweetHomeRegisterDemo from "@/landing/demo/SweetHomeRegisterDemo";
-import ShowcaseAppFrame, { type ShowcaseAppNav } from "@/landing/showcase/ShowcaseAppFrame";
 import ShowcaseCursor from "@/landing/showcase/ShowcaseCursor";
 import { useInView, useShowcaseDirector } from "@/landing/showcase/useShowcaseDirector";
 
@@ -55,22 +52,17 @@ const steps = copy.landing.story.steps;
 const SCENE_MS = 6000;
 const SEQUENCE_SECONDS = 30;
 
-// The POS scene's choreography: the fake cursor "clicks" the oat-cookie tile
-// at POS_CLICK_MS (wired into the preview via entryDelayMs → the cookie pops
-// into the ticket and the total counts $130→$186 right under the click), then
-// travels to Cobrar, whose pulse fires at POS_CLICK_MS + POS_CHARGE_OFFSET_MS
-// (wired via --lp-pulse-offset). Keep in sync with the ksw-cursor-* keyframes.
+// The POS scene's choreography ends on the local charge control. Keep the
+// pulse offset synchronized with the ksw-cursor-* keyframes.
 const POS_CHARGE_OFFSET_MS = 1520;
 
-// Story beats: the four live product previews, then the CTA. `render` gets
+// Story beats: one local demo, three real captures, then the CTA. `render` gets
 // `animate` — true only for the ACTIVE scene while the director is playing, so
 // inactive layers show their static final state (what a crossfade-out should
-// look like) and only one scene runs rAF count-ups at a time. `nav` is the
-// sidebar item that ShowcaseAppFrame (la réplica del shell real) marca activo.
+// look like) and only the demo runs its local choreography.
 type PreviewScene = {
   id: "pos" | "inventory" | "cash" | "reports";
   caption: { title: string; callout: string };
-  nav: ShowcaseAppNav;
   render: (animate: boolean) => ReactNode;
 };
 type CtaScene = { id: "cta"; caption: null; nav?: undefined; render?: undefined };
@@ -93,14 +85,13 @@ const SCENES: Scene[] = [
   {
     id: "pos",
     caption: steps[0],
-    nav: "register",
     render: (animate) => (
       <SweetHomeRegisterDemo interactive={!animate} autoPlay={animate} />
     ),
   },
-  { id: "inventory", caption: steps[1], nav: "inventory", render: () => <ProductCapture src="/showcase/inventory.png" alt="Vista real sanitizada del inventario de Kova" /> },
-  { id: "cash", caption: steps[2], nav: "shifts", render: () => <ProductCapture src="/showcase/shifts.png" alt="Vista real sanitizada de turnos en Kova" /> },
-  { id: "reports", caption: steps[3], nav: "reports", render: () => <ProductCapture src="/showcase/reports.png" alt="Vista real sanitizada de reportes en Kova" position="center top" /> },
+  { id: "inventory", caption: steps[1], render: () => <ProductCapture src="/showcase/inventory.png" alt="Vista real sanitizada del inventario de Kova" position="center top" /> },
+  { id: "cash", caption: steps[2], render: () => <ProductCapture src="/showcase/shifts.png" alt="Vista real sanitizada de turnos en Kova" position="center top" /> },
+  { id: "reports", caption: steps[3], render: () => <ProductCapture src="/showcase/reports.png" alt="Vista real sanitizada de reportes en Kova" position="center top" /> },
   { id: "cta", caption: null },
 ];
 
@@ -121,6 +112,8 @@ export default function KovaShowcase({
   const stageRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
   const [manual, setManual] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   // Embedded: play only while the stage is on screen. Standalone: always.
   const inView = useInView(stageRef, { threshold: 0.35, disabled: standalone });
   const { scene, cycle, playing, selectScene } = useShowcaseDirector({
@@ -138,6 +131,7 @@ export default function KovaShowcase({
       data-format={format}
       data-variant={variant}
       data-scene={scene}
+      data-hydrated={hydrated ? "true" : "false"}
       aria-label={standalone ? undefined : sc.eyebrow}
       onMouseEnter={() => !standalone && setPaused(true)}
       onMouseLeave={() => !standalone && setPaused(false)}
@@ -166,6 +160,17 @@ export default function KovaShowcase({
             ) : null}
           </div>
         ))}
+      </div>
+
+      <div className="ksw-modebar" aria-live="polite">
+        <span className="ksw-mode-pill" data-kind={SCENES[scene].id === "pos" ? "demo" : "capture"}>
+          {SCENES[scene].id === "pos" ? "Demo interactiva" : "Vista real del producto"}
+        </span>
+        <span>
+          {SCENES[scene].id === "pos"
+            ? "Pruébala con datos locales. No registra ventas."
+            : "Captura sanitizada del tenant productivo."}
+        </span>
       </div>
 
       {/* Laptop / browser mockup. Float (outer) and per-scene tilt (inner)
@@ -229,10 +234,10 @@ export default function KovaShowcase({
                             : undefined
                         }
                       >
-                        <ShowcaseAppFrame active={s.nav} capture={s.id !== "pos"}>
+                        <div className={s.id === "pos" ? "ksw-demo-surface" : "ksw-capture-surface"}>
                           {s.render(animate)}
                           {s.id === "pos" && animate ? <ShowcaseCursor /> : null}
-                        </ShowcaseAppFrame>
+                        </div>
                       </div>
                     </div>
                   );
@@ -250,8 +255,10 @@ export default function KovaShowcase({
             <button
               key={item.id}
               type="button"
+              disabled={!hydrated}
               aria-current={scene === index ? "step" : undefined}
               onClick={() => {
+                if (!hydrated) return;
                 setManual(true);
                 selectScene(index);
               }}
@@ -318,7 +325,7 @@ const SHOWCASE_STYLES = `
     margin-top: 34px;
     flex-direction: column;
     justify-content: flex-start;
-    gap: clamp(22px, 3vw, 34px);
+    gap: 14px;
     padding-bottom: 18px; /* aire para el drop-shadow del laptop bajo el clip */
   }
   .ksw-controls {
@@ -355,6 +362,7 @@ const SHOWCASE_STYLES = `
     color: var(--page-fg);
   }
   .ksw-control:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ksw-control:disabled { cursor: wait; opacity: 0.55; }
   /* Standalone export route: fill the exact pixel frame set by the route. The
      screen layers center vertically ahí — el viewport 16/10 es más alto que el
      preview y el hueco repartido se ve mejor en cámara que un void abajo. */
@@ -459,6 +467,37 @@ const SHOWCASE_STYLES = `
     color: var(--kova-blue-light);
     font-weight: 600;
     font-size: clamp(12px, 1.7vmin, 20px);
+  }
+  .ksw-modebar {
+    position: relative;
+    z-index: 4;
+    display: flex;
+    width: min(82%, 1180px);
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+  }
+  .ksw-mode-pill {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    border: 1px solid rgba(123,167,255,0.42);
+    border-radius: 999px;
+    background: rgba(74,111,255,0.12);
+    padding: 5px 9px;
+    color: var(--kova-blue-light);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .ksw-mode-pill[data-kind="capture"] {
+    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.055);
+    color: var(--kova-on-ink);
   }
 
   /* Laptop mockup. */
@@ -569,128 +608,28 @@ const SHOWCASE_STYLES = `
     overflow: hidden;
   }
   .ksw-screen-layer.ksw-center { align-items: center; } /* CTA screen */
-  /* Escenas de app: la réplica del shell llena el browser edge-to-edge, como
-     la app real (sin padding ni max-width — esos viven dentro del frame). */
+  /* Demo y capturas llenan el browser edge-to-edge. Las capturas ya incluyen
+     el AppShell real, así que no reciben navegación decorativa adicional. */
   .ksw-app-layer { align-items: stretch; padding: 0; }
   .ksw-screen-fit {
     width: 100%;
     height: 100%;
   }
-
-  /* ── Réplica del AppShell real (ShowcaseAppFrame) ──────────────────────────
-     Tokens del sidebar real (styles.css): #0F1117 / #F0F4FF / #23283A /
-     #1E2330 / #8892A4; contenido claro #F8FAFB. Tamaños a escala del laptop. */
-  .ksw-app {
-    display: grid;
-    grid-template-columns: clamp(128px, 17%, 172px) minmax(0, 1fr);
+  .ksw-demo-surface,
+  .ksw-capture-surface {
+    position: relative;
     width: 100%;
     height: 100%;
-    text-align: left;
-  }
-  .ksw-app-sidebar {
-    background: #0F1117;
-    color: #F0F4FF;
-    border-right: 1px solid #1E2330;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
     overflow: hidden;
-  }
-  .ksw-app-brand {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 13px;
-    border-bottom: 1px solid #1E2330;
-  }
-  .ksw-app-eyebrow {
-    display: block;
-    font-size: 8px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #8892A4;
-    line-height: 1.2;
-  }
-  .ksw-app-tenant {
-    display: block;
-    font-size: 11.5px;
-    font-weight: 600;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .ksw-app-nav {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    padding: 9px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-  .ksw-app-nav-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5.5px 9px;
-    border-radius: 8px;
-    font-size: 10.5px;
-    font-weight: 500;
-    color: rgba(240, 244, 255, 0.8);
-    white-space: nowrap;
-  }
-  .ksw-app-nav-item[data-active="true"] {
-    background: #23283A;
-    color: #F0F4FF;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  }
-  .ksw-app-nav-item svg { flex-shrink: 0; }
-  .ksw-app-user {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 12px;
-    border-top: 1px solid #1E2330;
-  }
-  .ksw-app-avatar {
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    background: #23283A;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-  .ksw-app-username { display: block; font-size: 10px; font-weight: 600; line-height: 1.25; }
-  .ksw-app-userrole { display: block; font-size: 9px; color: #8892A4; line-height: 1.25; }
-  .ksw-app-content {
     background: #F8FAFB;
-    color: var(--page-fg);
-    overflow: hidden;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: clamp(12px, 2.2vmin, 26px);
-    min-width: 0;
   }
-  .ksw-app-content-capture { padding: 0; }
-  .ksw-app-preview {
-    position: relative; /* ancla del cursor decorativo */
-    width: 100%;
-    max-width: 600px;
-  }
-  .ksw-app-preview-capture { max-width: none; height: 100%; }
+
   .ksw-product-capture {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    border-radius: 8px;
+    object-fit: contain;
+    background: #F8FAFB;
   }
 
   /* CTA screen (last scene). */
@@ -812,7 +751,7 @@ const SHOWCASE_STYLES = `
 
   @media (max-width: 900px) {
     .ksw-stage[data-variant="embedded"] {
-      gap: 22px;
+      gap: 12px;
     }
     .ksw-stage[data-variant="embedded"] .ksw-captions {
       height: 86px;
@@ -828,7 +767,7 @@ const SHOWCASE_STYLES = `
     .ksw-stage[data-variant="embedded"] .ksw-laptop {
       width: min(96%, 760px);
     }
-    .ksw-controls { width: min(96%, 760px); justify-content: flex-start; }
+    .ksw-controls, .ksw-modebar { width: min(96%, 760px); justify-content: flex-start; }
     .ksw-stage[data-variant="embedded"] .ksw-wordmark {
       top: 60%;
     }
@@ -843,7 +782,7 @@ const SHOWCASE_STYLES = `
     }
     .ksw-stage[data-variant="embedded"] {
       margin-top: 28px;
-      gap: 18px;
+      gap: 10px;
     }
     .ksw-stage[data-variant="embedded"] .ksw-captions {
       height: 82px;
@@ -861,6 +800,13 @@ const SHOWCASE_STYLES = `
     .ksw-stage[data-variant="embedded"] .ksw-laptop {
       width: 100%;
       filter: drop-shadow(0 24px 46px rgba(0,0,0,0.5));
+    }
+    .ksw-modebar {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 11px;
+      text-align: left;
     }
     .ksw-stage[data-variant="embedded"] .ksw-lid {
       border-radius: 12px;
@@ -890,11 +836,6 @@ const SHOWCASE_STYLES = `
          (líneas + total + Cobrar) y a 4/3.35 se recortaba el encabezado. */
       aspect-ratio: 4 / 4.6;
     }
-    /* En móvil el shell real oculta su sidebar; la réplica también. El POS
-       recortado (solo ticket) se centra en el contenido claro. */
-    .ksw-app { grid-template-columns: 1fr; }
-    .ksw-app-sidebar { display: none; }
-    .ksw-app-content { padding: 10px; align-items: center; }
     .ksw-stage[data-variant="embedded"] .ksw-base {
       height: 10px;
       border-radius: 0 0 10px 10px;
