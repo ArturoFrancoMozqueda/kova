@@ -233,8 +233,12 @@ def set_product_modifier_groups(
         resource_type="product", resource_id=product_id,
         changes={"group_ids": [str(a.modifier_group_id) for a in body.assignments]},
     )
+    db.flush()
+    response = get_product_modifier_groups(
+        db, tenant_id=tenant_id, product_id=product_id
+    )
     db.commit()
-    return get_product_modifier_groups(db, tenant_id=tenant_id, product_id=product_id)
+    return response
 
 
 def get_product_modifier_groups(

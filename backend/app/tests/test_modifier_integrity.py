@@ -1,11 +1,15 @@
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.main import app
+from app.modifiers import service as modifier_service
 from app.modifiers.models import ProductModifierGroup
+from app.modifiers.schemas import SetProductModifierGroups
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
@@ -80,6 +84,37 @@ def test_blank_product_modifier_group_id_is_rejected(client):
     )
 
     assert response.status_code == 422
+
+
+def test_product_modifier_groups_are_read_before_transaction_commit(monkeypatch):
+    db = MagicMock(spec=Session)
+    tenant_id = uuid4()
+    user_id = uuid4()
+    product_id = uuid4()
+    events: list[str] = []
+    expected_response = []
+
+    monkeypatch.setattr(modifier_service, "_get_product", lambda *args, **kwargs: object())
+    monkeypatch.setattr(modifier_service.audit_service, "log", lambda *args, **kwargs: None)
+
+    def read_groups(*args, **kwargs):
+        events.append("read")
+        return expected_response
+
+    db.commit.side_effect = lambda: events.append("commit")
+    monkeypatch.setattr(modifier_service, "get_product_modifier_groups", read_groups)
+
+    response = modifier_service.set_product_modifier_groups(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        product_id=product_id,
+        body=SetProductModifierGroups(assignments=[]),
+    )
+
+    db.flush.assert_called_once_with()
+    assert events == ["read", "commit"]
+    assert response is expected_response
 
 
 def test_product_modifier_groups_have_tenant_scoped_foreign_keys(db):
