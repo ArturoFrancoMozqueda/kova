@@ -30,7 +30,6 @@ import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
 import KovaShowcase from "@/landing/showcase/KovaShowcase";
-import SaleStory from "@/landing/SaleStory";
 import HeroProductFrame from "@/landing/HeroProductFrame";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { useLandingRevealMotion } from "@/landing/useRevealMotion";
@@ -860,7 +859,6 @@ export default function Home(): ReactNode {
           onCtaClick={() => onCtaClick("showcase")}
         />
         <Problem />
-        <SaleStory />
         <OwnerDashboard />
         <BentoModules />
         <Differentiation />

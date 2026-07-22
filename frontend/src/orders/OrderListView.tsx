@@ -8,6 +8,7 @@ import type { OrderFilters } from "./api";
 import { formatMoney, formatDateTime } from "./format";
 import { Card, CardContent } from "@/components/ui/card";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,7 +69,7 @@ export default function OrderListView() {
 
   if (isPending) {
     return (
-      <main className="p-6 lg:p-8 max-w-5xl mx-auto">
+      <ViewLayout width="focused">
         <Skeleton className="h-8 w-48 mb-6" />
         <Skeleton className="h-12 w-full mb-4" />
         <Card>
@@ -78,13 +79,13 @@ export default function OrderListView() {
             ))}
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   if (isError) {
     return (
-      <main className="p-6 lg:p-8 max-w-5xl mx-auto">
+      <ViewLayout width="focused">
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-4 p-6">
             <AlertCircle className="h-8 w-8 text-destructive shrink-0" />
@@ -101,12 +102,12 @@ export default function OrderListView() {
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   return (
-    <main className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+    <ViewLayout width="focused" className="animate-fade-in">
       <div className="mb-6">
         <ViewHeader
           title={copy.orderList.title}
@@ -313,6 +314,6 @@ export default function OrderListView() {
           </CardContent>
         </Card>
       )}
-    </main>
+    </ViewLayout>
   );
 }

@@ -56,6 +56,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } fr
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -229,7 +230,7 @@ export default function CatalogView() {
   /* ---- Loading state ---- */
   if (loadState.status === "loading") {
     return (
-      <main className="flex-1 p-6 space-y-6" aria-busy="true">
+      <ViewLayout width="wide" className="space-y-6" aria-busy="true">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-9 w-32" />
@@ -252,20 +253,20 @@ export default function CatalogView() {
             </CardContent>
           </Card>
         </div>
-      </main>
+      </ViewLayout>
     );
   }
 
   /* ---- Error state ---- */
   if (loadState.status === "error") {
     return (
-      <main className="flex-1 p-6">
+      <ViewLayout width="wide">
         <ViewError
           message={copy.catalog.loadError}
           onRetry={() => void load()}
           retryLabel={copy.catalog.retry}
         />
-      </main>
+      </ViewLayout>
     );
   }
 
@@ -290,7 +291,7 @@ export default function CatalogView() {
       : copy.catalog.statusReadyBody;
 
   return (
-    <main className="flex-1 p-6 space-y-6">
+    <ViewLayout width="wide" className="space-y-6">
       {/* Page header */}
       <ViewHeader title={copy.catalog.title} meta={copy.catalog.setupIntro} />
 
@@ -343,36 +344,52 @@ export default function CatalogView() {
         </div>
       )}
 
-      <div className="rounded-kova-lg border border-kova-border bg-white p-5 shadow-kova-card">
+      <div className={cn(
+        "rounded-kova-lg border border-kova-border bg-white shadow-kova-card",
+        catalogReady && trackedProducts.length > 0 ? "px-4 py-3" : "p-5",
+      )}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <div className="mb-2 flex items-center gap-2">
+            <div className={cn("flex items-center gap-2", !(catalogReady && trackedProducts.length > 0) && "mb-2")}>
               <Badge variant={catalogReady ? "success" : "warning"}>
                 {catalogReady ? copy.catalog.statusBadgeReady : copy.catalog.statusBadgeSetup}
               </Badge>
-              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                {copy.catalog.setupNext}
-              </p>
+              {catalogReady && trackedProducts.length > 0 ? (
+                <p className="truncate text-sm font-medium text-muted-foreground">{statusTitle}</p>
+              ) : (
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  {copy.catalog.setupNext}
+                </p>
+              )}
             </div>
-            <p className="text-lg font-semibold tracking-tight">{statusTitle}</p>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{statusBody}</p>
+            {!(catalogReady && trackedProducts.length > 0) && (
+              <>
+                <p className="text-lg font-semibold tracking-tight">{statusTitle}</p>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">{statusBody}</p>
+              </>
+            )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
-            <div className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
+          <div className={cn(
+            "grid sm:grid-cols-3",
+            catalogReady && trackedProducts.length > 0 ? "gap-4 text-right" : "gap-3 lg:min-w-[420px]",
+          )}>
+            <div className={cn(!(catalogReady && trackedProducts.length > 0) && "rounded-kova-md border border-kova-border bg-kova-mist p-3")}>
               <p className="text-xs text-muted-foreground">{copy.catalog.products}</p>
               <p className="mt-1 text-sm font-semibold">{copy.catalog.activeProducts(activeProducts.length)}</p>
             </div>
-            <div className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
+            <div className={cn(!(catalogReady && trackedProducts.length > 0) && "rounded-kova-md border border-kova-border bg-kova-mist p-3")}>
               <p className="text-xs text-muted-foreground">{copy.catalog.categories}</p>
               <p className="mt-1 text-sm font-semibold">{copy.catalog.activeCategories(categories.length)}</p>
             </div>
-            <div className="rounded-kova-md border border-kova-border bg-kova-mist p-3">
+            <div className={cn(!(catalogReady && trackedProducts.length > 0) && "rounded-kova-md border border-kova-border bg-kova-mist p-3")}>
               <p className="text-xs text-muted-foreground">{copy.catalog.inventory}</p>
               <p className="mt-1 text-sm font-semibold">{copy.catalog.inventoryTracked(trackedProducts.length)}</p>
             </div>
           </div>
         </div>
-        <p className="mt-4 rounded-kova-md bg-kova-mist px-3 py-2 text-sm text-muted-foreground">{setupNext}</p>
+        {!(catalogReady && trackedProducts.length > 0) && (
+          <p className="mt-4 rounded-kova-md bg-kova-mist px-3 py-2 text-sm text-muted-foreground">{setupNext}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
@@ -898,7 +915,7 @@ export default function CatalogView() {
           await load();
         }}
       />
-    </main>
+    </ViewLayout>
   );
 }
 

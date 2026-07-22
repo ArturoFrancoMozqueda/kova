@@ -48,6 +48,7 @@ export type ShowcaseDirector = {
   cycle: number;
   /** true cuando el loop está corriendo (en viewport, sin reduced-motion). */
   playing: boolean;
+  selectScene: (scene: number) => void;
 };
 
 export function useShowcaseDirector({
@@ -55,14 +56,16 @@ export function useShowcaseDirector({
   sceneMs = 6000,
   inView,
   forceMotion = false,
+  paused = false,
 }: {
   sceneCount: number;
   sceneMs?: number;
   inView: boolean;
   forceMotion?: boolean;
+  paused?: boolean;
 }): ShowcaseDirector {
   const prefersReducedMotion = usePrefersReducedMotion();
-  const playing = forceMotion || (!prefersReducedMotion && inView);
+  const playing = forceMotion || (!prefersReducedMotion && inView && !paused);
   const [{ scene, cycle }, setState] = useState({ scene: 0, cycle: 0 });
 
   useEffect(() => {
@@ -70,7 +73,6 @@ export function useShowcaseDirector({
       // Reset limpio: al re-entrar arranca en la escena 1 con cycle nuevo,
       // así el preview se remonta y re-anima (y no hay saltos a mitad de
       // escena ni artefactos de intervals throttleados en background).
-      setState((s) => (s.scene === 0 ? s : { scene: 0, cycle: s.cycle + 1 }));
       return;
     }
     const id = window.setInterval(() => {
@@ -82,5 +84,9 @@ export function useShowcaseDirector({
     return () => window.clearInterval(id);
   }, [playing, sceneMs, sceneCount]);
 
-  return { scene, cycle, playing };
+  const selectScene = (nextScene: number) => {
+    setState((current) => ({ scene: nextScene, cycle: current.cycle + 1 }));
+  };
+
+  return { scene, cycle, playing, selectScene };
 }

@@ -8,7 +8,7 @@
 // para no exponer un POS falso a lectores de pantalla — la historia la cuenta la
 // copy del hero.
 import type { CSSProperties } from "react";
-import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
+import SweetHomeRegisterDemo from "@/landing/demo/SweetHomeRegisterDemo";
 import { themeVars } from "@/landing/landingTheme";
 import { copy } from "@/i18n/messages";
 
@@ -27,7 +27,7 @@ export default function HeroProductFrame() {
         <span style={{ width: 44, flexShrink: 0 }} />
       </div>
       <div className="lp-hero-frame-screen" style={themeVars("light")}>
-        <SweetHomePOSPreview interactive={false} />
+        <SweetHomeRegisterDemo interactive={false} />
       </div>
     </div>
   );

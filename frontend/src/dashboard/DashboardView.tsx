@@ -30,6 +30,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile, DeltaChip } from "@/components/ui/stat-tile";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { ArcKicker } from "@/components/ui/arc-kicker";
 import { calculateSafeGrowth, MIN_COUNT_BASE, MIN_MONEY_BASE } from "@/lib/growth";
 import { copy } from "@/i18n/messages";
@@ -419,7 +420,7 @@ export default function DashboardView() {
   const greeting = getGreeting(tenantTimezone);
 
   return (
-    <main className="p-6 lg:p-8 max-w-7xl mx-auto animate-fade-in">
+    <ViewLayout width="wide" className="animate-fade-in">
       {/* Header — shared ViewHeader anatomy: greeting eyebrow, tenant title,
           period subtitle, and the period toggle as the actions slot. */}
       <div className="mb-8">
@@ -904,7 +905,7 @@ export default function DashboardView() {
           )}
         </div>
       )}
-    </main>
+    </ViewLayout>
   );
 }
 

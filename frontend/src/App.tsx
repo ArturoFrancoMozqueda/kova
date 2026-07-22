@@ -92,9 +92,11 @@ export function AppRoutes() {
             {/* Protected */}
             <Route
               element={
-                <RequireAuth>
-                  <AppShell />
-                </RequireAuth>
+                <Suspense fallback={<RouteFallback />}>
+                  <RequireAuth>
+                    <AppShell />
+                  </RequireAuth>
+                </Suspense>
               }
             >
               <Route path="/dashboard" element={<DashboardView />} />

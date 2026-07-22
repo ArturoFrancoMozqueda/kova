@@ -38,14 +38,11 @@
 //      the capture on a scene-1 entry (POS cursor coming in) for a clean trim.
 //   5. For a perfectly seamless GIF/MP4 loop, trim to exactly 30.0s.
 // ─────────────────────────────────────────────────────────────────────────
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LogoMark } from "@/components/brand/Logo";
 import { copy } from "@/i18n/messages";
-import CashRegisterPreview from "@/landing/previews/CashRegisterPreview";
-import InventoryStatePreview from "@/landing/previews/InventoryStatePreview";
-import ReportsPreview from "@/landing/previews/ReportsPreview";
-import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
+import SweetHomeRegisterDemo from "@/landing/demo/SweetHomeRegisterDemo";
 import ShowcaseAppFrame, { type ShowcaseAppNav } from "@/landing/showcase/ShowcaseAppFrame";
 import ShowcaseCursor from "@/landing/showcase/ShowcaseCursor";
 import { useInView, useShowcaseDirector } from "@/landing/showcase/useShowcaseDirector";
@@ -63,7 +60,6 @@ const SEQUENCE_SECONDS = 30;
 // into the ticket and the total counts $130→$186 right under the click), then
 // travels to Cobrar, whose pulse fires at POS_CLICK_MS + POS_CHARGE_OFFSET_MS
 // (wired via --lp-pulse-offset). Keep in sync with the ksw-cursor-* keyframes.
-const POS_CLICK_MS = 2000;
 const POS_CHARGE_OFFSET_MS = 1520;
 
 // Story beats: the four live product previews, then the CTA. `render` gets
@@ -80,18 +76,31 @@ type PreviewScene = {
 type CtaScene = { id: "cta"; caption: null; nav?: undefined; render?: undefined };
 type Scene = PreviewScene | CtaScene;
 
+function ProductCapture({ src, alt, position = "center" }: { src: string; alt: string; position?: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="ksw-product-capture"
+      style={{ objectPosition: position }}
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
 const SCENES: Scene[] = [
   {
     id: "pos",
     caption: steps[0],
     nav: "register",
     render: (animate) => (
-      <SweetHomePOSPreview interactive={false} animateEntry={animate} entryDelayMs={POS_CLICK_MS} />
+      <SweetHomeRegisterDemo interactive={!animate} autoPlay={animate} />
     ),
   },
-  { id: "inventory", caption: steps[1], nav: "inventory", render: (animate) => <InventoryStatePreview animate={animate} /> },
-  { id: "cash", caption: steps[2], nav: "shifts", render: (animate) => <CashRegisterPreview animate={animate} /> },
-  { id: "reports", caption: steps[3], nav: "reports", render: (animate) => <ReportsPreview animate={animate} /> },
+  { id: "inventory", caption: steps[1], nav: "inventory", render: () => <ProductCapture src="/showcase/inventory.png" alt="Vista real sanitizada del inventario de Kova" /> },
+  { id: "cash", caption: steps[2], nav: "shifts", render: () => <ProductCapture src="/showcase/shifts.png" alt="Vista real sanitizada de turnos en Kova" /> },
+  { id: "reports", caption: steps[3], nav: "reports", render: () => <ProductCapture src="/showcase/reports.png" alt="Vista real sanitizada de reportes en Kova" position="center top" /> },
   { id: "cta", caption: null },
 ];
 
@@ -110,13 +119,16 @@ export default function KovaShowcase({
 }: KovaShowcaseProps) {
   const standalone = variant === "standalone";
   const stageRef = useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = useState(false);
+  const [manual, setManual] = useState(false);
   // Embedded: play only while the stage is on screen. Standalone: always.
   const inView = useInView(stageRef, { threshold: 0.35, disabled: standalone });
-  const { scene, cycle, playing } = useShowcaseDirector({
+  const { scene, cycle, playing, selectScene } = useShowcaseDirector({
     sceneCount: SCENES.length,
     sceneMs: SCENE_MS,
     inView,
     forceMotion: standalone,
+    paused: !standalone && (paused || manual),
   });
 
   const stage = (
@@ -127,6 +139,12 @@ export default function KovaShowcase({
       data-variant={variant}
       data-scene={scene}
       aria-label={standalone ? undefined : sc.eyebrow}
+      onMouseEnter={() => !standalone && setPaused(true)}
+      onMouseLeave={() => !standalone && setPaused(false)}
+      onFocusCapture={() => !standalone && setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!standalone && !event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
+      }}
     >
       <style dangerouslySetInnerHTML={{ __html: SHOWCASE_STYLES }} />
 
@@ -211,7 +229,7 @@ export default function KovaShowcase({
                             : undefined
                         }
                       >
-                        <ShowcaseAppFrame active={s.nav}>
+                        <ShowcaseAppFrame active={s.nav} capture={s.id !== "pos"}>
                           {s.render(animate)}
                           {s.id === "pos" && animate ? <ShowcaseCursor /> : null}
                         </ShowcaseAppFrame>
@@ -225,6 +243,26 @@ export default function KovaShowcase({
           <div className="ksw-base" />
         </div>
       </div>
+
+      {!standalone ? (
+        <div className="ksw-controls" aria-label="Recorrido por Kova">
+          {SCENES.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={scene === index ? "step" : undefined}
+              onClick={() => {
+                setManual(true);
+                selectScene(index);
+              }}
+              className="ksw-control"
+            >
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              {item.caption?.title ?? sc.ctaButton}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 
@@ -283,6 +321,40 @@ const SHOWCASE_STYLES = `
     gap: clamp(22px, 3vw, 34px);
     padding-bottom: 18px; /* aire para el drop-shadow del laptop bajo el clip */
   }
+  .ksw-controls {
+    position: relative;
+    z-index: 4;
+    display: flex;
+    width: min(82%, 1180px);
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    scrollbar-width: none;
+  }
+  .ksw-control {
+    display: inline-flex;
+    min-height: 42px;
+    flex: 1 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.035);
+    padding: 8px 14px;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  }
+  .ksw-control span { color: var(--accent); font-size: 10px; letter-spacing: 0.08em; }
+  .ksw-control[aria-current="step"] {
+    border-color: rgba(123,167,255,0.55);
+    background: rgba(74,111,255,0.13);
+    color: var(--page-fg);
+  }
+  .ksw-control:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   /* Standalone export route: fill the exact pixel frame set by the route. The
      screen layers center vertically ahí — el viewport 16/10 es más alto que el
      preview y el hueco repartido se ve mejor en cámara que un void abajo. */
@@ -606,10 +678,19 @@ const SHOWCASE_STYLES = `
     padding: clamp(12px, 2.2vmin, 26px);
     min-width: 0;
   }
+  .ksw-app-content-capture { padding: 0; }
   .ksw-app-preview {
     position: relative; /* ancla del cursor decorativo */
     width: 100%;
     max-width: 600px;
+  }
+  .ksw-app-preview-capture { max-width: none; height: 100%; }
+  .ksw-product-capture {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
   }
 
   /* CTA screen (last scene). */
@@ -747,6 +828,7 @@ const SHOWCASE_STYLES = `
     .ksw-stage[data-variant="embedded"] .ksw-laptop {
       width: min(96%, 760px);
     }
+    .ksw-controls { width: min(96%, 760px); justify-content: flex-start; }
     .ksw-stage[data-variant="embedded"] .ksw-wordmark {
       top: 60%;
     }
@@ -821,7 +903,7 @@ const SHOWCASE_STYLES = `
       grid-template-columns: 1fr !important;
     }
     .ksw-stage[data-variant="embedded"] .lp-pos-main {
-      display: none !important;
+      display: block !important;
     }
     .ksw-stage[data-variant="embedded"] .lp-pos-ticket {
       min-height: 0;

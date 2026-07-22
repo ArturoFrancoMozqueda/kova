@@ -43,6 +43,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
+import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { StatTile } from "@/components/ui/stat-tile";
 import { useToast } from "@/components/ui/toast";
@@ -170,7 +171,7 @@ export default function ShiftView() {
   // Loading state
   if (loadState.status === "loading") {
     return (
-      <main className="flex-1 p-6 space-y-6">
+      <ViewLayout width="wide" className="space-y-6">
         <div>
           <Skeleton className="h-4 w-24 mb-2" />
           <Skeleton className="h-8 w-48" />
@@ -181,14 +182,14 @@ export default function ShiftView() {
             <Skeleton className="h-20 w-full" />
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   // Error state
   if (loadState.status === "error") {
     return (
-      <main className="flex-1 p-6">
+      <ViewLayout width="wide">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <AlertCircle className="h-10 w-10 text-destructive mb-3" />
@@ -206,14 +207,14 @@ export default function ShiftView() {
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </ViewLayout>
     );
   }
 
   const { openShift: currentShift, closedShifts } = loadState;
 
   return (
-    <main className="flex-1 p-6 space-y-6">
+    <ViewLayout width="wide" className="space-y-6 animate-fade-in">
       <ViewHeader title={copy.shiftView.title} />
 
       {/* Active shift card */}
@@ -568,6 +569,6 @@ export default function ShiftView() {
           onCancel={() => setActiveModal(null)}
         />
       )}
-    </main>
+    </ViewLayout>
   );
 }
