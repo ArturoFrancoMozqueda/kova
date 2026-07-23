@@ -1,0 +1,52 @@
+{
+  "projectId": "354f4d52-257b-489a-8f62-d30dc358eff4",
+  "shape": "package",
+  "pkg": "pos-frontend",
+  "globalName": "Kova",
+  "entry": "frontend/ds-entry.ts",
+  "srcDir": "src/components",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".ds-css/compiled.css",
+  "extraFonts": [
+    "node_modules/@fontsource-variable/inter/index.css",
+    "../.design-sync/inter-alias.css"
+  ],
+  "buildCmd": "cd frontend && npx tsc -p tsconfig.dssync.json && npx tailwindcss -c ../.design-sync/tailwind.dssync.config.js -i src/styles.css -o .ds-css/compiled.css",
+  "provider": { "component": "MemoryRouter" },
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "Dialog": { "cardMode": "single", "viewport": "760x560" },
+    "ConfirmDialog": { "cardMode": "single", "viewport": "760x420" },
+    "StatTile": { "cardMode": "column" },
+    "ToastProvider": { "cardMode": "single", "primaryStory": "ToastVariants" },
+    "ViewEmpty": { "cardMode": "column" },
+    "ViewHeader": { "cardMode": "column" }
+  },
+  "componentSrcMap": {
+    "ArcKicker": "src/components/ui/arc-kicker.tsx",
+    "Badge": "src/components/ui/badge.tsx",
+    "Button": "src/components/ui/button.tsx",
+    "Card": "src/components/ui/card.tsx",
+    "ConfirmDialog": "src/components/ui/confirm-dialog.tsx",
+    "Dialog": "src/components/ui/dialog.tsx",
+    "Input": "src/components/ui/input.tsx",
+    "Label": "src/components/ui/label.tsx",
+    "RouteFallback": "src/components/ui/route-fallback.tsx",
+    "Select": "src/components/ui/select.tsx",
+    "Skeleton": "src/components/ui/skeleton.tsx",
+    "StatTile": "src/components/ui/stat-tile.tsx",
+    "DeltaChip": "src/components/ui/stat-tile.tsx",
+    "TicketPaper": "src/components/ui/ticket.tsx",
+    "TicketLeaderRow": "src/components/ui/ticket.tsx",
+    "ToastProvider": "src/components/ui/toast.tsx",
+    "ViewHeader": "src/components/ui/view-header.tsx",
+    "ViewLayout": "src/components/ui/view-layout.tsx",
+    "ViewError": "src/components/ui/view-states.tsx",
+    "ViewEmpty": "src/components/ui/view-states.tsx",
+    "ViewPermissionDenied": "src/components/ui/view-states.tsx",
+    "Logo": "src/components/brand/Logo.tsx",
+    "LogoMark": "src/components/brand/Logo.tsx",
+    "CountUp": "src/components/brand/RealTime.tsx",
+    "LivePulse": "src/components/brand/RealTime.tsx"
+  }
+}
