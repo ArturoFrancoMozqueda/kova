@@ -3,7 +3,6 @@ import {
   Cell,
   ComposedChart,
   LabelList,
-  Line,
   ReferenceLine,
   ResponsiveContainer,
   XAxis,
@@ -30,8 +29,7 @@ export type SalesDayPoint = {
   vsPrevLabel: string | null;
   sharePct: number;
   isZero: boolean;
-  /** Net sales of the same-index day in the previous comparable period.
-   * Undefined when there is no comparable period (the dashed line is hidden). */
+  /** Net sales of the same-index day in the previous comparable period. */
   prevValue?: number;
   prevValueLabel?: string;
 };
@@ -76,8 +74,6 @@ export function SalesTrendChart({
   const { activeId, toggle, preview } = useChartSelection(initialSelectedId ?? bestDayId);
   const hasSales = points.some((point) => point.value > 0);
   const activePoint = points.find((point) => point.id === activeId) ?? null;
-  const hasComparison = points.some((point) => point.prevValue !== undefined);
-
   const data = points.map((point) => ({
     ...point,
     bestLabel: point.id === bestDayId ? point.valueLabel : "",
@@ -91,18 +87,6 @@ export function SalesTrendChart({
       isEmpty={!hasSales}
       emptyLabel={copy.reportsView.salesTrendChartTitle}
     >
-      {hasComparison ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-kova-muted" aria-hidden>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-[2px] bg-kova-blue" />
-            {copy.reportsView.trendLegendCurrent}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-4 border-t-2 border-dashed border-kova-muted" />
-            {copy.reportsView.trendLegendPrevious}
-          </span>
-        </div>
-      ) : null}
       <ResponsiveContainer width="100%" height={height}>
         {/* No accessibilityLayer: on touch devices it pins a tooltip over the
             chart on load (focus shows index 0, often an empty day). The
@@ -162,19 +146,6 @@ export function SalesTrendChart({
               fontWeight={600}
             />
           </Bar>
-          {hasComparison ? (
-            /* Same-index day of the previous comparable period; dashed so it
-               reads as context, never competing with the current bars. */
-            <Line
-              dataKey="prevValue"
-              stroke="var(--kova-muted)"
-              strokeWidth={1.5}
-              strokeDasharray="5 3"
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-            />
-          ) : null}
         </ComposedChart>
       </ResponsiveContainer>
       {note ? <p className="mt-2 text-xs text-kova-muted">{note}</p> : null}

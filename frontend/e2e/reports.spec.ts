@@ -623,11 +623,11 @@ test("reports page displays analytics dashboard layout", async ({ page }) => {
     page.getByText("Comparado con el periodo anterior: 6 may – 12 may (7 días)."),
   ).toBeVisible();
 
-  // Hero chart: the one-line headline lives as its subtitle and the previous
-  // period overlays the bars (legend announces it).
+  // Hero chart: the one-line headline lives as its subtitle. Previous-period
+  // context stays in the report copy without adding a trend overlay.
   await expect(page.getByText("Ventas por día", { exact: true })).toBeVisible();
   await expect(page.getByText("Vendiste $231.00 con 7 órdenes en estos 7 días.")).toBeVisible();
-  await expect(page.getByText("Periodo anterior", { exact: true })).toBeVisible();
+  await expect(page.getByText("Periodo anterior", { exact: true })).toHaveCount(0);
 
   // The priority action reads without any interaction on the rail.
   const hero = page.getByTestId("priority-recommendation");
