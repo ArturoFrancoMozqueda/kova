@@ -23,6 +23,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/usePresence";
 import { avatarColorFor } from "@/lib/avatarColor";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
 import { LogoMark } from "@/components/brand/Logo";
@@ -130,6 +131,9 @@ export default function AppShell() {
   });
 
   const closeSidebar = () => setSidebarOpen(false);
+  // The drawer slides for 280ms; without this the backdrop used to blink out of
+  // existence on the first frame, which was the shell's most visible motion bug.
+  const backdrop = usePresence(sidebarOpen);
 
   useEffect(() => {
     if (state.status === "authenticated") {
@@ -259,9 +263,12 @@ export default function AppShell() {
         {copy.app.skipToContent}
       </a>
       {/* Mobile backdrop overlay */}
-      {sidebarOpen && (
+      {backdrop.mounted && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          className={cn(
+            "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden",
+            backdrop.exiting ? "animate-fade-out pointer-events-none" : "animate-fade-in",
+          )}
           onClick={closeSidebar}
           aria-hidden="true"
         />

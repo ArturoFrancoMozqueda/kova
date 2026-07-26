@@ -243,11 +243,13 @@
 }
 
 .toast-enter {
-  animation: toast-slide-in 0.25s ease-out;
+  animation: toast-slide-in var(--kova-dur-panel) var(--kova-ease-standard);
 }
 
+/* Keep in sync with MOTION_MS.panelExit in src/lib/motion.ts — toast.tsx waits
+   that long before dropping the node. lib/motion.test.ts enforces it. */
 .toast-exit {
-  animation: toast-slide-out 0.2s ease-in forwards;
+  animation: toast-slide-out var(--kova-dur-panel-exit) var(--kova-ease-exit) forwards;
 }
 
 /* ── Ticket térmico para la app (primitivo app-wide, distinto de .lp-tkt-*
