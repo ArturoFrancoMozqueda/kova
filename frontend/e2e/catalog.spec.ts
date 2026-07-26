@@ -460,7 +460,7 @@ test("catalog product create shows billing recovery when access is blocked", asy
   await page.getByRole("button", { name: /guardar producto/i }).click();
 
   await expect(page.getByText(/activa el plan para guardar cambios en el cat[áa]logo/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /ver facturaci[óo]n/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /ver suscripci[óo]n/i })).toBeVisible();
   await expect(page.getByText(/algo sali[óo] mal/i)).not.toBeVisible();
 });
 

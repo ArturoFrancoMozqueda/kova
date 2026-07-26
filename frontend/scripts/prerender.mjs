@@ -51,7 +51,7 @@ const LANDING_FAQ = [
   },
   {
     q: "¿Qué incluye el plan de $299 MXN/mes?",
-    a: "Incluye caja, inventario, empleados con roles, reportes, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos.",
+    a: "Incluye caja, inventario, empleados con roles, análisis, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos.",
   },
   {
     q: "¿Puedo cancelar?",

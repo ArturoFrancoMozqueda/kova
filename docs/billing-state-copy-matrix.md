@@ -1,6 +1,6 @@
 # Billing State Copy Matrix
 
-Last updated: 2026-07-20
+Last updated: 2026-07-25
 
 Single reference for every billing state surfaced in the Kova UI. Source of truth for
 `frontend/src/billing/BillingBanner.tsx`, `frontend/src/billing/BillingView.tsx`, and the
@@ -34,13 +34,13 @@ Bodies are 1 sentence, cause + recovery action.
 |---|---|---|
 | `signup_trial` | Prueba activa | Prueba activa por *N días*. Activa el Plan Estándar para conservar la operación al terminar. |
 | `trialing` | Prueba activa | Tu suscripción está en prueba. Activa el Plan Estándar por $299 MXN/mes para seguir vendiendo cuando termine. |
-| `past_due_grace` | Pago vencido | El pago falló. Actualiza tu facturación dentro del periodo de gracia para no perder el acceso. |
-| `trial_expired` | Facturación requerida | Tu prueba terminó. Activa el Plan Estándar para seguir vendiendo. |
-| `past_due` / `past_due_grace_expired` | Facturación requerida | El periodo de gracia terminó. Paga ahora para recuperar las funciones de pago. |
-| `canceled` | Facturación requerida | Tu suscripción está cancelada. Reactívala para volver a usar las funciones de pago. |
-| `unpaid` | Facturación requerida | Tu suscripción está sin pagar. Recupera la facturación para seguir vendiendo. |
-| `incomplete` | Facturación requerida | El pago no se completó. Termina el pago para activar tu suscripción. |
-| Fallback / Stripe unavailable | Facturación requerida | Activa la facturación para recuperar las funciones del POS. |
+| `past_due_grace` | Pago vencido | El pago falló. Actualiza tu suscripción dentro del periodo de gracia para no perder el acceso. |
+| `trial_expired` | Suscripción requerida | Tu prueba terminó. Activa el Plan Estándar para seguir vendiendo. |
+| `past_due` / `past_due_grace_expired` | Suscripción requerida | El periodo de gracia terminó. Paga ahora para recuperar las funciones de pago. |
+| `canceled` | Suscripción requerida | Tu suscripción está cancelada. Reactívala para volver a usar las funciones de pago. |
+| `unpaid` | Suscripción requerida | Tu suscripción está sin pagar. Recupérala para seguir vendiendo. |
+| `incomplete` | Suscripción requerida | El pago no se completó. Termina el pago para activar tu suscripción. |
+| Fallback / Stripe unavailable | Suscripción requerida | Activa la suscripción para recuperar las funciones del POS. |
 
 ## CTA copy
 
@@ -48,7 +48,7 @@ All states show a single primary action:
 
 | Element | Copy | Target |
 |---|---|---|
-| Banner CTA button | Administrar facturación | `access.recovery_path || /settings/billing` |
+| Banner CTA button | Administrar suscripción | `access.recovery_path || /settings/billing` |
 | Dismiss button (info only) | Descartar | — |
 
 Only `info` tone banners are dismissible. Warning and danger banners stay visible until

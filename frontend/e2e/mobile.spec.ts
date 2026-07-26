@@ -503,7 +503,7 @@ test("billing banner stays visible and usable on phone and tablet", async ({ pag
 
     const banner = page.getByTestId("billing-banner");
     await expect(banner).toBeVisible();
-    await expect(banner.getByRole("link", { name: /administrar facturaci/i })).toBeVisible();
+    await expect(banner.getByRole("link", { name: /administrar suscripci/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
     await expectMobileTaskNavigation(page);
     await expectNoHorizontalOverflow(page);
@@ -516,7 +516,7 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
   await mockReports(page);
 
   await page.goto("/reports");
-  await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Análisis", exact: true })).toBeVisible();
 
   // On phones the manual range hides behind "Personalizar" so the first
   // screen leads with data; presets stay one tap away.

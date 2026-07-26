@@ -223,7 +223,7 @@ describe("BillingView plan and period trust", () => {
 
     renderBilling();
 
-    expect(await screen.findByText("Periodo de facturación")).toBeInTheDocument();
+    expect(await screen.findByText("Periodo de suscripción")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Estamos verificando tu próxima fecha de renovación. Tu acceso actual no cambia.",
