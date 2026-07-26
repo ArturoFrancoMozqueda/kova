@@ -11,6 +11,23 @@ def test_api_response_includes_security_headers(client: TestClient) -> None:
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["permissions-policy"] == "geolocation=(), microphone=(), camera=()"
+
+
+def test_api_response_denies_all_content_loading_via_csp(client: TestClient) -> None:
+    # The API returns JSON and image bytes only. If a response is ever rendered
+    # directly in a browser, nothing in it may execute or be framed.
+    csp = client.get("/health").headers["content-security-policy"]
+    assert "default-src 'none'" in csp
+    assert "frame-ancestors 'none'" in csp
+
+
+def test_docs_are_exempt_from_the_api_csp(client: TestClient) -> None:
+    # Swagger UI loads CDN assets and runs inline scripts; the API policy would
+    # break it. Docs are disabled entirely in production (docs_url=None).
+    response = client.get("/docs")
+    assert response.status_code == 200
+    assert "content-security-policy" not in response.headers
 
 
 def test_hsts_not_set_in_local_env(client: TestClient) -> None:

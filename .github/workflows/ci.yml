@@ -146,12 +146,53 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v5
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # Pinned to a SHA rather than @master: this step runs inside the
+      # production deploy job with FLY_API_TOKEN in scope, so a mutable branch
+      # reference would let upstream changes execute here without review.
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master @ 2026-04-08
       - name: Deploy backend to Fly.io
         run: flyctl deploy --remote-only
         working-directory: backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.18"
+      # Audits the runtime dependency set only (--no-dev). Dev tooling never
+      # ships to Fly, and letting a pytest/ruff advisory block a deploy would
+      # train the team to ignore this job.
+      - name: Install runtime dependencies
+        run: uv sync --no-dev
+        working-directory: backend
+      - name: Audit Python dependencies
+        run: uv run --with pip-audit pip-audit
+        working-directory: backend
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      # --package-lock-only resolves the tree from the lockfile instead of
+      # node_modules. Without it npm rejected the installed tree ("Invalid
+      # package tree", 400) and fell back to the retired /security/audits/quick
+      # endpoint: the runner is Linux, so npm ci skips the platform-specific
+      # optional deps (e.g. @rollup/rollup-win32-*) that the lockfile lists.
+      # Reading the lockfile directly is platform-independent and removes the
+      # need to install anything at all.
+      #
+      # --omit=dev because devDependencies never reach the bundle. That scoping
+      # matters here: every current high/critical advisory is dev-only (eslint,
+      # vite, vitest, postcss, vite-plugin-pwa), so auditing the full tree would
+      # leave this job permanently red and train the team to ignore it.
+      - name: Audit npm dependencies
+        run: npm audit --omit=dev --audit-level=high --package-lock-only
+        working-directory: frontend
 
   no-secrets:
     runs-on: ubuntu-latest
