@@ -132,7 +132,7 @@ export default function ExpensesView() {
         <div className="divide-y divide-kova-border rounded-kova-lg border-[0.5px] border-kova-border bg-white shadow-kova-card">
           {expenses.map((expense) => (
             <article key={expense.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-kova-md bg-kova-surface text-kova-blue"><CalendarDays className="h-4 w-4" /></div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-kova-md bg-kova-mist text-kova-blue"><CalendarDays className="h-4 w-4" /></div>
               <div className="min-w-0 flex-1"><p className="font-semibold text-kova-ink">{copy.expenses.categories[expense.category]}</p><p className="text-sm text-kova-muted">{expense.expense_date}{expense.note ? ` · ${expense.note}` : ""}</p></div>
               <p className="text-lg font-bold tabular-nums text-kova-ink">{formatMoney(expense.amount)}</p>
               <div className="flex gap-1 self-end sm:self-auto"><Button variant="ghost" size="icon" aria-label={copy.expenses.edit} onClick={() => setEditing(expense)}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" aria-label={copy.expenses.delete} onClick={() => setDeleting(expense)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
@@ -175,5 +175,5 @@ function ExpenseDialog({ expense, busy, onCancel, onSave }: { expense: Expense |
 }
 
 function ExpenseSkeleton() {
-  return <div className="space-y-2" aria-label={copy.expenses.loading}>{[0, 1, 2].map((item) => <div key={item} className="h-20 animate-pulse rounded-kova-lg bg-kova-surface" />)}</div>;
+  return <div className="space-y-2" aria-label={copy.expenses.loading}>{[0, 1, 2].map((item) => <div key={item} className="h-20 animate-pulse rounded-kova-lg bg-kova-mist" />)}</div>;
 }
