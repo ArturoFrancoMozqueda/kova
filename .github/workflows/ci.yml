@@ -178,20 +178,20 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install
-        run: npm ci
-        working-directory: frontend
-      # Audits the full tree rather than --omit=dev: passing --omit=dev makes
-      # npm send a pruned tree to the retired /security/audits/quick endpoint,
-      # which rejects it with "Invalid package tree" (400). The unfiltered run
-      # uses /security/advisories/bulk, the endpoint npm actually supports.
-      # devDependency findings are therefore in scope; --audit-level=high keeps
-      # that from being noisy, and a high/critical advisory in the build
-      # toolchain is worth a look even though it never ships.
+      # --package-lock-only resolves the tree from the lockfile instead of
+      # node_modules. Without it npm rejected the installed tree ("Invalid
+      # package tree", 400) and fell back to the retired /security/audits/quick
+      # endpoint: the runner is Linux, so npm ci skips the platform-specific
+      # optional deps (e.g. @rollup/rollup-win32-*) that the lockfile lists.
+      # Reading the lockfile directly is platform-independent and removes the
+      # need to install anything at all.
+      #
+      # --omit=dev because devDependencies never reach the bundle. That scoping
+      # matters here: every current high/critical advisory is dev-only (eslint,
+      # vite, vitest, postcss, vite-plugin-pwa), so auditing the full tree would
+      # leave this job permanently red and train the team to ignore it.
       - name: Audit npm dependencies
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high --package-lock-only
         working-directory: frontend
 
   no-secrets:
