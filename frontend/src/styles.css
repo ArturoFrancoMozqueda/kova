@@ -250,6 +250,37 @@
   animation: kv-count-pop 140ms var(--kova-ease-spring) both;
 }
 
+/* Cart line leaving the list. grid-template-rows 1fr -> 0fr collapses to the
+   row's real height without measuring it, so neighbours slide up instead of
+   snapping. translateX rather than Y: the row is leaving the list, and a slip
+   toward the trash icon it was dismissed from is directionally honest.
+   ease-exit (accelerating) so it reads as "gone" rather than "leaving" — the eye
+   must be free to travel to the undo toast. */
+.kv-row-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--kova-dur-modal-exit) var(--kova-ease-exit);
+}
+
+.kv-row-collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.kv-row-collapse[data-state="exiting"] {
+  grid-template-rows: 0fr;
+}
+
+.kv-row-collapse[data-state="exiting"] > * {
+  opacity: 0;
+  transform: translateX(6px);
+  /* A second tap must not land on a ghost. */
+  pointer-events: none;
+  transition:
+    opacity 140ms var(--kova-ease-exit),
+    transform var(--kova-dur-modal-exit) var(--kova-ease-exit);
+}
+
 /* Toast animation */
 @keyframes toast-slide-in {
   from {

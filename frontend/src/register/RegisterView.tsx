@@ -1183,62 +1183,63 @@ export default function RegisterView() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {cartRows.map(({ key: cartKey, item }) => {
+                  {cartRows.map(({ key: cartKey, item, state }) => {
                     return (
-                      <div
-                        key={cartKey}
-                        className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{item.product.name}</p>
-                          {item.selectedModifiers.map((m) => (
-                            <p key={m.optionId} className="text-xs text-muted-foreground mt-0.5">
-                              → {m.optionName}
-                              {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
+                      // The grid wrapper is what collapses on removal; the inner
+                      // row keeps its own look untouched.
+                      <div key={cartKey} className="kv-row-collapse" data-state={state}>
+                        <div className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{item.product.name}</p>
+                            {item.selectedModifiers.map((m) => (
+                              <p key={m.optionId} className="text-xs text-muted-foreground mt-0.5">
+                                → {m.optionName}
+                                {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
+                              </p>
+                            ))}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {copy.register.unitPrice(formatMoney(item.effectiveUnitPrice))}
                             </p>
-                          ))}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {copy.register.unitPrice(formatMoney(item.effectiveUnitPrice))}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(cartKey, item.quantity - 1)}
-                            aria-label={copy.register.decreaseQuantity}
-                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                          {/* key restarts kv-count-pop, so the changed line is
-                              the locus of the feedback on desktop. */}
-                          <span
-                            key={item.quantity}
-                            className="kv-count-pop w-8 text-center text-sm font-semibold tabular-nums"
-                          >
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(cartKey, item.quantity + 1)}
-                            aria-label={copy.register.increaseQuantity}
-                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <p className="text-sm font-bold tabular-nums">
-                            {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(cartKey)}
-                            aria-label={copy.register.removeItem(item.product.name)}
-                            className="flex h-9 w-9 items-center justify-center rounded-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(cartKey, item.quantity - 1)}
+                              aria-label={copy.register.decreaseQuantity}
+                              className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            {/* key restarts kv-count-pop, so the changed line is
+                                the locus of the feedback on desktop. */}
+                            <span
+                              key={item.quantity}
+                              className="kv-count-pop w-8 text-center text-sm font-semibold tabular-nums"
+                            >
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(cartKey, item.quantity + 1)}
+                              aria-label={copy.register.increaseQuantity}
+                              className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <p className="text-sm font-bold tabular-nums">
+                              {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(cartKey)}
+                              aria-label={copy.register.removeItem(item.product.name)}
+                              className="flex h-9 w-9 items-center justify-center rounded-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
