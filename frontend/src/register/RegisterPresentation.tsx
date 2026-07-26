@@ -64,7 +64,13 @@ export function RegisterProductCard({
         </span>
       </div>
       {quantity ? (
-        <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground tabular-nums">
+        // key={quantity} restarts kv-count-pop on every increment — this is the
+        // only feedback a cashier gets when re-adding a product already in the
+        // cart, since that path just bumps a number.
+        <span
+          key={quantity}
+          className="kv-count-pop absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground tabular-nums"
+        >
           {quantity}
         </span>
       ) : null}

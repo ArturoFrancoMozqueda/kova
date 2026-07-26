@@ -456,6 +456,12 @@ export default function RegisterView() {
     [cartItems],
   );
   const totalAmount = centsToMoney(totalCents);
+  // Total units, not lines. Drives the two cart count badges (mobile sheet
+  // header, desktop card header) and their kv-count-pop keys.
+  const cartUnitCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
+    [cartItems],
+  );
   const tenderedCents = moneyToCents(cashTendered);
   const changeDueCents =
     paymentMethod === "cash" && tenderedCents >= totalCents ? tenderedCents - totalCents : 0;
@@ -1081,9 +1087,14 @@ export default function RegisterView() {
             <div className="flex items-center gap-3">
               <div className="relative">
                 <ShoppingCart className="h-6 w-6 text-kova-ink" />
-                {cartItems.length > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[20px] h-5 rounded-full bg-kova-blue text-white text-[11px] font-bold flex items-center justify-center px-1.5 tabular-nums">
-                    {cartItems.reduce((s, i) => s + i.quantity, 0)}
+                {cartUnitCount > 0 && (
+                  // The mobile locus: with the sheet collapsed this badge is the
+                  // only part of the cart on screen.
+                  <span
+                    key={cartUnitCount}
+                    className="kv-count-pop absolute -top-1.5 -right-2 min-w-[20px] h-5 rounded-full bg-kova-blue text-white text-[11px] font-bold flex items-center justify-center px-1.5 tabular-nums"
+                  >
+                    {cartUnitCount}
                   </span>
                 )}
               </div>
@@ -1107,8 +1118,10 @@ export default function RegisterView() {
                   <ShoppingCart className="h-4 w-4" />
                   {copy.register.cart}
                 </CardTitle>
-                {cartItems.length > 0 && (
-                  <Badge variant="secondary">{cartItems.reduce((s, i) => s + i.quantity, 0)}</Badge>
+                {cartUnitCount > 0 && (
+                  <Badge key={cartUnitCount} variant="secondary" className="kv-count-pop">
+                    {cartUnitCount}
+                  </Badge>
                 )}
               </div>
             </CardHeader>
@@ -1148,7 +1161,14 @@ export default function RegisterView() {
                           >
                             <Minus className="h-4 w-4" />
                           </button>
-                          <span className="w-8 text-center text-sm font-semibold tabular-nums">{item.quantity}</span>
+                          {/* key restarts kv-count-pop, so the changed line is
+                              the locus of the feedback on desktop. */}
+                          <span
+                            key={item.quantity}
+                            className="kv-count-pop w-8 text-center text-sm font-semibold tabular-nums"
+                          >
+                            {item.quantity}
+                          </span>
                           <button
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity + 1)}

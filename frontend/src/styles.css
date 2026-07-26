@@ -219,6 +219,37 @@
   background: hsl(var(--muted-foreground) / 0.3);
 }
 
+/* ── kv-* — app motion primitives that need real keyframes, i.e. more than the
+   Tailwind animate-* vocabulary can express. Namespace is deliberately distinct
+   from the landing's .lp-* and the ticket's .tkt-*: no selector ever crosses
+   between the three. */
+
+/* Quantity feedback. Adding a product the cart already holds only increments a
+   number, so without this the cashier sees NOTHING change and taps again —
+   which is a double-charge risk, not a missing flourish. Applied with a
+   key={quantity} on the node so React remounts it and the animation restarts;
+   no state, no timers, and immune to the product grid re-rendering on every
+   cart mutation (React keys are position-scoped, so an unchanged key does not
+   remount). 140ms, composite-only, inside a 20px badge the finger is already
+   covering: the cheapest honest feedback available. */
+@keyframes kv-count-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.kv-count-pop {
+  animation: kv-count-pop 140ms var(--kova-ease-spring) both;
+}
+
 /* Toast animation */
 @keyframes toast-slide-in {
   from {
