@@ -128,11 +128,16 @@
     }
 
     /* Respect reduced-motion app-wide: neutralize animations/transitions for
-       users who opt out, instead of only the live-pulse dot. */
+       users who opt out, instead of only the live-pulse dot.
+       animation-delay must be reset too: a staggered entrance with
+       animation-fill-mode: both would otherwise hold its `from` state
+       (typically opacity: 0) for the full delay and then snap in — the content
+       reads as missing for as long as the stagger lasts. */
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
