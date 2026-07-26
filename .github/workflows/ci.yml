@@ -183,11 +183,15 @@ jobs:
       - name: Install
         run: npm ci
         working-directory: frontend
-      # --omit=dev for the same reason as above; devDependencies are not part
-      # of the shipped bundle. Fails on high/critical only, so a moderate
-      # transitive advisory reports without blocking the pipeline.
+      # Audits the full tree rather than --omit=dev: passing --omit=dev makes
+      # npm send a pruned tree to the retired /security/audits/quick endpoint,
+      # which rejects it with "Invalid package tree" (400). The unfiltered run
+      # uses /security/advisories/bulk, the endpoint npm actually supports.
+      # devDependency findings are therefore in scope; --audit-level=high keeps
+      # that from being noisy, and a high/critical advisory in the build
+      # toolchain is worth a look even though it never ships.
       - name: Audit npm dependencies
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --audit-level=high
         working-directory: frontend
 
   no-secrets:
