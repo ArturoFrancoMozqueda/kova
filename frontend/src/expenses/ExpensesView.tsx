@@ -11,6 +11,7 @@ import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } fr
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { ViewEmpty, ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 import { ViewHeader } from "@/components/ui/view-header";
@@ -175,5 +176,5 @@ function ExpenseDialog({ expense, busy, onCancel, onSave }: { expense: Expense |
 }
 
 function ExpenseSkeleton() {
-  return <div className="space-y-2" aria-label={copy.expenses.loading}>{[0, 1, 2].map((item) => <div key={item} className="h-20 animate-pulse rounded-kova-lg bg-kova-mist" />)}</div>;
+  return <div className="space-y-2" aria-label={copy.expenses.loading}>{[0, 1, 2].map((item) => <Skeleton key={item} className="h-20 rounded-kova-lg" />)}</div>;
 }
