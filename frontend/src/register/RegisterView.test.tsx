@@ -257,6 +257,40 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(screen.queryByText(copy.register.cashTooLow)).not.toBeInTheDocument();
   });
 
+  it("restores an undone cart line at its original position", async () => {
+    // Object spread appends, so the previous undo moved a middle line to the
+    // bottom of the cart. Invisible before; obvious now that the row collapses
+    // in place and would reappear somewhere else.
+    getOpenShift.mockResolvedValue(openShift);
+    const secondProduct: Product = { ...product, id: "product-2", name: "Bolillo", sku: "PAN-002" };
+    catalogApi.listProducts.mockResolvedValue([product, secondProduct]);
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(
+      await screen.findByRole("button", { name: `${copy.register.add} ${secondProduct.name}` }),
+    );
+
+    const cart = screen.getByLabelText(copy.register.cart);
+    const lineOrder = () => {
+      const text = cart.textContent ?? "";
+      return [product.name, secondProduct.name].sort(
+        (left, right) => text.indexOf(left) - text.indexOf(right),
+      );
+    };
+    expect(lineOrder()).toEqual([product.name, secondProduct.name]);
+
+    fireEvent.click(screen.getByRole("button", { name: copy.register.removeItem(product.name) }));
+    fireEvent.click(await screen.findByRole("button", { name: copy.register.undo }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: copy.register.removeItem(product.name) }),
+      ).toBeInTheDocument(),
+    );
+    expect(lineOrder()).toEqual([product.name, secondProduct.name]);
+  });
+
   it("renders the saved catalog when product and category fetches fail offline", async () => {
     getOpenShift.mockRejectedValue(new Error("offline"));
     catalogApi.listProducts.mockRejectedValue(new Error("offline"));

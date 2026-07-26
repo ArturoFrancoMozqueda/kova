@@ -91,6 +91,36 @@ function cartLineKey(item: CartItem): string {
   return cartKeyFor(item.product.id, item.selectedModifiers);
 }
 
+/**
+ * Re-inserts an undone cart line where it used to be. A plain
+ * `{ ...cart, [key]: line }` appends, so undoing a line from the middle of the
+ * cart silently moved it to the bottom — invisible before, obvious now that the
+ * row collapses in place and would reappear somewhere else.
+ *
+ * Lines added after the removal keep their own, later position.
+ */
+function restoreCartLine(
+  cart: Record<string, CartItem>,
+  keyOrderBeforeRemoval: readonly string[],
+  cartKey: string,
+  line: CartItem,
+): Record<string, CartItem> {
+  if (cart[cartKey]) return cart;
+  const restored: Record<string, CartItem> = {};
+  for (const key of keyOrderBeforeRemoval) {
+    if (key === cartKey) {
+      restored[cartKey] = line;
+      continue;
+    }
+    const existing = cart[key];
+    if (existing) restored[key] = existing;
+  }
+  for (const [key, value] of Object.entries(cart)) {
+    if (!(key in restored)) restored[key] = value;
+  }
+  return restored;
+}
+
 type PaymentMethod = "cash" | "bank_transfer" | "manual_card";
 
 type PaymentDraft = {
@@ -621,6 +651,7 @@ export default function RegisterView() {
     setCart((current) => {
       const removed = current[cartKey];
       if (!removed) return current;
+      const keyOrderBeforeRemoval = Object.keys(current);
       const next = { ...current };
       delete next[cartKey];
       toast(copy.register.itemRemoved(removed.product.name), {
@@ -628,7 +659,7 @@ export default function RegisterView() {
         action: {
           label: copy.register.undo,
           onAction: () => {
-            setCart((c) => ({ ...c, [cartKey]: removed }));
+            setCart((c) => restoreCartLine(c, keyOrderBeforeRemoval, cartKey, removed));
           },
         },
       });
