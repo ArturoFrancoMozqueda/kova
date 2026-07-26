@@ -1757,7 +1757,10 @@ export default function RegisterView() {
                 complete) is the single print-receipt-root the print CSS targets,
                 for both mobile and desktop. */}
             {receiptProps && (
-              <TicketPaper className="w-full max-w-xs">
+              // kv-tkt-reveal is the opt-in for the band-by-band print-in. It
+              // lives here, not on ReceiptTemplate, so the order-detail receipt
+              // and the settings preview stay still.
+              <TicketPaper className="w-full max-w-xs kv-tkt-reveal">
                 <ReceiptTemplate {...receiptProps} className="print-receipt-root" />
               </TicketPaper>
             )}

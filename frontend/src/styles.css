@@ -299,6 +299,46 @@
   }
 }
 
+/* Receipt printing itself out after a sale. Adapted from the landing's
+   lp-tkt-print, which has the right feel and the wrong cadence: 240ms per LINE
+   with an uncapped 90ms stagger runs 720-1800ms on a real receipt. Fine for a
+   marketing scroll; unacceptable 150 times a day. So: five BANDS, 40ms apart,
+   180ms each — last band settles at 540ms, and nothing blocks the primary CTA.
+
+   Opt-in via .kv-tkt-reveal on the wrapper, never on ReceiptTemplate itself, so
+   this can't leak to the order-detail receipt or the shift corte — reference
+   surfaces where a print animation would just be noise. */
+@keyframes kv-tkt-print {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+    clip-path: inset(0 0 88% 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0);
+  }
+}
+
+.kv-tkt-reveal [data-tkt-band] {
+  /* `both` is mandatory: without it the pre-delay state is undefined and the
+     final unclipped state would revert. */
+  animation: kv-tkt-print 180ms var(--kova-ease-entrance) both;
+  animation-delay: calc(200ms + var(--tkt-i, 0) * 40ms);
+}
+
+/* Mandatory. window.print() is user-triggered and can fire inside the 540ms, and
+   a clip-path would cut that band out of the thermal printout. */
+@media print {
+  .kv-tkt-reveal [data-tkt-band] {
+    animation: none !important;
+    clip-path: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
 /* Mobile cart sheet. Replaces a max-height transition, which had two problems
    beyond animating a layout property: the rendered height is min(content,
    max-height), so with one line in the cart the sheet reached its visible height

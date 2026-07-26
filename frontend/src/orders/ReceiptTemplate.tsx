@@ -53,6 +53,17 @@ type ReceiptTemplateProps = {
   className?: string;
 } & HTMLAttributes<HTMLDivElement>;
 
+/**
+ * Bands for the register's print-in reveal. These are inert attributes: nothing
+ * animates unless an ancestor opts in with .kv-tkt-reveal (see styles.css), so
+ * the order-detail receipt and the settings preview are unaffected.
+ * A separator carries the band index of the section it introduces, so a rule
+ * never appears before the block it belongs to.
+ */
+function band(index: number) {
+  return { "data-tkt-band": "", style: { "--tkt-i": index } as React.CSSProperties };
+}
+
 export function ReceiptTemplate({
   businessName,
   receiptNumber,
@@ -85,7 +96,7 @@ export function ReceiptTemplate({
       )}
       style={{ fontVariantNumeric: "tabular-nums" }}
     >
-      <div className="flex flex-col items-center gap-2 text-center">
+      <div {...band(0)} className="flex flex-col items-center gap-2 text-center">
         {logoUrl ? (
           <img
             src={logoUrl}
@@ -109,9 +120,9 @@ export function ReceiptTemplate({
         <p className="text-[10px] tkt-caption">{formatDateTime(createdAt)}</p>
       </div>
 
-      <ReceiptSeparator />
+      <ReceiptSeparator band={1} />
 
-      <div className="space-y-1">
+      <div {...band(1)} className="space-y-1">
         {items.map((item, index) => (
           <div key={`${item.product_name}-${index}`} className="space-y-0.5">
             <div className="flex justify-between gap-3">
@@ -138,9 +149,9 @@ export function ReceiptTemplate({
         ))}
       </div>
 
-      <ReceiptSeparator />
+      <ReceiptSeparator band={2} />
 
-      <div className="space-y-1">
+      <div {...band(2)} className="space-y-1">
         <ReceiptLine label={copy.orderDetail.subtotal} value={formatMoney(subtotalAmount)} />
         <ReceiptLine label={copy.orderDetail.total} value={formatMoney(totalAmount)} strong />
         {payments.map((payment, index) => (
@@ -165,8 +176,8 @@ export function ReceiptTemplate({
 
       {refunds.length > 0 ? (
         <>
-          <ReceiptSeparator />
-          <div className="space-y-2">
+          <ReceiptSeparator band={3} />
+          <div {...band(3)} className="space-y-2">
             <p className="font-semibold">{copy.orderDetail.refunds}</p>
             {refunds.map((refund) => (
               <div key={refund.id}>
@@ -184,22 +195,22 @@ export function ReceiptTemplate({
 
       {voidReason ? (
         <>
-          <ReceiptSeparator />
-          <p className="text-center font-semibold text-destructive">{copy.orderDetail.voided}</p>
-          <p className="text-center text-[10px] tkt-caption">{reasonLabel(voidReason)}</p>
+          <ReceiptSeparator band={3} />
+          <p {...band(3)} className="text-center font-semibold text-destructive">{copy.orderDetail.voided}</p>
+          <p {...band(3)} className="text-center text-[10px] tkt-caption">{reasonLabel(voidReason)}</p>
         </>
       ) : null}
 
-      <ReceiptSeparator />
-      <p className="whitespace-pre-line text-center text-[10px] tkt-caption">
+      <ReceiptSeparator band={4} />
+      <p {...band(4)} className="whitespace-pre-line text-center text-[10px] tkt-caption">
         {footer || copy.settings.receiptPreviewThanks}
       </p>
     </div>
   );
 }
 
-function ReceiptSeparator() {
-  return <div className="tkt-rule my-3" />;
+function ReceiptSeparator({ band: index }: { band?: number }) {
+  return <div {...(index === undefined ? {} : band(index))} className="tkt-rule my-3" />;
 }
 
 function ReceiptLine({

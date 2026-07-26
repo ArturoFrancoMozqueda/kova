@@ -168,6 +168,21 @@ describe("OrderDetail", () => {
     expect(await screen.findByText(/Oat/)).toBeInTheDocument();
   });
 
+  it("does not opt the order receipt into the register's print-in reveal", async () => {
+    // ReceiptTemplate carries inert data-tkt-band markers for the register's
+    // sale-completed animation. This is a reference surface, so the .kv-tkt-reveal
+    // opt-in must never appear here — otherwise every order you open replays a
+    // receipt printing itself.
+    mockInitialLoad();
+    window.history.pushState(null, "", "/orders/order-1");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /detalle de la orden/i });
+    expect(document.querySelector(".kv-tkt-reveal")).toBeNull();
+    expect(document.querySelector("[data-tkt-band]")).not.toBeNull();
+  });
+
   it("submits a refund and reloads the receipt", async () => {
     const refundResponse = {
       id: "refund-1",
