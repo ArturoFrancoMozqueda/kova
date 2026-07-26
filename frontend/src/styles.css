@@ -250,6 +250,55 @@
   animation: kv-count-pop 140ms var(--kova-ease-spring) both;
 }
 
+/* ── Sale completed. The emotionally rare moment that actually happens ~150
+   times a day, so it is delight on a budget: 375ms to the amount, 465ms worst
+   case including the ring. The primary CTA is outside every animated band and
+   clickable at t=0 — a cashier who has done this 4000 times must never wait.
+   The amount fades and rises; it never counts up. It is the number read aloud
+   to the customer, and tweening it would display a number that is not the
+   total. */
+@keyframes kv-success-badge {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* One-shot version of the kovaLivePulse ring: confirmation, not a heartbeat. */
+@keyframes kv-success-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(30, 191, 138, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(30, 191, 138, 0);
+  }
+}
+
+.kv-success-badge {
+  animation:
+    kv-success-badge 260ms var(--kova-ease-spring) 60ms both,
+    kv-success-ring 420ms var(--kova-ease-entrance) 60ms both;
+}
+
+.kv-success-headline {
+  animation: kv-success-headline 220ms var(--kova-ease-entrance) 180ms both;
+}
+
+@keyframes kv-success-headline {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Mobile cart sheet. Replaces a max-height transition, which had two problems
    beyond animating a layout property: the rendered height is min(content,
    max-height), so with one line in the cart the sheet reached its visible height

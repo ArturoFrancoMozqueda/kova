@@ -1614,7 +1614,9 @@ export default function RegisterView() {
                 <div className="mb-3 flex items-start gap-3">
                   <div
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-lg",
+                      // Same two beats as the mobile overlay, so the moment reads
+                      // the same on both.
+                      "flex h-9 w-9 items-center justify-center rounded-lg kv-success-badge",
                       isPendingSync
                         ? "bg-warning/20 text-warning-foreground"
                         : "bg-kova-growth/15 text-kova-growth",
@@ -1626,7 +1628,7 @@ export default function RegisterView() {
                       <CheckCircle2 className="h-5 w-5" />
                     )}
                   </div>
-                  <div>
+                  <div className="kv-success-headline">
                     <p
                       className={cn(
                         "font-semibold",
@@ -1723,7 +1725,10 @@ export default function RegisterView() {
           <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 pb-4">
             <div
               className={cn(
-                "flex h-24 w-24 items-center justify-center rounded-full animate-scale-in",
+                // scale-in (from .97) is invisible on a 96px circle; this arrives
+                // from .6 with a one-shot ring. Transform on the badge is safe —
+                // it is a sibling of the receipt, never an ancestor.
+                "flex h-24 w-24 items-center justify-center rounded-full kv-success-badge",
                 isPendingSync ? "bg-warning/20" : "bg-kova-growth/15",
               )}
             >
@@ -1733,7 +1738,7 @@ export default function RegisterView() {
                 <CheckCircle2 className="h-14 w-14 text-kova-growth" strokeWidth={2.25} />
               )}
             </div>
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-1 kv-success-headline">
               <h2 id="sale-success-title" className="text-2xl font-bold tracking-tight text-kova-ink">
                 {isPendingSync
                   ? copy.register.offlineSaleSavedTitle
