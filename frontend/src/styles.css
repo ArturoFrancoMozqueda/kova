@@ -83,6 +83,26 @@
     --radius-kova-lg: 16px;
     --radius-kova-xl: 20px;
 
+    /* ── Motion ────────────────────────────────────────────────────────────
+       Duration scale, tuned for a POS. FREQUENCY RULE: the more often a
+       cashier touches a control, the shorter its motion. Anything slower than
+       --kova-dur-modal needs a written reason — see docs/claude/motion-system.md.
+       Reachable from Tailwind as duration-press … duration-modal-exit. */
+    --kova-dur-press: 80ms; /* :active on hot controls (100+/day) */
+    --kova-dur-quick: 120ms; /* chip/segment toggle, icon swap, tooltip */
+    --kova-dur-hover: 180ms; /* hover color/border/shadow — the default */
+    --kova-dur-panel: 240ms; /* dropdown, popover, toast, inline reveal */
+    --kova-dur-modal: 280ms; /* dialog, sidebar, bottom sheet */
+    --kova-dur-celebrate: 600ms; /* completed sale, count-up — rare paths only */
+    /* Exits run ~0.65× their enter: deliberate going in, system coming out. */
+    --kova-dur-panel-exit: 160ms;
+    --kova-dur-modal-exit: 180ms;
+
+    /* entrance/exit/spring are load-bearing for the landing (55 references in
+       src/landing/** + routes/Home.tsx) — do not rename them.
+       --kova-ease-standard is byte-identical to Tailwind's `ease-out`, so
+       adopting it anywhere that already says ease-out is a zero-pixel change. */
+    --kova-ease-standard: cubic-bezier(0, 0, 0.2, 1);
     --kova-ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
     --kova-ease-exit: cubic-bezier(0.4, 0, 1, 1);
     --kova-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);

@@ -33,7 +33,7 @@ export default {
     { pattern: /^font-(normal|medium|semibold|bold)$/ },
     {
       pattern:
-        /^(uppercase|capitalize|truncate|tabular-nums|leading-none|leading-tight|leading-relaxed|tracking-wide|tracking-tight|whitespace-nowrap|antialiased|italic|underline|line-through|overflow-hidden|overflow-auto|relative|absolute|fixed|sticky|inset-0|top-0|bottom-0|left-0|right-0|z-10|z-20|z-50|mx-auto|select-none|pointer-events-none|opacity-50|opacity-60|opacity-70|opacity-80|transition|transition-all|transition-colors|duration-150|duration-200|duration-300|animate-pulse|cursor-pointer|divide-y|sr-only)$/,
+        /^(uppercase|capitalize|truncate|tabular-nums|leading-none|leading-tight|leading-relaxed|tracking-wide|tracking-tight|whitespace-nowrap|antialiased|italic|underline|line-through|overflow-hidden|overflow-auto|relative|absolute|fixed|sticky|inset-0|top-0|bottom-0|left-0|right-0|z-10|z-20|z-50|mx-auto|select-none|pointer-events-none|opacity-50|opacity-60|opacity-70|opacity-80|duration-150|duration-200|duration-300|animate-pulse|cursor-pointer|divide-y|sr-only)$/,
     },
     { pattern: new RegExp(`^(bg|text|border|ring|divide)-(${COLOR_NAMES})$`) },
     { pattern: new RegExp(`^bg-(${COLOR_NAMES})$`), variants: ["hover"] },
@@ -48,5 +48,15 @@ export default {
     { pattern: /^shadow-kova-(card|card-hover|hero)$/ },
     { pattern: /^bg-kova-grad-(blue|mint|sky)$/ },
     { pattern: /^animate-(fade-in|slide-in-right|scale-in|pulse-soft|slide-up)$/ },
+    { pattern: /^animate-(fade-out|scale-out|slide-down)$/ },
+    // Motion vocabulary. `transition-all` is deliberately absent — the DS bans
+    // it (see conventions.md), so publishing it would advertise the
+    // anti-pattern. Name the properties instead.
+    { pattern: /^transition(-none|-colors|-opacity|-shadow|-transform)?$/ },
+    {
+      pattern:
+        /^duration-(press|quick|hover|panel|modal|celebrate|panel-exit|modal-exit)$/,
+    },
+    { pattern: /^ease-(standard|entrance|exit|spring|linear|in|out|in-out)$/ },
   ],
 };

@@ -93,6 +93,26 @@ export default {
       fontFamily: {
         sans: ["Inter Variable", "Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
       },
+      // Motion scale (values in styles.css). Pick the duration by how often the
+      // control is touched, not by how the animation looks in isolation:
+      // `duration-press` for a cashier's hot path, `duration-celebrate` only for
+      // rare moments. See docs/claude/motion-system.md.
+      transitionDuration: {
+        press: "var(--kova-dur-press)",
+        quick: "var(--kova-dur-quick)",
+        hover: "var(--kova-dur-hover)",
+        panel: "var(--kova-dur-panel)",
+        modal: "var(--kova-dur-modal)",
+        celebrate: "var(--kova-dur-celebrate)",
+        "panel-exit": "var(--kova-dur-panel-exit)",
+        "modal-exit": "var(--kova-dur-modal-exit)",
+      },
+      transitionTimingFunction: {
+        standard: "var(--kova-ease-standard)",
+        entrance: "var(--kova-ease-entrance)",
+        exit: "var(--kova-ease-exit)",
+        spring: "var(--kova-ease-spring)",
+      },
       keyframes: {
         "fade-in": {
           from: { opacity: "0", transform: "translateY(4px)" },
