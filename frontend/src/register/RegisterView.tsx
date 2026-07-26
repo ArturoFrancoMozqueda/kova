@@ -1109,17 +1109,21 @@ export default function RegisterView() {
         {/* Cart + Payment — bottom sheet on mobile, sidebar on desktop */}
         <div
           ref={paymentSectionRef}
+          data-open={cartSheetOpen ? "true" : "false"}
           className={cn(
-            // Desktop: normal sidebar column
-            "lg:relative lg:bottom-auto lg:inset-x-auto lg:z-auto lg:max-h-none lg:overflow-visible lg:bg-transparent lg:border-0 lg:rounded-none lg:shadow-none lg:translate-y-0 lg:transition-none lg:flex-none lg:block",
-            // Mobile: fixed bottom sheet above bottom nav
-            "fixed inset-x-0 bottom-14 z-40 flex flex-col",
+            // Desktop: normal sidebar column. transform-none rather than
+            // translate-y-0, which would still emit a transform and make this a
+            // containing block for anything absolutely positioned inside it.
+            "lg:relative lg:bottom-auto lg:inset-x-auto lg:z-auto lg:h-auto lg:max-h-none lg:overflow-visible lg:bg-transparent lg:border-0 lg:rounded-none lg:shadow-none lg:transform-none lg:transition-none lg:flex-none lg:block",
+            // Mobile: full-height fixed sheet, translated down to leave only the
+            // 5rem handle (h-20 below) visible above the bottom nav. Timing and
+            // easing live in .kv-cart-sheet, which needs the asymmetry.
+            "fixed inset-x-0 bottom-14 z-40 flex h-[calc(100dvh-7rem)] flex-col",
             "overflow-hidden",
             "bg-card border-t border-kova-border rounded-t-2xl",
             "shadow-[0_-12px_40px_-12px_rgba(15,17,23,0.25)]",
-            "transition-[max-height] duration-300 ease-out",
-            "scroll-mt-4",
-            cartSheetOpen ? "max-h-[calc(100dvh-7rem)]" : "max-h-20",
+            "kv-cart-sheet scroll-mt-4",
+            cartSheetOpen ? "translate-y-0" : "translate-y-[calc(100%-5rem)]",
           )}
         >
           {/* Peek handle — mobile only */}

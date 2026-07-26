@@ -250,6 +250,36 @@
   animation: kv-count-pop 140ms var(--kova-ease-spring) both;
 }
 
+/* Mobile cart sheet. Replaces a max-height transition, which had two problems
+   beyond animating a layout property: the rendered height is min(content,
+   max-height), so with one line in the cart the sheet reached its visible height
+   in the first ~15% of the transition and the rest was a no-op — it appeared to
+   snap open and ease shut. A translate is interpolated in real visual position,
+   so it is symmetric AND interruptible: flicking the handle retargets from where
+   the sheet actually is instead of restarting.
+   Asymmetric by direction — 280ms arriving, 180ms leaving — which a single
+   keyframe could not express.
+   The closed state translates DOWN past the viewport bottom, leaving exactly the
+   5rem handle: a full-height sheet translated upward would swallow taps meant for
+   the product grid. */
+.kv-cart-sheet {
+  transition: transform var(--kova-dur-modal-exit) var(--kova-ease-exit);
+}
+
+.kv-cart-sheet[data-open="true"] {
+  transition: transform var(--kova-dur-modal) var(--kova-ease-entrance);
+}
+
+/* Defence in depth. The sheet is a SIBLING of the success overlay that holds
+   .print-receipt-root, so its transform cannot capture a print root today — but
+   if a future refactor moves the receipt inside the sheet, this fails safe.
+   Same precedent as `.tkt-paper { filter: none }` in the @media print block. */
+@media print {
+  .kv-cart-sheet {
+    transform: none !important;
+  }
+}
+
 /* Cart line leaving the list. grid-template-rows 1fr -> 0fr collapses to the
    row's real height without measuring it, so neighbours slide up instead of
    snapping. translateX rather than Y: the row is leaving the list, and a slip
