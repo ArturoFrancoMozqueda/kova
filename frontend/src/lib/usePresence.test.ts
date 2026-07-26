@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { usePresence } from "./usePresence";
+import { usePresence, usePresenceKeys } from "./usePresence";
 
 const EXIT_MS = 180;
 
@@ -54,5 +54,63 @@ describe("usePresence", () => {
     expect(result.current).toEqual({ mounted: false, exiting: false });
     act(() => vi.advanceTimersByTime(EXIT_MS * 2));
     expect(result.current).toEqual({ mounted: false, exiting: false });
+  });
+});
+
+type Row = { id: string };
+const keyOf = (row: Row) => row.id;
+const summarize = (rows: ReturnType<typeof usePresenceKeys<Row>>) =>
+  rows.map((row) => `${row.item.id}:${row.state}`);
+
+describe("usePresenceKeys", () => {
+  it("marks every present row present", () => {
+    const items: Row[] = [{ id: "a" }, { id: "b" }];
+    const { result } = renderHook(() => usePresenceKeys(items, keyOf, EXIT_MS));
+    expect(summarize(result.current)).toEqual(["a:present", "b:present"]);
+  });
+
+  it("keeps a removed row in place while it animates out", () => {
+    const all: Row[] = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    const { result, rerender } = renderHook(({ items }) => usePresenceKeys(items, keyOf, EXIT_MS), {
+      initialProps: { items: all },
+    });
+
+    // Removing the middle row: it must stay at index 1, not jump to the end.
+    rerender({ items: [all[0]!, all[2]!] });
+    expect(summarize(result.current)).toEqual(["a:present", "b:exiting", "c:present"]);
+
+    act(() => vi.advanceTimersByTime(EXIT_MS));
+    expect(summarize(result.current)).toEqual(["a:present", "c:present"]);
+  });
+
+  it("cancels the exit when a row returns mid-flight", () => {
+    // The cart's undo toast fires inside this window.
+    const all: Row[] = [{ id: "a" }, { id: "b" }];
+    const { result, rerender } = renderHook(({ items }) => usePresenceKeys(items, keyOf, EXIT_MS), {
+      initialProps: { items: all },
+    });
+
+    rerender({ items: [all[0]!] });
+    act(() => vi.advanceTimersByTime(EXIT_MS / 2));
+    rerender({ items: all });
+    expect(summarize(result.current)).toEqual(["a:present", "b:present"]);
+
+    act(() => vi.advanceTimersByTime(EXIT_MS * 2));
+    expect(summarize(result.current)).toEqual(["a:present", "b:present"]);
+  });
+
+  it("handles two rows leaving in quick succession", () => {
+    const all: Row[] = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    const { result, rerender } = renderHook(({ items }) => usePresenceKeys(items, keyOf, EXIT_MS), {
+      initialProps: { items: all },
+    });
+
+    rerender({ items: [all[0]!, all[2]!] });
+    act(() => vi.advanceTimersByTime(EXIT_MS / 2));
+    rerender({ items: [all[0]!] });
+    expect(summarize(result.current)).toEqual(["a:present", "b:exiting", "c:exiting"]);
+
+    act(() => vi.advanceTimersByTime(EXIT_MS));
+    expect(summarize(result.current)).toEqual(["a:present"]);
   });
 });

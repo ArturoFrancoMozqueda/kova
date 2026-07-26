@@ -28,6 +28,8 @@ import type { Shift } from "@/shifts/types";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MOTION_MS } from "@/lib/motion";
+import { usePresenceKeys } from "@/lib/usePresence";
 import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { trapTabKey } from "@/lib/focusTrap";
 import { formatTenantName } from "@/lib/formatTenantName";
@@ -78,6 +80,16 @@ type CartItem = {
   selectedModifiers: SelectedModifier[];
   effectiveUnitPrice: string;
 };
+
+/** Cart identity: same product with the same modifier set is the same line. */
+function cartKeyFor(productId: string, selectedModifiers: readonly SelectedModifier[]): string {
+  return [productId, ...selectedModifiers.map((modifier) => modifier.optionId).sort()].join(":");
+}
+
+// Module-level so its identity is stable for usePresenceKeys.
+function cartLineKey(item: CartItem): string {
+  return cartKeyFor(item.product.id, item.selectedModifiers);
+}
 
 type PaymentMethod = "cash" | "bank_transfer" | "manual_card";
 
@@ -462,6 +474,10 @@ export default function RegisterView() {
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
     [cartItems],
   );
+  // Rows to render, including any that have already left `cart` and are still
+  // animating out. Totals and the unit count deliberately stay on cartItems, so
+  // the money on screen is always the real money.
+  const cartRows = usePresenceKeys(cartItems, cartLineKey, MOTION_MS.modalExit);
   const tenderedCents = moneyToCents(cashTendered);
   const changeDueCents =
     paymentMethod === "cash" && tenderedCents >= totalCents ? tenderedCents - totalCents : 0;
@@ -572,7 +588,7 @@ export default function RegisterView() {
   const commitAddProduct = (product: Product, selectedModifiers: SelectedModifier[]) => {
     const deltaSum = selectedModifiers.reduce((s, m) => s + moneyToCents(m.priceDelta), 0);
     const effectiveUnitPrice = centsToMoney(moneyToCents(product.price_amount) + deltaSum);
-    const cartKey = [product.id, ...selectedModifiers.map((m) => m.optionId).sort()].join(":");
+    const cartKey = cartKeyFor(product.id, selectedModifiers);
     setCart((current) => {
       const existing = current[cartKey];
       return {
@@ -1126,15 +1142,17 @@ export default function RegisterView() {
               </div>
             </CardHeader>
             <CardContent className="p-4">
-              {cartItems.length === 0 ? (
+              {/* Branches on cartRows, not cartItems: a row that is animating out
+                  has already left `cart`, so keying the empty state off cartItems
+                  would render "carrito vacío" underneath the last ghost row. */}
+              {cartRows.length === 0 ? (
                 <div className="flex flex-col items-center py-10 text-center">
                   <ShoppingCart className="h-10 w-10 text-muted-foreground/30 mb-2" />
                   <p className="text-sm text-muted-foreground">{copy.register.cartPlaceholder}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {cartItems.map((item) => {
-                    const cartKey = [item.product.id, ...item.selectedModifiers.map((m) => m.optionId).sort()].join(":");
+                  {cartRows.map(({ key: cartKey, item }) => {
                     return (
                       <div
                         key={cartKey}
