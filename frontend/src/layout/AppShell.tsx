@@ -194,7 +194,7 @@ export default function AppShell() {
             title={sidebarCollapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
-                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-all duration-150",
+                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-[background-color,border-color,color] duration-hover ease-standard",
                 sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
                 isActive
                   ? "border-l-kova-blue-light bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"

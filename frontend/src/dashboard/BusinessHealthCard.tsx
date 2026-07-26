@@ -256,7 +256,7 @@ export function BusinessHealthCard({
           </div>
           <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-kova-mist">
             <div
-              className={`h-full rounded-full ${barColor} transition-all duration-500`}
+              className={`h-full rounded-full ${barColor} transition-[width] duration-500 ease-standard`}
               style={{ width: `${isEmptyBusinessDay ? 0 : score}%` }}
             />
           </div>

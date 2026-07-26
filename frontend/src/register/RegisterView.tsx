@@ -954,7 +954,7 @@ export default function RegisterView() {
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={cn(
-                    "rounded-full px-3 py-2 text-xs font-medium transition-all",
+                    "rounded-full px-3 py-2 text-xs font-medium transition-colors duration-quick ease-standard",
                     !selectedCategory
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -968,7 +968,7 @@ export default function RegisterView() {
                     key={catId}
                     onClick={() => setSelectedCategory(catId)}
                     className={cn(
-                      "rounded-full px-3 py-2 text-xs font-medium transition-all",
+                      "rounded-full px-3 py-2 text-xs font-medium transition-colors duration-quick ease-standard",
                       selectedCategory === catId
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -1144,7 +1144,7 @@ export default function RegisterView() {
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity - 1)}
                             aria-label={copy.register.decreaseQuantity}
-                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
+                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
                           >
                             <Minus className="h-4 w-4" />
                           </button>
@@ -1153,7 +1153,7 @@ export default function RegisterView() {
                             type="button"
                             onClick={() => updateQuantity(cartKey, item.quantity + 1)}
                             aria-label={copy.register.increaseQuantity}
-                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
+                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
                           >
                             <Plus className="h-4 w-4" />
                           </button>

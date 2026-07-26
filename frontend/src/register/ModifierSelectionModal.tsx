@@ -100,7 +100,7 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
                       key={option.id}
                       htmlFor={inputId}
                       className={cn(
-                        "relative flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-all cursor-pointer",
+                        "relative flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors duration-quick ease-standard cursor-pointer",
                         checked
                           ? "border-primary bg-primary/5 text-foreground"
                           : "border-input hover:border-primary/30 text-muted-foreground hover:text-foreground",
@@ -116,7 +116,7 @@ export function ModifierSelectionModal({ productName, modifierGroups, onConfirm,
                       />
                       <span
                         className={cn(
-                          "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all shrink-0",
+                          "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors duration-quick ease-standard shrink-0",
                           checked ? "border-primary bg-primary text-white" : "border-input",
                         )}
                       >

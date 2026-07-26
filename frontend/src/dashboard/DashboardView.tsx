@@ -285,7 +285,7 @@ function OnboardingChecklist({
         {/* Progress bar */}
         <div className="h-1.5 rounded-full bg-muted mt-2 overflow-hidden">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
+            className="h-full rounded-full bg-primary transition-[width] duration-500 ease-standard"
             style={{ width: `${(doneCount / steps.length) * 100}%` }}
           />
         </div>
@@ -596,7 +596,7 @@ export default function DashboardView() {
                   key={key}
                   label={label()}
                   icon={<Icon className="h-4 w-4" />}
-                  className={cn(wash, "transition-shadow hover:shadow-kova-card-hover")}
+                  className={cn(wash, "transition-shadow duration-hover ease-standard hover:shadow-kova-card-hover")}
                   value={
                     <CountUp
                       value={currentNum}
@@ -728,7 +728,7 @@ export default function DashboardView() {
                                     </div>
                                     <div className="mt-1.5 h-2 rounded-full bg-kova-mist overflow-hidden">
                                       <div
-                                        className="h-full rounded-full bg-kova-blue transition-all duration-500"
+                                        className="h-full rounded-full bg-kova-blue transition-[width] duration-500 ease-standard"
                                         style={{ width: `${width}%` }}
                                       />
                                     </div>
@@ -788,7 +788,7 @@ export default function DashboardView() {
                                 return (
                                   <div
                                     key={p.method}
-                                    className={`h-full ${segColors[i % segColors.length]} transition-all duration-500`}
+                                    className={`h-full ${segColors[i % segColors.length]} transition-[width] duration-500 ease-standard`}
                                     style={{ width: `${pct}%` }}
                                   />
                                 );
@@ -875,7 +875,7 @@ export default function DashboardView() {
                     { to: "/reports", icon: BarChart3, iconClass: "bg-kova-blue/10 text-kova-blue", label: copy.dashboard.viewReports, desc: copy.dashboard.viewReportsDesc },
                   ].map(({ to, icon: Icon, iconClass, label, desc }) => (
                     <Link key={to} to={to} className="group">
-                      <div className="flex items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
+                      <div className="flex items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${iconClass} shrink-0`}>
                           <Icon className="h-4 w-4" />
                         </div>
@@ -888,7 +888,7 @@ export default function DashboardView() {
                     </Link>
                   ))}
                   <Link to="/shifts" className="group">
-                    <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-all hover:border-kova-blue/50 hover:shadow-sm">
+                    <div className="flex h-full items-center gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/50 hover:shadow-sm">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kova-growth/10 text-kova-growth">
                         <Receipt className="h-4 w-4" />
                       </div>

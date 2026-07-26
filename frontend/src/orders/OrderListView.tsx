@@ -128,7 +128,7 @@ export default function OrderListView() {
               type="button"
               onClick={() => setStatusFilter(value)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-quick ease-standard",
                 statusFilter === value
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-background border hover:border-primary/40 text-muted-foreground hover:text-foreground",
