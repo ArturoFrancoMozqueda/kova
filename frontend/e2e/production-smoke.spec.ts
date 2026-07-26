@@ -57,7 +57,7 @@ test("landing, login, dashboard, and billing are production healthy", async ({ p
   await expect(page.getByRole("heading")).toBeVisible();
 
   await page.goto("/settings/billing");
-  await expect(page.getByRole("heading", { name: /billing|facturaci.n/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /billing|facturaci.n|suscripci.n/i })).toBeVisible();
   await expect(page.locator("body")).toContainText(/MX\$299\.00|299/, { timeout: 15_000 });
   const billingText = await page.locator("body").innerText();
   expect(billingText).not.toContain("199");
@@ -191,7 +191,7 @@ test("register can create a smoke cash sale, receipt, and report data", async ({
 
   await page.goto("/reports");
 
-  await expect(page.getByRole("heading", { name: /reports|reportes/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /reports|reportes|an.lisis/i })).toBeVisible();
   await expect(page.getByText(/net sales|ventas netas|gross sales|ventas brutas/i).first()).toBeVisible();
   await expect(page.getByText(/MX\$|orders|ventas|sales/i).first()).toBeVisible();
 

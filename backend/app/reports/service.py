@@ -54,7 +54,7 @@ def _normalize_range(
         raise bad_request("End date must be on or after start date")
     if (end_date - start_date).days + 1 > MAX_REPORT_RANGE_DAYS:
         raise bad_request(
-            f"El rango máximo de reporte es {MAX_REPORT_RANGE_DAYS} días. "
+            f"El rango máximo de análisis es {MAX_REPORT_RANGE_DAYS} días. "
             "Acota las fechas e inténtalo de nuevo."
         )
     return start_date, end_date
@@ -1173,7 +1173,7 @@ def _recommended_actions(
                 "title": "Genera la primera venta del periodo",
                 "detail": (
                     "Abre caja y registra ventas reales para activar los "
-                    "insights del reporte."
+                    "insights del análisis."
                 ),
             }
         ]
@@ -1285,7 +1285,7 @@ def _executive_summary(
     if completed_orders == 0:
         return (
             f"Del {_format_day(start_date)} al {_format_day(end_date)}, no hay ventas "
-            "completadas en el periodo. El reporte se actualizará cuando existan "
+            "completadas en el periodo. El análisis se actualizará cuando existan "
             "transacciones reales."
         )
     parts = [

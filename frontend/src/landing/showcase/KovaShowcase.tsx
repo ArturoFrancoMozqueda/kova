@@ -91,7 +91,7 @@ const SCENES: Scene[] = [
   },
   { id: "inventory", caption: steps[1], render: () => <ProductCapture src="/showcase/inventory.png" alt="Vista real sanitizada del inventario de Kova" position="center top" /> },
   { id: "cash", caption: steps[2], render: () => <ProductCapture src="/showcase/shifts.png" alt="Vista real sanitizada de turnos en Kova" position="center top" /> },
-  { id: "reports", caption: steps[3], render: () => <ProductCapture src="/showcase/reports.png" alt="Vista real sanitizada de reportes en Kova" position="center top" /> },
+  { id: "reports", caption: steps[3], render: () => <ProductCapture src="/showcase/reports.png" alt="Vista real sanitizada de análisis en Kova" position="center top" /> },
   { id: "cta", caption: null },
 ];
 

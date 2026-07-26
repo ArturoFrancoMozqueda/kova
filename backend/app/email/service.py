@@ -63,15 +63,15 @@ def send_welcome_email(*, to: str) -> None:
             p("¡Bienvenido a Kova! Tu plan está activo y ya puedes vender sin interrupciones.")
             + p(
                 "Desde tu panel podrás registrar ventas, controlar inventario y "
-                "revisar reportes en tiempo real."
+                "revisar análisis en tiempo real."
             )
         ),
         cta_label="Ir al panel",
         cta_url=dashboard_url,
         body_html=(
             muted(
-                "Si necesitas ver tus datos de facturación o cambiar tu método de pago, "
-                f"puedes hacerlo en {link('Configuración › Facturación', billing_url)}."
+                "Si necesitas ver tus datos de suscripción o cambiar tu método de pago, "
+                f"puedes hacerlo en {link('Suscripción', billing_url)}."
             )
             + muted("Gracias por confiar en Kova para tu negocio.")
         ),
@@ -98,7 +98,7 @@ def send_payment_receipt_email(
 
     body = kv_table(rows)
     body += muted(
-        f"Detalles de tu suscripción en {link('Configuración › Facturación', billing_url)}."
+        f"Detalles de tu suscripción en {link('Suscripción', billing_url)}."
     )
     html = render_email(
         preheader=f"Confirmamos el pago de {amount_str} a tu suscripción Kova.",

@@ -25,7 +25,7 @@ const productOutputDir = resolve(outputDir, "products");
 const screens = [
   { name: "inventory", path: "/inventory", heading: "Inventario" },
   { name: "shifts", path: "/shifts", heading: "Turnos" },
-  { name: "reports", path: "/reports", heading: "Reportes" },
+  { name: "reports", path: "/reports", heading: "Análisis" },
 ];
 const productImages = [
   ["Agua mineral", "agua-mineral.png"],

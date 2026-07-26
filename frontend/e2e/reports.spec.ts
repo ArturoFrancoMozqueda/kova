@@ -614,7 +614,7 @@ test("reports page displays analytics dashboard layout", async ({ page }) => {
   // KPI row: the four tiles with their exact labels. The previous period
   // ($180) is below MIN_MONEY_BASE, so the headline deliberately avoids a
   // noisy percentage.
-  await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Análisis", exact: true })).toBeVisible();
   await expect(page.getByText("Resumen del periodo")).toBeVisible();
   await expect(page.getByText("Ventas netas", { exact: true })).toBeVisible();
   await expect(page.getByText("Ticket promedio", { exact: true })).toBeVisible();
@@ -831,7 +831,7 @@ test("reports shows useful empty state without demo data", async ({ page }) => {
         {
           type: "opportunity",
           title: "Genera la primera venta del periodo",
-          detail: "Abre caja y registra ventas reales para activar los insights del reporte.",
+          detail: "Abre caja y registra ventas reales para activar los insights del análisis.",
         },
       ],
       sales_by_employee: [],

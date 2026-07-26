@@ -63,7 +63,7 @@ test("billing page displays the Standard Plan and active subscription", async ({
 
   await page.goto("/settings/billing");
 
-  await expect(page.getByRole("heading", { name: /facturaci[óo]n/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /suscripci[óo]n/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /standard plan/i })).toBeVisible();
   await expect(page.getByText("$299 MXN/mes")).toBeVisible();
   await expect(page.getByText(/activo/i).first()).toBeVisible();
@@ -195,7 +195,7 @@ test("billing page shows past due recovery and return states", async ({ page }) 
     "href",
     "mailto:posprojectsupport@gmail.com",
   );
-  await expect(page.getByText(/pago vencido\. recupera la facturaci[óo]n para mantener acceso sin interrupciones/i)).toBeVisible();
+  await expect(page.getByText(/pago vencido\. recupera la suscripci[óo]n para mantener acceso sin interrupciones/i)).toBeVisible();
   await expect(page.getByText(/fin del periodo de gracia/i)).toBeVisible();
 });
 
@@ -233,6 +233,6 @@ test("billing page hides data without billing permission", async ({ page }) => {
 
   await page.goto("/settings/billing");
 
-  await expect(page.getByText(/facturaci[óo]n no disponible para tu rol/i)).toBeVisible();
+  await expect(page.getByText(/suscripci[óo]n no disponible para tu rol/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Standard Plan" })).toHaveCount(0);
 });
