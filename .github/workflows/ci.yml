@@ -146,12 +146,49 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v5
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # Pinned to a SHA rather than @master: this step runs inside the
+      # production deploy job with FLY_API_TOKEN in scope, so a mutable branch
+      # reference would let upstream changes execute here without review.
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master @ 2026-04-08
       - name: Deploy backend to Fly.io
         run: flyctl deploy --remote-only
         working-directory: backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.18"
+      # Audits the runtime dependency set only (--no-dev). Dev tooling never
+      # ships to Fly, and letting a pytest/ruff advisory block a deploy would
+      # train the team to ignore this job.
+      - name: Install runtime dependencies
+        run: uv sync --no-dev
+        working-directory: backend
+      - name: Audit Python dependencies
+        run: uv run --with pip-audit pip-audit
+        working-directory: backend
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+        working-directory: frontend
+      # --omit=dev for the same reason as above; devDependencies are not part
+      # of the shipped bundle. Fails on high/critical only, so a moderate
+      # transitive advisory reports without blocking the pipeline.
+      - name: Audit npm dependencies
+        run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
 
   no-secrets:
     runs-on: ubuntu-latest
