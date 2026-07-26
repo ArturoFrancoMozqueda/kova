@@ -871,7 +871,12 @@ const SHOWCASE_STYLES = `
     .ksw-stage[data-variant="embedded"] .ksw-cursor { display: none !important; }
   }
   /* Standalone export must ALWAYS animate — override the app-wide reduced-motion
-     reset in styles.css (higher specificity than its star rule, so this wins). */
+     reset in styles.css (higher specificity than its star rule, so this wins).
+     INTENTIONAL EXEMPTION, do not "clean this up": /kova-showcase-video is a
+     video-capture route driven by scripts/capture-showcase.mjs, not a surface a
+     human browses, so the accessibility preference does not apply to it. The
+     !important declarations are load-bearing. Every other reduced-motion
+     concern belongs in styles.css or lib/usePrefersReducedMotion.ts. */
   .ksw-stage[data-variant="standalone"] .ksw-layer {
     transition: opacity 620ms var(--kova-ease-entrance), transform 720ms var(--kova-ease-entrance) !important;
   }
