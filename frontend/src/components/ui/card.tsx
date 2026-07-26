@@ -6,7 +6,11 @@ const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     <div
       ref={ref}
       className={cn(
-        "rounded-kova-lg border-[0.5px] border-kova-border bg-white text-kova-ink shadow-kova-card transition-shadow",
+        // No transition here: Card has no hover state of its own, so a
+        // transition-shadow would animate nothing. Call sites that add
+        // hover:shadow-kova-card-hover bring their own
+        // `transition-shadow duration-hover ease-standard`.
+        "rounded-kova-lg border-[0.5px] border-kova-border bg-white text-kova-ink shadow-kova-card",
         className,
       )}
       {...props}
