@@ -276,3 +276,6 @@ ds-bundle/
 .design-sync/node_modules
 frontend/types/
 frontend/.ds-css/
+
+# Scratch output from scroll-film capture/build (frames, recordings, preview HTML)
+workspace/
