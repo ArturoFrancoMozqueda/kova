@@ -36,8 +36,20 @@ const videoPath = resolve(outputDir, "kova-prod-walkthrough.webm");
 
 const EMAIL_PATTERN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 
-async function settle(page, heading) {
-  await page.getByRole("heading", { name: heading, exact: true }).waitFor({ timeout: 30_000 });
+// Wait on the active sidebar link rather than a heading: /dashboard titles
+// itself with the tenant name, not with "Panel", so a heading match would
+// never resolve there.
+async function settle(page, navLabel) {
+  // Both the sidebar and the mobile bar can carry aria-current, so accept a
+  // match on any of them rather than assuming a single active link.
+  await page.waitForFunction(
+    (label) => Array.from(
+      globalThis.document.querySelectorAll('a[aria-current="page"]'),
+      (link) => (link.textContent || "").trim(),
+    ).some((text) => text.startsWith(label)),
+    navLabel,
+    { timeout: 30_000 },
+  );
   await page.waitForLoadState("networkidle");
   await page.evaluate(async () => {
     await globalThis.document.fonts.ready;
@@ -95,9 +107,11 @@ async function glide(page, distance, steps = 34, gap = 34) {
   }
 }
 
-async function visit(page, path, heading) {
-  await page.goto(`${baseUrl}${path}`, { waitUntil: "networkidle" });
-  await settle(page, heading);
+// Move between screens by clicking the sidebar, so navigation stays inside the
+// SPA. A full reload would put a white flash between every chapter.
+async function goToScreen(page, navLabel) {
+  await page.getByRole("link", { name: navLabel, exact: true }).first().click();
+  await settle(page, navLabel);
   await hideAccount(page);
 }
 
@@ -150,43 +164,44 @@ const page = await context.newPage();
 
 try {
   // 1 — Panel: the day so far.
-  await visit(page, "/dashboard", "Panel");
+  await page.goto(`${baseUrl}/dashboard`, { waitUntil: "networkidle" });
+  await settle(page, "Panel");
+  await hideAccount(page);
   await hold(page, 2200);
   await glide(page, 560);
   await hold(page, 1400);
 
   // 2 — Caja: build a cart. Adding to the cart is local state; "Cobrar" is a
   // write and is deliberately never pressed.
-  await visit(page, "/register", "Caja");
+  await goToScreen(page, "Caja");
   await hold(page, 1600);
-  const search = page.getByPlaceholder(/sku\s*\/\s*nombre del producto/i);
-  for (const name of ["Capuchino mediano", "Alfajores"]) {
-    await search.fill(name);
-    await hold(page, 700);
-    const add = page.getByRole("button", { name: new RegExp(`^Agregar ${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") });
-    await add.waitFor({ timeout: 15_000 });
-    await add.click();
-    await hold(page, 900);
+  // Take whatever the catalog offers first rather than naming products, so the
+  // recording does not depend on one tenant's inventory.
+  const addButtons = page.getByRole("button", { name: /^Agregar / });
+  await addButtons.first().waitFor({ timeout: 20_000 });
+  const available = Math.min(2, await addButtons.count());
+  for (let i = 0; i < available; i += 1) {
+    await addButtons.nth(i).click();
+    await hold(page, 1100);
   }
-  await search.fill("");
   await hold(page, 1500);
   await page.getByRole("button", { name: /^Efectivo$/i }).first().click().catch(() => {});
   await hold(page, 1800);
 
   // 3 — Inventario: what is about to run out.
-  await visit(page, "/inventory", "Inventario");
+  await goToScreen(page, "Inventario");
   await hold(page, 2200);
   await glide(page, 620);
   await hold(page, 1400);
 
   // 4 — Turnos: the corte de caja.
-  await visit(page, "/shifts", "Turnos");
+  await goToScreen(page, "Turnos");
   await hold(page, 2200);
   await glide(page, 560);
   await hold(page, 1600);
 
   // 5 — Análisis: the story of the period.
-  await visit(page, "/reports", "Análisis");
+  await goToScreen(page, "Análisis");
   await hold(page, 2400);
   await glide(page, 900, 46);
   await hold(page, 2400);
