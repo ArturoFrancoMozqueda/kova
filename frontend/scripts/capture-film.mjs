@@ -22,6 +22,10 @@ const baseUrl = (process.env.KOVA_CAPTURE_BASE_URL || "http://localhost:5173").r
 const email = process.env.KOVA_CAPTURE_EMAIL;
 const password = process.env.KOVA_CAPTURE_PASSWORD;
 const allowProduction = process.env.KOVA_CAPTURE_ALLOW_PRODUCTION === "1";
+// Opt-in, off by default. When set, the recording completes a real sale so the
+// film can show the "Venta completada" state. This writes one order to the
+// tenant, moves stock and lands in reports and the corte de caja.
+const allowSale = process.env.KOVA_CAPTURE_ALLOW_SALE === "1";
 const baseHost = new globalThis.URL(baseUrl).hostname;
 
 if (!email || !password) {
@@ -158,9 +162,15 @@ await mkdir(outputDir, { recursive: true });
 // a read still fails the run.
 const ANALYTICS_ONLY = /^\/api\/v1\/telemetry\//;
 
+// Exactly the order-creation endpoint, and only with KOVA_CAPTURE_ALLOW_SALE.
+// Refunds (/{id}/refunds) and voids (/{id}/void) stay blocked: the trailing
+// anchor makes sure no subpath slips through.
+const SALE_ENDPOINT = /^\/api\/v1\/orders\/?$/;
+
 const browser = await chromium.launch({ headless: true });
 const blockedMutations = [];
 const blockedAnalytics = [];
+const recordedSales = [];
 
 // Sign in on a context that is NOT being recorded, so no credential is ever
 // typed on camera. The resulting cookies are handed to the recording context
@@ -194,6 +204,11 @@ await context.route("**/*", async (route) => {
   const url = new globalThis.URL(request.url());
   const readOnly = method === "GET" || method === "HEAD" || method === "OPTIONS";
   if (!readOnly && (url.hostname === baseHost || url.hostname === `api.${baseHost}`)) {
+    if (allowSale && method === "POST" && SALE_ENDPOINT.test(url.pathname)) {
+      recordedSales.push(`${method} ${url.pathname}`);
+      await route.continue();
+      return;
+    }
     const bucket = ANALYTICS_ONLY.test(url.pathname) ? blockedAnalytics : blockedMutations;
     bucket.push(`${method} ${url.pathname}`);
     await route.abort("blockedbyclient");
@@ -230,9 +245,26 @@ try {
     await addButtons.nth(i).click();
     await hold(page, 1100);
   }
-  await hold(page, 1500);
-  await page.getByRole("button", { name: /^Efectivo$/i }).first().click().catch(() => {});
-  await hold(page, 1800);
+  await hold(page, 1400);
+
+  // Transferencia over Efectivo: it enables "Cobrar" straight away, where cash
+  // first demands the amount received.
+  await page.getByRole("button", { name: /^Transferencia$/i }).first().click();
+  await hold(page, 1400);
+
+  if (allowSale) {
+    const charge = page.getByRole("button", { name: /^Cobrar$/i }).first();
+    await charge.waitFor({ timeout: 15_000 });
+    await charge.click();
+    // The real success state: total, receipt and "Nueva venta".
+    await page.getByText(/Venta completada/i).first().waitFor({ timeout: 30_000 });
+    await hideAccount(page);
+    await hold(page, 2600);
+    await glide(page, 320, 18);
+    await hold(page, 1600);
+  } else {
+    await hold(page, 1600);
+  }
 
   // 3 — Inventario: what is about to run out.
   await goToScreen(page, "Inventario");
@@ -270,7 +302,13 @@ if (written.length !== 1) {
 await rename(resolve(outputDir, written[0]), videoPath);
 
 console.log(`Película sanitizada grabada en workspace/film-source/ a ${VIEWPORT.width}×${VIEWPORT.height}.`);
-console.log("Sin escrituras: no se cobró ninguna venta, no se cerró ningún turno, no se ajustó inventario.");
+if (recordedSales.length > 0) {
+  console.log(`ATENCIÓN: se registró ${recordedSales.length} venta real en el tenant (POST /api/v1/orders).`);
+  console.log("Descuenta inventario y aparece en Órdenes, Análisis y el corte de caja.");
+  console.log("Si no la quieres en tus números, cancélala desde Órdenes.");
+} else {
+  console.log("Sin escrituras: no se cobró ninguna venta, no se cerró ningún turno, no se ajustó inventario.");
+}
 if (blockedAnalytics.length > 0) {
   console.log(`Telemetría bloqueada (${blockedAnalytics.length} evento(s)): la sesión no aparece en la analítica de producción.`);
 }
