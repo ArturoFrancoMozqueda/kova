@@ -66,20 +66,32 @@ describe("Dialog focus management", () => {
     fireEvent.click(trigger);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
+    const panel = screen.getByRole("dialog");
     fireEvent.keyDown(document, { key: "Escape" });
     // Focus returns synchronously — it is tied to `open`, not to the exit
     // animation, so a keyboard user is never left waiting on motion.
     expect(trigger).toHaveFocus();
-    // The panel now animates out before unmounting (usePresence), so its removal
-    // is no longer synchronous.
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    // The panel now animates out before unmounting (usePresence), so its actual
+    // removal from the DOM is no longer synchronous. Held by reference rather
+    // than re-queried, because an exiting dialog is already out of the a11y tree.
+    await waitFor(() => expect(panel).not.toBeInTheDocument());
   });
 
-  it("stops accepting backdrop clicks while animating out", () => {
+  it("leaves the accessibility tree and stops accepting clicks while animating out", () => {
     render(<TriggeredDialog />);
     fireEvent.click(screen.getByText("Abrir"));
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.getByRole("presentation").className).toContain("pointer-events-none");
+
+    // A dialog animating out is already logically closed. It must not be
+    // queryable by role, or its buttons keep being announced — and keep matching
+    // test locators — alongside the page's own controls.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Acción" })).not.toBeInTheDocument();
+
+    const overlay = document.querySelector("[aria-hidden='true']");
+    expect(overlay).not.toBeNull();
+    expect(overlay).toHaveAttribute("inert");
+    expect(overlay?.className).toContain("pointer-events-none");
   });
 
   it("releases the body scroll lock only once the exit finishes", async () => {

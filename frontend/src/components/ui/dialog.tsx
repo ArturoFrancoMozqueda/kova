@@ -79,6 +79,16 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
       // Decorative dismiss backdrop: keyboard users close via Escape or the
       // labelled close button, so the click shortcut carries no semantics.
       role="presentation"
+      // A dialog animating out is already logically closed, so it leaves the
+      // accessibility tree immediately rather than lingering for the exit: no
+      // duplicate buttons announced, no focus reachable inside it. Focus has
+      // already returned to the trigger by this point (that effect is tied to
+      // `open`, not to `mounted`), so nothing focused is being hidden.
+      // `inert` is passed as "" because React 18 does not treat it as a boolean
+      // attribute; the cast is needed until React 19's typings.
+      {...(exiting
+        ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLDivElement>)
+        : {})}
       className={cn(
         "fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4",
         // pointer-events-none while exiting so a click can't reach a dying dialog.
