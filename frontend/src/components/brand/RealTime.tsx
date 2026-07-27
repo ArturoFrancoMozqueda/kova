@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 
 const EASE_OUT = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -13,14 +14,12 @@ type CountUpProps = {
 export function CountUp({ value, duration = 600, format, className }: CountUpProps) {
   const [display, setDisplay] = useState(value);
   const fromRef = useRef(value);
-  const reducedMotion = useRef(false);
+  // Reactive, and in the dependency array: the previous ref-in-an-effect read
+  // captured the preference once on mount and never observed a change mid-session.
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
-    reducedMotion.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }, []);
-
-  useEffect(() => {
-    if (reducedMotion.current) {
+    if (reducedMotion) {
       setDisplay(value);
       fromRef.current = value;
       return;
@@ -38,7 +37,7 @@ export function CountUp({ value, duration = 600, format, className }: CountUpPro
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
+  }, [value, duration, reducedMotion]);
 
   return <span className={cn("tabular-nums", className)}>{format(display)}</span>;
 }

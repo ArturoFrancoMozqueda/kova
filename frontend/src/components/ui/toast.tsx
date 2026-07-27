@@ -10,6 +10,7 @@ import {
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from "lucide-react";
 import { reportError } from "@/observability/errorReporting";
 import { cn } from "@/lib/utils";
+import { MOTION_MS, exitDelayMs } from "@/lib/motion";
 import { copy } from "@/i18n/messages";
 
 type ToastVariant = "success" | "error" | "warning" | "info";
@@ -60,9 +61,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)));
+    // Same source as the .toast-exit duration in styles.css (--kova-dur-panel-exit),
+    // and 0 under reduced motion so the JS doesn't hold a node the CSS already
+    // finished with. The list owns an array rather than a boolean, so it can't use
+    // usePresence directly — but it reads from the same two primitives.
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 200);
+    }, exitDelayMs(MOTION_MS.panelExit));
   }, []);
 
   const toast = useCallback(

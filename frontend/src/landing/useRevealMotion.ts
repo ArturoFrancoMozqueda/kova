@@ -18,6 +18,7 @@
 //     [data-lp-stagger-item] revelan escalonados (80ms, tope 4 pasos) cuando el
 //     grupo entra al viewport, estableciendo jerarquía entre elementos ligados.
 import { useEffect } from "react";
+import { prefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 
 const LEGACY_SELECTOR = [
   ".lp-reveal-block",
@@ -39,9 +40,7 @@ export function useLandingRevealMotion() {
     const root = document.querySelector<HTMLElement>(".lp-root");
     if (!root) return;
 
-    const reduceMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = prefersReducedMotion();
 
     const seen = new Set<HTMLElement>();
     const units: RevealUnit[] = [];

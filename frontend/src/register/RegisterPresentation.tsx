@@ -36,7 +36,11 @@ export function RegisterProductCard({
       aria-disabled={disabled || undefined}
       onClick={disabled ? onDisabledSelect : onAdd}
       className={cn(
-        "group relative flex items-stretch gap-3 rounded-xl border bg-card p-2.5 text-left shadow-kova-card transition-all hover:border-primary/40 hover:shadow-kova-card-hover active:scale-[0.97]",
+        // The most-tapped element in the product (~450 taps/day), so
+        // duration-press: the tile must acknowledge instantly and get out of the
+        // way. Properties named explicitly — transition-all here also animated
+        // box-shadow spread and border-width on every hover.
+        "group relative flex items-stretch gap-3 rounded-xl border bg-card p-2.5 text-left shadow-kova-card transition-[border-color,box-shadow,transform] duration-press ease-standard hover:border-primary/40 hover:shadow-kova-card-hover active:scale-[0.97]",
         !compact && "sm:flex-col sm:justify-between sm:gap-0 sm:p-3",
         disabled && "cursor-not-allowed opacity-60 hover:border-border hover:shadow-kova-card active:scale-100",
       )}
@@ -64,7 +68,13 @@ export function RegisterProductCard({
         </span>
       </div>
       {quantity ? (
-        <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground tabular-nums">
+        // key={quantity} restarts kv-count-pop on every increment — this is the
+        // only feedback a cashier gets when re-adding a product already in the
+        // cart, since that path just bumps a number.
+        <span
+          key={quantity}
+          className="kv-count-pop absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground tabular-nums"
+        >
           {quantity}
         </span>
       ) : null}
@@ -119,7 +129,10 @@ export function RegisterPaymentMethodSelector<T extends string>({
             aria-disabled={option.disabled || undefined}
             onClick={() => option.disabled ? option.onDisabledSelect?.() : onChange(option.value)}
             className={cn(
-              "flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 text-xs font-medium transition-all",
+              // The selected state adds shadow-sm, and transition-all was
+              // animating it alongside border-width — so picking a payment method
+              // visibly smeared. Naming the properties makes it read faster.
+              "flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 px-2 text-xs font-medium transition-[border-color,background-color,color,box-shadow] duration-quick ease-standard",
               compact ? "min-h-10 py-1.5" : "min-h-[60px] py-3",
               option.disabled
                 ? "cursor-not-allowed border-kova-border bg-muted/40 text-muted-foreground/50"

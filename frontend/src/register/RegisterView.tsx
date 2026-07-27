@@ -28,6 +28,8 @@ import type { Shift } from "@/shifts/types";
 import { useToast } from "@/components/ui/toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MOTION_MS } from "@/lib/motion";
+import { usePresenceKeys } from "@/lib/usePresence";
 import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { trapTabKey } from "@/lib/focusTrap";
 import { formatTenantName } from "@/lib/formatTenantName";
@@ -78,6 +80,46 @@ type CartItem = {
   selectedModifiers: SelectedModifier[];
   effectiveUnitPrice: string;
 };
+
+/** Cart identity: same product with the same modifier set is the same line. */
+function cartKeyFor(productId: string, selectedModifiers: readonly SelectedModifier[]): string {
+  return [productId, ...selectedModifiers.map((modifier) => modifier.optionId).sort()].join(":");
+}
+
+// Module-level so its identity is stable for usePresenceKeys.
+function cartLineKey(item: CartItem): string {
+  return cartKeyFor(item.product.id, item.selectedModifiers);
+}
+
+/**
+ * Re-inserts an undone cart line where it used to be. A plain
+ * `{ ...cart, [key]: line }` appends, so undoing a line from the middle of the
+ * cart silently moved it to the bottom — invisible before, obvious now that the
+ * row collapses in place and would reappear somewhere else.
+ *
+ * Lines added after the removal keep their own, later position.
+ */
+function restoreCartLine(
+  cart: Record<string, CartItem>,
+  keyOrderBeforeRemoval: readonly string[],
+  cartKey: string,
+  line: CartItem,
+): Record<string, CartItem> {
+  if (cart[cartKey]) return cart;
+  const restored: Record<string, CartItem> = {};
+  for (const key of keyOrderBeforeRemoval) {
+    if (key === cartKey) {
+      restored[cartKey] = line;
+      continue;
+    }
+    const existing = cart[key];
+    if (existing) restored[key] = existing;
+  }
+  for (const [key, value] of Object.entries(cart)) {
+    if (!(key in restored)) restored[key] = value;
+  }
+  return restored;
+}
 
 type PaymentMethod = "cash" | "bank_transfer" | "manual_card";
 
@@ -456,6 +498,16 @@ export default function RegisterView() {
     [cartItems],
   );
   const totalAmount = centsToMoney(totalCents);
+  // Total units, not lines. Drives the two cart count badges (mobile sheet
+  // header, desktop card header) and their kv-count-pop keys.
+  const cartUnitCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
+    [cartItems],
+  );
+  // Rows to render, including any that have already left `cart` and are still
+  // animating out. Totals and the unit count deliberately stay on cartItems, so
+  // the money on screen is always the real money.
+  const cartRows = usePresenceKeys(cartItems, cartLineKey, MOTION_MS.modalExit);
   const tenderedCents = moneyToCents(cashTendered);
   const changeDueCents =
     paymentMethod === "cash" && tenderedCents >= totalCents ? tenderedCents - totalCents : 0;
@@ -566,7 +618,7 @@ export default function RegisterView() {
   const commitAddProduct = (product: Product, selectedModifiers: SelectedModifier[]) => {
     const deltaSum = selectedModifiers.reduce((s, m) => s + moneyToCents(m.priceDelta), 0);
     const effectiveUnitPrice = centsToMoney(moneyToCents(product.price_amount) + deltaSum);
-    const cartKey = [product.id, ...selectedModifiers.map((m) => m.optionId).sort()].join(":");
+    const cartKey = cartKeyFor(product.id, selectedModifiers);
     setCart((current) => {
       const existing = current[cartKey];
       return {
@@ -599,6 +651,7 @@ export default function RegisterView() {
     setCart((current) => {
       const removed = current[cartKey];
       if (!removed) return current;
+      const keyOrderBeforeRemoval = Object.keys(current);
       const next = { ...current };
       delete next[cartKey];
       toast(copy.register.itemRemoved(removed.product.name), {
@@ -606,7 +659,7 @@ export default function RegisterView() {
         action: {
           label: copy.register.undo,
           onAction: () => {
-            setCart((c) => ({ ...c, [cartKey]: removed }));
+            setCart((c) => restoreCartLine(c, keyOrderBeforeRemoval, cartKey, removed));
           },
         },
       });
@@ -954,7 +1007,7 @@ export default function RegisterView() {
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={cn(
-                    "rounded-full px-3 py-2 text-xs font-medium transition-all",
+                    "rounded-full px-3 py-2 text-xs font-medium transition-colors duration-quick ease-standard",
                     !selectedCategory
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -968,7 +1021,7 @@ export default function RegisterView() {
                     key={catId}
                     onClick={() => setSelectedCategory(catId)}
                     className={cn(
-                      "rounded-full px-3 py-2 text-xs font-medium transition-all",
+                      "rounded-full px-3 py-2 text-xs font-medium transition-colors duration-quick ease-standard",
                       selectedCategory === catId
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -1056,17 +1109,21 @@ export default function RegisterView() {
         {/* Cart + Payment — bottom sheet on mobile, sidebar on desktop */}
         <div
           ref={paymentSectionRef}
+          data-open={cartSheetOpen ? "true" : "false"}
           className={cn(
-            // Desktop: normal sidebar column
-            "lg:relative lg:bottom-auto lg:inset-x-auto lg:z-auto lg:max-h-none lg:overflow-visible lg:bg-transparent lg:border-0 lg:rounded-none lg:shadow-none lg:translate-y-0 lg:transition-none lg:flex-none lg:block",
-            // Mobile: fixed bottom sheet above bottom nav
-            "fixed inset-x-0 bottom-14 z-40 flex flex-col",
+            // Desktop: normal sidebar column. transform-none rather than
+            // translate-y-0, which would still emit a transform and make this a
+            // containing block for anything absolutely positioned inside it.
+            "lg:relative lg:bottom-auto lg:inset-x-auto lg:z-auto lg:h-auto lg:max-h-none lg:overflow-visible lg:bg-transparent lg:border-0 lg:rounded-none lg:shadow-none lg:transform-none lg:transition-none lg:flex-none lg:block",
+            // Mobile: full-height fixed sheet, translated down to leave only the
+            // 5rem handle (h-20 below) visible above the bottom nav. Timing and
+            // easing live in .kv-cart-sheet, which needs the asymmetry.
+            "fixed inset-x-0 bottom-14 z-40 flex h-[calc(100dvh-7rem)] flex-col",
             "overflow-hidden",
             "bg-card border-t border-kova-border rounded-t-2xl",
             "shadow-[0_-12px_40px_-12px_rgba(15,17,23,0.25)]",
-            "transition-[max-height] duration-300 ease-out",
-            "scroll-mt-4",
-            cartSheetOpen ? "max-h-[calc(100dvh-7rem)]" : "max-h-20",
+            "kv-cart-sheet scroll-mt-4",
+            cartSheetOpen ? "translate-y-0" : "translate-y-[calc(100%-5rem)]",
           )}
         >
           {/* Peek handle — mobile only */}
@@ -1081,9 +1138,14 @@ export default function RegisterView() {
             <div className="flex items-center gap-3">
               <div className="relative">
                 <ShoppingCart className="h-6 w-6 text-kova-ink" />
-                {cartItems.length > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[20px] h-5 rounded-full bg-kova-blue text-white text-[11px] font-bold flex items-center justify-center px-1.5 tabular-nums">
-                    {cartItems.reduce((s, i) => s + i.quantity, 0)}
+                {cartUnitCount > 0 && (
+                  // The mobile locus: with the sheet collapsed this badge is the
+                  // only part of the cart on screen.
+                  <span
+                    key={cartUnitCount}
+                    className="kv-count-pop absolute -top-1.5 -right-2 min-w-[20px] h-5 rounded-full bg-kova-blue text-white text-[11px] font-bold flex items-center justify-center px-1.5 tabular-nums"
+                  >
+                    {cartUnitCount}
                   </span>
                 )}
               </div>
@@ -1107,69 +1169,81 @@ export default function RegisterView() {
                   <ShoppingCart className="h-4 w-4" />
                   {copy.register.cart}
                 </CardTitle>
-                {cartItems.length > 0 && (
-                  <Badge variant="secondary">{cartItems.reduce((s, i) => s + i.quantity, 0)}</Badge>
+                {cartUnitCount > 0 && (
+                  <Badge key={cartUnitCount} variant="secondary" className="kv-count-pop">
+                    {cartUnitCount}
+                  </Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent className="p-4">
-              {cartItems.length === 0 ? (
+              {/* Branches on cartRows, not cartItems: a row that is animating out
+                  has already left `cart`, so keying the empty state off cartItems
+                  would render "carrito vacío" underneath the last ghost row. */}
+              {cartRows.length === 0 ? (
                 <div className="flex flex-col items-center py-10 text-center">
                   <ShoppingCart className="h-10 w-10 text-muted-foreground/30 mb-2" />
                   <p className="text-sm text-muted-foreground">{copy.register.cartPlaceholder}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {cartItems.map((item) => {
-                    const cartKey = [item.product.id, ...item.selectedModifiers.map((m) => m.optionId).sort()].join(":");
+                  {cartRows.map(({ key: cartKey, item, state }) => {
                     return (
-                      <div
-                        key={cartKey}
-                        className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{item.product.name}</p>
-                          {item.selectedModifiers.map((m) => (
-                            <p key={m.optionId} className="text-xs text-muted-foreground mt-0.5">
-                              → {m.optionName}
-                              {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
+                      // The grid wrapper is what collapses on removal; the inner
+                      // row keeps its own look untouched.
+                      <div key={cartKey} className="kv-row-collapse" data-state={state}>
+                        <div className="flex items-start gap-3 rounded-lg border bg-background p-3 animate-fade-in">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{item.product.name}</p>
+                            {item.selectedModifiers.map((m) => (
+                              <p key={m.optionId} className="text-xs text-muted-foreground mt-0.5">
+                                → {m.optionName}
+                                {parseFloat(m.priceDelta) > 0 && ` (+${formatMoney(m.priceDelta)})`}
+                              </p>
+                            ))}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {copy.register.unitPrice(formatMoney(item.effectiveUnitPrice))}
                             </p>
-                          ))}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {copy.register.unitPrice(formatMoney(item.effectiveUnitPrice))}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(cartKey, item.quantity - 1)}
-                            aria-label={copy.register.decreaseQuantity}
-                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                          <span className="w-8 text-center text-sm font-semibold tabular-nums">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(cartKey, item.quantity + 1)}
-                            aria-label={copy.register.increaseQuantity}
-                            className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-all"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <p className="text-sm font-bold tabular-nums">
-                            {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(cartKey)}
-                            aria-label={copy.register.removeItem(item.product.name)}
-                            className="flex h-9 w-9 items-center justify-center rounded-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(cartKey, item.quantity - 1)}
+                              aria-label={copy.register.decreaseQuantity}
+                              className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
+                            {/* key restarts kv-count-pop, so the changed line is
+                                the locus of the feedback on desktop. */}
+                            <span
+                              key={item.quantity}
+                              className="kv-count-pop w-8 text-center text-sm font-semibold tabular-nums"
+                            >
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(cartKey, item.quantity + 1)}
+                              aria-label={copy.register.increaseQuantity}
+                              className="flex h-11 w-11 items-center justify-center rounded-md border border-kova-border hover:bg-kova-mist active:scale-95 transition-[background-color,transform] duration-press ease-standard"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <p className="text-sm font-bold tabular-nums">
+                              {formatMoney(centsToMoney(moneyToCents(item.effectiveUnitPrice) * item.quantity))}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(cartKey)}
+                              aria-label={copy.register.removeItem(item.product.name)}
+                              className="flex h-9 w-9 items-center justify-center rounded-md text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1540,7 +1614,9 @@ export default function RegisterView() {
                 <div className="mb-3 flex items-start gap-3">
                   <div
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-lg",
+                      // Same two beats as the mobile overlay, so the moment reads
+                      // the same on both.
+                      "flex h-9 w-9 items-center justify-center rounded-lg kv-success-badge",
                       isPendingSync
                         ? "bg-warning/20 text-warning-foreground"
                         : "bg-kova-growth/15 text-kova-growth",
@@ -1552,7 +1628,7 @@ export default function RegisterView() {
                       <CheckCircle2 className="h-5 w-5" />
                     )}
                   </div>
-                  <div>
+                  <div className="kv-success-headline">
                     <p
                       className={cn(
                         "font-semibold",
@@ -1649,7 +1725,10 @@ export default function RegisterView() {
           <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 pb-4">
             <div
               className={cn(
-                "flex h-24 w-24 items-center justify-center rounded-full animate-scale-in",
+                // scale-in (from .97) is invisible on a 96px circle; this arrives
+                // from .6 with a one-shot ring. Transform on the badge is safe —
+                // it is a sibling of the receipt, never an ancestor.
+                "flex h-24 w-24 items-center justify-center rounded-full kv-success-badge",
                 isPendingSync ? "bg-warning/20" : "bg-kova-growth/15",
               )}
             >
@@ -1659,7 +1738,7 @@ export default function RegisterView() {
                 <CheckCircle2 className="h-14 w-14 text-kova-growth" strokeWidth={2.25} />
               )}
             </div>
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-1 kv-success-headline">
               <h2 id="sale-success-title" className="text-2xl font-bold tracking-tight text-kova-ink">
                 {isPendingSync
                   ? copy.register.offlineSaleSavedTitle
@@ -1678,7 +1757,10 @@ export default function RegisterView() {
                 complete) is the single print-receipt-root the print CSS targets,
                 for both mobile and desktop. */}
             {receiptProps && (
-              <TicketPaper className="w-full max-w-xs">
+              // kv-tkt-reveal is the opt-in for the band-by-band print-in. It
+              // lives here, not on ReceiptTemplate, so the order-detail receipt
+              // and the settings preview stay still.
+              <TicketPaper className="w-full max-w-xs kv-tkt-reveal">
                 <ReceiptTemplate {...receiptProps} className="print-receipt-root" />
               </TicketPaper>
             )}

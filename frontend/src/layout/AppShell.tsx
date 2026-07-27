@@ -23,6 +23,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/usePresence";
 import { avatarColorFor } from "@/lib/avatarColor";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
 import { LogoMark } from "@/components/brand/Logo";
@@ -130,6 +131,9 @@ export default function AppShell() {
   });
 
   const closeSidebar = () => setSidebarOpen(false);
+  // The drawer slides for 280ms; without this the backdrop used to blink out of
+  // existence on the first frame, which was the shell's most visible motion bug.
+  const backdrop = usePresence(sidebarOpen);
 
   useEffect(() => {
     if (state.status === "authenticated") {
@@ -190,7 +194,7 @@ export default function AppShell() {
             title={sidebarCollapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
-                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-all duration-150",
+                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-[background-color,border-color,color] duration-hover ease-standard",
                 sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
                 isActive
                   ? "border-l-kova-blue-light bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
@@ -259,9 +263,12 @@ export default function AppShell() {
         {copy.app.skipToContent}
       </a>
       {/* Mobile backdrop overlay */}
-      {sidebarOpen && (
+      {backdrop.mounted && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          className={cn(
+            "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden",
+            backdrop.exiting ? "animate-fade-out pointer-events-none" : "animate-fade-in",
+          )}
           onClick={closeSidebar}
           aria-hidden="true"
         />
@@ -270,8 +277,17 @@ export default function AppShell() {
       {/* Sidebar — fixed on mobile, static on desktop */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex h-[100dvh] min-h-screen w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out",
-          "lg:relative lg:translate-x-0 lg:shrink-0",
+          // Mobile off-canvas is transform-only: cheap, and ease-entrance rather
+          // than ease-in-out because an ease-in start delays the moment the user
+          // is watching for.
+          "fixed inset-y-0 left-0 z-50 flex h-[100dvh] min-h-screen w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-modal ease-entrance",
+          // Desktop collapse keeps animating `width` — see docs/claude/motion-system.md
+          // for why a transform is NOT an option here: moving the content
+          // column's left edge would mean putting a transform on the main
+          // content div, which is an ancestor of .print-receipt-root and
+          // .print-corte-root, turning it into their containing block and
+          // breaking thermal printing. Now at least it animates width alone.
+          "lg:relative lg:translate-x-0 lg:shrink-0 lg:transition-[width] lg:duration-modal lg:ease-standard",
           sidebarCollapsed ? "lg:w-[60px]" : "lg:w-[260px]",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}

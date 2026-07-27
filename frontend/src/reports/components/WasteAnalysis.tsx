@@ -24,7 +24,7 @@ export function WasteAnalysis({ story }: { story: BusinessStoryReport }) {
         </Badge>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="rounded-kova-md border border-kova-border bg-kova-surface p-4">
+        <div className="rounded-kova-md border border-kova-border bg-kova-mist p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-kova-tertiary">
             {copy.reportsView.wasteValue}
           </p>

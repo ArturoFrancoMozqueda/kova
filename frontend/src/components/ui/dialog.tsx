@@ -1,6 +1,8 @@
 import { type ReactNode, createContext, useContext, useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { trapTabKey } from "@/lib/focusTrap";
+import { MOTION_MS } from "@/lib/motion";
+import { usePresence } from "@/lib/usePresence";
 import { X } from "lucide-react";
 
 interface DialogProps {
@@ -18,6 +20,9 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  // Keeps the panel in the DOM through its exit animation instead of snapping it
+  // away. Focus and the Escape handler stay tied to `open`, not to `mounted`.
+  const { mounted, exiting } = usePresence(open, MOTION_MS.modalExit);
 
   useEffect(() => {
     if (!open) return;
@@ -40,12 +45,12 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
       // Restore focus to the trigger, guarding against it having unmounted
       // (e.g. a row action whose row was removed) so this never throws.
+      // Deliberately tied to `open`: focus must return the instant the user
+      // closes the dialog, not after the exit animation has finished.
       if (
         previouslyFocused &&
         typeof previouslyFocused.focus === "function" &&
@@ -56,7 +61,17 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  // Scroll lock follows `mounted`, so the page doesn't reflow underneath a
+  // dialog that is still visibly animating out.
+  useEffect(() => {
+    if (!mounted) return;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mounted]);
+
+  if (!mounted) return null;
 
   return (
     <div
@@ -64,7 +79,21 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
       // Decorative dismiss backdrop: keyboard users close via Escape or the
       // labelled close button, so the click shortcut carries no semantics.
       role="presentation"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4 animate-fade-in"
+      // A dialog animating out is already logically closed, so it leaves the
+      // accessibility tree immediately rather than lingering for the exit: no
+      // duplicate buttons announced, no focus reachable inside it. Focus has
+      // already returned to the trigger by this point (that effect is tied to
+      // `open`, not to `mounted`), so nothing focused is being hidden.
+      // `inert` is passed as "" because React 18 does not treat it as a boolean
+      // attribute; the cast is needed until React 19's typings.
+      {...(exiting
+        ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLDivElement>)
+        : {})}
+      className={cn(
+        "fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm sm:p-4",
+        // pointer-events-none while exiting so a click can't reach a dying dialog.
+        exiting ? "animate-fade-out pointer-events-none" : "animate-fade-in",
+      )}
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
@@ -79,9 +108,10 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
           // Mobile: bottom sheet — full width, slides up, capped height, rounded top corners
           "relative w-full max-h-[90dvh] overflow-y-auto overscroll-contain focus:outline-none",
           "rounded-t-kova-xl border-t-[0.5px] border-x-[0.5px] border-kova-border bg-white p-5 pt-7 shadow-xl",
-          "animate-slide-up",
+          exiting ? "animate-slide-down" : "animate-slide-up",
           // Desktop overrides: centered card
-          "sm:max-w-md sm:rounded-kova-xl sm:border-[0.5px] sm:p-6 sm:max-h-[85vh] sm:animate-scale-in",
+          "sm:max-w-md sm:rounded-kova-xl sm:border-[0.5px] sm:p-6 sm:max-h-[85vh]",
+          exiting ? "sm:animate-scale-out" : "sm:animate-scale-in",
           // Mobile peek handle pseudo-element
           "before:content-[''] before:absolute before:top-2 before:left-1/2 before:-translate-x-1/2 before:h-1 before:w-10 before:rounded-full before:bg-kova-border sm:before:hidden",
           className,

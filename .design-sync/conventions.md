@@ -28,13 +28,43 @@ brand:
 | Radii | `rounded-kova-sm` (8px) `-md` (12px) `-lg` (16px) `-xl` (20px) — cards use `rounded-kova-lg` |
 | Shadows | `shadow-kova-card`, `shadow-kova-card-hover`, `shadow-kova-hero` |
 | Gradients | `bg-kova-grad-blue`, `bg-kova-grad-mint`, `bg-kova-grad-sky` (pastel KPI washes) |
-| Motion | `animate-fade-in`, `animate-scale-in`, `animate-slide-in-right`, `animate-slide-up`, `animate-pulse-soft` |
+| Motion | Enter `animate-fade-in` `animate-scale-in` `animate-slide-up` `animate-slide-in-right` · exit `animate-fade-out` `animate-scale-out` `animate-slide-down` · loading `animate-pulse-soft`. Durations `duration-press\|quick\|hover\|panel\|modal\|celebrate\|panel-exit\|modal-exit`. Easings `ease-standard` (default) `ease-entrance` (enters that travel) `ease-exit` `ease-spring`. See **Motion** below. |
 
 House patterns: cards are `bg-white` + `border-[0.5px] border-kova-border` +
 `rounded-kova-lg` + `shadow-kova-card`; money/quantity text takes
 `tabular-nums`; section kickers use `ArcKicker`; KPI numbers are
 `text-2xl font-bold text-kova-ink`. Typography is Inter Variable (default
 `font-sans` — already loaded; don't add font families).
+
+## Motion
+
+Kova is a POS: a cashier lives on these screens all day, so motion is rationed
+rather than sprinkled. Six rules, in priority order.
+
+1. **Frequency decides duration.** A control touched 100+ times a day gets
+   `duration-press` (80ms) or nothing at all. Occasional actions get
+   `duration-hover` (180ms) or `duration-panel` (240ms). Only rare or first-run
+   moments earn `duration-celebrate`.
+2. **Animate `transform` and `opacity`.** Never `width`, `height`, `max-height`,
+   `top`, `left`, `margin`, `padding`. **`transition-all` is banned** — name the
+   properties: `transition-[border-color,box-shadow]`. Bare `transition` is fine;
+   it excludes layout properties.
+3. **Enter with `ease-standard` or `ease-entrance`, exit with `ease-exit`.**
+   `ease-in` on an entrance is a defect: it delays the moment the user is
+   watching for. Exits run ~0.65× their enter — that is what the `-exit`
+   durations are for.
+4. **Anything that unmounts uses `usePresence`** (`@/lib/usePresence`), so it
+   animates out instead of snapping. `usePresenceKeys` is the list version. Never
+   hardcode an unmount delay — read `MOTION_MS` from `@/lib/motion`.
+5. **Reduced motion comes from `usePrefersReducedMotion`** (`@/lib/...`) or the
+   `motion-reduce:` variant. Never call `matchMedia` inline. CSS animations are
+   already neutralized globally; JS-driven motion is not, so it must ask.
+6. **Never put a `transform`, `filter` or `backdrop-filter` on an ancestor of a
+   receipt or corte node.** It becomes their containing block and the thermal
+   print walks off the page.
+
+Full rationale, the token→ms table, the frequency table and the documented
+exceptions: `docs/claude/motion-system.md`.
 
 ## Where the truth lives
 

@@ -26,7 +26,7 @@ export function OperatingExpenseAnalysis({ story }: { story: BusinessStoryReport
         </div>
         <div className="space-y-3">
           <div className="flex items-center justify-between rounded-kova-md border border-kova-border p-4"><span className="flex items-center gap-2 text-sm font-semibold text-kova-ink"><WalletCards className="h-4 w-4 text-kova-blue" />{copy.reportsView.registeredExpenses}</span><span className="font-bold tabular-nums text-kova-ink">{formatMoney(report.total)}</span></div>
-          {report.by_category.length > 0 ? <div className="divide-y divide-kova-border rounded-kova-md border border-kova-border">{report.by_category.map((row) => <div key={row.category} className="flex items-center justify-between gap-3 px-3 py-2.5"><span className="text-sm text-kova-ink">{copy.expenses.categories[row.category]}</span><span className="text-sm font-semibold tabular-nums text-kova-ink">{formatMoney(row.amount)}</span></div>)}</div> : <p className="rounded-kova-md bg-kova-surface p-4 text-sm text-kova-muted">{copy.reportsView.noExpensesYet}</p>}
+          {report.by_category.length > 0 ? <div className="divide-y divide-kova-border rounded-kova-md border border-kova-border">{report.by_category.map((row) => <div key={row.category} className="flex items-center justify-between gap-3 px-3 py-2.5"><span className="text-sm text-kova-ink">{copy.expenses.categories[row.category]}</span><span className="text-sm font-semibold tabular-nums text-kova-ink">{formatMoney(row.amount)}</span></div>)}</div> : <p className="rounded-kova-md bg-kova-mist p-4 text-sm text-kova-muted">{copy.reportsView.noExpensesYet}</p>}
         </div>
       </CardContent>
     </Card>

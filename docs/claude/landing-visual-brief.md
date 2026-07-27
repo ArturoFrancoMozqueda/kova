@@ -21,7 +21,7 @@
 4. **Fidelidad al producto real.** Cada recreación imita el layout, labels y tokens de la pantalla real correspondiente (`RegisterView`, `InventoryView`, `ShiftView`, `ReportsView`, `DashboardView`). No se inventan features ni pantallas.
 5. **Datos demo solo en la landing.** Nada de esto toca rutas de producto ni analytics reales (regla CLAUDE.md: no fake/demo analytics en paths de producción).
 6. **Pricing siempre desde constantes.** `STANDARD_PLAN_PRICE_LABEL` ($299 MXN/mes) de `frontend/src/billing/standardPlan.ts` y `BILLING_TRIAL_LABEL` (7 días) de `frontend/src/billing/trial.ts`. Nunca hardcodear precio en copy nuevo.
-7. **Solo tokens existentes.** Colores `--kova-*`, radios `--radius-kova-*`, sombras y easings de `frontend/src/styles.css`. Sin librerías de animación nuevas (todo CSS keyframes + el hook `useLandingRevealMotion` existente). `prefers-reduced-motion` se respeta en todo.
+7. **Solo tokens existentes.** Colores `--kova-*`, radios `--radius-kova-*`, sombras y easings de `frontend/src/styles.css`. Sin librerías de animación nuevas (todo CSS keyframes + el hook `useLandingRevealMotion` existente). `prefers-reduced-motion` se respeta en todo. El movimiento de la app autenticada vive en `docs/claude/motion-system.md` y usa su propio namespace `kv-*`; los selectores `.lp-*` de la landing nunca se comparten.
 8. **Copy es-MX vía i18n.** Todo string visible vive en `copy.landing.*` de `frontend/src/i18n/messages.ts`.
 
 ### Mapeo de secciones: landing actual → nueva
