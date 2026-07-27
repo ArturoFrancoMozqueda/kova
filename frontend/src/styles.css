@@ -511,6 +511,16 @@
     box-shadow: none !important;
   }
 
+  /* En pantalla el scroller de contenido es `position: relative` para que los
+     descendientes absolutos (los resúmenes .sr-only de las gráficas) no se
+     escapen de él y estiren el documento. Al imprimir tiene que volver a
+     `static`: si no, sería el bloque contenedor de .print-receipt-root y
+     .print-corte-root (position: absolute) y el ticket saldría desplazado del
+     origen de la página. Mismo precedente que `.tkt-paper { filter: none }`. */
+  #contenido-principal {
+    position: static !important;
+  }
+
   .no-print {
     display: none !important;
   }
