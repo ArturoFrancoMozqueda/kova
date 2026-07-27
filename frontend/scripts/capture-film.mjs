@@ -82,7 +82,14 @@ async function dismissCoachmark(page) {
 // Period toggles default to "today". On a quiet day that renders an empty
 // state, so the film would show the product with nothing in it.
 async function selectPeriod(page, label) {
-  const control = page.getByRole("button", { name: new RegExp(`^${label}$`, "i") }).first();
+  // Panel renders its period control as radios, Análisis as buttons, so match
+  // on the accessible name across roles rather than assuming one of them.
+  const name = new RegExp(`^${label}$`, "i");
+  const control = page
+    .getByRole("radio", { name })
+    .or(page.getByRole("button", { name }))
+    .or(page.getByRole("tab", { name }))
+    .first();
   await control.waitFor({ timeout: 15_000 });
   await control.click();
   await page.waitForLoadState("networkidle");
@@ -203,7 +210,7 @@ try {
   await settle(page, "Panel");
   await dismissCoachmark(page);
   await hideAccount(page);
-  await selectPeriod(page, "Este mes");
+  await selectPeriod(page, "Esta semana");
   await hideAccount(page);
   await hold(page, 1800);
   await glide(page, 560);
@@ -239,9 +246,10 @@ try {
   await glide(page, 560);
   await hold(page, 1600);
 
-  // 5 — Análisis: the story of the period. "Mes" so the charts have data.
+  // 5 — Análisis: the story of the period. This view has no "Esta semana";
+  // its week option is labelled "7 días".
   await goToScreen(page, "Análisis");
-  await selectPeriod(page, "Mes");
+  await selectPeriod(page, "7 días");
   await hideAccount(page);
   await hold(page, 2200);
   await glide(page, 900, 46);
