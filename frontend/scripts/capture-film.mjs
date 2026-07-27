@@ -62,7 +62,34 @@ async function settle(page, navLabel) {
           })),
     );
   });
-  await page.locator(".animate-pulse").first().waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+  // Wait for every skeleton, not just the first: Análisis renders several and
+  // filming while they are still pulsing produces grey placeholder footage.
+  await page
+    .waitForFunction(() => !globalThis.document.querySelector(".animate-pulse"), undefined, { timeout: 25_000 })
+    .catch(() => {});
+}
+
+// The first-run coach-mark ("Caja lista para tu primera venta") sits on top of
+// the cart. Clear it before filming, and stay quiet if it never appeared.
+async function dismissCoachmark(page) {
+  const done = page.getByRole("button", { name: /^Entendido$/i }).first();
+  if (await done.isVisible().catch(() => false)) {
+    await done.click().catch(() => {});
+    await page.waitForTimeout(600);
+  }
+}
+
+// Period toggles default to "today". On a quiet day that renders an empty
+// state, so the film would show the product with nothing in it.
+async function selectPeriod(page, label) {
+  const control = page.getByRole("button", { name: new RegExp(`^${label}$`, "i") }).first();
+  await control.waitFor({ timeout: 15_000 });
+  await control.click();
+  await page.waitForLoadState("networkidle");
+  await page
+    .waitForFunction(() => !globalThis.document.querySelector(".animate-pulse"), undefined, { timeout: 25_000 })
+    .catch(() => {});
+  await page.waitForTimeout(900);
 }
 
 // The account row carries the operator's email. It stays hidden for the whole
@@ -118,8 +145,15 @@ async function goToScreen(page, navLabel) {
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
 
+// Analytics-only endpoints. These are still aborted — a synthetic capture
+// session must not land in production telemetry — but they carry no business
+// effect, so they do not invalidate the recording. Everything else that is not
+// a read still fails the run.
+const ANALYTICS_ONLY = /^\/api\/v1\/telemetry\//;
+
 const browser = await chromium.launch({ headless: true });
 const blockedMutations = [];
+const blockedAnalytics = [];
 
 // Sign in on a context that is NOT being recorded, so no credential is ever
 // typed on camera. The resulting cookies are handed to the recording context
@@ -153,7 +187,8 @@ await context.route("**/*", async (route) => {
   const url = new globalThis.URL(request.url());
   const readOnly = method === "GET" || method === "HEAD" || method === "OPTIONS";
   if (!readOnly && (url.hostname === baseHost || url.hostname === `api.${baseHost}`)) {
-    blockedMutations.push(`${method} ${url.pathname}`);
+    const bucket = ANALYTICS_ONLY.test(url.pathname) ? blockedAnalytics : blockedMutations;
+    bucket.push(`${method} ${url.pathname}`);
     await route.abort("blockedbyclient");
     return;
   }
@@ -163,18 +198,22 @@ await context.route("**/*", async (route) => {
 const page = await context.newPage();
 
 try {
-  // 1 — Panel: the day so far.
+  // 1 — Panel: the business, over a period that actually has sales.
   await page.goto(`${baseUrl}/dashboard`, { waitUntil: "networkidle" });
   await settle(page, "Panel");
+  await dismissCoachmark(page);
   await hideAccount(page);
-  await hold(page, 2200);
+  await selectPeriod(page, "Este mes");
+  await hideAccount(page);
+  await hold(page, 1800);
   await glide(page, 560);
-  await hold(page, 1400);
+  await hold(page, 1200);
 
   // 2 — Caja: build a cart. Adding to the cart is local state; "Cobrar" is a
   // write and is deliberately never pressed.
   await goToScreen(page, "Caja");
-  await hold(page, 1600);
+  await dismissCoachmark(page);
+  await hold(page, 1200);
   // Take whatever the catalog offers first rather than naming products, so the
   // recording does not depend on one tenant's inventory.
   const addButtons = page.getByRole("button", { name: /^Agregar / });
@@ -200,11 +239,13 @@ try {
   await glide(page, 560);
   await hold(page, 1600);
 
-  // 5 — Análisis: the story of the period.
+  // 5 — Análisis: the story of the period. "Mes" so the charts have data.
   await goToScreen(page, "Análisis");
-  await hold(page, 2400);
+  await selectPeriod(page, "Mes");
+  await hideAccount(page);
+  await hold(page, 2200);
   await glide(page, 900, 46);
-  await hold(page, 2400);
+  await hold(page, 2000);
 
   if (blockedMutations.length > 0) {
     throw new Error(`La grabación intentó operaciones de escritura: ${blockedMutations.join(", ")}`);
@@ -222,3 +263,6 @@ await rename(resolve(outputDir, written[0]), videoPath);
 
 console.log(`Película sanitizada grabada en workspace/film-source/ a ${VIEWPORT.width}×${VIEWPORT.height}.`);
 console.log("Sin escrituras: no se cobró ninguna venta, no se cerró ningún turno, no se ajustó inventario.");
+if (blockedAnalytics.length > 0) {
+  console.log(`Telemetría bloqueada (${blockedAnalytics.length} evento(s)): la sesión no aparece en la analítica de producción.`);
+}
