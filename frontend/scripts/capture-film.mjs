@@ -85,15 +85,20 @@ async function dismissCoachmark(page) {
 
 // Period toggles default to "today". On a quiet day that renders an empty
 // state, so the film would show the product with nothing in it.
-async function selectPeriod(page, label) {
-  // Panel renders its period control as radios, Análisis as buttons, so match
-  // on the accessible name across roles rather than assuming one of them.
+// Kova builds equivalent controls with different roles: the Panel period and
+// the payment method are radios, the Análisis presets are buttons. Match on the
+// accessible name across roles instead of assuming any one of them.
+function option(page, label) {
   const name = new RegExp(`^${label}$`, "i");
-  const control = page
+  return page
     .getByRole("radio", { name })
     .or(page.getByRole("button", { name }))
     .or(page.getByRole("tab", { name }))
     .first();
+}
+
+async function selectPeriod(page, label) {
+  const control = option(page, label);
   await control.waitFor({ timeout: 15_000 });
   await control.click();
   await page.waitForLoadState("networkidle");
@@ -153,8 +158,14 @@ async function goToScreen(page, navLabel) {
   await hideAccount(page);
 }
 
-await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
+// Clear only Playwright's temp recordings. Wiping the whole directory would
+// destroy a previous good take whenever a run fails partway.
+for (const file of await readdir(outputDir).catch(() => [])) {
+  if (file.startsWith("page@") && file.endsWith(".webm")) {
+    await rm(resolve(outputDir, file), { force: true });
+  }
+}
 
 // Analytics-only endpoints. These are still aborted — a synthetic capture
 // session must not land in production telemetry — but they carry no business
@@ -249,12 +260,19 @@ try {
 
   // Transferencia over Efectivo: it enables "Cobrar" straight away, where cash
   // first demands the amount received.
-  await page.getByRole("button", { name: /^Transferencia$/i }).first().click();
+  const transfer = option(page, "Transferencia");
+  await transfer.waitFor({ timeout: 15_000 });
+  await transfer.click();
   await hold(page, 1400);
 
   if (allowSale) {
-    const charge = page.getByRole("button", { name: /^Cobrar$/i }).first();
+    const charge = option(page, "Cobrar");
     await charge.waitFor({ timeout: 15_000 });
+    // Fail loudly if the method never took: a disabled Cobrar means the film
+    // would otherwise stall here and never reach the rest of the product.
+    if (await charge.isDisabled()) {
+      throw new Error("\"Cobrar\" sigue deshabilitado — el método de pago no se seleccionó.");
+    }
     await charge.click();
     // The real success state: total, receipt and "Nueva venta".
     await page.getByText(/Venta completada/i).first().waitFor({ timeout: 30_000 });
@@ -295,10 +313,11 @@ try {
   await browser.close();
 }
 
-const written = (await readdir(outputDir)).filter((file) => file.endsWith(".webm"));
+const written = (await readdir(outputDir)).filter((file) => file.startsWith("page@") && file.endsWith(".webm"));
 if (written.length !== 1) {
-  throw new Error(`Se esperaba un solo video, se encontraron ${written.length}.`);
+  throw new Error(`Se esperaba una sola grabación nueva, se encontraron ${written.length}.`);
 }
+await rm(videoPath, { force: true });
 await rename(resolve(outputDir, written[0]), videoPath);
 
 console.log(`Película sanitizada grabada en workspace/film-source/ a ${VIEWPORT.width}×${VIEWPORT.height}.`);
