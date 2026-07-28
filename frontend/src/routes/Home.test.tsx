@@ -147,6 +147,16 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
   });
 
+  // Gating por datos/config: sin testimonios reales y sin número de WhatsApp
+  // configurados, ni la sección #clientes ni el canal de WhatsApp existen en
+  // el DOM (y por lo tanto tampoco en el prerender de producción).
+  it("renders no testimonials section and no WhatsApp UI while unconfigured", () => {
+    const { container } = renderHome();
+    expect(container.querySelector("section#clientes")).toBeNull();
+    expect(container.querySelector(".lp-wa-fab")).toBeNull();
+    expect(container.querySelector('a[href^="https://wa.me/"]')).toBeNull();
+  });
+
   // The embedded walkthrough is now ProductFilm rather than KovaShowcase, so
   // the selector moved. The contract under test is unchanged: the product
   // section carries a signup CTA that reports itself as "showcase".
