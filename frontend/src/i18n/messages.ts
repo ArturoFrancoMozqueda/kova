@@ -171,6 +171,37 @@ export const copy = {
       ctaLine: "Conoce exactamente qué pasa en tu negocio.",
       ctaButton: "Empieza gratis",
     },
+    film: {
+      eyebrow: "Kova por dentro",
+      title: "Un día completo, grabado del producto real.",
+      line: "Cobrar, ajustar el stock, cuadrar el turno y entender el día. Sin maquetas: es una cuenta en operación.",
+      posterAlt:
+        "Kova cobrando una venta: el carrito con su total, el método de pago y el aviso de venta completada.",
+      progressLabel: "Avance del recorrido",
+      chapters: {
+        caja: {
+          eyebrow: "Caja",
+          title: "De carrito a cobrado",
+          line: "Busca o escanea, arma el ticket y cobra en efectivo, transferencia o tarjeta.",
+        },
+        inventario: {
+          eyebrow: "Inventario",
+          title: "Ajusta sin salir del piso",
+          line: "Cada producto con su umbral, y el movimiento queda registrado con su motivo.",
+        },
+        turnos: {
+          eyebrow: "Turnos",
+          title: "El corte cuadra, o te dice por qué",
+          line: "Al cerrar sabes si hay faltante — no lo descubres al día siguiente.",
+        },
+        analisis: {
+          eyebrow: "Análisis",
+          title: "Tus números, ya explicados",
+          line: "Cuándo vendes más, qué producto mueve el negocio y cómo te pagan.",
+        },
+      },
+      note: "Las cifras en pantalla son de un negocio real usando Kova.",
+    },
     ownerDashboard: {
       kicker: "Al final del día",
       title: "Conoce exactamente qué pasa en tu negocio.",

@@ -141,10 +141,13 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
   });
 
+  // The embedded walkthrough is now ProductFilm rather than KovaShowcase, so
+  // the selector moved. The contract under test is unchanged: the product
+  // section carries a signup CTA that reports itself as "showcase".
   it("tracks the embedded showcase CTA at the same signup destination", () => {
     const { container } = renderHome();
     const cta = container.querySelector<HTMLAnchorElement>(
-      '.ksw-cta-btn[href="/signup"]',
+      '.pf-cta[href="/signup"]',
     );
     expect(cta).not.toBeNull();
     fireEvent.click(cta!);

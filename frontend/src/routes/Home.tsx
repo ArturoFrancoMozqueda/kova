@@ -29,7 +29,7 @@ import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
-import KovaShowcase from "@/landing/showcase/KovaShowcase";
+import ProductFilm from "@/landing/film/ProductFilm";
 import HeroProductFrame from "@/landing/HeroProductFrame";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { useLandingRevealMotion } from "@/landing/useRevealMotion";
@@ -849,15 +849,11 @@ export default function Home(): ReactNode {
           primaryCtaLabel={primaryCtaLabel}
           onCtaClick={onCtaClick}
         />
-        {/* Cinematic product showcase (laptop mockup, auto-playing loop).
-            Landscape variant tuned for the landing flow; the same component
-            powers the standalone /kova-showcase-video export route. */}
-        <KovaShowcase
-          format="landscape"
-          variant="embedded"
-          ctaTarget={primaryTarget}
-          onCtaClick={() => onCtaClick("showcase")}
-        />
+        {/* Scroll-driven walkthrough recorded from a live tenant. It replaces
+            the auto-playing showcase here so the page has one product story
+            rather than two competing ones; KovaShowcase still powers the
+            standalone /kova-showcase-video export route. */}
+        <ProductFilm ctaTarget={primaryTarget} onCtaClick={() => onCtaClick("showcase")} />
         <Problem />
         <OwnerDashboard />
         <BentoModules />
