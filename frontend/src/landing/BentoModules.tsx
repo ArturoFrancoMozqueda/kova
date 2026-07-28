@@ -104,8 +104,6 @@ const CELLS: Array<{ icon: ReactNode; large: boolean; vignette: ReactNode }> = [
   { icon: <UsersRound size={18} strokeWidth={1.6} />, large: false, vignette: <RolesVignette /> },
 ];
 
-const audienceTypes = copy.landing.builtFor.types.slice(0, 5).map((type) => type.name);
-
 // Índice de la celda "Análisis" en CELLS: la única vignette animada del acto.
 const HOURS_CELL_INDEX = 3;
 
@@ -115,19 +113,11 @@ export default function BentoModules() {
 
   return (
     <section id="como-funciona" className="lp-section" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
-      <div className="lp-section-inner" style={{ position: "relative" }}>
-        <span id="comercios" style={{ position: "absolute", top: -96 }} aria-hidden="true" />
+      <div className="lp-section-inner">
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item>{t.kicker}</span>
           <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>{t.title}</h2>
           <p className="lp-section-copy" data-lp-stagger-item>{t.body}</p>
-        </div>
-        <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {audienceTypes.map((type) => (
-            <span key={type} className="lp-chip-lift" style={chipStyle}>
-              {type}
-            </span>
-          ))}
         </div>
 
         <ul className="lp-bento" data-lp-stagger-group>

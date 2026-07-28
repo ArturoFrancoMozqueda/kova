@@ -29,13 +29,15 @@ export const copy = {
       menuClose: "Cerrar menú",
     },
     hero: {
-      eyebrow: "Cada venta mueve tu negocio",
-      titlePart1: "Cobra una vez. ",
-      titleEmphasis: "Entiende todo",
+      eyebrow: "Una venta lo mueve todo",
+      titlePart1: "Retoma el control ",
+      titleEmphasis: "de tu negocio",
       titlePart2: ".",
-      subtitle: "Kova conecta cada venta con tu inventario, caja, turnos y reportes para que sepas qué pasó, qué falta y qué conviene hacer después.",
+      subtitle: "Kova conecta cada venta con tu inventario, caja, turnos y análisis para que sepas qué pasó, qué falta y qué conviene hacer después.",
       ctaPrimary: "Empieza gratis",
-      ctaSecondary: "Ver una venta en acción",
+      // El hero ES el recorrido (#producto): el botón secundario ya no salta a
+      // otra sección, invita a scrollear dentro del film.
+      ctaSecondary: "Ver el recorrido",
       trialBadge: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta.`,
     },
     immersiveStory: {
@@ -90,7 +92,7 @@ export const copy = {
       ticketTitle: "Corte del día",
       ticketLines: ["Ventas del día", "Efectivo esperado"],
       ticketTotalLabel: "Descuadre",
-      punch: "Ya viste la diferencia: con Kova, todo el día es una sola lectura clara.",
+      punch: "Con Kova ese mismo día es una sola pantalla: ventas, caja y stock ya cuadrados antes de apagar la luz.",
     },
     sweetHome: {
       shopName: "Sweet Home",
@@ -184,6 +186,7 @@ export const copy = {
     film: {
       posterAlt:
         "Kova cobrando una venta: el carrito con su total, el método de pago y el aviso de venta completada.",
+      captureLabel: "Vista real del producto",
       chapters: {
         caja: {
           eyebrow: "Caja",
@@ -218,7 +221,7 @@ export const copy = {
     bento: {
       kicker: "Todo en una sola app",
       title: "Lo que Kova hace por ti todos los días.",
-      body: "Para negocios de mostrador que quieren vender con orden, controlar la operación y decidir con datos reales.",
+      body: "Para negocios de mostrador que quieren cobrar rápido, no perder producto y decidir con números reales — no con corazonadas.",
       roleOwner: "Dueño",
       roleManager: "Gerente",
       roleCashier: "Cajero",
@@ -235,7 +238,7 @@ export const copy = {
       eyebrow: "La diferencia",
       title: "Kova no se queda en cobrar. Te ayuda a dirigir.",
       columns: [
-        { tag: "Soluciones de pago", name: "Clip · Mercado Pago", body: "Buenas para cobrar, pero no para leer toda la operación del negocio." },
+        { tag: "Soluciones de pago", name: "Clip · Mercado Pago", body: "Excelentes para aceptar tarjeta — pero al cerrar el día, sigues sumando tickets a mano." },
         { tag: "POS globales", name: "Loyverse · Poster POS", body: "Útiles para operar, pero menos enfocados en el día a día del negocio mexicano." },
       ],
       kova: {
@@ -247,27 +250,53 @@ export const copy = {
           "Funciona sin internet · sin hardware obligatorio",
         ],
       },
-      punch: "Kova gana por darte claridad sin complicarte.",
+      punch: "Los demás te ayudan a cobrar. Kova te dice qué está pasando con lo que cobras.",
       disclaimer: "Comparativo con base en información pública disponible; sujeto a validación.",
     },
     finalCta: {
       title: "Tu primera venta en Kova puede ser hoy.",
       steps: ["Crea tu cuenta", "Carga tus productos", "Abre tu turno", "Cobra"],
       button: "Empieza gratis",
-      fineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
+      fineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras. Tus datos son tuyos.`,
     },
+    // Sección "¿Es para mí?" (#comercios). `fit` es la clave estable para
+    // estilos/orden; `tag` es la etiqueta visible es-MX. Las etiquetas de
+    // honestidad (incluido "todavía no es tu app") son deliberadas: decir a
+    // quién NO le queda Kova es parte del argumento de confianza.
     builtFor: {
       eyebrow: "¿Es para mí?",
       title: "Hecho para negocios que venden todos los días.",
       body: "Si cobras de mostrador, manejas un catálogo de productos y quieres dejar de operar a mano, Kova encaja con tu negocio. Esto es lo que ya funciona hoy:",
       types: [
-        { name: "Cafeterías", body: "Cafés de especialidad, bebidas frías y pan dulce. Cobros rápidos en hora pico, con extras como tamaños o leches sin batallar.", tag: "Recomendado" },
-        { name: "Panaderías", body: "Venta por pieza, mostrador ágil, inventario claro y cierre de caja sin sumar tickets ni hacer cuentas a mano.", tag: "Recomendado" },
-        { name: "Food trucks", body: "Vende aunque la señal esté flojita o saltes de plaza a plaza. Cuando recuperas internet, las ventas se suben solas.", tag: "Compatible" },
-        { name: "Tiendas pequeñas", body: "Catálogo simple, varios métodos de pago e inventario a la vista. Ideal para misceláneas, abarrotes o concept stores.", tag: "Compatible" },
-        { name: "Restaurantes de mostrador", body: "Perfecto para barras, taquerías, polleras, fondas y loncherías. Si tu flujo es por comanda a cocina con mesas, todavía no es tu app.", tag: "Caso por caso" },
-        { name: "Servicios y emprendimientos", body: "Útil si vendes productos o servicios sueltos en bazares, ferias o desde casa. No reemplaza una agenda de citas por hora.", tag: "Caso por caso" },
+        { name: "Cafeterías", body: "Cafés de especialidad, bebidas frías y pan dulce. Cobros rápidos en hora pico, con extras como tamaños o leches sin batallar.", tag: "Recomendado", fit: "recommended" },
+        { name: "Panaderías", body: "Venta por pieza, mostrador ágil, inventario claro y cierre de caja sin sumar tickets ni hacer cuentas a mano.", tag: "Recomendado", fit: "recommended" },
+        { name: "Food trucks", body: "Vende aunque la señal esté flojita o saltes de plaza a plaza. Cuando recuperas internet, las ventas se suben solas.", tag: "Compatible", fit: "compatible" },
+        { name: "Tiendas pequeñas", body: "Catálogo simple, varios métodos de pago e inventario a la vista. Ideal para misceláneas, abarrotes o concept stores.", tag: "Compatible", fit: "compatible" },
+        { name: "Restaurantes de mostrador", body: "Perfecto para barras, taquerías, polleras, fondas y loncherías. Si tu flujo es por comanda a cocina con mesas, todavía no es tu app.", tag: "Caso por caso", fit: "case-by-case" },
+        { name: "Servicios y emprendimientos", body: "Útil si vendes productos o servicios sueltos en bazares, ferias o desde casa. No reemplaza una agenda de citas por hora.", tag: "Caso por caso", fit: "case-by-case" },
       ],
+    },
+    // Sección #clientes (Testimonials): solo el marco vive aquí; los
+    // testimonios reales viven en landing/testimonials.data.ts y la sección
+    // no se renderiza mientras ese arreglo esté vacío.
+    testimonials: {
+      eyebrow: "Clientes reales",
+      title: "Negocios que ya cierran el día con Kova.",
+      // Confirmado por el dueño: el Sweet Home del testimonio ES el mismo
+      // negocio real cuyas cifras aparecen en el recorrido del hero-film.
+      // Decirlo cierra el loop demo → prueba social y desactiva el "seguro
+      // ese demo es inventado".
+      note: "Sí, el mismo Sweet Home del recorrido que acabas de ver: un negocio real operando con Kova todos los días.",
+    },
+    // Canal de WhatsApp (lib/whatsapp.ts). Gateado: nada de esto se muestra
+    // mientras WHATSAPP_PHONE esté vacío.
+    whatsapp: {
+      fabLabel: "Escríbenos por WhatsApp",
+      prefill: "Hola, vengo de kovasuite.com y quiero saber si Kova sirve para mi negocio.",
+      faqPrefix: " O si prefieres, ",
+      faqLink: "mándanos WhatsApp",
+      faqSuffix: ".",
+      footerLink: "Escríbenos por WhatsApp",
     },
     faq: {
       eyebrow: "Preguntas frecuentes",
@@ -278,8 +307,14 @@ export const copy = {
         { q: "¿Funciona sin internet?", a: "Sí. Si se cae la señal, Kova sigue cobrando y guarda las ventas. Cuando vuelve el internet, sincroniza todo para que no pierdas la fila ni el registro." },
         { q: "¿Necesito comprar algún aparato?", a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware." },
         { q: "¿Cuánto tardo en empezar a cobrar?", a: "El camino son cuatro pasos: creas tu cuenta, cargas tus productos, abres tu turno y cobras. Puedes hacer tu primera venta el mismo día que empiezas." },
+        // Las respuestas de migración y datos citan features reales que ya
+        // existen: import de catálogo por plantilla CSV (CatalogImportDialog)
+        // y export completo de cuenta desde Ajustes (/api/v1/export/account).
+        { q: "¿Cómo paso mis productos a Kova?", a: "Los capturas una vez, directo en la app, o los subes de golpe con una plantilla de Excel/CSV. Un catálogo de mostrador típico queda listo el mismo día: empieza con tus productos más vendidos y completa el resto sobre la marcha." },
         { q: `¿Qué incluye el plan de ${STANDARD_PLAN_PRICE_LABEL}?`, a: "Incluye caja, inventario, empleados con roles, análisis, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos." },
-        { q: "¿Puedo cancelar?", a: "Sí. Puedes cancelar cuando quieras, sin penalización. Tu información queda respaldada en la nube y separada de la de otros negocios." },
+        { q: "¿Puedo hablar con alguien antes de empezar?", a: "Sí. Escríbenos y te contesta una persona del equipo, no un bot. Te decimos con honestidad si Kova le queda a tu negocio o todavía no — sin compromiso." },
+        { q: "¿Puedo cancelar?", a: "Sí. Puedes cancelar cuando quieras, sin plazos forzosos ni penalización. Tu información queda respaldada en la nube, separada de la de otros negocios, y sigue siendo tuya." },
+        { q: "¿Mi información es mía si decido irme?", a: "Sí. Tus ventas, productos y cortes son tuyos, no nuestros. Puedes descargar una copia completa de tu información desde Ajustes cuando quieras — también si decides irte. Sin candados ni letras chiquitas." },
       ],
       contactPrefix: "¿Tienes otra duda? ",
       contactLink: "Escríbenos directo",
@@ -301,9 +336,10 @@ export const copy = {
       planName: "Plan Standard",
       planSubtitle: "Caja, inventario y análisis claro desde una sola app",
       // En el momento de mayor fricción (junto al precio) el botón re-enuncia
-      // la oferta completa; el trial vive en el botón, el fineprint no lo repite.
+      // la oferta completa; el trial vive en el botón y el riesgo invertido
+      // se desglosa como checks en el talón (no se repite el trial ahí).
       ctaButton: `Probar Kova ${BILLING_TRIAL_LABEL} gratis`,
-      ctaFineprint: "Sin tarjeta para empezar. Cancela cuando quieras.",
+      riskReversal: ["Sin tarjeta para empezar", "Cancela cuando quieras", "Tus datos son tuyos"],
       // Señales de confianza reales (nada inventado): las mismas del footer,
       // repetidas junto al CTA de precio donde pesa la decisión.
       trustItems: ["Hecho en México 🇲🇽", "Atendido por humanos, no por bots"],

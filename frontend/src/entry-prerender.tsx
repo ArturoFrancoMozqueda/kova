@@ -5,6 +5,10 @@ import { StaticRouter } from "react-router-dom/server";
 import { AppRoutes, PRERENDERED_ROUTES } from "./App";
 import { queryClient } from "./lib/queryClient";
 
+// Re-exported so scripts/prerender.mjs can derive the landing JSON-LD (FAQ +
+// Offer) from the same copy and billing constants the page renders with.
+export { LANDING_SEO } from "./seo/landingSeo";
+
 // Build-time prerender entry. Renders the public, content-bearing routes to
 // static HTML so crawlers and link unfurlers see real content instead of an
 // empty SPA shell. This file is built separately (vite.config.ssr.ts) and is

@@ -147,7 +147,7 @@ describe("App shell", () => {
       new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
     );
     render(<App />);
-    expect(await screen.findByRole("heading", { name: /cobra una vez/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /retoma el control/i })).toBeInTheDocument();
     expect(screen.getByText("Plan Standard")).toBeInTheDocument();
   });
 

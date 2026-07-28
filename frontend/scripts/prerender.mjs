@@ -25,75 +25,57 @@ const DEFAULT_DESCRIPTION =
 
 // JSON-LD structured data for the landing page. A <script type="application/
 // ld+json"> is a passive data block, not executable JS, so the CSP
-// `script-src 'self'` does NOT block it. The FAQ entries mirror the `faq` copy
-// in src/i18n/messages.ts and the price mirrors src/billing/standardPlan.ts
-// ($299 MXN/month = 29900 minor units); keep them in sync when either changes.
-const LANDING_FAQ = [
-  {
-    q: "¿Qué es exactamente Kova?",
-    a: "Es la app para vender, controlar inventario, cuadrar caja y entender tu negocio desde una sola vista. Más que un punto de venta: es donde cada venta se convierte en claridad para decidir.",
-  },
-  {
-    q: "¿Necesito saber de tecnología?",
-    a: "No. Si manejas WhatsApp o el cajero de un banco, puedes manejar Kova. Está pensado para que cualquier persona del mostrador cobre, consulte productos y cierre turno sin curso largo.",
-  },
-  {
-    q: "¿Funciona sin internet?",
-    a: "Sí. Si se cae la señal, Kova sigue cobrando y guarda las ventas. Cuando vuelve el internet, sincroniza todo para que no pierdas la fila ni el registro.",
-  },
-  {
-    q: "¿Necesito comprar algún aparato?",
-    a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware.",
-  },
-  {
-    q: "¿Cuánto tardo en empezar a cobrar?",
-    a: "El camino son cuatro pasos: creas tu cuenta, cargas tus productos, abres tu turno y cobras. Puedes hacer tu primera venta el mismo día que empiezas.",
-  },
-  {
-    q: "¿Qué incluye el plan de $299 MXN/mes?",
-    a: "Incluye caja, inventario, empleados con roles, reportes, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos.",
-  },
-  {
-    q: "¿Puedo cancelar?",
-    a: "Sí. Puedes cancelar cuando quieras, sin penalización. Tu información queda respaldada en la nube y separada de la de otros negocios.",
-  },
-];
-
-const LANDING_STRUCTURED_DATA = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "@id": `${CANONICAL_ORIGIN}/#organization`,
-      name: "Kova",
-      url: `${CANONICAL_ORIGIN}/`,
-      logo: `${CANONICAL_ORIGIN}/icons/pwa-512.svg`,
-      email: "posprojectsupport@gmail.com",
-      areaServed: "MX",
-    },
-    {
-      "@type": "SoftwareApplication",
-      name: "Kova",
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web, iOS, Android",
-      url: `${CANONICAL_ORIGIN}/`,
-      description: DEFAULT_DESCRIPTION,
-      offers: {
-        "@type": "Offer",
-        price: "299",
-        priceCurrency: "MXN",
+// `script-src 'self'` does NOT block it. The FAQ entries and the offer price
+// are DERIVED from the app's own source of truth (src/seo/landingSeo.ts,
+// re-exported by the SSR bundle) so they can never drift from the copy in
+// src/i18n/messages.ts or the price in src/billing/standardPlan.ts.
+function buildLandingStructuredData(seo) {
+  if (!Array.isArray(seo?.faq) || seo.faq.length < 7) {
+    throw new Error(
+      `prerender: LANDING_SEO.faq has ${seo?.faq?.length ?? 0} items (expected >= 7) — landing FAQ copy changed shape?`,
+    );
+  }
+  if (!/^\d+$/.test(seo?.price ?? "")) {
+    throw new Error(
+      `prerender: LANDING_SEO.price "${seo?.price}" is not a plain integer amount — standardPlan.ts changed shape?`,
+    );
+  }
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${CANONICAL_ORIGIN}/#organization`,
+        name: "Kova",
+        url: `${CANONICAL_ORIGIN}/`,
+        logo: `${CANONICAL_ORIGIN}/icons/pwa-512.svg`,
+        email: "posprojectsupport@gmail.com",
+        areaServed: "MX",
       },
-    },
-    {
-      "@type": "FAQPage",
-      mainEntity: LANDING_FAQ.map(({ q, a }) => ({
-        "@type": "Question",
-        name: q,
-        acceptedAnswer: { "@type": "Answer", text: a },
-      })),
-    },
-  ],
-};
+      {
+        "@type": "SoftwareApplication",
+        name: "Kova",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web, iOS, Android",
+        url: `${CANONICAL_ORIGIN}/`,
+        description: DEFAULT_DESCRIPTION,
+        offers: {
+          "@type": "Offer",
+          price: seo.price,
+          priceCurrency: seo.currency,
+        },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: seo.faq.map(({ q, a }) => ({
+          "@type": "Question",
+          name: q,
+          acceptedAnswer: { "@type": "Answer", text: a },
+        })),
+      },
+    ],
+  };
+}
 
 // Each content-bearing route. `assert` is a substring that MUST appear in the
 // rendered HTML — our guarantee that the route actually rendered its content
@@ -105,9 +87,21 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    assert: "Cobras $186",
-    structuredData: LANDING_STRUCTURED_DATA,
+    // Hero subtitle of the merged HeroFilm section — a text node in the
+    // LCP-critical block, so it proves the hero actually prerendered. (It
+    // replaced the film's own H2, which left when the film became the hero.)
+    assert: "Kova conecta cada venta",
+    // structuredData is attached in main() once the SSR bundle (and with it
+    // LANDING_SEO) has been imported.
     moduleKey: "src/routes/Home.tsx",
+    // The HeroFilm poster is the LCP candidate on wide viewports; preloading
+    // both variants with mutually exclusive media queries means every
+    // viewport downloads exactly one. The breakpoint matches the component's
+    // <picture> source and its canvas NARROW_QUERY (860px).
+    preloadImages: [
+      { href: "/film/mobile/frame-0023.webp", media: "(max-width: 860px)" },
+      { href: "/film/desktop/frame-0023.webp", media: "(min-width: 861px)" },
+    ],
   },
   {
     path: "/privacy",
@@ -237,15 +231,25 @@ function structuredDataScript(data) {
   return `    <script type="application/ld+json">${json}</script>\n`;
 }
 
-function injectHead(html, { path, title, description, structuredData }) {
+function injectHead(html, { path, title, description, structuredData, preloadImages }) {
   let out = html;
   const canonical = `${CANONICAL_ORIGIN}${path}`;
   const jsonLd = structuredData ? structuredDataScript(structuredData) : "";
+  // Route-scoped image preloads (the HeroFilm poster). fetchpriority=high puts
+  // the LCP image ahead of fonts/CSS in the queue; deferPrerenderHydration's
+  // font-media rewrite only matches as="font", so these pass through intact.
+  const images = (preloadImages ?? [])
+    .map(
+      (image) =>
+        `    <link rel="preload" as="image" href="${escapeAttr(image.href)}"` +
+        `${image.media ? ` media="${escapeAttr(image.media)}"` : ""} fetchpriority="high">\n`,
+    )
+    .join("");
   // Inject canonical (and any JSON-LD) just before </head> (none exists in the
   // source shell).
   out = out.replace(
     "</head>",
-    `    <link rel="canonical" href="${escapeAttr(canonical)}" />\n${jsonLd}  </head>`,
+    `${images}    <link rel="canonical" href="${escapeAttr(canonical)}" />\n${jsonLd}  </head>`,
   );
   if (title) {
     out = out.replace(
@@ -300,9 +304,12 @@ async function main() {
   const entryUrl = pathToFileURL(
     resolve(__dirname, "..", "dist-server", "entry-prerender.js"),
   ).href;
-  const { render } = await import(entryUrl);
+  const { render, LANDING_SEO } = await import(entryUrl);
 
   for (const route of ROUTES) {
+    if (route.path === "/") {
+      route.structuredData = buildLandingStructuredData(LANDING_SEO);
+    }
     const appHtml = await render(route.path);
     if (!appHtml.includes(route.assert)) {
       throw new Error(
