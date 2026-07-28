@@ -105,7 +105,9 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    assert: "Deja de adivinar",
+    // Section title of the product film. It replaced the showcase copy that
+    // used to anchor this assertion when KovaShowcase left the landing.
+    assert: "grabado del producto real",
     structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
   },
