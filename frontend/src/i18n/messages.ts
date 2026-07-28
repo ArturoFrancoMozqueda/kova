@@ -35,15 +35,17 @@ export const copy = {
       titlePart2: ".",
       subtitle: "Kova conecta cada venta con tu inventario, caja, turnos y análisis para que sepas qué pasó, qué falta y qué conviene hacer después.",
       ctaPrimary: "Empieza gratis",
-      // "Ver Kova en acción" y no "Ver cómo funciona": el botón salta al
-      // showcase (#producto); "Cómo funciona" en el nav es otra sección.
-      ctaSecondary: "Ver Kova en acción",
+      // El hero ES el recorrido (#producto): el botón secundario ya no salta a
+      // otra sección, invita a scrollear dentro del film.
+      ctaSecondary: "Ver el recorrido",
       trialBadge: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta.`,
     },
+    // Reencuadrada como contraste: llega DESPUÉS de la historia de la venta,
+    // así que ya viste el corte cuadrar — esto es "el otro final" del mismo día.
     problem: {
-      eyebrow: "El problema real",
-      title: "Cobrar es fácil. Entender el negocio es lo que suele faltar.",
-      body: "Cuando caja, inventario y análisis viven separados, terminas cerrando el día con libretas, Excel, tickets y dudas.",
+      eyebrow: "El otro final del día",
+      title: "Así se cierra ese mismo día sin Kova.",
+      body: "Cuando caja, inventario y análisis viven separados, el cierre se arma con libretas, Excel, tickets y mensajes — y el descuadre aparece justo cuando ya quieres irte a casa.",
       fragments: ["Libreta", "Excel", "WhatsApp", "Tickets", "Caja"],
       fragmentsFoot: "Demasiadas piezas para una respuesta que debería estar lista.",
       // Mini corte del "ticket vivo": labels del recibo demo que responde a los
@@ -51,34 +53,7 @@ export const copy = {
       ticketTitle: "Corte del día",
       ticketLines: ["Ventas del día", "Efectivo esperado"],
       ticketTotalLabel: "Descuadre",
-      punch: "Kova junta todo en una sola lectura clara del negocio.",
-    },
-    threeNodes: {
-      eyebrow: "Lo que cambia en tu operación diaria",
-      title: "Cobra, controla y decide sin depender de cuentas a mano.",
-      leadStart: "Cuando todo vive en libretas, notas, WhatsApp u hojas de cálculo, el negocio se vuelve difícil de leer. ",
-      leadEmphasis: "Kova junta lo importante en una sola app",
-      leadEnd: " para que tú y tu equipo operen con orden desde el primer día.",
-      items: [
-        {
-          label: "Cobra",
-          title: "Cierra cada venta en segundos.",
-          body: "Tu cajero toca el producto, elige el método de pago y listo. Efectivo, transferencia, tarjeta o pago dividido — todo queda registrado para que el corte del día cuadre solo.",
-          meta: ["Caja simple", "Pago dividido", "Recibos", "Devoluciones"],
-        },
-        {
-          label: "Controla",
-          title: "Tu inventario, siempre claro.",
-          body: "Ve cuánto te queda de cada producto sin abrir el almacén. Kova te avisa cuando algo está por acabarse para que reabastezcas a tiempo y dejes de perder ventas por falta de stock.",
-          meta: ["Inventario", "Alertas de stock", "Movimientos", "Ajustes"],
-        },
-        {
-          label: "Entiende",
-          title: "Análisis que se lee de un vistazo.",
-          body: "Descubre qué días vendes más, qué productos mueven tu ingreso y a qué hora se llena tu local. Decide con datos reales, no con corazonadas.",
-          meta: ["Ventas del día", "Productos top", "Horas pico", "Cierre de turno"],
-        },
-      ],
+      punch: "Ya viste la diferencia: con Kova, todo el día es una sola lectura clara.",
     },
     sweetHome: {
       shopName: "Sweet Home",
@@ -128,14 +103,15 @@ export const copy = {
         { title: "Ves el día completo", line: "Tu día, explicado.", callout: "Análisis listo para decidir." },
       ],
     },
-    // Sección "Una venta lo mueve todo" (SaleStory): 4 filas alternadas que
+    // Sección "Una venta lo mueve todo" (SaleStory): 3 filas alternadas que
     // siguen la MISMA venta de $186 (los montos salen de landing/demo/sweetHome,
-    // no de aquí — se referencian en copy solo por narrativa). Voz de dueño,
-    // orientada a resultados, sin claims inventados.
+    // no de aquí — se referencian en copy solo por narrativa). El beat del
+    // análisis vive en ownerDashboard.line: la historia termina en la pantalla
+    // del dueño (#panel-dueno), no en un preview duplicado.
     saleStory: {
       kicker: "Una venta lo mueve todo",
       title: "Cobras una vez. Kova acomoda el resto.",
-      line: "Sigue una sola venta de $186 en Sweet Home y mira cómo el mismo cobro mueve tu inventario, tu caja y tu análisis, sin capturar nada dos veces.",
+      line: "Ya viste Kova por dentro. Ahora sigue una sola venta de $186 en Sweet Home y mira cómo el mismo cobro acomoda tu inventario y tu caja — sin capturar nada dos veces.",
       steps: [
         {
           eyebrow: "La venta",
@@ -152,11 +128,6 @@ export const copy = {
           title: "Tu turno cuadra peso por peso.",
           body: "Los $186 en efectivo entran al turno y tu efectivo esperado sube de $1,854 a $2,040. Al cerrar sabes cuánto debe haber en caja, sin sumar tickets.",
         },
-        {
-          eyebrow: "El análisis",
-          title: "Al final del día, ves lo que de verdad pasó.",
-          body: "La misma venta ya está en tus totales, junto a tus productos más vendidos y tus horas fuertes. Datos reales para decidir qué reponer y a qué hora conviene tener más gente.",
-        },
       ],
     },
     // Cinematic showcase (laptop mockup) — used on the landing and on the
@@ -171,13 +142,11 @@ export const copy = {
       ctaLine: "Conoce exactamente qué pasa en tu negocio.",
       ctaButton: "Empieza gratis",
     },
+    // Capítulos del HeroFilm: el film ES el hero, así que el copy de sección
+    // (eyebrow/título) vive en `hero`; aquí quedan sólo las leyendas del scrub.
     film: {
-      eyebrow: "Kova por dentro",
-      title: "Un día completo, grabado del producto real.",
-      line: "Cobrar, ajustar el stock, cuadrar el turno y entender el día. Sin maquetas: es una cuenta en operación.",
       posterAlt:
         "Kova cobrando una venta: el carrito con su total, el método de pago y el aviso de venta completada.",
-      progressLabel: "Avance del recorrido",
       chapters: {
         caja: {
           eyebrow: "Caja",
@@ -202,10 +171,12 @@ export const copy = {
       },
       note: "Las cifras en pantalla son de un negocio real usando Kova.",
     },
+    // Beat 04 de la historia de la venta: absorbe el paso de análisis de
+    // saleStory. El título no cambia — e2e/seo.spec asserta "Conoce exactamente".
     ownerDashboard: {
       kicker: "Al final del día",
       title: "Conoce exactamente qué pasa en tu negocio.",
-      line: "Ventas, caja, productos y horarios fuertes en una vista clara, sin perseguir tickets ni cuadrar Excel.",
+      line: "La venta de las 5:42 PM ya está en tus totales, junto a tus productos más vendidos y tus horas fuertes. Esto es lo que ves cada noche — sin perseguir tickets ni cuadrar Excel.",
     },
     bento: {
       kicker: "Todo en una sola app",
@@ -287,7 +258,7 @@ export const copy = {
       worthItTitle: "Vale la pena desde el primer error evitado.",
       worthItBody: "Si evita un solo descuadre, una venta perdida o una mala compra, ya valió la pena:",
       worthItItems: ["Un descuadre de caja", "Una venta perdida", "Una mala compra", "Horas haciendo cuentas"],
-      bridge: "Todo el control del mostrador, por",
+      bridge: "Todo lo que acabas de ver, por",
       // Fila TOTAL del recibo de precio ("el ticket vivo").
       receiptTotalLabel: "Total mensual",
       planName: "Plan Standard",

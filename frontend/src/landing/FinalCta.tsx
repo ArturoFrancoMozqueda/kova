@@ -20,9 +20,11 @@ export default function FinalCta({
             {t.title}
           </h2>
 
-          <ol className="lp-cta-steps">
+          {/* Los 4 pasos entran escalonados: eco de los chips 01–04 de la
+              historia de la venta, cerrando el mismo lenguaje visual. */}
+          <ol className="lp-cta-steps" data-lp-stagger-group>
             {t.steps.map((step, i) => (
-              <li key={step} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <li key={step} data-lp-stagger-item style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                 <span
                   className="tabular"
                   aria-hidden="true"
