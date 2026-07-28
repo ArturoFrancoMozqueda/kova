@@ -326,64 +326,10 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   }
 });
 
-test("showcase stays navigable and keeps the real register anatomy", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
-  await page.goto("/");
+// Los specs de anatomía de KovaShowcase (.ksw-*) viven en showcase-video.spec.ts:
+// el showcase salió de la landing y solo existe en /kova-showcase-video.
 
-  const showcase = page.locator(".ksw-stage");
-  await showcase.scrollIntoViewIfNeeded();
-  await expect(showcase).toHaveAttribute("data-hydrated", "true");
-  await expect(showcase.getByText("Demo interactiva", { exact: true })).toBeVisible();
-  await expect(showcase.getByText(/no registra ventas/i)).toBeVisible();
-  await expect(showcase.getByPlaceholder(/sku \/ nombre del producto/i)).toBeVisible();
-  await expect(showcase.getByText("Cold brew", { exact: true }).first()).toBeVisible();
-  await expect(showcase.getByText("$186.00", { exact: true }).first()).toBeVisible();
-  await expect(showcase.locator(".ksw-cursor")).toBeHidden();
-
-  await showcase.getByRole("button", { name: "02 El stock baja" }).click();
-  await expect(showcase.getByText("Vista real del producto", { exact: true })).toBeVisible();
-  await expect(showcase.locator('.ksw-screen-layer[data-active="true"] img[src="/showcase/inventory.png"]')).toBeVisible();
-  await expectNoHorizontalOverflow(page);
-});
-
-test("desktop showcase product cards use container width without overlap", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
-  await page.goto("/");
-
-  const showcase = page.locator(".ksw-stage");
-  await showcase.scrollIntoViewIfNeeded();
-  await expect(showcase).toHaveAttribute("data-hydrated", "true");
-  await expect(page.getByPlaceholder(/sku \/ nombre del producto/i)).toHaveCount(1);
-
-  const geometry = await showcase.locator("[data-showcase-product]").evaluateAll((elements) => {
-    const rectangles = elements.map((element) => {
-      const rect = element.getBoundingClientRect();
-      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
-    });
-    const overlap = rectangles.some((first, index) => rectangles.slice(index + 1).some((second) =>
-      first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top,
-    ));
-    return {
-      overlap,
-      widths: elements.map((element) => Number.parseFloat(getComputedStyle(element).width)),
-      demoOverflow: (() => {
-        const demo = elements[0]?.closest(".lp-pos-container");
-        return demo ? demo.scrollWidth - demo.clientWidth : 0;
-      })(),
-    };
-  });
-
-  expect(geometry.overlap).toBe(false);
-  expect(Math.min(...geometry.widths)).toBeGreaterThanOrEqual(180);
-  expect(geometry.demoOverflow).toBeLessThanOrEqual(1);
-  await expectNoHorizontalOverflow(page);
-});
-
-test("mobile hero and showcase share the signup destination", async ({ page }) => {
+test("mobile hero and film outro share the signup destination", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: { authenticated: false } }),
@@ -392,12 +338,12 @@ test("mobile hero and showcase share the signup destination", async ({ page }) =
 
   const heroCta = page.locator('.lp-hero-actions a[href="/signup"]').first();
   await expect(heroCta).toBeVisible();
-  await expect(page.locator('.ksw-cta-btn[href="/signup"]')).toHaveCount(1);
+  await expect(page.locator('.pf-cta[href="/signup"]')).toHaveCount(1);
   await heroCta.click();
   await expect(page).toHaveURL(/\/signup$/);
 });
 
-test("landing product motion is neutralized when reduced motion is requested", async ({ page }) => {
+test("landing film degrades to a complete static hero under reduced motion", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) =>
@@ -405,13 +351,18 @@ test("landing product motion is neutralized when reduced motion is requested", a
   );
   await page.goto("/");
 
+  // Sin data-pf-live no hay track de 400vh ni scrub: el hero es una página
+  // clásica con el póster real y las cuatro leyendas apiladas y visibles.
   await expect(page.locator(".lp-hero-frame")).toBeVisible();
-  const showcase = page.locator(".ksw-stage");
-  await showcase.scrollIntoViewIfNeeded();
-  await expect(showcase.locator(".ksw-cursor")).toBeHidden();
-  await expect(showcase.locator('.ksw-screen-layer[data-active="true"]')).toHaveCount(1);
-  await page.waitForTimeout(6500);
-  await expect(showcase.locator('.ksw-screen-layer[data-active="true"] img[src="/showcase/inventory.png"]')).toHaveCount(0);
+  await expect(page.locator("section#producto")).not.toHaveAttribute("data-pf-live", "true");
+  await expect(page.locator(".pf-poster")).toBeVisible();
+  const captions = page.locator(".pf-caption");
+  await expect(captions).toHaveCount(4);
+  for (const caption of await captions.all()) {
+    await caption.scrollIntoViewIfNeeded();
+    await expect(caption).toBeVisible();
+  }
+  await expectNoHorizontalOverflow(page);
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

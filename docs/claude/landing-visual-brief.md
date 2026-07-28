@@ -356,7 +356,9 @@ Breakpoints existentes: 900 px y 640 px (reusar los de `Home.tsx`).
 | BentoModules | 2 columnas | 1 columna, celdas uniformes |
 | BuiltFor / Pricing / FAQ / CTA | Patrones responsive actuales | Igual; pasos del CTA final en 2×2 |
 
-Prohibido en mobile: scroll horizontal, scrollytelling/sticky pesado, previews con texto <12 px, contenido clave solo visible tras interacción. El producto debe verse y leerse en un viewport de 360 px.
+Prohibido en mobile: scroll horizontal, previews con texto <12 px, contenido clave solo visible tras interacción. El producto debe verse y leerse en un viewport de 360 px.
+
+**Excepción decidida por producto (2026-07-27): el HeroFilm.** El hero fusionado con la película del producto (`landing/film/HeroFilm.tsx`) SÍ es un rig sticky con scrub — es la única sección con esa licencia, en desktop y mobile. Condiciones que la mantienen dentro del espíritu del brief: static-first (el prerender/no-JS/reduced-motion ven un hero clásico completo; el modo cinemático es opt-in vía `data-pf-live` post-hidratación), el H1 y el CTA pintan del HTML prerenderizado (gate LCP CRO-1 intacto), en mobile los capítulos recortan al núcleo de cada pantalla, y `prefers-reduced-motion`/Save-Data nunca descargan la secuencia. Ninguna otra sección puede adoptar sticky/scrub sin decisión explícita del dueño.
 
 ---
 
@@ -373,8 +375,11 @@ Prohibido en mobile: scroll horizontal, scrollytelling/sticky pesado, previews c
 6. Reveals de sección al hacer scroll (reusar `useLandingRevealMotion` / `data-lp-reveal`).
 7. Crossfade entre estados del stage (250 ms) y barra de progreso del auto-avance.
 
+**Sí, adicional (2026-07-27):**
+8. El scrub del HeroFilm: cuadros WebP reales sobre canvas conducidos por scroll, con zonas lentas (dwell) por capítulo — ver la excepción documentada en §6.
+
 **No:**
-- Parallax, scroll-jacking, elementos que persiguen el cursor.
+- Parallax, scroll-jacking fuera del HeroFilm, elementos que persiguen el cursor.
 - Loops infinitos fuera del pulso "En línea".
 - Animaciones de entrada >600 ms o counts >400 ms.
 - Confetti, partículas, gradientes animados grandes (el `lp-preview-glow` actual puede conservarse solo si pasa reduced-motion y no distrae del dato).
