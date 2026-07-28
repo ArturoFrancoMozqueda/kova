@@ -326,64 +326,42 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   }
 });
 
-test("showcase stays navigable and keeps the real register anatomy", async ({ page }) => {
+test("mobile landing keeps every sale story step visible without pinning", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
   await page.goto("/");
 
-  const showcase = page.locator(".ksw-stage");
-  await showcase.scrollIntoViewIfNeeded();
-  await expect(showcase).toHaveAttribute("data-hydrated", "true");
-  await expect(showcase.getByText("Demo interactiva", { exact: true })).toBeVisible();
-  await expect(showcase.getByText(/no registra ventas/i)).toBeVisible();
-  await expect(showcase.getByPlaceholder(/sku \/ nombre del producto/i)).toBeVisible();
-  await expect(showcase.getByText("Cold brew", { exact: true }).first()).toBeVisible();
-  await expect(showcase.getByText("$186.00", { exact: true }).first()).toBeVisible();
-  await expect(showcase.locator(".ksw-cursor")).toBeHidden();
-
-  await showcase.getByRole("button", { name: "02 El stock baja" }).click();
-  await expect(showcase.getByText("Vista real del producto", { exact: true })).toBeVisible();
-  await expect(showcase.locator('.ksw-screen-layer[data-active="true"] img[src="/showcase/inventory.png"]')).toBeVisible();
+  const story = page.locator("#producto");
+  await story.scrollIntoViewIfNeeded();
+  await expect(story.locator('[data-step="sale"]')).toBeVisible();
+  await expect(story.locator('[data-step="inventory"]')).toBeVisible();
+  await expect(story.locator('[data-step="cash"]')).toBeVisible();
+  await expect(story.locator('[data-step="reports"]')).toBeVisible();
+  await expect(story.getByText("$186.00", { exact: true }).first()).toBeVisible();
+  await expect(story.getByText("Inventario", { exact: true }).first()).toBeVisible();
+  await expect(story.locator('button[aria-label^="0"]').first()).toBeHidden();
   await expectNoHorizontalOverflow(page);
 });
 
-test("desktop showcase product cards use container width without overlap", async ({ page }) => {
+test("desktop sale story controls stay navigable without horizontal overlap", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
   await page.goto("/");
 
-  const showcase = page.locator(".ksw-stage");
-  await showcase.scrollIntoViewIfNeeded();
-  await expect(showcase).toHaveAttribute("data-hydrated", "true");
-  await expect(page.getByPlaceholder(/sku \/ nombre del producto/i)).toHaveCount(1);
-
-  const geometry = await showcase.locator("[data-showcase-product]").evaluateAll((elements) => {
-    const rectangles = elements.map((element) => {
-      const rect = element.getBoundingClientRect();
-      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
-    });
-    const overlap = rectangles.some((first, index) => rectangles.slice(index + 1).some((second) =>
-      first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top,
-    ));
-    return {
-      overlap,
-      widths: elements.map((element) => Number.parseFloat(getComputedStyle(element).width)),
-      demoOverflow: (() => {
-        const demo = elements[0]?.closest(".lp-pos-container");
-        return demo ? demo.scrollWidth - demo.clientWidth : 0;
-      })(),
-    };
-  });
-
-  expect(geometry.overlap).toBe(false);
-  expect(Math.min(...geometry.widths)).toBeGreaterThanOrEqual(180);
-  expect(geometry.demoOverflow).toBeLessThanOrEqual(1);
+  const story = page.locator("#producto");
+  await story.scrollIntoViewIfNeeded();
+  const controls = story.locator('button[aria-label^="0"]');
+  await expect(controls).toHaveCount(4);
+  await controls.nth(1).focus();
+  await expect(controls.nth(1)).toBeFocused();
+  await controls.nth(1).click();
+  await expect(controls.nth(1)).toHaveAttribute("aria-current", "step");
   await expectNoHorizontalOverflow(page);
 });
 
-test("mobile hero and showcase share the signup destination", async ({ page }) => {
+test("mobile hero and story share the signup destination", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: { authenticated: false } }),
@@ -392,7 +370,7 @@ test("mobile hero and showcase share the signup destination", async ({ page }) =
 
   const heroCta = page.locator('.lp-hero-actions a[href="/signup"]').first();
   await expect(heroCta).toBeVisible();
-  await expect(page.locator('.ksw-cta-btn[href="/signup"]')).toHaveCount(1);
+  await expect(page.locator('#producto a[href="/signup"]')).toHaveCount(1);
   await heroCta.click();
   await expect(page).toHaveURL(/\/signup$/);
 });
@@ -406,12 +384,11 @@ test("landing product motion is neutralized when reduced motion is requested", a
   await page.goto("/");
 
   await expect(page.locator(".lp-hero-frame")).toBeVisible();
-  const showcase = page.locator(".ksw-stage");
-  await showcase.scrollIntoViewIfNeeded();
-  await expect(showcase.locator(".ksw-cursor")).toBeHidden();
-  await expect(showcase.locator('.ksw-screen-layer[data-active="true"]')).toHaveCount(1);
-  await page.waitForTimeout(6500);
-  await expect(showcase.locator('.ksw-screen-layer[data-active="true"] img[src="/showcase/inventory.png"]')).toHaveCount(0);
+  const story = page.locator("#producto");
+  await story.scrollIntoViewIfNeeded();
+  await expect(story.locator("[data-step]")).toHaveCount(4);
+  await expect(story.locator('button[aria-label^="0"]').first()).toBeHidden();
+  await expect(story.locator('[data-step="reports"]')).toBeVisible();
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

@@ -105,7 +105,7 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    assert: "Deja de adivinar",
+    assert: "Cobras $186",
     structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
   },

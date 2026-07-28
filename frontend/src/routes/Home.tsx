@@ -10,27 +10,24 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import {
-  assignCtaSpecificityExperiment,
-  hasFunnelClientId,
   trackAnonymousEvent,
   trackAnonymousEventOnce,
-  trackExperimentExposed,
-  type ExperimentVariant,
 } from "@/telemetry/funnel";
 import {
   STANDARD_PLAN_AMOUNT,
   STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
-import { BILLING_TRIAL_CTA_LABEL_ES } from "@/billing/trial";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
-import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
-import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
-import KovaShowcase from "@/landing/showcase/KovaShowcase";
+import { TicketPaper } from "@/landing/Ticket";
 import HeroProductFrame from "@/landing/HeroProductFrame";
+import SaleFlowStory, {
+  type LandingStoryStepId,
+  type LandingStoryTrigger,
+} from "@/landing/SaleFlowStory";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { useLandingRevealMotion } from "@/landing/useRevealMotion";
 import { copy } from "@/i18n/messages";
@@ -138,7 +135,7 @@ function Navbar({
           <Link
             className="lp-nav-primary lp-cta-fill"
             to={primaryTarget}
-            onClick={() => onCtaClick("navbar")}
+            onClick={() => onCtaClick("hero")}
             style={{
               fontSize: 13, fontWeight: 600,
               background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
@@ -193,32 +190,11 @@ function Navbar({
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({
   primaryTarget,
-  primaryCtaLabel,
   onCtaClick,
 }: {
   primaryTarget: string;
-  primaryCtaLabel: string;
   onCtaClick: (cta: string) => void;
 }) {
-  const benefits = [
-    {
-      title: t.threeNodes.items[0].label,
-      body: t.threeNodes.items[0].title,
-    },
-    {
-      title: t.threeNodes.items[1].label,
-      body: t.threeNodes.items[1].title,
-    },
-    {
-      title: t.threeNodes.items[2].label,
-      body: t.threeNodes.items[2].title,
-    },
-    {
-      title: t.bento.items[1].title,
-      body: t.bento.items[1].line,
-    },
-  ];
-
   return (
     <section className="lp-hero-section" style={{ position: "relative", overflow: "hidden" }}>
       <div className="lp-hero-shell lp-section-inner" style={{ position: "relative" }}>
@@ -279,7 +255,7 @@ function Hero({
                   display: "inline-flex", alignItems: "center", gap: 8,
                 }}
               >
-                <span>{primaryCtaLabel}</span>
+                <span>{t.hero.ctaPrimary}</span>
                 <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                   <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -322,14 +298,6 @@ function Hero({
           </div>
         </div>
 
-        <div className="lp-benefit-strip lp-reveal-block">
-          {benefits.map((benefit) => (
-            <div className="lp-benefit-card" key={benefit.title}>
-              <strong>{benefit.title}</strong>
-              <span>{benefit.body}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -338,117 +306,7 @@ function Hero({
 /* ─── Problem ────────────────────────────────────────────────────────────── */
 // Textura y rotación por recorte, alineadas por índice con p.fragments
 // (Libreta=rayado, Excel=celdas, WhatsApp=burbuja, Tickets=punteado, Caja=liso).
-const SCRAP_KINDS = ["ruled", "grid", "bubble", "dotted", "plain"] as const;
-const SCRAP_ROTATIONS = ["-2.5deg", "1.6deg", "-1.2deg", "2.2deg", "-1.8deg"] as const;
-
-function Problem() {
-  const p = t.problem;
-  return (
-    <section id="problema" className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
-      <div className="lp-section-inner" style={{ maxWidth: 1000 }}>
-        <span className="lp-section-label" style={{ color: "var(--accent)" }}>{p.eyebrow}</span>
-        <h2 className="lp-section-title" style={{ maxWidth: 820, color: "var(--kova-on-ink)" }}>{p.title}</h2>
-        <p className="lp-section-copy" style={{ color: "rgba(240,244,255,0.65)" }}>{p.body}</p>
-
-        {/* El desorden (recortes sueltos) contra la respuesta (un corte limpio). */}
-        <div
-          className="lp-problem-grid"
-          style={{
-            marginTop: 36, display: "grid",
-            gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 0.95fr)",
-            gap: "36px 48px", alignItems: "center",
-          }}
-        >
-          <div>
-            <div className="lp-scraps">
-              {p.fragments.map((f, i) => (
-                <span
-                  key={f}
-                  className="lp-scrap"
-                  data-kind={SCRAP_KINDS[i % SCRAP_KINDS.length]}
-                  style={{ ["--scrap-rot" as string]: SCRAP_ROTATIONS[i % SCRAP_ROTATIONS.length] }}
-                >
-                  {f}
-                </span>
-              ))}
-            </div>
-            <p style={{ marginTop: 20, fontSize: 14, color: "var(--text-muted)" }}>{p.fragmentsFoot}</p>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <ProblemTicket />
-          </div>
-        </div>
-
-        <p style={{ marginTop: 40, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
-          {p.punch}
-        </p>
-      </div>
-    </section>
-  );
-}
-
 /* ─── Differentiation ────────────────────────────────────────────────────── */
-function Differentiation() {
-  const d = t.diff;
-  return (
-    <section id="diferencia" className="lp-section lp-reveal-block">
-      <div className="lp-section-inner">
-        <span className="lp-section-label">{d.eyebrow}</span>
-        <h2 className="lp-section-title" style={{ maxWidth: 760 }}>{d.title}</h2>
-
-        <div
-          className="lp-3cols"
-          style={{ marginTop: 40, display: "grid", gridTemplateColumns: "1fr 1fr 1.12fr", gap: 16, alignItems: "stretch" }}
-        >
-          {d.columns.map((c) => (
-            <div
-              key={c.name}
-              className="lp-lift"
-              style={{
-                background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
-                borderRadius: 12, padding: "30px 28px",
-                display: "flex", flexDirection: "column", gap: 14,
-              }}
-            >
-              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-muted)" }}>{c.tag}</span>
-              <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--page-fg)" }}>{c.name}</div>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--text-muted)" }}>{c.body}</p>
-            </div>
-          ))}
-          <div
-            className="lp-lift"
-            style={{
-              background: "var(--surface)", border: "1px solid var(--accent)",
-              boxShadow: "0 0 0 4px var(--accent-soft)",
-              borderRadius: 12, padding: "30px 28px",
-              display: "flex", flexDirection: "column", gap: 14,
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--page-fg)" }}>
-              <LogoMark size={22} circuitColor="rgba(255,255,255,0.5)" coreColor="var(--kova-blue-light)" />
-              {d.kova.tag}
-            </span>
-            <div style={{ fontSize: 15, color: "var(--text-muted)" }}>{d.kova.name}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
-              {d.kova.points.map((pt) => (
-                <span key={pt} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, fontWeight: 500, color: "var(--page-fg)", lineHeight: 1.4 }}>
-                  <svg width="16" height="16" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true">
-                    <path d="M2 6L5 9L10 3" stroke="var(--kova-growth)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {pt}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <p style={{ marginTop: 32, fontSize: "clamp(18px, 2.2vw, 26px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 900, color: "var(--page-fg)" }}>{d.punch}</p>
-        <p style={{ marginTop: 16, fontSize: 12, color: "var(--text-tertiary)", maxWidth: 720, lineHeight: 1.4 }}>{d.disclaimer}</p>
-      </div>
-    </section>
-  );
-}
-
 /* ─── FAQ ────────────────────────────────────────────────────────────────── */
 function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
@@ -574,29 +432,7 @@ function Pricing({
           {t.pricing.leadEnd}
         </p>
 
-        <div style={{ marginTop: 30, maxWidth: 620, marginLeft: "auto", marginRight: "auto", textAlign: "center" }}>
-          <p style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1.4, color: "var(--page-fg)" }}>
-            <span style={{ color: "var(--accent)" }}>{t.pricing.worthItTitle}</span> {t.pricing.worthItBody}
-          </p>
-          <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
-            {t.pricing.worthItItems.map((it) => (
-              <span
-                key={it}
-                className="lp-chip-lift"
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 8,
-                  padding: "10px 16px", borderRadius: 999,
-                  background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
-                  fontSize: 13, fontWeight: 500, color: "var(--page-fg)",
-                }}
-              >
-                {it}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <p style={{ marginTop: 36, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+        <p style={{ marginTop: 30, marginBottom: 0, textAlign: "center", fontSize: 13, fontWeight: 500, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
           {t.pricing.bridge}
         </p>
         <div className="lp-ticket-print" style={{ marginTop: 14, maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
@@ -747,8 +583,6 @@ export default function Home(): ReactNode {
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
-  const [newFunnelVisitor] = useState(() => !hasFunnelClientId());
-  const [ctaExperimentVariant, setCtaExperimentVariant] = useState<ExperimentVariant | null>(null);
   const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
@@ -762,17 +596,6 @@ export default function Home(): ReactNode {
   useEffect(() => {
     trackAnonymousEventOnce("landing_viewed", "landing_viewed");
   }, []);
-
-  useEffect(() => {
-    const variant = assignCtaSpecificityExperiment(
-      state.status === "unauthenticated",
-      newFunnelVisitor,
-    );
-    setCtaExperimentVariant(variant);
-    if (variant) {
-      trackExperimentExposed("exp_01_cta_specificity", variant, "hero");
-    }
-  }, [newFunnelVisitor, state.status]);
 
   // Scroll-depth por sección: `landing_section_viewed` marca hasta dónde llegó
   // el visitante (una vez por sección por carga, mismo guard in-memory que
@@ -804,23 +627,24 @@ export default function Home(): ReactNode {
 
   const onCtaClick = useCallback(
     (cta: string) => {
-      const experiment =
-        cta === "hero" && ctaExperimentVariant
-          ? {
-              experiment_id: "exp_01_cta_specificity",
-              variant: ctaExperimentVariant,
-            }
-          : {};
-      void trackAnonymousEvent("landing_cta_clicked", { cta, ...experiment });
+      void trackAnonymousEvent("landing_cta_clicked", { cta });
       if (primaryTarget === "/signup") {
-        void trackAnonymousEvent("signup_started", { cta, ...experiment });
+        void trackAnonymousEvent("signup_started", { cta });
       }
     },
-    [ctaExperimentVariant, primaryTarget],
+    [primaryTarget],
   );
 
-  const primaryCtaLabel =
-    ctaExperimentVariant === "treatment" ? BILLING_TRIAL_CTA_LABEL_ES : t.hero.ctaPrimary;
+  const onStoryStepView = useCallback(
+    (step: LandingStoryStepId, trigger: LandingStoryTrigger) => {
+      trackAnonymousEventOnce(
+        `story:${step}`,
+        "landing_story_step_viewed",
+        { step, trigger },
+      );
+    },
+    [],
+  );
 
   // Paint html/body with the same landing background while this view is mounted.
   // Prevents the white body bg from showing on viewports wider than the natural
@@ -842,28 +666,23 @@ export default function Home(): ReactNode {
   return (
     <div className="lp-root" style={rootStyle}>
       <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
+      <a className="lp-skip-link" href="#contenido-principal">
+        Ir al contenido
+      </a>
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} onCtaClick={onCtaClick} />
-      <main>
+      <main id="contenido-principal">
         <Hero
           primaryTarget={primaryTarget}
-          primaryCtaLabel={primaryCtaLabel}
           onCtaClick={onCtaClick}
         />
-        {/* Cinematic product showcase (laptop mockup, auto-playing loop).
-            Landscape variant tuned for the landing flow; the same component
-            powers the standalone /kova-showcase-video export route. */}
-        <KovaShowcase
-          format="landscape"
-          variant="embedded"
-          ctaTarget={primaryTarget}
-          onCtaClick={() => onCtaClick("showcase")}
+        <SaleFlowStory
+          primaryTarget={primaryTarget}
+          onCtaClick={() => onCtaClick("story")}
+          onStepView={onStoryStepView}
         />
-        <Problem />
-        <OwnerDashboard />
         <BentoModules />
-        <Differentiation />
-        <FAQ />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
+        <FAQ />
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
       </main>
       <Footer />
