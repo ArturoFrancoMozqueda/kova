@@ -18,14 +18,6 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).toContain('href="https://kovasuite.com/"');
     expect(html).toContain('src="/hydrate-prerender.js"');
     expect(html).not.toContain('rel="modulepreload"');
-    // El póster del HeroFilm es el candidato a LCP: ambas variantes van
-    // preloaded con media queries mutuamente excluyentes y fetchpriority alto.
-    expect(html).toMatch(
-      /<link rel="preload" as="image" href="\/film\/mobile\/frame-\d{4}\.webp" media="\(max-width: 860px\)" fetchpriority="high">/,
-    );
-    expect(html).toMatch(
-      /<link rel="preload" as="image" href="\/film\/desktop\/frame-\d{4}\.webp" media="\(min-width: 861px\)" fetchpriority="high">/,
-    );
   });
 
   test("landing bootstrap hydrates the prerendered HTML", async ({ page }) => {

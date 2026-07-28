@@ -15,11 +15,6 @@ signup ni el LCP.
 - Elegibilidad inicial: viewport menor a 768 px, sesión no autenticada y sin `client_id` previo.
 - Exposición: `experiment_exposed` al renderizar el CTA del hero, una vez por sesión y variante.
 - Atribución: los clics del hero y `signup_started` incluyen `experiment_id` y `variant`.
-- Nota (2026-07-27, rediseño HeroFilm): el hero fusionado con la película añade un mini-CTA
-  flotante con la misma variante y destino, que reporta `cta=hero` con la propiedad aditiva
-  `placement: "rail"`. Los clics del hero en el grid siguen sin `placement`, así que la métrica
-  primaria puede analizarse igual que antes o segmentarse por placement. El evento nuevo
-  `landing_film_chapter` (capítulo del scrub visto) no participa en este experimento.
 
 ## Métricas y guardrails
 

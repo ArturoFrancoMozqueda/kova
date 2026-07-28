@@ -1,20 +1,15 @@
-// Sección "Al final del día": el beat 04 de la historia de la venta y la
-// recreación del Panel real (dashboard/DashboardView.tsx) — el payoff del
-// dueño. Misma fuente de datos que la historia: cuando la sección entra al
-// viewport, la venta de $186 entra visiblemente a los totales (count-ups
-// desde el estado previo a la venta hasta SWEET_HOME_REPORTS).
-import { useRef, type CSSProperties, type ReactNode } from "react";
+// Sección "Al final del día" (brief §1.3/§2.7): recreación del Panel real
+// (dashboard/DashboardView.tsx) — el payoff del dueño. Misma fuente de datos
+// que la historia: la venta de $186 ya está dentro de estos totales.
+import type { CSSProperties, ReactNode } from "react";
 import { formatMoney } from "@/orders/format";
 import { copy } from "@/i18n/messages";
 import {
   SWEET_HOME_EMPLOYEES,
   SWEET_HOME_PRODUCTS,
   SWEET_HOME_REPORTS,
-  SWEET_HOME_SALE_TOTAL,
 } from "@/landing/demo/sweetHome";
 import { HoursMiniChart, PaymentSplitBar } from "@/landing/previews/ReportsPreview";
-import { useCountUp } from "@/landing/previews/useCountUp";
-import { useInViewOnce } from "@/landing/previews/useInViewOnce";
 
 const dash = copy.dashboard;
 const t = copy.landing.ownerDashboard;
@@ -69,33 +64,16 @@ function Kpi({
   );
 }
 
-function OwnerDashboardPreview({ animate }: { animate: boolean }) {
+function OwnerDashboardPreview() {
   const r = SWEET_HOME_REPORTS;
   const owner = SWEET_HOME_EMPLOYEES.find((e) => e.role === "owner");
   const topProducts = r.topProductIds
     .map((id) => SWEET_HOME_PRODUCTS.find((p) => p.id === id))
     .filter((p): p is NonNullable<typeof p> => !!p);
 
-  // La venta de las 5:42 PM entrando a los totales: ventas netas suben desde
-  // el día sin esa venta y las órdenes cuentan la nueva. Estático (prerender,
-  // reduced-motion) muestra directamente los totales finales.
-  const countedNetSales = useCountUp(r.netSales, {
-    from: r.netSales - SWEET_HOME_SALE_TOTAL,
-    durationMs: 400,
-    delayMs: 160,
-    animate,
-  });
-  const countedOrders = useCountUp(r.orders, {
-    from: r.orders - 1,
-    durationMs: 300,
-    delayMs: 160,
-    animate,
-  });
-
   return (
     <div
       className="lp-own-preview"
-      data-lp-anim={animate ? "on" : "off"}
       style={{
         background: "var(--card-bg)",
         border: "0.5px solid var(--hairline-color)",
@@ -128,23 +106,21 @@ function OwnerDashboardPreview({ animate }: { animate: boolean }) {
       <div className="lp-own-kpis" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
         <Kpi
           label={dash.netSales}
-          value={formatMoney(countedNetSales)}
+          value={formatMoney(r.netSales)}
           badge={
             <span
-              className="lp-story-fade"
               style={{
                 display: "inline-flex", marginTop: 5,
                 fontSize: 10, fontWeight: 600, padding: "1px 8px", borderRadius: 999,
                 background: "rgba(30,191,138,0.14)", color: "var(--kova-growth)",
                 whiteSpace: "nowrap",
-                ["--lp-entry-delay" as string]: "640ms",
               }}
             >
               ↑ {r.deltaVsYesterdayPct}% {dash.vsYesterday}
             </span>
           }
         />
-        <Kpi label={dash.orders} value={String(countedOrders)} sub={dash.noVoidsToday} />
+        <Kpi label={dash.orders} value={String(r.orders)} sub={dash.noVoidsToday} />
         <Kpi label={dash.avgTicket} value={formatMoney(r.avgTicket)} sub={dash.perCompletedOrder} />
         <Kpi label={dash.refunds} value={String(r.refunds)} sub={formatMoney(r.refunds)} secondary />
       </div>
@@ -179,22 +155,14 @@ function OwnerDashboardPreview({ animate }: { animate: boolean }) {
 }
 
 export default function OwnerDashboard() {
-  const previewRef = useRef<HTMLDivElement>(null);
-  const seen = useInViewOnce(previewRef);
-
   return (
     <section id="panel-dueno" className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
-        {/* Chip "04": esta sección es el cuarto beat de la historia de la
-            venta (#una-venta trae 01–03), aunque conserva su id propio. */}
-        <span className="lp-sale-step" style={{ color: "var(--text-muted)" }}>
-          <span className="lp-sale-step-num tabular">04</span>
-          {t.kicker}
-        </span>
-        <h2 className="lp-section-title" style={{ maxWidth: 720, marginTop: 14 }}>{t.title}</h2>
+        <span className="lp-section-label">{t.kicker}</span>
+        <h2 className="lp-section-title" style={{ maxWidth: 720 }}>{t.title}</h2>
         <p className="lp-section-copy">{t.line}</p>
-        <div ref={previewRef} style={{ marginTop: 36, maxWidth: 980, marginLeft: "auto", marginRight: "auto" }}>
-          <OwnerDashboardPreview animate={seen} />
+        <div style={{ marginTop: 36, maxWidth: 980, marginLeft: "auto", marginRight: "auto" }}>
+          <OwnerDashboardPreview />
         </div>
       </div>
     </section>

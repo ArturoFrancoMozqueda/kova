@@ -19,6 +19,7 @@ import {
 } from "@/telemetry/funnel";
 import {
   STANDARD_PLAN_AMOUNT,
+  STANDARD_PLAN_PRICE_LABEL_ES,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
 import { BILLING_TRIAL_CTA_LABEL_ES } from "@/billing/trial";
@@ -27,9 +28,9 @@ import { LogoMark } from "@/components/brand/Logo";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
-import SaleStory from "@/landing/SaleStory";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
-import HeroFilm from "@/landing/film/HeroFilm";
+import ProductFilm from "@/landing/film/ProductFilm";
+import HeroProductFrame from "@/landing/HeroProductFrame";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { useLandingRevealMotion } from "@/landing/useRevealMotion";
 import { copy } from "@/i18n/messages";
@@ -188,6 +189,152 @@ function Navbar({
   );
 }
 
+/* ─── MXN Ticker ─────────────────────────────────────────────────────────── */
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+function Hero({
+  primaryTarget,
+  primaryCtaLabel,
+  onCtaClick,
+}: {
+  primaryTarget: string;
+  primaryCtaLabel: string;
+  onCtaClick: (cta: string) => void;
+}) {
+  const benefits = [
+    {
+      title: t.threeNodes.items[0].label,
+      body: t.threeNodes.items[0].title,
+    },
+    {
+      title: t.threeNodes.items[1].label,
+      body: t.threeNodes.items[1].title,
+    },
+    {
+      title: t.threeNodes.items[2].label,
+      body: t.threeNodes.items[2].title,
+    },
+    {
+      title: t.bento.items[1].title,
+      body: t.bento.items[1].line,
+    },
+  ];
+
+  return (
+    <section className="lp-hero-section" style={{ position: "relative", overflow: "hidden" }}>
+      <div className="lp-hero-shell lp-section-inner" style={{ position: "relative" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 0.9fr) minmax(0, 1.05fr)",
+            gap: 52,
+            alignItems: "center",
+          }}
+          className="lp-hero-grid"
+        >
+          <div className="lp-hero-content">
+            <span
+              className="lp-section-label"
+              style={{ marginBottom: 18, color: "var(--accent)" }}
+            >
+              {t.hero.eyebrow}
+            </span>
+            <h1
+              className="lp-hero-title"
+              style={{
+                fontSize: "clamp(36px, 4.6vw, 60px)",
+                fontWeight: 600,
+                letterSpacing: "-0.015em",
+                lineHeight: 1,
+                margin: 0,
+                color: "var(--page-fg)",
+              }}
+            >
+              {t.hero.titlePart1}<br />
+              <span style={{ position: "relative", whiteSpace: "nowrap" }}>
+                {t.hero.titleEmphasis}
+                <svg
+                  viewBox="0 0 200 14" preserveAspectRatio="none"
+                  style={{ position: "absolute", bottom: "-0.06em", left: 0, width: "100%", height: "0.18em" }}
+                  aria-hidden="true"
+                >
+                  <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
+                </svg>
+              </span>
+              {t.hero.titlePart2}
+            </h1>
+
+            <p className="lp-hero-copy" style={{ fontSize: 17, lineHeight: 1.55, color: "var(--text-muted)", marginTop: 20, maxWidth: 560 }}>
+              {t.hero.subtitle}
+            </p>
+
+            <div className="lp-hero-actions" style={{ display: "flex", gap: 10, marginTop: 32, flexWrap: "wrap" }}>
+              <Link
+                to={primaryTarget}
+                onClick={() => onCtaClick("hero")}
+                className="lp-cta-fill"
+                style={{
+                  background: "var(--invert-ink-bg)", color: "var(--invert-ink-fg)",
+                  padding: "14px 22px", borderRadius: 10,
+                  fontWeight: 600, fontSize: 14, textDecoration: "none",
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                }}
+              >
+                <span>{primaryCtaLabel}</span>
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                  <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+              <a
+                href="#producto"
+                className="lp-cta-fill"
+                style={{
+                  background: "var(--surface)", color: "var(--page-fg)",
+                  padding: "14px 22px", borderRadius: 10,
+                  fontWeight: 500, fontSize: 14, textDecoration: "none",
+                  border: "0.5px solid var(--hairline-color)",
+                }}
+              >
+                <span>{t.hero.ctaSecondary}</span>
+              </a>
+            </div>
+
+            <p
+              className="lp-hero-pricing"
+              style={{
+                marginTop: 16, fontSize: 13, color: "var(--text-muted)",
+                display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8,
+              }}
+            >
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "4px 10px", borderRadius: 999,
+                background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
+                fontWeight: 600, color: "var(--page-fg)",
+              }}>
+                {STANDARD_PLAN_PRICE_LABEL_ES}
+              </span>
+              <span>{t.hero.trialBadge}</span>
+            </p>
+          </div>
+
+          <div className="lp-hero-visual">
+            <HeroProductFrame />
+          </div>
+        </div>
+
+        <div className="lp-benefit-strip lp-reveal-block">
+          {benefits.map((benefit) => (
+            <div className="lp-benefit-card" key={benefit.title}>
+              <strong>{benefit.title}</strong>
+              <span>{benefit.body}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── Problem ────────────────────────────────────────────────────────────── */
 // Textura y rotación por recorte, alineadas por índice con p.fragments
 // (Libreta=rayado, Excel=celdas, WhatsApp=burbuja, Tickets=punteado, Caja=liso).
@@ -213,13 +360,11 @@ function Problem() {
           }}
         >
           <div>
-            {/* El desorden "se acumula": cada recorte entra escalonado. */}
-            <div className="lp-scraps" data-lp-stagger-group>
+            <div className="lp-scraps">
               {p.fragments.map((f, i) => (
                 <span
                   key={f}
                   className="lp-scrap"
-                  data-lp-stagger-item
                   data-kind={SCRAP_KINDS[i % SCRAP_KINDS.length]}
                   style={{ ["--scrap-rot" as string]: SCRAP_ROTATIONS[i % SCRAP_ROTATIONS.length] }}
                 >
@@ -246,25 +391,19 @@ function Problem() {
 function Differentiation() {
   const d = t.diff;
   return (
-    <section id="diferencia" className="lp-section">
+    <section id="diferencia" className="lp-section lp-reveal-block">
       <div className="lp-section-inner">
-        <div data-lp-stagger-group>
-          <span className="lp-section-label" data-lp-stagger-item>{d.eyebrow}</span>
-          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 760 }}>{d.title}</h2>
-        </div>
+        <span className="lp-section-label">{d.eyebrow}</span>
+        <h2 className="lp-section-title" style={{ maxWidth: 760 }}>{d.title}</h2>
 
-        {/* El orden del reveal ES el argumento: los competidores entran
-            primero y la carta de Kova revela al final. */}
         <div
           className="lp-3cols"
-          data-lp-stagger-group
           style={{ marginTop: 40, display: "grid", gridTemplateColumns: "1fr 1fr 1.12fr", gap: 16, alignItems: "stretch" }}
         >
           {d.columns.map((c) => (
             <div
               key={c.name}
               className="lp-lift"
-              data-lp-stagger-item
               style={{
                 background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
                 borderRadius: 12, padding: "30px 28px",
@@ -278,7 +417,6 @@ function Differentiation() {
           ))}
           <div
             className="lp-lift"
-            data-lp-stagger-item
             style={{
               background: "var(--surface)", border: "1px solid var(--accent)",
               boxShadow: "0 0 0 4px var(--accent-soft)",
@@ -664,11 +802,8 @@ export default function Home(): ReactNode {
     return () => observer.disconnect();
   }, []);
 
-  // `extra` es aditivo (p. ej. { placement: "rail" } del mini-CTA del film);
-  // el click del hero en el grid no lo pasa, así el payload del experimento
-  // EXP-01 queda byte-idéntico al contrato existente.
   const onCtaClick = useCallback(
-    (cta: string, extra?: Record<string, unknown>) => {
+    (cta: string) => {
       const experiment =
         cta === "hero" && ctaExperimentVariant
           ? {
@@ -676,9 +811,9 @@ export default function Home(): ReactNode {
               variant: ctaExperimentVariant,
             }
           : {};
-      void trackAnonymousEvent("landing_cta_clicked", { cta, ...experiment, ...extra });
+      void trackAnonymousEvent("landing_cta_clicked", { cta, ...experiment });
       if (primaryTarget === "/signup") {
-        void trackAnonymousEvent("signup_started", { cta, ...experiment, ...extra });
+        void trackAnonymousEvent("signup_started", { cta, ...experiment });
       }
     },
     [ctaExperimentVariant, primaryTarget],
@@ -709,23 +844,18 @@ export default function Home(): ReactNode {
       <style dangerouslySetInnerHTML={{ __html: LANDING_STYLES + RESPONSIVE_STYLES }} />
       <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} onCtaClick={onCtaClick} />
       <main>
-        {/* Acto I — Vívelo. El hero ES el film: el titular vive sobre la
-            pantalla del producto real y el scroll recorre Caja → Inventario →
-            Turnos → Análisis. KovaShowcase sigue vivo solo en la ruta
-            /kova-showcase-video. */}
-        <HeroFilm
+        <Hero
           primaryTarget={primaryTarget}
           primaryCtaLabel={primaryCtaLabel}
-          onPrimaryCta={(extra) => onCtaClick("hero", extra)}
-          ctaTarget={primaryTarget}
-          onShowcaseCta={() => onCtaClick("showcase")}
+          onCtaClick={onCtaClick}
         />
-        {/* Acto II — Enténdelo: la venta de $186 trazable, el payoff en la
-            pantalla del dueño, y el contraste "sin Kova" al final. */}
-        <SaleStory />
-        <OwnerDashboard />
+        {/* Scroll-driven walkthrough recorded from a live tenant. It replaces
+            the auto-playing showcase here so the page has one product story
+            rather than two competing ones; KovaShowcase still powers the
+            standalone /kova-showcase-video export route. */}
+        <ProductFilm ctaTarget={primaryTarget} onCtaClick={() => onCtaClick("showcase")} />
         <Problem />
-        {/* Acto III — Decídelo. */}
+        <OwnerDashboard />
         <BentoModules />
         <Differentiation />
         <FAQ />

@@ -78,9 +78,6 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(viewedSections).toEqual(
       expect.arrayContaining([
         "producto",
-        // La historia de la venta ($186 trazable) es sección propia desde el
-        // rediseño narrativo: noveno datapoint de scroll-depth.
-        "una-venta",
         "problema",
         "panel-dueno",
         "como-funciona",
