@@ -236,6 +236,13 @@ export const copy = {
         { name: "Servicios y emprendimientos", body: "Útil si vendes productos o servicios sueltos en bazares, ferias o desde casa. No reemplaza una agenda de citas por hora.", tag: "Caso por caso", fit: "case-by-case" },
       ],
     },
+    // Sección #clientes (Testimonials): solo el marco vive aquí; los
+    // testimonios reales viven en landing/testimonials.data.ts y la sección
+    // no se renderiza mientras ese arreglo esté vacío.
+    testimonials: {
+      eyebrow: "Clientes reales",
+      title: "Negocios que ya cierran el día con Kova.",
+    },
     faq: {
       eyebrow: "Preguntas frecuentes",
       title: "Lo que la gente nos pregunta antes de empezar.",

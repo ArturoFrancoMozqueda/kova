@@ -521,6 +521,14 @@ export const LANDING_STYLES = `
     gap: 14px;
   }
 
+  /* Testimonios (#clientes): 1-3 tarjetas, columnas según cuántas haya. */
+  .lp-testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    max-width: 1060px;
+  }
+
   /* ── FAQ accordion ────────────────────────────────────────────────────────
      Respuestas siempre montadas; abren con grid-template-rows 0fr→1fr. La
      visibility gestiona foco/lectura (cerrada = fuera del orden de tabulación).

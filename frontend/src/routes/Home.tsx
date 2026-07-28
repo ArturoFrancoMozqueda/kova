@@ -29,6 +29,7 @@ import BentoModules from "@/landing/BentoModules";
 import BuiltFor from "@/landing/BuiltFor";
 import FinalCta from "@/landing/FinalCta";
 import SaleStory from "@/landing/SaleStory";
+import Testimonials from "@/landing/Testimonials";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
 import HeroFilm from "@/landing/film/HeroFilm";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
@@ -730,6 +731,9 @@ export default function Home(): ReactNode {
             → contraste competitivo → objeciones → precio → cierre. */}
         <BentoModules />
         <BuiltFor />
+        {/* Prueba social gateada por datos: null hasta que existan
+            testimonios reales en landing/testimonials.data.ts. */}
+        <Testimonials />
         <Differentiation />
         <FAQ />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
