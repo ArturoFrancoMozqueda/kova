@@ -40,6 +40,45 @@ export const copy = {
       ctaSecondary: "Ver el recorrido",
       trialBadge: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta.`,
     },
+    immersiveStory: {
+      eyebrow: "Una venta. Cuatro respuestas.",
+      title: "Mira cómo $186 recorren todo tu negocio.",
+      body: "El recibo no termina cuando cobras. Esa misma venta descuenta existencias, entra al turno y completa la lectura del día.",
+      problem: "Sin Kova, esa historia queda partida entre tickets, libreta, Excel y mensajes. Aquí ocurre una sola vez y todo queda conectado.",
+      progressLabel: "Recorrido de una venta en Kova",
+      productLabel: "Capturas reales y sanitizadas de Kova",
+      steps: [
+        {
+          id: "sale",
+          number: "01",
+          title: "Cobras $186",
+          line: "Cierras la venta en segundos y el recibo queda listo.",
+          receipt: "Venta registrada",
+        },
+        {
+          id: "inventory",
+          number: "02",
+          title: "El stock responde",
+          line: "Cada producto vendido baja sin capturarlo otra vez.",
+          receipt: "Cheesecake · stock bajo",
+        },
+        {
+          id: "cash",
+          number: "03",
+          title: "La caja se explica",
+          line: "Los $186 entran al turno y actualizan el efectivo esperado.",
+          receipt: "Efectivo esperado · $2,040",
+        },
+        {
+          id: "reports",
+          number: "04",
+          title: "El día toma forma",
+          line: "Ventas, productos y horas fuertes quedan listos para decidir.",
+          receipt: "37 órdenes · $4,820",
+        },
+      ],
+      cta: "Empieza gratis",
+    },
     // Reencuadrada como contraste: llega DESPUÉS de la historia de la venta,
     // así que ya viste el corte cuadrar — esto es "el otro final" del mismo día.
     problem: {

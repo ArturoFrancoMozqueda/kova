@@ -10,18 +10,13 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import {
-  assignCtaSpecificityExperiment,
-  hasFunnelClientId,
   trackAnonymousEvent,
   trackAnonymousEventOnce,
-  trackExperimentExposed,
-  type ExperimentVariant,
 } from "@/telemetry/funnel";
 import {
   STANDARD_PLAN_AMOUNT,
   STANDARD_PLAN_PRICE_CADENCE_ES,
 } from "@/billing/standardPlan";
-import { BILLING_TRIAL_CTA_LABEL_ES } from "@/billing/trial";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import OwnerDashboard from "@/landing/OwnerDashboard";
@@ -662,8 +657,6 @@ export default function Home(): ReactNode {
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
-  const [newFunnelVisitor] = useState(() => !hasFunnelClientId());
-  const [ctaExperimentVariant, setCtaExperimentVariant] = useState<ExperimentVariant | null>(null);
   const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
@@ -678,16 +671,10 @@ export default function Home(): ReactNode {
     trackAnonymousEventOnce("landing_viewed", "landing_viewed");
   }, []);
 
-  useEffect(() => {
-    const variant = assignCtaSpecificityExperiment(
-      state.status === "unauthenticated",
-      newFunnelVisitor,
-    );
-    setCtaExperimentVariant(variant);
-    if (variant) {
-      trackExperimentExposed("exp_01_cta_specificity", variant, "hero");
-    }
-  }, [newFunnelVisitor, state.status]);
+  // EXP-01 (especificidad del CTA) quedó en pausa aprobada — ver
+  // docs/experiments/EXPERIMENT-REGISTRY.md: el rediseño cambió la superficie
+  // completa y la muestra fue insuficiente. No se asignan variantes nuevas;
+  // el CTA queda estable en "Empieza gratis".
 
   // Scroll-depth por sección: `landing_section_viewed` marca hasta dónde llegó
   // el visitante (una vez por sección por carga, mismo guard in-memory que
@@ -717,28 +704,19 @@ export default function Home(): ReactNode {
     return () => observer.disconnect();
   }, []);
 
-  // `extra` es aditivo (p. ej. { placement: "rail" } del mini-CTA del film);
-  // el click del hero en el grid no lo pasa, así el payload del experimento
-  // EXP-01 queda byte-idéntico al contrato existente.
+  // `extra` es aditivo (p. ej. { placement: "rail" } del mini-CTA del film).
   const onCtaClick = useCallback(
     (cta: string, extra?: Record<string, unknown>) => {
-      const experiment =
-        cta === "hero" && ctaExperimentVariant
-          ? {
-              experiment_id: "exp_01_cta_specificity",
-              variant: ctaExperimentVariant,
-            }
-          : {};
-      void trackAnonymousEvent("landing_cta_clicked", { cta, ...experiment, ...extra });
+      void trackAnonymousEvent("landing_cta_clicked", { cta, ...extra });
       if (primaryTarget === "/signup") {
-        void trackAnonymousEvent("signup_started", { cta, ...experiment, ...extra });
+        void trackAnonymousEvent("signup_started", { cta, ...extra });
       }
     },
-    [ctaExperimentVariant, primaryTarget],
+    [primaryTarget],
   );
 
-  const primaryCtaLabel =
-    ctaExperimentVariant === "treatment" ? BILLING_TRIAL_CTA_LABEL_ES : t.hero.ctaPrimary;
+  // CTA estable tras la pausa de EXP-01 (registro de experimentos).
+  const primaryCtaLabel = t.hero.ctaPrimary;
 
   // Paint html/body with the same landing background while this view is mounted.
   // Prevents the white body bg from showing on viewports wider than the natural

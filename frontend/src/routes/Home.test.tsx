@@ -1,19 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const trackAnonymousEvent = vi.fn();
 const trackAnonymousEventOnce = vi.fn();
-const trackExperimentExposed = vi.fn();
-const assignCtaSpecificityExperiment = vi.fn();
 
 vi.mock("@/telemetry/funnel", () => ({
   trackAnonymousEvent: (...args: unknown[]) => trackAnonymousEvent(...args),
   trackAnonymousEventOnce: (...args: unknown[]) => trackAnonymousEventOnce(...args),
-  trackExperimentExposed: (...args: unknown[]) => trackExperimentExposed(...args),
-  assignCtaSpecificityExperiment: (...args: unknown[]) =>
-    assignCtaSpecificityExperiment(...args),
-  hasFunnelClientId: () => false,
 }));
 
 // Unauthenticated visitor → primary CTAs point to /signup.
@@ -37,9 +31,6 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   beforeEach(() => {
     trackAnonymousEvent.mockClear();
     trackAnonymousEventOnce.mockClear();
-    trackExperimentExposed.mockClear();
-    assignCtaSpecificityExperiment.mockReset();
-    assignCtaSpecificityExperiment.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -117,29 +108,20 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     );
   });
 
-  it("shows the verified trial treatment and records one EXP-01 exposure", async () => {
-    assignCtaSpecificityExperiment.mockReturnValue("treatment");
+  // EXP-01 está en pausa aprobada (docs/experiments/EXPERIMENT-REGISTRY.md):
+  // el CTA del hero queda estable en "Empieza gratis" y el payload del click
+  // ya no lleva experiment_id/variant.
+  it("keeps the stable primary CTA after pausing EXP-01", async () => {
     renderHome();
 
-    const treatmentCta = await screen.findByRole("link", {
-      name: /Prueba Kova 7 días gratis/i,
+    const heroCtas = await screen.findAllByRole("link", {
+      name: /Empieza gratis/i,
     });
-    expect(treatmentCta).toHaveAttribute("href", "/signup");
-    await waitFor(() => {
-      expect(trackExperimentExposed).toHaveBeenCalledWith(
-        "exp_01_cta_specificity",
-        "treatment",
-        "hero",
-      );
-    });
-    fireEvent.click(treatmentCta);
+    expect(heroCtas[0]).toHaveAttribute("href", "/signup");
+    fireEvent.click(heroCtas[0]!);
     expect(trackAnonymousEvent).toHaveBeenCalledWith(
       "landing_cta_clicked",
-      {
-        cta: "hero",
-        experiment_id: "exp_01_cta_specificity",
-        variant: "treatment",
-      },
+      { cta: expect.any(String) },
     );
   });
 
