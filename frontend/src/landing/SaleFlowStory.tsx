@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { copy } from "@/i18n/messages";
-import SweetHomePOSPreview from "@/landing/previews/SweetHomePOSPreview";
-import InventoryStatePreview from "@/landing/previews/InventoryStatePreview";
-import CashRegisterPreview from "@/landing/previews/CashRegisterPreview";
-import ReportsPreview from "@/landing/previews/ReportsPreview";
 import styles from "./SaleFlowStory.module.css";
 
 export type LandingStoryStepId = "sale" | "inventory" | "cash" | "reports";
@@ -21,25 +17,52 @@ type StoryStep = {
 const t = copy.landing.immersiveStory;
 const STORY_STEPS = t.steps as readonly StoryStep[];
 
-function StoryPreview({
-  step,
-  active,
-}: {
-  step: LandingStoryStepId;
-  active: boolean;
-}): ReactNode {
-  if (step === "sale") {
-    return (
-      <SweetHomePOSPreview
-        interactive={false}
-        animateEntry={active}
-        entryDelayMs={80}
+const STORY_CAPTURES: Record<
+  LandingStoryStepId,
+  { src: string; screen: string; alt: string }
+> = {
+  sale: {
+    src: "/showcase/register.png",
+    screen: "Caja",
+    alt: "Caja real de Kova con el catálogo, un carrito de tres productos y un total de $186.",
+  },
+  inventory: {
+    src: "/showcase/inventory.png",
+    screen: "Inventario",
+    alt: "Inventario real de Kova con una alerta de stock bajo y existencias por producto.",
+  },
+  cash: {
+    src: "/showcase/shifts.png",
+    screen: "Turnos",
+    alt: "Turnos reales de Kova con efectivo esperado, movimientos y cortes recientes.",
+  },
+  reports: {
+    src: "/showcase/reports.png",
+    screen: "Reportes",
+    alt: "Reportes reales de Kova con ventas, órdenes, ticket promedio y prioridad operativa.",
+  },
+};
+
+function StoryCapture({ step }: { step: LandingStoryStepId }) {
+  const capture = STORY_CAPTURES[step];
+  return (
+    <figure className={styles.capture}>
+      <img
+        src={capture.src}
+        alt={capture.alt}
+        className={styles.captureImage}
+        width={1440}
+        height={900}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
       />
-    );
-  }
-  if (step === "inventory") return <InventoryStatePreview animate={active} />;
-  if (step === "cash") return <CashRegisterPreview animate={active} />;
-  return <ReportsPreview animate={active} />;
+      <figcaption className={styles.captureCaption}>
+        <span>{capture.screen}</span>
+        <span>Captura real y sanitizada</span>
+      </figcaption>
+    </figure>
+  );
 }
 
 export default function SaleFlowStory({
@@ -139,7 +162,7 @@ export default function SaleFlowStory({
                   <span className={styles.receiptStub}>{step.receipt}</span>
                 </div>
                 <div className={`${styles.mobilePreview} lp-story-card`}>
-                  <StoryPreview step={step.id} active />
+                  <StoryCapture step={step.id} />
                 </div>
               </article>
             ))}
@@ -173,7 +196,7 @@ export default function SaleFlowStory({
                     data-active={activeStep === step.id ? "true" : "false"}
                     aria-hidden={activeStep !== step.id}
                   >
-                    <StoryPreview step={step.id} active={activeStep === step.id} />
+                    <StoryCapture step={step.id} />
                   </div>
                 ))}
               </div>

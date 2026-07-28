@@ -44,7 +44,7 @@ export const copy = {
       body: "El recibo no termina cuando cobras. Esa misma venta descuenta existencias, entra al turno y completa la lectura del día.",
       problem: "Sin Kova, esa historia queda partida entre tickets, libreta, Excel y mensajes. Aquí ocurre una sola vez y todo queda conectado.",
       progressLabel: "Recorrido de una venta en Kova",
-      productLabel: "Producto real, datos de demostración local",
+      productLabel: "Capturas reales y sanitizadas de Kova",
       steps: [
         {
           id: "sale",

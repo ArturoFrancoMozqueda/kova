@@ -338,8 +338,8 @@ test("mobile landing keeps every sale story step visible without pinning", async
   await expect(story.locator('[data-step="inventory"]')).toBeVisible();
   await expect(story.locator('[data-step="cash"]')).toBeVisible();
   await expect(story.locator('[data-step="reports"]')).toBeVisible();
-  await expect(story.getByText("$186.00", { exact: true }).first()).toBeVisible();
-  await expect(story.getByText("Inventario", { exact: true }).first()).toBeVisible();
+  await expect(story.getByRole("img", { name: /Caja real de Kova/ }).first()).toBeVisible();
+  await expect(story.getByRole("img", { name: /Inventario real de Kova/ }).first()).toBeVisible();
   await expect(story.locator('button[aria-label^="0"]').first()).toBeHidden();
   await expectNoHorizontalOverflow(page);
 });

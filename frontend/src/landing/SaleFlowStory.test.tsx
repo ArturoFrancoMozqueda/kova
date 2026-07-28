@@ -41,6 +41,27 @@ describe("SaleFlowStory", () => {
     expect(onStepView).toHaveBeenCalledWith("sale", "scroll");
   });
 
+  it("uses sanitized captures of the real product instead of reconstructed previews", () => {
+    renderStory();
+
+    expect(screen.getAllByRole("img", { name: /Caja real de Kova/ })[0]).toHaveAttribute(
+      "src",
+      "/showcase/register.png",
+    );
+    expect(screen.getAllByRole("img", { name: /Inventario real de Kova/ })[0]).toHaveAttribute(
+      "src",
+      "/showcase/inventory.png",
+    );
+    expect(screen.getAllByRole("img", { name: /Turnos reales de Kova/ })[0]).toHaveAttribute(
+      "src",
+      "/showcase/shifts.png",
+    );
+    expect(screen.getAllByRole("img", { name: /Reportes reales de Kova/ })[0]).toHaveAttribute(
+      "src",
+      "/showcase/reports.png",
+    );
+  });
+
   it("lets the visitor select a step without autoplay", () => {
     renderStory();
 
