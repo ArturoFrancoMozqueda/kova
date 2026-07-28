@@ -84,6 +84,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
         "problema",
         "panel-dueno",
         "como-funciona",
+        // "¿Es para mí?" es sección real (#comercios) desde el rediseño CRO;
+        // antes era un ancla escondida dentro del bento.
+        "comercios",
         "diferencia",
         "faq",
         "precio",

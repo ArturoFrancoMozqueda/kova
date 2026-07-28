@@ -26,6 +26,7 @@ import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import OwnerDashboard from "@/landing/OwnerDashboard";
 import BentoModules from "@/landing/BentoModules";
+import BuiltFor from "@/landing/BuiltFor";
 import FinalCta from "@/landing/FinalCta";
 import SaleStory from "@/landing/SaleStory";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
@@ -725,8 +726,10 @@ export default function Home(): ReactNode {
         <SaleStory />
         <OwnerDashboard />
         <Problem />
-        {/* Acto III — Decídelo. */}
+        {/* Acto III — Decídelo: capacidades → identificación ("¿es para mí?")
+            → contraste competitivo → objeciones → precio → cierre. */}
         <BentoModules />
+        <BuiltFor />
         <Differentiation />
         <FAQ />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />

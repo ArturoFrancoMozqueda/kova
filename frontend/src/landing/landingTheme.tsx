@@ -514,6 +514,13 @@ export const LANDING_STYLES = `
     background: var(--surface-2);
   }
 
+  /* "¿Es para mí?" (#comercios): 6 giros en 3 columnas. */
+  .lp-builtfor-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
   /* ── FAQ accordion ────────────────────────────────────────────────────────
      Respuestas siempre montadas; abren con grid-template-rows 0fr→1fr. La
      visibility gestiona foco/lectura (cerrada = fuera del orden de tabulación).
@@ -946,6 +953,7 @@ export const RESPONSIVE_STYLES = `
       grid-template-columns: 1fr !important;
     }
     .lp-3cols { grid-template-columns: 1fr !important; }
+    .lp-builtfor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin-top: 28px !important; }
     .lp-bento { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-own-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
@@ -1082,6 +1090,7 @@ export const RESPONSIVE_STYLES = `
     .lp-footer-grid { grid-template-columns: 1fr !important; }
     .lp-bento { grid-template-columns: 1fr !important; }
     .lp-bento-cell[data-large="1"] { grid-column: auto !important; }
+    .lp-builtfor-grid { grid-template-columns: 1fr !important; }
     .lp-own-kpis { grid-template-columns: 1fr 1fr !important; }
     .lp-own-kpi[data-secondary="1"] { display: none !important; }
     .lp-own-secondary { display: none !important; }

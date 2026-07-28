@@ -219,17 +219,21 @@ export const copy = {
       button: "Empieza gratis",
       fineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
     },
+    // Sección "¿Es para mí?" (#comercios). `fit` es la clave estable para
+    // estilos/orden; `tag` es la etiqueta visible es-MX. Las etiquetas de
+    // honestidad (incluido "todavía no es tu app") son deliberadas: decir a
+    // quién NO le queda Kova es parte del argumento de confianza.
     builtFor: {
       eyebrow: "¿Es para mí?",
       title: "Hecho para negocios que venden todos los días.",
       body: "Si cobras de mostrador, manejas un catálogo de productos y quieres dejar de operar a mano, Kova encaja con tu negocio. Esto es lo que ya funciona hoy:",
       types: [
-        { name: "Cafeterías", body: "Cafés de especialidad, bebidas frías y pan dulce. Cobros rápidos en hora pico, con extras como tamaños o leches sin batallar.", tag: "Recomendado" },
-        { name: "Panaderías", body: "Venta por pieza, mostrador ágil, inventario claro y cierre de caja sin sumar tickets ni hacer cuentas a mano.", tag: "Recomendado" },
-        { name: "Food trucks", body: "Vende aunque la señal esté flojita o saltes de plaza a plaza. Cuando recuperas internet, las ventas se suben solas.", tag: "Compatible" },
-        { name: "Tiendas pequeñas", body: "Catálogo simple, varios métodos de pago e inventario a la vista. Ideal para misceláneas, abarrotes o concept stores.", tag: "Compatible" },
-        { name: "Restaurantes de mostrador", body: "Perfecto para barras, taquerías, polleras, fondas y loncherías. Si tu flujo es por comanda a cocina con mesas, todavía no es tu app.", tag: "Caso por caso" },
-        { name: "Servicios y emprendimientos", body: "Útil si vendes productos o servicios sueltos en bazares, ferias o desde casa. No reemplaza una agenda de citas por hora.", tag: "Caso por caso" },
+        { name: "Cafeterías", body: "Cafés de especialidad, bebidas frías y pan dulce. Cobros rápidos en hora pico, con extras como tamaños o leches sin batallar.", tag: "Recomendado", fit: "recommended" },
+        { name: "Panaderías", body: "Venta por pieza, mostrador ágil, inventario claro y cierre de caja sin sumar tickets ni hacer cuentas a mano.", tag: "Recomendado", fit: "recommended" },
+        { name: "Food trucks", body: "Vende aunque la señal esté flojita o saltes de plaza a plaza. Cuando recuperas internet, las ventas se suben solas.", tag: "Compatible", fit: "compatible" },
+        { name: "Tiendas pequeñas", body: "Catálogo simple, varios métodos de pago e inventario a la vista. Ideal para misceláneas, abarrotes o concept stores.", tag: "Compatible", fit: "compatible" },
+        { name: "Restaurantes de mostrador", body: "Perfecto para barras, taquerías, polleras, fondas y loncherías. Si tu flujo es por comanda a cocina con mesas, todavía no es tu app.", tag: "Caso por caso", fit: "case-by-case" },
+        { name: "Servicios y emprendimientos", body: "Útil si vendes productos o servicios sueltos en bazares, ferias o desde casa. No reemplaza una agenda de citas por hora.", tag: "Caso por caso", fit: "case-by-case" },
       ],
     },
     faq: {
