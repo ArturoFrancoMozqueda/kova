@@ -9,7 +9,7 @@
  * el canal (botón flotante, link en FAQ, link en footer) queda apagado y no
  * se renderiza nada.
  */
-export const WHATSAPP_PHONE = "";
+export const WHATSAPP_PHONE = "524432101010";
 
 export function isWhatsAppEnabled(): boolean {
   return WHATSAPP_PHONE.length > 0;
