@@ -57,6 +57,42 @@ def test_accepts_landing_section_viewed(client, db):
     assert rows[0].properties["section"] == "precio"
 
 
+def test_accepts_categorized_landing_story_step(client, db):
+    resp = client.post(
+        ANON_URL,
+        json={
+            "event_name": "landing_story_step_viewed",
+            "client_event_id": "landing_story_step_viewed:inventory:1",
+            "client_id": "visitor-story",
+            "properties": {
+                "path": "/",
+                "step": "inventory",
+                "trigger": "control",
+            },
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    row = db.query(AnonymousTelemetryEvent).filter_by(client_id="visitor-story").one()
+    assert row.properties == {
+        "path": "/",
+        "step": "inventory",
+        "trigger": "control",
+    }
+
+
+def test_rejects_unknown_landing_story_category(client):
+    resp = client.post(
+        ANON_URL,
+        json={
+            "event_name": "landing_story_step_viewed",
+            "client_event_id": "landing_story_step_viewed:bad",
+            "client_id": "visitor-story",
+            "properties": {"step": "customer-email", "trigger": "autoplay"},
+        },
+    )
+    assert resp.status_code == 422
+
+
 def test_accepts_categorized_signup_validation_without_pii(client, db):
     resp = client.post(
         ANON_URL,
@@ -249,6 +285,35 @@ def test_kova_app_can_insert_landing_section_under_rls(kova_app_engine):
                     :event_id,
                     'visitor-section-rls',
                     '{"section": "precio"}'::json,
+                    now()
+                )
+                """
+            ),
+            {"id": uuid4(), "event_id": event_id},
+        )
+
+
+def test_kova_app_can_insert_landing_story_step_under_rls(kova_app_engine):
+    event_id = f"landing_story_step_viewed:{uuid4()}"
+
+    with kova_app_engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO anonymous_telemetry_events (
+                    id,
+                    event_name,
+                    client_event_id,
+                    client_id,
+                    properties,
+                    created_at
+                )
+                VALUES (
+                    :id,
+                    'landing_story_step_viewed',
+                    :event_id,
+                    'visitor-story-rls',
+                    '{"step": "cash", "trigger": "scroll"}'::json,
                     now()
                 )
                 """

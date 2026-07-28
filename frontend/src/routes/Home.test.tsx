@@ -1,19 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const trackAnonymousEvent = vi.fn();
 const trackAnonymousEventOnce = vi.fn();
-const trackExperimentExposed = vi.fn();
-const assignCtaSpecificityExperiment = vi.fn();
 
 vi.mock("@/telemetry/funnel", () => ({
   trackAnonymousEvent: (...args: unknown[]) => trackAnonymousEvent(...args),
   trackAnonymousEventOnce: (...args: unknown[]) => trackAnonymousEventOnce(...args),
-  trackExperimentExposed: (...args: unknown[]) => trackExperimentExposed(...args),
-  assignCtaSpecificityExperiment: (...args: unknown[]) =>
-    assignCtaSpecificityExperiment(...args),
-  hasFunnelClientId: () => false,
 }));
 
 // Unauthenticated visitor → primary CTAs point to /signup.
@@ -35,9 +29,6 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   beforeEach(() => {
     trackAnonymousEvent.mockClear();
     trackAnonymousEventOnce.mockClear();
-    trackExperimentExposed.mockClear();
-    assignCtaSpecificityExperiment.mockReset();
-    assignCtaSpecificityExperiment.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -48,6 +39,11 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   it("fires landing_viewed once on mount", () => {
     renderHome();
     expect(trackAnonymousEventOnce).toHaveBeenCalledWith("landing_viewed", "landing_viewed");
+    expect(trackAnonymousEventOnce).toHaveBeenCalledWith(
+      "story:sale",
+      "landing_story_step_viewed",
+      { step: "sale", trigger: "scroll" },
+    );
   });
 
   it("fires landing_section_viewed per section as sections intersect", () => {
@@ -78,15 +74,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(viewedSections).toEqual(
       expect.arrayContaining([
         "producto",
-        // La historia de la venta ($186 trazable) es sección propia desde el
-        // rediseño narrativo: noveno datapoint de scroll-depth.
-        "una-venta",
-        "problema",
-        "panel-dueno",
         "como-funciona",
-        "diferencia",
-        "faq",
         "precio",
+        "faq",
         "cta-final",
       ]),
     );
@@ -112,29 +102,17 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     );
   });
 
-  it("shows the verified trial treatment and records one EXP-01 exposure", async () => {
-    assignCtaSpecificityExperiment.mockReturnValue("treatment");
+  it("keeps the stable primary CTA after pausing EXP-01", async () => {
     renderHome();
 
-    const treatmentCta = await screen.findByRole("link", {
-      name: /Prueba Kova 7 días gratis/i,
+    const heroCta = await screen.findAllByRole("link", {
+      name: /Empieza gratis/i,
     });
-    expect(treatmentCta).toHaveAttribute("href", "/signup");
-    await waitFor(() => {
-      expect(trackExperimentExposed).toHaveBeenCalledWith(
-        "exp_01_cta_specificity",
-        "treatment",
-        "hero",
-      );
-    });
-    fireEvent.click(treatmentCta);
+    expect(heroCta[0]).toHaveAttribute("href", "/signup");
+    fireEvent.click(heroCta[0]);
     expect(trackAnonymousEvent).toHaveBeenCalledWith(
       "landing_cta_clicked",
-      {
-        cta: "hero",
-        experiment_id: "exp_01_cta_specificity",
-        variant: "treatment",
-      },
+      { cta: "hero" },
     );
   });
 
@@ -144,19 +122,16 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
   });
 
-  // The embedded walkthrough is now ProductFilm rather than KovaShowcase, so
-  // the selector moved. The contract under test is unchanged: the product
-  // section carries a signup CTA that reports itself as "showcase".
-  it("tracks the embedded showcase CTA at the same signup destination", () => {
+  it("tracks the story CTA at the same signup destination", () => {
     const { container } = renderHome();
     const cta = container.querySelector<HTMLAnchorElement>(
-      '.pf-cta[href="/signup"]',
+      '#producto a[href="/signup"]',
     );
     expect(cta).not.toBeNull();
     fireEvent.click(cta!);
     expect(trackAnonymousEvent).toHaveBeenCalledWith(
       "landing_cta_clicked",
-      { cta: "showcase" },
+      { cta: "story" },
     );
   });
 });

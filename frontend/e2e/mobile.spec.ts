@@ -326,10 +326,42 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   }
 });
 
-// Los specs de anatomía de KovaShowcase (.ksw-*) viven en showcase-video.spec.ts:
-// el showcase salió de la landing y solo existe en /kova-showcase-video.
+test("mobile landing keeps every sale story step visible without pinning", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+  await page.goto("/");
 
-test("mobile hero and film outro share the signup destination", async ({ page }) => {
+  const story = page.locator("#producto");
+  await story.scrollIntoViewIfNeeded();
+  await expect(story.locator('[data-step="sale"]')).toBeVisible();
+  await expect(story.locator('[data-step="inventory"]')).toBeVisible();
+  await expect(story.locator('[data-step="cash"]')).toBeVisible();
+  await expect(story.locator('[data-step="reports"]')).toBeVisible();
+  await expect(story.getByText("$186.00", { exact: true }).first()).toBeVisible();
+  await expect(story.getByText("Inventario", { exact: true }).first()).toBeVisible();
+  await expect(story.locator('button[aria-label^="0"]').first()).toBeHidden();
+  await expectNoHorizontalOverflow(page);
+});
+
+test("desktop sale story controls stay navigable without horizontal overlap", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
+  await page.goto("/");
+
+  const story = page.locator("#producto");
+  await story.scrollIntoViewIfNeeded();
+  const controls = story.locator('button[aria-label^="0"]');
+  await expect(controls).toHaveCount(4);
+  await controls.nth(1).focus();
+  await expect(controls.nth(1)).toBeFocused();
+  await controls.nth(1).click();
+  await expect(controls.nth(1)).toHaveAttribute("aria-current", "step");
+  await expectNoHorizontalOverflow(page);
+});
+
+test("mobile hero and story share the signup destination", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: { authenticated: false } }),
@@ -338,12 +370,12 @@ test("mobile hero and film outro share the signup destination", async ({ page })
 
   const heroCta = page.locator('.lp-hero-actions a[href="/signup"]').first();
   await expect(heroCta).toBeVisible();
-  await expect(page.locator('.pf-cta[href="/signup"]')).toHaveCount(1);
+  await expect(page.locator('#producto a[href="/signup"]')).toHaveCount(1);
   await heroCta.click();
   await expect(page).toHaveURL(/\/signup$/);
 });
 
-test("landing film degrades to a complete static hero under reduced motion", async ({ page }) => {
+test("landing product motion is neutralized when reduced motion is requested", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) =>
@@ -351,18 +383,12 @@ test("landing film degrades to a complete static hero under reduced motion", asy
   );
   await page.goto("/");
 
-  // Sin data-pf-live no hay track de 400vh ni scrub: el hero es una página
-  // clásica con el póster real y las cuatro leyendas apiladas y visibles.
   await expect(page.locator(".lp-hero-frame")).toBeVisible();
-  await expect(page.locator("section#producto")).not.toHaveAttribute("data-pf-live", "true");
-  await expect(page.locator(".pf-poster")).toBeVisible();
-  const captions = page.locator(".pf-caption");
-  await expect(captions).toHaveCount(4);
-  for (const caption of await captions.all()) {
-    await caption.scrollIntoViewIfNeeded();
-    await expect(caption).toBeVisible();
-  }
-  await expectNoHorizontalOverflow(page);
+  const story = page.locator("#producto");
+  await story.scrollIntoViewIfNeeded();
+  await expect(story.locator("[data-step]")).toHaveCount(4);
+  await expect(story.locator('button[aria-label^="0"]').first()).toBeHidden();
+  await expect(story.locator('[data-step="reports"]')).toBeVisible();
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {
@@ -454,7 +480,7 @@ test("billing banner stays visible and usable on phone and tablet", async ({ pag
 
     const banner = page.getByTestId("billing-banner");
     await expect(banner).toBeVisible();
-    await expect(banner.getByRole("link", { name: /administrar suscripci/i })).toBeVisible();
+    await expect(banner.getByRole("link", { name: /administrar facturaci/i })).toBeVisible();
     await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
     await expectMobileTaskNavigation(page);
     await expectNoHorizontalOverflow(page);
@@ -467,7 +493,7 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
   await mockReports(page);
 
   await page.goto("/reports");
-  await expect(page.getByRole("heading", { name: "Análisis", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
 
   // On phones the manual range hides behind "Personalizar" so the first
   // screen leads with data; presets stay one tap away.

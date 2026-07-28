@@ -16,6 +16,7 @@ ANONYMOUS_EVENT_NAMES = frozenset(
     {
         "landing_viewed",
         "landing_section_viewed",
+        "landing_story_step_viewed",
         "landing_cta_clicked",
         "signup_started",
         "signup_completed",
@@ -57,6 +58,8 @@ COMMON_CONTEXT_KEYS = frozenset(
         "section",
         "experiment_id",
         "variant",
+        "step",
+        "trigger",
     }
 )
 DEVICE_CLASSES = frozenset({"mobile", "tablet", "desktop"})
@@ -103,6 +106,8 @@ CHECKOUT_STATES = frozenset(
 )
 EXPERIMENTS = frozenset({"exp_01_cta_specificity"})
 EXPERIMENT_VARIANTS = frozenset({"control", "treatment"})
+LANDING_STORY_STEPS = frozenset({"sale", "inventory", "cash", "reports"})
+LANDING_STORY_TRIGGERS = frozenset({"scroll", "control"})
 ATTRIBUTION_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._~-]{0,79}$")
 CLIENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")
 
@@ -173,6 +178,10 @@ def _validate_diagnostic_event(event_name: str, properties: dict[str, Any]) -> N
         _require_category(properties, "variant", EXPERIMENT_VARIANTS)
         if not isinstance(properties.get("cta"), str) or not properties["cta"]:
             raise ValueError("cta is required")
+    elif event_name == "landing_story_step_viewed":
+        specific_keys = frozenset({"step", "trigger"})
+        _require_category(properties, "step", LANDING_STORY_STEPS)
+        _require_category(properties, "trigger", LANDING_STORY_TRIGGERS)
     else:
         return
 

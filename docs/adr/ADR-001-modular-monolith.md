@@ -72,4 +72,3 @@ Suggested domains:
 - Repositories own persistence.
 - Policies own authorization.
 - Cross-domain calls should go through services, not direct table access.
-

@@ -35,8 +35,8 @@ export function themeVars(theme: Theme): CSSProperties {
       "--invert-ink-bg": "#FBFBFD",
       "--invert-ink-fg": "var(--kova-ink)",
       // Ticket térmico — material (papel), no tema: mismos valores en claro/oscuro.
-      "--ticket-paper": "#FAF7F0",
-      "--ticket-paper-deep": "#F1EDE2",
+      "--ticket-paper": "#F3ECDD",
+      "--ticket-paper-deep": "#E8DECB",
       "--ticket-ink": "#191713",
       "--ticket-muted": "rgba(25,23,19,0.55)",
       "--ticket-rule": "rgba(25,23,19,0.28)",
@@ -60,8 +60,8 @@ export function themeVars(theme: Theme): CSSProperties {
     "--chip-bg": "rgba(15,17,23,0.05)",
     "--invert-ink-bg": "var(--kova-ink)",
     "--invert-ink-fg": "var(--kova-on-ink)",
-    "--ticket-paper": "#FAF7F0",
-    "--ticket-paper-deep": "#F1EDE2",
+    "--ticket-paper": "#F3ECDD",
+    "--ticket-paper-deep": "#E8DECB",
     "--ticket-ink": "#191713",
     "--ticket-muted": "rgba(25,23,19,0.55)",
     "--ticket-rule": "rgba(25,23,19,0.28)",
@@ -82,9 +82,26 @@ export const LANDING_STYLES = `
   }
   .lp-root .tabular { font-variant-numeric: tabular-nums; }
   .lp-root ::selection { background: var(--accent); color: #fff; }
+  .lp-skip-link {
+    position: fixed;
+    z-index: 1000;
+    top: 10px;
+    left: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--ticket-paper);
+    color: var(--ticket-ink);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transform: translateY(-150%);
+    transition: transform 160ms var(--kova-ease-entrance);
+  }
+  .lp-skip-link:focus { transform: translateY(0); }
+  .lp-root :target { scroll-margin-top: 84px; }
 
   .lp-section {
-    padding: 88px 32px;
+    padding: 72px 32px;
     border-top: 0.5px solid var(--hairline-color);
   }
   .lp-section-compact { padding: 72px 32px; }
@@ -662,7 +679,7 @@ export const LANDING_STYLES = `
   .lp-mobile-menu { display: none; }
 
   .lp-hero-section {
-    padding: 74px 32px 60px;
+    padding: 62px 32px 66px;
   }
   .lp-hero-shell {
     width: 100%;
@@ -939,7 +956,7 @@ export const RESPONSIVE_STYLES = `
     .lp-pos-preview { grid-template-columns: minmax(0, 1fr) minmax(320px, 38%); }
   }
   @media (max-width: 900px) {
-    .lp-section { padding: 72px 24px !important; }
+    .lp-section { padding: 64px 24px !important; }
     .lp-section-compact { padding: 60px 24px !important; }
     .lp-section-inner { max-width: 100% !important; }
     .lp-hero-grid {
@@ -951,7 +968,7 @@ export const RESPONSIVE_STYLES = `
     .lp-own-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-own-bottom { grid-template-columns: 1fr !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
-    .lp-hero-section { min-height: auto !important; padding: 44px 24px 56px !important; }
+    .lp-hero-section { min-height: auto !important; padding: 38px 24px 48px !important; }
     .lp-hero-grid { gap: 32px !important; margin-top: 16px !important; }
     .lp-hero-title {
       font-size: 38px !important;
@@ -979,8 +996,8 @@ export const RESPONSIVE_STYLES = `
     .lp-root * {
       font-family: ui-sans-serif, system-ui, sans-serif !important;
     }
-    .lp-section { padding: 58px 20px !important; }
-    .lp-section-compact { padding: 52px 20px !important; }
+    .lp-section { padding: 52px 20px !important; }
+    .lp-section-compact { padding: 48px 20px !important; }
     .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
     .lp-section-copy { font-size: 15px !important; }
     .lp-nav-shell {
@@ -1032,7 +1049,7 @@ export const RESPONSIVE_STYLES = `
       border-bottom: 0.5px solid var(--hairline-color);
     }
     .lp-mobile-menu-inner .lp-mobile-link:last-child { border-bottom: none; }
-    .lp-hero-section { padding: 28px 20px 44px !important; }
+    .lp-hero-section { padding: 24px 20px 38px !important; }
     .lp-hero-title { font-size: 31px !important; }
     .lp-hero-copy {
       font-size: 15px !important;

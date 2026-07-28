@@ -8,7 +8,22 @@ ella y preregistrar hipótesis, muestra, métricas, guardrails y rollback.
 
 | Experimento | Estado | Tramo | Superficie reservada | Segmento | Inicio | Cortes |
 |---|---|---|---|---|---|---|
-| `exp_01_cta_specificity` | activo | adquisición | landing · CTA primario del hero | visitante nuevo, mobile y no autenticado | 2026-07-20 | 7 días: 2026-07-28; 30 días: 2026-08-20 |
+| `exp_01_cta_specificity` | pausa aprobada; pendiente de despliegue | adquisición | landing · CTA primario del hero | visitante nuevo, mobile y no autenticado | 2026-07-20 | cierre: inconcluso por muestra insuficiente |
+
+## Decisión de pausa del rediseño inmersivo
+
+- Decisión: al desplegar la nueva landing se deja de asignar EXP-01 y se conserva `Empieza gratis`
+  como CTA estable. El código local ya no genera exposiciones nuevas; producción conserva el
+  experimento hasta ese despliegue.
+- Responsable de la decisión: owner del producto, 2026-07-27.
+- Evidencia observacional agregada desde 2026-07-20: 413 visitantes con `landing_viewed`, 131 que
+  alcanzaron `producto`, 33 `problema`, 5 `precio` y 3 `cta-final`; 7 visitantes registraron clic
+  de CTA. No se consultó ni documentó PII.
+- Interpretación: la muestra está muy por debajo de los 5,518 clientes preregistrados y no permite
+  declarar ganador. El rediseño cambia la superficie completa, por lo que continuar el A/B
+  mezclaría dos experiencias y dejaría de producir evidencia comparable.
+- Conservación: no se borran asignaciones, exposiciones ni eventos históricos. La nueva landing
+  inicia una línea base observacional separada.
 
 ## Reglas operativas
 
