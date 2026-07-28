@@ -651,7 +651,7 @@ export default function HeroFilm({
                     </picture>
                     <canvas className="pf-canvas" ref={canvasRef} aria-hidden="true" />
                   </div>
-                  <figcaption className="lp-hero-capture-label">Vista real del producto</figcaption>
+                  <figcaption className="lp-hero-capture-label">{f.captureLabel}</figcaption>
                 </figure>
               </div>
             </div>

@@ -53,7 +53,7 @@ export const copy = {
       ticketTitle: "Corte del día",
       ticketLines: ["Ventas del día", "Efectivo esperado"],
       ticketTotalLabel: "Descuadre",
-      punch: "Ya viste la diferencia: con Kova, todo el día es una sola lectura clara.",
+      punch: "Con Kova ese mismo día es una sola pantalla: ventas, caja y stock ya cuadrados antes de apagar la luz.",
     },
     sweetHome: {
       shopName: "Sweet Home",
@@ -147,6 +147,7 @@ export const copy = {
     film: {
       posterAlt:
         "Kova cobrando una venta: el carrito con su total, el método de pago y el aviso de venta completada.",
+      captureLabel: "Vista real del producto",
       chapters: {
         caja: {
           eyebrow: "Caja",
@@ -181,7 +182,7 @@ export const copy = {
     bento: {
       kicker: "Todo en una sola app",
       title: "Lo que Kova hace por ti todos los días.",
-      body: "Para negocios de mostrador que quieren vender con orden, controlar la operación y decidir con datos reales.",
+      body: "Para negocios de mostrador que quieren cobrar rápido, no perder producto y decidir con números reales — no con corazonadas.",
       roleOwner: "Dueño",
       roleManager: "Gerente",
       roleCashier: "Cajero",
@@ -198,7 +199,7 @@ export const copy = {
       eyebrow: "La diferencia",
       title: "Kova no se queda en cobrar. Te ayuda a dirigir.",
       columns: [
-        { tag: "Soluciones de pago", name: "Clip · Mercado Pago", body: "Buenas para cobrar, pero no para leer toda la operación del negocio." },
+        { tag: "Soluciones de pago", name: "Clip · Mercado Pago", body: "Excelentes para aceptar tarjeta — pero al cerrar el día, sigues sumando tickets a mano." },
         { tag: "POS globales", name: "Loyverse · Poster POS", body: "Útiles para operar, pero menos enfocados en el día a día del negocio mexicano." },
       ],
       kova: {
@@ -210,7 +211,7 @@ export const copy = {
           "Funciona sin internet · sin hardware obligatorio",
         ],
       },
-      punch: "Kova gana por darte claridad sin complicarte.",
+      punch: "Los demás te ayudan a cobrar. Kova te dice qué está pasando con lo que cobras.",
       disclaimer: "Comparativo con base en información pública disponible; sujeto a validación.",
     },
     finalCta: {
