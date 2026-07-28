@@ -262,8 +262,14 @@ export const copy = {
         { q: "¿Funciona sin internet?", a: "Sí. Si se cae la señal, Kova sigue cobrando y guarda las ventas. Cuando vuelve el internet, sincroniza todo para que no pierdas la fila ni el registro." },
         { q: "¿Necesito comprar algún aparato?", a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware." },
         { q: "¿Cuánto tardo en empezar a cobrar?", a: "El camino son cuatro pasos: creas tu cuenta, cargas tus productos, abres tu turno y cobras. Puedes hacer tu primera venta el mismo día que empiezas." },
+        // Las respuestas de migración y datos citan features reales que ya
+        // existen: import de catálogo por plantilla CSV (CatalogImportDialog)
+        // y export completo de cuenta desde Ajustes (/api/v1/export/account).
+        { q: "¿Cómo paso mis productos a Kova?", a: "Los capturas una vez, directo en la app, o los subes de golpe con una plantilla de Excel/CSV. Un catálogo de mostrador típico queda listo el mismo día: empieza con tus productos más vendidos y completa el resto sobre la marcha." },
         { q: `¿Qué incluye el plan de ${STANDARD_PLAN_PRICE_LABEL}?`, a: "Incluye caja, inventario, empleados con roles, análisis, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos." },
-        { q: "¿Puedo cancelar?", a: "Sí. Puedes cancelar cuando quieras, sin penalización. Tu información queda respaldada en la nube y separada de la de otros negocios." },
+        { q: "¿Puedo hablar con alguien antes de empezar?", a: "Sí. Escríbenos y te contesta una persona del equipo, no un bot. Te decimos con honestidad si Kova le queda a tu negocio o todavía no — sin compromiso." },
+        { q: "¿Puedo cancelar?", a: "Sí. Puedes cancelar cuando quieras, sin plazos forzosos ni penalización. Tu información queda respaldada en la nube, separada de la de otros negocios, y sigue siendo tuya." },
+        { q: "¿Mi información es mía si decido irme?", a: "Sí. Tus ventas, productos y cortes son tuyos, no nuestros. Puedes descargar una copia completa de tu información desde Ajustes cuando quieras — también si decides irte. Sin candados ni letras chiquitas." },
       ],
       contactPrefix: "¿Tienes otra duda? ",
       contactLink: "Escríbenos directo",
