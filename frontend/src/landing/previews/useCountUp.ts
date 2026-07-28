@@ -2,11 +2,7 @@
 // una sola vez por entrada del estado. Con prefers-reduced-motion el valor
 // final se muestra directo, sin animación.
 import { useEffect, useState } from "react";
-
-export function usePrefersReducedMotion(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 
 export function useCountUp(
   to: number,

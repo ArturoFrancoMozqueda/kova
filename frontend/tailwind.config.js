@@ -93,18 +93,44 @@ export default {
       fontFamily: {
         sans: ["Inter Variable", "Inter", "ui-sans-serif", "system-ui", "-apple-system", "sans-serif"],
       },
+      // Motion scale (values in styles.css). Pick the duration by how often the
+      // control is touched, not by how the animation looks in isolation:
+      // `duration-press` for a cashier's hot path, `duration-celebrate` only for
+      // rare moments. See docs/claude/motion-system.md.
+      transitionDuration: {
+        press: "var(--kova-dur-press)",
+        quick: "var(--kova-dur-quick)",
+        hover: "var(--kova-dur-hover)",
+        panel: "var(--kova-dur-panel)",
+        modal: "var(--kova-dur-modal)",
+        celebrate: "var(--kova-dur-celebrate)",
+        "panel-exit": "var(--kova-dur-panel-exit)",
+        "modal-exit": "var(--kova-dur-modal-exit)",
+      },
+      transitionTimingFunction: {
+        standard: "var(--kova-ease-standard)",
+        entrance: "var(--kova-ease-entrance)",
+        exit: "var(--kova-ease-exit)",
+        spring: "var(--kova-ease-spring)",
+      },
+      // PRINT SAFETY: every `to:` state ends at `transform: none`, never at
+      // translate/scale zero. A non-`none` transform makes the element a
+      // containing block for absolutely positioned descendants, and ViewLayout
+      // (which carries animate-fade-in) is an ancestor of .print-receipt-root
+      // and .print-corte-root. Ending at `none` is what makes a `forwards` or
+      // `both` fill-mode safe here. See the @media print block in styles.css.
       keyframes: {
         "fade-in": {
           from: { opacity: "0", transform: "translateY(4px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
+          to: { opacity: "1", transform: "none" },
         },
         "slide-in-right": {
           from: { opacity: "0", transform: "translateX(8px)" },
-          to: { opacity: "1", transform: "translateX(0)" },
+          to: { opacity: "1", transform: "none" },
         },
         "scale-in": {
-          from: { opacity: "0", transform: "scale(0.95)" },
-          to: { opacity: "1", transform: "scale(1)" },
+          from: { opacity: "0", transform: "scale(0.97)" },
+          to: { opacity: "1", transform: "none" },
         },
         "pulse-soft": {
           "0%, 100%": { opacity: "1" },
@@ -112,15 +138,32 @@ export default {
         },
         "slide-up": {
           from: { transform: "translateY(100%)" },
-          to: { transform: "translateY(0)" },
+          to: { transform: "none" },
+        },
+        // Exit counterparts, one per surface the presence pattern unmounts.
+        "fade-out": {
+          from: { opacity: "1" },
+          to: { opacity: "0" },
+        },
+        "scale-out": {
+          from: { opacity: "1", transform: "none" },
+          to: { opacity: "0", transform: "scale(0.97)" },
+        },
+        "slide-down": {
+          from: { transform: "none" },
+          to: { transform: "translateY(100%)" },
         },
       },
       animation: {
-        "fade-in": "fade-in 0.2s ease-out",
-        "slide-in-right": "slide-in-right 0.2s ease-out",
-        "scale-in": "scale-in 0.15s ease-out",
-        "pulse-soft": "pulse-soft 1.5s ease-in-out infinite",
-        "slide-up": "slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
+        "fade-in": "fade-in var(--kova-dur-hover) var(--kova-ease-standard)",
+        "slide-in-right": "slide-in-right var(--kova-dur-panel) var(--kova-ease-standard)",
+        "scale-in": "scale-in var(--kova-dur-modal) var(--kova-ease-entrance)",
+        "pulse-soft": "pulse-soft 1.5s var(--kova-ease-standard) infinite",
+        "slide-up": "slide-up var(--kova-dur-modal) var(--kova-ease-entrance)",
+        // Exits hold their end state so the node can't flash back before unmount.
+        "fade-out": "fade-out var(--kova-dur-panel-exit) var(--kova-ease-exit) forwards",
+        "scale-out": "scale-out var(--kova-dur-modal-exit) var(--kova-ease-exit) forwards",
+        "slide-down": "slide-down var(--kova-dur-modal-exit) var(--kova-ease-exit) forwards",
       },
     },
   },

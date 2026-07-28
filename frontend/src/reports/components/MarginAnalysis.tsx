@@ -9,7 +9,7 @@ import type { BusinessStoryReport } from "../types";
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-kova-md border border-kova-border bg-kova-surface px-3 py-2.5">
+    <div className="rounded-kova-md border border-kova-border bg-kova-mist px-3 py-2.5">
       <p className="text-xs text-kova-muted">{label}</p>
       <p className="mt-0.5 font-semibold tabular-nums text-kova-ink">{value}</p>
     </div>

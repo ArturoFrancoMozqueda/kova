@@ -83,6 +83,26 @@
     --radius-kova-lg: 16px;
     --radius-kova-xl: 20px;
 
+    /* ── Motion ────────────────────────────────────────────────────────────
+       Duration scale, tuned for a POS. FREQUENCY RULE: the more often a
+       cashier touches a control, the shorter its motion. Anything slower than
+       --kova-dur-modal needs a written reason — see docs/claude/motion-system.md.
+       Reachable from Tailwind as duration-press … duration-modal-exit. */
+    --kova-dur-press: 80ms; /* :active on hot controls (100+/day) */
+    --kova-dur-quick: 120ms; /* chip/segment toggle, icon swap, tooltip */
+    --kova-dur-hover: 180ms; /* hover color/border/shadow — the default */
+    --kova-dur-panel: 240ms; /* dropdown, popover, toast, inline reveal */
+    --kova-dur-modal: 280ms; /* dialog, sidebar, bottom sheet */
+    --kova-dur-celebrate: 600ms; /* completed sale, count-up — rare paths only */
+    /* Exits run ~0.65× their enter: deliberate going in, system coming out. */
+    --kova-dur-panel-exit: 160ms;
+    --kova-dur-modal-exit: 180ms;
+
+    /* entrance/exit/spring are load-bearing for the landing (55 references in
+       src/landing/** + routes/Home.tsx) — do not rename them.
+       --kova-ease-standard is byte-identical to Tailwind's `ease-out`, so
+       adopting it anywhere that already says ease-out is a zero-pixel change. */
+    --kova-ease-standard: cubic-bezier(0, 0, 0.2, 1);
     --kova-ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
     --kova-ease-exit: cubic-bezier(0.4, 0, 1, 1);
     --kova-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -128,11 +148,16 @@
     }
 
     /* Respect reduced-motion app-wide: neutralize animations/transitions for
-       users who opt out, instead of only the live-pulse dot. */
+       users who opt out, instead of only the live-pulse dot.
+       animation-delay must be reset too: a staggered entrance with
+       animation-fill-mode: both would otherwise hold its `from` state
+       (typically opacity: 0) for the full delay and then snap in — the content
+       reads as missing for as long as the stagger lasts. */
     *,
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
@@ -194,6 +219,187 @@
   background: hsl(var(--muted-foreground) / 0.3);
 }
 
+/* ── kv-* — app motion primitives that need real keyframes, i.e. more than the
+   Tailwind animate-* vocabulary can express. Namespace is deliberately distinct
+   from the landing's .lp-* and the ticket's .tkt-*: no selector ever crosses
+   between the three. */
+
+/* Quantity feedback. Adding a product the cart already holds only increments a
+   number, so without this the cashier sees NOTHING change and taps again —
+   which is a double-charge risk, not a missing flourish. Applied with a
+   key={quantity} on the node so React remounts it and the animation restarts;
+   no state, no timers, and immune to the product grid re-rendering on every
+   cart mutation (React keys are position-scoped, so an unchanged key does not
+   remount). 140ms, composite-only, inside a 20px badge the finger is already
+   covering: the cheapest honest feedback available. */
+@keyframes kv-count-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.kv-count-pop {
+  animation: kv-count-pop 140ms var(--kova-ease-spring) both;
+}
+
+/* ── Sale completed. The emotionally rare moment that actually happens ~150
+   times a day, so it is delight on a budget: 375ms to the amount, 465ms worst
+   case including the ring. The primary CTA is outside every animated band and
+   clickable at t=0 — a cashier who has done this 4000 times must never wait.
+   The amount fades and rises; it never counts up. It is the number read aloud
+   to the customer, and tweening it would display a number that is not the
+   total. */
+@keyframes kv-success-badge {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* One-shot version of the kovaLivePulse ring: confirmation, not a heartbeat. */
+@keyframes kv-success-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(30, 191, 138, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(30, 191, 138, 0);
+  }
+}
+
+.kv-success-badge {
+  animation:
+    kv-success-badge 260ms var(--kova-ease-spring) 60ms both,
+    kv-success-ring 420ms var(--kova-ease-entrance) 60ms both;
+}
+
+.kv-success-headline {
+  animation: kv-success-headline 220ms var(--kova-ease-entrance) 180ms both;
+}
+
+@keyframes kv-success-headline {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Receipt printing itself out after a sale. Adapted from the landing's
+   lp-tkt-print, which has the right feel and the wrong cadence: 240ms per LINE
+   with an uncapped 90ms stagger runs 720-1800ms on a real receipt. Fine for a
+   marketing scroll; unacceptable 150 times a day. So: five BANDS, 40ms apart,
+   180ms each — last band settles at 540ms, and nothing blocks the primary CTA.
+
+   Opt-in via .kv-tkt-reveal on the wrapper, never on ReceiptTemplate itself, so
+   this can't leak to the order-detail receipt or the shift corte — reference
+   surfaces where a print animation would just be noise. */
+@keyframes kv-tkt-print {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+    clip-path: inset(0 0 88% 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0);
+  }
+}
+
+.kv-tkt-reveal [data-tkt-band] {
+  /* `both` is mandatory: without it the pre-delay state is undefined and the
+     final unclipped state would revert. */
+  animation: kv-tkt-print 180ms var(--kova-ease-entrance) both;
+  animation-delay: calc(200ms + var(--tkt-i, 0) * 40ms);
+}
+
+/* Mandatory. window.print() is user-triggered and can fire inside the 540ms, and
+   a clip-path would cut that band out of the thermal printout. */
+@media print {
+  .kv-tkt-reveal [data-tkt-band] {
+    animation: none !important;
+    clip-path: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Mobile cart sheet. Replaces a max-height transition, which had two problems
+   beyond animating a layout property: the rendered height is min(content,
+   max-height), so with one line in the cart the sheet reached its visible height
+   in the first ~15% of the transition and the rest was a no-op — it appeared to
+   snap open and ease shut. A translate is interpolated in real visual position,
+   so it is symmetric AND interruptible: flicking the handle retargets from where
+   the sheet actually is instead of restarting.
+   Asymmetric by direction — 280ms arriving, 180ms leaving — which a single
+   keyframe could not express.
+   The closed state translates DOWN past the viewport bottom, leaving exactly the
+   5rem handle: a full-height sheet translated upward would swallow taps meant for
+   the product grid. */
+.kv-cart-sheet {
+  transition: transform var(--kova-dur-modal-exit) var(--kova-ease-exit);
+}
+
+.kv-cart-sheet[data-open="true"] {
+  transition: transform var(--kova-dur-modal) var(--kova-ease-entrance);
+}
+
+/* Defence in depth. The sheet is a SIBLING of the success overlay that holds
+   .print-receipt-root, so its transform cannot capture a print root today — but
+   if a future refactor moves the receipt inside the sheet, this fails safe.
+   Same precedent as `.tkt-paper { filter: none }` in the @media print block. */
+@media print {
+  .kv-cart-sheet {
+    transform: none !important;
+  }
+}
+
+/* Cart line leaving the list. grid-template-rows 1fr -> 0fr collapses to the
+   row's real height without measuring it, so neighbours slide up instead of
+   snapping. translateX rather than Y: the row is leaving the list, and a slip
+   toward the trash icon it was dismissed from is directionally honest.
+   ease-exit (accelerating) so it reads as "gone" rather than "leaving" — the eye
+   must be free to travel to the undo toast. */
+.kv-row-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--kova-dur-modal-exit) var(--kova-ease-exit);
+}
+
+.kv-row-collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.kv-row-collapse[data-state="exiting"] {
+  grid-template-rows: 0fr;
+}
+
+.kv-row-collapse[data-state="exiting"] > * {
+  opacity: 0;
+  transform: translateX(6px);
+  /* A second tap must not land on a ghost. */
+  pointer-events: none;
+  transition:
+    opacity 140ms var(--kova-ease-exit),
+    transform var(--kova-dur-modal-exit) var(--kova-ease-exit);
+}
+
 /* Toast animation */
 @keyframes toast-slide-in {
   from {
@@ -218,11 +424,13 @@
 }
 
 .toast-enter {
-  animation: toast-slide-in 0.25s ease-out;
+  animation: toast-slide-in var(--kova-dur-panel) var(--kova-ease-standard);
 }
 
+/* Keep in sync with MOTION_MS.panelExit in src/lib/motion.ts — toast.tsx waits
+   that long before dropping the node. lib/motion.test.ts enforces it. */
 .toast-exit {
-  animation: toast-slide-out 0.2s ease-in forwards;
+  animation: toast-slide-out var(--kova-dur-panel-exit) var(--kova-ease-exit) forwards;
 }
 
 /* ── Ticket térmico para la app (primitivo app-wide, distinto de .lp-tkt-*
@@ -301,6 +509,16 @@
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+  }
+
+  /* En pantalla el scroller de contenido es `position: relative` para que los
+     descendientes absolutos (los resúmenes .sr-only de las gráficas) no se
+     escapen de él y estiren el documento. Al imprimir tiene que volver a
+     `static`: si no, sería el bloque contenedor de .print-receipt-root y
+     .print-corte-root (position: absolute) y el ticket saldría desplazado del
+     origen de la página. Mismo precedente que `.tkt-paper { filter: none }`. */
+  #contenido-principal {
+    position: static !important;
   }
 
   .no-print {

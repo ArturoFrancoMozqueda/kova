@@ -65,7 +65,7 @@ function pastDueGraceUrgency(graceEndsAt: string | null): string | null {
   if (!graceEndsAt) return null;
   const ms = new Date(graceEndsAt).getTime() - Date.now();
   // Grace already passed (or unparseable) → no urgency copy; the caller falls
-  // back to the static "recupera la facturación" banner.
+  // back to the static "recupera la suscripción" banner.
   if (Number.isNaN(ms) || ms <= 0) return null;
   const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
   if (days <= 1) return copy.billingBanner.pastDueGraceBodyLastDay;
@@ -411,7 +411,7 @@ export default function BillingView() {
 
           <div className="grid gap-4 md:grid-cols-3">
             {/* Plan — recibo termico: el mismo lenguaje visual que la landing */}
-            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow overflow-hidden">
+            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard overflow-hidden">
               <CardHeader className="pb-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.plan}</p>
               </CardHeader>
@@ -426,7 +426,7 @@ export default function BillingView() {
             </Card>
 
             {/* Status */}
-            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
+            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard">
               <CardHeader className="pb-2">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.status}</p>
               </CardHeader>
@@ -472,7 +472,7 @@ export default function BillingView() {
               if (signupTrial && !periodDate) return null;
               if (!signupTrial && !subscription && !graceDate) return null;
               return (
-                <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow">
+                <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard">
                   <CardHeader className="pb-2">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">
                       {signupTrial

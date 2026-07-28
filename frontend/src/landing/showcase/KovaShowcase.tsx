@@ -91,7 +91,7 @@ const SCENES: Scene[] = [
   },
   { id: "inventory", caption: steps[1], render: () => <ProductCapture src="/showcase/inventory.png" alt="Vista real sanitizada del inventario de Kova" position="center top" /> },
   { id: "cash", caption: steps[2], render: () => <ProductCapture src="/showcase/shifts.png" alt="Vista real sanitizada de turnos en Kova" position="center top" /> },
-  { id: "reports", caption: steps[3], render: () => <ProductCapture src="/showcase/reports.png" alt="Vista real sanitizada de reportes en Kova" position="center top" /> },
+  { id: "reports", caption: steps[3], render: () => <ProductCapture src="/showcase/reports.png" alt="Vista real sanitizada de análisis en Kova" position="center top" /> },
   { id: "cta", caption: null },
 ];
 
@@ -871,7 +871,12 @@ const SHOWCASE_STYLES = `
     .ksw-stage[data-variant="embedded"] .ksw-cursor { display: none !important; }
   }
   /* Standalone export must ALWAYS animate — override the app-wide reduced-motion
-     reset in styles.css (higher specificity than its star rule, so this wins). */
+     reset in styles.css (higher specificity than its star rule, so this wins).
+     INTENTIONAL EXEMPTION, do not "clean this up": /kova-showcase-video is a
+     video-capture route driven by scripts/capture-showcase.mjs, not a surface a
+     human browses, so the accessibility preference does not apply to it. The
+     !important declarations are load-bearing. Every other reduced-motion
+     concern belongs in styles.css or lib/usePrefersReducedMotion.ts. */
   .ksw-stage[data-variant="standalone"] .ksw-layer {
     transition: opacity 620ms var(--kova-ease-entrance), transform 720ms var(--kova-ease-entrance) !important;
   }

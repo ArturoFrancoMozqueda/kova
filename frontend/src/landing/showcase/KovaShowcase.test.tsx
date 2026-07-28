@@ -57,7 +57,7 @@ describe("KovaShowcase", () => {
     expect(screen.getByText("Cobrar $186.00")).toBeInTheDocument(); // POS
     expect(screen.getByAltText("Vista real sanitizada del inventario de Kova")).toHaveAttribute("src", "/showcase/inventory.png");
     expect(screen.getByAltText("Vista real sanitizada de turnos en Kova")).toHaveAttribute("src", "/showcase/shifts.png");
-    expect(screen.getByAltText("Vista real sanitizada de reportes en Kova")).toHaveAttribute("src", "/showcase/reports.png");
+    expect(screen.getByAltText("Vista real sanitizada de análisis en Kova")).toHaveAttribute("src", "/showcase/reports.png");
 
     // Reduced motion: parked on scene 1, no decorative cursor.
     expect(screenLayers(container)[0]).toHaveAttribute("data-active", "true");

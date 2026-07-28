@@ -5,7 +5,7 @@
 // aleatoriedad — cada vuelta de 30s es visualmente idéntica (suficiente para
 // la ruta de grabación /kova-showcase-video).
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { usePrefersReducedMotion } from "@/landing/previews/useCountUp";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 
 /** IntersectionObserver continuo (re-arma al salir), a diferencia del
  *  useInViewOnce de los previews: el director pausa fuera de viewport y

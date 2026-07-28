@@ -374,7 +374,7 @@ function StockCard({
   return (
     <Card
       className={cn(
-        "shadow-kova-card hover:shadow-kova-card-hover transition-shadow",
+        "shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard",
         isOut && "border-l-4 border-l-destructive",
         isLow && "border-l-4 border-l-warning",
       )}

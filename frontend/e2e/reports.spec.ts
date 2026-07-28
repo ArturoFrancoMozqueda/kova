@@ -569,6 +569,69 @@ test("desktop sidebar covers the viewport after scrolling reports", async ({ pag
   expect(Math.round(sidebar?.height ?? 0)).toBe(768);
 });
 
+/** Reads scrollTop of every box wrapping the report content. Only
+ * #contenido-principal may ever be non-zero: it is the one scroller the user
+ * can scroll back. If an ancestor moves, the shell slides off screen and no
+ * amount of scrolling brings it back — a reload is the only recovery. */
+async function shellScrollOffsets(page: Page) {
+  return page.evaluate(() => {
+    const scroller = document.getElementById("contenido-principal");
+    const contentColumn = scroller?.parentElement ?? null;
+    const shellRoot = contentColumn?.parentElement ?? null;
+    return {
+      documentElement: document.documentElement.scrollTop,
+      body: document.body.scrollTop,
+      shellRoot: shellRoot?.scrollTop ?? -1,
+      contentColumn: contentColumn?.scrollTop ?? -1,
+    };
+  });
+}
+
+test("reports scrolling never moves the app shell itself", async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner", true);
+  await mockReports(page);
+
+  await page.goto("/reports");
+  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+
+  const anchored = { documentElement: 0, body: 0, shellRoot: 0, contentColumn: 0 };
+
+  // Real wheel input, well past the end of the content: scroll must stay in
+  // #contenido-principal and never chain out to the shell or the document.
+  await page.mouse.move(800, 400);
+  for (let i = 0; i < 40; i += 1) {
+    await page.mouse.wheel(0, 400);
+  }
+  await expect.poll(() => shellScrollOffsets(page)).toEqual(anchored);
+
+  // The products panel jumps to the full table; that must move the scroller
+  // only, never an ancestor.
+  await page.getByRole("button", { name: "Ver tabla completa" }).click();
+  await expect.poll(() => shellScrollOffsets(page)).toEqual(anchored);
+  await expect(page.locator("#reporte-productos")).toBeInViewport();
+
+  // The sidebar still covers the viewport, footer included.
+  const sidebar = await page.locator("aside").boundingBox();
+  expect(Math.round(sidebar?.y ?? -1)).toBe(0);
+  expect(Math.round(sidebar?.height ?? 0)).toBe(768);
+  await expect(page.locator("[data-capture-account]")).toBeInViewport();
+
+  // The containing block above is a screen-only device. If it survived into
+  // print it would capture .print-receipt-root / .print-corte-root and the
+  // thermal ticket would leave the page origin.
+  const positionByMedia = async (media: "screen" | "print") => {
+    await page.emulateMedia({ media });
+    return page.evaluate(() =>
+      getComputedStyle(document.getElementById("contenido-principal")!).position,
+    );
+  };
+  expect(await positionByMedia("screen")).toBe("relative");
+  expect(await positionByMedia("print")).toBe("static");
+  await page.emulateMedia({ media: "screen" });
+});
+
 test("reports page displays analytics dashboard layout", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockAuthAs(page, "owner");
@@ -614,7 +677,7 @@ test("reports page displays analytics dashboard layout", async ({ page }) => {
   // KPI row: the four tiles with their exact labels. The previous period
   // ($180) is below MIN_MONEY_BASE, so the headline deliberately avoids a
   // noisy percentage.
-  await expect(page.getByRole("heading", { name: "Reportes", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Análisis", exact: true })).toBeVisible();
   await expect(page.getByText("Resumen del periodo")).toBeVisible();
   await expect(page.getByText("Ventas netas", { exact: true })).toBeVisible();
   await expect(page.getByText("Ticket promedio", { exact: true })).toBeVisible();
@@ -831,7 +894,7 @@ test("reports shows useful empty state without demo data", async ({ page }) => {
         {
           type: "opportunity",
           title: "Genera la primera venta del periodo",
-          detail: "Abre caja y registra ventas reales para activar los insights del reporte.",
+          detail: "Abre caja y registra ventas reales para activar los insights del análisis.",
         },
       ],
       sales_by_employee: [],

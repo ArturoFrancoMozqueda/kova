@@ -323,7 +323,7 @@ export default function CatalogView() {
                 type="button"
                 disabled={presetApplying}
                 onClick={() => void handleApplyPreset(preset)}
-                className="flex flex-col rounded-kova-lg border-2 border-kova-border bg-white p-4 text-left transition-all hover:border-kova-blue/40 hover:shadow-kova-card-hover disabled:opacity-60"
+                className="flex flex-col rounded-kova-lg border-2 border-kova-border bg-white p-4 text-left transition-[border-color,box-shadow] duration-hover ease-standard hover:border-kova-blue/40 hover:shadow-kova-card-hover disabled:opacity-60"
               >
                 <p className="font-semibold text-sm">{label}</p>
                 <p className="text-xs text-muted-foreground mt-1">{desc}</p>
@@ -639,7 +639,7 @@ export default function CatalogView() {
                   <div
                     key={product.id}
                     className={cn(
-                      "group relative rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card transition-all hover:shadow-kova-card-hover",
+                      "group relative rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card transition-shadow duration-hover ease-standard hover:shadow-kova-card-hover",
                       canUpdate && "cursor-pointer",
                     )}
                     onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}

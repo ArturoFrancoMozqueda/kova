@@ -23,6 +23,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/usePresence";
 import { avatarColorFor } from "@/lib/avatarColor";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
 import { LogoMark } from "@/components/brand/Logo";
@@ -130,6 +131,9 @@ export default function AppShell() {
   });
 
   const closeSidebar = () => setSidebarOpen(false);
+  // The drawer slides for 280ms; without this the backdrop used to blink out of
+  // existence on the first frame, which was the shell's most visible motion bug.
+  const backdrop = usePresence(sidebarOpen);
 
   useEffect(() => {
     if (state.status === "authenticated") {
@@ -190,7 +194,7 @@ export default function AppShell() {
             title={sidebarCollapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
-                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-all duration-150",
+                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-[background-color,border-color,color] duration-hover ease-standard",
                 sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
                 isActive
                   ? "border-l-kova-blue-light bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
@@ -251,7 +255,11 @@ export default function AppShell() {
   );
 
   return (
-    <div className="flex h-[100dvh] min-h-screen overflow-hidden">
+    // No `min-h-screen` next to `h-[100dvh]`: min-height always beats height,
+    // so it made the dvh unit dead letter and forced the shell to 100vh. Where
+    // the two differ (any browser with a retractable toolbar) that surplus
+    // becomes document scroll and the shell slides off screen.
+    <div className="flex h-[100dvh] overflow-hidden">
       <a
         href="#contenido-principal"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-kova-ink focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-kova-on-ink focus:shadow-kova-card"
@@ -259,9 +267,12 @@ export default function AppShell() {
         {copy.app.skipToContent}
       </a>
       {/* Mobile backdrop overlay */}
-      {sidebarOpen && (
+      {backdrop.mounted && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          className={cn(
+            "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden",
+            backdrop.exiting ? "animate-fade-out pointer-events-none" : "animate-fade-in",
+          )}
           onClick={closeSidebar}
           aria-hidden="true"
         />
@@ -270,8 +281,20 @@ export default function AppShell() {
       {/* Sidebar — fixed on mobile, static on desktop */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex h-[100dvh] min-h-screen w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ease-in-out",
-          "lg:relative lg:translate-x-0 lg:shrink-0",
+          // Mobile off-canvas is transform-only: cheap, and ease-entrance rather
+          // than ease-in-out because an ease-in start delays the moment the user
+          // is watching for.
+          // `min-h-screen` dropped here for the same reason as on the shell
+          // root: paired with h-[100dvh] it won, and on a phone with a visible
+          // toolbar it pushed the sidebar footer (Cerrar sesión) below the fold.
+          "fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-modal ease-entrance",
+          // Desktop collapse keeps animating `width` — see docs/claude/motion-system.md
+          // for why a transform is NOT an option here: moving the content
+          // column's left edge would mean putting a transform on the main
+          // content div, which is an ancestor of .print-receipt-root and
+          // .print-corte-root, turning it into their containing block and
+          // breaking thermal printing. Now at least it animates width alone.
+          "lg:relative lg:translate-x-0 lg:shrink-0 lg:transition-[width] lg:duration-modal lg:ease-standard",
           sidebarCollapsed ? "lg:w-[60px]" : "lg:w-[260px]",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
@@ -308,7 +331,22 @@ export default function AppShell() {
 
         {/* Skip-link target. Kept as a <div>: each routed view renders its own
             <main> landmark, so a second one here would nest landmarks. */}
-        <div id="contenido-principal" tabIndex={-1} className="flex-1 overflow-y-auto pb-16 lg:pb-0 focus:outline-none">
+        {/* `relative` is load-bearing, not cosmetic. Every ancestor up to <html>
+            is position:static, so an absolutely positioned descendant — the
+            .sr-only chart summaries in ChartCard, for one — would resolve its
+            containing block to the initial containing block, escape this
+            scroller's clipping entirely, and land at its static position in
+            DOCUMENT coordinates. On a long view like Análisis that put a 1px
+            paragraph ~2200px down the page, gave the document a scroll range it
+            should never have, and let a wheel gesture slide the whole shell
+            (sidebar included) off screen. Making this the containing block
+            keeps out-of-flow descendants inside the only scroller that should
+            ever move. See the @media print reset in styles.css. */}
+        <div
+          id="contenido-principal"
+          tabIndex={-1}
+          className="relative flex-1 overflow-y-auto overscroll-contain pb-16 lg:pb-0 focus:outline-none"
+        >
           <BillingBanner />
           <Suspense fallback={<ShellRouteFallback />}>
             <Outlet />

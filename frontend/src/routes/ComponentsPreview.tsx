@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
 function ToastDemo() {
   const { toast } = useToast();
@@ -25,6 +26,85 @@ function ToastDemo() {
       <Button size="sm" variant="outline" onClick={() => toast("FYI", "info")}>
         info
       </Button>
+    </div>
+  );
+}
+
+// Class names are written out in full, never interpolated: Tailwind's scanner is
+// a static string match, so `duration-${name}` would compile to nothing.
+const DURATION_TOKENS = [
+  { name: "duration-press", cls: "duration-press", ms: "80ms", use: "hot controls, 100+ taps/day" },
+  { name: "duration-quick", cls: "duration-quick", ms: "120ms", use: "chip toggle, icon swap" },
+  { name: "duration-hover", cls: "duration-hover", ms: "180ms", use: "the default hover" },
+  { name: "duration-panel", cls: "duration-panel", ms: "240ms", use: "toast, popover, inline reveal" },
+  { name: "duration-modal", cls: "duration-modal", ms: "280ms", use: "dialog, sidebar, bottom sheet" },
+  { name: "duration-celebrate", cls: "duration-celebrate", ms: "600ms", use: "rare moments only" },
+  { name: "duration-panel-exit", cls: "duration-panel-exit", ms: "160ms", use: "~0.65x panel" },
+  { name: "duration-modal-exit", cls: "duration-modal-exit", ms: "180ms", use: "~0.65x modal" },
+] as const;
+
+const EASING_TOKENS = [
+  { name: "ease-standard", cls: "ease-standard", use: "the default; same curve as ease-out" },
+  { name: "ease-entrance", cls: "ease-entrance", use: "entrances that travel" },
+  { name: "ease-exit", cls: "ease-exit", use: "accelerating — reads as gone" },
+  { name: "ease-spring", cls: "ease-spring", use: "overshoot, confirmation only" },
+] as const;
+
+/**
+ * Hover swatches for the motion scale. Exists so timing arguments can be settled
+ * by looking rather than by asserting — every duration in the system, side by
+ * side, moving the same distance.
+ */
+function MotionSwatches() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div>
+        <p style={{ fontSize: 12, color: "var(--kova-muted)", margin: "0 0 8px" }}>
+          Durations — hover a row (all on ease-standard)
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {DURATION_TOKENS.map((token) => (
+            <div key={token.name} className="group flex items-center gap-3">
+              <code style={{ fontSize: 11, width: 130, color: "var(--kova-muted)" }}>
+                {token.name}
+              </code>
+              <div className="h-6 flex-1 overflow-hidden rounded-kova-sm bg-kova-mist">
+                <div
+                  className={cn(
+                    "h-full w-6 rounded-kova-sm bg-kova-blue transition-transform ease-standard group-hover:translate-x-[700%]",
+                    token.cls,
+                  )}
+                />
+              </div>
+              <span style={{ fontSize: 11, width: 60, color: "var(--kova-ink)" }}>{token.ms}</span>
+              <span style={{ fontSize: 11, color: "var(--kova-tertiary)" }}>{token.use}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p style={{ fontSize: 12, color: "var(--kova-muted)", margin: "0 0 8px" }}>
+          Easings — hover a row (all at duration-modal)
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {EASING_TOKENS.map((token) => (
+            <div key={token.name} className="group flex items-center gap-3">
+              <code style={{ fontSize: 11, width: 130, color: "var(--kova-muted)" }}>
+                {token.name}
+              </code>
+              <div className="h-6 flex-1 overflow-hidden rounded-kova-sm bg-kova-mist">
+                <div
+                  className={cn(
+                    "h-full w-6 rounded-kova-sm bg-kova-growth transition-transform duration-modal group-hover:translate-x-[700%]",
+                    token.cls,
+                  )}
+                />
+              </div>
+              <span style={{ fontSize: 11, color: "var(--kova-tertiary)" }}>{token.use}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -211,6 +291,9 @@ export default function ComponentsPreview() {
           </Section>
           <Section title="On --kova-ink" surface="var(--kova-ink)" textColor="#FFFFFF">
             <PrimitivesGrid />
+          </Section>
+          <Section title="Motion scale" surface="#FFFFFF" textColor="var(--kova-ink)">
+            <MotionSwatches />
           </Section>
         </div>
       </main>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import styles from "./IntroAnimation.module.css";
 
 export type IntroAnimationTone = "dark" | "light";
@@ -21,19 +22,6 @@ export type IntroAnimationProps = {
 const COMPLETE_MS = 4500;
 const SKIP_VISIBLE_MS = 1000;
 
-function useSystemReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-  return reduced;
-}
-
 export default function IntroAnimation({
   embedded = false,
   onComplete,
@@ -44,7 +32,7 @@ export default function IntroAnimation({
   forceReducedMotion = false,
   className,
 }: IntroAnimationProps) {
-  const systemReduced = useSystemReducedMotion();
+  const systemReduced = usePrefersReducedMotion();
   const reduced = forceReducedMotion || systemReduced;
   const [skipVisible, setSkipVisible] = useState(false);
 

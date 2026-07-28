@@ -3,7 +3,8 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border-[0.5px] px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-kova-blue focus:ring-offset-2",
+  // No transition: a Badge is a non-interactive <div> whose colours never change.
+  "inline-flex items-center rounded-full border-[0.5px] px-2.5 py-0.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-kova-blue focus:ring-offset-2",
   {
     variants: {
       variant: {
