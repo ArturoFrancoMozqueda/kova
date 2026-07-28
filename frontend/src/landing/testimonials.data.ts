@@ -11,9 +11,20 @@
 // specs/marketing/landing_metrics.md antes de publicarla.
 export type Testimonial = {
   quote: string;
-  name: string;
   business: string;
-  city: string;
+  // Nombre de la persona y ciudad: opcionales, pero suben mucho la
+  // credibilidad — agrégalos en cuanto el cliente dé permiso.
+  name?: string;
+  city?: string;
 };
 
-export const TESTIMONIALS: readonly Testimonial[] = [];
+export const TESTIMONIALS: readonly Testimonial[] = [
+  {
+    quote: "Kova me ha ayudado mucho a leer mejor mi negocio y potenciarlo con ventas inteligentes",
+    business: "Sweet Home",
+  },
+  {
+    quote: "Con Kova he podido llevar el control de mis sucursales sin depender de una misma computadora",
+    business: "Cafe Chapatito",
+  },
+];

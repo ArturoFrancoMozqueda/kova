@@ -22,6 +22,8 @@ vi.mock("@/auth/useAuth", () => ({
 }));
 
 import Home from "./Home";
+import { TESTIMONIALS } from "@/landing/testimonials.data";
+import { isWhatsAppEnabled } from "@/lib/whatsapp";
 
 function renderHome() {
   return render(
@@ -147,14 +149,22 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
   });
 
-  // Gating por datos/config: sin testimonios reales y sin número de WhatsApp
-  // configurados, ni la sección #clientes ni el canal de WhatsApp existen en
-  // el DOM (y por lo tanto tampoco en el prerender de producción).
-  it("renders no testimonials section and no WhatsApp UI while unconfigured", () => {
+  // Gating por datos/config: la sección #clientes y el canal de WhatsApp
+  // existen exactamente cuando su fuente de verdad (testimonials.data.ts /
+  // lib/whatsapp.ts) está configurada. El assert es dinámico para que el
+  // contrato sobreviva si el usuario vacía o llena esa configuración.
+  it("renders testimonials and WhatsApp UI exactly when configured", () => {
     const { container } = renderHome();
-    expect(container.querySelector("section#clientes")).toBeNull();
-    expect(container.querySelector(".lp-wa-fab")).toBeNull();
-    expect(container.querySelector('a[href^="https://wa.me/"]')).toBeNull();
+    expect(container.querySelectorAll("#clientes blockquote")).toHaveLength(TESTIMONIALS.length);
+    const waLinks = container.querySelectorAll('a[href^="https://wa.me/"]');
+    if (isWhatsAppEnabled()) {
+      expect(container.querySelector(".lp-wa-fab")).not.toBeNull();
+      // FAB + link del FAQ + link del footer.
+      expect(waLinks).toHaveLength(3);
+    } else {
+      expect(container.querySelector(".lp-wa-fab")).toBeNull();
+      expect(waLinks).toHaveLength(0);
+    }
   });
 
   // The embedded walkthrough is now ProductFilm rather than KovaShowcase, so

@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Testimonials from "./Testimonials";
-import type { Testimonial } from "./testimonials.data";
+import { TESTIMONIALS, type Testimonial } from "./testimonials.data";
 
 const FIXTURES: readonly Testimonial[] = [
   {
@@ -11,18 +11,15 @@ const FIXTURES: readonly Testimonial[] = [
     city: "Ciudad Prueba",
   },
   {
+    // Atribución mínima: solo negocio (name/city son opcionales).
     quote: "Segunda cita de prueba.",
-    name: "Otra Persona",
     business: "Otro Negocio",
-    city: "Otra Ciudad",
   },
 ];
 
 describe("Testimonials (#clientes)", () => {
-  it("renders nothing while there are no real testimonials (production default)", () => {
-    // Sin `items`, usa TESTIMONIALS de testimonials.data.ts — vacío hasta que
-    // existan citas reales verificadas. La sección no debe existir en el DOM.
-    const { container } = render(<Testimonials />);
+  it("renders nothing when there are no testimonials (data gate)", () => {
+    const { container } = render(<Testimonials items={[]} />);
     expect(container.querySelector("section#clientes")).toBeNull();
     expect(container.innerHTML).toBe("");
   });
@@ -32,7 +29,19 @@ describe("Testimonials (#clientes)", () => {
     expect(container.querySelector("section#clientes")).not.toBeNull();
     expect(container.querySelectorAll("blockquote")).toHaveLength(2);
     expect(getByText(/Cita de prueba para el layout/)).toBeInTheDocument();
+    // Atribución completa: nombre, negocio y ciudad.
     expect(getByText("Nombre Prueba")).toBeInTheDocument();
-    expect(getByText(/Negocio Prueba · Ciudad Prueba/)).toBeInTheDocument();
+    expect(getByText(/, Negocio Prueba · Ciudad Prueba/)).toBeInTheDocument();
+    // Atribución mínima: solo el negocio, sin coma ni ciudad colgantes.
+    expect(getByText("Otro Negocio")).toBeInTheDocument();
+  });
+
+  it("renders the real published testimonials by default", () => {
+    const { container } = render(<Testimonials />);
+    expect(container.querySelectorAll("blockquote")).toHaveLength(TESTIMONIALS.length);
+    for (const item of TESTIMONIALS) {
+      expect(container.textContent).toContain(item.quote);
+      expect(container.textContent).toContain(item.business);
+    }
   });
 });

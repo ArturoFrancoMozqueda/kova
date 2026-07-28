@@ -25,7 +25,7 @@ export default function Testimonials({
         <ul className="lp-testimonials-grid" data-lp-stagger-group style={{ listStyle: "none", padding: 0, margin: "40px 0 0" }}>
           {items.map((item) => (
             <li
-              key={`${item.name}-${item.business}`}
+              key={item.business}
               className="lp-lift"
               data-lp-stagger-item
               style={{
@@ -43,9 +43,9 @@ export default function Testimonials({
                 “{item.quote}”
               </blockquote>
               <footer style={{ marginTop: "auto", fontSize: 13, color: "var(--text-muted)" }}>
-                — <span style={{ fontWeight: 600, color: "var(--page-fg)" }}>{item.name}</span>
-                {", "}
-                {item.business} · {item.city}
+                — <span style={{ fontWeight: 600, color: "var(--page-fg)" }}>{item.name ?? item.business}</span>
+                {item.name ? `, ${item.business}` : ""}
+                {item.city ? ` · ${item.city}` : ""}
               </footer>
             </li>
           ))}
