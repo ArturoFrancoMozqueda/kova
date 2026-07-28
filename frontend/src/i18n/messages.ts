@@ -243,6 +243,16 @@ export const copy = {
       eyebrow: "Clientes reales",
       title: "Negocios que ya cierran el día con Kova.",
     },
+    // Canal de WhatsApp (lib/whatsapp.ts). Gateado: nada de esto se muestra
+    // mientras WHATSAPP_PHONE esté vacío.
+    whatsapp: {
+      fabLabel: "Escríbenos por WhatsApp",
+      prefill: "Hola, vengo de kovasuite.com y quiero saber si Kova sirve para mi negocio.",
+      faqPrefix: " O si prefieres, ",
+      faqLink: "mándanos WhatsApp",
+      faqSuffix: ".",
+      footerLink: "Escríbenos por WhatsApp",
+    },
     faq: {
       eyebrow: "Preguntas frecuentes",
       title: "Lo que la gente nos pregunta antes de empezar.",

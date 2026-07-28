@@ -30,12 +30,14 @@ import BuiltFor from "@/landing/BuiltFor";
 import FinalCta from "@/landing/FinalCta";
 import SaleStory from "@/landing/SaleStory";
 import Testimonials from "@/landing/Testimonials";
+import WhatsAppFab from "@/landing/WhatsAppFab";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
 import HeroFilm from "@/landing/film/HeroFilm";
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { useLandingRevealMotion } from "@/landing/useRevealMotion";
 import { copy } from "@/i18n/messages";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
+import { isWhatsAppEnabled, whatsAppLink } from "@/lib/whatsapp";
 
 const t = copy.landing;
 
@@ -405,6 +407,25 @@ function FAQ() {
             {t.faq.contactLink}
           </a>
           {t.faq.contactSuffix}
+          {/* Canal secundario gateado: solo con número configurado. El click
+              reporta directo (no es signup, no pasa por onCtaClick). */}
+          {isWhatsAppEnabled() && (
+            <>
+              {t.whatsapp.faqPrefix}
+              <a
+                href={whatsAppLink(t.whatsapp.prefill)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  void trackAnonymousEvent("landing_cta_clicked", { cta: "whatsapp_faq" });
+                }}
+                style={{ color: "var(--accent)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--accent-soft)" }}
+              >
+                {t.whatsapp.faqLink}
+              </a>
+              {t.whatsapp.faqSuffix}
+            </>
+          )}
         </p>
       </div>
     </section>
@@ -586,6 +607,21 @@ function Footer() {
             >
               {SUPPORT_EMAIL}
             </a>
+            {isWhatsAppEnabled() && (
+              <div>
+                <a
+                  href={whatsAppLink(t.whatsapp.prefill)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    void trackAnonymousEvent("landing_cta_clicked", { cta: "whatsapp_footer" });
+                  }}
+                  style={{ display: "inline-flex", marginTop: 10, fontSize: 14, fontWeight: 500, color: "var(--page-fg)", textDecoration: "none", borderBottom: "1px solid var(--hairline-color)" }}
+                >
+                  {t.whatsapp.footerLink}
+                </a>
+              </div>
+            )}
           </div>
         </div>
         <div style={{ marginTop: 64, paddingTop: 24, borderTop: "0.5px solid var(--hairline-color)", display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-tertiary)", flexWrap: "wrap", gap: 16 }}>
@@ -740,6 +776,9 @@ export default function Home(): ReactNode {
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
       </main>
       <Footer />
+      {/* Fuera de <main>: los section[id] de main alimentan scroll-depth y el
+          FAB no es una sección. Gateado por lib/whatsapp.ts. */}
+      <WhatsAppFab />
     </div>
   );
 }
