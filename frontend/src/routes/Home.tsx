@@ -547,9 +547,24 @@ function Pricing({
             >
               <span>{t.pricing.ctaButton}</span>
             </Link>
-            <div style={{ textAlign: "center", fontSize: 12, color: "var(--ticket-muted)", marginTop: 10 }}>
-              {t.pricing.ctaFineprint}
-            </div>
+            {/* Riesgo invertido: la oferta desglosada como checks del recibo,
+                justo donde pesa la decisión. */}
+            <ul
+              style={{
+                listStyle: "none", padding: 0, margin: "12px 0 0",
+                display: "flex", flexWrap: "wrap", justifyContent: "center",
+                gap: "6px 14px",
+              }}
+            >
+              {t.pricing.riskReversal.map((item) => (
+                <li key={item} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--ticket-muted)" }}>
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                    <path d="M2 6L5 9L10 3" stroke="var(--ticket-ok)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </TicketPaper>
 
           <div

@@ -217,7 +217,7 @@ export const copy = {
       title: "Tu primera venta en Kova puede ser hoy.",
       steps: ["Crea tu cuenta", "Carga tus productos", "Abre tu turno", "Cobra"],
       button: "Empieza gratis",
-      fineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras.`,
+      fineprint: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta para empezar. Cancela cuando quieras. Tus datos son tuyos.`,
     },
     // Sección "¿Es para mí?" (#comercios). `fit` es la clave estable para
     // estilos/orden; `tag` es la etiqueta visible es-MX. Las etiquetas de
@@ -291,9 +291,10 @@ export const copy = {
       planName: "Plan Standard",
       planSubtitle: "Caja, inventario y análisis claro desde una sola app",
       // En el momento de mayor fricción (junto al precio) el botón re-enuncia
-      // la oferta completa; el trial vive en el botón, el fineprint no lo repite.
+      // la oferta completa; el trial vive en el botón y el riesgo invertido
+      // se desglosa como checks en el talón (no se repite el trial ahí).
       ctaButton: `Probar Kova ${BILLING_TRIAL_LABEL} gratis`,
-      ctaFineprint: "Sin tarjeta para empezar. Cancela cuando quieras.",
+      riskReversal: ["Sin tarjeta para empezar", "Cancela cuando quieras", "Tus datos son tuyos"],
       // Señales de confianza reales (nada inventado): las mismas del footer,
       // repetidas junto al CTA de precio donde pesa la decisión.
       trustItems: ["Hecho en México 🇲🇽", "Atendido por humanos, no por bots"],
