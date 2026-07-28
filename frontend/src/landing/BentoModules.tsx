@@ -1,13 +1,14 @@
 // Bento de capacidades (brief §1.4/§2.8): absorbe la grid de Features.
 // Cada celda lleva una mini-viñeta de UI (no íconos solos) construida con
 // labels reales del producto. Las 6 capacidades son las ya publicadas hoy.
-import type { CSSProperties, ReactNode } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import { AlertTriangle, BarChart3, Calculator, CreditCard, Package, UsersRound, WifiOff } from "lucide-react";
 import { formatMoney } from "@/orders/format";
 import { localizeReconciliationStatus } from "@/shifts/format";
 import { copy } from "@/i18n/messages";
 import { SWEET_HOME_CASH_REGISTER, SWEET_HOME_PRODUCTS, SWEET_HOME_SALE_TOTAL } from "@/landing/demo/sweetHome";
 import { HoursMiniChart } from "@/landing/previews/ReportsPreview";
+import { useInViewOnce } from "@/landing/previews/useInViewOnce";
 
 const t = copy.landing.bento;
 const sweet = copy.landing.sweetHome;
@@ -105,14 +106,22 @@ const CELLS: Array<{ icon: ReactNode; large: boolean; vignette: ReactNode }> = [
 
 const audienceTypes = copy.landing.builtFor.types.slice(0, 5).map((type) => type.name);
 
+// Índice de la celda "Análisis" en CELLS: la única vignette animada del acto.
+const HOURS_CELL_INDEX = 3;
+
 export default function BentoModules() {
+  const hoursCellRef = useRef<HTMLDivElement>(null);
+  const hoursSeen = useInViewOnce(hoursCellRef);
+
   return (
-    <section id="como-funciona" className="lp-section lp-reveal-block" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
+    <section id="como-funciona" className="lp-section" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
       <div className="lp-section-inner" style={{ position: "relative" }}>
         <span id="comercios" style={{ position: "absolute", top: -96 }} aria-hidden="true" />
-        <span className="lp-section-label">{t.kicker}</span>
-        <h2 className="lp-section-title" style={{ maxWidth: 720 }}>{t.title}</h2>
-        <p className="lp-section-copy">{t.body}</p>
+        <div data-lp-stagger-group>
+          <span className="lp-section-label" data-lp-stagger-item>{t.kicker}</span>
+          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>{t.title}</h2>
+          <p className="lp-section-copy" data-lp-stagger-item>{t.body}</p>
+        </div>
         <div style={{ marginTop: 18, display: "flex", flexWrap: "wrap", gap: 8 }}>
           {audienceTypes.map((type) => (
             <span key={type} className="lp-chip-lift" style={chipStyle}>
@@ -121,13 +130,21 @@ export default function BentoModules() {
           ))}
         </div>
 
-        <ul className="lp-bento">
+        <ul className="lp-bento" data-lp-stagger-group>
           {t.items.map((item, i) => (
-            <li key={item.title} className="lp-bento-cell" data-large={CELLS[i].large ? "1" : "0"}>
+            <li key={item.title} className="lp-bento-cell" data-lp-stagger-item data-large={CELLS[i].large ? "1" : "0"}>
               <span aria-hidden="true" style={{ color: "var(--accent)", display: "inline-flex" }}>{CELLS[i].icon}</span>
               <h3 style={{ margin: "10px 0 0", fontSize: 17, fontWeight: 600, letterSpacing: "-0.015em", color: "var(--page-fg)" }}>{item.title}</h3>
               <p style={{ margin: "4px 0 0", fontSize: 13, lineHeight: 1.5, color: "var(--text-muted)" }}>{item.line}</p>
-              <div style={{ marginTop: "auto", paddingTop: 14 }}>{CELLS[i].vignette}</div>
+              {/* Una sola vignette en movimiento por acto: las barras de horas
+                  crecen al reveal; las demás quedan estáticas a propósito. */}
+              <div
+                ref={i === HOURS_CELL_INDEX ? hoursCellRef : undefined}
+                data-lp-anim={i === HOURS_CELL_INDEX && hoursSeen ? "on" : "off"}
+                style={{ marginTop: "auto", paddingTop: 14 }}
+              >
+                {CELLS[i].vignette}
+              </div>
             </li>
           ))}
         </ul>

@@ -105,11 +105,20 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    // Section title of the product film. It replaced the showcase copy that
-    // used to anchor this assertion when KovaShowcase left the landing.
-    assert: "grabado del producto real",
+    // Hero subtitle of the merged HeroFilm section — a text node in the
+    // LCP-critical block, so it proves the hero actually prerendered. (It
+    // replaced the film's own H2, which left when the film became the hero.)
+    assert: "Kova conecta cada venta",
     structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
+    // The HeroFilm poster is the LCP candidate on wide viewports; preloading
+    // both variants with mutually exclusive media queries means every
+    // viewport downloads exactly one. The breakpoint matches the component's
+    // <picture> source and its canvas NARROW_QUERY (860px).
+    preloadImages: [
+      { href: "/film/mobile/frame-0023.webp", media: "(max-width: 860px)" },
+      { href: "/film/desktop/frame-0023.webp", media: "(min-width: 861px)" },
+    ],
   },
   {
     path: "/privacy",
@@ -239,15 +248,25 @@ function structuredDataScript(data) {
   return `    <script type="application/ld+json">${json}</script>\n`;
 }
 
-function injectHead(html, { path, title, description, structuredData }) {
+function injectHead(html, { path, title, description, structuredData, preloadImages }) {
   let out = html;
   const canonical = `${CANONICAL_ORIGIN}${path}`;
   const jsonLd = structuredData ? structuredDataScript(structuredData) : "";
+  // Route-scoped image preloads (the HeroFilm poster). fetchpriority=high puts
+  // the LCP image ahead of fonts/CSS in the queue; deferPrerenderHydration's
+  // font-media rewrite only matches as="font", so these pass through intact.
+  const images = (preloadImages ?? [])
+    .map(
+      (image) =>
+        `    <link rel="preload" as="image" href="${escapeAttr(image.href)}"` +
+        `${image.media ? ` media="${escapeAttr(image.media)}"` : ""} fetchpriority="high">\n`,
+    )
+    .join("");
   // Inject canonical (and any JSON-LD) just before </head> (none exists in the
   // source shell).
   out = out.replace(
     "</head>",
-    `    <link rel="canonical" href="${escapeAttr(canonical)}" />\n${jsonLd}  </head>`,
+    `${images}    <link rel="canonical" href="${escapeAttr(canonical)}" />\n${jsonLd}  </head>`,
   );
   if (title) {
     out = out.replace(
