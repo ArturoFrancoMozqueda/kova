@@ -20,6 +20,7 @@ export default function Testimonials({
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item>{t.eyebrow}</span>
           <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 760 }}>{t.title}</h2>
+          <p className="lp-section-copy" data-lp-stagger-item>{t.note}</p>
         </div>
 
         <ul className="lp-testimonials-grid" data-lp-stagger-group style={{ listStyle: "none", padding: 0, margin: "40px 0 0" }}>

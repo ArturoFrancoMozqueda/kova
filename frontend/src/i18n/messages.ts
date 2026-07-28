@@ -243,6 +243,11 @@ export const copy = {
     testimonials: {
       eyebrow: "Clientes reales",
       title: "Negocios que ya cierran el día con Kova.",
+      // Confirmado por el dueño: el Sweet Home del testimonio ES el mismo
+      // negocio real cuyas cifras aparecen en el recorrido del hero-film.
+      // Decirlo cierra el loop demo → prueba social y desactiva el "seguro
+      // ese demo es inventado".
+      note: "Sí, el mismo Sweet Home del recorrido que acabas de ver: un negocio real operando con Kova todos los días.",
     },
     // Canal de WhatsApp (lib/whatsapp.ts). Gateado: nada de esto se muestra
     // mientras WHATSAPP_PHONE esté vacío.
