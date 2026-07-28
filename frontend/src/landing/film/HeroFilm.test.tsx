@@ -35,7 +35,7 @@ describe("HeroFilm", () => {
   it("renders the complete static hero without a canvas runtime", () => {
     const { container } = renderFilm();
     expect(
-      screen.getByRole("heading", { level: 1, name: /retoma el control de tu negocio/i }),
+      screen.getByRole("heading", { level: 1, name: /cobra una vez.*entiende todo/i }),
     ).toBeVisible();
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
     expect(container.querySelector(".lp-hero-grid")).not.toHaveAttribute("data-lp-reveal");
