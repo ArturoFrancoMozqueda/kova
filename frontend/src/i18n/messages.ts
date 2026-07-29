@@ -296,6 +296,11 @@ export const copy = {
       // ese demo es inventado".
       note: "Sí, el mismo Sweet Home del recorrido que acabas de ver: un negocio real operando con Kova todos los días.",
     },
+    // Barra CTA fija de móvil (StickyCta): re-enuncia la oferta cuando el
+    // visitante ya pasó el film y todavía no llega a #precio.
+    stickyCta: {
+      note: `${STANDARD_PLAN_PRICE_LABEL} · ${BILLING_TRIAL_LABEL} gratis`,
+    },
     // Canal de WhatsApp (lib/whatsapp.ts). Gateado: nada de esto se muestra
     // mientras WHATSAPP_PHONE esté vacío.
     whatsapp: {

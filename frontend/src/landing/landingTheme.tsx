@@ -550,6 +550,35 @@ export const LANDING_STYLES = `
     max-width: 1060px;
   }
 
+  /* Barra CTA fija de móvil (StickyCta): solo se monta cuando aplica, así que
+     estas reglas nunca pintan en desktop ni en el prerender. */
+  .lp-sticky-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 55;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 0.5px solid var(--hairline-strong);
+    animation: lp-sticky-in 240ms var(--kova-ease-entrance) both;
+  }
+  @keyframes lp-sticky-in {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+  /* Con la barra montada, el FAB de WhatsApp sube para no encimarse
+     (StickyCta va antes del FAB en el DOM — selector de hermanos). */
+  .lp-sticky-cta ~ .lp-wa-fab {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+
   /* Botón flotante de WhatsApp: oculto hasta pasar el hero-film (data-visible)
      y apagado por completo si no hay número configurado (lib/whatsapp.ts). */
   .lp-wa-fab {

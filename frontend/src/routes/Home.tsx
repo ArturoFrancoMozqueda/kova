@@ -24,6 +24,7 @@ import BentoModules from "@/landing/BentoModules";
 import BuiltFor from "@/landing/BuiltFor";
 import FinalCta from "@/landing/FinalCta";
 import SaleStory from "@/landing/SaleStory";
+import StickyCta from "@/landing/StickyCta";
 import TestimonialStrip from "@/landing/TestimonialStrip";
 import Testimonials from "@/landing/Testimonials";
 import WhatsAppFab from "@/landing/WhatsAppFab";
@@ -776,8 +777,13 @@ export default function Home(): ReactNode {
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
       </main>
       <Footer />
-      {/* Fuera de <main>: los section[id] de main alimentan scroll-depth y el
-          FAB no es una sección. Gateado por lib/whatsapp.ts. */}
+      {/* Fuera de <main>: no son secciones del funnel. StickyCta va ANTES del
+          FAB — la regla CSS de hermanos sube el FAB cuando la barra existe. */}
+      <StickyCta
+        primaryTarget={primaryTarget}
+        isAuthenticated={isAuthenticated}
+        onCtaClick={onCtaClick}
+      />
       <WhatsAppFab />
     </div>
   );

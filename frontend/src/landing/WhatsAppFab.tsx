@@ -12,7 +12,9 @@ import { trackAnonymousEvent } from "@/telemetry/funnel";
 
 const t = copy.landing.whatsapp;
 
-function pastHeroFilm(): boolean {
+// Compartido con StickyCta: ambos elementos flotantes esperan a que el
+// hero-film (y su mini-CTA del rail) salga del viewport antes de aparecer.
+export function pastHeroFilm(): boolean {
   const producto = document.getElementById("producto");
   if (!producto) return window.scrollY > window.innerHeight;
   return producto.getBoundingClientRect().bottom < 0;
