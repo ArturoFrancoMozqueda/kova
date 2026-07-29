@@ -247,11 +247,11 @@ function Problem() {
 function Differentiation() {
   const d = t.diff;
   return (
-    <section id="diferencia" className="lp-section">
+    <section id="diferencia" className="lp-section" data-density="tight">
       <div className="lp-section-inner">
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item>{d.eyebrow}</span>
-          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 760 }}>{d.title}</h2>
+          <h2 className="lp-section-title" data-scale="quiet" data-lp-stagger-item style={{ maxWidth: 760 }}>{d.title}</h2>
         </div>
 
         {/* El orden del reveal ES el argumento: los competidores entran
@@ -318,13 +318,13 @@ function FAQ() {
   const items = t.faq.items;
 
   return (
-    <section id="faq" className="lp-section lp-section-compact">
+    <section id="faq" className="lp-section lp-section-compact" data-density="tight">
       <div className="lp-section-inner" style={{ maxWidth: 980 }}>
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item style={{ marginBottom: 24 }}>
             {t.faq.eyebrow}
           </span>
-          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>
+          <h2 className="lp-section-title" data-scale="quiet" data-lp-stagger-item style={{ maxWidth: 720 }}>
             {t.faq.title}
           </h2>
         </div>
@@ -442,12 +442,12 @@ function Pricing({
 }) {
   const feats = t.pricing.features;
   return (
-    <section id="precio" className="lp-section lp-reveal-block">
+    <section id="precio" className="lp-section lp-reveal-block" data-density="grand">
       <div className="lp-section-inner">
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24, justifyContent: "center" }}>
           <span className="lp-section-label">{t.pricing.eyebrow}</span>
         </div>
-        <h2 className="lp-section-title" style={{ textAlign: "center" }}>
+        <h2 className="lp-section-title" data-scale="grand" style={{ textAlign: "center" }}>
           {t.pricing.titleLine1}<br />{t.pricing.titleLine2}
         </h2>
         <p className="lp-section-copy" style={{ maxWidth: 620, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>

@@ -131,6 +131,12 @@ export const LANDING_STYLES = `
     margin: 0;
     color: var(--page-fg);
   }
+  /* Crescendo tipográfico: el valle utilitario (bento/comercios/diferencia/
+     faq) baja la voz y #precio la sube — la página construye hacia la oferta. */
+  .lp-section-title[data-scale="quiet"] { font-size: clamp(26px, 3vw, 40px); }
+  .lp-section-title[data-scale="grand"] { font-size: clamp(38px, 5.2vw, 72px); letter-spacing: -0.02em; }
+  .lp-section[data-density="tight"] { padding: 56px 32px; }
+  .lp-section[data-density="grand"] { padding: 104px 32px 96px; }
   .lp-hero-title { font-family: var(--lp-font-display); }
   .lp-section-copy {
     margin: 16px 0 0;
@@ -1057,6 +1063,8 @@ export const RESPONSIVE_STYLES = `
     .lp-section { padding: 64px 24px !important; }
     .lp-section-compact { padding: 60px 24px !important; }
     .lp-section-tight { padding: 48px 24px !important; }
+    .lp-section[data-density="tight"] { padding: 52px 24px !important; }
+    .lp-section[data-density="grand"] { padding: 84px 24px 76px !important; }
     .lp-section-inner { max-width: 100% !important; }
     .lp-hero-grid {
       grid-template-columns: 1fr !important;
@@ -1099,6 +1107,8 @@ export const RESPONSIVE_STYLES = `
     .lp-section { padding: 52px 20px !important; }
     .lp-section-compact { padding: 48px 20px !important; }
     .lp-section-tight { padding: 40px 20px !important; }
+    .lp-section[data-density="tight"] { padding: 44px 20px !important; }
+    .lp-section[data-density="grand"] { padding: 68px 20px 60px !important; }
     /* Compresión móvil: los previews casi full-bleed son el mayor costo de
        altura del tramo medio; un cap de ancho reduce su altura intrínseca. */
     .lp-sale-visual { max-width: 480px !important; margin-left: auto !important; margin-right: auto !important; width: 100%; }
@@ -1106,6 +1116,8 @@ export const RESPONSIVE_STYLES = `
        argumento del descuadre lo cargan los recortes + el punch. */
     .lp-problem-ticket-wrap { display: none !important; }
     .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
+    .lp-section-title[data-scale="quiet"] { font-size: 27px !important; }
+    .lp-section-title[data-scale="grand"] { font-size: 37px !important; }
     .lp-section-copy { font-size: 15px !important; }
     .lp-nav-shell {
       padding: 12px 16px !important;

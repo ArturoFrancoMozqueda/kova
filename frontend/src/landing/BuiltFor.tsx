@@ -36,7 +36,7 @@ export default function BuiltFor() {
       <div className="lp-section-inner">
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item>{t.eyebrow}</span>
-          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 760 }}>{t.title}</h2>
+          <h2 className="lp-section-title" data-scale="quiet" data-lp-stagger-item style={{ maxWidth: 760 }}>{t.title}</h2>
           <p className="lp-section-copy" data-lp-stagger-item>{t.body}</p>
         </div>
 

@@ -112,11 +112,11 @@ export default function BentoModules() {
   const hoursSeen = useInViewOnce(hoursCellRef);
 
   return (
-    <section id="como-funciona" className="lp-section" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
+    <section id="como-funciona" className="lp-section" data-density="tight" style={{ background: "var(--surface)", borderBottom: "0.5px solid var(--hairline-color)" }}>
       <div className="lp-section-inner">
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item>{t.kicker}</span>
-          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>{t.title}</h2>
+          <h2 className="lp-section-title" data-scale="quiet" data-lp-stagger-item style={{ maxWidth: 720 }}>{t.title}</h2>
           <p className="lp-section-copy" data-lp-stagger-item>{t.body}</p>
         </div>
 
