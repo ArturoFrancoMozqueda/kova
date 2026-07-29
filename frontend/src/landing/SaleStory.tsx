@@ -57,7 +57,7 @@ function SaleBeat({
 
 export default function SaleStory() {
   return (
-    <section id="una-venta" className="lp-section lp-section-tight">
+    <section id="una-venta" className="lp-section lp-section-tight lp-tint-top">
       <div className="lp-section-inner">
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item style={{ color: "var(--accent)" }}>

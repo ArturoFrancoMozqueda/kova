@@ -148,7 +148,7 @@ function Navbar({
           >
             <span>{isAuthenticated ? t.nav.goToDashboard : t.nav.createAccount}</span>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
           <button
@@ -247,7 +247,7 @@ function Problem() {
 function Differentiation() {
   const d = t.diff;
   return (
-    <section id="diferencia" className="lp-section" data-density="tight">
+    <section id="diferencia" className="lp-section lp-tint-top" data-density="tight">
       <div className="lp-section-inner">
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item>{d.eyebrow}</span>
@@ -278,11 +278,10 @@ function Differentiation() {
             </div>
           ))}
           <div
-            className="lp-lift"
+            className="lp-lift lp-kova-card"
             data-lp-stagger-item
             style={{
               background: "var(--surface)", border: "1px solid var(--accent)",
-              boxShadow: "0 0 0 4px var(--accent-soft)",
               borderRadius: 12, padding: "30px 28px",
               display: "flex", flexDirection: "column", gap: 14,
             }}
@@ -329,11 +328,12 @@ function FAQ() {
           </h2>
         </div>
 
-        <div data-lp-reveal-opt style={{ marginTop: 34, borderTop: "0.5px solid var(--hairline-color)" }}>
+        {/* Divisores punteados: eco del lp-tkt-rule del recibo térmico. */}
+        <div data-lp-reveal-opt style={{ marginTop: 34, borderTop: "2px dotted rgba(255,255,255,0.10)" }}>
           {items.map((it, i) => {
             const isOpen = open === i;
             return (
-              <div key={i} style={{ borderBottom: "0.5px solid var(--hairline-color)" }}>
+              <div key={i} style={{ borderBottom: "2px dotted rgba(255,255,255,0.10)" }}>
                 <button
                   type="button"
                   id={`lp-faq-q-${i}`}
@@ -445,7 +445,16 @@ function Pricing({
     <section id="precio" className="lp-section lp-reveal-block" data-density="grand">
       <div className="lp-section-inner">
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24, justifyContent: "center" }}>
-          <span className="lp-section-label">{t.pricing.eyebrow}</span>
+          {/* Chip en papel de recibo: presagia el material del ticket. */}
+          <span
+            className="lp-section-label"
+            style={{
+              background: "var(--ticket-paper)", color: "var(--ticket-ink)",
+              borderRadius: 999, padding: "5px 14px", marginBottom: 0,
+            }}
+          >
+            {t.pricing.eyebrow}
+          </span>
         </div>
         <h2 className="lp-section-title" data-scale="grand" style={{ textAlign: "center" }}>
           {t.pricing.titleLine1}<br />{t.pricing.titleLine2}
@@ -594,8 +603,10 @@ function Pricing({
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 function Footer() {
   return (
-    <footer style={{ padding: "80px 32px 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+    <footer style={{ padding: "0 32px 56px" }}>
+      {/* La página termina como termina el recibo: borde perforado. */}
+      <div className="lp-perf-divider" aria-hidden="true" style={{ margin: "0 -32px" }} />
+      <div style={{ maxWidth: 1280, margin: "0 auto", paddingTop: 80 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 48, alignItems: "start" }} className="lp-footer-grid">
           <div>
             <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>

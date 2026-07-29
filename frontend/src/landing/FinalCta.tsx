@@ -56,7 +56,7 @@ export default function FinalCta({
             >
               <span>{t.button}</span>
               <svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Link>
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.fineprint}</span>

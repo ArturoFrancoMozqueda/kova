@@ -115,12 +115,22 @@ export const LANDING_STYLES = `
   }
   .lp-section-label {
     display: inline-flex;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 22px;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--text-muted);
+  }
+  /* Guión de acento del kicker: una sola regla que da ritmo a toda la página. */
+  .lp-section-label::before {
+    content: "";
+    width: 22px;
+    height: 1px;
+    background: var(--accent);
+    flex-shrink: 0;
   }
   .lp-section-title {
     font-family: var(--lp-font-display);
@@ -562,6 +572,45 @@ export const LANDING_STYLES = `
     background: var(--surface-2);
   }
 
+  /* Viñeta tintada superior para secciones oscuras clave (pintura estática). */
+  .lp-tint-top {
+    background-image: radial-gradient(120% 60% at 50% 0%, rgba(123, 167, 255, 0.05), transparent 60%);
+  }
+
+  /* Carta Kova (#diferencia): border-glow que respira al hover (solo opacity,
+     composite-only; el clamp global de reduced-motion lo cubre). */
+  .lp-kova-card { position: relative; }
+  .lp-kova-card::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    box-shadow:
+      0 0 0 4px var(--accent-soft),
+      0 0 44px -8px rgba(79, 126, 247, 0.45),
+      0 28px 70px -34px rgba(0, 0, 0, 0.7);
+    opacity: 0.55;
+    transition: opacity 220ms var(--kova-ease-entrance);
+    pointer-events: none;
+  }
+  .lp-kova-card:hover::after { opacity: 1; }
+
+  /* Divisor perforado (mordidas de recibo) — pinta DENTRO de su caja de 12px,
+     seguro con content-visibility. La página termina como termina el ticket. */
+  .lp-perf-divider {
+    height: 12px;
+    background-image: radial-gradient(circle at 12px -5px, var(--surface-2) 9px, transparent 9.6px);
+    background-size: 24px 12px;
+    background-repeat: repeat-x;
+  }
+
+  /* Focus visible consistente en toda la landing. */
+  .lp-root :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
   /* "¿Es para mí?" (#comercios): 6 giros en 3 columnas. */
   .lp-builtfor-grid {
     display: grid;
@@ -737,7 +786,9 @@ export const LANDING_STYLES = `
   }
   .lp-nav[data-scrolled="true"] {
     background: color-mix(in srgb, var(--page-bg) 94%, transparent);
-    border-bottom-color: var(--hairline-strong);
+    border-bottom-color: transparent;
+    /* Hairline con desvanecido centrado: más fino que un borde plano. */
+    border-image: linear-gradient(90deg, transparent, var(--hairline-strong) 18%, var(--hairline-strong) 82%, transparent) 1;
     box-shadow: 0 10px 30px -22px rgba(0,0,0,0.75);
   }
   .lp-nav-shell {
@@ -925,11 +976,11 @@ export const LANDING_STYLES = `
     position: absolute;
     left: 50%;
     top: 46%;
-    width: 150%;
+    width: 170%;
     height: 130%;
     transform: translate(-50%, -50%);
     background: radial-gradient(closest-side, var(--accent-soft), transparent 72%);
-    opacity: 0.7;
+    opacity: 0.9;
     z-index: 0;
     pointer-events: none;
   }
