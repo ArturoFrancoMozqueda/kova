@@ -568,7 +568,7 @@ export default function HeroFilm({
                   >
                     <span>{primaryCtaLabel}</span>
                     <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-                      <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </Link>
                   <button
@@ -617,6 +617,7 @@ export default function HeroFilm({
                   >
                     {STANDARD_PLAN_PRICE_LABEL_ES}
                   </span>
+                  <span style={{ fontWeight: 600, color: "var(--page-fg)" }}>{t.dailyNote}</span>
                   <span>{t.trialBadge}</span>
                 </p>
               </div>
@@ -973,4 +974,17 @@ const HERO_FILM_STYLES = `
   .pf-hero-inner { padding: 18px 20px 28px; }
   .pf-outro { padding-bottom: 44px; }
 }
+
+/* ====================== COMPOSICIÓN ESTÁTICA (append-only) ====================== */
+/* Índice de capítulos del modo estático: numera las leyendas como un índice de
+   film (01 —, 02 —…). Solo presentación del fold sin scrub — en modo live los
+   overlays del film quedan limpios. Ninguna regla del engine se modifica. */
+.pf-captions { counter-reset: pf-ch; }
+.pf-caption { counter-increment: pf-ch; }
+.pf-caption-eyebrow::before {
+  content: "0" counter(pf-ch) " — ";
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+[data-pf-live="true"] .pf-caption-eyebrow::before { content: none; }
 `;

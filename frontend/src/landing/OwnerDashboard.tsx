@@ -183,7 +183,7 @@ export default function OwnerDashboard() {
   const seen = useInViewOnce(previewRef);
 
   return (
-    <section id="panel-dueno" className="lp-section lp-reveal-block">
+    <section id="panel-dueno" className="lp-section lp-section-tight lp-reveal-block">
       <div className="lp-section-inner">
         {/* Chip "04": esta sección es el cuarto beat de la historia de la
             venta (#una-venta trae 01–03), aunque conserva su id propio. */}

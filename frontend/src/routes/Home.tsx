@@ -24,6 +24,8 @@ import BentoModules from "@/landing/BentoModules";
 import BuiltFor from "@/landing/BuiltFor";
 import FinalCta from "@/landing/FinalCta";
 import SaleStory from "@/landing/SaleStory";
+import StickyCta from "@/landing/StickyCta";
+import TestimonialStrip from "@/landing/TestimonialStrip";
 import Testimonials from "@/landing/Testimonials";
 import WhatsAppFab from "@/landing/WhatsAppFab";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
@@ -146,7 +148,7 @@ function Navbar({
           >
             <span>{isAuthenticated ? t.nav.goToDashboard : t.nav.createAccount}</span>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M3 6h6m0 0L6 3m3 3L6 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
           <button
@@ -196,7 +198,7 @@ const SCRAP_ROTATIONS = ["-2.5deg", "1.6deg", "-1.2deg", "2.2deg", "-1.8deg"] as
 function Problem() {
   const p = t.problem;
   return (
-    <section id="problema" className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
+    <section id="problema" className="lp-section lp-section-tight lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
       <div className="lp-section-inner" style={{ maxWidth: 1000 }}>
         <span className="lp-section-label" style={{ color: "var(--accent)" }}>{p.eyebrow}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 820, color: "var(--kova-on-ink)" }}>{p.title}</h2>
@@ -206,7 +208,7 @@ function Problem() {
         <div
           className="lp-problem-grid"
           style={{
-            marginTop: 36, display: "grid",
+            marginTop: 24, display: "grid",
             gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 0.95fr)",
             gap: "36px 48px", alignItems: "center",
           }}
@@ -228,12 +230,12 @@ function Problem() {
             </div>
             <p style={{ marginTop: 20, fontSize: 14, color: "var(--text-muted)" }}>{p.fragmentsFoot}</p>
           </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
+          <div className="lp-problem-ticket-wrap" style={{ display: "flex", justifyContent: "center" }}>
             <ProblemTicket />
           </div>
         </div>
 
-        <p style={{ marginTop: 40, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
+        <p style={{ marginTop: 28, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
           {p.punch}
         </p>
       </div>
@@ -245,11 +247,11 @@ function Problem() {
 function Differentiation() {
   const d = t.diff;
   return (
-    <section id="diferencia" className="lp-section">
+    <section id="diferencia" className="lp-section lp-tint-top" data-density="tight">
       <div className="lp-section-inner">
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item>{d.eyebrow}</span>
-          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 760 }}>{d.title}</h2>
+          <h2 className="lp-section-title" data-scale="quiet" data-lp-stagger-item style={{ maxWidth: 760 }}>{d.title}</h2>
         </div>
 
         {/* El orden del reveal ES el argumento: los competidores entran
@@ -276,11 +278,10 @@ function Differentiation() {
             </div>
           ))}
           <div
-            className="lp-lift"
+            className="lp-lift lp-kova-card"
             data-lp-stagger-item
             style={{
               background: "var(--surface)", border: "1px solid var(--accent)",
-              boxShadow: "0 0 0 4px var(--accent-soft)",
               borderRadius: 12, padding: "30px 28px",
               display: "flex", flexDirection: "column", gap: 14,
             }}
@@ -316,22 +317,23 @@ function FAQ() {
   const items = t.faq.items;
 
   return (
-    <section id="faq" className="lp-section lp-section-compact">
+    <section id="faq" className="lp-section lp-section-compact" data-density="tight">
       <div className="lp-section-inner" style={{ maxWidth: 980 }}>
         <div data-lp-stagger-group>
           <span className="lp-section-label" data-lp-stagger-item style={{ marginBottom: 24 }}>
             {t.faq.eyebrow}
           </span>
-          <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>
+          <h2 className="lp-section-title" data-scale="quiet" data-lp-stagger-item style={{ maxWidth: 720 }}>
             {t.faq.title}
           </h2>
         </div>
 
-        <div data-lp-reveal-opt style={{ marginTop: 34, borderTop: "0.5px solid var(--hairline-color)" }}>
+        {/* Divisores punteados: eco del lp-tkt-rule del recibo térmico. */}
+        <div data-lp-reveal-opt style={{ marginTop: 34, borderTop: "2px dotted rgba(255,255,255,0.10)" }}>
           {items.map((it, i) => {
             const isOpen = open === i;
             return (
-              <div key={i} style={{ borderBottom: "0.5px solid var(--hairline-color)" }}>
+              <div key={i} style={{ borderBottom: "2px dotted rgba(255,255,255,0.10)" }}>
                 <button
                   type="button"
                   id={`lp-faq-q-${i}`}
@@ -440,12 +442,21 @@ function Pricing({
 }) {
   const feats = t.pricing.features;
   return (
-    <section id="precio" className="lp-section lp-reveal-block">
+    <section id="precio" className="lp-section lp-reveal-block" data-density="grand">
       <div className="lp-section-inner">
         <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 24, justifyContent: "center" }}>
-          <span className="lp-section-label">{t.pricing.eyebrow}</span>
+          {/* Chip en papel de recibo: presagia el material del ticket. */}
+          <span
+            className="lp-section-label"
+            style={{
+              background: "var(--ticket-paper)", color: "var(--ticket-ink)",
+              borderRadius: 999, padding: "5px 14px", marginBottom: 0,
+            }}
+          >
+            {t.pricing.eyebrow}
+          </span>
         </div>
-        <h2 className="lp-section-title" style={{ textAlign: "center" }}>
+        <h2 className="lp-section-title" data-scale="grand" style={{ textAlign: "center" }}>
           {t.pricing.titleLine1}<br />{t.pricing.titleLine2}
         </h2>
         <p className="lp-section-copy" style={{ maxWidth: 620, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
@@ -523,6 +534,9 @@ function Pricing({
                     <span style={{ fontSize: 14, color: "var(--ticket-muted)" }}>{STANDARD_PLAN_PRICE_CADENCE_ES}</span>
                   </span>
                 </div>
+                <div style={{ marginTop: 6, textAlign: "right", fontSize: 12, color: "var(--ticket-muted)" }}>
+                  {t.pricing.dailyNote}
+                </div>
               </div>
             </div>
           </TicketPaper>
@@ -589,8 +603,10 @@ function Pricing({
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 function Footer() {
   return (
-    <footer style={{ padding: "80px 32px 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+    <footer style={{ padding: "0 32px 56px" }}>
+      {/* La página termina como termina el recibo: borde perforado. */}
+      <div className="lp-perf-divider" aria-hidden="true" style={{ margin: "0 -32px" }} />
+      <div style={{ maxWidth: 1280, margin: "0 auto", paddingTop: 80 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 48, alignItems: "start" }} className="lp-footer-grid">
           <div>
             <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>
@@ -751,6 +767,9 @@ export default function Home(): ReactNode {
           ctaTarget={primaryTarget}
           onShowcaseCta={() => onCtaClick("showcase")}
         />
+        {/* Prueba social temprana: quotes reales a segundos del fold. Sin id
+            de sección — no altera la serie de landing_section_viewed. */}
+        <TestimonialStrip />
         {/* Acto II — Enténdelo: la venta de $186 trazable, el payoff en la
             pantalla del dueño, y el contraste "sin Kova" al final. */}
         <SaleStory />
@@ -769,8 +788,13 @@ export default function Home(): ReactNode {
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
       </main>
       <Footer />
-      {/* Fuera de <main>: los section[id] de main alimentan scroll-depth y el
-          FAB no es una sección. Gateado por lib/whatsapp.ts. */}
+      {/* Fuera de <main>: no son secciones del funnel. StickyCta va ANTES del
+          FAB — la regla CSS de hermanos sube el FAB cuando la barra existe. */}
+      <StickyCta
+        primaryTarget={primaryTarget}
+        isAuthenticated={isAuthenticated}
+        onCtaClick={onCtaClick}
+      />
       <WhatsAppFab />
     </div>
   );

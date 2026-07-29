@@ -343,6 +343,42 @@ test("mobile hero and film outro share the signup destination", async ({ page })
   await expect(page).toHaveURL(/\/signup$/);
 });
 
+test("mobile sticky CTA appears after the film and yields to the offer sections", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.goto("/");
+
+  // Arriba del fold no existe: el hero y el film cargan sus propios CTAs.
+  await expect(page.locator(".lp-sticky-cta")).toHaveCount(0);
+
+  // Tras dejar atrás #producto, la barra re-enuncia la oferta.
+  await page.locator("#como-funciona").scrollIntoViewIfNeeded();
+  const bar = page.locator(".lp-sticky-cta");
+  await expect(bar).toBeVisible();
+  await expect(bar.locator('a[href="/signup"]')).toBeVisible();
+
+  // Nunca se encima con el FAB de WhatsApp (si el canal está activo).
+  const fab = page.locator(".lp-wa-fab");
+  if ((await fab.count()) > 0) {
+    const [fabBox, barBox] = await Promise.all([fab.boundingBox(), bar.boundingBox()]);
+    if (fabBox && barBox) {
+      expect(fabBox.y + fabBox.height).toBeLessThanOrEqual(barBox.y + 1);
+    }
+  }
+
+  // En #precio la barra cede el paso al CTA del ticket…
+  await page.locator("#precio").scrollIntoViewIfNeeded();
+  await expect(page.locator(".lp-sticky-cta")).toHaveCount(0);
+
+  // …y reaparece si el visitante vuelve a subir.
+  await page.locator("#como-funciona").scrollIntoViewIfNeeded();
+  await expect(page.locator(".lp-sticky-cta")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+});
+
 test("landing film degrades to a complete static hero under reduced motion", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });

@@ -40,6 +40,8 @@ describe("HeroFilm", () => {
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
     expect(container.querySelector(".lp-hero-grid")).not.toHaveAttribute("data-lp-reveal");
     expect(screen.getByText(f.note)).toBeVisible();
+    // La oferta completa vive en el fold: precio mensual + reencuadre diario.
+    expect(screen.getByText(h.dailyNote)).toBeVisible();
     // El modo cinemático es opt-in post-hidratación; jsdom nunca lo activa.
     expect(container.querySelector("section#producto")).not.toHaveAttribute("data-pf-live");
   });

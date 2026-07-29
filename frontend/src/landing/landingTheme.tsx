@@ -105,18 +105,32 @@ export const LANDING_STYLES = `
     border-top: 0.5px solid var(--hairline-color);
   }
   .lp-section-compact { padding: 72px 32px; }
+  /* Tramo medio comprimido (funnel: la atrición vive entre el film y el
+     precio) — aplica a #una-venta, #panel-dueno y #problema sin tocar el
+     padding global de .lp-section. */
+  .lp-section-tight { padding: 52px 32px; }
   .lp-section-inner {
     max-width: 1180px;
     margin: 0 auto;
   }
   .lp-section-label {
     display: inline-flex;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 22px;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--text-muted);
+  }
+  /* Guión de acento del kicker: una sola regla que da ritmo a toda la página. */
+  .lp-section-label::before {
+    content: "";
+    width: 22px;
+    height: 1px;
+    background: var(--accent);
+    flex-shrink: 0;
   }
   .lp-section-title {
     font-family: var(--lp-font-display);
@@ -127,6 +141,12 @@ export const LANDING_STYLES = `
     margin: 0;
     color: var(--page-fg);
   }
+  /* Crescendo tipográfico: el valle utilitario (bento/comercios/diferencia/
+     faq) baja la voz y #precio la sube — la página construye hacia la oferta. */
+  .lp-section-title[data-scale="quiet"] { font-size: clamp(26px, 3vw, 40px); }
+  .lp-section-title[data-scale="grand"] { font-size: clamp(38px, 5.2vw, 72px); letter-spacing: -0.02em; }
+  .lp-section[data-density="tight"] { padding: 56px 32px; }
+  .lp-section[data-density="grand"] { padding: 104px 32px 96px; }
   .lp-hero-title { font-family: var(--lp-font-display); }
   .lp-section-copy {
     margin: 16px 0 0;
@@ -165,6 +185,27 @@ export const LANDING_STYLES = `
     position: relative;
     min-width: 0;
     width: 100%;
+    /* isolate: el glow (::before, z-index -1) queda detrás del frame pero
+       nunca detrás del fondo del stage. */
+    isolation: isolate;
+  }
+  /* Glow ambiental del fold: dos radiales estáticos (azul de marca + un
+     rastro cálido) detrás del marco del producto. Solo pintura — cero JS;
+     el inset negativo está protegido por .lp-root { overflow-x: clip }. */
+  .lp-hero-visual::before {
+    content: "";
+    position: absolute;
+    inset: -10% -16% -20%;
+    z-index: -1;
+    background:
+      radial-gradient(52% 58% at 66% 36%, rgba(79, 126, 247, 0.16), transparent 70%),
+      radial-gradient(42% 40% at 28% 82%, rgba(243, 236, 221, 0.05), transparent 70%);
+    pointer-events: none;
+  }
+  /* En modo film, el glow se apaga junto con la salida del hero: solo LEE la
+     var del engine (--pf-hero-exit), composite-only. */
+  [data-pf-live="true"] .lp-hero-visual::before {
+    opacity: calc(1 - var(--pf-hero-exit, 0));
   }
   .lp-hero-frame {
     position: relative;
@@ -411,10 +452,10 @@ export const LANDING_STYLES = `
      que una sola venta fluye a través de los cuatro pasos. */
   .lp-story-rows {
     position: relative;
-    margin-top: 44px;
+    margin-top: 32px;
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 22px;
   }
   .lp-sale-row {
     position: relative;
@@ -531,6 +572,45 @@ export const LANDING_STYLES = `
     background: var(--surface-2);
   }
 
+  /* Viñeta tintada superior para secciones oscuras clave (pintura estática). */
+  .lp-tint-top {
+    background-image: radial-gradient(120% 60% at 50% 0%, rgba(123, 167, 255, 0.05), transparent 60%);
+  }
+
+  /* Carta Kova (#diferencia): border-glow que respira al hover (solo opacity,
+     composite-only; el clamp global de reduced-motion lo cubre). */
+  .lp-kova-card { position: relative; }
+  .lp-kova-card::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    box-shadow:
+      0 0 0 4px var(--accent-soft),
+      0 0 44px -8px rgba(79, 126, 247, 0.45),
+      0 28px 70px -34px rgba(0, 0, 0, 0.7);
+    opacity: 0.55;
+    transition: opacity 220ms var(--kova-ease-entrance);
+    pointer-events: none;
+  }
+  .lp-kova-card:hover::after { opacity: 1; }
+
+  /* Divisor perforado (mordidas de recibo) — pinta DENTRO de su caja de 12px,
+     seguro con content-visibility. La página termina como termina el ticket. */
+  .lp-perf-divider {
+    height: 12px;
+    background-image: radial-gradient(circle at 12px -5px, var(--surface-2) 9px, transparent 9.6px);
+    background-size: 24px 12px;
+    background-repeat: repeat-x;
+  }
+
+  /* Focus visible consistente en toda la landing. */
+  .lp-root :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
   /* "¿Es para mí?" (#comercios): 6 giros en 3 columnas. */
   .lp-builtfor-grid {
     display: grid;
@@ -544,6 +624,35 @@ export const LANDING_STYLES = `
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 14px;
     max-width: 1060px;
+  }
+
+  /* Barra CTA fija de móvil (StickyCta): solo se monta cuando aplica, así que
+     estas reglas nunca pintan en desktop ni en el prerender. */
+  .lp-sticky-cta {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 55;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 0.5px solid var(--hairline-strong);
+    animation: lp-sticky-in 240ms var(--kova-ease-entrance) both;
+  }
+  @keyframes lp-sticky-in {
+    from { transform: translateY(100%); }
+    to { transform: none; }
+  }
+  /* Con la barra montada, el FAB de WhatsApp sube para no encimarse
+     (StickyCta va antes del FAB en el DOM — selector de hermanos). */
+  .lp-sticky-cta ~ .lp-wa-fab {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Botón flotante de WhatsApp: oculto hasta pasar el hero-film (data-visible)
@@ -677,7 +786,9 @@ export const LANDING_STYLES = `
   }
   .lp-nav[data-scrolled="true"] {
     background: color-mix(in srgb, var(--page-bg) 94%, transparent);
-    border-bottom-color: var(--hairline-strong);
+    border-bottom-color: transparent;
+    /* Hairline con desvanecido centrado: más fino que un borde plano. */
+    border-image: linear-gradient(90deg, transparent, var(--hairline-strong) 18%, var(--hairline-strong) 82%, transparent) 1;
     box-shadow: 0 10px 30px -22px rgba(0,0,0,0.75);
   }
   .lp-nav-shell {
@@ -865,11 +976,11 @@ export const LANDING_STYLES = `
     position: absolute;
     left: 50%;
     top: 46%;
-    width: 150%;
+    width: 170%;
     height: 130%;
     transform: translate(-50%, -50%);
     background: radial-gradient(closest-side, var(--accent-soft), transparent 72%);
-    opacity: 0.7;
+    opacity: 0.9;
     z-index: 0;
     pointer-events: none;
   }
@@ -1002,6 +1113,9 @@ export const RESPONSIVE_STYLES = `
   @media (max-width: 900px) {
     .lp-section { padding: 64px 24px !important; }
     .lp-section-compact { padding: 60px 24px !important; }
+    .lp-section-tight { padding: 48px 24px !important; }
+    .lp-section[data-density="tight"] { padding: 52px 24px !important; }
+    .lp-section[data-density="grand"] { padding: 84px 24px 76px !important; }
     .lp-section-inner { max-width: 100% !important; }
     .lp-hero-grid {
       grid-template-columns: 1fr !important;
@@ -1043,7 +1157,18 @@ export const RESPONSIVE_STYLES = `
     }
     .lp-section { padding: 52px 20px !important; }
     .lp-section-compact { padding: 48px 20px !important; }
+    .lp-section-tight { padding: 40px 20px !important; }
+    .lp-section[data-density="tight"] { padding: 44px 20px !important; }
+    .lp-section[data-density="grand"] { padding: 68px 20px 60px !important; }
+    /* Compresión móvil: los previews casi full-bleed son el mayor costo de
+       altura del tramo medio; un cap de ancho reduce su altura intrínseca. */
+    .lp-sale-visual { max-width: 480px !important; margin-left: auto !important; margin-right: auto !important; width: 100%; }
+    /* El ticket del corte duplica en móvil al ticket térmico de #precio; el
+       argumento del descuadre lo cargan los recortes + el punch. */
+    .lp-problem-ticket-wrap { display: none !important; }
     .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
+    .lp-section-title[data-scale="quiet"] { font-size: 27px !important; }
+    .lp-section-title[data-scale="grand"] { font-size: 37px !important; }
     .lp-section-copy { font-size: 15px !important; }
     .lp-nav-shell {
       padding: 12px 16px !important;
@@ -1172,8 +1297,8 @@ export const RESPONSIVE_STYLES = `
     .lp-story-rows::before {
       content: "";
       position: absolute;
-      top: 44px;
-      bottom: 44px;
+      top: 32px;
+      bottom: 32px;
       left: 50%;
       width: 1px;
       transform: translateX(-0.5px);
@@ -1182,10 +1307,20 @@ export const RESPONSIVE_STYLES = `
       pointer-events: none;
     }
   }
+  @media (min-width: 901px) {
+    /* Fold premium: el producto domina la composición. Especificidad
+       .lp-root para ganarle al .pf-hero-grid del style-tag del film (que se
+       inyecta después); el FLIP del engine mide rects en runtime, así que un
+       cambio de proporción es seguro. */
+    .lp-root .pf-hero-grid {
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      gap: 44px;
+    }
+  }
   @media (min-width: 1024px) {
-    /* Overflow controlado: el marco del hero sangra apenas hacia el borde
-       derecho (seguro: .lp-root tiene overflow-x: clip). */
-    .lp-hero-visual { margin-right: clamp(-56px, -3vw, 0px); }
+    /* Overflow controlado: el marco del hero sangra hacia el borde derecho
+       (seguro: .lp-root tiene overflow-x: clip). */
+    .lp-hero-visual { margin-right: clamp(-88px, -4.5vw, -24px); }
   }
 `;
 

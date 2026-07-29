@@ -1,5 +1,6 @@
 import {
   STANDARD_PLAN,
+  STANDARD_PLAN_DAILY_APPROX,
   STANDARD_PLAN_PRICE_LABEL,
 } from "@/billing/standardPlan";
 import { BILLING_TRIAL_LABEL } from "@/billing/trial";
@@ -38,6 +39,9 @@ export const copy = {
       // El hero ES el recorrido (#producto): el botón secundario ya no salta a
       // otra sección, invita a scrollear dentro del film.
       ctaSecondary: "Ver el recorrido",
+      // Reencuadre de mental accounting: derivado de STANDARD_PLAN_DAILY_APPROX,
+      // el "≈" es obligatorio (299/30 = 9.97 — el redondeo se declara).
+      dailyNote: `≈ $${STANDARD_PLAN_DAILY_APPROX} al día`,
       trialBadge: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta.`,
     },
     immersiveStory: {
@@ -282,11 +286,20 @@ export const copy = {
     testimonials: {
       eyebrow: "Clientes reales",
       title: "Negocios que ya cierran el día con Kova.",
+      // Strip compacto post-hero (TestimonialStrip): prueba social en los
+      // primeros segundos, sin id de sección (no contamina scroll-depth).
+      stripAria: "Lo que dicen negocios que usan Kova",
+      stripEyebrow: "Negocios reales, todos los días",
       // Confirmado por el dueño: el Sweet Home del testimonio ES el mismo
       // negocio real cuyas cifras aparecen en el recorrido del hero-film.
       // Decirlo cierra el loop demo → prueba social y desactiva el "seguro
       // ese demo es inventado".
       note: "Sí, el mismo Sweet Home del recorrido que acabas de ver: un negocio real operando con Kova todos los días.",
+    },
+    // Barra CTA fija de móvil (StickyCta): re-enuncia la oferta cuando el
+    // visitante ya pasó el film y todavía no llega a #precio.
+    stickyCta: {
+      note: `${STANDARD_PLAN_PRICE_LABEL} · ${BILLING_TRIAL_LABEL} gratis`,
     },
     // Canal de WhatsApp (lib/whatsapp.ts). Gateado: nada de esto se muestra
     // mientras WHATSAPP_PHONE esté vacío.
@@ -340,6 +353,8 @@ export const copy = {
       // se desglosa como checks en el talón (no se repite el trial ahí).
       ctaButton: `Probar Kova ${BILLING_TRIAL_LABEL} gratis`,
       riskReversal: ["Sin tarjeta para empezar", "Cancela cuando quieras", "Tus datos son tuyos"],
+      // Reencuadre bajo el TOTAL del recibo — derivado, con "≈" obligatorio.
+      dailyNote: `Equivale a ≈ $${STANDARD_PLAN_DAILY_APPROX} al día.`,
       // Señales de confianza reales (nada inventado): las mismas del footer,
       // repetidas junto al CTA de precio donde pesa la decisión.
       trustItems: ["Hecho en México 🇲🇽", "Atendido por humanos, no por bots"],
