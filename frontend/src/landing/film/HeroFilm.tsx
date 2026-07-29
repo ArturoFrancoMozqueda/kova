@@ -974,4 +974,17 @@ const HERO_FILM_STYLES = `
   .pf-hero-inner { padding: 18px 20px 28px; }
   .pf-outro { padding-bottom: 44px; }
 }
+
+/* ====================== COMPOSICIÓN ESTÁTICA (append-only) ====================== */
+/* Índice de capítulos del modo estático: numera las leyendas como un índice de
+   film (01 —, 02 —…). Solo presentación del fold sin scrub — en modo live los
+   overlays del film quedan limpios. Ninguna regla del engine se modifica. */
+.pf-captions { counter-reset: pf-ch; }
+.pf-caption { counter-increment: pf-ch; }
+.pf-caption-eyebrow::before {
+  content: "0" counter(pf-ch) " — ";
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+[data-pf-live="true"] .pf-caption-eyebrow::before { content: none; }
 `;

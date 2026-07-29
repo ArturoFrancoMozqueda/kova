@@ -169,6 +169,27 @@ export const LANDING_STYLES = `
     position: relative;
     min-width: 0;
     width: 100%;
+    /* isolate: el glow (::before, z-index -1) queda detrás del frame pero
+       nunca detrás del fondo del stage. */
+    isolation: isolate;
+  }
+  /* Glow ambiental del fold: dos radiales estáticos (azul de marca + un
+     rastro cálido) detrás del marco del producto. Solo pintura — cero JS;
+     el inset negativo está protegido por .lp-root { overflow-x: clip }. */
+  .lp-hero-visual::before {
+    content: "";
+    position: absolute;
+    inset: -10% -16% -20%;
+    z-index: -1;
+    background:
+      radial-gradient(52% 58% at 66% 36%, rgba(79, 126, 247, 0.16), transparent 70%),
+      radial-gradient(42% 40% at 28% 82%, rgba(243, 236, 221, 0.05), transparent 70%);
+    pointer-events: none;
+  }
+  /* En modo film, el glow se apaga junto con la salida del hero: solo LEE la
+     var del engine (--pf-hero-exit), composite-only. */
+  [data-pf-live="true"] .lp-hero-visual::before {
+    opacity: calc(1 - var(--pf-hero-exit, 0));
   }
   .lp-hero-frame {
     position: relative;
@@ -1223,10 +1244,20 @@ export const RESPONSIVE_STYLES = `
       pointer-events: none;
     }
   }
+  @media (min-width: 901px) {
+    /* Fold premium: el producto domina la composición. Especificidad
+       .lp-root para ganarle al .pf-hero-grid del style-tag del film (que se
+       inyecta después); el FLIP del engine mide rects en runtime, así que un
+       cambio de proporción es seguro. */
+    .lp-root .pf-hero-grid {
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      gap: 44px;
+    }
+  }
   @media (min-width: 1024px) {
-    /* Overflow controlado: el marco del hero sangra apenas hacia el borde
-       derecho (seguro: .lp-root tiene overflow-x: clip). */
-    .lp-hero-visual { margin-right: clamp(-56px, -3vw, 0px); }
+    /* Overflow controlado: el marco del hero sangra hacia el borde derecho
+       (seguro: .lp-root tiene overflow-x: clip). */
+    .lp-hero-visual { margin-right: clamp(-88px, -4.5vw, -24px); }
   }
 `;
 
