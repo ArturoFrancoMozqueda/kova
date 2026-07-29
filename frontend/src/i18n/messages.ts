@@ -286,6 +286,10 @@ export const copy = {
     testimonials: {
       eyebrow: "Clientes reales",
       title: "Negocios que ya cierran el día con Kova.",
+      // Strip compacto post-hero (TestimonialStrip): prueba social en los
+      // primeros segundos, sin id de sección (no contamina scroll-depth).
+      stripAria: "Lo que dicen negocios que usan Kova",
+      stripEyebrow: "Negocios reales, todos los días",
       // Confirmado por el dueño: el Sweet Home del testimonio ES el mismo
       // negocio real cuyas cifras aparecen en el recorrido del hero-film.
       // Decirlo cierra el loop demo → prueba social y desactiva el "seguro

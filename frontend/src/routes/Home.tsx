@@ -24,6 +24,7 @@ import BentoModules from "@/landing/BentoModules";
 import BuiltFor from "@/landing/BuiltFor";
 import FinalCta from "@/landing/FinalCta";
 import SaleStory from "@/landing/SaleStory";
+import TestimonialStrip from "@/landing/TestimonialStrip";
 import Testimonials from "@/landing/Testimonials";
 import WhatsAppFab from "@/landing/WhatsAppFab";
 import { ProblemTicket, TicketPaper } from "@/landing/Ticket";
@@ -754,6 +755,9 @@ export default function Home(): ReactNode {
           ctaTarget={primaryTarget}
           onShowcaseCta={() => onCtaClick("showcase")}
         />
+        {/* Prueba social temprana: quotes reales a segundos del fold. Sin id
+            de sección — no altera la serie de landing_section_viewed. */}
+        <TestimonialStrip />
         {/* Acto II — Enténdelo: la venta de $186 trazable, el payoff en la
             pantalla del dueño, y el contraste "sin Kova" al final. */}
         <SaleStory />

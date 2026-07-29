@@ -138,6 +138,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   it("renders testimonials and WhatsApp UI exactly when configured", () => {
     const { container } = renderHome();
     expect(container.querySelectorAll("#clientes blockquote")).toHaveLength(TESTIMONIALS.length);
+    // El strip temprano repite los mismos quotes reales con <q> (no
+    // <blockquote>) y sin id de sección; existe exactamente cuando hay datos.
+    expect(container.querySelectorAll("aside q")).toHaveLength(TESTIMONIALS.length);
     const waLinks = container.querySelectorAll('a[href^="https://wa.me/"]');
     if (isWhatsAppEnabled()) {
       expect(container.querySelector(".lp-wa-fab")).not.toBeNull();
