@@ -617,6 +617,7 @@ export default function HeroFilm({
                   >
                     {STANDARD_PLAN_PRICE_LABEL_ES}
                   </span>
+                  <span style={{ fontWeight: 600, color: "var(--page-fg)" }}>{t.dailyNote}</span>
                   <span>{t.trialBadge}</span>
                 </p>
               </div>

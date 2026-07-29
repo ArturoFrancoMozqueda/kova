@@ -1,5 +1,6 @@
 import {
   STANDARD_PLAN,
+  STANDARD_PLAN_DAILY_APPROX,
   STANDARD_PLAN_PRICE_LABEL,
 } from "@/billing/standardPlan";
 import { BILLING_TRIAL_LABEL } from "@/billing/trial";
@@ -38,6 +39,9 @@ export const copy = {
       // El hero ES el recorrido (#producto): el botón secundario ya no salta a
       // otra sección, invita a scrollear dentro del film.
       ctaSecondary: "Ver el recorrido",
+      // Reencuadre de mental accounting: derivado de STANDARD_PLAN_DAILY_APPROX,
+      // el "≈" es obligatorio (299/30 = 9.97 — el redondeo se declara).
+      dailyNote: `≈ $${STANDARD_PLAN_DAILY_APPROX} al día`,
       trialBadge: `${BILLING_TRIAL_LABEL} gratis. Sin tarjeta.`,
     },
     immersiveStory: {
@@ -340,6 +344,8 @@ export const copy = {
       // se desglosa como checks en el talón (no se repite el trial ahí).
       ctaButton: `Probar Kova ${BILLING_TRIAL_LABEL} gratis`,
       riskReversal: ["Sin tarjeta para empezar", "Cancela cuando quieras", "Tus datos son tuyos"],
+      // Reencuadre bajo el TOTAL del recibo — derivado, con "≈" obligatorio.
+      dailyNote: `Equivale a ≈ $${STANDARD_PLAN_DAILY_APPROX} al día.`,
       // Señales de confianza reales (nada inventado): las mismas del footer,
       // repetidas junto al CTA de precio donde pesa la decisión.
       trustItems: ["Hecho en México 🇲🇽", "Atendido por humanos, no por bots"],

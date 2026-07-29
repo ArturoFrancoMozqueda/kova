@@ -523,6 +523,9 @@ function Pricing({
                     <span style={{ fontSize: 14, color: "var(--ticket-muted)" }}>{STANDARD_PLAN_PRICE_CADENCE_ES}</span>
                   </span>
                 </div>
+                <div style={{ marginTop: 6, textAlign: "right", fontSize: 12, color: "var(--ticket-muted)" }}>
+                  {t.pricing.dailyNote}
+                </div>
               </div>
             </div>
           </TicketPaper>
