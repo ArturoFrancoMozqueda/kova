@@ -105,6 +105,10 @@ export const LANDING_STYLES = `
     border-top: 0.5px solid var(--hairline-color);
   }
   .lp-section-compact { padding: 72px 32px; }
+  /* Tramo medio comprimido (funnel: la atrición vive entre el film y el
+     precio) — aplica a #una-venta, #panel-dueno y #problema sin tocar el
+     padding global de .lp-section. */
+  .lp-section-tight { padding: 52px 32px; }
   .lp-section-inner {
     max-width: 1180px;
     margin: 0 auto;
@@ -411,10 +415,10 @@ export const LANDING_STYLES = `
      que una sola venta fluye a través de los cuatro pasos. */
   .lp-story-rows {
     position: relative;
-    margin-top: 44px;
+    margin-top: 32px;
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 22px;
   }
   .lp-sale-row {
     position: relative;
@@ -1002,6 +1006,7 @@ export const RESPONSIVE_STYLES = `
   @media (max-width: 900px) {
     .lp-section { padding: 64px 24px !important; }
     .lp-section-compact { padding: 60px 24px !important; }
+    .lp-section-tight { padding: 48px 24px !important; }
     .lp-section-inner { max-width: 100% !important; }
     .lp-hero-grid {
       grid-template-columns: 1fr !important;
@@ -1043,6 +1048,13 @@ export const RESPONSIVE_STYLES = `
     }
     .lp-section { padding: 52px 20px !important; }
     .lp-section-compact { padding: 48px 20px !important; }
+    .lp-section-tight { padding: 40px 20px !important; }
+    /* Compresión móvil: los previews casi full-bleed son el mayor costo de
+       altura del tramo medio; un cap de ancho reduce su altura intrínseca. */
+    .lp-sale-visual { max-width: 480px !important; margin-left: auto !important; margin-right: auto !important; width: 100%; }
+    /* El ticket del corte duplica en móvil al ticket térmico de #precio; el
+       argumento del descuadre lo cargan los recortes + el punch. */
+    .lp-problem-ticket-wrap { display: none !important; }
     .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
     .lp-section-copy { font-size: 15px !important; }
     .lp-nav-shell {
@@ -1172,8 +1184,8 @@ export const RESPONSIVE_STYLES = `
     .lp-story-rows::before {
       content: "";
       position: absolute;
-      top: 44px;
-      bottom: 44px;
+      top: 32px;
+      bottom: 32px;
       left: 50%;
       width: 1px;
       transform: translateX(-0.5px);

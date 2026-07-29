@@ -197,7 +197,7 @@ const SCRAP_ROTATIONS = ["-2.5deg", "1.6deg", "-1.2deg", "2.2deg", "-1.8deg"] as
 function Problem() {
   const p = t.problem;
   return (
-    <section id="problema" className="lp-section lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
+    <section id="problema" className="lp-section lp-section-tight lp-reveal-block" style={{ background: "var(--kova-ink)", color: "var(--kova-on-ink)" }}>
       <div className="lp-section-inner" style={{ maxWidth: 1000 }}>
         <span className="lp-section-label" style={{ color: "var(--accent)" }}>{p.eyebrow}</span>
         <h2 className="lp-section-title" style={{ maxWidth: 820, color: "var(--kova-on-ink)" }}>{p.title}</h2>
@@ -207,7 +207,7 @@ function Problem() {
         <div
           className="lp-problem-grid"
           style={{
-            marginTop: 36, display: "grid",
+            marginTop: 24, display: "grid",
             gridTemplateColumns: "minmax(0, 1.05fr) minmax(0, 0.95fr)",
             gap: "36px 48px", alignItems: "center",
           }}
@@ -229,12 +229,12 @@ function Problem() {
             </div>
             <p style={{ marginTop: 20, fontSize: 14, color: "var(--text-muted)" }}>{p.fragmentsFoot}</p>
           </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
+          <div className="lp-problem-ticket-wrap" style={{ display: "flex", justifyContent: "center" }}>
             <ProblemTicket />
           </div>
         </div>
 
-        <p style={{ marginTop: 40, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
+        <p style={{ marginTop: 28, fontSize: "clamp(20px, 2.4vw, 28px)", fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.3, maxWidth: 780, color: "var(--page-fg)" }}>
           {p.punch}
         </p>
       </div>
