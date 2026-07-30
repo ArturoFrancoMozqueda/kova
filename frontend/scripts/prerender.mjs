@@ -19,63 +19,40 @@ const CANONICAL_ORIGIN = "https://kovasuite.com";
 // injectHead() string-replaces them to give each legal route its own head. If
 // they drift from the shell, the replacement silently no-ops and legal pages
 // inherit the landing's title/description.
-const DEFAULT_TITLE = "Kova · Punto de venta e inventario para tu negocio";
+const DEFAULT_TITLE = "Kova | Punto de venta e inventario para negocios en México";
 const DEFAULT_DESCRIPTION =
-  "Kova es el punto de venta para negocios en México: cobra ventas, controla tu inventario, organiza a tu equipo y ve qué se vende desde una sola app. Funciona aunque se vaya el internet.";
+  "Kova es el punto de venta para cafeterías, panaderías y negocios de mostrador. Cobra, controla inventario y cuadra caja desde una sola app.";
 
 // JSON-LD structured data for the landing page. A <script type="application/
-// ld+json"> is a passive data block, not executable JS, so the CSP
-// `script-src 'self'` does NOT block it. The FAQ entries and the offer price
-// are DERIVED from the app's own source of truth (src/seo/landingSeo.ts,
-// re-exported by the SSR bundle) so they can never drift from the copy in
-// src/i18n/messages.ts or the price in src/billing/standardPlan.ts.
-function buildLandingStructuredData(seo) {
-  if (!Array.isArray(seo?.faq) || seo.faq.length < 7) {
-    throw new Error(
-      `prerender: LANDING_SEO.faq has ${seo?.faq?.length ?? 0} items (expected >= 7) — landing FAQ copy changed shape?`,
-    );
-  }
-  if (!/^\d+$/.test(seo?.price ?? "")) {
-    throw new Error(
-      `prerender: LANDING_SEO.price "${seo?.price}" is not a plain integer amount — standardPlan.ts changed shape?`,
-    );
-  }
-  return {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        "@id": `${CANONICAL_ORIGIN}/#organization`,
-        name: "Kova",
-        url: `${CANONICAL_ORIGIN}/`,
-        logo: `${CANONICAL_ORIGIN}/icons/pwa-512.svg`,
-        email: "posprojectsupport@gmail.com",
-        areaServed: "MX",
+// ld+json"> is a passive data block, not executable JS. Price mirrors
+// src/billing/standardPlan.ts ($299 MXN/month = 29900 minor units).
+const LANDING_STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${CANONICAL_ORIGIN}/#organization`,
+      name: "Kova",
+      url: `${CANONICAL_ORIGIN}/`,
+      logo: `${CANONICAL_ORIGIN}/icons/pwa-512.svg`,
+      email: "posprojectsupport@gmail.com",
+      areaServed: "MX",
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "Kova",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: `${CANONICAL_ORIGIN}/`,
+      description: DEFAULT_DESCRIPTION,
+      offers: {
+        "@type": "Offer",
+        price: "299",
+        priceCurrency: "MXN",
       },
-      {
-        "@type": "SoftwareApplication",
-        name: "Kova",
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web, iOS, Android",
-        url: `${CANONICAL_ORIGIN}/`,
-        description: DEFAULT_DESCRIPTION,
-        offers: {
-          "@type": "Offer",
-          price: seo.price,
-          priceCurrency: seo.currency,
-        },
-      },
-      {
-        "@type": "FAQPage",
-        mainEntity: seo.faq.map(({ q, a }) => ({
-          "@type": "Question",
-          name: q,
-          acceptedAnswer: { "@type": "Answer", text: a },
-        })),
-      },
-    ],
-  };
-}
+    },
+  ],
+};
 
 // Each content-bearing route. `assert` is a substring that MUST appear in the
 // rendered HTML — our guarantee that the route actually rendered its content
@@ -87,12 +64,8 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    // Hero subtitle of the merged HeroFilm section — a text node in the
-    // LCP-critical block, so it proves the hero actually prerendered. (It
-    // replaced the film's own H2, which left when the film became the hero.)
-    assert: "Kova conecta cada venta",
-    // structuredData is attached in main() once the SSR bundle (and with it
-    // LANDING_SEO) has been imported.
+    assert: "Cobra, controla tu inventario",
+    structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
     // The HeroFilm poster is the LCP candidate on wide viewports; preloading
     // both variants with mutually exclusive media queries means every
@@ -304,12 +277,9 @@ async function main() {
   const entryUrl = pathToFileURL(
     resolve(__dirname, "..", "dist-server", "entry-prerender.js"),
   ).href;
-  const { render, LANDING_SEO } = await import(entryUrl);
+  const { render } = await import(entryUrl);
 
   for (const route of ROUTES) {
-    if (route.path === "/") {
-      route.structuredData = buildLandingStructuredData(LANDING_SEO);
-    }
     const appHtml = await render(route.path);
     if (!appHtml.includes(route.assert)) {
       throw new Error(

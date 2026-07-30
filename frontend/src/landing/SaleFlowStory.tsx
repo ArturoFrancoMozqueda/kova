@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import styles from "./SaleFlowStory.module.css";
@@ -12,58 +12,13 @@ type StoryStep = {
   title: string;
   line: string;
   receipt: string;
+  heading: string;
+  image: string;
+  alt: string;
 };
 
 const t = copy.landing.immersiveStory;
 const STORY_STEPS = t.steps as readonly StoryStep[];
-
-const STORY_CAPTURES: Record<
-  LandingStoryStepId,
-  { src: string; screen: string; alt: string }
-> = {
-  sale: {
-    src: "/showcase/register.png",
-    screen: "Caja",
-    alt: "Caja real de Kova con el catálogo, un carrito de tres productos y un total de $186.",
-  },
-  inventory: {
-    src: "/showcase/inventory.png",
-    screen: "Inventario",
-    alt: "Inventario real de Kova con una alerta de stock bajo y existencias por producto.",
-  },
-  cash: {
-    src: "/showcase/shifts.png",
-    screen: "Turnos",
-    alt: "Turnos reales de Kova con efectivo esperado, movimientos y cortes recientes.",
-  },
-  reports: {
-    src: "/showcase/reports.png",
-    screen: "Reportes",
-    alt: "Reportes reales de Kova con ventas, órdenes, ticket promedio y prioridad operativa.",
-  },
-};
-
-function StoryCapture({ step }: { step: LandingStoryStepId }) {
-  const capture = STORY_CAPTURES[step];
-  return (
-    <figure className={styles.capture}>
-      <img
-        src={capture.src}
-        alt={capture.alt}
-        className={styles.captureImage}
-        width={1440}
-        height={900}
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-      />
-      <figcaption className={styles.captureCaption}>
-        <span>{capture.screen}</span>
-        <span>Captura real y sanitizada</span>
-      </figcaption>
-    </figure>
-  );
-}
 
 export default function SaleFlowStory({
   primaryTarget,
@@ -75,51 +30,37 @@ export default function SaleFlowStory({
   onStepView: (step: LandingStoryStepId, trigger: LandingStoryTrigger) => void;
 }) {
   const [activeStep, setActiveStep] = useState<LandingStoryStepId>("sale");
-  const stepRefs = useRef<Array<HTMLElement | null>>([]);
-  const reducedMotion = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    [],
-  );
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     onStepView("sale", "scroll");
   }, [onStepView]);
 
-  useEffect(() => {
-    if (!("IntersectionObserver" in window)) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        const step = (visible.target as HTMLElement).dataset.step as LandingStoryStepId;
-        setActiveStep(step);
-        onStepView(step, "scroll");
-      },
-      {
-        rootMargin: "-28% 0px -36% 0px",
-        threshold: [0.1, 0.35, 0.6],
-      },
-    );
-    stepRefs.current.forEach((node) => node && observer.observe(node));
-    return () => observer.disconnect();
-  }, [onStepView]);
-
   const selectStep = useCallback(
-    (step: LandingStoryStepId, index: number) => {
+    (step: LandingStoryStepId, focus = false) => {
+      const index = STORY_STEPS.findIndex((item) => item.id === step);
       setActiveStep(step);
       onStepView(step, "control");
-      stepRefs.current[index]?.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "center",
-      });
+      if (focus) tabRefs.current[index]?.focus();
     },
-    [onStepView, reducedMotion],
+    [onStepView],
   );
+
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = (index + 1) % STORY_STEPS.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = (index - 1 + STORY_STEPS.length) % STORY_STEPS.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = STORY_STEPS.length - 1;
+    }
+    if (nextIndex === null) return;
+    event.preventDefault();
+    selectStep(STORY_STEPS[nextIndex].id, true);
+  };
 
   return (
     <section id="producto" className={styles.section} aria-labelledby="sale-flow-title">
@@ -127,82 +68,80 @@ export default function SaleFlowStory({
         <div className={styles.heading}>
           <div>
             <span className={styles.eyebrow}>{t.eyebrow}</span>
-            <h2 id="sale-flow-title" className={styles.title}>
-              {t.title}
-            </h2>
+            <h2 id="sale-flow-title" className={styles.title}>{t.title}</h2>
           </div>
           <div>
             <p className={styles.lead}>{t.body}</p>
-            <p className={styles.problem}>{t.problem}</p>
-            <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
-              {t.cta}
-            </Link>
+            <p className={styles.hint}>{t.problem}</p>
           </div>
         </div>
 
-        <div className={styles.story}>
-          <div className={styles.steps}>
-            {STORY_STEPS.map((step, index) => (
-              <article
+        <div className={styles.demo}>
+          <div className={styles.tablist} role="tablist" aria-label={t.progressLabel}>
+            {STORY_STEPS.map((step, index) => {
+              const active = activeStep === step.id;
+              return (
+                <button
+                  key={step.id}
+                  ref={(node) => { tabRefs.current[index] = node; }}
+                  id={`sale-flow-tab-${step.id}`}
+                  type="button"
+                  role="tab"
+                  className={styles.tab}
+                  aria-selected={active}
+                  aria-controls={`sale-flow-panel-${step.id}`}
+                  tabIndex={active ? 0 : -1}
+                  onClick={() => selectStep(step.id)}
+                  onKeyDown={(event) => onTabKeyDown(event, index)}
+                >
+                  <span aria-hidden="true">{step.number}</span>
+                  <strong>{step.title}</strong>
+                </button>
+              );
+            })}
+          </div>
+
+          {STORY_STEPS.map((step) => {
+            const active = activeStep === step.id;
+            return (
+              <div
                 key={step.id}
-                ref={(node) => {
-                  stepRefs.current[index] = node;
-                }}
-                className={styles.step}
-                data-step={step.id}
-                data-active={activeStep === step.id ? "true" : "false"}
-                aria-labelledby={`sale-flow-${step.id}`}
+                id={`sale-flow-panel-${step.id}`}
+                role="tabpanel"
+                aria-labelledby={`sale-flow-tab-${step.id}`}
+                className={styles.panel}
+                hidden={!active}
+                tabIndex={0}
               >
-                <div className={styles.stepCopy}>
-                  <span className={styles.number}>{step.number}</span>
-                  <h3 id={`sale-flow-${step.id}`} className={styles.stepTitle}>
-                    {step.title}
-                  </h3>
-                  <p className={styles.stepLine}>{step.line}</p>
-                  <span className={styles.receiptStub}>{step.receipt}</span>
+                <div className={styles.copy}>
+                  <span className={styles.stepNumber}>{step.number} · {step.title}</span>
+                  <h3>{step.heading}</h3>
+                  <p>{step.line}</p>
+                  <span className={styles.receipt}>{step.receipt}</span>
                 </div>
-                <div className={`${styles.mobilePreview} lp-story-card`}>
-                  <StoryCapture step={step.id} />
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <aside className={styles.stage} aria-label={t.productLabel}>
-            <div className={styles.stageShell}>
-              <div className={styles.stageMeta}>
-                <span className={styles.live}>{t.productLabel}</span>
-                <span className="tabular">$186 MXN</span>
-              </div>
-              <div className={styles.controls} aria-label={t.progressLabel}>
-                {STORY_STEPS.map((step, index) => (
-                  <button
-                    key={step.id}
-                    type="button"
-                    className={styles.control}
-                    aria-current={activeStep === step.id ? "step" : undefined}
-                    aria-label={`${step.number} ${step.title}`}
-                    onClick={() => selectStep(step.id, index)}
-                  >
-                    {step.number}
-                  </button>
-                ))}
-              </div>
-              <div className={styles.panels} aria-live="polite">
-                {STORY_STEPS.map((step) => (
-                  <div
-                    key={step.id}
-                    className={styles.panel}
-                    data-active={activeStep === step.id ? "true" : "false"}
-                    aria-hidden={activeStep !== step.id}
-                  >
-                    <StoryCapture step={step.id} />
+                <figure className={styles.capture}>
+                  <div className={styles.browserBar}>
+                    <span aria-hidden="true">● ● ●</span>
+                    <span>kovasuite.com</span>
+                    <span>{t.productLabel}</span>
                   </div>
-                ))}
+                  <img
+                    src={step.image}
+                    alt={step.alt}
+                    width={1440}
+                    height={900}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </figure>
               </div>
-            </div>
-          </aside>
+            );
+          })}
         </div>
+
+        <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
+          {t.cta}
+        </Link>
       </div>
     </section>
   );
