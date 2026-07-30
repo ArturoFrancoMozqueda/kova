@@ -73,8 +73,10 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       .map(([, , props]) => (props as { section: string }).section);
     expect(viewedSections).toEqual(
       expect.arrayContaining([
+        "beneficios",
         "producto",
-        "como-funciona",
+        "comercios",
+        "clientes",
         "precio",
         "faq",
         "cta-final",
@@ -106,7 +108,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     renderHome();
 
     const heroCta = await screen.findAllByRole("link", {
-      name: /Empieza gratis/i,
+      name: /Probar Kova gratis/i,
     });
     expect(heroCta[0]).toHaveAttribute("href", "/signup");
     fireEvent.click(heroCta[0]);

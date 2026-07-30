@@ -20,8 +20,13 @@ import {
 } from "@/billing/standardPlan";
 import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
-import BentoModules from "@/landing/BentoModules";
 import FinalCta from "@/landing/FinalCta";
+import {
+  AudienceSection,
+  BenefitsSection,
+  TestimonialsSection,
+  TrustBar,
+} from "@/landing/LandingSections";
 import { TicketPaper } from "@/landing/Ticket";
 import HeroProductFrame from "@/landing/HeroProductFrame";
 import SaleFlowStory, {
@@ -31,7 +36,7 @@ import SaleFlowStory, {
 import { LANDING_STYLES, RESPONSIVE_STYLES, themeVars, type Theme } from "@/landing/landingTheme";
 import { useLandingRevealMotion } from "@/landing/useRevealMotion";
 import { copy } from "@/i18n/messages";
-import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/support";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO, SUPPORT_WHATSAPP } from "@/lib/support";
 
 const t = copy.landing;
 
@@ -42,21 +47,23 @@ const t = copy.landing;
 
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
 const NAV_LINKS = [
-  { label: t.nav.howItWorks, href: "#como-funciona" },
-  { label: t.nav.whatItLooksLike, href: "#producto" },
+  { label: t.nav.howItWorks, href: "#beneficios" },
   { label: t.nav.isItForMe, href: "#comercios" },
-  { label: t.nav.questions, href: "#faq" },
+  { label: t.nav.customers, href: "#clientes" },
   { label: t.nav.price, href: "#precio" },
+  { label: t.nav.questions, href: "#faq" },
 ];
 
 function Navbar({
   primaryTarget,
   isAuthenticated,
   onCtaClick,
+  onLoginClick,
 }: {
   primaryTarget: string;
   isAuthenticated: boolean;
   onCtaClick: (cta: string) => void;
+  onLoginClick: () => void;
 }) {
   // Estado "scrolled": se activa post-hidratación vía efecto (nunca en SSR), así
   // el HTML prerenderizado siempre nace en el estado tope-de-página y la
@@ -123,6 +130,7 @@ function Navbar({
           {!isAuthenticated && (
             <Link
               to="/login"
+              onClick={onLoginClick}
               style={{
                 fontSize: 13, fontWeight: 500, color: "var(--page-fg)",
                 padding: "8px 12px", textDecoration: "none",
@@ -176,7 +184,14 @@ function Navbar({
             </a>
           ))}
           {!isAuthenticated && (
-            <Link to="/login" className="lp-mobile-link" onClick={closeMenu}>
+            <Link
+              to="/login"
+              className="lp-mobile-link"
+              onClick={() => {
+                closeMenu();
+                onLoginClick();
+              }}
+            >
               {t.nav.login}
             </Link>
           )}
@@ -225,18 +240,7 @@ function Hero({
                 color: "var(--page-fg)",
               }}
             >
-              {t.hero.titlePart1}<br />
-              <span style={{ position: "relative", whiteSpace: "nowrap" }}>
-                {t.hero.titleEmphasis}
-                <svg
-                  viewBox="0 0 200 14" preserveAspectRatio="none"
-                  style={{ position: "absolute", bottom: "-0.06em", left: 0, width: "100%", height: "0.18em" }}
-                  aria-hidden="true"
-                >
-                  <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
-                </svg>
-              </span>
-              {t.hero.titlePart2}
+              {t.hero.title}
             </h1>
 
             <p className="lp-hero-copy" style={{ fontSize: 17, lineHeight: 1.55, color: "var(--text-muted)", marginTop: 20, maxWidth: 560 }}>
@@ -308,8 +312,14 @@ function Hero({
 // (Libreta=rayado, Excel=celdas, WhatsApp=burbuja, Tickets=punteado, Caja=liso).
 /* ─── Differentiation ────────────────────────────────────────────────────── */
 /* ─── FAQ ────────────────────────────────────────────────────────────────── */
-function FAQ() {
-  const [open, setOpen] = useState<number | null>(0);
+function FAQ({
+  onOpen,
+  onWhatsAppClick,
+}: {
+  onOpen: (faq: string) => void;
+  onWhatsAppClick: (section: string) => void;
+}) {
+  const [open, setOpen] = useState<number | null>(null);
   const items = t.faq.items;
 
   return (
@@ -332,7 +342,10 @@ function FAQ() {
                 <button
                   type="button"
                   id={`lp-faq-q-${i}`}
-                  onClick={() => setOpen(isOpen ? null : i)}
+                  onClick={() => {
+                    setOpen(isOpen ? null : i);
+                    if (!isOpen) onOpen(`faq_${i + 1}`);
+                  }}
                   aria-expanded={isOpen}
                   aria-controls={`lp-faq-a-${i}`}
                   style={{
@@ -399,6 +412,14 @@ function FAQ() {
             {t.faq.contactLink}
           </a>
           {t.faq.contactSuffix}
+          {" "}
+          <a
+            href={SUPPORT_WHATSAPP}
+            onClick={() => onWhatsAppClick("faq")}
+            style={{ color: "var(--accent)", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid var(--accent-soft)" }}
+          >
+            {t.footer.whatsapp}
+          </a>
         </p>
       </div>
     </section>
@@ -528,7 +549,13 @@ function Pricing({
 }
 
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
-function Footer() {
+function Footer({
+  onLoginClick,
+  onWhatsAppClick,
+}: {
+  onLoginClick: () => void;
+  onWhatsAppClick: (section: string) => void;
+}) {
   return (
     <footer style={{ padding: "80px 32px 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
@@ -558,11 +585,19 @@ function Footer() {
             >
               {SUPPORT_EMAIL}
             </a>
+            <a
+              href={SUPPORT_WHATSAPP}
+              onClick={() => onWhatsAppClick("footer")}
+              style={{ display: "flex", width: "fit-content", marginTop: 12, fontSize: 14, fontWeight: 500, color: "var(--page-fg)", textDecoration: "none", borderBottom: "1px solid var(--hairline-color)" }}
+            >
+              {t.footer.whatsapp}
+            </a>
           </div>
         </div>
         <div style={{ marginTop: 64, paddingTop: 24, borderTop: "0.5px solid var(--hairline-color)", display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-tertiary)", flexWrap: "wrap", gap: 16 }}>
           <span>{t.footer.copyright}</span>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            <Link to="/login" onClick={onLoginClick} style={footerLinkStyle}>{t.footer.login}</Link>
             <Link to="/privacy" style={footerLinkStyle}>{t.footer.privacy}</Link>
             <Link to="/terms" style={footerLinkStyle}>{t.footer.terms}</Link>
             <Link to="/seguridad" style={footerLinkStyle}>{t.footer.security}</Link>
@@ -616,6 +651,14 @@ export default function Home(): ReactNode {
           if (!entry.isIntersecting) return;
           const section = (entry.target as HTMLElement).id;
           trackAnonymousEventOnce(`section:${section}`, "landing_section_viewed", { section });
+          if (section === "producto") {
+            trackAnonymousEventOnce("product_demo_viewed", "product_demo_viewed", {
+              section,
+            });
+          }
+          if (section === "precio") {
+            trackAnonymousEventOnce("pricing_viewed", "pricing_viewed", { section });
+          }
           observer.unobserve(entry.target);
         });
       },
@@ -642,9 +685,24 @@ export default function Home(): ReactNode {
         "landing_story_step_viewed",
         { step, trigger },
       );
+      if (trigger === "control") {
+        void trackAnonymousEvent("product_demo_step_changed", { step, trigger });
+      }
     },
     [],
   );
+
+  const onLoginClick = useCallback(() => {
+    void trackAnonymousEvent("login_clicked", { section: "navigation" });
+  }, []);
+
+  const onWhatsAppClick = useCallback((section: string) => {
+    void trackAnonymousEvent("whatsapp_clicked", { section });
+  }, []);
+
+  const onFaqOpen = useCallback((section: string) => {
+    void trackAnonymousEvent("faq_opened", { section });
+  }, []);
 
   // Paint html/body with the same landing background while this view is mounted.
   // Prevents the white body bg from showing on viewports wider than the natural
@@ -669,23 +727,34 @@ export default function Home(): ReactNode {
       <a className="lp-skip-link" href="#contenido-principal">
         Ir al contenido
       </a>
-      <Navbar primaryTarget={primaryTarget} isAuthenticated={isAuthenticated} onCtaClick={onCtaClick} />
+      <Navbar
+        primaryTarget={primaryTarget}
+        isAuthenticated={isAuthenticated}
+        onCtaClick={onCtaClick}
+        onLoginClick={onLoginClick}
+      />
       <main id="contenido-principal">
         <Hero
           primaryTarget={primaryTarget}
           onCtaClick={onCtaClick}
         />
+        <TrustBar />
+        <BenefitsSection />
         <SaleFlowStory
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("story")}
           onStepView={onStoryStepView}
         />
-        <BentoModules />
+        <AudienceSection />
+        <TestimonialsSection
+          primaryTarget={primaryTarget}
+          onCtaClick={() => onCtaClick("testimonials")}
+        />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
-        <FAQ />
+        <FAQ onOpen={onFaqOpen} onWhatsAppClick={onWhatsAppClick} />
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
       </main>
-      <Footer />
+      <Footer onLoginClick={onLoginClick} onWhatsAppClick={onWhatsAppClick} />
     </div>
   );
 }

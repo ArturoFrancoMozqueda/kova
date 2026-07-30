@@ -19,46 +19,13 @@ const CANONICAL_ORIGIN = "https://kovasuite.com";
 // injectHead() string-replaces them to give each legal route its own head. If
 // they drift from the shell, the replacement silently no-ops and legal pages
 // inherit the landing's title/description.
-const DEFAULT_TITLE = "Kova · Punto de venta e inventario para tu negocio";
+const DEFAULT_TITLE = "Kova | Punto de venta e inventario para negocios en México";
 const DEFAULT_DESCRIPTION =
-  "Kova es el punto de venta para negocios en México: cobra ventas, controla tu inventario, organiza a tu equipo y ve qué se vende desde una sola app. Funciona aunque se vaya el internet.";
+  "Kova es el punto de venta para cafeterías, panaderías y negocios de mostrador. Cobra, controla inventario y cuadra caja desde una sola app.";
 
 // JSON-LD structured data for the landing page. A <script type="application/
-// ld+json"> is a passive data block, not executable JS, so the CSP
-// `script-src 'self'` does NOT block it. The FAQ entries mirror the `faq` copy
-// in src/i18n/messages.ts and the price mirrors src/billing/standardPlan.ts
-// ($299 MXN/month = 29900 minor units); keep them in sync when either changes.
-const LANDING_FAQ = [
-  {
-    q: "¿Qué es exactamente Kova?",
-    a: "Es la app para vender, controlar inventario, cuadrar caja y entender tu negocio desde una sola vista. Más que un punto de venta: es donde cada venta se convierte en claridad para decidir.",
-  },
-  {
-    q: "¿Necesito saber de tecnología?",
-    a: "No. Si manejas WhatsApp o el cajero de un banco, puedes manejar Kova. Está pensado para que cualquier persona del mostrador cobre, consulte productos y cierre turno sin curso largo.",
-  },
-  {
-    q: "¿Funciona sin internet?",
-    a: "Sí. Si se cae la señal, Kova sigue cobrando y guarda las ventas. Cuando vuelve el internet, sincroniza todo para que no pierdas la fila ni el registro.",
-  },
-  {
-    q: "¿Necesito comprar algún aparato?",
-    a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware.",
-  },
-  {
-    q: "¿Cuánto tardo en empezar a cobrar?",
-    a: "El camino son cuatro pasos: creas tu cuenta, cargas tus productos, abres tu turno y cobras. Puedes hacer tu primera venta el mismo día que empiezas.",
-  },
-  {
-    q: "¿Qué incluye el plan de $299 MXN/mes?",
-    a: "Incluye caja, inventario, empleados con roles, reportes, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos.",
-  },
-  {
-    q: "¿Puedo cancelar?",
-    a: "Sí. Puedes cancelar cuando quieras, sin penalización. Tu información queda respaldada en la nube y separada de la de otros negocios.",
-  },
-];
-
+// ld+json"> is a passive data block, not executable JS. Price mirrors
+// src/billing/standardPlan.ts ($299 MXN/month = 29900 minor units).
 const LANDING_STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
@@ -75,7 +42,7 @@ const LANDING_STRUCTURED_DATA = {
       "@type": "SoftwareApplication",
       name: "Kova",
       applicationCategory: "BusinessApplication",
-      operatingSystem: "Web, iOS, Android",
+      operatingSystem: "Web",
       url: `${CANONICAL_ORIGIN}/`,
       description: DEFAULT_DESCRIPTION,
       offers: {
@@ -83,14 +50,6 @@ const LANDING_STRUCTURED_DATA = {
         price: "299",
         priceCurrency: "MXN",
       },
-    },
-    {
-      "@type": "FAQPage",
-      mainEntity: LANDING_FAQ.map(({ q, a }) => ({
-        "@type": "Question",
-        name: q,
-        acceptedAnswer: { "@type": "Answer", text: a },
-      })),
     },
   ],
 };
@@ -105,7 +64,7 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    assert: "Cobras $186",
+    assert: "Cobra, controla tu inventario",
     structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
   },

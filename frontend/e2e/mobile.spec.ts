@@ -300,7 +300,7 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
     await expect(
-      page.getByRole("link", { name: /empieza gratis|prueba kova 7 días gratis/i }).first(),
+      page.getByRole("link", { name: /probar kova gratis|prueba kova 7 días gratis/i }).first(),
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
@@ -326,21 +326,25 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   }
 });
 
-test("mobile landing keeps every sale story step visible without pinning", async ({ page }) => {
+test("mobile landing keeps the compact sale story operable without overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
   await page.goto("/");
+  await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  await expect(story.locator('[data-step="sale"]')).toBeVisible();
-  await expect(story.locator('[data-step="inventory"]')).toBeVisible();
-  await expect(story.locator('[data-step="cash"]')).toBeVisible();
-  await expect(story.locator('[data-step="reports"]')).toBeVisible();
-  await expect(story.getByText("$186.00", { exact: true }).first()).toBeVisible();
-  await expect(story.getByText("Inventario", { exact: true }).first()).toBeVisible();
-  await expect(story.locator('button[aria-label^="0"]').first()).toBeHidden();
+  const tabs = story.getByRole("tab");
+  await expect(tabs).toHaveCount(4);
+  await expect(story.getByRole("tabpanel")).toContainText("Cobras en segundos");
+  await story.getByRole("tab", { name: "Inventario" }).click();
+  await expect(story.getByRole("tabpanel")).toContainText(
+    "El stock baja automáticamente",
+  );
+  await expect(
+    story.getByRole("img", { name: /Inventario de Kova/i }),
+  ).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -349,15 +353,16 @@ test("desktop sale story controls stay navigable without horizontal overlap", as
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
   await page.goto("/");
+  await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const controls = story.locator('button[aria-label^="0"]');
+  const controls = story.getByRole("tab");
   await expect(controls).toHaveCount(4);
   await controls.nth(1).focus();
   await expect(controls.nth(1)).toBeFocused();
   await controls.nth(1).click();
-  await expect(controls.nth(1)).toHaveAttribute("aria-current", "step");
+  await expect(controls.nth(1)).toHaveAttribute("aria-selected", "true");
   await expectNoHorizontalOverflow(page);
 });
 
@@ -367,6 +372,7 @@ test("mobile hero and story share the signup destination", async ({ page }) => {
     route.fulfill({ json: { authenticated: false } }),
   );
   await page.goto("/");
+  await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
   const heroCta = page.locator('.lp-hero-actions a[href="/signup"]').first();
   await expect(heroCta).toBeVisible();
@@ -382,13 +388,16 @@ test("landing product motion is neutralized when reduced motion is requested", a
     route.fulfill({ json: { authenticated: false } }),
   );
   await page.goto("/");
+  await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
   await expect(page.locator(".lp-hero-frame")).toBeVisible();
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  await expect(story.locator("[data-step]")).toHaveCount(4);
-  await expect(story.locator('button[aria-label^="0"]').first()).toBeHidden();
-  await expect(story.locator('[data-step="reports"]')).toBeVisible();
+  await expect(story.getByRole("tab")).toHaveCount(4);
+  await story.getByRole("tab", { name: "Reportes" }).click();
+  await expect(story.getByRole("tabpanel")).toContainText(
+    "La venta aparece en tus resultados",
+  );
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

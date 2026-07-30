@@ -525,20 +525,7 @@ export default function HeroFilm({
                     color: "var(--page-fg)",
                   }}
                 >
-                  {t.titlePart1}
-                  <br />
-                  <span style={{ position: "relative", whiteSpace: "nowrap" }}>
-                    {t.titleEmphasis}
-                    <svg
-                      viewBox="0 0 200 14"
-                      preserveAspectRatio="none"
-                      style={{ position: "absolute", bottom: "-0.06em", left: 0, width: "100%", height: "0.18em" }}
-                      aria-hidden="true"
-                    >
-                      <path d="M2 8 Q 50 2, 100 7 T 198 6" stroke="var(--accent)" strokeWidth="3" fill="none" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                  {t.titlePart2}
+                  {t.title}
                 </h1>
 
                 <p
