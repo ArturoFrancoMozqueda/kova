@@ -14,6 +14,39 @@ from app.telemetry.schemas import MAX_PROPERTIES
 ANON_URL = "/api/v1/telemetry/events/anonymous"
 
 
+def test_accepts_focused_landing_conversion_events(client, db):
+    cases = [
+        ("product_demo_viewed", {"section": "producto"}),
+        (
+            "product_demo_step_changed",
+            {"step": "inventory", "trigger": "control"},
+        ),
+        ("pricing_viewed", {"section": "precio"}),
+        ("whatsapp_clicked", {"section": "faq"}),
+        ("login_clicked", {"section": "navigation"}),
+        ("faq_opened", {"section": "faq_1"}),
+    ]
+
+    for index, (event_name, properties) in enumerate(cases):
+        response = client.post(
+            ANON_URL,
+            json={
+                "event_name": event_name,
+                "client_event_id": f"{event_name}:{index}",
+                "client_id": "visitor-conversion",
+                "properties": properties,
+            },
+        )
+        assert response.status_code == 202, response.text
+
+    rows = (
+        db.query(AnonymousTelemetryEvent)
+        .filter_by(client_id="visitor-conversion")
+        .all()
+    )
+    assert {row.event_name for row in rows} == {event for event, _ in cases}
+
+
 def test_accepts_allowlisted_anonymous_event(client, db):
     resp = client.post(
         ANON_URL,

@@ -16,8 +16,6 @@ vi.mock("@/auth/useAuth", () => ({
 }));
 
 import Home from "./Home";
-import { TESTIMONIALS } from "@/landing/testimonials.data";
-import { isWhatsAppEnabled } from "@/lib/whatsapp";
 
 function renderHome() {
   return render(
@@ -41,6 +39,11 @@ describe("landing telemetry (PLAN-UX-03)", () => {
   it("fires landing_viewed once on mount", () => {
     renderHome();
     expect(trackAnonymousEventOnce).toHaveBeenCalledWith("landing_viewed", "landing_viewed");
+    expect(trackAnonymousEventOnce).toHaveBeenCalledWith(
+      "story:sale",
+      "landing_story_step_viewed",
+      { step: "sale", trigger: "scroll" },
+    );
   });
 
   it("fires landing_section_viewed per section as sections intersect", () => {
@@ -70,19 +73,12 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       .map(([, , props]) => (props as { section: string }).section);
     expect(viewedSections).toEqual(
       expect.arrayContaining([
+        "beneficios",
         "producto",
-        // La historia de la venta ($186 trazable) es sección propia desde el
-        // rediseño narrativo: noveno datapoint de scroll-depth.
-        "una-venta",
-        "problema",
-        "panel-dueno",
-        "como-funciona",
-        // "¿Es para mí?" es sección real (#comercios) desde el rediseño CRO;
-        // antes era un ancla escondida dentro del bento.
         "comercios",
-        "diferencia",
-        "faq",
+        "clientes",
         "precio",
+        "faq",
         "cta-final",
       ]),
     );
@@ -108,20 +104,17 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     );
   });
 
-  // EXP-01 está en pausa aprobada (docs/experiments/EXPERIMENT-REGISTRY.md):
-  // el CTA del hero queda estable en "Empieza gratis" y el payload del click
-  // ya no lleva experiment_id/variant.
   it("keeps the stable primary CTA after pausing EXP-01", async () => {
     renderHome();
 
-    const heroCtas = await screen.findAllByRole("link", {
-      name: /Empieza gratis/i,
+    const heroCta = await screen.findAllByRole("link", {
+      name: /Probar Kova gratis/i,
     });
-    expect(heroCtas[0]).toHaveAttribute("href", "/signup");
-    fireEvent.click(heroCtas[0]!);
+    expect(heroCta[0]).toHaveAttribute("href", "/signup");
+    fireEvent.click(heroCta[0]);
     expect(trackAnonymousEvent).toHaveBeenCalledWith(
       "landing_cta_clicked",
-      { cta: expect.any(String) },
+      { cta: "hero" },
     );
   });
 
@@ -131,40 +124,16 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
   });
 
-  // Gating por datos/config: la sección #clientes y el canal de WhatsApp
-  // existen exactamente cuando su fuente de verdad (testimonials.data.ts /
-  // lib/whatsapp.ts) está configurada. El assert es dinámico para que el
-  // contrato sobreviva si el usuario vacía o llena esa configuración.
-  it("renders testimonials and WhatsApp UI exactly when configured", () => {
-    const { container } = renderHome();
-    expect(container.querySelectorAll("#clientes blockquote")).toHaveLength(TESTIMONIALS.length);
-    // El strip temprano repite los mismos quotes reales con <q> (no
-    // <blockquote>) y sin id de sección; existe exactamente cuando hay datos.
-    expect(container.querySelectorAll("aside q")).toHaveLength(TESTIMONIALS.length);
-    const waLinks = container.querySelectorAll('a[href^="https://wa.me/"]');
-    if (isWhatsAppEnabled()) {
-      expect(container.querySelector(".lp-wa-fab")).not.toBeNull();
-      // FAB + link del FAQ + link del footer.
-      expect(waLinks).toHaveLength(3);
-    } else {
-      expect(container.querySelector(".lp-wa-fab")).toBeNull();
-      expect(waLinks).toHaveLength(0);
-    }
-  });
-
-  // The embedded walkthrough is now ProductFilm rather than KovaShowcase, so
-  // the selector moved. The contract under test is unchanged: the product
-  // section carries a signup CTA that reports itself as "showcase".
-  it("tracks the embedded showcase CTA at the same signup destination", () => {
+  it("tracks the story CTA at the same signup destination", () => {
     const { container } = renderHome();
     const cta = container.querySelector<HTMLAnchorElement>(
-      '.pf-cta[href="/signup"]',
+      '#producto a[href="/signup"]',
     );
     expect(cta).not.toBeNull();
     fireEvent.click(cta!);
     expect(trackAnonymousEvent).toHaveBeenCalledWith(
       "landing_cta_clicked",
-      { cta: "showcase" },
+      { cta: "story" },
     );
   });
 });

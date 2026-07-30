@@ -19,6 +19,9 @@ export default function FinalCta({
           <h2 className="lp-section-title" style={{ fontSize: "clamp(28px, 3.4vw, 44px)", textAlign: "center" }}>
             {t.title}
           </h2>
+          <p style={{ maxWidth: 620, margin: "12px auto 0", color: "var(--text-muted)", textAlign: "center", lineHeight: 1.6 }}>
+            {t.body}
+          </p>
 
           {/* Los 4 pasos entran escalonados: eco de los chips 01–04 de la
               historia de la venta, cerrando el mismo lenguaje visual. */}

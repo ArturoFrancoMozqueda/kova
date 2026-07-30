@@ -13,7 +13,7 @@ test.describe("technical SEO (prerendered build only)", () => {
     const res = await request.get("/");
     expect(res.status()).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Conoce exactamente");
+    expect(html).toContain("Cobra, controla tu inventario");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
     // El JSON-LD ya no se copia a mano: FAQPage y el precio del Offer se
