@@ -375,13 +375,14 @@ test("mobile hero and story share the signup destination", async ({ page }) => {
   await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
   const heroCta = page.locator('.lp-hero-actions a[href="/signup"]').first();
+  const storyCta = page.locator('#producto a[href="/signup"]');
   await expect(heroCta).toBeVisible();
-  await expect(page.locator('.pf-cta[href="/signup"]')).toHaveCount(1);
+  await expect(storyCta).toHaveCount(1);
   await heroCta.click();
   await expect(page).toHaveURL(/\/signup$/);
 });
 
-test("mobile sticky CTA appears after the film and yields to the offer sections", async ({ page }) => {
+test("mobile product and pricing CTAs remain reachable without horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) =>
@@ -390,31 +391,13 @@ test("mobile sticky CTA appears after the film and yields to the offer sections"
   await page.goto("/");
   await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
-  // Arriba del fold no existe: el hero y el film cargan sus propios CTAs.
-  await expect(page.locator(".lp-sticky-cta")).toHaveCount(0);
+  const storyCta = page.locator('#producto a[href="/signup"]');
+  await storyCta.scrollIntoViewIfNeeded();
+  await expect(storyCta).toBeVisible();
 
-  // Tras dejar atrás #producto, la barra re-enuncia la oferta.
-  await page.locator("#como-funciona").scrollIntoViewIfNeeded();
-  const bar = page.locator(".lp-sticky-cta");
-  await expect(bar).toBeVisible();
-  await expect(bar.locator('a[href="/signup"]')).toBeVisible();
-
-  // Nunca se encima con el FAB de WhatsApp (si el canal está activo).
-  const fab = page.locator(".lp-wa-fab");
-  if ((await fab.count()) > 0) {
-    const [fabBox, barBox] = await Promise.all([fab.boundingBox(), bar.boundingBox()]);
-    if (fabBox && barBox) {
-      expect(fabBox.y + fabBox.height).toBeLessThanOrEqual(barBox.y + 1);
-    }
-  }
-
-  // En #precio la barra cede el paso al CTA del ticket…
-  await page.locator("#precio").scrollIntoViewIfNeeded();
-  await expect(page.locator(".lp-sticky-cta")).toHaveCount(0);
-
-  // …y reaparece si el visitante vuelve a subir.
-  await page.locator("#como-funciona").scrollIntoViewIfNeeded();
-  await expect(page.locator(".lp-sticky-cta")).toBeVisible();
+  const pricingCta = page.locator('#precio a[href="/signup"]');
+  await pricingCta.scrollIntoViewIfNeeded();
+  await expect(pricingCta).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
@@ -425,6 +408,7 @@ test("landing film degrades to a complete static hero under reduced motion", asy
     route.fulfill({ json: { authenticated: false } }),
   );
   await page.goto("/");
+  await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
   // Sin data-pf-live no hay track de 400vh ni scrub: el hero es una página
   // clásica con el póster real y las cuatro leyendas apiladas y visibles.
@@ -432,8 +416,10 @@ test("landing film degrades to a complete static hero under reduced motion", asy
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
   await expect(story.getByRole("tab")).toHaveCount(4);
-  await story.getByRole("tab", { name: "Reportes" }).click();
-  await expect(story.getByRole("tabpanel")).toContainText(
+  const reportsTab = story.getByRole("tab", { name: "Reportes" });
+  await reportsTab.click();
+  await expect(reportsTab).toHaveAttribute("aria-selected", "true");
+  await expect(story.locator("#sale-flow-panel-reports")).toContainText(
     "La venta aparece en tus resultados",
   );
 });

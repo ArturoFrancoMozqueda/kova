@@ -16,13 +16,11 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).toContain("Cobra, controla tu inventario");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
-    // El JSON-LD ya no se copia a mano: FAQPage y el precio del Offer se
-    // derivan de LANDING_SEO (copy + standardPlan) vía el bundle SSR. La
-    // pregunta de objeción comercial prueba que los items nuevos del FAQ
-    // llegan al JSON-LD sin sincronización manual.
-    expect(html).toContain('"@type":"FAQPage"');
+    // El JSON-LD describe la organización y su aplicación, incluida la oferta.
+    expect(html).toContain('"@type":"Organization"');
+    expect(html).toContain('"@type":"SoftwareApplication"');
     expect(html).toContain('"price":"299"');
-    expect(html).toContain("¿Mi información es mía si decido irme?");
+    expect(html).not.toContain('"@type":"FAQPage"');
     expect(html).toContain('src="/hydrate-prerender.js"');
     expect(html).not.toContain('rel="modulepreload"');
     // El póster del HeroFilm es el candidato a LCP: ambas variantes van
