@@ -400,6 +400,45 @@
     transform var(--kova-dur-modal-exit) var(--kova-ease-exit);
 }
 
+/* Reports reveal in reading order only when an applied range produces a new
+   result set. This is intentionally CSS-only and capped at six steps: no
+   per-card React timers, no chart interpolation, and no delay under the global
+   reduced-motion reset. */
+@keyframes kv-report-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.kv-report-stagger > * {
+  animation: kv-report-enter var(--kova-dur-panel) var(--kova-ease-entrance) both;
+}
+
+.kv-report-stagger > :nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.kv-report-stagger > :nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.kv-report-stagger > :nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.kv-report-stagger > :nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.kv-report-stagger > :nth-child(n + 6) {
+  animation-delay: 200ms;
+}
+
 /* Toast animation */
 @keyframes toast-slide-in {
   from {

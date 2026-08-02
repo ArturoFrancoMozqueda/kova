@@ -23,7 +23,7 @@ export function ViewError({
   retryLabel: string;
 }) {
   return (
-    <Card>
+    <Card className="animate-fade-in">
       <CardContent className="flex flex-col items-center justify-center py-12 text-center">
         <AlertCircle className="mb-3 h-10 w-10 text-destructive" />
         <p className="text-sm font-medium text-destructive" role="alert">
@@ -89,7 +89,7 @@ export function ViewEmpty({
   }
 
   return (
-    <Card className="border-kova-blue/20 bg-kova-blue/[0.03]">
+    <Card className="animate-fade-in border-kova-blue/20 bg-kova-blue/[0.03]">
       <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
         {content}
       </CardContent>

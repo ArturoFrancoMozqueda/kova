@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type HTMLAttributes } from "react";
 import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { copy } from "@/i18n/messages";
+import { MOTION_MS } from "@/lib/motion";
+import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/usePresence";
 import { RefreshCw, X } from "lucide-react";
 
 export default function PWAUpdatePrompt() {
@@ -19,13 +22,21 @@ export default function PWAUpdatePrompt() {
     return () => window.removeEventListener("pos:pwa-update-available", show);
   }, []);
 
-  if (!visible || isPublicOrAuthRoute) return null;
+  const presence = usePresence(visible && !isPublicOrAuthRoute, MOTION_MS.panelExit);
+
+  if (!presence.mounted) return null;
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 left-4 right-4 z-[70] mx-auto max-w-xl rounded-lg border bg-card p-4 shadow-xl sm:left-auto sm:right-4"
+      {...(presence.exiting
+        ? ({ "aria-hidden": true, inert: "" } as HTMLAttributes<HTMLDivElement>)
+        : {})}
+      className={cn(
+        "fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-4 right-4 z-[70] mx-auto max-w-xl rounded-lg border bg-card p-4 shadow-xl sm:bottom-4 sm:left-auto sm:right-4",
+        presence.exiting ? "pointer-events-none animate-fade-out" : "animate-slide-in-right",
+      )}
     >
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">

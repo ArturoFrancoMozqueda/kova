@@ -140,7 +140,10 @@ export default function ReportsView() {
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}
 
       {hasSales && story ? (
-        <div className="space-y-4 sm:space-y-6">
+        <div
+          key={`${appliedRange.startDate}:${appliedRange.endDate}`}
+          className="kv-report-stagger space-y-4 sm:space-y-6"
+        >
           <AnalysisOverview
             story={story}
             previousStory={data.previousStory}

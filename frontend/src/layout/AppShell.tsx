@@ -160,16 +160,20 @@ export default function AppShell() {
     <>
       {/* Brand */}
       <div className={cn(
-        "flex items-center border-b border-sidebar-border",
+        "relative flex items-center border-b border-sidebar-border",
         sidebarCollapsed ? "justify-center px-0 py-5" : "gap-3 px-5 py-5",
       )}>
         <LogoMark size={32} circuitColor="var(--kova-on-ink)" />
-        {!sidebarCollapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] text-sidebar-muted tracking-[0.14em] uppercase">kova</p>
-            <p className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</p>
-          </div>
-        )}
+        <div
+          aria-hidden={sidebarCollapsed}
+          className={cn(
+            "absolute left-16 right-14 min-w-0 transition-[opacity,transform] duration-panel ease-standard",
+            sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+          )}
+        >
+          <p className="text-[10px] text-sidebar-muted tracking-[0.14em] uppercase">kova</p>
+          <p className="font-semibold text-sm truncate">{tenantName || copy.app.homeTitle}</p>
+        </div>
         {/* Close button — mobile only */}
         <button
           type="button"
@@ -219,23 +223,33 @@ export default function AppShell() {
                 title={sidebarCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   cn(
-                    "group flex items-center rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard",
-                    sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
+                    "group relative flex h-10 items-center overflow-hidden rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:origin-center before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light before:transition-transform before:duration-quick before:ease-entrance",
+                    sidebarCollapsed ? "justify-center px-2.5" : "px-2.5",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
+                      : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <span className={isActive ? "text-kova-blue-light" : undefined}>{item.icon}</span>
-                    {!sidebarCollapsed && (
-                      <>
-                        <span className="flex-1">{item.label}</span>
-                        <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
-                      </>
-                    )}
+                    <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
+                    <span
+                      aria-hidden={sidebarCollapsed}
+                      className={cn(
+                        "absolute left-[42px] right-8 truncate transition-[opacity,transform] duration-panel ease-standard",
+                        sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                    <ChevronRight
+                      aria-hidden
+                      className={cn(
+                        "absolute right-3 h-3.5 w-3.5 transition-opacity duration-quick",
+                        sidebarCollapsed ? "opacity-0" : "opacity-0 group-hover:opacity-60",
+                      )}
+                    />
                   </>
                 )}
               </NavLink>
@@ -249,7 +263,7 @@ export default function AppShell() {
         {!sidebarCollapsed && <OfflineIndicator />}
         <div
           data-capture-account
-          className={cn("flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}
+          className={cn("relative flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}
         >
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold uppercase text-white shrink-0"
@@ -258,24 +272,36 @@ export default function AppShell() {
           >
             {userEmail.charAt(0)}
           </div>
-          {!sidebarCollapsed && (
-            <div className="min-w-0 flex-1">
-              <p data-capture-email className="text-xs text-sidebar-muted truncate">{userEmail}</p>
-              <p className="text-[10px] text-sidebar-muted">{roleLabel(userRole)}</p>
-            </div>
-          )}
+          <div
+            aria-hidden={sidebarCollapsed}
+            className={cn(
+              "absolute left-11 right-0 min-w-0 transition-[opacity,transform] duration-panel ease-standard",
+              sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+            )}
+          >
+            <p data-capture-email className="text-xs text-sidebar-muted truncate">{userEmail}</p>
+            <p className="text-[10px] text-sidebar-muted">{roleLabel(userRole)}</p>
+          </div>
         </div>
         <button
           onClick={() => void logout()}
           title={sidebarCollapsed ? copy.register.logout : undefined}
           className={cn(
-            "flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+            "relative flex w-full items-center justify-start rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
             sidebarCollapsed && "px-2",
           )}
           type="button"
         >
-          <LogOut className="h-4 w-4" />
-          {!sidebarCollapsed && copy.register.logout}
+          <LogOut className={cn("h-4 w-4 shrink-0", sidebarCollapsed && "mx-auto")} />
+          <span
+            aria-hidden={sidebarCollapsed}
+            className={cn(
+              "absolute left-9 whitespace-nowrap transition-[opacity,transform] duration-panel ease-standard",
+              sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+            )}
+          >
+            {copy.register.logout}
+          </span>
         </button>
       </div>
     </>
@@ -314,7 +340,7 @@ export default function AppShell() {
           // `min-h-screen` dropped here for the same reason as on the shell
           // root: paired with h-[100dvh] it won, and on a phone with a visible
           // toolbar it pushed the sidebar footer (Cerrar sesión) below the fold.
-          "fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[260px] flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-modal ease-entrance",
+          "fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[260px] flex-col overflow-hidden bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-modal ease-entrance",
           // Desktop collapse keeps animating `width` — see docs/claude/motion-system.md
           // for why a transform is NOT an option here: moving the content
           // column's left edge would mean putting a transform on the main
@@ -414,10 +440,10 @@ export default function AppShell() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "flex h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
+                  "relative flex h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors after:absolute after:top-0 after:h-0.5 after:w-8 after:origin-center after:rounded-full after:bg-kova-blue after:transition-transform after:duration-quick after:ease-entrance",
                   isActive
-                    ? "text-kova-blue"
-                    : "text-kova-muted hover:text-kova-ink",
+                    ? "text-kova-blue after:scale-x-100"
+                    : "text-kova-muted after:scale-x-0 hover:text-kova-ink",
                 )
               }
             >

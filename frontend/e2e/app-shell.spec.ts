@@ -51,6 +51,35 @@ test("skip link is first in tab order and moves focus to the content area", asyn
     .toBe("contenido-principal");
 });
 
+test("desktop sidebar crossfades labels without losing link names", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/auth/session", async (route) => {
+    await route.fulfill({ json: authenticatedOwner });
+  });
+  await page.route("**/api/v1/billing/subscription", async (route) => {
+    await route.fulfill({ json: billingAllowed });
+  });
+  await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/inventory/stock", (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/dashboard");
+
+  const dashboardLink = page.getByRole("navigation").first().locator('a[href="/dashboard"]');
+  const dashboardLabel = dashboardLink.getByText("Panel", { exact: true });
+  await expect(dashboardLabel).toHaveAttribute("aria-hidden", "false");
+
+  await page.getByRole("button", { name: /contraer men/i }).click();
+  await expect(dashboardLink).toHaveAttribute("title", "Panel");
+  await expect(dashboardLabel).toHaveAttribute("aria-hidden", "true");
+  await expect(dashboardLabel).toHaveCSS("opacity", "0");
+
+  await page.getByRole("button", { name: /expandir men/i }).click();
+  await expect(dashboardLabel).toHaveAttribute("aria-hidden", "false");
+  await expect(dashboardLabel).toHaveCSS("opacity", "1");
+});
+
 test("public landing explains the single Standard Plan", async ({ page }) => {
   await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({ json: { authenticated: false } });
