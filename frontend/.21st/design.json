@@ -48,7 +48,8 @@
       "toast.test",
       "view-header",
       "view-layout",
-      "view-states"
+      "view-states",
+      "weekly-kpi-chart"
     ],
     "preferredPrimitives": [
       "Card",
@@ -62,7 +63,8 @@
       "wide operational canvas",
       "white filter toolbar",
       "tinted data-table header",
-      "responsive card-to-table layout"
+      "responsive card-to-table layout",
+      "dominant sales overview with ranked operational cards"
     ]
   },
   "constraints": {
@@ -81,6 +83,10 @@
     {
       "decision": "Adopt the supplied AppDashboard direction across authenticated routes with wider operational canvases, compact radii, white toolbars, blue-tinted table headers and black primary actions.",
       "reason": "The user selected this direction and requested visual consistency beyond the dashboard while retaining Kova product imagery and workflows."
+    },
+    {
+      "decision": "Structure Analysis around one dominant net-sales chart followed by paired product, hour, payment and priority cards, using an adapted 21st.dev Weekly KPI Chart for the interactive period visualization.",
+      "reason": "This matches the approved Analisis reference while preserving Kova's real BusinessStoryReport data, deeper operational sections and accessible interactions."
     }
   ],
   "evidence": [
@@ -99,6 +105,10 @@
     {
       "fact": "project.stack:vite",
       "source": "package.json"
+    },
+    {
+      "fact": "components.installed:weekly-kpi-chart",
+      "source": "21st.dev/@isaiahbjork/components/weekly-kpi-chart"
     }
   ],
   "generatedAt": "2026-08-02T16:36:18.690Z"

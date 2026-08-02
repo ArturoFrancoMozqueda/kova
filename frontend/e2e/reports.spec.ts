@@ -246,17 +246,19 @@ async function mockReports(
   await page.route("**/api/v1/reports/sales-by-hour**", async (route) => {
     const url = new URL(route.request().url());
     const start = url.searchParams.get("start_date") ?? url.searchParams.get("start");
+    const currentPeakHour = payload.peak_hour?.hour ?? 20;
+    const previousPeakHour = options.previousPayload?.peak_hour?.hour ?? 18;
     await route.fulfill({
       json: Array.from({ length: 24 }, (_, hour) => ({
         hour,
         net_sales:
           start === options.previousPayload?.summary.start_date
-            ? hour === 18 ? "60.00" : "0.00"
-            : hour === 20 ? "90.00" : hour === 21 ? "70.00" : "0.00",
+            ? hour === previousPeakHour ? "60.00" : "0.00"
+            : hour === currentPeakHour ? "90.00" : hour === (currentPeakHour + 1) % 24 ? "70.00" : "0.00",
         order_count:
           start === options.previousPayload?.summary.start_date
-            ? hour === 18 ? 2 : 0
-            : hour === 20 ? 3 : hour === 21 ? 2 : 0,
+            ? hour === previousPeakHour ? 2 : 0
+            : hour === currentPeakHour ? 3 : hour === (currentPeakHour + 1) % 24 ? 2 : 0,
       })),
     });
   });
@@ -553,7 +555,7 @@ test("desktop sidebar covers the viewport after scrolling reports", async ({ pag
   await mockReports(page);
 
   await page.goto("/reports");
-  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+  await expect(page.getByText("Productos que más se movieron")).toBeVisible();
 
   await page.evaluate(() => {
     const main = document.querySelector("main");
@@ -594,7 +596,7 @@ test("reports scrolling never moves the app shell itself", async ({ page }) => {
   await mockReports(page);
 
   await page.goto("/reports");
-  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+  await expect(page.getByText("Productos que más se movieron")).toBeVisible();
 
   const anchored = { documentElement: 0, body: 0, shellRoot: 0, contentColumn: 0 };
 
@@ -670,27 +672,20 @@ test("reports page displays analytics dashboard layout", async ({ page }) => {
   });
 
   await page.goto("/reports");
+  await page.getByRole("button", { name: /personalizar/i }).click();
   await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
   await page.getByLabel(/fecha final/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
-  // KPI row: the four tiles with their exact labels. The previous period
-  // ($180) is below MIN_MONEY_BASE, so the headline deliberately avoids a
-  // noisy percentage.
+  // Compact overview follows the approved analytics direction: one dominant
+  // sales figure followed by product, hour, payment and priority cards.
   await expect(page.getByRole("heading", { name: "Análisis", exact: true })).toBeVisible();
-  await expect(page.getByText("Resumen del periodo")).toBeVisible();
   await expect(page.getByText("Ventas netas", { exact: true })).toBeVisible();
-  await expect(page.getByText("Ticket promedio", { exact: true })).toBeVisible();
-  await expect(page.getByText("Devoluciones", { exact: true }).first()).toBeVisible();
-  await expect(
-    page.getByText("Comparado con el periodo anterior: 6 may – 12 may (7 días)."),
-  ).toBeVisible();
-
-  // Hero chart: the one-line headline lives as its subtitle. Previous-period
-  // context stays in the report copy without adding a trend overlay.
-  await expect(page.getByText("Ventas por día", { exact: true })).toBeVisible();
-  await expect(page.getByText("Vendiste $231.00 con 7 órdenes en estos 7 días.")).toBeVisible();
-  await expect(page.getByText("Periodo anterior", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("$180.00 vs. periodo anterior · +$51.00 de diferencia")).toBeVisible();
+  await expect(page.getByText("Productos que más se movieron")).toBeVisible();
+  await expect(page.getByText("Horas con más venta")).toBeVisible();
+  await expect(page.getByText("Cómo te pagaron", { exact: true })).toBeVisible();
+  await expect(page.getByText("Prioridades del periodo")).toBeVisible();
 
   // The priority action reads without any interaction on the rail.
   const hero = page.getByTestId("priority-recommendation");
@@ -698,15 +693,12 @@ test("reports page displays analytics dashboard layout", async ({ page }) => {
   await expect(hero).toContainText("Tu prioridad ahora");
   await expect(hero).toContainText("Dona necesita reabasto pronto");
 
-  // Bento cells: every thematic block framed as a business question.
+  // Deeper operational reading remains below the approved overview.
   await expect(page.getByText("¿Cuándo vendo más?")).toBeVisible();
-  await expect(page.getByText("¿Qué producto mueve el negocio?")).toBeVisible();
-  await expect(page.getByText("¿Cómo me están pagando?")).toBeVisible();
   await expect(page.getByText("¿Hay devoluciones o cancelaciones preocupantes?")).toBeVisible();
   await expect(page.getByText("¿Quién está vendiendo?")).toBeVisible();
   await expect(page.getByText("Bloques del día")).toBeVisible();
   await expect(page.getByText("Bloque más fuerte")).toBeVisible();
-  await expect(page.getByText("Tus 3 mejores horas")).toBeVisible();
 
   // Full detail survives below the fold: the product/inventory table.
   await expect(page.getByRole("cell", { name: "Dona", exact: true })).toBeVisible();
@@ -764,18 +756,19 @@ test("reports keeps the latest applied range when an earlier request finishes la
   });
 
   await page.goto("/reports");
+  await page.getByRole("button", { name: /personalizar/i }).click();
   await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
   await page.getByLabel(/fecha final/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
   const expectedCaption = page.getByText(
-    "Comparado con el periodo anterior: 6 may – 12 may (7 días).",
+    "$180.00 vs. periodo anterior · +$51.00 de diferencia",
   );
   await expect(expectedCaption).toBeVisible();
   await page.waitForTimeout(1_000);
   await expect(expectedCaption).toBeVisible();
   await expect(
-    page.getByText("Comparado con el periodo anterior: 13 may – 19 may (7 días)."),
+    page.getByText("$231.00 vs. periodo anterior · +$0.00 de diferencia"),
   ).toHaveCount(0);
 });
 
@@ -854,8 +847,8 @@ test("reports aligns best moment and strongest block when afternoon leads sales"
   const strongestBlock = page.getByText("Bloque más fuerte", { exact: true }).locator("..");
   await expect(strongestBlock).toContainText("Tarde");
 
-  // Peak-hour facts follow the same afternoon story.
-  await expect(page.getByText("Hora pico", { exact: true }).locator("..")).toContainText("15:00-16:00");
+  // The ranked hours card follows the same afternoon story using the hourly endpoint.
+  await expect(page.getByText("Horas con más venta").locator("..").locator("..")).toContainText(/15:00.*16:00/);
 });
 
 test("reports shows useful empty state without demo data", async ({ page }) => {
@@ -916,6 +909,6 @@ test("no onboarding tour covers the first read of reports", async ({ page }) => 
 
   await page.goto("/reports");
 
-  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+  await expect(page.getByText("Productos que más se movieron")).toBeVisible();
   await expect(page.locator("#first-use-tour-title")).toHaveCount(0);
 });
