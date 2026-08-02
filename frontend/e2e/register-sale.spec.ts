@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { markFirstUseToursSeen } from "./helpers";
 
 const CASHIER_SESSION = {
@@ -54,6 +54,13 @@ function makeSyncResponse(orderId: string, total: string) {
   };
 }
 
+async function expectRegisterReady(page: Page) {
+  // The redesigned register starts with the visible catalog card instead of a
+  // standalone "Caja" page heading. Waiting on this heading still proves the
+  // lazy route and its catalog data finished loading before the sale begins.
+  await expect(page.getByRole("heading", { name: /^catálogo$/i })).toBeVisible();
+}
+
 test("cashier completes a cash sale from the register", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
@@ -86,7 +93,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
   });
 
   await page.goto("/register");
-  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await expectRegisterReady(page);
   await expect(page.getByText("Concha")).toBeVisible();
   await expect(page.getByText(/primero agrega productos al carrito/i)).toBeVisible();
   await expect(page.getByText(/opciones avanzadas/i)).toBeHidden();
@@ -137,7 +144,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
   });
 
   await page.goto("/register");
-  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await expectRegisterReady(page);
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByText(/opciones avanzadas/i).click();
   await page.getByLabel(/pago dividido/i).check();
@@ -170,7 +177,7 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
   await page.route("**/api/v1/sync/offline-sales", (route) => route.abort());
 
   await page.goto("/register");
-  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await expectRegisterReady(page);
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await page.getByRole("button", { name: /^cobrar$/i }).click();
@@ -205,7 +212,7 @@ test("cash is blocked without an open shift but a transfer sale completes", asyn
   });
 
   await page.goto("/register");
-  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await expectRegisterReady(page);
   await expect(
     page.getByText(/los cobros en efectivo están bloqueados/i),
   ).toBeVisible();
@@ -258,7 +265,7 @@ test("out-of-stock product cannot be added to the cart", async ({ page }) => {
   );
 
   await page.goto("/register");
-  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await expectRegisterReady(page);
   const card = page.getByRole("button", {
     name: /OutOfStockItem.*sin stock/i,
   });
