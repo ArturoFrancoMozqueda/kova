@@ -119,10 +119,10 @@ export function DaypartsPanel({
             return (
               <div key={row.key} className={cn(zero && "opacity-70")}>
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="flex items-center gap-2 text-sm font-medium text-kova-ink">
+                  <div className="flex items-center gap-2 text-sm font-medium text-kova-ink">
                     {row.label}
                     {isBest ? <Badge variant="secondary">{copy.reportsView.daypartStrongest}</Badge> : null}
-                  </p>
+                  </div>
                   <p className="text-sm font-semibold tabular-nums text-kova-ink">
                     {zero ? copy.reportsView.daypartNoSales : formatMoney(row.net_sales)}
                   </p>
@@ -248,4 +248,3 @@ export function TopHoursPanel({
     </BentoPanel>
   );
 }
-
