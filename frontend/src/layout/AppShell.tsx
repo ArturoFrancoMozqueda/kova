@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { type FormEvent, Suspense, useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
@@ -22,6 +22,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Plus,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -86,8 +87,18 @@ function readStoredSidebarCollapsed(): boolean {
 
 export default function AppShell() {
   const { state, logout } = useAuth();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
+  const [globalSearch, setGlobalSearch] = useState("");
+
+  const submitGlobalSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = globalSearch.trim();
+    if (!query) return;
+    navigate(`/catalog?search=${encodeURIComponent(query)}`);
+    setGlobalSearch("");
+  };
 
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((prev) => {
@@ -341,7 +352,20 @@ export default function AppShell() {
         </header>
 
         {/* Desktop command bar; mobile keeps the compact header and bottom navigation. */}
-        <header className="hidden h-[72px] shrink-0 items-center justify-end gap-3 border-b border-kova-border bg-white px-6 lg:flex">
+        <header className="hidden h-14 shrink-0 items-center gap-3 border-b border-kova-border bg-white px-5 lg:flex">
+          <form className="relative w-80" role="search" onSubmit={submitGlobalSearch}>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kova-muted" />
+            <label className="sr-only" htmlFor="global-product-search">Buscar en toda la app</label>
+            <input
+              id="global-product-search"
+              type="search"
+              value={globalSearch}
+              onChange={(event) => setGlobalSearch(event.target.value)}
+              placeholder="Buscar productos"
+              className="h-9 w-full rounded-kova-md border border-transparent bg-kova-mist py-2 pl-9 pr-3 text-sm text-kova-ink transition-colors placeholder:text-kova-muted focus:border-kova-blue focus:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/30"
+            />
+          </form>
+          <div className="flex-1" />
           <OfflineIndicator compact showOnlineLabel />
           <TrialChip />
           <Link
@@ -369,7 +393,7 @@ export default function AppShell() {
         <div
           id="contenido-principal"
           tabIndex={-1}
-          className="relative flex-1 overflow-y-auto overscroll-contain pb-16 lg:pb-0 focus:outline-none"
+          className="relative flex-1 overflow-y-auto overscroll-contain pb-16 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-kova-blue lg:pb-0"
         >
           <BillingBanner />
           <Suspense fallback={<ShellRouteFallback />}>

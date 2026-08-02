@@ -538,7 +538,7 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
   await page.getByLabel(/fecha final/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
-  await expect(page.getByText("Resumen del periodo")).toBeVisible();
+  await expect(page.getByText(/ventas netas/i).first()).toBeVisible();
   await expect(page.getByText(/Tarde/).first()).toBeVisible();
   // Dashboard layout: the priority action reads before scrolling into charts;
   // the old chapter-chip navigation is gone with the narrative acts.
@@ -567,7 +567,7 @@ test("register quick sale keeps CTAs above mobile navigation", async ({ page }) 
   });
 
   await page.goto("/register");
-  await expect(page.getByRole("heading", { name: /^caja$/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /cat.logo/i }).first()).toBeVisible();
   await page.getByRole("button", { name: "Agregar Concha" }).click();
 
   const stickyCheckout = page.locator("button", { hasText: /cobrar/i }).first();

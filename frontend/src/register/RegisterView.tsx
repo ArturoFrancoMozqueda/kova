@@ -37,7 +37,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
 import { ViewEmpty } from "@/components/ui/view-states";
@@ -882,25 +881,6 @@ export default function RegisterView() {
 
   return (
     <ViewLayout width="wide" className="pb-40 lg:pb-10 animate-fade-in">
-      {/* Header */}
-      <div className="mb-6">
-        <ViewHeader
-          eyebrow={tenantName}
-          title={copy.register.title}
-          actions={
-            canManageCatalog ? (
-              <Link
-                to="/catalog"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "self-start")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                {copy.register.manageCatalog}
-              </Link>
-            ) : undefined
-          }
-        />
-      </div>
-
       {loadState.status === "ready" && loadState.fromCache && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-kova-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -936,7 +916,18 @@ export default function RegisterView() {
                 <ShoppingBag className="h-4 w-4" />
                 {copy.register.catalog}
               </CardTitle>
-              <Badge variant="secondary">{copy.register.itemCount(loadState.products.length)}</Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">{copy.register.itemCount(loadState.products.length)}</Badge>
+                {canManageCatalog ? (
+                  <Link
+                    to="/catalog"
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    {copy.register.manageCatalog}
+                  </Link>
+                ) : null}
+              </div>
             </div>
             {/* SKU / barcode search */}
             <div className="relative mt-3">
