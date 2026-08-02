@@ -165,6 +165,10 @@ export default function InventoryView() {
     );
   }
 
+  const outOfStockCount = loadState.stock.filter((item) => item.stock_on_hand <= 0).length;
+  const lowStockCount = loadState.stock.filter((item) => item.is_low_stock && item.stock_on_hand > 0).length;
+  const healthyStockCount = loadState.stock.length - outOfStockCount - lowStockCount;
+
   return (
     <ViewLayout width="wide" className="animate-fade-in">
       <div className="mb-6">
@@ -188,6 +192,21 @@ export default function InventoryView() {
           {copy.inventoryView.permissionHidden}
         </div>
       )}
+
+      <div className="mb-6 grid overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card sm:grid-cols-3">
+        <div className="border-b border-kova-border px-5 py-4 sm:border-b-0 sm:border-r">
+          <p className="text-sm text-muted-foreground">En existencia</p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{healthyStockCount}</p>
+        </div>
+        <div className="border-b border-kova-border px-5 py-4 sm:border-b-0 sm:border-r">
+          <p className="text-sm text-muted-foreground">{copy.inventoryView.lowStock}</p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight text-warning-foreground tabular-nums">{lowStockCount}</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-sm text-muted-foreground">Agotados</p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight text-destructive tabular-nums">{outOfStockCount}</p>
+        </div>
+      </div>
 
       {(loadState.lowStock.length > 0 || loadState.velocity.some(isActionableInventoryVelocity)) && (
         <Card className="border-warning/30 bg-warning/5 mb-6">
@@ -318,7 +337,13 @@ export default function InventoryView() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card">
+              <div className="hidden grid-cols-[minmax(240px,2fr)_120px_120px_minmax(280px,1fr)] items-center gap-4 bg-kova-blue/[0.075] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:grid">
+                <span>Producto</span>
+                <span className="text-right">Stock</span>
+                <span className="text-right">Mínimo</span>
+                <span className="text-right">Acciones</span>
+              </div>
               {visibleStock.map((item) => (
                 <StockCard
                   key={item.product_id}
@@ -393,13 +418,13 @@ function StockCard({
   return (
     <Card
       className={cn(
-        "shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard",
+        "rounded-none border-x-0 border-t-0 shadow-none transition-colors last:border-b-0 hover:bg-kova-mist/45",
         isOut && "border-l-4 border-l-destructive",
         isLow && "border-l-4 border-l-warning",
       )}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3 mb-3">
+      <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(240px,2fr)_120px_120px_minmax(280px,1fr)] lg:items-center lg:gap-4">
+        <div className="flex items-start justify-between gap-3 lg:items-center">
           <div className="flex min-w-0 items-center gap-3">
             {product?.image_url ? (
               <div className="h-12 w-12 shrink-0 overflow-hidden rounded-kova-md bg-kova-mist">
@@ -426,21 +451,21 @@ function StockCard({
             <Badge variant="warning">{copy.inventoryView.lowBadge}</Badge>
           ) : null}
         </div>
-        <div className="flex items-baseline gap-2 mb-2">
+        <div className="flex items-baseline gap-2 lg:justify-end">
           <span
             className={cn(
-              "text-3xl font-bold tabular-nums",
+              "text-3xl font-bold tabular-nums lg:text-lg",
               isOut ? "text-destructive" : isLow ? "text-warning-foreground" : "text-kova-ink",
             )}
           >
             {item.stock_on_hand}
           </span>
-          <span className="text-sm text-muted-foreground">{copy.inventoryView.onHand}</span>
+          <span className="text-sm text-muted-foreground lg:sr-only">{copy.inventoryView.onHand}</span>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">
-          {copy.inventoryView.threshold}: {item.low_stock_threshold ?? "—"}
+        <p className="text-xs text-muted-foreground lg:text-right lg:text-sm lg:tabular-nums">
+          <span className="lg:sr-only">{copy.inventoryView.threshold}: </span>{item.low_stock_threshold ?? "—"}
         </p>
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap lg:justify-end">
           {canAdjust && (
             <>
               <Button variant="outline" size="sm" onClick={() => onModal({ type: "adjust", item })}>
@@ -468,7 +493,7 @@ function StockCard({
         </div>
 
         {historyOpen && (
-          <div className="mt-3 border-t pt-3 animate-fade-in">
+          <div className="mt-3 border-t pt-3 animate-fade-in lg:col-span-full">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
               {copy.inventoryView.movementHistory}
             </p>

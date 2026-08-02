@@ -1555,6 +1555,17 @@ export const copy = {
     comparisonUnavailable: "No se pudo cargar el periodo anterior para comparar.",
     comparisonEmptyPrevious: (start: string, end: string) =>
       `Aún no hay periodo anterior para comparar: del ${start} al ${end} no hubo ventas.`,
+    overviewPeriodToday: "Hoy",
+    overviewPeriodWeek: "Esta semana",
+    overviewPeriodMonth: "Este mes",
+    overviewPeriodCustom: "Este periodo",
+    overviewTopProducts: "Productos que más se movieron",
+    overviewTopHours: "Horas con más venta",
+    overviewPriorities: "Prioridades del periodo",
+    overviewComparison: (previous: string, difference: number, differenceLabel: string) =>
+      `${previous} vs. periodo anterior · ${difference >= 0 ? "+" : "−"}${differenceLabel} de diferencia`,
+    overviewPreviousAverage: (amount: string) =>
+      `La línea es el promedio diario del periodo anterior · ${amount}`,
     deltaNoPrevious: "Sin datos suficientes para comparar",
     deltaEmptyPrevious: "Sin ventas en el periodo anterior",
     deltaVsPrevious: "vs. periodo anterior",

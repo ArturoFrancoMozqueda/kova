@@ -21,12 +21,28 @@ import { ExternalLink, AlertCircle, Inbox, X, CheckCircle2, Ban } from "lucide-r
 
 type StatusFilter = "completed" | "voided" | undefined;
 type OrderSort = "created_desc" | "created_asc" | "amount_desc" | "amount_asc";
+type PeriodPreset = "today" | "week" | "month" | null;
+
+function dateInputValue(date: Date): string {
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10);
+}
+
+function presetRange(preset: Exclude<PeriodPreset, null>): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date(end);
+  if (preset === "week") start.setDate(end.getDate() - 6);
+  if (preset === "month") start.setDate(end.getDate() - 29);
+  return { start: dateInputValue(start), end: dateInputValue(end) };
+}
 
 export default function OrderListView() {
   useDocumentTitle(copy.documentTitles.orders);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const initialPeriod = presetRange("today");
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("today");
+  const [startDate, setStartDate] = useState(initialPeriod.start);
+  const [endDate, setEndDate] = useState(initialPeriod.end);
   const [sortOrder, setSortOrder] = useState<OrderSort>("created_desc");
 
   const hasActiveFilter = statusFilter !== undefined || startDate !== "" || endDate !== "";
@@ -45,8 +61,16 @@ export default function OrderListView() {
 
   const clearFilters = () => {
     setStatusFilter(undefined);
+    setPeriodPreset(null);
     setStartDate("");
     setEndDate("");
+  };
+
+  const selectPeriod = (preset: Exclude<PeriodPreset, null>) => {
+    const range = presetRange(preset);
+    setPeriodPreset(preset);
+    setStartDate(range.start);
+    setEndDate(range.end);
   };
 
   const statusOptions: { value: StatusFilter; label: string }[] = [
@@ -117,9 +141,31 @@ export default function OrderListView() {
 
       {/* Filter bar */}
       <div
-        className="mb-5 flex flex-col gap-3 rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card sm:flex-row sm:items-end"
+        className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
         aria-label={copy.orderList.filterLabel}
       >
+        <div className="inline-flex self-start rounded-kova-md bg-kova-mist p-1">
+          {([
+            ["today", "Hoy"],
+            ["week", "Semana"],
+            ["month", "Mes"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={periodPreset === value}
+              onClick={() => selectPeriod(value)}
+              className={cn(
+                "h-8 rounded-kova-sm px-3 text-xs font-medium transition-colors",
+                periodPreset === value
+                  ? "bg-white text-kova-ink shadow-sm"
+                  : "text-muted-foreground hover:text-kova-ink",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {/* Status pills */}
         <div className="flex gap-1.5 flex-wrap">
           {statusOptions.map(({ value, label }) => (
@@ -146,7 +192,7 @@ export default function OrderListView() {
             <Input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => { setPeriodPreset(null); setStartDate(e.target.value); }}
               className="h-9 text-sm"
             />
           </div>
@@ -155,7 +201,7 @@ export default function OrderListView() {
             <Input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => { setPeriodPreset(null); setEndDate(e.target.value); }}
               className="h-9 text-sm"
             />
           </div>

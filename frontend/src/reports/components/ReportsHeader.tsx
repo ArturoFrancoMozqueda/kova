@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ViewHeader } from "@/components/ui/view-header";
 import { cn } from "@/lib/utils";
+import { formatDayMonthLong } from "@/i18n/date";
 import { timezoneLabel } from "@/i18n/timezones";
 import type { ReportPreset } from "../utils/dateRange";
 
@@ -34,24 +35,33 @@ export function ReportsHeader({
   // On phones the presets cover most reads; the manual range stays one tap
   // away so the first screen leads with data instead of a form.
   const [customOpen, setCustomOpen] = useState(false);
+  const rangeLabel = startDate && endDate
+    ? startDate === endDate
+      ? formatDayMonthLong(startDate)
+      : `Del ${formatDayMonthLong(startDate)} al ${formatDayMonthLong(endDate)}`
+    : undefined;
+  const meta = [rangeLabel, timezone ? timezoneLabel(timezone) : null].filter(Boolean).join(" · ");
 
   return (
     <ViewHeader
-      eyebrow={copy.reportsView.storyEyebrow}
       title={copy.reportsView.title}
-      meta={timezone ? `${copy.reportsView.timezone}: ${timezoneLabel(timezone)}` : undefined}
+      meta={meta || undefined}
       actions={
         <form
           onSubmit={onSubmit}
-          className="flex flex-wrap items-end gap-3 rounded-kova-lg border border-kova-border bg-white p-2.5 shadow-kova-card"
+          className="flex max-w-2xl flex-wrap items-end justify-end gap-2"
         >
-          <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-kova-md bg-kova-mist p-1">
             {PRESETS.map((preset) => (
               <Button
                 key={preset}
                 type="button"
                 size="sm"
-                variant={activePreset === preset ? "default" : "outline"}
+                variant="ghost"
+                className={cn(
+                  "h-8 rounded-kova-sm px-4 text-kova-ink hover:bg-white/70",
+                  activePreset === preset && "bg-white shadow-sm hover:bg-white",
+                )}
                 onClick={() => onPreset(preset)}
               >
                 {copy.reportsView.presetLabel(preset)}
@@ -61,7 +71,7 @@ export function ReportsHeader({
               type="button"
               size="sm"
               variant={customOpen ? "secondary" : "outline"}
-              className="sm:hidden"
+              className="h-10"
               aria-expanded={customOpen}
               onClick={() => setCustomOpen((value) => !value)}
             >
@@ -69,7 +79,12 @@ export function ReportsHeader({
               {copy.reportsView.customRange}
             </Button>
           </div>
-          <div className={cn("contents", !customOpen && "hidden sm:contents")}>
+          <div
+            className={cn(
+              "basis-full flex-wrap items-end justify-end gap-2 rounded-kova-md border border-kova-border bg-white p-3 shadow-kova-card",
+              customOpen ? "flex" : "hidden",
+            )}
+          >
             <div className="min-w-[140px] flex-1 space-y-1.5">
               <Label htmlFor="report-start-date">{copy.reportsView.startDate}</Label>
               <Input
