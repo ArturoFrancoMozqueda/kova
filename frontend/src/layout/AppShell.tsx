@@ -219,11 +219,11 @@ export default function AppShell() {
                 title={sidebarCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   cn(
-                    "group flex items-center rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard",
+                    "group relative flex items-center overflow-hidden rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:origin-center before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light before:transition-transform before:duration-quick before:ease-entrance",
                     sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
+                      : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                   )
                 }
               >
@@ -414,10 +414,10 @@ export default function AppShell() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "flex h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors",
+                  "relative flex h-14 flex-col items-center justify-center gap-1 text-xs font-medium transition-colors after:absolute after:top-0 after:h-0.5 after:w-8 after:origin-center after:rounded-full after:bg-kova-blue after:transition-transform after:duration-quick after:ease-entrance",
                   isActive
-                    ? "text-kova-blue"
-                    : "text-kova-muted hover:text-kova-ink",
+                    ? "text-kova-blue after:scale-x-100"
+                    : "text-kova-muted after:scale-x-0 hover:text-kova-ink",
                 )
               }
             >

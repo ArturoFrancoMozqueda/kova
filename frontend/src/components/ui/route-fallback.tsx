@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "./skeleton";
 
@@ -20,10 +21,33 @@ export function RouteFallback({ label = "Cargando" }: { label?: string }) {
   );
 }
 
-/** Route fallback used inside AppShell, so navigation chrome never vanishes. */
-export function ShellRouteFallback({ label = "Cargando vista" }: { label?: string }) {
+/**
+ * Route fallback used inside AppShell, so navigation chrome never vanishes.
+ * A short reveal delay avoids flashing a loading skeleton when a cached lazy
+ * chunk resolves almost immediately. Slow routes still get an honest status.
+ */
+export function ShellRouteFallback({
+  label = "Cargando vista",
+  delayMs = 140,
+}: {
+  label?: string;
+  delayMs?: number;
+}) {
+  const [visible, setVisible] = useState(delayMs <= 0);
+
+  useEffect(() => {
+    if (delayMs <= 0) {
+      setVisible(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setVisible(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [delayMs]);
+
+  if (!visible) return null;
+
   return (
-    <div role="status" aria-label={label} className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+    <div role="status" aria-label={label} className="mx-auto w-full max-w-7xl animate-fade-in p-4 sm:p-6 lg:p-8">
       {/* Skeleton rather than ad-hoc animate-pulse boxes, so the whole app has
           one loading rhythm (pulse-soft, 1.5s) and one loading surface. */}
       <div className="mb-7 flex items-center justify-between gap-4">

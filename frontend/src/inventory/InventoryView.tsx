@@ -225,6 +225,7 @@ export default function InventoryView() {
                   title: item.product_name,
                   detail: copy.inventoryView.lowStockDetail(item.stock_on_hand, item.low_stock_threshold),
                   tone: item.stock_on_hand <= 0 ? "destructive" as const : "warning" as const,
+                  stockItem: item,
                 })),
                 ...loadState.velocity
                   .filter(isActionableInventoryVelocity)
@@ -240,6 +241,7 @@ export default function InventoryView() {
                     tone: inventoryVelocityAttention(item) === "critical"
                       ? "destructive" as const
                       : "secondary" as const,
+                    stockItem: loadState.stock.find((stock) => stock.product_id === item.product_id),
                   })),
               ]
                 .filter((item, index, items) => items.findIndex((candidate) => candidate.title === item.title) === index)
@@ -262,9 +264,22 @@ export default function InventoryView() {
                     {item.id.startsWith("velocity-") && (
                       <p className="mt-1 text-[11px] text-muted-foreground/70">{copy.inventoryView.velocityBasis}</p>
                     )}
-                    <p className="mt-2 text-xs font-medium text-kova-blue">
-                      {copy.inventoryView.reorderSuggestion}
-                    </p>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">{copy.inventoryView.reorderSuggestion}</p>
+                      {canAdjust && item.stockItem ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-kova-blue hover:bg-kova-blue/10 hover:text-kova-blue"
+                          aria-label={`${copy.inventoryModal.adjustmentTitle}: ${item.title}`}
+                          onClick={() => setModal({ type: "adjust", item: item.stockItem! })}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          {copy.inventoryView.adjust}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
             </div>

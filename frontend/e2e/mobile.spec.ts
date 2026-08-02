@@ -583,6 +583,44 @@ test("register quick sale keeps CTAs above mobile navigation", async ({ page }) 
   await expectNoHorizontalOverflow(page);
 });
 
+test("first-use guidance stays clear of the desktop checkout and exits cleanly", async ({ page }) => {
+  await mockCommon(page, { viewport: { width: 1536, height: 960 } });
+
+  await page.goto("/register");
+
+  const tour = page.getByTestId("first-use-tour");
+  const cart = page.getByLabel("Carrito");
+  await expect(tour).toBeVisible();
+  await expect(cart).toBeVisible();
+
+  const [tourBox, cartBox] = await Promise.all([tour.boundingBox(), cart.boundingBox()]);
+  expect(tourBox).not.toBeNull();
+  expect(cartBox).not.toBeNull();
+  expect(tourBox!.x + tourBox!.width).toBeLessThanOrEqual(cartBox!.x);
+
+  await page.getByRole("button", { name: "Entendido" }).click();
+  await expect(tour).toHaveCount(0);
+});
+
+test("first-use guidance respects reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockCommon(page);
+
+  await page.goto("/register");
+
+  const tour = page.getByTestId("first-use-tour");
+  await expect(tour).toBeVisible();
+
+  const animationDurationMs = await tour.locator("section").evaluate((element) => {
+    const duration = window.getComputedStyle(element).animationDuration;
+    return duration.endsWith("ms") ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000;
+  });
+  expect(animationDurationMs).toBeLessThanOrEqual(0.02);
+
+  await page.getByRole("button", { name: "Entendido" }).click();
+  await expect(tour).toHaveCount(0);
+});
+
 test("cash checkout waits for interaction before showing an error on common phone widths", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockCommon(page);
@@ -672,7 +710,8 @@ test("inventory low-stock workflow fits phone and tablet", async ({ page }) => {
     await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
     await expect(page.getByText(/stock bajo/i).first()).toBeVisible();
     await expect(page.getByText("2 disponible, umbral 6.")).toBeVisible();
-    await expect(page.getByRole("button", { name: /ajustar/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ajustar stock: Concha" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ajustar", exact: true })).toBeVisible();
     await page.getByLabel(/filtrar inventario/i).selectOption("low");
     await expect(page.getByRole("heading", { name: "Concha" })).toBeVisible();
     await expectMobileTaskNavigation(page);

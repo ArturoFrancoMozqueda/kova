@@ -216,14 +216,17 @@ Each of these animates something the rules discourage, on purpose:
 ## Not done yet
 
 Specified but not built, in rough priority order: sidebar label crossfade on
-collapse (with `aria-hidden`, since the collapsed item already has a `title`); an
-animated active-nav indicator as a pseudo-element that grows in height (no JS, no
-`ResizeObserver`); a ~140ms delay on the route fallbacks so a fast chunk never
-flashes a spinner; a shared animated `Disclosure` primitive for three of the five
-unanimated reports disclosures (`ProductCostEditor` and the `<details>` in
-`BusinessHealthCard` should stay as they are); a CSS-only mount stagger for the
-Reports bento, keyed on the applied date range so it replays on change; and
-entrances for `PWAUpdatePrompt`, `BillingBanner` and `view-states`.
+collapse (with `aria-hidden`, since the collapsed item already has a `title`); a
+shared animated `Disclosure` primitive for three of the five unanimated reports
+disclosures (`ProductCostEditor` and the `<details>` in `BusinessHealthCard`
+should stay as they are); a CSS-only mount stagger for the Reports bento, keyed
+on the applied date range so it replays on change; and entrances for
+`PWAUpdatePrompt` and `BillingBanner`.
+
+The active navigation indicator, delayed route fallback (~140ms), and
+`view-states` entrances are implemented. Keep the route delay shorter than a
+perceived pause: it exists only to suppress cached lazy-chunk flashes, while slow
+loads still expose an honest `role="status"` skeleton.
 
 ## Verifying motion changes
 

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { listProducts } from "@/catalog/api";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
+import { MOTION_MS } from "@/lib/motion";
+import { usePresence } from "@/lib/usePresence";
 import { trackFunnelEvent } from "@/telemetry/funnel";
 
 type TourKey = "register" | "catalog";
@@ -42,6 +44,7 @@ export function FirstUseTour() {
     return `kova:tour:${state.tenantId}:${key}`;
   }, [key, state]);
   const [open, setOpen] = useState(false);
+  const presence = usePresence(Boolean(key && open && storageKey), MOTION_MS.modalExit);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +86,7 @@ export function FirstUseTour() {
     };
   }, [key, storageKey]);
 
-  if (!key || !open || !storageKey) return null;
+  if (!key || !storageKey || !presence.mounted) return null;
 
   const tour = tours[key];
   const Icon = tour.icon;
@@ -99,11 +102,18 @@ export function FirstUseTour() {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-16 z-[80] flex justify-center px-4 py-3 sm:bottom-5 sm:right-5 sm:left-auto sm:block sm:w-[380px] sm:max-w-[calc(100vw-2rem)]">
+    <div
+      data-testid="first-use-tour"
+      className="pointer-events-none fixed inset-x-0 bottom-16 z-[80] flex justify-center px-4 py-3 sm:bottom-5 sm:left-5 sm:right-auto sm:block sm:w-[380px] sm:max-w-[calc(100vw-2rem)] lg:left-[280px]"
+    >
       <section
         aria-labelledby="first-use-tour-title"
+        {...(presence.exiting
+          ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLElement>)
+          : {})}
         className={cn(
-          "pointer-events-auto w-full rounded-[var(--radius-lg)] border bg-card p-4 text-card-foreground shadow-2xl animate-scale-in sm:p-5",
+          "pointer-events-auto w-full rounded-[var(--radius-lg)] border bg-card p-4 text-card-foreground shadow-2xl sm:p-5",
+          presence.exiting ? "pointer-events-none animate-scale-out" : "animate-scale-in",
         )}
       >
         <div className="flex items-start gap-3">

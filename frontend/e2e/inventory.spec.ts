@@ -143,7 +143,9 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
   await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Concha" })).toBeVisible();
 
-  await page.getByRole("button", { name: /ajustar/i }).click();
+  // The attention card now takes the owner directly into the corrective flow;
+  // it is no longer blue, link-like copy with no action behind it.
+  await page.getByRole("button", { name: "Ajustar stock: Concha" }).click();
   await page.getByLabel(/cambio de cantidad/i).fill("4");
   await page.getByLabel(/motivo/i).fill("opening_count");
   await page.getByRole("button", { name: /guardar/i }).click();
