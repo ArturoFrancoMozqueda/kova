@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "project": {
+    "name": "pos-frontend",
+    "productType": null,
+    "stack": [
+      "react",
+      "tailwind-v3",
+      "vite"
+    ]
+  },
+  "sources": {
+    "tokens": [],
+    "components": [
+      "src/components/ui"
+    ],
+    "assets": [],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "unknown",
+    "colors": {},
+    "typography": {},
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "compact"
+  },
+  "components": {
+    "installed": [
+      "arc-kicker",
+      "badge",
+      "button",
+      "card",
+      "confirm-dialog",
+      "confirm-dialog.test",
+      "dialog",
+      "dialog.test",
+      "input",
+      "label",
+      "route-fallback",
+      "select",
+      "skeleton",
+      "stat-tile",
+      "ticket",
+      "toast",
+      "toast.test",
+      "view-header",
+      "view-layout",
+      "view-states"
+    ],
+    "preferredPrimitives": [
+      "Card",
+      "ViewLayout",
+      "ViewHeader",
+      "Button",
+      "Input",
+      "Select"
+    ],
+    "patterns": [
+      "wide operational canvas",
+      "white filter toolbar",
+      "tinted data-table header",
+      "responsive card-to-table layout"
+    ]
+  },
+  "constraints": {
+    "must": [
+      "preserve real product photography in Caja, Catalogo and Inventario",
+      "preserve existing permissions, offline states and production data contracts",
+      "use Kova tokens and existing React primitives"
+    ],
+    "avoid": [
+      "pasting exported HTML into production routes",
+      "fake operational data",
+      "decorative glassmorphism or oversized marketing typography"
+    ]
+  },
+  "decisions": [
+    {
+      "decision": "Adopt the supplied AppDashboard direction across authenticated routes with wider operational canvases, compact radii, white toolbars, blue-tinted table headers and black primary actions.",
+      "reason": "The user selected this direction and requested visual consistency beyond the dashboard while retaining Kova product imagery and workflows."
+    }
+  ],
+  "evidence": [
+    {
+      "fact": "components.installed",
+      "source": "src/components/ui"
+    },
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:tailwind-v3",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:vite",
+      "source": "package.json"
+    }
+  ],
+  "generatedAt": "2026-08-02T16:36:18.690Z"
+}

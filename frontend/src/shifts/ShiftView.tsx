@@ -219,8 +219,8 @@ export default function ShiftView() {
 
       {/* Active shift card */}
       {currentShift ? (
-        <Card className="border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <Card className="overflow-hidden border-kova-blue/20">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-kova-border bg-kova-blue/[0.045] pb-4">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
               <CardTitle>{copy.shiftView.activeShift}</CardTitle>
@@ -292,7 +292,7 @@ export default function ShiftView() {
                   {currentShift.movements.map((m) => (
                     <div
                       key={m.id}
-                      className="flex items-center gap-3 rounded-lg border p-3"
+                      className="flex items-center gap-3 rounded-kova-md border border-kova-border bg-kova-mist/35 p-3"
                     >
                       {isPositiveCashMovement(m.type) ? (
                         <ArrowUpCircle className="h-4 w-4 shrink-0 text-kova-growth" />
@@ -356,7 +356,7 @@ export default function ShiftView() {
 
       {/* Closed shifts table */}
       {closedShifts.length > 0 && (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>{copy.shiftView.closedShifts}</CardTitle>
           </CardHeader>
@@ -435,7 +435,7 @@ export default function ShiftView() {
             <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b">
+                  <tr className="border-b border-kova-border bg-kova-blue/[0.055]">
                     <th scope="col" className="text-left py-3 px-4 font-semibold text-muted-foreground">
                       {copy.shiftView.openedAt}
                     </th>
@@ -460,7 +460,7 @@ export default function ShiftView() {
                   {closedShifts.slice(0, 10).map((shift) => (
                     <tr
                       key={shift.id}
-                      className="border-b last:border-0 hover:bg-muted/50 transition-colors"
+                      className="border-b border-kova-border/80 transition-colors last:border-0 hover:bg-kova-mist/55"
                     >
                       <td className="py-3 px-4">
                         {formatShiftDateTime(shift.opened_at)}

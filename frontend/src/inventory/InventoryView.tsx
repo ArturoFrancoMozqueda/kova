@@ -166,7 +166,7 @@ export default function InventoryView() {
   }
 
   return (
-    <ViewLayout width="standard" className="animate-fade-in">
+    <ViewLayout width="wide" className="animate-fade-in">
       <div className="mb-6">
         <ViewHeader
           title={copy.inventoryView.title}
@@ -263,7 +263,7 @@ export default function InventoryView() {
         />
       ) : (
         <>
-          <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_220px]">
+          <div className="mb-5 grid gap-3 rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card md:grid-cols-[minmax(0,1fr)_180px_220px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Label className="sr-only" htmlFor="inventory-search">

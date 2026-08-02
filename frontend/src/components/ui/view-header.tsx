@@ -21,17 +21,17 @@ export function ViewHeader({
   meta?: ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           {eyebrow ? (
-            <p className="text-sm font-medium text-muted-foreground">{eyebrow}</p>
+            <p className="mb-1 text-sm font-medium text-kova-blue/80">{eyebrow}</p>
           ) : null}
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-[-0.035em] text-kova-ink">{title}</h1>
         </div>
         {actions}
       </div>
-      {meta ? <p className="text-xs text-muted-foreground">{meta}</p> : null}
+      {meta ? <p className="text-sm text-muted-foreground">{meta}</p> : null}
     </div>
   );
 }

@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 export type ViewLayoutWidth = "wide" | "standard" | "focused";
 
 const WIDTH_CLASSES: Record<ViewLayoutWidth, string> = {
-  wide: "max-w-7xl",
-  standard: "max-w-6xl",
-  focused: "max-w-5xl",
+  wide: "max-w-screen-2xl",
+  standard: "max-w-7xl",
+  focused: "max-w-6xl",
 };
 
 type ViewLayoutProps<T extends ElementType = "main"> = {
@@ -30,7 +30,7 @@ export function ViewLayout<T extends ElementType = "main">({
   return (
     <Component
       className={cn(
-        "mx-auto w-full flex-1 p-4 sm:p-6 lg:p-8",
+        "mx-auto w-full flex-1 p-4 sm:p-6 lg:px-10 lg:py-8",
         WIDTH_CLASSES[width],
         className,
       )}
