@@ -28,26 +28,23 @@ import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./sto
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatTile, DeltaChip } from "@/components/ui/stat-tile";
+import { DeltaChip } from "@/components/ui/stat-tile";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ArcKicker } from "@/components/ui/arc-kicker";
-import { calculateSafeGrowth, MIN_COUNT_BASE, MIN_MONEY_BASE } from "@/lib/growth";
+import { calculateSafeGrowth, MIN_MONEY_BASE } from "@/lib/growth";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { CountUp } from "@/components/brand/RealTime";
 import {
-  DollarSign,
-  ShoppingCart,
   ArrowRight,
   Package,
   BarChart3,
   Clock,
   CreditCard,
   Receipt,
-  RotateCcw,
   AlertCircle,
   CheckCircle2,
   Circle,
@@ -327,13 +324,90 @@ function OnboardingChecklist({
   );
 }
 
-const kpiCards = [
-  { key: "netSales", label: () => copy.dashboard.netSales, icon: DollarSign, wash: "bg-kova-grad-blue" },
-  { key: "orders", label: () => copy.dashboard.orders, icon: ShoppingCart, wash: "bg-kova-grad-mint" },
-  { key: "avgTicket", label: () => copy.dashboard.avgTicket, icon: Receipt, wash: "bg-kova-grad-sky" },
-  // Refunds stays neutral white — it isn't a KPI to celebrate with a wash.
-  { key: "refunds", label: () => copy.dashboard.refunds, icon: RotateCcw, wash: undefined },
-] as const;
+function DashboardExecutiveSummary({
+  summary,
+  previous,
+  compareLabel,
+}: {
+  summary: SalesSummary;
+  previous: SalesSummary | null;
+  compareLabel: string;
+}) {
+  const currentNet = Number(summary.net_sales);
+  const previousNet = previous ? Number(previous.net_sales) : null;
+  const avgTicket = summary.order_count > 0 ? currentNet / summary.order_count : 0;
+  const growth = calculateSafeGrowth(currentNet, previousNet, { minBase: MIN_MONEY_BASE });
+  const scaleMax = Math.max(currentNet, previousNet ?? 0, 1) * 1.12;
+  const currentWidth = Math.min(100, Math.max(currentNet > 0 ? 4 : 0, (currentNet / scaleMax) * 100));
+  const previousMarker = previousNet === null ? null : Math.min(100, Math.max(0, (previousNet / scaleMax) * 100));
+  const secondaryMetrics = [
+    {
+      label: copy.dashboard.orders,
+      value: String(summary.order_count),
+      detail: summary.void_count > 0
+        ? copy.dashboard.voidedCount(summary.void_count)
+        : copy.dashboard.noVoidsToday,
+    },
+    {
+      label: copy.dashboard.avgTicket,
+      value: formatMoney(avgTicket),
+      detail: copy.dashboard.perCompletedOrder,
+    },
+    {
+      label: copy.dashboard.refunds,
+      value: String(summary.refund_count),
+      detail: formatMoney(summary.refund_total),
+    },
+  ];
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(260px,0.75fr)]">
+        <div className="border-b border-kova-border p-5 sm:p-6 lg:border-b-0 lg:border-r">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-kova-tertiary">
+            {copy.dashboard.netSales}
+          </p>
+          <div className="mt-3 flex flex-wrap items-baseline gap-3">
+            <p className="text-4xl font-bold tracking-[-0.04em] text-kova-ink sm:text-5xl">
+              <CountUp value={currentNet} format={(value) => formatMoney(value)} />
+            </p>
+            <DeltaChip growth={growth} current={currentNet} previous={previousNet ?? 0} format="money" compareLabel={compareLabel} />
+          </div>
+          <p className="mt-2 text-sm text-kova-muted tabular-nums">
+            {copy.dashboard.grossSuffix(formatMoney(summary.gross_sales))}
+          </p>
+          <div className="mt-7">
+            <div className="relative h-2 rounded-full bg-kova-mist">
+              <div className="h-full rounded-full bg-kova-growth transition-[width] duration-500" style={{ width: `${currentWidth}%` }} />
+              {previousMarker !== null ? (
+                <span className="absolute top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-kova-ink" style={{ left: `${previousMarker}%` }} aria-hidden="true" />
+              ) : null}
+            </div>
+            <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-kova-tertiary">
+              <span>Avance del periodo</span>
+              {previousNet !== null ? (
+                <span className="tabular-nums">Periodo anterior · {formatMoney(previousNet)}</span>
+              ) : (
+                <span>Sin comparación todavía</span>
+              )}
+            </div>
+          </div>
+        </div>
+        <dl className="divide-y divide-kova-border">
+          {secondaryMetrics.map((metric) => (
+            <div key={metric.label} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
+              <div>
+                <dt className="text-sm text-kova-muted">{metric.label}</dt>
+                <dd className="mt-0.5 text-xs text-kova-tertiary">{metric.detail}</dd>
+              </div>
+              <dd className="shrink-0 text-xl font-semibold tracking-tight text-kova-ink tabular-nums">{metric.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </Card>
+  );
+}
 
 export default function DashboardView() {
   useDocumentTitle(copy.documentTitles.dashboard);
@@ -550,74 +624,12 @@ export default function DashboardView() {
             tenantName={tenantName}
           />
 
-          {/* Tu día — KPIs with the shared StatTile + honest DeltaChip */}
           <ArcKicker label={copy.dashboard.arcNow} />
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {kpiCards.map(({ key, label, icon: Icon, wash }) => {
-              const { summary, yesterday } = loadState;
-              let sub = "";
-              let currentNum = 0;
-              let prevNum: number | null = null;
-              let isMoney = false;
-
-              if (key === "netSales") {
-                currentNum = Number(summary.net_sales);
-                prevNum = yesterday ? Number(yesterday.net_sales) : null;
-                sub = copy.dashboard.grossSuffix(formatMoney(summary.gross_sales));
-                isMoney = true;
-              } else if (key === "orders") {
-                currentNum = summary.order_count;
-                prevNum = yesterday?.order_count ?? null;
-                sub = summary.void_count > 0
-                  ? copy.dashboard.voidedCount(summary.void_count)
-                  : copy.dashboard.noVoidsToday;
-              } else if (key === "avgTicket") {
-                currentNum = summary.order_count > 0
-                  ? Number(summary.net_sales) / summary.order_count : 0;
-                prevNum = yesterday && yesterday.order_count > 0
-                  ? Number(yesterday.net_sales) / yesterday.order_count : null;
-                sub = copy.dashboard.perCompletedOrder;
-                isMoney = true;
-              } else {
-                currentNum = summary.refund_count;
-                prevNum = yesterday?.refund_count ?? null;
-                sub = formatMoney(summary.refund_total);
-              }
-
-              // Honest period-over-period growth: never "+900% desde $1". The
-              // shared calc suppresses noise below a min base and caps runaway
-              // percentages, falling back to the absolute delta.
-              const growth = calculateSafeGrowth(currentNum, prevNum, {
-                minBase: isMoney ? MIN_MONEY_BASE : MIN_COUNT_BASE,
-              });
-
-              return (
-                <StatTile
-                  key={key}
-                  label={label()}
-                  icon={<Icon className="h-4 w-4" />}
-                  className={cn(wash, "transition-shadow duration-hover ease-standard hover:shadow-kova-card-hover")}
-                  value={
-                    <CountUp
-                      value={currentNum}
-                      format={isMoney ? (n) => formatMoney(n) : (n) => String(Math.round(n))}
-                    />
-                  }
-                >
-                  <p className="text-xs text-kova-muted tabular-nums">{sub}</p>
-                  <div className="mt-1">
-                    <DeltaChip
-                      growth={growth}
-                      current={currentNum}
-                      previous={prevNum ?? 0}
-                      format={isMoney ? "money" : "count"}
-                      compareLabel={loadState.compareLabel}
-                    />
-                  </div>
-                </StatTile>
-              );
-            })}
-          </div>
+          <DashboardExecutiveSummary
+            summary={loadState.summary}
+            previous={loadState.yesterday}
+            compareLabel={loadState.compareLabel}
+          />
 
           {/* Salud del negocio */}
           <ArcKicker label={copy.dashboard.arcHealth} />

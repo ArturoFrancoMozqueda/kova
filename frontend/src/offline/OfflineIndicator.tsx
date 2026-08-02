@@ -3,7 +3,13 @@ import { Wifi, WifiOff, CloudUpload } from "lucide-react";
 import { copy } from "../i18n/messages";
 import { useIsOnline, useSyncQueue } from "./useSyncQueue";
 
-export function OfflineIndicator({ compact = false }: { compact?: boolean } = {}) {
+export function OfflineIndicator({
+  compact = false,
+  showOnlineLabel = false,
+}: {
+  compact?: boolean;
+  showOnlineLabel?: boolean;
+} = {}) {
   const isOnline = useIsOnline();
   const { pendingCount } = useSyncQueue();
 
@@ -15,8 +21,9 @@ export function OfflineIndicator({ compact = false }: { compact?: boolean } = {}
     return (
       <div className="flex items-center gap-1.5 text-xs">
         {isOnline ? (
-          <span className="flex items-center text-kova-growth" title={copy.register.online}>
+          <span className="flex items-center gap-1.5 rounded-full bg-kova-growth/10 px-2.5 py-1.5 font-medium text-kova-growth" title={copy.register.online}>
             <Wifi className="h-4 w-4" aria-label={copy.register.online} />
+            {showOnlineLabel ? <span>Sincronizado</span> : null}
           </span>
         ) : (
           <span className="flex items-center gap-1 font-medium text-warning-strong">
