@@ -840,7 +840,7 @@ export default function RegisterView() {
   if (loadState.status === "loading") {
     return (
       <ViewLayout width="wide">
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
           <Card>
             <CardContent className="p-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -881,7 +881,7 @@ export default function RegisterView() {
   }
 
   return (
-    <ViewLayout width="wide" className="pb-40 lg:pb-8 animate-fade-in">
+    <ViewLayout width="wide" className="pb-40 lg:pb-10 animate-fade-in">
       {/* Header */}
       <div className="mb-6">
         <ViewHeader
@@ -921,16 +921,16 @@ export default function RegisterView() {
       {/* Mobile cart sheet backdrop */}
       {cartSheetOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm xl:hidden"
           onClick={() => setCartSheetOpen(false)}
           aria-hidden="true"
         />
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         {/* Product Grid */}
-        <Card className="overflow-hidden">
-          <CardHeader className="pb-3 border-b">
+        <Card className="overflow-hidden border-kova-border/90">
+          <CardHeader className="border-b bg-white p-5 pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <ShoppingBag className="h-4 w-4" />
@@ -958,7 +958,7 @@ export default function RegisterView() {
                   }
                 }}
                 placeholder={copy.register.skuSearchPlaceholder}
-                className="w-full rounded-lg border bg-background py-2 pl-9 pr-9 text-sm outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
+                className="h-11 w-full rounded-kova-md border border-kova-border bg-kova-mist/30 py-2 pl-9 pr-9 text-sm transition-colors placeholder:text-muted-foreground focus-visible:border-kova-blue focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue/20"
               />
               {skuQuery && (
                 <button
@@ -1034,7 +1034,7 @@ export default function RegisterView() {
               </div>
             )}
           </CardHeader>
-          <CardContent className="p-4">
+          <CardContent className="p-4 sm:p-5">
             {/* Screen-reader announcement of the filtered result count — the
                 product grid changes without a navigation, so without this a SR
                 user gets no feedback when filtering by category or SKU. */}
@@ -1061,7 +1061,7 @@ export default function RegisterView() {
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {filteredProducts.map((product) => {
                   const stock = stockMap.get(product.id);
                   const isOut = stock?.track_inventory && stock.stock_on_hand === 0;
@@ -1084,7 +1084,7 @@ export default function RegisterView() {
                           ? { label: copy.inventoryView.lowBadge, tone: "warning" }
                           : undefined}
                       image={product.image_url ? (
-                        <div className="aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 transition-transform group-hover:scale-[1.03] sm:w-full">
+                        <div className="aspect-square w-12 shrink-0 overflow-hidden rounded-lg bg-muted/50 sm:w-full">
                           <img
                             src={productImageSrc(product.image_url, 400)}
                             srcSet={productImageSrcSet(product.image_url)}
@@ -1114,14 +1114,14 @@ export default function RegisterView() {
             // Desktop: normal sidebar column. transform-none rather than
             // translate-y-0, which would still emit a transform and make this a
             // containing block for anything absolutely positioned inside it.
-            "lg:relative lg:bottom-auto lg:inset-x-auto lg:z-auto lg:h-auto lg:max-h-none lg:overflow-visible lg:bg-transparent lg:border-0 lg:rounded-none lg:shadow-none lg:transform-none lg:transition-none lg:flex-none lg:block",
+            "xl:sticky xl:top-4 xl:bottom-auto xl:inset-x-auto xl:z-auto xl:h-auto xl:max-h-none xl:overflow-visible xl:bg-transparent xl:border-0 xl:rounded-none xl:shadow-none xl:transform-none xl:transition-none xl:flex-none xl:block",
             // Mobile: full-height fixed sheet, translated down to leave only the
             // 5rem handle (h-20 below) visible above the bottom nav. Timing and
             // easing live in .kv-cart-sheet, which needs the asymmetry.
             "fixed inset-x-0 bottom-14 z-40 flex h-[calc(100dvh-7rem)] flex-col",
             "overflow-hidden",
             "bg-card border-t border-kova-border rounded-t-2xl",
-            "shadow-[0_-12px_40px_-12px_rgba(15,17,23,0.25)]",
+            "shadow-kova-hero",
             "kv-cart-sheet scroll-mt-4",
             cartSheetOpen ? "translate-y-0" : "translate-y-[calc(100%-5rem)]",
           )}
@@ -1132,7 +1132,7 @@ export default function RegisterView() {
             onClick={() => setCartSheetOpen((v) => !v)}
             aria-expanded={cartSheetOpen}
             aria-label={cartSheetOpen ? copy.register.collapseCart : copy.register.expandCart}
-            className="lg:hidden relative flex items-center justify-between w-full h-20 px-4 border-b border-kova-border bg-card shrink-0"
+            className="xl:hidden relative flex items-center justify-between w-full h-20 px-4 border-b border-kova-border bg-card shrink-0"
           >
             <span className="absolute top-2 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-kova-border" aria-hidden="true" />
             <div className="flex items-center gap-3">
@@ -1160,10 +1160,10 @@ export default function RegisterView() {
           </button>
 
           {/* Scrollable content (cart + payment) — fills sheet on mobile, normal stack on desktop */}
-          <div className="flex-1 overflow-y-auto overscroll-contain lg:overflow-visible lg:flex-none">
-            <div className="space-y-4 p-3 lg:p-0">
-          <Card aria-label={copy.register.cart} className="lg:block">
-            <CardHeader className="hidden lg:block pb-3 border-b">
+          <div className="flex-1 overflow-y-auto overscroll-contain xl:overflow-visible xl:flex-none">
+            <div className="space-y-4 p-3 xl:p-0">
+          <Card aria-label={copy.register.cart} className="xl:block">
+            <CardHeader className="hidden border-b pb-3 xl:block">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4" />
@@ -1604,7 +1604,7 @@ export default function RegisterView() {
           {saleResultVisible && (
             <Card
               className={cn(
-                "hidden lg:block animate-fade-in",
+                "hidden animate-fade-in xl:block",
                 isPendingSync
                   ? "border-warning/40 bg-warning/10"
                   : "border-kova-growth/30 bg-kova-growth/5",

@@ -132,7 +132,7 @@ export default function ReportsView() {
   const showTrend = rangeDays > 1 || data.trendStory !== null;
 
   return (
-    <ViewLayout width="standard" className="space-y-6">
+    <ViewLayout width="wide" className="space-y-6">
       <ReportsHeader
         startDate={startDate}
         endDate={endDate}

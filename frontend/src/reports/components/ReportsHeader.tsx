@@ -41,7 +41,10 @@ export function ReportsHeader({
       title={copy.reportsView.title}
       meta={timezone ? `${copy.reportsView.timezone}: ${timezoneLabel(timezone)}` : undefined}
       actions={
-        <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
+        <form
+          onSubmit={onSubmit}
+          className="flex flex-wrap items-end gap-3 rounded-kova-lg border border-kova-border bg-white p-2.5 shadow-kova-card"
+        >
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((preset) => (
               <Button

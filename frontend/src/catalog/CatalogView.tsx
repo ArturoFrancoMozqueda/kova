@@ -392,9 +392,9 @@ export default function CatalogView() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[250px_minmax(0,1fr)]">
         {/* ---- Categories sidebar ---- */}
-        <Card className="h-fit">
+        <Card className="h-fit xl:sticky xl:top-4">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <FolderOpen className="h-4 w-4 text-muted-foreground" />
@@ -572,7 +572,7 @@ export default function CatalogView() {
                 }}
               />
             )}
-            <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="mb-5 grid gap-3 rounded-kova-md border border-kova-border bg-kova-mist/35 p-3 sm:grid-cols-[minmax(0,1fr)_220px]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Label className="sr-only" htmlFor="catalog-product-search">
@@ -630,7 +630,7 @@ export default function CatalogView() {
                 ) : null}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {visibleProducts.map((product) => (
                   /* Mouse-only convenience target: the card body duplicates the
                      labelled "Editar {product.name}" button inside it, which is
@@ -639,12 +639,12 @@ export default function CatalogView() {
                   <div
                     key={product.id}
                     className={cn(
-                      "group relative rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card transition-shadow duration-hover ease-standard hover:shadow-kova-card-hover",
+                      "group relative overflow-hidden rounded-kova-lg border border-kova-border bg-white p-3 shadow-kova-card transition-shadow duration-hover ease-standard hover:shadow-kova-card-hover",
                       canUpdate && "cursor-pointer",
                     )}
                     onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}
                   >
-                    <div className="mb-3 flex aspect-video w-full items-center justify-center overflow-hidden rounded-kova-md bg-kova-mist">
+                    <div className="mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-kova-md bg-kova-mist">
                       {product.image_url ? (
                         <img
                           src={productImageSrc(product.image_url, 400)}

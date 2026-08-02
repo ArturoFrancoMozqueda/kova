@@ -329,12 +329,12 @@ export default function SettingsView() {
   }
 
   return (
-    <ViewLayout width="focused" className="space-y-6">
+    <ViewLayout width="standard" className="space-y-6">
       <ViewHeader title={copy.settings.title} meta={copy.settings.subtitle} />
 
       <nav
         aria-label={copy.settings.tabsLabel}
-        className="flex gap-1 overflow-x-auto rounded-kova-md border border-kova-border bg-white p-1"
+        className="flex gap-1 overflow-x-auto rounded-kova-lg border border-kova-border bg-white p-1.5 shadow-kova-card"
       >
         {settingsTabs.map((tab) => (
           <Link

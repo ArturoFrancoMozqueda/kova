@@ -107,7 +107,7 @@ export default function OrderListView() {
   }
 
   return (
-    <ViewLayout width="focused" className="animate-fade-in">
+    <ViewLayout width="wide" className="animate-fade-in">
       <div className="mb-6">
         <ViewHeader
           title={copy.orderList.title}
@@ -117,7 +117,7 @@ export default function OrderListView() {
 
       {/* Filter bar */}
       <div
-        className="flex flex-col gap-3 sm:flex-row sm:items-end mb-4 rounded-xl border bg-muted/30 p-4"
+        className="mb-5 flex flex-col gap-3 rounded-kova-lg border border-kova-border bg-white p-4 shadow-kova-card sm:flex-row sm:items-end"
         aria-label={copy.orderList.filterLabel}
       >
         {/* Status pills */}
@@ -196,7 +196,7 @@ export default function OrderListView() {
       {/* Results */}
       {sortedItems.length === 0 ? (
         hasActiveFilter ? (
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <Inbox className="h-12 w-12 text-muted-foreground/30 mb-3" />
               <p className="text-muted-foreground">{copy.orderList.emptyFiltered}</p>
@@ -263,7 +263,7 @@ export default function OrderListView() {
             <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted/50">
+                  <tr className="border-b border-kova-border bg-kova-blue/[0.055]">
                     <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.date}</th>
                     <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.status}</th>
                     <th scope="col" className="text-right px-4 py-3 font-semibold">{copy.orderList.amount}</th>
@@ -274,7 +274,7 @@ export default function OrderListView() {
                   {sortedItems.map((order) => (
                     <tr
                       key={order.id}
-                      className="border-b last:border-0 hover:bg-muted/30 transition-colors"
+                      className="border-b border-kova-border/80 transition-colors last:border-0 hover:bg-kova-mist/55"
                     >
                       <td className="px-4 py-3 text-muted-foreground">
                         {formatDateTime(order.created_at)}

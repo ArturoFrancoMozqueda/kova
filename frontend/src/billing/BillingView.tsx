@@ -300,7 +300,7 @@ export default function BillingView() {
   }
 
   return (
-    <ViewLayout width="focused" className="max-w-4xl animate-fade-in">
+    <ViewLayout width="standard" className="max-w-6xl animate-fade-in">
       <div className="mb-6">
         <ViewHeader title={copy.billingView.title} meta={copy.billingView.subtitle} />
       </div>
