@@ -6,13 +6,12 @@ import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } fro
 import { copy } from "../i18n/messages";
 import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, cancelSubscription } from "./api";
 import type { BillingSubscription } from "./types";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
-import { TicketPaper } from "@/components/ui/ticket";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { SUPPORT_MAILTO } from "@/lib/support";
@@ -409,28 +408,20 @@ export default function BillingView() {
             />
           )}
 
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Plan — recibo termico: el mismo lenguaje visual que la landing */}
-            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard overflow-hidden">
-              <CardHeader className="pb-2">
+          <Card className="overflow-hidden shadow-kova-card">
+            <CardContent className="grid gap-6 p-6 md:grid-cols-[minmax(0,1.5fr)_minmax(180px,.75fr)_minmax(180px,.75fr)] md:divide-x md:divide-kova-border">
+            <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.plan}</p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <TicketPaper>
-                  <h2 className="text-base font-bold text-[color:var(--ticket-ink)]">{loadState.billing.plan.name}</h2>
-                  <p className="tkt-money mt-1 text-2xl font-bold text-[color:var(--ticket-ink)]">
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-kova-ink">{loadState.billing.plan.name}</h2>
+                  <p className="mt-1 text-3xl font-bold tracking-tight text-kova-ink tabular-nums">
                     {formatPlanPrice(loadState.billing.plan)}
                   </p>
-                </TicketPaper>
-              </CardContent>
-            </Card>
+            </div>
 
             {/* Status */}
-            <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard">
-              <CardHeader className="pb-2">
+            <div className="md:pl-6">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{copy.billingView.status}</p>
-              </CardHeader>
-              <CardContent>
+              <div className="mt-3">
                 {loadState.billing.subscription ? (
                   <>
                     <h2 className="mb-2">
@@ -456,8 +447,8 @@ export default function BillingView() {
                     )}
                   </>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Period */}
             {(() => {
@@ -472,8 +463,7 @@ export default function BillingView() {
               if (signupTrial && !periodDate) return null;
               if (!signupTrial && !subscription && !graceDate) return null;
               return (
-                <Card className="shadow-kova-card hover:shadow-kova-card-hover transition-shadow duration-hover ease-standard">
-                  <CardHeader className="pb-2">
+                <div className="md:pl-6">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">
                       {signupTrial
                         ? copy.billingView.trialEnds
@@ -483,8 +473,7 @@ export default function BillingView() {
                             : copy.billingView.nextRenewal
                           : copy.billingView.billingPeriod}
                     </p>
-                  </CardHeader>
-                  <CardContent>
+                  <div className="mt-3">
                     {signupTrial && periodDate && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
                     {verifiedPeriod && <p className="text-sm font-medium">{formatDate(periodDate)}</p>}
                     {!signupTrial && !verifiedPeriod && (
@@ -495,11 +484,12 @@ export default function BillingView() {
                         {copy.billingView.graceEnds} {formatDate(graceDate)}
                       </p>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })()}
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Actions */}
           <Card>

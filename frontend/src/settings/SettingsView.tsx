@@ -332,16 +332,17 @@ export default function SettingsView() {
     <ViewLayout width="standard" className="space-y-6">
       <ViewHeader title={copy.settings.title} meta={copy.settings.subtitle} />
 
+      <div className="grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
       <nav
         aria-label={copy.settings.tabsLabel}
-        className="flex gap-1 overflow-x-auto rounded-kova-lg border border-kova-border bg-white p-1.5 shadow-kova-card"
+        className="flex gap-1 overflow-x-auto rounded-kova-lg border border-kova-border bg-white p-1.5 shadow-kova-card lg:sticky lg:top-4 lg:flex-col"
       >
         {settingsTabs.map((tab) => (
           <Link
             key={tab.id}
             to={tab.to}
             className={cn(
-              "shrink-0 rounded-kova-sm px-3 py-2 text-sm font-medium transition-colors",
+              "shrink-0 rounded-kova-sm px-3 py-2.5 text-sm font-medium transition-colors",
               activeTab === tab.id
                 ? "bg-kova-ink text-white"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -351,6 +352,7 @@ export default function SettingsView() {
           </Link>
         ))}
       </nav>
+      <section className="min-w-0 space-y-6">
 
       {activeTab === "profile" && (
       <Card>
@@ -647,6 +649,8 @@ export default function SettingsView() {
         )}
         </>
       )}
+      </section>
+      </div>
 
       <ConfirmDialog
         open={pendingAction !== null}

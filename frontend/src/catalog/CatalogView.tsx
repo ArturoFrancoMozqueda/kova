@@ -133,10 +133,15 @@ export default function CatalogView() {
   const [showModifiers, setShowModifiers] = useState(false);
   const [presetApplying, setPresetApplying] = useState(false);
   const [storyProduct, setStoryProduct] = useState<Product | null>(null);
-  const [productSearch, setProductSearch] = useState("");
+  const [productSearch, setProductSearch] = useState(() => searchParams.get("search") ?? "");
   const [productSort, setProductSort] = useState<ProductSort>("name_asc");
   const [showCostEditor, setShowCostEditor] = useState(false);
   const [showImport, setShowImport] = useState(false);
+
+  useEffect(() => {
+    const incomingSearch = searchParams.get("search");
+    if (incomingSearch !== null) setProductSearch(incomingSearch);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -293,7 +298,16 @@ export default function CatalogView() {
   return (
     <ViewLayout width="wide" className="space-y-6">
       {/* Page header */}
-      <ViewHeader title={copy.catalog.title} meta={copy.catalog.setupIntro} />
+      <ViewHeader
+        title={copy.catalog.title}
+        meta={copy.catalog.activeProducts(activeProducts.length)}
+        actions={canCreate ? (
+          <Button size="sm" onClick={() => setModal({ type: "product-create" })}>
+            <Plus className="h-4 w-4" />
+            {copy.catalog.newProduct}
+          </Button>
+        ) : undefined}
+      />
 
       {/* Preset banner — shown only when catalog is empty and user can create */}
       {activeProducts.length === 0 && canCreate && (
@@ -344,7 +358,7 @@ export default function CatalogView() {
         </div>
       )}
 
-      <div className={cn(
+      {!catalogReady && <div className={cn(
         "rounded-kova-lg border border-kova-border bg-white shadow-kova-card",
         catalogReady && trackedProducts.length > 0 ? "px-4 py-3" : "p-5",
       )}>
@@ -390,11 +404,11 @@ export default function CatalogView() {
         {!(catalogReady && trackedProducts.length > 0) && (
           <p className="mt-4 rounded-kova-md bg-kova-mist px-3 py-2 text-sm text-muted-foreground">{setupNext}</p>
         )}
-      </div>
+      </div>}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[250px_minmax(0,1fr)]">
+      <div className="space-y-4">
         {/* ---- Categories sidebar ---- */}
-        <Card className="h-fit xl:sticky xl:top-4">
+        <Card className="overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <FolderOpen className="h-4 w-4 text-muted-foreground" />
@@ -411,16 +425,16 @@ export default function CatalogView() {
               </Button>
             )}
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="flex flex-wrap gap-2 pt-0">
             {/* All products filter */}
             <button
               type="button"
               aria-pressed={selectedCategoryId === null}
               className={cn(
-                "w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors text-left",
+                "flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors text-left",
                 selectedCategoryId === null
-                  ? "bg-kova-blue/10 text-kova-blue"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  ? "border-kova-ink bg-kova-ink text-white"
+                  : "border-kova-border bg-white text-muted-foreground hover:bg-accent hover:text-accent-foreground",
               )}
               onClick={() => setSelectedCategoryId(null)}
             >
@@ -432,31 +446,31 @@ export default function CatalogView() {
               <div
                 key={cat.id}
                 className={cn(
-                  "group flex items-center rounded-md transition-colors",
+                  "group flex items-center overflow-hidden rounded-full border transition-colors",
                   selectedCategoryId === cat.id
-                    ? "bg-kova-blue/10"
-                    : "hover:bg-accent",
+                    ? "border-kova-ink bg-kova-ink"
+                    : "border-kova-border bg-white hover:bg-accent",
                 )}
               >
                 <button
                   type="button"
                   aria-pressed={selectedCategoryId === cat.id}
                   className={cn(
-                    "flex-1 text-left px-3 py-2 text-sm font-medium transition-colors truncate",
+                    "text-left px-3 py-2 text-sm font-medium transition-colors truncate",
                     selectedCategoryId === cat.id
-                      ? "text-kova-blue"
+                      ? "text-white"
                       : "text-muted-foreground hover:text-accent-foreground",
                   )}
                   onClick={() => setSelectedCategoryId(cat.id)}
                 >
                   {cat.name}
                 </button>
-                <div className="flex items-center gap-0.5 pr-1 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-0.5 pr-1 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity">
                   {canUpdate && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-11 w-11 lg:h-8 lg:w-8"
+                      className={cn("h-11 w-11 lg:h-8 lg:w-8", selectedCategoryId === cat.id && "text-white hover:text-white")}
                       aria-label={`Editar ${cat.name}`}
                       onClick={() => setModal({ type: "category-edit", category: cat })}
                     >
@@ -467,7 +481,7 @@ export default function CatalogView() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-11 w-11 lg:h-8 lg:w-8 text-destructive hover:text-destructive"
+                      className="h-11 w-11 text-destructive hover:text-destructive lg:h-8 lg:w-8"
                       aria-label={`Desactivar ${cat.name}`}
                       onClick={() =>
                         setConfirmRequest({
@@ -532,15 +546,6 @@ export default function CatalogView() {
                 >
                   <Upload className="h-4 w-4" />
                   {copy.catalog.importCsv}
-                </Button>
-              )}
-              {canCreate && (
-                <Button
-                  size="sm"
-                  onClick={() => setModal({ type: "product-create" })}
-                >
-                  <Plus className="h-4 w-4" />
-                  {copy.catalog.newProduct}
                 </Button>
               )}
             </div>
@@ -630,7 +635,15 @@ export default function CatalogView() {
                 ) : null}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              <div className="overflow-hidden rounded-kova-lg border border-kova-border bg-white">
+                <div className="hidden grid-cols-[64px_minmax(180px,2fr)_minmax(120px,1fr)_120px_130px_88px] items-center gap-3 bg-kova-blue/[0.075] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground lg:grid">
+                  <span aria-hidden="true" />
+                  <span>{copy.catalog.products}</span>
+                  <span>{copy.catalog.categories}</span>
+                  <span className="text-right">Precio</span>
+                  <span className="text-right">{copy.catalog.inventory}</span>
+                  <span className="sr-only">Acciones</span>
+                </div>
                 {visibleProducts.map((product) => (
                   /* Mouse-only convenience target: the card body duplicates the
                      labelled "Editar {product.name}" button inside it, which is
@@ -639,17 +652,17 @@ export default function CatalogView() {
                   <div
                     key={product.id}
                     className={cn(
-                      "group relative overflow-hidden rounded-kova-lg border border-kova-border bg-white p-3 shadow-kova-card transition-shadow duration-hover ease-standard hover:shadow-kova-card-hover",
+                      "group relative grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 border-b border-kova-border bg-white p-3 transition-colors last:border-b-0 hover:bg-kova-mist/45 lg:grid-cols-[64px_minmax(180px,2fr)_minmax(120px,1fr)_120px_130px_88px] lg:px-4",
                       canUpdate && "cursor-pointer",
                     )}
                     onClick={canUpdate ? () => setModal({ type: "product-edit", product }) : undefined}
                   >
-                    <div className="mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-kova-md bg-kova-mist">
+                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-kova-md bg-kova-mist lg:h-11 lg:w-11">
                       {product.image_url ? (
                         <img
                           src={productImageSrc(product.image_url, 400)}
                           srcSet={productImageSrcSet(product.image_url)}
-                          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                          sizes="64px"
                           alt={copy.catalog.productImageAlt(product.name)}
                           className="h-full w-full"
                           style={productImageStyle(product)}
@@ -660,14 +673,30 @@ export default function CatalogView() {
                         <Package className="h-8 w-8 text-muted-foreground/60" />
                       )}
                     </div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
+                    <div className="min-w-0">
+                      <div className="min-w-0">
                         <h3 className="font-semibold text-sm truncate">{product.name}</h3>
                         {product.sku && (
                           <p className="text-xs text-muted-foreground mt-0.5">{product.sku}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-0.5 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity shrink-0">
+                    </div>
+                    <p className="hidden truncate text-sm text-muted-foreground lg:block">
+                      {categories.find((category) => category.id === product.category_id)?.name ?? "—"}
+                    </p>
+                    <span className="text-right text-base font-bold text-kova-blue tabular-nums lg:text-sm lg:text-kova-ink">
+                      {formatMoney(product.price_amount)}
+                    </span>
+                    <div className="col-span-2 flex items-center gap-2 pl-[60px] lg:col-span-1 lg:justify-end lg:pl-0">
+                      {canUpdate && (
+                        <Badge variant={product.cost_price == null ? "warning" : "secondary"}>
+                          {product.cost_price == null
+                            ? copy.catalog.productCostMissing
+                            : copy.catalog.productCostKnown(formatMoney(product.cost_price))}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end gap-0.5 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -694,19 +723,6 @@ export default function CatalogView() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-lg font-bold text-kova-blue tabular-nums">
-                        {formatMoney(product.price_amount)}
-                      </span>
-                      {canUpdate && (
-                        <Badge variant={product.cost_price == null ? "warning" : "secondary"}>
-                          {product.cost_price == null
-                            ? copy.catalog.productCostMissing
-                            : copy.catalog.productCostKnown(formatMoney(product.cost_price))}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 ))}
