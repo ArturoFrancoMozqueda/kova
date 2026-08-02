@@ -520,6 +520,32 @@ test("billing banner stays visible and usable on phone and tablet", async ({ pag
   }
 });
 
+test("PWA update prompt stays above mobile task navigation", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockCommon(page);
+  await page.goto("/dashboard");
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
+  });
+
+  const prompt = page.getByRole("status").filter({ hasText: "Nueva versión disponible" });
+  const taskNavigation = page.locator("nav.fixed.inset-x-0.bottom-0");
+  await expect(prompt).toBeVisible();
+  await expect(taskNavigation).toBeVisible();
+
+  const [promptBox, navigationBox] = await Promise.all([
+    prompt.boundingBox(),
+    taskNavigation.boundingBox(),
+  ]);
+  expect(promptBox).not.toBeNull();
+  expect(navigationBox).not.toBeNull();
+  expect(promptBox!.y + promptBox!.height).toBeLessThanOrEqual(navigationBox!.y);
+
+  await prompt.getByRole("button", { name: "Más tarde" }).click();
+  await expect(prompt).toHaveCount(0);
+});
+
 test("reports filters fit mobile and keep the primary CTA visible", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockCommon(page);

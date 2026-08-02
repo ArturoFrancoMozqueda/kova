@@ -213,20 +213,21 @@ Each of these animates something the rules discourage, on purpose:
   reader announces it, helps nobody.
 - **Anything on "Cobrar" beyond its spinner**, and anything on keyboard submit.
 
-## Not done yet
+## Completed follow-ups
 
-Specified but not built, in rough priority order: sidebar label crossfade on
-collapse (with `aria-hidden`, since the collapsed item already has a `title`); a
-shared animated `Disclosure` primitive for three of the five unanimated reports
-disclosures (`ProductCostEditor` and the `<details>` in `BusinessHealthCard`
-should stay as they are); a CSS-only mount stagger for the Reports bento, keyed
-on the applied date range so it replays on change; and entrances for
-`PWAUpdatePrompt` and `BillingBanner`.
+The app shell now includes the active navigation indicator, sidebar label
+crossfade, delayed route fallback (~140ms), `view-states` entrances, and
+interruptible entrances/exits for `PWAUpdatePrompt` and `BillingBanner`. Keep the
+route delay shorter than a perceived pause: it exists only to suppress cached
+lazy-chunk flashes, while slow loads still expose an honest `role="status"`
+skeleton.
 
-The active navigation indicator, delayed route fallback (~140ms), and
-`view-states` entrances are implemented. Keep the route delay shorter than a
-perceived pause: it exists only to suppress cached lazy-chunk flashes, while slow
-loads still expose an honest `role="status"` skeleton.
+Reports use the shared `Disclosure` primitive for methodological notes,
+priority evidence and the action-plan checklist. It adapts the accessibility
+model of ddoemonn's 21st.dev Accordion (labelled region, inert exit, chevron
+state) to Kova's own `usePresence` and CSS motion tokens. Report sections also
+stagger once when a newly applied date range resolves; local interactions do not
+replay the sequence, and charts still never interpolate their values.
 
 ## Verifying motion changes
 

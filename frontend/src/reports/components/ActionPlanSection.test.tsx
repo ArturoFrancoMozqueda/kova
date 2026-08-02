@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -45,7 +45,7 @@ describe("ActionPlanSection", () => {
     ).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("expands to the checklist with exact evidence per row, signals last", () => {
+  it("expands to the checklist with exact evidence per row, signals last", async () => {
     renderSection();
     fireEvent.click(screen.getByRole("button", { name: copy.reportsView.planSectionShow(4) }));
 
@@ -54,7 +54,8 @@ describe("ActionPlanSection", () => {
     expect(screen.getByText(copy.reportsView.actionOpsNormalAction)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: copy.reportsView.planSectionHide }));
-    expect(screen.queryByText("Acción 2")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { hidden: true })).toHaveAttribute("inert");
+    await waitFor(() => expect(screen.queryByText("Acción 2")).not.toBeInTheDocument());
   });
 
   it("caps action rows at eight even when expanded", () => {

@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type HTMLAttributes } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AlertTriangle, Clock, X, XCircle } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { copy } from "@/i18n/messages";
+import { MOTION_MS } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { usePresence } from "@/lib/usePresence";
 import { getBillingSubscription } from "./api";
 import type { BillingAccess } from "./types";
 
@@ -97,6 +99,7 @@ export function BillingBanner() {
   const location = useLocation();
   const [access, setAccess] = useState<BillingAccess | null>(null);
   const [dismissedReason, setDismissedReason] = useState<string | null>(null);
+  const lastBanner = useRef<{ access: BillingAccess; content: BannerContent } | null>(null);
 
   const isAuthenticated = state.status === "authenticated";
   const onBillingRoute = location.pathname.startsWith("/settings/billing");
@@ -127,20 +130,36 @@ export function BillingBanner() {
     }
   }, [access]);
 
-  if (!access) return null;
-  const content = bannerForAccess(access);
-  if (!content) return null;
+  const currentContent = access ? bannerForAccess(access) : null;
+  const currentDismissible = currentContent?.tone === "info";
+  const shouldShow = Boolean(
+    access && currentContent && !(currentDismissible && dismissedReason === access.reason),
+  );
+  if (shouldShow && access && currentContent) {
+    lastBanner.current = { access, content: currentContent };
+  }
+  const presence = usePresence(shouldShow, MOTION_MS.panelExit);
+  const presented = shouldShow && access && currentContent
+    ? { access, content: currentContent }
+    : lastBanner.current;
+
+  if (!presence.mounted || !presented) return null;
+  const displayedAccess = presented.access;
+  const content = presented.content;
   const dismissible = content.tone === "info";
-  if (dismissible && dismissedReason === access.reason) return null;
 
   return (
     <div
       role={content.tone === "danger" ? "alert" : "status"}
       data-testid="billing-banner"
-      data-billing-reason={access.reason}
+      data-billing-reason={displayedAccess.reason}
+      {...(presence.exiting
+        ? ({ "aria-hidden": true, inert: "" } as HTMLAttributes<HTMLDivElement>)
+        : {})}
       className={cn(
         "mx-4 mt-4 flex flex-col gap-2 rounded-[var(--radius-lg)] border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3",
         toneStyles[content.tone],
+        presence.exiting ? "pointer-events-none animate-fade-out" : "animate-fade-in",
       )}
     >
       <div className="flex items-start gap-3">
@@ -152,7 +171,7 @@ export function BillingBanner() {
       </div>
       <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
         <Link
-          to={access.recovery_path || "/settings/billing"}
+          to={displayedAccess.recovery_path || "/settings/billing"}
           className="rounded-[var(--radius-md)] border border-current/30 bg-white/60 px-3 py-1.5 text-xs font-semibold hover:bg-white"
         >
           {copy.billingBanner.manageCta}
@@ -162,8 +181,8 @@ export function BillingBanner() {
             type="button"
             aria-label={copy.billingBanner.dismissCta}
             onClick={() => {
-              writeDismissed(access.reason);
-              setDismissedReason(access.reason);
+              writeDismissed(displayedAccess.reason);
+              setDismissedReason(displayedAccess.reason);
             }}
             className="rounded-[var(--radius-md)] p-1.5 text-current/70 hover:bg-white/60 hover:text-current"
           >

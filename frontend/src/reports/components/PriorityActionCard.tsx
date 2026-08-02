@@ -4,6 +4,7 @@ import { Check, Lightbulb } from "lucide-react";
 import { copy } from "@/i18n/messages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { cn } from "@/lib/utils";
 import { recommendationLink } from "../utils/actionPlan";
 import type { Recommendation, RecommendationPriority } from "../utils/recommendations";
@@ -82,16 +83,15 @@ export function PriorityActionCard({
         <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-kova-blue" />
         {recommendation.action}
       </p>
-      <button
-        type="button"
-        aria-expanded={whyOpen}
-        onClick={() => setWhyOpen((value) => !value)}
-        className="mt-2 text-xs font-medium text-kova-blue hover:underline"
+      <Disclosure
+        open={whyOpen}
+        onOpenChange={setWhyOpen}
+        className="mt-2"
+        trigger={whyOpen ? copy.reportsView.priorityWhyHide : copy.reportsView.priorityWhyShow}
+        triggerClassName="h-auto gap-1 px-0 py-0 text-xs text-kova-blue hover:bg-transparent hover:underline"
+        panelClassName="mt-1.5"
       >
-        {whyOpen ? copy.reportsView.priorityWhyHide : copy.reportsView.priorityWhyShow}
-      </button>
-      {whyOpen ? (
-        <div className="mt-1.5 space-y-1">
+        <div className="space-y-1">
           <p className="text-sm leading-6 text-muted-foreground">{recommendation.evidence}</p>
           {recommendation.impact ? (
             <p className="text-xs text-kova-muted">
@@ -99,7 +99,7 @@ export function PriorityActionCard({
             </p>
           ) : null}
         </div>
-      ) : null}
+      </Disclosure>
       {link && !done ? (
         <div>
           <GoLink to={link} />

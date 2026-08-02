@@ -2,8 +2,8 @@ import { useState } from "react";
 import { CheckCircle2, Eye, Sparkles } from "lucide-react";
 
 import { copy } from "@/i18n/messages";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { cn } from "@/lib/utils";
 import type { ActionPlanItem } from "../utils/actionPlan";
 import { DoneToggle, GoLink } from "./planShared";
@@ -84,8 +84,14 @@ export function ActionPlanSection({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {expanded ? (
-          <ul className="space-y-2">
+        <Disclosure
+          open={expanded}
+          onOpenChange={setExpanded}
+          trigger={expanded ? copy.reportsView.planSectionHide : copy.reportsView.planSectionShow(items.length)}
+          triggerClassName="-ml-3"
+          panelClassName="mt-3"
+        >
+          <ul className="space-y-2" aria-label={copy.reportsView.recommendationsTitle}>
             {items.map((item) => (
               <ChecklistRow
                 key={item.id}
@@ -95,10 +101,7 @@ export function ActionPlanSection({
               />
             ))}
           </ul>
-        ) : null}
-        <Button variant="ghost" size="sm" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
-          {expanded ? copy.reportsView.planSectionHide : copy.reportsView.planSectionShow(items.length)}
-        </Button>
+        </Disclosure>
       </CardContent>
     </Card>
   );

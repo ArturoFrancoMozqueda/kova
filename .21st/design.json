@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "project": {
+    "name": "Kova",
+    "productType": "POS and business analytics SaaS for Mexican SMBs",
+    "stack": ["React 18", "TypeScript", "Vite", "Tailwind CSS", "shadcn-style primitives"]
+  },
+  "sources": {
+    "tokens": ["frontend/src/styles.css", "frontend/tailwind.config.js"],
+    "components": ["frontend/src/components/ui", ".design-sync/previews"],
+    "assets": ["frontend/src/assets"],
+    "instructions": ["AGENTS.md", "CLAUDE.md", ".claude/rules/frontend.md", ".design-sync/conventions.md"]
+  },
+  "design": {
+    "colorMode": "light application shell with dark ink sidebar",
+    "colors": {
+      "accent": "#4F7EF7",
+      "ink": "#0F1117",
+      "surface": "#FFFFFF",
+      "background": "#F5F6FA",
+      "growth": "#1EBF8A",
+      "danger": "#DC2626"
+    },
+    "typography": { "family": "Inter Variable", "numbers": "tabular" },
+    "spacing": { "density": "compact operational" },
+    "radius": { "card": "10px", "control": "8px" },
+    "shadows": { "card": "subtle layered", "hero": "reserved for rare emphasis" },
+    "motion": {
+      "press": "80ms",
+      "quick": "120ms",
+      "hover": "180ms",
+      "panel": "240ms",
+      "modal": "280ms",
+      "principle": "frequency determines duration; transform and opacity only except documented cases"
+    },
+    "density": "compact operational"
+  },
+  "components": {
+    "installed": [
+      "isaiahbjork/weekly-kpi-chart (adapted)",
+      "ddoemonn/accordion (adapted as Disclosure)"
+    ],
+    "preferredPrimitives": ["Button", "Card", "Dialog", "Disclosure", "ViewLayout", "ViewHeader"],
+    "patterns": [
+      "answer-first analytics",
+      "actionable operational alerts",
+      "labelled disclosure regions with inert exits",
+      "delayed route fallback",
+      "responsive dark sidebar and mobile bottom navigation"
+    ]
+  },
+  "constraints": {
+    "must": [
+      "Use real backend data and Spanish es-MX copy",
+      "Preserve permissions, billing gates, tenant isolation, offline behavior and thermal printing",
+      "Respect prefers-reduced-motion",
+      "Use Kova tokens and project primitives"
+    ],
+    "avoid": [
+      "Fake analytics or demo data in production",
+      "Decorative motion on cashier hot paths",
+      "transition-all and unbounded animation",
+      "Generic dashboard replacements that bypass product flows"
+    ]
+  },
+  "decisions": [
+    {
+      "decision": "Adapt 21st components to Kova primitives instead of adding a parallel component system.",
+      "reason": "The product already has audited tokens, permissions and motion contracts that are stronger than catalog defaults."
+    },
+    {
+      "decision": "Use the 21st accordion's accessibility model with Kova usePresence and CSS motion tokens.",
+      "reason": "This preserves labelled regions, inert exits and reduced motion without adding motion/react to the POS bundle."
+    },
+    {
+      "decision": "Stagger analytics only when an applied date range produces a new result set.",
+      "reason": "It reinforces reading order without replaying on every local interaction or animating chart values."
+    }
+  ],
+  "evidence": [
+    { "fact": "project.instructions", "source": "CLAUDE.md" },
+    { "fact": "design.tokens", "source": "frontend/src/styles.css" },
+    { "fact": "design.conventions", "source": ".design-sync/conventions.md" },
+    { "fact": "21st.component.accordion", "source": "https://21st.dev/@ddoemonn/components/accordion" },
+    { "fact": "21st.component.weekly-kpi-chart", "source": "frontend/src/components/ui/weekly-kpi-chart.tsx" }
+  ],
+  "generatedAt": "2026-08-02T21:08:37.338Z"
+}

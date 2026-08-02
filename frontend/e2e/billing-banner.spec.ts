@@ -111,4 +111,11 @@ test("trial banner appears on the dashboard while access is still allowed", asyn
   await expect(banner).toBeVisible();
   await expect(banner).toHaveAttribute("data-billing-reason", "signup_trial");
   await expect(banner).toHaveAttribute("role", "status");
+
+  await banner.getByRole("button", { name: "Descartar" }).click();
+  await expect(banner).toHaveAttribute("aria-hidden", "true");
+  await expect(banner).toHaveCount(0);
+
+  await page.reload();
+  await expect(page.getByTestId("billing-banner")).toHaveCount(0);
 });
