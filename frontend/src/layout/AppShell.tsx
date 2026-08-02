@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
@@ -21,6 +21,7 @@ import {
   X,
   ChevronsLeft,
   ChevronsRight,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -38,27 +39,28 @@ type NavItem = {
   to: string;
   label: string;
   icon: React.ReactNode;
+  group: "operation" | "business";
   permission?: string;
   feature?: "margin_reports";
 };
 
 const adminNavItems: NavItem[] = [
-  { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" /> },
-  { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" /> },
-  { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" /> },
-  { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" /> },
-  { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" /> },
-  { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" /> },
-  { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, permission: "reports.view_all" },
-  { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, permission: "expenses.manage", feature: "margin_reports" },
-  { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" /> },
-  { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, permission: "billing.view" },
+  { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
+  { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
+  { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, group: "business", permission: "billing.view" },
 ];
 
 const cashierNavItems: NavItem[] = [
-  { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" /> },
-  { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" /> },
-  { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" /> },
+  { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
 ];
 
 function isAdminRole(role: string): boolean {
@@ -112,14 +114,14 @@ export default function AppShell() {
 
   const bottomNavItems: NavItem[] = isAdminRole(userRole)
     ? [
-        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" /> },
-        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" /> },
-        { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-5 w-5" /> },
+        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" },
+        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
+        { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-5 w-5" />, group: "operation" },
       ]
     : [
-        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" /> },
-        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" /> },
-        { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-5 w-5" /> },
+        { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" },
+        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
+        { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-5 w-5" />, group: "operation" },
       ];
 
   const filteredNavItems = navItems.filter((item) => {
@@ -129,6 +131,8 @@ export default function AppShell() {
     if (item.feature === "margin_reports" && !marginReportsEnabled) return false;
     return true;
   });
+  const operationNavItems = filteredNavItems.filter((item) => item.group === "operation");
+  const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
 
   const closeSidebar = () => setSidebarOpen(false);
   // The drawer slides for 280ms; without this the backdrop used to blink out of
@@ -183,38 +187,50 @@ export default function AppShell() {
 
       {/* Nav */}
       <nav
-        className={cn("flex-1 overflow-y-auto py-4 space-y-1", sidebarCollapsed ? "px-2" : "px-3")}
+        className={cn("flex-1 overflow-y-auto py-4", sidebarCollapsed ? "px-2" : "px-3")}
         aria-label={copy.auth.accountNavigation}
       >
-        {filteredNavItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            onClick={closeSidebar}
-            title={sidebarCollapsed ? item.label : undefined}
-            className={({ isActive }) =>
-              cn(
-                "group flex items-center rounded-lg border-l-2 text-sm font-medium transition-[background-color,border-color,color] duration-hover ease-standard",
-                sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
-                isActive
-                  ? "border-l-kova-blue-light bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "border-l-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span className={isActive ? "text-kova-blue-light" : undefined}>{item.icon}</span>
-                {!sidebarCollapsed && (
+        {[
+          { id: "operation", label: "Operación", items: operationNavItems },
+          { id: "business", label: "Negocio", items: businessNavItems },
+        ].map((section) => section.items.length > 0 ? (
+          <div key={section.id} className={cn("space-y-1", section.id === "business" && "mt-5")}>
+            {!sidebarCollapsed && (
+              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted/70">
+                {section.label}
+              </p>
+            )}
+            {section.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={closeSidebar}
+                title={sidebarCollapsed ? item.label : undefined}
+                className={({ isActive }) =>
+                  cn(
+                    "group flex items-center rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard",
+                    sidebarCollapsed ? "justify-center p-2.5" : "gap-3 py-2.5 pl-2.5 pr-3",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                  )
+                }
+              >
+                {({ isActive }) => (
                   <>
-                    <span className="flex-1">{item.label}</span>
-                    <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+                    <span className={isActive ? "text-kova-blue-light" : undefined}>{item.icon}</span>
+                    {!sidebarCollapsed && (
+                      <>
+                        <span className="flex-1">{item.label}</span>
+                        <ChevronRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+                      </>
+                    )}
                   </>
                 )}
-              </>
-            )}
-          </NavLink>
-        ))}
+              </NavLink>
+            ))}
+          </div>
+        ) : null)}
       </nav>
 
       {/* Footer */}
@@ -259,7 +275,7 @@ export default function AppShell() {
     // so it made the dvh unit dead letter and forced the shell to 100vh. Where
     // the two differ (any browser with a retractable toolbar) that surplus
     // becomes document scroll and the shell slides off screen.
-    <div className="flex h-[100dvh] overflow-hidden">
+    <div className="flex h-[100dvh] overflow-hidden bg-kova-mist">
       <a
         href="#contenido-principal"
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-kova-ink focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-kova-on-ink focus:shadow-kova-card"
@@ -324,10 +340,18 @@ export default function AppShell() {
           <TrialChip compact />
         </header>
 
-        {/* Desktop trial chip — top-right of content area */}
-        <div className="hidden lg:flex items-center justify-end px-8 pt-3">
+        {/* Desktop command bar; mobile keeps the compact header and bottom navigation. */}
+        <header className="hidden h-[72px] shrink-0 items-center justify-end gap-3 border-b border-kova-border bg-white px-6 lg:flex">
+          <OfflineIndicator compact showOnlineLabel />
           <TrialChip />
-        </div>
+          <Link
+            to="/register"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-kova-md bg-kova-ink px-4 text-sm font-semibold text-white transition-colors hover:bg-kova-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nueva venta
+          </Link>
+        </header>
 
         {/* Skip-link target. Kept as a <div>: each routed view renders its own
             <main> landmark, so a second one here would nest landmarks. */}

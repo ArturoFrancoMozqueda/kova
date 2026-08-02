@@ -22,11 +22,20 @@ import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { Package, AlertTriangle, AlertCircle, Pencil, ClipboardCheck, Settings2, History, ChevronDown, Search, TrendingDown } from "lucide-react";
 import { inventoryVelocityAttention, isActionableInventoryVelocity } from "./attention";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { listProducts } from "@/catalog/api";
+import type { Product } from "@/catalog/types";
+import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
 
 type LoadState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "loaded"; stock: StockItem[]; lowStock: StockItem[]; velocity: InventoryVelocityItem[] };
+  | {
+      status: "loaded";
+      stock: StockItem[];
+      lowStock: StockItem[];
+      velocity: InventoryVelocityItem[];
+      productsById: Record<string, Product>;
+    };
 
 type ModalState =
   | { type: "adjust"; item: StockItem }
@@ -56,12 +65,19 @@ export default function InventoryView() {
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
     try {
-      const [stock, lowStock, velocity] = await Promise.all([
+      const [stock, lowStock, velocity, products] = await Promise.all([
         listStock(),
         listLowStock(),
         listVelocity().catch(() => [] as InventoryVelocityItem[]),
+        listProducts().catch(() => [] as Product[]),
       ]);
-      setLoadState({ status: "loaded", stock, lowStock, velocity });
+      setLoadState({
+        status: "loaded",
+        stock,
+        lowStock,
+        velocity,
+        productsById: Object.fromEntries(products.map((product) => [product.id, product])),
+      });
     } catch {
       setLoadState({ status: "error" });
     }
@@ -307,6 +323,7 @@ export default function InventoryView() {
                 <StockCard
                   key={item.product_id}
                   item={item}
+                  product={loadState.productsById[item.product_id]}
                   canAdjust={canAdjust}
                   onModal={setModal}
                 />
@@ -340,10 +357,12 @@ function reasonCodeLabel(code: InventoryReasonCode): string {
 
 function StockCard({
   item,
+  product,
   canAdjust,
   onModal,
 }: {
   item: StockItem;
+  product?: Product;
   canAdjust: boolean;
   onModal: (modal: ModalState) => void;
 }) {
@@ -380,10 +399,26 @@ function StockCard({
       )}
     >
       <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h3 className="font-semibold text-sm">{item.product_name}</h3>
-            <p className="text-xs text-muted-foreground">{item.sku ?? copy.inventoryView.noSku}</p>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex min-w-0 items-center gap-3">
+            {product?.image_url ? (
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-kova-md bg-kova-mist">
+                <img
+                  src={productImageSrc(product.image_url, 160)}
+                  srcSet={productImageSrcSet(product.image_url)}
+                  sizes="48px"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full"
+                  style={productImageStyle(product)}
+                />
+              </div>
+            ) : null}
+            <div className="min-w-0">
+              <h3 className="truncate font-semibold text-sm">{item.product_name}</h3>
+              <p className="truncate text-xs text-muted-foreground">{item.sku ?? copy.inventoryView.noSku}</p>
+            </div>
           </div>
           {isOut ? (
             <Badge variant="destructive">{copy.inventoryView.outBadge}</Badge>
