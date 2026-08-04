@@ -73,10 +73,13 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       .map(([, , props]) => (props as { section: string }).section);
     expect(viewedSections).toEqual(
       expect.arrayContaining([
+        "problema",
         "beneficios",
         "producto",
+        "reportes",
         "comercios",
         "clientes",
+        "valor",
         "precio",
         "faq",
         "cta-final",
@@ -122,6 +125,42 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     const { container } = renderHome();
     expect(container.querySelector(".lp-hero-grid")).not.toHaveAttribute("data-lp-reveal");
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
+  });
+
+  it("renders the conversion narrative in the intended order with one h1", () => {
+    const { container } = renderHome();
+    const sections = Array.from(container.querySelectorAll("main > section"));
+    const sectionIds = sections.map((section) => section.id).filter(Boolean);
+
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Vende. Kova mantiene el resto bajo control.",
+    );
+    expect(sectionIds).toEqual([
+      "problema",
+      "beneficios",
+      "producto",
+      "reportes",
+      "comercios",
+      "clientes",
+      "valor",
+      "precio",
+      "faq",
+      "cta-final",
+    ]);
+  });
+
+  it("uses only insights visible in the real reports capture", () => {
+    renderHome();
+
+    expect(screen.getByText("$564.00")).toBeInTheDocument();
+    expect(screen.getByText("Cold brew")).toBeInTheDocument();
+    expect(screen.getByText("19:00–20:00")).toBeInTheDocument();
+    expect(screen.getByText("$112.80")).toBeInTheDocument();
+    expect(screen.getByAltText(/Reportes de Kova con ventas netas/i)).toHaveAttribute(
+      "loading",
+      "lazy",
+    );
   });
 
   it("tracks the story CTA at the same signup destination", () => {
