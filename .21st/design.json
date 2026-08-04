@@ -75,6 +75,10 @@
     {
       "decision": "Stagger analytics only when an applied date range produces a new result set.",
       "reason": "It reinforces reading order without replaying on every local interaction or animating chart values."
+    },
+    {
+      "decision": "Tell the landing story as concrete manual work, connected product proof, verified customer outcomes, and price-derived value.",
+      "reason": "Each section carries one conversion argument, while multi-location claims remain excluded until the product has location-scoped data."
     }
   ],
   "evidence": [

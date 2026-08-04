@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { STANDARD_PLAN_DAILY_APPROX } from "@/billing/standardPlan";
 
 const trackAnonymousEvent = vi.fn();
 const trackAnonymousEventOnce = vi.fn();
@@ -77,7 +78,6 @@ describe("landing telemetry (PLAN-UX-03)", () => {
         "beneficios",
         "producto",
         "reportes",
-        "comercios",
         "clientes",
         "valor",
         "precio",
@@ -141,13 +141,43 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       "beneficios",
       "producto",
       "reportes",
-      "comercios",
       "clientes",
       "valor",
       "precio",
       "faq",
       "cta-final",
     ]);
+    expect(container.querySelector('a[href="#comercios"]')).toBeNull();
+    expect(screen.getByText("Más que un POS. El control de tu negocio en un solo lugar.")).toBeVisible();
+    expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(
+      /Para cafeterías, panaderías y negocios de mostrador/i,
+    );
+  });
+
+  it("turns the manual-work pain into a grounded three-step sequence", () => {
+    const { container } = renderHome();
+    const problem = container.querySelector("#problema");
+    const steps = problem?.querySelectorAll("ol > li");
+
+    expect(steps).toHaveLength(3);
+    expect(problem).toHaveTextContent("Cobras");
+    expect(problem).toHaveTextContent("La vuelves a registrar");
+    expect(problem).toHaveTextContent("La vuelves a cuadrar");
+    expect(problem).toHaveTextContent("Venta · $186");
+    expect(problem).toHaveTextContent("La misma venta · $186");
+    expect(problem).toHaveTextContent("Una sola venta. Tres tareas manuales. Y todavía quedan dudas.");
+  });
+
+  it("keeps social proof and value framing inside verified product capabilities", () => {
+    const { container } = renderHome();
+    const landingText = container.textContent ?? "";
+
+    expect(landingText).not.toMatch(/sucursales/i);
+    expect(screen.getByText("Decidir con datos")).toBeVisible();
+    expect(screen.getByText("Trabajar desde cualquier equipo")).toBeVisible();
+    expect(screen.getByText(`≈ $${STANDARD_PLAN_DAILY_APPROX}`)).toBeVisible();
+    expect(screen.getByText("$299 MXN/mes · Sin comisiones por venta")).toBeVisible();
+    expect(screen.getByRole("button", { name: "¿Kova funciona para mi negocio?" })).toBeVisible();
   });
 
   it("uses only insights visible in the real reports capture", () => {
