@@ -24,8 +24,11 @@ import FinalCta from "@/landing/FinalCta";
 import {
   AudienceSection,
   BenefitsSection,
+  ProblemSection,
+  ReportsSpotlight,
   TestimonialsSection,
   TrustBar,
+  ValueBridge,
 } from "@/landing/LandingSections";
 import { TicketPaper } from "@/landing/Ticket";
 import HeroProductFrame from "@/landing/HeroProductFrame";
@@ -739,17 +742,20 @@ export default function Home(): ReactNode {
           onCtaClick={onCtaClick}
         />
         <TrustBar />
+        <ProblemSection />
         <BenefitsSection />
         <SaleFlowStory
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("story")}
           onStepView={onStoryStepView}
         />
+        <ReportsSpotlight />
         <AudienceSection />
         <TestimonialsSection
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("testimonials")}
         />
+        <ValueBridge />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
         <FAQ onOpen={onFaqOpen} onWhatsAppClick={onWhatsAppClick} />
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />

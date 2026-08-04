@@ -32,11 +32,11 @@ export const copy = {
     },
     hero: {
       eyebrow: "Punto de venta para cafeterías, panaderías y negocios de mostrador",
-      title: "Cobra, controla tu inventario y cuadra tu caja en una sola app.",
+      title: "Vende. Kova mantiene el resto bajo control.",
       titlePart1: "Retoma el control ",
       titleEmphasis: "de tu negocio",
       titlePart2: ".",
-      subtitle: "Cada venta actualiza automáticamente tu stock, caja y reportes, incluso si se cae el internet. Sin hardware obligatorio ni comisiones por venta.",
+      subtitle: "Cada venta actualiza automáticamente tu inventario, caja y reportes para que sepas qué se vende, qué se está acabando y cuánto debe haber en caja.",
       ctaPrimary: "Probar Kova gratis",
       ctaSecondary: "Ver cómo funciona",
       dailyNote: `≈ $${STANDARD_PLAN_DAILY_APPROX} al día`,
@@ -125,20 +125,37 @@ export const copy = {
       ],
       cta: "Probar Kova gratis",
     },
-    // Reencuadrada como contraste: llega DESPUÉS de la historia de la venta,
-    // así que ya viste el corte cuadrar — esto es "el otro final" del mismo día.
     problem: {
-      eyebrow: "El otro final del día",
-      title: "Así se cierra ese mismo día sin Kova.",
-      body: "Cuando caja, inventario y análisis viven separados, el cierre se arma con libretas, Excel, tickets y mensajes — y el descuadre aparece justo cuando ya quieres irte a casa.",
-      fragments: ["Libreta", "Excel", "WhatsApp", "Tickets", "Caja"],
-      fragmentsFoot: "Demasiadas piezas para una respuesta que debería estar lista.",
-      // Mini corte del "ticket vivo": labels del recibo demo que responde a los
-      // recortes; los montos salen de landing/demo/sweetHome, nunca de aquí.
+      eyebrow: "Todo empieza en la venta",
+      title: "Tener un negocio no debería significar hacer las mismas cuentas tres veces.",
+      body: "Las ventas quedan en una libreta. El inventario en Excel. Los pagos en la terminal. Los gastos y tickets, en otro lado.",
+      fragments: [
+        { label: "Ventas", source: "Libreta" },
+        { label: "Inventario", source: "Excel" },
+        { label: "Pagos", source: "Terminal" },
+        { label: "Gastos", source: "Tickets" },
+        { label: "Cierre", source: "Calculadora" },
+      ],
+      questions: ["¿Cuánto vendí?", "¿Cuánto debe haber en caja?", "¿Qué se está acabando?"],
+      // Contrato compartido por Ticket.tsx; el componente toma sus montos del
+      // demo documentado de Sweet Home, no de este bloque de copy.
       ticketTitle: "Corte del día",
       ticketLines: ["Ventas del día", "Efectivo esperado"],
       ticketTotalLabel: "Descuadre",
-      punch: "Con Kova ese mismo día es una sola pantalla: ventas, caja y stock ya cuadrados antes de apagar la luz.",
+      punch: "Kova conecta todo desde la venta.",
+    },
+    reportsSpotlight: {
+      eyebrow: "Reportes que sí explican",
+      title: "Al final del día, ya sabes qué pasó.",
+      body: "No necesitas revisar tickets ni hacer cuentas. Kova convierte tus ventas en información que puedes usar para tomar mejores decisiones.",
+      productLabel: "Captura real de Reportes",
+      alt: "Reportes de Kova con ventas netas, ticket promedio, mejores horarios y producto top.",
+      insights: [
+        { label: "Ventas netas", value: "$564.00" },
+        { label: "Producto top", value: "Cold brew" },
+        { label: "Hora pico", value: "19:00–20:00" },
+        { label: "Ticket promedio", value: "$112.80" },
+      ],
     },
     sweetHome: {
       shopName: "Sweet Home",
@@ -392,9 +409,10 @@ export const copy = {
       leadStart: "Un solo plan para cobrar, controlar inventario, cuadrar caja y entender el día. ",
       leadEmphasis: "Sin comisiones por venta ni módulos escondidos.",
       leadEnd: "",
-      worthItTitle: "Vale la pena desde el primer error evitado.",
-      worthItBody: "Si evita un solo descuadre, una venta perdida o una mala compra, ya valió la pena:",
-      worthItItems: ["Un descuadre de caja", "Una venta perdida", "Una mala compra", "Horas haciendo cuentas"],
+      worthItEyebrow: "El valor de tener el control",
+      worthItTitle: "Kova cuesta menos que muchos de los errores que ayuda a evitar.",
+      worthItBody: "No se trata de pagar por otro software. Se trata de mantener el control del negocio.",
+      worthItItems: ["Una venta perdida", "Un descuadre de caja", "Producto comprado de más", "Horas haciendo cuentas"],
       bridge: "Todo lo que viste arriba, por",
       // Fila TOTAL del recibo de precio ("el ticket vivo").
       receiptTotalLabel: "Total mensual",

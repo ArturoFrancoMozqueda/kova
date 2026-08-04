@@ -25,6 +25,6 @@ export const TESTIMONIALS: readonly Testimonial[] = [
   },
   {
     quote: "Con Kova he podido llevar el control de mis sucursales sin depender de una misma computadora",
-    business: "Cafe Chapatito",
+    business: "Café Chapatito",
   },
 ];
