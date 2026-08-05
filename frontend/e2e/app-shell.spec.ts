@@ -89,7 +89,7 @@ test("public landing explains the single Standard Plan", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: /cobra, controla tu inventario y cuadra tu caja en una sola app/i,
+      name: /vende\. kova mantiene el resto bajo control/i,
     }),
   ).toBeVisible();
   await expect(page.getByText(/299/).first()).toBeVisible();
