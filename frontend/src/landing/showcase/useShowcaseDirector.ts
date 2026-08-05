@@ -7,9 +7,9 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 
-/** IntersectionObserver continuo (re-arma al salir), a diferencia del
- *  useInViewOnce de los previews: el director pausa fuera de viewport y
- *  reinicia limpio al volver. */
+/** IntersectionObserver continuo (re-arma al salir), a diferencia de los
+ *  observadores one-shot: el director pausa fuera de viewport y reinicia
+ *  limpio al volver. */
 export function useInView<T extends Element>(
   ref: RefObject<T | null>,
   { threshold = 0.35, disabled = false }: { threshold?: number; disabled?: boolean } = {},

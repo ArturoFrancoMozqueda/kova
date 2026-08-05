@@ -122,7 +122,6 @@ export const LANDING_STYLES = `
   /* Tramo medio comprimido (funnel: la atrición vive entre el film y el
      precio) — aplica a #una-venta, #panel-dueno y #problema sin tocar el
      padding global de .lp-section. */
-  .lp-section-tight { padding: 52px 32px; }
   .lp-section-inner {
     max-width: 1180px;
     margin: 0 auto;
@@ -185,11 +184,6 @@ export const LANDING_STYLES = `
     from { opacity: 0; transform: translateY(-6px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  @keyframes lp-cart-pop {
-    0%   { transform: scale(0.85); opacity: 0; }
-    70%  { transform: scale(1.08); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
-  }
   /* Hero visual = marco de producto (HeroProductFrame): una ventana de navegador
      que enmarca el POS real en tema claro. El frame nace visible (SSR/no-JS) y
      solo con .lp-motion-ready corre un one-shot de entrada — nunca queda oculto
@@ -210,11 +204,6 @@ export const LANDING_STYLES = `
     z-index: -1;
     background: radial-gradient(52% 58% at 66% 36%, rgba(79, 126, 247, 0.14), transparent 72%);
     pointer-events: none;
-  }
-  /* En modo film, el glow se apaga junto con la salida del hero: solo LEE la
-     var del engine (--pf-hero-exit), composite-only. */
-  [data-pf-live="true"] .lp-hero-visual::before {
-    opacity: calc(1 - var(--pf-hero-exit, 0));
   }
   .lp-hero-frame {
     position: relative;
@@ -278,30 +267,6 @@ export const LANDING_STYLES = `
     object-fit: cover;
     object-position: center top;
   }
-  @keyframes lp-story-in {
-    from { opacity: 0; transform: translate3d(0, 10px, 0); }
-    to   { opacity: 1; transform: translate3d(0, 0, 0); }
-  }
-  @keyframes lp-story-progress-fill {
-    from { width: 0%; }
-    to   { width: 100%; }
-  }
-  @keyframes lp-bar-grow {
-    from { transform: scaleY(0); }
-    to   { transform: scaleY(1); }
-  }
-  @keyframes lp-fill-x {
-    from { width: 0; }
-  }
-  @keyframes lp-btn-pulse {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.03); }
-  }
-  @keyframes lp-flash-ring {
-    0%   { box-shadow: 0 0 0 4px rgba(30,191,138,0.35); }
-    100% { box-shadow: 0 0 0 0 rgba(30,191,138,0); }
-  }
-
   /* Microinteracciones de la historia: solo corren dentro de un contenedor
      con data-lp-anim="on" (entrada del estado), una vez, sin loops. */
   [data-lp-anim="on"] .lp-story-fade {
@@ -309,380 +274,13 @@ export const LANDING_STYLES = `
     animation: lp-feed-in 280ms var(--kova-ease-entrance) forwards;
     animation-delay: var(--lp-fade-delay, 0ms);
   }
-  [data-lp-anim="on"] .lp-story-slide {
-    animation: lp-story-in 300ms var(--kova-ease-entrance) both;
-    animation-delay: 120ms;
-  }
-  [data-lp-anim="on"] .lp-story-pop {
-    animation: lp-cart-pop 260ms var(--kova-ease-spring) both;
-    /* Derivado de --lp-entry-delay (default 280ms → 160ms, el valor histórico)
-       para que el showcase pueda retrasar toda la entrada de golpe. */
-    animation-delay: calc(var(--lp-entry-delay, 280ms) - 120ms);
-  }
-  [data-lp-anim="on"] .lp-bar {
-    transform-origin: bottom;
-    animation: lp-bar-grow 420ms var(--kova-ease-entrance) both;
-    animation-delay: var(--lp-fade-delay, 0ms);
-  }
-  [data-lp-anim="on"] .lp-fill {
-    animation: lp-fill-x 480ms var(--kova-ease-entrance) both;
-    animation-delay: 160ms;
-  }
-  [data-lp-anim="on"] .lp-charge-pulse {
-    animation: lp-btn-pulse 320ms var(--kova-ease-spring) calc(var(--lp-entry-delay, 280ms) + 360ms);
-  }
-  [data-lp-anim="on"] .lp-flash {
-    animation: lp-flash-ring 700ms var(--kova-ease-exit) 720ms;
-  }
 
-  .lp-story-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
-    gap: 36px;
-    align-items: start;
-    margin-top: 30px;
-  }
-  .lp-story-rail {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .lp-story-tab {
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    text-align: left;
-    padding: 16px 18px;
-    border-radius: 12px;
-    border: 0.5px solid transparent;
-    background: transparent;
-    cursor: pointer;
-    font-family: inherit;
-    color: var(--text-muted);
-    transition: background 180ms var(--kova-ease-entrance), border-color 180ms var(--kova-ease-entrance);
-  }
-  .lp-story-tab:hover { background: var(--surface-2); }
-  .lp-story-tab[data-active="1"] {
-    background: var(--surface-2);
-    border-color: var(--hairline-strong);
-  }
-  .lp-story-tab-num {
-    width: 24px;
-    height: 24px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-    background: var(--chip-bg);
-    color: var(--text-muted);
-    flex-shrink: 0;
-    transition: background 180ms var(--kova-ease-entrance), color 180ms var(--kova-ease-entrance);
-  }
-  .lp-story-tab[data-active="1"] .lp-story-tab-num {
-    background: var(--accent);
-    color: #fff;
-  }
-  .lp-story-tab strong {
-    display: block;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--text-muted);
-    transition: color 180ms var(--kova-ease-entrance);
-  }
-  .lp-story-tab[data-active="1"] strong { color: var(--page-fg); }
-  .lp-story-tab-line {
-    display: block;
-    font-size: 12.5px;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
-  .lp-story-progress {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 2px;
-    width: 0;
-    background: var(--accent);
-    animation: lp-story-progress-fill 6000ms linear forwards;
-  }
-  .lp-story-progress[data-paused="1"] { animation-play-state: paused; }
-  .lp-story-stage {
-    position: relative;
-    min-height: 420px;
-  }
-  .lp-story-panel {
-    position: relative;
-    animation: lp-story-in 250ms var(--kova-ease-entrance) both;
-    padding-bottom: 16px;
-  }
-  .lp-story-callout {
-    position: absolute;
-    left: 18px;
-    bottom: -2px;
-    background: var(--kova-ink);
-    border: 1px solid var(--accent);
-    color: var(--kova-on-ink);
-    padding: 7px 14px;
-    border-radius: 999px;
-    font-size: 12.5px;
-    font-weight: 600;
-    box-shadow: 0 10px 28px -10px rgba(0,0,0,0.6);
-    white-space: nowrap;
-  }
-  .lp-story-mobile {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    margin-top: 26px;
-  }
-  .lp-story-card {
-    border: 0.5px solid var(--hairline-color);
-    border-radius: 14px;
-    background: var(--page-bg);
-    padding: 16px;
-  }
-
-  /* ── SaleStory ("Una venta lo mueve todo") ────────────────────────────────
-     Filas alternadas copy | preview. La copy revela escalonada; el preview usa
-     la variante "frame". Una spine vertical sutil (≥900px) refuerza la idea de
-     que una sola venta fluye a través de los cuatro pasos. */
-  .lp-story-rows {
-    position: relative;
-    margin-top: 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 22px;
-  }
-  .lp-sale-row {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.05fr);
-    gap: clamp(28px, 5vw, 64px);
-    align-items: center;
-  }
-  .lp-sale-row[data-reverse="1"] .lp-sale-copy { order: 2; }
-  .lp-sale-row[data-reverse="1"] .lp-sale-visual { order: 1; }
-  .lp-sale-step {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-  .lp-sale-step-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 999px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0;
-    flex-shrink: 0;
-  }
-  .lp-sale-title {
-    font-family: var(--lp-font-display);
-    font-size: clamp(22px, 2.6vw, 30px);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: 1.15;
-    color: var(--page-fg);
-    margin: 16px 0 0;
-  }
-  .lp-sale-body {
-    margin: 12px 0 0;
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--text-muted);
-    max-width: 440px;
-  }
-  .lp-sale-visual {
-    position: relative;
-    min-width: 0;
-  }
-  .lp-sale-frame {
-    border-radius: 14px;
-    border: 0.5px solid var(--hairline-color);
-    background: var(--page-bg);
-    padding: 14px;
-    box-shadow: 0 26px 64px -36px rgba(0,0,0,0.62);
-  }
-
-  .lp-bento {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    list-style: none;
-    padding: 0;
-    margin: 36px 0 0;
-  }
-  .lp-bento-cell {
-    display: flex;
-    flex-direction: column;
-    min-height: 178px;
-    padding: 20px;
-    border-radius: 14px;
-    border: 0.5px solid var(--hairline-color);
-    background: var(--page-bg);
-    transition:
-      border-color 180ms var(--kova-ease-entrance),
-      transform 180ms var(--kova-ease-entrance),
-      box-shadow 180ms var(--kova-ease-entrance);
-  }
-  .lp-bento-cell:hover {
-    border-color: var(--hairline-strong);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 32px -16px rgba(0,0,0,0.5);
-  }
-  .lp-bento-cell[data-large="1"] { grid-column: span 2; }
-
-  /* Reusable card/chip lift — same feel as the bento cells */
-  .lp-lift {
-    transition:
-      border-color 180ms var(--kova-ease-entrance),
-      transform 180ms var(--kova-ease-entrance),
-      box-shadow 180ms var(--kova-ease-entrance),
-      background 180ms var(--kova-ease-entrance);
-  }
-  .lp-lift:hover {
-    border-color: var(--hairline-strong);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 32px -16px rgba(0,0,0,0.5);
-  }
-  .lp-chip-lift {
-    transition:
-      border-color 180ms var(--kova-ease-entrance),
-      transform 180ms var(--kova-ease-entrance),
-      background 180ms var(--kova-ease-entrance);
-  }
-  .lp-chip-lift:hover {
-    border-color: var(--hairline-strong);
-    transform: translateY(-1px);
-    background: var(--surface-2);
-  }
-
-  /* Viñeta tintada superior para secciones oscuras clave (pintura estática). */
-  .lp-tint-top {
-    background-image: radial-gradient(120% 60% at 50% 0%, rgba(123, 167, 255, 0.05), transparent 60%);
-  }
-
-  /* Carta Kova (#diferencia): border-glow que respira al hover (solo opacity,
-     composite-only; el clamp global de reduced-motion lo cubre). */
-  .lp-kova-card { position: relative; }
-  .lp-kova-card::after {
-    content: "";
-    position: absolute;
-    inset: -1px;
-    border-radius: inherit;
-    box-shadow:
-      0 0 0 4px var(--accent-soft),
-      0 0 44px -8px rgba(79, 126, 247, 0.45),
-      0 28px 70px -34px rgba(0, 0, 0, 0.7);
-    opacity: 0.55;
-    transition: opacity 220ms var(--kova-ease-entrance);
-    pointer-events: none;
-  }
-  .lp-kova-card:hover::after { opacity: 1; }
-
-  /* Divisor perforado (mordidas de recibo) — pinta DENTRO de su caja de 12px,
-     seguro con content-visibility. La página termina como termina el ticket. */
-  .lp-perf-divider {
-    height: 12px;
-    background-image: radial-gradient(circle at 12px -5px, var(--surface-2) 9px, transparent 9.6px);
-    background-size: 24px 12px;
-    background-repeat: repeat-x;
-  }
 
   /* Focus visible consistente en toda la landing. */
   .lp-root :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
     border-radius: 2px;
-  }
-
-  /* "¿Es para mí?" (#comercios): 6 giros en 3 columnas. */
-  .lp-builtfor-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-  }
-
-  /* Testimonios (#clientes): 1-3 tarjetas, columnas según cuántas haya. */
-  .lp-testimonials-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 14px;
-    max-width: 1060px;
-  }
-
-  /* Barra CTA fija de móvil (StickyCta): solo se monta cuando aplica, así que
-     estas reglas nunca pintan en desktop ni en el prerender. */
-  .lp-sticky-cta {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 55;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 0.5px solid var(--hairline-strong);
-    animation: lp-sticky-in 240ms var(--kova-ease-entrance) both;
-  }
-  @keyframes lp-sticky-in {
-    from { transform: translateY(100%); }
-    to { transform: none; }
-  }
-  /* Con la barra montada, el FAB de WhatsApp sube para no encimarse
-     (StickyCta va antes del FAB en el DOM — selector de hermanos). */
-  .lp-sticky-cta ~ .lp-wa-fab {
-    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-  }
-
-  /* Botón flotante de WhatsApp: oculto hasta pasar el hero-film (data-visible)
-     y apagado por completo si no hay número configurado (lib/whatsapp.ts). */
-  .lp-wa-fab {
-    position: fixed;
-    right: 20px;
-    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-    z-index: 60;
-    width: 52px;
-    height: 52px;
-    border-radius: 999px;
-    background: #25d366;
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
-    opacity: 0;
-    transform: translateY(12px);
-    pointer-events: none;
-    transition:
-      opacity 220ms var(--kova-ease-entrance),
-      transform 220ms var(--kova-ease-entrance);
-  }
-  .lp-wa-fab[data-visible="true"] {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
   }
 
   /* ── FAQ accordion ────────────────────────────────────────────────────────
@@ -913,26 +511,6 @@ export const LANDING_STYLES = `
     gap: 10px;
     margin-top: 28px;
   }
-  .lp-benefit-card {
-    min-height: 96px;
-    padding: 16px;
-    border: 0.5px solid var(--hairline-color);
-    border-radius: 12px;
-    background: rgba(255,255,255,0.035);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .lp-benefit-card strong {
-    color: var(--page-fg);
-    font-size: 15px;
-    letter-spacing: -0.01em;
-  }
-  .lp-benefit-card span {
-    color: var(--text-muted);
-    font-size: 13px;
-    line-height: 1.45;
-  }
 
   .lp-cta-fill {
     position: relative;
@@ -969,20 +547,6 @@ export const LANDING_STYLES = `
   }
   .lp-cta-fill:hover::before { height: 320%; }
   .lp-cta-fill:active { transform: translateY(0) scale(0.98); }
-
-  .lp-product-tile:hover {
-    border-color: var(--accent) !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px -6px rgba(15,17,23,0.18);
-  }
-  .lp-product-tile[data-active="1"] {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 1px var(--accent) inset;
-  }
-  .lp-product-tile:active { transform: scale(0.97); }
-  .lp-product-tile .lp-cart-count {
-    animation: lp-cart-pop 220ms var(--kova-ease-spring);
-  }
 
   /* ── Ticket térmico (firma de la landing) ─────────────────────────────────
      Papel = material, no tema: vive solo en superficies lp-tkt sobre el ink.
@@ -1082,41 +646,6 @@ export const LANDING_STYLES = `
     to   { opacity: 1; transform: translateY(0) rotate(0deg); }
   }
 
-  /* Recortes del problema: libreta/Excel/WhatsApp como papeles sueltos. */
-  .lp-scraps {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    align-content: flex-start;
-  }
-  .lp-scrap {
-    position: relative;
-    padding: 13px 18px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    color: rgba(240,244,255,0.72);
-    background: var(--surface);
-    border: 0.5px solid var(--hairline-color);
-    border-radius: 2px;
-    transform: rotate(var(--scrap-rot, 0deg));
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), 88% 100%, 74% calc(100% - 5px), 58% 100%, 45% calc(100% - 7px), 28% 100%, 13% calc(100% - 4px), 0 100%);
-  }
-  .lp-scrap[data-kind="ruled"] {
-    background-image: repeating-linear-gradient(180deg, transparent 0 10px, rgba(123,167,255,0.12) 10px 11px);
-  }
-  .lp-scrap[data-kind="grid"] {
-    background-image:
-      repeating-linear-gradient(180deg, transparent 0 11px, rgba(123,167,255,0.10) 11px 12px),
-      repeating-linear-gradient(90deg, transparent 0 14px, rgba(123,167,255,0.10) 14px 15px);
-  }
-  .lp-scrap[data-kind="bubble"] {
-    clip-path: none;
-    border-radius: 12px 12px 12px 3px;
-  }
-  .lp-scrap[data-kind="dotted"] {
-    background-image: repeating-linear-gradient(180deg, transparent 0 9px, rgba(240,244,255,0.10) 9px 10px);
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .lp-live-dot { animation: none !important; }
     .lp-root.lp-motion-ready [data-lp-reveal="true"] {
@@ -1181,19 +710,13 @@ export const RESPONSIVE_STYLES = `
   @media (max-width: 900px) {
     .lp-section { padding: 64px 24px !important; }
     .lp-section-compact { padding: 60px 24px !important; }
-    .lp-section-tight { padding: 48px 24px !important; }
     .lp-section[data-density="tight"] { padding: 52px 24px !important; }
     .lp-section[data-density="grand"] { padding: 84px 24px 76px !important; }
     .lp-section-inner { max-width: 100% !important; }
     .lp-hero-grid {
       grid-template-columns: 1fr !important;
     }
-    .lp-3cols { grid-template-columns: 1fr !important; }
-    .lp-builtfor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin-top: 28px !important; }
-    .lp-bento { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-    .lp-own-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-    .lp-own-bottom { grid-template-columns: 1fr !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
     .lp-hero-section { min-height: auto !important; padding: 38px 24px 48px !important; }
     .lp-hero-grid { gap: 32px !important; margin-top: 16px !important; }
@@ -1204,18 +727,7 @@ export const RESPONSIVE_STYLES = `
     }
     .lp-hero-copy { font-size: 17px !important; max-width: 100% !important; }
     .lp-hero-visual { max-width: 560px !important; margin: 0 auto !important; width: 100% !important; }
-    .lp-cash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-    .lp-rep-bottom { grid-template-columns: 1fr !important; }
-    .lp-problem-grid { grid-template-columns: 1fr !important; }
     .lp-problem-ticket { max-width: 340px !important; }
-    /* SaleStory: copy siempre antes del preview (orden de lectura natural). */
-    .lp-sale-row {
-      grid-template-columns: 1fr !important;
-      gap: 22px !important;
-    }
-    .lp-sale-row .lp-sale-copy { order: 1 !important; }
-    .lp-sale-row .lp-sale-visual { order: 2 !important; }
-    .lp-sale-body { max-width: 100% !important; }
   }
   @media (max-width: 640px) {
     /* Prevent mobile font downloads and late swaps from redefining the LCP. */
@@ -1225,15 +737,12 @@ export const RESPONSIVE_STYLES = `
     }
     .lp-section { padding: 52px 20px !important; }
     .lp-section-compact { padding: 48px 20px !important; }
-    .lp-section-tight { padding: 40px 20px !important; }
     .lp-section[data-density="tight"] { padding: 44px 20px !important; }
     .lp-section[data-density="grand"] { padding: 68px 20px 60px !important; }
     /* Compresión móvil: los previews casi full-bleed son el mayor costo de
        altura del tramo medio; un cap de ancho reduce su altura intrínseca. */
-    .lp-sale-visual { max-width: 480px !important; margin-left: auto !important; margin-right: auto !important; width: 100%; }
     /* El ticket del corte duplica en móvil al ticket térmico de #precio; el
        argumento del descuadre lo cargan los recortes + el punch. */
-    .lp-problem-ticket-wrap { display: none !important; }
     .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
     .lp-section-title[data-scale="quiet"] { font-size: 27px !important; }
     .lp-section-title[data-scale="grand"] { font-size: 37px !important; }
@@ -1300,9 +809,6 @@ export const RESPONSIVE_STYLES = `
     .lp-hero-visual { order: 2; max-width: 100% !important; margin-top: 6px !important; }
     .lp-hero-frame-screen { max-height: 320px !important; }
     .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
-    .lp-benefit-card { min-height: 118px !important; padding: 13px !important; }
-    .lp-benefit-card strong { font-size: 13px !important; }
-    .lp-benefit-card span { font-size: 12px !important; }
     .lp-hero-actions {
       display: grid !important;
       grid-template-columns: 1fr !important;
@@ -1335,12 +841,6 @@ export const RESPONSIVE_STYLES = `
     .lp-story-card .lp-rep-secondary { display: none !important; }
     .lp-story-card .lp-rep-bar[data-extra="1"] { display: none !important; }
     .lp-footer-grid { grid-template-columns: 1fr !important; }
-    .lp-bento { grid-template-columns: 1fr !important; }
-    .lp-bento-cell[data-large="1"] { grid-column: auto !important; }
-    .lp-builtfor-grid { grid-template-columns: 1fr !important; }
-    .lp-own-kpis { grid-template-columns: 1fr 1fr !important; }
-    .lp-own-kpi[data-secondary="1"] { display: none !important; }
-    .lp-own-secondary { display: none !important; }
     .lp-cta-band { padding: 40px 22px !important; }
     .lp-cta-steps { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-tkt-body { padding: 20px 18px !important; }
@@ -1352,38 +852,11 @@ export const RESPONSIVE_STYLES = `
     .lp-tkt-edge:not([data-side="bottom"]) {
       background-image: radial-gradient(circle at 7px -2px, transparent 5.5px, var(--ticket-paper) 6px) !important;
     }
-    .lp-scrap { padding: 11px 14px 13px !important; font-size: 13px !important; }
   }
   @media (max-width: 360px) {
     .lp-nav-primary { padding: 9px 10px !important; font-size: 12px !important; }
     .lp-hero-title { font-size: 30px !important; }
     .lp-hero-copy { font-size: 16px !important; }
-  }
-  @media (min-width: 900px) {
-    /* Spine conectora: una sola venta fluye por los 4 pasos. Vive en el gutter
-       central; los rows/cards tienen fondo y la tapan salvo en los espacios. */
-    .lp-story-rows::before {
-      content: "";
-      position: absolute;
-      top: 32px;
-      bottom: 32px;
-      left: 50%;
-      width: 1px;
-      transform: translateX(-0.5px);
-      background: linear-gradient(180deg, transparent, var(--hairline-strong) 12%, var(--hairline-strong) 88%, transparent);
-      z-index: 0;
-      pointer-events: none;
-    }
-  }
-  @media (min-width: 901px) {
-    /* Fold premium: el producto domina la composición. Especificidad
-       .lp-root para ganarle al .pf-hero-grid del style-tag del film (que se
-       inyecta después); el FLIP del engine mide rects en runtime, así que un
-       cambio de proporción es seguro. */
-    .lp-root .pf-hero-grid {
-      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-      gap: 44px;
-    }
   }
   @media (min-width: 1024px) {
     /* Overflow controlado: el marco del hero sangra hacia el borde derecho

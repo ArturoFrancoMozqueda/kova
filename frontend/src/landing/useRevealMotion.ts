@@ -1,5 +1,5 @@
 // Reveal-on-scroll para la landing. Extraído de routes/Home.tsx para que otras
-// secciones (p. ej. landing/SaleStory.tsx) reusen el mismo mecanismo.
+// secciones reusen el mismo mecanismo.
 //
 // Determinismo de prerender: el hook SOLO corre post-hidratación (useEffect).
 // El HTML prerenderizado y el primer render de cliente NO llevan data-lp-reveal
@@ -9,8 +9,8 @@
 // inmediato.
 //
 // Tres formas de participar:
-//  1. Clases legacy (.lp-reveal-block, .lp-benefit-strip, .lp-story-card,
-//     .lp-footer-grid, .lp-ticket-print) — cada elemento revela individualmente,
+//  1. Clases legacy (.lp-reveal-block, .lp-benefit-strip, .lp-footer-grid,
+//     .lp-ticket-print) — cada elemento revela individualmente,
 //     con el stagger histórico (index % 3 * 80ms). Comportamiento intacto.
 //  2. [data-lp-reveal-opt] — opt-in por atributo para secciones nuevas; combina
 //     con data-lp-reveal-variant ("rise" | "rise-lg" | "frame") en el CSS.
@@ -23,7 +23,6 @@ import { prefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 const LEGACY_SELECTOR = [
   ".lp-reveal-block",
   ".lp-benefit-strip",
-  ".lp-story-card",
   ".lp-footer-grid",
   // Recibo de precio: mismas data-attrs, pero su CSS imprime las líneas en
   // orden en vez del fade genérico (lp-tkt-print).

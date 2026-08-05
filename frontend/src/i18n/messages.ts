@@ -214,11 +214,8 @@ export const copy = {
         { title: "Ves el día completo", line: "Tu día, explicado.", callout: "Análisis listo para decidir." },
       ],
     },
-    // Sección "Una venta lo mueve todo" (SaleStory): 3 filas alternadas que
-    // siguen la MISMA venta de $186 (los montos salen de landing/demo/sweetHome,
-    // no de aquí — se referencian en copy solo por narrativa). El beat del
-    // análisis vive en ownerDashboard.line: la historia termina en la pantalla
-    // del dueño (#panel-dueno), no en un preview duplicado.
+    // Copy reutilizable para la narrativa "Una venta lo mueve todo": tres pasos
+    // siguen la misma venta de $186 y cierran con el análisis del dueño.
     saleStory: {
       kicker: "Una venta lo mueve todo",
       title: "Cobras una vez. Kova acomoda el resto.",
@@ -253,8 +250,8 @@ export const copy = {
       ctaLine: "Conoce exactamente qué pasa en tu negocio.",
       ctaButton: "Empieza gratis",
     },
-    // Capítulos del HeroFilm: el film ES el hero, así que el copy de sección
-    // (eyebrow/título) vive en `hero`; aquí quedan sólo las leyendas del scrub.
+    // Copy reutilizable del recorrido cinematográfico; aquí se conservan las
+    // leyendas del scrub aunque esa composición ya no se monte en la landing.
     film: {
       posterAlt:
         "Kova cobrando una venta: el carrito con su total, el método de pago y el aviso de venta completada.",
@@ -283,8 +280,8 @@ export const copy = {
       },
       note: "Las cifras en pantalla son de un negocio real usando Kova.",
     },
-    // Beat 04 de la historia de la venta: absorbe el paso de análisis de
-    // saleStory. El título no cambia — e2e/seo.spec asserta "Conoce exactamente".
+    // Copy reutilizable para cerrar una historia de venta con el análisis del
+    // dueño. El título no cambia — e2e/seo.spec asserta "Conoce exactamente".
     ownerDashboard: {
       kicker: "Al final del día",
       title: "Conoce exactamente qué pasa en tu negocio.",
@@ -357,8 +354,7 @@ export const copy = {
         { name: "Servicios y emprendimientos", body: "Útil si vendes productos o servicios sueltos en bazares, ferias o desde casa. No reemplaza una agenda de citas por hora.", tag: "Caso por caso", fit: "case-by-case" },
       ],
     },
-    // Barra CTA fija de móvil (StickyCta): re-enuncia la oferta cuando el
-    // visitante ya pasó el film y todavía no llega a #precio.
+    // Copy reutilizable para un posible CTA fijo de móvil.
     stickyCta: {
       note: `${STANDARD_PLAN_PRICE_LABEL} · ${BILLING_TRIAL_LABEL} gratis`,
     },
