@@ -13,7 +13,7 @@ test.describe("technical SEO (prerendered build only)", () => {
     const res = await request.get("/");
     expect(res.status()).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Cobra, controla tu inventario");
+    expect(html).toContain("Vende. Kova mantiene el resto bajo control.");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
     // El JSON-LD describe la organización y su aplicación, incluida la oferta.
