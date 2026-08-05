@@ -22,7 +22,6 @@ import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import FinalCta from "@/landing/FinalCta";
 import {
-  AudienceSection,
   BenefitsSection,
   ProblemSection,
   ReportsSpotlight,
@@ -51,7 +50,6 @@ const t = copy.landing;
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
 const NAV_LINKS = [
   { label: t.nav.howItWorks, href: "#beneficios" },
-  { label: t.nav.isItForMe, href: "#comercios" },
   { label: t.nav.customers, href: "#clientes" },
   { label: t.nav.price, href: "#precio" },
   { label: t.nav.questions, href: "#faq" },
@@ -750,7 +748,6 @@ export default function Home(): ReactNode {
           onStepView={onStoryStepView}
         />
         <ReportsSpotlight />
-        <AudienceSection />
         <TestimonialsSection
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("testimonials")}

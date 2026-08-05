@@ -12,6 +12,7 @@
 export type Testimonial = {
   quote: string;
   business: string;
+  outcome: string;
   // Nombre de la persona y ciudad: opcionales, pero suben mucho la
   // credibilidad — agrégalos en cuanto el cliente dé permiso.
   name?: string;
@@ -22,9 +23,13 @@ export const TESTIMONIALS: readonly Testimonial[] = [
   {
     quote: "Kova me ha ayudado mucho a leer mejor mi negocio y potenciarlo con ventas inteligentes",
     business: "Sweet Home",
+    outcome: "Decidir con datos",
   },
   {
-    quote: "Con Kova he podido llevar el control de mis sucursales sin depender de una misma computadora",
+    // Extracto fiel de la cita autorizada: conserva la ventaja comprobable sin
+    // presentar multi-sucursal como una función nativa del producto.
+    quote: "Con Kova he podido llevar el control… sin depender de una misma computadora",
     business: "Café Chapatito",
+    outcome: "Trabajar desde cualquier equipo",
   },
 ];

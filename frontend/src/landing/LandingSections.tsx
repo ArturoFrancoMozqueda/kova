@@ -67,26 +67,27 @@ export function ProblemSection() {
           </div>
           <div data-lp-stagger-item>
             <p className={styles.lead}>{t.problem.body}</p>
-            <p className={styles.problemPrompt}>Y al final del día todavía tienes que averiguar:</p>
+            <p className={styles.problemPrompt}>{t.problem.prompt}</p>
             <ul className={styles.problemQuestions}>
               {t.problem.questions.map((question) => <li key={question}>{question}</li>)}
             </ul>
           </div>
         </div>
 
-        <div className={styles.connectionMap} data-lp-stagger-group aria-label="Información separada que Kova conecta desde la venta">
-          <ul className={styles.fragments}>
-            {t.problem.fragments.map((fragment, index) => (
-              <li key={fragment.label} className={styles.fragment} data-position={index + 1} data-lp-stagger-item>
-                <span>{fragment.label}</span>
-                <strong>{fragment.source}</strong>
+        <div className={styles.manualFlow} data-lp-stagger-group>
+          <ol className={styles.problemSteps} aria-label="Tres tareas manuales provocadas por la misma venta">
+            {t.problem.steps.map((step) => (
+              <li key={step.number} className={styles.problemStep} data-lp-stagger-item>
+                <div className={styles.problemStepTop}>
+                  <span className={styles.problemStepNumber} aria-hidden="true">{step.number}</span>
+                  <span className={styles.problemStepTools}>{step.tools}</span>
+                </div>
+                <h3>{step.title}</h3>
+                <strong className={styles.problemStepDetail}>{step.detail}</strong>
               </li>
             ))}
-          </ul>
-          <div className={styles.kovaNode} data-lp-stagger-item>
-            <span>Kova</span>
-            <strong>{t.problem.punch}</strong>
-          </div>
+          </ol>
+          <p className={styles.problemClosing} data-lp-stagger-item>{t.problem.closing}</p>
         </div>
       </div>
     </section>
@@ -137,31 +138,6 @@ export function ReportsSpotlight() {
   );
 }
 
-export function AudienceSection() {
-  return (
-    <section id="comercios" className={`${styles.section} ${styles.audience}`} aria-labelledby="audience-title">
-      <div className={styles.inner}>
-        <span className={styles.eyebrow}>{t.audience.eyebrow}</span>
-        <h2 id="audience-title" className={styles.title}>{t.audience.title}</h2>
-        <p className={styles.lead}>{t.audience.body}</p>
-        <div className={styles.audienceGrid}>
-          {t.audience.primary.map((item, index) => (
-            <article key={item.name} className={styles.audienceItem}>
-              <span>0{index + 1}</span>
-              <h3>{item.name}</h3>
-              <p>{item.detail}</p>
-            </article>
-          ))}
-        </div>
-        <div className={styles.audienceMeta}>
-          <p className={styles.audienceSecondary}>{t.audience.secondary}</p>
-          <p className={styles.audienceNote}>{t.audience.note}</p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export function TestimonialsSection({
   primaryTarget,
   onCtaClick,
@@ -178,7 +154,10 @@ export function TestimonialsSection({
         <div className={styles.quotes}>
           {TESTIMONIALS.map((item, index) => (
             <blockquote key={item.business} className={styles.quote}>
-              <span className={styles.quoteNumber} aria-hidden="true">0{index + 1}</span>
+              <div className={styles.quoteTop}>
+                <span className={styles.quoteNumber} aria-hidden="true">0{index + 1}</span>
+                <span className={styles.quoteOutcome}>{item.outcome}</span>
+              </div>
               <p>“{item.quote}”</p>
               <footer>{item.business}</footer>
             </blockquote>
@@ -196,14 +175,21 @@ export function ValueBridge() {
   return (
     <section id="valor" className={styles.valueBridge} aria-labelledby="value-title">
       <div className={styles.valueInner}>
-        <div>
+        <div className={styles.valueCopy}>
           <span className={styles.eyebrow}>{t.pricing.worthItEyebrow}</span>
           <h2 id="value-title">{t.pricing.worthItTitle}</h2>
           <p>{t.pricing.worthItBody}</p>
         </div>
-        <ul>
-          {t.pricing.worthItItems.map((item) => <li key={item}>{item}</li>)}
-        </ul>
+        <div className={styles.valueOffer} aria-label={t.pricing.worthItPlan}>
+          <div className={styles.valuePrice}>
+            <strong className="tabular">{t.pricing.worthItDaily}</strong>
+            <span>{t.pricing.worthItDailyLabel}</span>
+          </div>
+          <ul className={styles.valueItems}>
+            {t.pricing.worthItItems.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+          <p className={styles.valuePlan}>{t.pricing.worthItPlan}</p>
+        </div>
       </div>
     </section>
   );

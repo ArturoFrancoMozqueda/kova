@@ -9,11 +9,13 @@ const FIXTURES: readonly Testimonial[] = [
     name: "Nombre Prueba",
     business: "Negocio Prueba",
     city: "Ciudad Prueba",
+    outcome: "Resultado de prueba",
   },
   {
     // Atribución mínima: solo negocio (name/city son opcionales).
     quote: "Segunda cita de prueba.",
     business: "Otro Negocio",
+    outcome: "Otro resultado",
   },
 ];
 
