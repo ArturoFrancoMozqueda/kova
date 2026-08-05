@@ -23,14 +23,13 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).not.toContain('"@type":"FAQPage"');
     expect(html).toContain('src="/hydrate-prerender.js"');
     expect(html).not.toContain('rel="modulepreload"');
-    // El póster del HeroFilm es el candidato a LCP: ambas variantes van
-    // preloaded con media queries mutuamente excluyentes y fetchpriority alto.
+    // La captura de HeroProductFrame es el LCP en todos los viewports: va
+    // preloaded una sola vez, sin media query, con fetchpriority alto.
     expect(html).toMatch(
-      /<link rel="preload" as="image" href="\/film\/mobile\/frame-\d{4}\.webp" media="\(max-width: 860px\)" fetchpriority="high">/,
+      /<link rel="preload" as="image" href="\/showcase\/register\.png" fetchpriority="high">/,
     );
-    expect(html).toMatch(
-      /<link rel="preload" as="image" href="\/film\/desktop\/frame-\d{4}\.webp" media="\(min-width: 861px\)" fetchpriority="high">/,
-    );
+    // Los frames del film ya no se renderizan: no deben competir por prioridad.
+    expect(html).not.toContain("/film/");
   });
 
   test("landing bootstrap hydrates the prerendered HTML", async ({ page }) => {
