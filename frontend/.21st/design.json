@@ -87,6 +87,10 @@
     {
       "decision": "Structure Analysis around one dominant net-sales chart followed by paired product, hour, payment and priority cards, using an adapted 21st.dev Weekly KPI Chart for the interactive period visualization.",
       "reason": "This matches the approved Analisis reference while preserving Kova's real BusinessStoryReport data, deeper operational sections and accessible interactions."
+    },
+    {
+      "decision": "Present the public landing on a light operational-paper canvas with ink contrast sections, real sanitized product captures, a four-step sale ledger and the thermal pricing receipt as the signature elements; omit decorative status dots, browser chrome, ambient loops and generic pills.",
+      "reason": "The owner approved a human, product-led amalgam that explains how one sale updates the business without adopting AI-coded visual clichés or unsupported marketing data."
     }
   ],
   "evidence": [

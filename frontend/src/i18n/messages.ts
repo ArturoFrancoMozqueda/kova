@@ -30,16 +30,16 @@ export const copy = {
       menuClose: "Cerrar menú",
     },
     hero: {
-      eyebrow: "Más que un POS. El control de tu negocio en un solo lugar.",
-      title: "Vende. Kova mantiene el resto bajo control.",
+      eyebrow: "Punto de venta para cafeterías, panaderías y negocios de mostrador",
+      title: "Cobra en el mostrador. Entiende todo tu negocio.",
       titlePart1: "Retoma el control ",
       titleEmphasis: "de tu negocio",
       titlePart2: ".",
-      subtitle: "Para cafeterías, panaderías y negocios de mostrador: cada venta actualiza inventario, caja y reportes para que sepas qué vendiste, qué se está acabando y cuánto debe haber en caja.",
+      subtitle: "Cada venta actualiza inventario, caja y reportes para que sepas qué vendiste, qué se está acabando y cuánto debe haber al cierre.",
       ctaPrimary: "Probar Kova gratis",
       ctaSecondary: "Ver cómo funciona",
       dailyNote: `≈ $${STANDARD_PLAN_DAILY_APPROX} al día`,
-      trialBadge: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
+      trialBadge: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta`,
     },
     trust: {
       eyebrow: "Negocios reales",
@@ -71,6 +71,19 @@ export const copy = {
           image: "/showcase/shifts.png",
           alt: "Turno de caja en Kova con efectivo esperado y movimientos.",
         },
+      ],
+    },
+    capabilities: {
+      eyebrow: "Todo en una sola app",
+      title: "La operación completa, sin brincar entre herramientas.",
+      body: "Kova conecta las tareas que ocurren alrededor de cada cobro. Lo que registras una vez queda listo para operar y revisar.",
+      items: [
+        { title: "Cobros claros", body: "Registra efectivo, transferencia, tarjeta o pagos divididos desde la misma venta.", proof: "Cada método queda identificado en el corte." },
+        { title: "Ventas sin internet", body: "Si la señal falla, sigues cobrando y Kova sincroniza cuando vuelve la conexión.", proof: "Sin capturar la misma venta dos veces." },
+        { title: "Turnos y cuadre", body: "Abre, registra movimientos y compara el efectivo contado contra lo esperado.", proof: "Cada diferencia queda ligada a un turno." },
+        { title: "Inventario conectado", body: "Las ventas descuentan existencias y las alertas señalan qué necesita reposición.", proof: "Sabes qué atender antes de perder una venta." },
+        { title: "Equipo con roles", body: "Define qué puede ver y hacer cada persona dentro de la operación.", proof: "Dueño, gerente y cajero trabajan con orden." },
+        { title: "Reportes útiles", body: "Consulta ventas, productos, horarios y formas de pago en un solo lugar.", proof: "Información que responde preguntas del día." },
       ],
     },
     immersiveStory: {
@@ -143,11 +156,13 @@ export const copy = {
       closing: "Una sola venta. Tres tareas manuales. Y todavía quedan dudas.",
     },
     reportsSpotlight: {
-      eyebrow: "Reportes que sí explican",
-      title: "Al final del día, ya sabes qué pasó.",
-      body: "No necesitas revisar tickets ni hacer cuentas. Kova convierte tus ventas en información que puedes usar para tomar mejores decisiones.",
+      eyebrow: "Respuestas, no ruido",
+      title: "Tus ventas se convierten en respuestas para el negocio.",
+      body: "Kova reúne lo que pasó en caja para que puedas revisar el día sin perseguir tickets ni volver a hacer cuentas.",
       productLabel: "Captura real de Reportes",
       alt: "Reportes de Kova con ventas netas, ticket promedio, mejores horarios y producto top.",
+      questionsLabel: "Preguntas que responde Reportes",
+      questions: ["¿Cuánto vendí?", "¿Qué producto se mueve?", "¿Cuándo vendo más?", "¿Qué necesita atención?"],
       insights: [
         { label: "Ventas netas", value: "$564.00" },
         { label: "Producto top", value: "Cold brew" },
@@ -396,7 +411,7 @@ export const copy = {
       // Fila TOTAL del recibo de precio ("el ticket vivo").
       receiptTotalLabel: "Total mensual",
       planName: "Plan Standard",
-      planSubtitle: "Aproximadamente $10 al día",
+      planSubtitle: "Todo incluido · Sin módulos escondidos",
       // En el momento de mayor fricción (junto al precio) el botón re-enuncia
       // la oferta completa; el trial vive en el botón y el riesgo invertido
       // se desglosa como checks en el talón (no se repite el trial ahí).

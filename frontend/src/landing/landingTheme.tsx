@@ -156,18 +156,17 @@ export const LANDING_STYLES = `
     color: var(--text-muted);
   }
 
+  /* Estado real dentro de previews heredados: marca lineal y estática, nunca
+     un punto verde pulsante ni un adorno de marketing. */
   .lp-live-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--kova-growth);
-    box-shadow: 0 0 0 0 rgba(30,191,138,0.5);
-    animation: lp-live-pulse 1.5s ease-out infinite;
+    width: 10px;
+    height: 2px;
     display: inline-block;
+    flex-shrink: 0;
+    border-radius: 0;
+    background: var(--accent);
   }
-  @keyframes lp-live-pulse {
-    0%   { box-shadow: 0 0 0 0   rgba(30,191,138,0.5); }
-    70%  { box-shadow: 0 0 0 8px rgba(30,191,138,0);   }
-    100% { box-shadow: 0 0 0 0   rgba(30,191,138,0);   }
-  }
+
   @keyframes lp-feed-in {
     from { opacity: 0; transform: translateY(-6px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -189,17 +188,13 @@ export const LANDING_STYLES = `
        nunca detrás del fondo del stage. */
     isolation: isolate;
   }
-  /* Glow ambiental del fold: dos radiales estáticos (azul de marca + un
-     rastro cálido) detrás del marco del producto. Solo pintura — cero JS;
-     el inset negativo está protegido por .lp-root { overflow-x: clip }. */
+  /* Una sola luz de marca, contenida detrás de la evidencia del producto. */
   .lp-hero-visual::before {
     content: "";
     position: absolute;
     inset: -10% -16% -20%;
     z-index: -1;
-    background:
-      radial-gradient(52% 58% at 66% 36%, rgba(79, 126, 247, 0.16), transparent 70%),
-      radial-gradient(42% 40% at 28% 82%, rgba(243, 236, 221, 0.05), transparent 70%);
+    background: radial-gradient(52% 58% at 66% 36%, rgba(79, 126, 247, 0.14), transparent 72%);
     pointer-events: none;
   }
   /* En modo film, el glow se apaga junto con la salida del hero: solo LEE la
@@ -212,11 +207,11 @@ export const LANDING_STYLES = `
     width: 100%;
     border-radius: 16px;
     border: 0.5px solid var(--hairline-strong);
-    background: #0F1117;
+    background: #FFFFFF;
     overflow: hidden;
     box-shadow:
-      0 40px 90px -48px rgba(0,0,0,0.9),
-      0 10px 30px -18px rgba(0,0,0,0.6);
+      0 38px 80px -50px rgba(15,17,23,0.42),
+      0 8px 24px -18px rgba(15,17,23,0.22);
   }
   .lp-root.lp-motion-ready .lp-hero-frame {
     animation: lp-hero-frame-in 700ms var(--kova-ease-entrance) both;
@@ -225,30 +220,52 @@ export const LANDING_STYLES = `
     from { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.985); }
     to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   }
-  .lp-hero-frame-bar {
+  .lp-hero-frame-caption {
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 14px;
-    background: #1A1D28;
-    border-bottom: 0.5px solid rgba(255,255,255,0.08);
+    padding: 0 16px;
+    border-bottom: 0.5px solid var(--hairline-color);
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+  .lp-hero-frame-caption strong {
+    color: var(--page-fg);
+    font-weight: 700;
+  }
+  /* Compatibilidad con la ruta interna de captura cinematográfica. El hero
+     público usa .lp-hero-frame-caption y no monta este chrome. */
+  .lp-hero-frame-bar {
+    min-height: 44px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--hairline-color);
+    background: #FFFFFF;
   }
   .lp-hero-frame-url {
     flex: 1;
-    text-align: center;
-    font-size: 11.5px;
+    color: var(--text-tertiary);
+    font-size: 11px;
     font-weight: 500;
-    color: #8892A4;
-    background: #0F1117;
-    border: 0.5px solid rgba(255,255,255,0.08);
-    border-radius: 999px;
-    padding: 4px 12px;
-    max-width: 260px;
-    margin: 0 auto;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-align: center;
+  }
+  .lp-hero-capture-label {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 2;
+    padding: 6px 10px;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 6px;
+    background: rgba(15,17,23,0.88);
+    color: #F0F4FF;
+    font-size: 10px;
+    font-weight: 650;
   }
   .lp-hero-frame-screen {
     background: #F8FAFB;
@@ -261,21 +278,6 @@ export const LANDING_STYLES = `
     height: 100%;
     object-fit: cover;
     object-position: center top;
-  }
-  .lp-hero-capture-label {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    z-index: 2;
-    border: 1px solid rgba(255,255,255,0.16);
-    border-radius: 999px;
-    background: rgba(15,17,23,0.88);
-    padding: 6px 10px;
-    color: #F0F4FF;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    backdrop-filter: blur(8px);
   }
   @keyframes lp-story-in {
     from { opacity: 0; transform: translate3d(0, 10px, 0); }
@@ -713,14 +715,19 @@ export const LANDING_STYLES = `
   }
 
   .lp-cta-band {
+    --page-fg: #F4F6FB;
+    --text-muted: #A8B0C0;
+    --accent: #8EAFFF;
+    --accent-soft: rgba(142,175,255,0.14);
     display: flex;
     flex-direction: column;
     gap: 30px;
     align-items: center;
     padding: 56px 40px;
     border-radius: 18px;
-    border: 0.5px solid var(--hairline-strong);
-    background: linear-gradient(180deg, var(--accent-soft), rgba(123,167,255,0.03));
+    border: 0.5px solid rgba(255,255,255,0.1);
+    background: #11141B;
+    box-shadow: 0 34px 74px -50px rgba(15,17,23,0.55);
   }
   .lp-cta-steps {
     display: grid;
@@ -834,10 +841,42 @@ export const LANDING_STYLES = `
   .lp-mobile-menu { display: none; }
 
   .lp-hero-section {
-    padding: 62px 32px 66px;
+    padding: 76px 32px 82px;
   }
   .lp-hero-shell {
     width: 100%;
+  }
+  .lp-hero-eyebrow {
+    display: block;
+    max-width: 540px;
+    margin-bottom: 20px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    line-height: 1.5;
+    text-transform: uppercase;
+  }
+  .lp-hero-pricing {
+    margin: 18px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .lp-hero-pricing strong {
+    color: var(--page-fg);
+    font-weight: 700;
+  }
+  .lp-human-note {
+    width: fit-content;
+    margin-top: 24px;
+    padding-top: 10px;
+    border-top: 1px solid var(--hairline-color);
+    color: var(--text-muted);
+    font-size: 11px;
   }
   .lp-benefit-strip {
     display: grid;

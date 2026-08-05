@@ -64,7 +64,7 @@ const ROUTES = [
   {
     path: "/",
     out: "index.html",
-    assert: "Vende. Kova mantiene el resto bajo control.",
+    assert: "Cobra en el mostrador. Entiende todo tu negocio.",
     structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
     // The HeroFilm poster is the LCP candidate on wide viewports; preloading

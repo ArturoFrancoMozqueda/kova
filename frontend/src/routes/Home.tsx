@@ -22,12 +22,11 @@ import Logo from "@/components/brand/Logo";
 import { LogoMark } from "@/components/brand/Logo";
 import FinalCta from "@/landing/FinalCta";
 import {
-  BenefitsSection,
+  CapabilitiesSection,
   ProblemSection,
   ReportsSpotlight,
   TestimonialsSection,
   TrustBar,
-  ValueBridge,
 } from "@/landing/LandingSections";
 import { TicketPaper } from "@/landing/Ticket";
 import HeroProductFrame from "@/landing/HeroProductFrame";
@@ -49,7 +48,7 @@ const t = copy.landing;
 
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
 const NAV_LINKS = [
-  { label: t.nav.howItWorks, href: "#beneficios" },
+  { label: t.nav.howItWorks, href: "#producto" },
   { label: t.nav.customers, href: "#clientes" },
   { label: t.nav.price, href: "#precio" },
   { label: t.nav.questions, href: "#faq" },
@@ -224,10 +223,7 @@ function Hero({
           className="lp-hero-grid"
         >
           <div className="lp-hero-content">
-            <span
-              className="lp-section-label"
-              style={{ marginBottom: 18, color: "var(--accent)" }}
-            >
+            <span className="lp-hero-eyebrow">
               {t.hero.eyebrow}
             </span>
             <h1
@@ -279,21 +275,9 @@ function Hero({
               </a>
             </div>
 
-            <p
-              className="lp-hero-pricing"
-              style={{
-                marginTop: 16, fontSize: 13, color: "var(--text-muted)",
-                display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8,
-              }}
-            >
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "4px 10px", borderRadius: 999,
-                background: "var(--surface)", border: "0.5px solid var(--hairline-color)",
-                fontWeight: 600, color: "var(--page-fg)",
-              }}>
-                {STANDARD_PLAN_PRICE_LABEL_ES}
-              </span>
+            <p className="lp-hero-pricing">
+              <strong>{STANDARD_PLAN_PRICE_LABEL_ES}</strong>
+              <span aria-hidden="true">·</span>
               <span>{t.hero.trialBadge}</span>
             </p>
           </div>
@@ -568,10 +552,7 @@ function Footer({
             <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 340, marginTop: 16, lineHeight: 1.55 }}>
               {t.footer.tagline}
             </p>
-            <div style={{ marginTop: 24, display: "flex", gap: 6, alignItems: "center" }}>
-              <span className="lp-live-dot" />
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.footer.humansBadge}</span>
-            </div>
+            <div className="lp-human-note">{t.footer.humansBadge}</div>
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
@@ -619,7 +600,7 @@ export default function Home(): ReactNode {
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
-  const theme: Theme = "dark";
+  const theme: Theme = "light";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
   useLandingRevealMotion();
@@ -713,7 +694,7 @@ export default function Home(): ReactNode {
     const body = document.body;
     const prevHtml = html.style.background;
     const prevBody = body.style.background;
-    const landingBg = "#0F1117"; // matches dark theme --page-bg
+    const landingBg = "#FBFBFD"; // matches light theme --page-bg
     html.style.background = landingBg;
     body.style.background = landingBg;
     return () => {
@@ -741,18 +722,17 @@ export default function Home(): ReactNode {
         />
         <TrustBar />
         <ProblemSection />
-        <BenefitsSection />
         <SaleFlowStory
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("story")}
           onStepView={onStoryStepView}
         />
+        <CapabilitiesSection />
         <ReportsSpotlight />
         <TestimonialsSection
           primaryTarget={primaryTarget}
           onCtaClick={() => onCtaClick("testimonials")}
         />
-        <ValueBridge />
         <Pricing primaryTarget={primaryTarget} onCtaClick={onCtaClick} />
         <FAQ onOpen={onFaqOpen} onWhatsAppClick={onWhatsAppClick} />
         <FinalCta primaryTarget={primaryTarget} onCtaClick={() => onCtaClick("final")} />
