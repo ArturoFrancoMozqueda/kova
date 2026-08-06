@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   assignCtaSpecificityExperiment,
+  flushFunnelEvents,
   hasFunnelClientId,
   trackAnonymousEvent,
   trackAnonymousEventOnce,
   trackExperimentExposed,
   trackFunnelEvent,
+  trackAnalysisActionFeedback,
+  trackAnalysisActionState,
+  trackAnalysisViewed,
   trackSignupValidationFailed,
 } from "./funnel";
 
@@ -179,6 +183,7 @@ describe("anonymous funnel path", () => {
     await trackFunnelEvent("first_sale_completed", {
       email: "owner@example.com",
       tenant_id: "tenant-secret",
+      product_id: "product-secret",
       total_amount: "299.00",
       section: "register",
     });
@@ -188,6 +193,94 @@ describe("anonymous funnel path", () => {
     expect(body.properties.section).toBe("register");
     expect(body.properties.email).toBeUndefined();
     expect(body.properties.tenant_id).toBeUndefined();
+    expect(body.properties.product_id).toBeUndefined();
     expect(body.properties.total_amount).toBeUndefined();
+  });
+
+  it("sends analysis adoption events with categorical metadata only", async () => {
+    await trackAnalysisViewed({
+      range_days: 7,
+      preset: "seven_days",
+      has_previous_period: true,
+      recommendation_count: 3,
+    });
+    await trackAnalysisActionState(true, {
+      template_id: "R2",
+      decision_area: "inventario",
+      priority: "alta",
+      surface: "prioridad",
+    });
+    await trackAnalysisActionFeedback("helpful", {
+      template_id: "R2",
+      decision_area: "inventario",
+      priority: "alta",
+      surface: "prioridad",
+    });
+
+    const view = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const action = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const feedback = JSON.parse(fetchMock.mock.calls[2][1].body as string);
+    expect(view).toMatchObject({
+      event_name: "analysis_viewed",
+      properties: {
+        range_days: 7,
+        preset: "seven_days",
+        has_previous_period: true,
+        recommendation_count: 3,
+      },
+    });
+    expect(action).toMatchObject({
+      event_name: "analysis_action_completed",
+      properties: {
+        template_id: "R2",
+        decision_area: "inventario",
+        priority: "alta",
+        surface: "prioridad",
+      },
+    });
+    expect(feedback).toMatchObject({
+      event_name: "analysis_action_feedback",
+      properties: {
+        template_id: "R2",
+        decision_area: "inventario",
+        priority: "alta",
+        surface: "prioridad",
+        helpfulness: "helpful",
+      },
+    });
+  });
+
+  it("retries transient failures but drops permanently invalid events", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await trackFunnelEvent("analysis_viewed", {
+      range_days: 7,
+      preset: "seven_days",
+      has_previous_period: true,
+      recommendation_count: 1,
+    });
+    expect(JSON.parse(window.localStorage.getItem("kova:funnel-events") ?? "[]")).toHaveLength(1);
+
+    window.localStorage.removeItem("kova:funnel-events");
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 422 }));
+    await trackFunnelEvent("analysis_viewed", { unsupported: "value" });
+    expect(JSON.parse(window.localStorage.getItem("kova:funnel-events") ?? "[]")).toHaveLength(0);
+  });
+
+  it("scrubs forbidden identifiers from previously queued events before retry", async () => {
+    window.localStorage.setItem(
+      "kova:funnel-events",
+      JSON.stringify([
+        {
+          event_name: "first_product_created",
+          client_event_id: "legacy-product-event",
+          properties: { product_id: "secret-product", path: "/catalog" },
+        },
+      ]),
+    );
+    await flushFunnelEvents();
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.properties.product_id).toBeUndefined();
+    expect(window.localStorage.getItem("kova:funnel-events")).toBe("[]");
   });
 });

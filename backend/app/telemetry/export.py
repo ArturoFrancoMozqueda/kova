@@ -1,12 +1,15 @@
 import csv
 import io
-from collections import defaultdict
+from collections import Counter, defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.orders.models import Order
+from app.shifts.models import Shift
 from app.telemetry.models import AnonymousTelemetryEvent, TelemetryEvent
 
 CRO_EXPORT_COLUMNS = (
@@ -41,6 +44,15 @@ _CONVERSION_LABEL = {
     4: "activated",
     5: "paid",
 }
+
+ANALYSIS_EVENT_NAMES = (
+    "analysis_viewed",
+    "analysis_recommendation_opened",
+    "analysis_action_started",
+    "analysis_action_completed",
+    "analysis_action_reopened",
+    "analysis_action_feedback",
+)
 
 
 def _text_property(properties: dict[str, Any], key: str) -> str:
@@ -105,3 +117,175 @@ def build_cro_export(
             }
         )
     return output.getvalue()
+
+
+def _rate(numerator: int, denominator: int) -> float:
+    return round(numerator / denominator, 4) if denominator else 0.0
+
+
+def summarize_analysis_adoption(
+    events: Iterable[TelemetryEvent],
+    first_sales: Iterable[tuple[Any, datetime]],
+    closed_shifts: Iterable[tuple[Any, datetime]],
+    *,
+    days: int,
+    now: datetime,
+) -> dict[str, Any]:
+    """Build an identity-free tracker summary from already bounded observations."""
+    end = now or datetime.now(UTC)
+    start = end - timedelta(days=days)
+    previous_start = start - timedelta(days=days)
+    all_events = list(events)
+    sale_observations = list(first_sales)
+    shift_observations = list(closed_shifts)
+    current_events = [event for event in all_events if start <= event.created_at <= end]
+    previous_events = [
+        event for event in all_events if previous_start <= event.created_at < start
+    ]
+
+    viewed_tenants = {
+        event.tenant_id
+        for event in current_events
+        if event.event_name == "analysis_viewed"
+    }
+    previous_viewed_tenants = {
+        event.tenant_id
+        for event in previous_events
+        if event.event_name == "analysis_viewed"
+    }
+    completed_tenants = {
+        event.tenant_id
+        for event in current_events
+        if event.event_name == "analysis_action_completed"
+    }
+    helpful_tenants = {
+        event.tenant_id
+        for event in current_events
+        if event.event_name == "analysis_action_feedback"
+        and event.properties.get("helpfulness") == "helpful"
+    }
+    not_yet_tenants = {
+        event.tenant_id
+        for event in current_events
+        if event.event_name == "analysis_action_feedback"
+        and event.properties.get("helpfulness") == "not_yet"
+    }
+    active_tenants = {tenant_id for tenant_id, _ in sale_observations}
+    active_viewers = active_tenants & viewed_tenants
+    completed_viewers = viewed_tenants & completed_tenants
+    helpful_viewers = completed_viewers & helpful_tenants
+    not_yet_viewers = completed_viewers & not_yet_tenants
+    active_completed = active_tenants & completed_viewers
+    active_helpful = active_tenants & helpful_viewers
+    returning_viewers = previous_viewed_tenants & viewed_tenants
+
+    view_times: defaultdict[Any, list[datetime]] = defaultdict(list)
+    for event in current_events:
+        if event.event_name == "analysis_viewed":
+            view_times[event.tenant_id].append(event.created_at)
+    first_sale_times = {
+        tenant_id: first_sale_at for tenant_id, first_sale_at in sale_observations
+    }
+    shift_times: defaultdict[Any, list[datetime]] = defaultdict(list)
+    for tenant_id, closed_at in shift_observations:
+        shift_times[tenant_id].append(closed_at)
+    closed_tenants = set(shift_times)
+    sale_close_analysis_tenants = {
+        tenant_id
+        for tenant_id in active_tenants & closed_tenants & viewed_tenants
+        if any(
+            first_sale_times[tenant_id] <= closed_at <= viewed_at
+            for closed_at in shift_times[tenant_id]
+            for viewed_at in view_times[tenant_id]
+        )
+    }
+
+    event_counts = Counter(event.event_name for event in current_events)
+    decision_area_counts = Counter(
+        area
+        for event in current_events
+        if isinstance((area := event.properties.get("decision_area")), str)
+    )
+    completed_area_counts = Counter(
+        event.properties["decision_area"]
+        for event in current_events
+        if event.event_name == "analysis_action_completed"
+        and isinstance(event.properties.get("decision_area"), str)
+    )
+    return {
+        "window": {
+            "days": days,
+            "start": start.astimezone(UTC).isoformat(),
+            "end": end.astimezone(UTC).isoformat(),
+        },
+        "tenants": {
+            "active": len(active_tenants),
+            "viewed": len(viewed_tenants),
+            "active_viewed": len(active_viewers),
+            "completed_action": len(completed_viewers),
+            "helpful_action": len(helpful_viewers),
+            "not_yet_action": len(not_yet_viewers),
+            "active_completed_action": len(active_completed),
+            "active_helpful_action": len(active_helpful),
+        },
+        "rates": {
+            "active_view_rate": _rate(len(active_viewers), len(active_tenants)),
+            "viewer_completion_rate": _rate(len(completed_viewers), len(viewed_tenants)),
+            "viewer_helpful_rate": _rate(len(helpful_viewers), len(viewed_tenants)),
+            "active_completion_rate": _rate(len(active_completed), len(active_tenants)),
+            "active_helpful_rate": _rate(len(active_helpful), len(active_tenants)),
+        },
+        "retention": {
+            "previous_viewed": len(previous_viewed_tenants),
+            "returning_viewed": len(returning_viewers),
+            "return_rate": _rate(len(returning_viewers), len(previous_viewed_tenants)),
+        },
+        "journey": {
+            "sold": len(active_tenants),
+            "closed_shift": len(closed_tenants),
+            "sale_close_analysis": len(sale_close_analysis_tenants),
+            "sale_close_analysis_rate": _rate(
+                len(sale_close_analysis_tenants), len(active_tenants)
+            ),
+        },
+        "events": {name: event_counts.get(name, 0) for name in ANALYSIS_EVENT_NAMES},
+        "decision_areas": dict(sorted(decision_area_counts.items())),
+        "completed_decision_areas": dict(sorted(completed_area_counts.items())),
+    }
+
+
+def build_analysis_adoption_report(
+    db: Session, *, days: int = 7, now: datetime | None = None
+) -> dict[str, Any]:
+    """Return business-level analysis adoption without exposing tenant identities."""
+    end = now or datetime.now(UTC)
+    start = end - timedelta(days=days)
+    previous_start = start - timedelta(days=days)
+    events = db.scalars(
+        select(TelemetryEvent)
+        .where(TelemetryEvent.created_at >= previous_start)
+        .where(TelemetryEvent.created_at <= end)
+        .where(TelemetryEvent.event_name.in_(ANALYSIS_EVENT_NAMES))
+    ).all()
+    sale_at = func.coalesce(Order.occurred_at, Order.created_at)
+    first_sales = db.execute(
+        select(Order.tenant_id, func.min(sale_at).label("first_sale_at"))
+        .where(Order.status == "completed")
+        .where(sale_at >= start)
+        .where(sale_at <= end)
+        .group_by(Order.tenant_id)
+    ).all()
+    closed_shifts = db.execute(
+        select(Shift.tenant_id, Shift.closed_at)
+        .where(Shift.status == "closed")
+        .where(Shift.closed_at.is_not(None))
+        .where(Shift.closed_at >= start)
+        .where(Shift.closed_at <= end)
+    ).all()
+    return summarize_analysis_adoption(
+        events,
+        first_sales,
+        closed_shifts,
+        days=days,
+        now=end,
+    )

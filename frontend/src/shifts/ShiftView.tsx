@@ -139,6 +139,7 @@ export default function ShiftView() {
     setOperationPending(true);
     try {
       await closeShift(loadState.openShift.id, payload);
+      void trackFunnelEvent("close_shift");
       setActiveModal(null);
       toast(copy.shiftView.closeSuccess, "success");
       await load();

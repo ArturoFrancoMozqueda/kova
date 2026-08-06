@@ -20,6 +20,12 @@ vi.mock("../inventory/api", () => ({ listStock: vi.fn(), listVelocity: vi.fn() }
 vi.mock("@/auth/useAuth", () => ({
   useAuth: () => ({ state: { status: "authenticated", tenantId: "tenant-1" } }),
 }));
+const telemetry = vi.hoisted(() => ({
+  trackAnalysisActionFeedback: vi.fn(),
+  trackAnalysisActionState: vi.fn(),
+  trackAnalysisViewed: vi.fn(),
+}));
+vi.mock("@/telemetry/funnel", () => telemetry);
 
 import { getBusinessStory, getSalesByHour } from "./api";
 import { listStock, listVelocity } from "../inventory/api";
@@ -37,6 +43,7 @@ function renderView() {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
   (useFeature as Mock).mockReturnValue(false);
   (getSalesByHour as Mock).mockResolvedValue([]);
   (listStock as Mock).mockResolvedValue([]);
@@ -57,6 +64,31 @@ describe("ReportsView", () => {
     // The priority action must be readable without any interaction.
     expect(screen.getByTestId("priority-recommendation")).toBeInTheDocument();
     expect(screen.queryByTestId("margin-analysis")).not.toBeInTheDocument();
+    expect(telemetry.trackAnalysisViewed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        range_days: 7,
+        preset: "custom",
+        recommendation_count: expect.any(Number),
+      }),
+    );
+  });
+
+  it("tracks a completed recommendation and its usefulness feedback", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    renderView();
+    await screen.findByTestId("priority-recommendation");
+
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.planMarkDone }));
+    expect(telemetry.trackAnalysisActionState).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({ surface: "prioridad" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.actionFeedbackHelpful }));
+    expect(telemetry.trackAnalysisActionFeedback).toHaveBeenCalledWith(
+      "helpful",
+      expect.objectContaining({ surface: "prioridad" }),
+    );
   });
 
   it("shows exact margin only when the tenant flag is enabled", async () => {

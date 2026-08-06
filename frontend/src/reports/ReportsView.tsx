@@ -28,9 +28,16 @@ import { DaypartsPanel } from "./components/TimingAnalysis";
 import { usePlanDoneState } from "./hooks/usePlanDoneState";
 import { useReportData } from "./hooks/useReportData";
 import type { BusinessStoryReport } from "./types";
-import { buildActionPlan } from "./utils/actionPlan";
+import { buildActionPlan, recommendationDecisionArea } from "./utils/actionPlan";
 import { activePreset, daysBetweenInclusive, presetRange, type ReportPreset } from "./utils/dateRange";
 import { buildRecommendations } from "./utils/recommendations";
+import {
+  trackAnalysisActionState,
+  trackAnalysisActionFeedback,
+  trackAnalysisViewed,
+  type AnalysisActionContext,
+  type AnalysisHelpfulness,
+} from "@/telemetry/funnel";
 
 function recommendationsFor(
   story: BusinessStoryReport,
@@ -70,7 +77,9 @@ export default function ReportsView() {
   }, [tz, tzResolved]);
 
   const data = useReportData(appliedRange.startDate, appliedRange.endDate, canViewReports);
-  const { doneIds, toggleDone } = usePlanDoneState(data.story ?? null);
+  const { doneIds, feedbackById, toggleDone, setFeedback, clearFeedback } = usePlanDoneState(
+    data.story ?? null,
+  );
 
   // Recommendations + action plan build Sets/Maps over stock, velocity and the
   // full story; memoized so typing in the date inputs (or any unrelated state
@@ -87,6 +96,43 @@ export default function ReportsView() {
       previousStory: data.previousStory,
     });
   }, [data.status, data.story, data.previousStory, data.stock, data.velocity]);
+
+  const trackedAnalysisKey = useRef("");
+  useEffect(() => {
+    const story = data.story;
+    if (data.status !== "loaded" || !story || story.summary.completed_orders === 0) return;
+    const key = `${story.summary.start_date}:${story.summary.end_date}:${story.summary.completed_orders}`;
+    if (trackedAnalysisKey.current === key) return;
+    trackedAnalysisKey.current = key;
+    const preset = activePreset(
+      story.summary.start_date,
+      story.summary.end_date,
+      tz,
+    );
+    void trackAnalysisViewed({
+      range_days: daysBetweenInclusive(story.summary.start_date, story.summary.end_date),
+      preset: preset ?? "custom",
+      has_previous_period: data.previousStory !== null,
+      recommendation_count:
+        (plan?.hero ? 1 : 0) + (plan?.actions.length ?? 0),
+    });
+  }, [data.status, data.story, data.previousStory, plan, tz]);
+
+  const toggleTrackedAction = (id: string, context: AnalysisActionContext) => {
+    const completed = !doneIds.has(id);
+    void trackAnalysisActionState(completed, context);
+    if (!completed) clearFeedback(id);
+    toggleDone(id);
+  };
+
+  const recordActionFeedback = (
+    id: string,
+    helpfulness: AnalysisHelpfulness,
+    context: AnalysisActionContext,
+  ) => {
+    setFeedback(id, helpfulness);
+    void trackAnalysisActionFeedback(helpfulness, context);
+  };
 
   const setToday = () => {
     const today = todayInTimezone(tz);
@@ -153,7 +199,25 @@ export default function ReportsView() {
             hourlyFailed={data.hourlyFailed}
             priority={plan?.hero ?? null}
             priorityDone={heroId !== null && doneIds.has(heroId)}
-            onTogglePriority={() => heroId && toggleDone(heroId)}
+            priorityFeedback={heroId ? feedbackById[heroId] : undefined}
+            onTogglePriority={() => {
+              if (!heroId || !plan?.hero) return;
+              toggleTrackedAction(heroId, {
+                template_id: plan.hero.id,
+                decision_area: recommendationDecisionArea(plan.hero.id),
+                priority: plan.hero.priority,
+                surface: "prioridad",
+              });
+            }}
+            onPriorityFeedback={(helpfulness) => {
+              if (!heroId || !plan?.hero || plan.hero.tone === "good_signal") return;
+              recordActionFeedback(heroId, helpfulness, {
+                template_id: plan.hero.id,
+                decision_area: recommendationDecisionArea(plan.hero.id),
+                priority: plan.hero.priority,
+                surface: "prioridad",
+              });
+            }}
           />
 
           {marginReportsEnabled ? <MarginAnalysis story={story} /> : null}
@@ -173,7 +237,25 @@ export default function ReportsView() {
             actions={plan?.actions ?? []}
             signals={plan?.signals ?? []}
             doneIds={doneIds}
-            onToggleDone={toggleDone}
+            feedbackById={feedbackById}
+            onToggleDone={(item) => {
+              if (!item.priority) return;
+              toggleTrackedAction(item.id, {
+                template_id: item.templateId,
+                decision_area: item.decisionArea,
+                priority: item.priority,
+                surface: "plan",
+              });
+            }}
+            onFeedback={(item, helpfulness) => {
+              if (!item.priority) return;
+              recordActionFeedback(item.id, helpfulness, {
+                template_id: item.templateId,
+                decision_area: item.decisionArea,
+                priority: item.priority,
+                surface: "plan",
+              });
+            }}
           />
         </div>
       ) : null}

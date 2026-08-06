@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { cn } from "@/lib/utils";
 import type { ActionPlanItem } from "../utils/actionPlan";
-import { DoneToggle, GoLink } from "./planShared";
+import { ActionFeedback, DoneToggle, GoLink } from "./planShared";
+import { trackAnalysisActionStarted, type AnalysisHelpfulness } from "@/telemetry/funnel";
 
 /** Hard cap on action rows even when expanded. */
 const MAX_ACTIONS = 8;
@@ -21,11 +22,15 @@ function SignalIcon({ tone }: { tone: ActionPlanItem["tone"] }) {
 function ChecklistRow({
   item,
   done,
+  feedback,
   onToggleDone,
+  onFeedback,
 }: {
   item: ActionPlanItem;
   done: boolean;
-  onToggleDone: () => void;
+  feedback?: AnalysisHelpfulness;
+  onToggleDone: (item: ActionPlanItem) => void;
+  onFeedback: (item: ActionPlanItem, value: AnalysisHelpfulness) => void;
 }) {
   // Only actions are tasks the owner can mark as done; watch/ok signals keep
   // their state icon.
@@ -33,7 +38,7 @@ function ChecklistRow({
   return (
     <li className="flex items-start gap-3 rounded-kova-md border border-kova-border bg-white px-4 py-3">
       {checkable ? (
-        <DoneToggle done={done} onToggle={onToggleDone} priority={item.priority} />
+        <DoneToggle done={done} onToggle={() => onToggleDone(item)} priority={item.priority} />
       ) : (
         <SignalIcon tone={item.tone} />
       )}
@@ -49,7 +54,23 @@ function ChecklistRow({
         {item.evidence ? (
           <p className="mt-0.5 text-xs leading-5 text-kova-muted">{item.evidence}</p>
         ) : null}
-        {item.linkTo && !(checkable && done) ? <GoLink to={item.linkTo} /> : null}
+        {item.linkTo && !(checkable && done) ? (
+          <GoLink
+            to={item.linkTo}
+            onClick={() => {
+              if (!item.priority) return;
+              void trackAnalysisActionStarted({
+                template_id: item.templateId,
+                decision_area: item.decisionArea,
+                priority: item.priority,
+                surface: "plan",
+              });
+            }}
+          />
+        ) : null}
+        {checkable && done ? (
+          <ActionFeedback value={feedback} onSelect={(value) => onFeedback(item, value)} />
+        ) : null}
       </div>
     </li>
   );
@@ -64,12 +85,16 @@ export function ActionPlanSection({
   actions,
   signals,
   doneIds,
+  feedbackById,
   onToggleDone,
+  onFeedback,
 }: {
   actions: ActionPlanItem[];
   signals: ActionPlanItem[];
   doneIds: Set<string>;
-  onToggleDone: (id: string) => void;
+  feedbackById: Record<string, AnalysisHelpfulness>;
+  onToggleDone: (item: ActionPlanItem) => void;
+  onFeedback: (item: ActionPlanItem, value: AnalysisHelpfulness) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const items = [...actions.slice(0, MAX_ACTIONS), ...signals];
@@ -97,7 +122,9 @@ export function ActionPlanSection({
                 key={item.id}
                 item={item}
                 done={doneIds.has(item.id)}
-                onToggleDone={() => onToggleDone(item.id)}
+                feedback={feedbackById[item.id]}
+                onToggleDone={() => onToggleDone(item)}
+                onFeedback={onFeedback}
               />
             ))}
           </ul>

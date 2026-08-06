@@ -6,9 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
 import { cn } from "@/lib/utils";
-import { recommendationLink } from "../utils/actionPlan";
+import { recommendationDecisionArea, recommendationLink } from "../utils/actionPlan";
 import type { Recommendation, RecommendationPriority } from "../utils/recommendations";
-import { GoLink } from "./planShared";
+import { ActionFeedback, GoLink } from "./planShared";
+import {
+  trackAnalysisActionStarted,
+  trackAnalysisRecommendationOpened,
+  type AnalysisHelpfulness,
+} from "@/telemetry/funnel";
 
 function priorityBadgeVariant(priority: RecommendationPriority) {
   if (priority === "alta") return "destructive" as const;
@@ -31,11 +36,15 @@ function toneBorder(tone: Recommendation["tone"]) {
 export function PriorityActionCard({
   recommendation,
   done,
+  feedback,
   onToggleDone,
+  onFeedback,
 }: {
   recommendation: Recommendation | null;
   done: boolean;
+  feedback?: AnalysisHelpfulness;
   onToggleDone: () => void;
+  onFeedback: (value: AnalysisHelpfulness) => void;
 }) {
   const [whyOpen, setWhyOpen] = useState(false);
 
@@ -51,6 +60,12 @@ export function PriorityActionCard({
   }
 
   const link = recommendationLink(recommendation.id);
+  const telemetryContext = {
+    template_id: recommendation.id,
+    decision_area: recommendationDecisionArea(recommendation.id),
+    priority: recommendation.priority,
+    surface: "prioridad" as const,
+  };
 
   return (
     <div
@@ -61,15 +76,17 @@ export function PriorityActionCard({
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-kova-muted">
           {copy.reportsView.priorityRecommendationKicker}
         </p>
-        <Button variant="ghost" size="sm" className="-mr-2 -mt-1.5 h-7 px-2 text-xs" onClick={onToggleDone}>
-          {done ? (
-            <span className="flex items-center gap-1 text-kova-growth">
-              <Check className="h-3.5 w-3.5" /> {copy.reportsView.planDone}
-            </span>
-          ) : (
-            copy.reportsView.planMarkDone
-          )}
-        </Button>
+        {recommendation.tone !== "good_signal" ? (
+          <Button variant="ghost" size="sm" className="-mr-2 -mt-1.5 h-7 px-2 text-xs" onClick={onToggleDone}>
+            {done ? (
+              <span className="flex items-center gap-1 text-kova-growth">
+                <Check className="h-3.5 w-3.5" /> {copy.reportsView.planDone}
+              </span>
+            ) : (
+              copy.reportsView.planMarkDone
+            )}
+          </Button>
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={priorityBadgeVariant(recommendation.priority)}>
@@ -85,7 +102,10 @@ export function PriorityActionCard({
       </p>
       <Disclosure
         open={whyOpen}
-        onOpenChange={setWhyOpen}
+        onOpenChange={(open) => {
+          setWhyOpen(open);
+          if (open && !whyOpen) void trackAnalysisRecommendationOpened(telemetryContext);
+        }}
         className="mt-2"
         trigger={whyOpen ? copy.reportsView.priorityWhyHide : copy.reportsView.priorityWhyShow}
         triggerClassName="h-auto gap-1 px-0 py-0 text-xs text-kova-blue hover:bg-transparent hover:underline"
@@ -102,8 +122,14 @@ export function PriorityActionCard({
       </Disclosure>
       {link && !done ? (
         <div>
-          <GoLink to={link} />
+          <GoLink
+            to={link}
+            onClick={() => void trackAnalysisActionStarted(telemetryContext)}
+          />
         </div>
+      ) : null}
+      {done && recommendation.tone !== "good_signal" ? (
+        <ActionFeedback value={feedback} onSelect={onFeedback} />
       ) : null}
     </div>
   );

@@ -851,9 +851,7 @@ export default function CatalogView() {
                   const product = await createProduct(values);
                   productId = product.id;
                   await setProductModifierGroups(product.id, values.modifier_group_ids);
-                  trackFunnelEventOnce("first_product", "first_product_created", {
-                    product_id: product.id,
-                  });
+                  trackFunnelEventOnce("first_product", "first_product_created");
                   showNotice(copy.catalog.productCreated);
                 } else {
                   await updateProduct(modal.product.id, values);

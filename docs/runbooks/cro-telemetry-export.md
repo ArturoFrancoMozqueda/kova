@@ -78,3 +78,33 @@ interno/bots, calidad de segmentos, guardrails y el registro del experimento ant
 Después de cada corte, adjunta el Markdown generado a `docs/audits/` y recalcula ICE con la muestra
 y el efecto observados. Si la ventana todavía no ha transcurrido, registra el checkpoint como
 pendiente; no adelantes el `--as-of` ni mezcles días pre-rollout.
+
+## Adopción del análisis accionable de Kova
+
+Kova usa un reporte interno separado porque el KPI se calcula por negocio, no por navegador. El
+servidor agrupa usando `tenant_id`, pero la respuesta solo devuelve conteos y nunca incluye IDs,
+usuarios, importes ni texto operativo.
+
+```bash
+curl --fail --silent --show-error \
+  -H "X-Internal-Key: $INTERNAL_API_KEY" \
+  "https://api.kovasuite.com/api/v1/telemetry/internal/analysis-adoption?days=7"
+```
+
+Ejecuta también el corte de 30 días cambiando `days=30`. La respuesta incluye:
+
+- negocios que abrieron Análisis;
+- negocios activos por ventas reales y cuántos abrieron Análisis;
+- negocios que completaron una acción y cuántos confirmaron que fue útil;
+- tasas sobre negocios activos y sobre negocios que consultaron Análisis;
+- retorno de negocios que consultaron Análisis en la ventana anterior;
+- recorrido observable venta → cierre de turno → Análisis;
+- conteo de vistas, evidencia, inicio, finalización, reapertura y feedback;
+- distribución categórica de interacciones por área de decisión.
+
+Si un negocio completa una acción sin una vista registrada en la misma ventana, no entra al
+numerador: esto evita inflar la tasa por eventos antiguos o ventanas incompletas.
+
+`viewer_helpful_rate` es la métrica principal. `viewer_completion_rate` es una señal de interacción,
+no de utilidad. `sale_close_analysis_rate` es un proxy de recorrido observable y no prueba que se haya
+realizado sin asistencia.

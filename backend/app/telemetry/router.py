@@ -1,7 +1,8 @@
 import hmac
 from datetime import UTC, datetime
+from enum import IntEnum
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -15,12 +16,23 @@ from app.shared.exceptions import forbidden
 from app.telemetry import export
 from app.telemetry.models import AnonymousTelemetryEvent, TelemetryEvent
 from app.telemetry.schemas import (
+    AnalysisAdoptionReport,
     AnonymousTelemetryEventCreate,
     TelemetryEventCreate,
     TelemetryEventResponse,
 )
 
 router = APIRouter(prefix="/api/v1/telemetry", tags=["telemetry"])
+
+
+class AnalysisWindowDays(IntEnum):
+    WEEK = 7
+    MONTH = 30
+
+
+def _violates_constraint(exc: IntegrityError, name: str) -> bool:
+    diagnostic = getattr(exc.orig, "diag", None)
+    return getattr(diagnostic, "constraint_name", None) == name
 
 
 @router.post("/events", response_model=TelemetryEventResponse, status_code=202)
@@ -41,8 +53,10 @@ def create_event(
     )
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
+        if not _violates_constraint(exc, "uq_telemetry_tenant_client_event"):
+            raise
     return TelemetryEventResponse()
 
 
@@ -78,9 +92,11 @@ def create_anonymous_event(
     )
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         # Duplicate client_event_id (retry / double-fire) — idempotent no-op.
         db.rollback()
+        if not _violates_constraint(exc, "uq_anon_telemetry_client_event"):
+            raise
     return TelemetryEventResponse()
 
 
@@ -106,4 +122,29 @@ def export_cro_funnel(
         headers={
             "Content-Disposition": f'attachment; filename="kova-cro-30d-{stamp}.csv"'
         },
+    )
+
+
+@router.get(
+    "/internal/analysis-adoption",
+    include_in_schema=False,
+    response_model=AnalysisAdoptionReport,
+)
+def analysis_adoption(
+    days: AnalysisWindowDays = Query(default=AnalysisWindowDays.WEEK),
+    x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
+    db: Session = Depends(get_privileged_db),
+) -> AnalysisAdoptionReport:
+    """Operator-only aggregate; tenant and user identifiers never leave the server."""
+    expected = settings.internal_api_key
+    if (
+        not expected
+        or not x_internal_key
+        or not hmac.compare_digest(
+            x_internal_key.encode("utf-8"), expected.encode("utf-8")
+        )
+    ):
+        raise forbidden("Invalid or missing internal API key")
+    return AnalysisAdoptionReport.model_validate(
+        export.build_analysis_adoption_report(db, days=int(days))
     )

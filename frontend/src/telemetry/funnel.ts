@@ -52,6 +52,24 @@ export type CheckoutState =
   | "return_cancel";
 export type CroExperiment = "exp_01_cta_specificity";
 export type ExperimentVariant = "control" | "treatment";
+export type AnalysisDecisionArea =
+  | "caja"
+  | "inventario"
+  | "margen"
+  | "gasto"
+  | "cliente"
+  | "empleado"
+  | "crecimiento";
+export type AnalysisPriority = "alta" | "media" | "baja";
+export type AnalysisSurface = "prioridad" | "plan";
+export type AnalysisPreset = "today" | "seven_days" | "month" | "custom";
+export type AnalysisHelpfulness = "helpful" | "not_yet";
+export type AnalysisActionContext = {
+  template_id: string;
+  decision_area: AnalysisDecisionArea;
+  priority: AnalysisPriority;
+  surface: AnalysisSurface;
+};
 
 const DIRECT_ATTRIBUTION: FirstTouch = {
   source: "direct",
@@ -61,7 +79,7 @@ const DIRECT_ATTRIBUTION: FirstTouch = {
 const CAMPAIGN_VALUE_PATTERN = /^[a-z0-9][a-z0-9._~-]{0,79}$/;
 const EMAIL_LIKE_PATTERN = /\b[^\s@]+@[^\s@]+\.[^\s@]+\b/i;
 const FORBIDDEN_PROPERTY_KEY_PATTERN =
-  /(^|_)(email|name|phone|password|amount|tenant_id|user_id|order_id|subscription_id|query|url)($|_)/i;
+  /(^|_)(email|name|phone|password|amount|tenant_id|user_id|order_id|product_id|customer_id|employee_id|supplier_id|subscription_id|query|url)($|_)/i;
 
 let fallbackClientId: string | null = null;
 
@@ -242,8 +260,8 @@ export async function trackFunnelEvent(event_name: string, properties: Record<st
     client_event_id: eventId(event_name),
     properties: commonProperties(properties),
   };
-  const sent = await sendEvent(event);
-  if (!sent) writeQueue([...readQueue(), event]);
+  const delivery = await sendEvent(event);
+  if (delivery === "retry") writeQueue([...readQueue(), event]);
 }
 
 export async function flushFunnelEvents() {
@@ -252,8 +270,9 @@ export async function flushFunnelEvents() {
   if (queue.length === 0) return;
   const remaining: FunnelEvent[] = [];
   for (const event of queue) {
-    const sent = await sendEvent(event);
-    if (!sent) remaining.push(event);
+    const sanitized = { ...event, properties: safeProperties(event.properties) };
+    const delivery = await sendEvent(sanitized);
+    if (delivery === "retry") remaining.push(sanitized);
   }
   writeQueue(remaining);
 }
@@ -334,6 +353,40 @@ export function trackCheckoutStateViewed(state: CheckoutState) {
   return trackFunnelEvent("checkout_state_viewed", { state });
 }
 
+export function trackAnalysisViewed(properties: {
+  range_days: number;
+  preset: AnalysisPreset;
+  has_previous_period: boolean;
+  recommendation_count: number;
+}) {
+  return trackFunnelEvent("analysis_viewed", properties);
+}
+
+export function trackAnalysisRecommendationOpened(context: AnalysisActionContext) {
+  return trackFunnelEvent("analysis_recommendation_opened", context);
+}
+
+export function trackAnalysisActionStarted(context: AnalysisActionContext) {
+  return trackFunnelEvent("analysis_action_started", context);
+}
+
+export function trackAnalysisActionState(
+  completed: boolean,
+  context: AnalysisActionContext,
+) {
+  return trackFunnelEvent(
+    completed ? "analysis_action_completed" : "analysis_action_reopened",
+    context,
+  );
+}
+
+export function trackAnalysisActionFeedback(
+  helpfulness: AnalysisHelpfulness,
+  context: AnalysisActionContext,
+) {
+  return trackFunnelEvent("analysis_action_feedback", { ...context, helpfulness });
+}
+
 export function trackExperimentExposed(
   experiment_id: CroExperiment,
   variant: ExperimentVariant,
@@ -355,7 +408,9 @@ export function trackExperimentExposed(
   void trackAnonymousEvent("experiment_exposed", { experiment_id, variant, cta });
 }
 
-async function sendEvent(event: FunnelEvent): Promise<boolean> {
+type EventDelivery = "sent" | "retry" | "drop";
+
+async function sendEvent(event: FunnelEvent): Promise<EventDelivery> {
   try {
     const response = await fetch("/api/v1/telemetry/events", {
       method: "POST",
@@ -364,8 +419,18 @@ async function sendEvent(event: FunnelEvent): Promise<boolean> {
       keepalive: true,
       body: JSON.stringify(event),
     });
-    return response.ok;
+    if (response.ok) return "sent";
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      response.status === 408 ||
+      response.status === 425 ||
+      response.status === 429
+    ) {
+      return "retry";
+    }
+    return response.status >= 500 ? "retry" : "drop";
   } catch {
-    return false;
+    return "retry";
   }
 }
