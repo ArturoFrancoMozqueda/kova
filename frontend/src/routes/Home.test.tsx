@@ -132,7 +132,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
 
     expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Cobra en el mostrador. Entiende todo tu negocio.",
+      "Vende. Kova mantiene el resto bajo control.",
     );
     expect(sectionIds).toEqual([
       "problema",
@@ -145,7 +145,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       "cta-final",
     ]);
     expect(container.querySelector('a[href="#comercios"]')).toBeNull();
-    expect(screen.getByText(/Punto de venta para cafeterías, panaderías y negocios de mostrador/i)).toBeVisible();
+    expect(screen.getByText(/Más que un POS\. El control de tu negocio en un solo lugar\./i)).toBeVisible();
     expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(/Cada venta actualiza inventario, caja y reportes/i);
   });
 
@@ -160,7 +160,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(problem).toHaveTextContent("La vuelves a cuadrar");
     expect(problem).toHaveTextContent("Venta · $186");
     expect(problem).toHaveTextContent("La misma venta · $186");
-    expect(problem).toHaveTextContent("Una sola venta. Tres tareas manuales. Y todavía quedan dudas.");
+    expect(problem).toHaveTextContent("Una sola venta, capturada tres veces. Y todavía quedan dudas.");
   });
 
   it("keeps social proof and capabilities inside verified product behavior", () => {
@@ -168,6 +168,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     const landingText = container.textContent ?? "";
 
     expect(landingText).not.toMatch(/sucursales/i);
+    expect(landingText).not.toContain("Negocios mexicanos ya operan todos los días con Kova.");
     expect(screen.getByText("Decidir con datos")).toBeVisible();
     expect(screen.getByText("Trabajar desde cualquier equipo")).toBeVisible();
     expect(screen.getByText("Ventas sin internet")).toBeVisible();
@@ -196,6 +197,7 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-live-dot")).toBeNull();
     expect(container.textContent).not.toContain("● ● ●");
     expect(container.querySelector(".lp-hero-frame-bar")).toBeNull();
+    expect(container.textContent).not.toMatch(/Captura real(?: del producto| de Reportes| sanitizada)/i);
   });
 
   it("tracks the story CTA at the same signup destination", () => {

@@ -1,14 +1,15 @@
 # Brief visual y UX — Landing "Una venta lo mueve todo"
 
-> **Actualización agosto de 2026 (dirección aprobada):** la landing pública usa
-> una base clara tipo papel operativo, con contraste tinta solo en Problema y
-> CTA final. Hero, recorrido y Reportes se apoyan en capturas reales
-> sanitizadas. Se eliminan puntos de estado decorativos, pulsos, browser dots,
-> pills genéricas y loops ambientales. El verde queda reservado a estados
+> **Actualización agosto de 2026 (dirección aprobada):** la landing pública abre
+> en azul Kova y después alterna azul con blanco. El problema operativo se
+> cuenta como una secuencia visual, no como una tabla oscura. Hero, recorrido y
+> Reportes se apoyan en la interfaz del producto sin leyendas visibles de
+> “captura real”. Se eliminan puntos de estado decorativos, pulsos, browser
+> dots, pills genéricas y loops ambientales. El verde queda reservado a estados
 > semánticos dentro del producto. La firma visual es la secuencia numerada de
 > una venta y el recibo térmico de precio.
 >
-> Orden vigente: **Navbar → Hero → prueba social → Problema → recorrido de una
+> Orden vigente: **Navbar → Hero → Problema → recorrido de una
 > venta → Capacidades → Reportes → Testimonios → Precio → FAQ → CTA final →
 > Footer**. El recorrido desktop usa tabs accesibles sin autoavance; en mobile
 > muestra los cuatro pasos apilados para no ocultar contenido tras interacción.

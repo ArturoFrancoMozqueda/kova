@@ -5,24 +5,6 @@ import styles from "./LandingSections.module.css";
 
 const t = copy.landing;
 
-export function TrustBar() {
-  return (
-    <section className={styles.trust} aria-labelledby="trust-title">
-      <div className={styles.trustInner}>
-        <div>
-          <span className={styles.eyebrow}>{t.trust.eyebrow}</span>
-          <h2 id="trust-title" className={styles.trustTitle}>{t.trust.title}</h2>
-        </div>
-        <div className={styles.trustNames} aria-label="Negocios que usan Kova">
-          {t.trust.names.map((name) => (
-            <span key={name} className={styles.trustName}>{name}</span>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export function ProblemSection() {
   return (
     <section id="problema" className={`${styles.section} ${styles.problem}`} aria-labelledby="problem-title">
@@ -34,26 +16,38 @@ export function ProblemSection() {
           </div>
           <div data-lp-stagger-item>
             <p className={styles.lead}>{t.problem.body}</p>
-            <p className={styles.problemPrompt}>{t.problem.prompt}</p>
-            <ul className={styles.problemQuestions}>
-              {t.problem.questions.map((question) => <li key={question}>{question}</li>)}
-            </ul>
           </div>
         </div>
 
-        <div className={styles.manualFlow} data-lp-stagger-group>
+        <div className={styles.problemNarrative} data-lp-stagger-group>
+          <div className={styles.problemScenario} data-lp-stagger-item>
+            <span>{t.problem.scenarioLabel}</span>
+            <strong>{t.problem.scenarioAmount}</strong>
+            <p>{t.problem.scenarioBody}</p>
+            <div className={styles.problemRoute} aria-hidden="true">
+              {t.problem.steps.map((step) => <span key={step.number}>{step.tools}</span>)}
+            </div>
+          </div>
+
           <ol className={styles.problemSteps} aria-label="Tres tareas manuales provocadas por la misma venta">
             {t.problem.steps.map((step) => (
               <li key={step.number} className={styles.problemStep} data-lp-stagger-item>
-                <div className={styles.problemStepTop}>
-                  <span className={styles.problemStepNumber} aria-hidden="true">{step.number}</span>
-                  <span className={styles.problemStepTools}>{step.tools}</span>
+                <span className={styles.problemStepNumber} aria-hidden="true">{step.number}</span>
+                <div>
+                  <h3>{step.title}</h3>
+                  <strong className={styles.problemStepDetail}>{step.detail}</strong>
                 </div>
-                <h3>{step.title}</h3>
-                <strong className={styles.problemStepDetail}>{step.detail}</strong>
+                <span className={styles.problemStepTools}>{step.tools}</span>
               </li>
             ))}
           </ol>
+        </div>
+
+        <div className={styles.problemOutcome} data-lp-stagger-group>
+          <p className={styles.problemPrompt} data-lp-stagger-item>{t.problem.prompt}</p>
+          <ul className={styles.problemQuestions} data-lp-stagger-item>
+            {t.problem.questions.map((question) => <li key={question}>{question}</li>)}
+          </ul>
           <p className={styles.problemClosing} data-lp-stagger-item>{t.problem.closing}</p>
         </div>
       </div>
@@ -103,10 +97,6 @@ export function ReportsSpotlight() {
 
         <div className={styles.reportStage} data-lp-reveal-opt data-lp-reveal-variant="frame">
           <figure className={styles.reportFrame}>
-            <figcaption className={styles.captureCaption}>
-              <span>{t.reportsSpotlight.productLabel}</span>
-              <span>Datos sanitizados de un negocio real</span>
-            </figcaption>
             <div className={styles.reportViewport}>
               <img
                 src="/showcase/reports.png"

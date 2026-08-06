@@ -4,10 +4,6 @@
 export default function HeroProductFrame() {
   return (
     <figure className="lp-hero-frame">
-      <figcaption className="lp-hero-frame-caption">
-        <strong>Caja</strong>
-        <span>Captura real sanitizada</span>
-      </figcaption>
       <div className="lp-hero-frame-screen">
         <img
           src="/showcase/register.png"

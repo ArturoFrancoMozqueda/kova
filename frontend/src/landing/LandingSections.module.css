@@ -38,19 +38,9 @@
 }
 
 .problem {
-  color: #f4f6fb;
-  background: #11141b;
-  border-block: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline-color);
 }
-
-.problem .eyebrow { color: #8eafff; }
-.problem .title,
-.problem .problemPrompt,
-.problem .problemQuestions li,
-.problem .problemStep h3,
-.problem .problemClosing { color: #f4f6fb; }
-.problem .lead,
-.problem .problemStepDetail { color: #a8b0c0; }
 
 .problemHeading,
 .reportsHeading,
@@ -65,133 +55,164 @@
 .reportsHeading .lead,
 .capabilitiesHeading .lead { margin-top: 0; }
 
-.problemPrompt {
-  margin: 22px 0 0;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.problemQuestions {
-  margin: 14px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.problemQuestions li {
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.11);
-  font-size: 15px;
-}
-
-.manualFlow {
+.problemNarrative {
   margin-top: 52px;
-  border-block: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  grid-template-columns: minmax(280px, 0.76fr) minmax(0, 1.24fr);
+  border-block: 1px solid var(--hairline-strong);
+}
+
+.problemScenario {
+  min-height: 440px;
+  padding: clamp(32px, 5vw, 58px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-right: 1px solid var(--hairline-color);
+  background: var(--surface-2);
+}
+
+.problemScenario > span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.problemScenario > strong {
+  margin-top: 18px;
+  color: var(--page-fg);
+  font-family: var(--lp-font-display);
+  font-size: clamp(64px, 9vw, 112px);
+  font-weight: 600;
+  letter-spacing: -0.065em;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.problemScenario > p {
+  max-width: 340px;
+  margin: 26px 0 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.problemRoute {
+  margin-top: 36px;
+  padding-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  border-top: 1px solid var(--hairline-color);
+}
+
+.problemRoute span {
+  position: relative;
+  color: var(--page-fg);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.problemRoute span:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  left: calc(100% + 7px);
+  color: var(--accent);
 }
 
 .problemSteps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
   list-style: none;
 }
 
 .problemStep {
   min-width: 0;
-  min-height: 210px;
-  padding: 28px clamp(20px, 3vw, 34px);
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.problemStep:last-child { border-right: 0; }
-
-.problemStepTop {
-  display: flex;
+  flex: 1;
+  padding: 28px clamp(24px, 4vw, 42px);
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 18px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  border-bottom: 1px solid var(--hairline-color);
 }
+
+.problemStep:last-child { border-bottom: 0; }
 
 .problemStepNumber {
-  color: #8eafff;
-  font-size: 12px;
+  color: var(--accent);
+  font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.14em;
 }
 
-.problemStepTools {
-  color: #7e8798;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .problemStep h3 {
-  margin: 38px 0 0;
+  margin: 0;
+  color: var(--page-fg);
   font-family: var(--lp-font-display);
-  font-size: clamp(21px, 2vw, 27px);
+  font-size: clamp(22px, 2.3vw, 30px);
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.12;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
 }
 
 .problemStepDetail {
-  margin-top: auto;
-  padding-top: 28px;
-  font-size: 14px;
-  font-weight: 600;
+  display: block;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
-.problemClosing {
+.problemStepTools {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.problemOutcome {
+  padding-top: 38px;
+}
+
+.problemPrompt {
   margin: 0;
-  padding: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--page-fg);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.problemQuestions {
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+}
+
+.problemQuestions li {
+  padding: 18px 22px 18px 0;
+  border-block: 1px solid var(--hairline-color);
+  color: var(--page-fg);
+  font-size: 15px;
+}
+
+.problemClosing {
+  margin: 24px 0 0;
+  color: var(--page-fg);
   font-family: var(--lp-font-display);
   font-size: clamp(18px, 2vw, 24px);
   font-weight: 600;
   letter-spacing: -0.02em;
-  text-align: center;
-}
-
-.trust {
-  padding: 30px clamp(20px, 4vw, 64px);
-  border-block: 1px solid var(--hairline-color);
-  background: var(--surface);
-}
-
-.trustInner {
-  width: min(100%, 1200px);
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 28px;
-}
-
-.trustTitle {
-  margin: 0;
-  color: var(--page-fg);
-  font-size: clamp(18px, 2vw, 24px);
-  font-weight: 550;
-  letter-spacing: -0.02em;
-}
-
-.trustNames {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.trustName {
-  padding: 4px 18px;
-  border-left: 1px solid var(--hairline-strong);
-  color: var(--page-fg);
-  font-size: 14px;
-  font-weight: 700;
 }
 
 .capabilities { background: var(--surface); }
@@ -255,9 +276,13 @@
 }
 
 .reports {
-  border-block: 1px solid var(--hairline-color);
-  background: var(--surface-2);
+  border-block: 1px solid var(--lp-blue-border);
+  background: var(--lp-blue-bg);
 }
+
+.reports .eyebrow { color: var(--lp-blue-muted); }
+.reports .title { color: var(--lp-blue-display); }
+.reports .lead { color: var(--lp-blue-muted); }
 
 .reportStage {
   margin-top: 52px;
@@ -270,27 +295,10 @@
 .reportFrame {
   margin: 0;
   overflow: hidden;
-  border: 1px solid var(--hairline-strong);
+  border: 1px solid var(--lp-blue-border-strong);
   border-radius: 14px;
-  background: #fff;
+  background: hsl(var(--card));
   box-shadow: 0 34px 70px -48px rgba(15, 17, 23, 0.38);
-}
-
-.captureCaption {
-  min-height: 48px;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--hairline-color);
-  color: var(--text-tertiary);
-  font-size: 11px;
-}
-
-.captureCaption span:first-child {
-  color: var(--page-fg);
-  font-weight: 700;
 }
 
 .reportViewport {
@@ -312,7 +320,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--hairline-strong);
+  border-top: 1px solid var(--lp-blue-border-strong);
   list-style: none;
 }
 
@@ -323,18 +331,18 @@
   grid-template-columns: 38px 1fr;
   gap: 12px;
   align-items: center;
-  border-bottom: 1px solid var(--hairline-color);
+  border-bottom: 1px solid var(--lp-blue-border);
 }
 
 .reportQuestions span {
-  color: var(--accent);
+  color: var(--lp-blue-tertiary);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.12em;
 }
 
 .reportQuestions strong {
-  color: var(--page-fg);
+  color: var(--lp-blue-fg);
   font-size: clamp(15px, 1.5vw, 18px);
   font-weight: 650;
   line-height: 1.35;
@@ -426,6 +434,13 @@
   .capabilitiesHeading,
   .reportStage { grid-template-columns: 1fr; }
 
+  .problemNarrative { grid-template-columns: 1fr; }
+  .problemScenario {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--hairline-color);
+  }
+
   .reportQuestions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -437,16 +452,23 @@
 @media (max-width: 640px) {
   .section { padding-block: 72px; }
 
-  .trustInner,
   .quotes,
   .capabilityList { grid-template-columns: 1fr; }
 
-  .trustNames { justify-content: flex-start; }
-  .trustName:first-child { border-left: 0; padding-left: 0; }
-
-  .problemSteps { grid-template-columns: 1fr; }
-  .problemStep { min-height: 170px; border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
-  .problemStep:last-child { border-bottom: 0; }
+  .problemScenario { padding: 32px 24px; }
+  .problemScenario > strong { font-size: 68px; }
+  .problemStep {
+    padding: 24px 20px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 14px;
+  }
+  .problemStepTools {
+    grid-column: 2;
+    text-align: left;
+  }
+  .problemQuestions { grid-template-columns: 1fr; }
+  .problemQuestions li { padding: 15px 0; border-top: 0; }
+  .problemQuestions li:first-child { border-top: 1px solid var(--hairline-color); }
 
   .capability,
   .capability:nth-child(odd),
@@ -455,7 +477,6 @@
     border-right: 0;
   }
 
-  .captureCaption span:last-child { display: none; }
   .reportViewport { aspect-ratio: 4 / 3; }
   .reportViewport img { width: auto; min-width: 100%; object-position: 64% top; }
 

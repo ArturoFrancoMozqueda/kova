@@ -26,7 +26,6 @@ import {
   ProblemSection,
   ReportsSpotlight,
   TestimonialsSection,
-  TrustBar,
 } from "@/landing/LandingSections";
 import { TicketPaper } from "@/landing/Ticket";
 import HeroProductFrame from "@/landing/HeroProductFrame";
@@ -720,7 +719,6 @@ export default function Home(): ReactNode {
           primaryTarget={primaryTarget}
           onCtaClick={onCtaClick}
         />
-        <TrustBar />
         <ProblemSection />
         <SaleFlowStory
           primaryTarget={primaryTarget}

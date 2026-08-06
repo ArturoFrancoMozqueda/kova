@@ -30,8 +30,8 @@ export const copy = {
       menuClose: "Cerrar menú",
     },
     hero: {
-      eyebrow: "Punto de venta para cafeterías, panaderías y negocios de mostrador",
-      title: "Cobra en el mostrador. Entiende todo tu negocio.",
+      eyebrow: "Más que un POS. El control de tu negocio en un solo lugar.",
+      title: "Vende. Kova mantiene el resto bajo control.",
       titlePart1: "Retoma el control ",
       titleEmphasis: "de tu negocio",
       titlePart2: ".",
@@ -40,11 +40,6 @@ export const copy = {
       ctaSecondary: "Ver cómo funciona",
       dailyNote: `≈ $${STANDARD_PLAN_DAILY_APPROX} al día`,
       trialBadge: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta`,
-    },
-    trust: {
-      eyebrow: "Negocios reales",
-      title: "Negocios mexicanos ya operan todos los días con Kova.",
-      names: ["Sweet Home", "Café Chapatito"],
     },
     benefits: {
       eyebrow: "Lo esencial, conectado",
@@ -90,9 +85,8 @@ export const copy = {
       eyebrow: "Una venta lo mueve todo",
       title: "Cobras una vez. Kova acomoda el resto.",
       body: "Sigue una venta real de $186 y descubre cómo el mismo cobro actualiza inventario, caja y reportes sin capturar información dos veces.",
-      problem: "Selecciona cada paso para ver el cambio en una captura real del producto.",
+      problem: "Selecciona cada paso para seguir cómo cambia toda la operación.",
       progressLabel: "Recorrido de una venta en Kova",
-      productLabel: "Captura real del producto",
       steps: [
         {
           id: "sale",
@@ -140,7 +134,10 @@ export const copy = {
     problem: {
       eyebrow: "El costo de operar en pedazos",
       title: "Una venta no debería convertirse en tres tareas manuales.",
-      body: "Cobras en la terminal, vuelves a apuntar la venta, descuentas inventario y al cierre sumas todo otra vez.",
+      body: "Cobras una venta de $186. Después la vuelves a registrar, descuentas inventario y al cierre haces las cuentas otra vez.",
+      scenarioLabel: "La misma venta pasa por",
+      scenarioAmount: "$186",
+      scenarioBody: "El cobro termina. El trabajo manual apenas empieza.",
       prompt: "Y al final del día todavía tienes que averiguar:",
       steps: [
         { number: "01", title: "Cobras", tools: "Terminal", detail: "Venta · $186" },
@@ -153,13 +150,12 @@ export const copy = {
       ticketTitle: "Corte del día",
       ticketLines: ["Ventas del día", "Efectivo esperado"],
       ticketTotalLabel: "Descuadre",
-      closing: "Una sola venta. Tres tareas manuales. Y todavía quedan dudas.",
+      closing: "Una sola venta, capturada tres veces. Y todavía quedan dudas.",
     },
     reportsSpotlight: {
       eyebrow: "Respuestas, no ruido",
       title: "Tus ventas se convierten en respuestas para el negocio.",
       body: "Kova reúne lo que pasó en caja para que puedas revisar el día sin perseguir tickets ni volver a hacer cuentas.",
-      productLabel: "Captura real de Reportes",
       alt: "Reportes de Kova con ventas netas, ticket promedio, mejores horarios y producto top.",
       questionsLabel: "Preguntas que responde Reportes",
       questions: ["¿Cuánto vendí?", "¿Qué producto se mueve?", "¿Cuándo vendo más?", "¿Qué necesita atención?"],

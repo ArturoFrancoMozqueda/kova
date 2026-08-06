@@ -120,10 +120,6 @@ export default function SaleFlowStory({
                   <span className={styles.receipt}>{step.receipt}</span>
                 </div>
                 <figure className={styles.capture}>
-                  <figcaption className={styles.captureCaption}>
-                    <span>{t.productLabel}</span>
-                    <span>{step.number} · {step.title}</span>
-                  </figcaption>
                   <img
                     src={step.image}
                     alt={step.alt}
@@ -147,7 +143,6 @@ export default function SaleFlowStory({
                 <p>{step.line}</p>
               </div>
               <figure className={styles.mobileCapture}>
-                <figcaption>{t.productLabel}</figcaption>
                 <img
                   src={step.image}
                   alt={step.alt}

@@ -13,7 +13,7 @@ test.describe("technical SEO (prerendered build only)", () => {
     const res = await request.get("/");
     expect(res.status()).toBe(200);
     const html = await res.text();
-    expect(html).toContain("Cobra en el mostrador. Entiende todo tu negocio.");
+    expect(html).toContain("Vende. Kova mantiene el resto bajo control.");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
     // El JSON-LD describe la organización y su aplicación, incluida la oferta.
@@ -68,7 +68,7 @@ test.describe("technical SEO (prerendered build only)", () => {
   test("app routes serve the empty shell, not landing content", async ({ request }) => {
     const res = await request.get("/dashboard");
     const html = await res.text();
-    expect(html).not.toContain("Cobra en el mostrador. Entiende todo tu negocio.");
+    expect(html).not.toContain("Vende. Kova mantiene el resto bajo control.");
     expect(html).toContain('<script type="module"');
     expect(html).not.toContain('src="/hydrate-prerender.js"');
   });

@@ -149,7 +149,7 @@ describe("App shell", () => {
     render(<App />);
     expect(
       await screen.findByRole("heading", {
-        name: /cobra en el mostrador\. entiende todo tu negocio\./i,
+        name: /vende\. kova mantiene el resto bajo control\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText("Plan Standard")).toBeInTheDocument();
