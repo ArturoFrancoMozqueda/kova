@@ -1,15 +1,34 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/auth/useAuth";
+import type { AnalysisHelpfulness } from "@/telemetry/funnel";
 import type { BusinessStoryReport } from "../types";
 
-function readDoneIds(storageKey: string): Set<string> {
+function readDoneIds(storageKey: string, legacyStorageKey?: string): Set<string> {
   try {
-    const raw = window.localStorage.getItem(storageKey);
+    const raw =
+      window.localStorage.getItem(storageKey) ??
+      (legacyStorageKey ? window.localStorage.getItem(legacyStorageKey) : null);
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return new Set(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
   } catch {
     return new Set();
+  }
+}
+
+function readFeedback(storageKey: string): Record<string, AnalysisHelpfulness> {
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, AnalysisHelpfulness] =>
+          entry[1] === "helpful" || entry[1] === "not_yet",
+      ),
+    );
+  } catch {
+    return {};
   }
 }
 
@@ -24,12 +43,28 @@ export function usePlanDoneState(story: BusinessStoryReport | null) {
   const tenantId = state.status === "authenticated" ? state.tenantId : "local";
   const startDate = story?.summary.start_date ?? "";
   const endDate = story?.summary.end_date ?? "";
-  const storageKey = `kova:plan:${tenantId}:${startDate}:${endDate}`;
+  const legacyStorageKey = `kova:plan:${tenantId}:${startDate}:${endDate}`;
+  const storageKey = `kova:plan:v2:${tenantId}:${startDate}:${endDate}`;
+  const feedbackStorageKey = `${storageKey}:feedback`;
 
-  const [doneIds, setDoneIds] = useState<Set<string>>(() => readDoneIds(storageKey));
+  const [doneIds, setDoneIds] = useState<Set<string>>(() =>
+    readDoneIds(storageKey, legacyStorageKey),
+  );
+  const [feedbackById, setFeedbackById] = useState<Record<string, AnalysisHelpfulness>>(
+    () => readFeedback(feedbackStorageKey),
+  );
   useEffect(() => {
-    setDoneIds(readDoneIds(storageKey));
-  }, [storageKey]);
+    const restored = readDoneIds(storageKey, legacyStorageKey);
+    setDoneIds(restored);
+    try {
+      if (!window.localStorage.getItem(storageKey) && restored.size > 0) {
+        window.localStorage.setItem(storageKey, JSON.stringify([...restored]));
+      }
+    } catch {
+      /* storage migration is best effort */
+    }
+    setFeedbackById(readFeedback(feedbackStorageKey));
+  }, [feedbackStorageKey, legacyStorageKey, storageKey]);
 
   const toggleDone = (id: string) => {
     setDoneIds((previous) => {
@@ -48,5 +83,31 @@ export function usePlanDoneState(story: BusinessStoryReport | null) {
     });
   };
 
-  return { doneIds, toggleDone };
+  const setFeedback = (id: string, feedback: AnalysisHelpfulness) => {
+    setFeedbackById((previous) => {
+      const next = { ...previous, [id]: feedback };
+      try {
+        window.localStorage.setItem(feedbackStorageKey, JSON.stringify(next));
+      } catch {
+        /* quota/denied: feedback remains available for the session */
+      }
+      return next;
+    });
+  };
+
+  const clearFeedback = (id: string) => {
+    setFeedbackById((previous) => {
+      if (!(id in previous)) return previous;
+      const next = { ...previous };
+      delete next[id];
+      try {
+        window.localStorage.setItem(feedbackStorageKey, JSON.stringify(next));
+      } catch {
+        /* quota/denied: feedback still clears for the session */
+      }
+      return next;
+    });
+  };
+
+  return { doneIds, feedbackById, toggleDone, setFeedback, clearFeedback };
 }

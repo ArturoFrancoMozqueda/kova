@@ -43,17 +43,32 @@ Do not implement these for beta:
 These can be considered after the core flow is stable with beta tenants:
 
 - Modifiers
-- Tax engine
-- Discounts
 - Retail preset
 - Restaurant preset
-- Stronger reporting
-- More advanced inventory
 - Product CSV import wizard
 - Receipt template editor
-- Customer records
-- Store credit
 - Advanced employee permissions
+
+## Approved Roadmap, Still Gated
+
+The owner-copilot roadmap in [`docs/plans/PLAN-KOVA-COPILOT.md`](plans/PLAN-KOVA-COPILOT.md) formally
+approves the following capabilities for phased discovery and implementation. Approval does not make
+them part of the active sprint: each phase must satisfy the preceding validation and production
+gates before feature work begins.
+
+- Discounts, configurable taxes, barcodes and fiscal sale snapshots.
+- Lightweight customer records and purchase history.
+- CFDI/autofactura through a verified PAC integration.
+- Suppliers, purchase orders, receiving and auditable inventory cost updates.
+- Customer credit, installments, due dates and aging.
+- Deterministic Kova recommendations, owner goals and a weekly action plan.
+- Read-only natural-language questions over an approved semantic layer.
+- Mobile owner supervision.
+
+Multi-location is only conditionally approved for Phase 4: at least 10 active businesses must ask
+for it and five must commit to a pilot. Until that gate is evidenced, it remains deferred. The
+roadmap does not approve a generic AI chatbot, autonomous mutations, generated SQL against
+production, accounting, payroll, KDS, manufacturing, a marketplace or mass marketing automation.
 
 ## Deferred Until Post-GA
 
@@ -75,7 +90,7 @@ These should not be considered until there is real usage, support capacity, and 
 - Franchise hierarchy
 - Multi-currency
 - Marketplace/plugins
-- AI features
+- AI features outside the constrained, read-only Kova scope above
 
 ## Explicit Non-Goals for v1
 

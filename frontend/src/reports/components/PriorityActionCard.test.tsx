@@ -19,14 +19,20 @@ const baseRec: Recommendation = {
 
 function renderCard(
   recommendation: Recommendation | null,
-  { done = false, onToggleDone = vi.fn() } = {},
+  { done = false, feedback = undefined, onToggleDone = vi.fn(), onFeedback = vi.fn() } = {},
 ) {
   render(
     <MemoryRouter>
-      <PriorityActionCard recommendation={recommendation} done={done} onToggleDone={onToggleDone} />
+      <PriorityActionCard
+        recommendation={recommendation}
+        done={done}
+        feedback={feedback}
+        onToggleDone={onToggleDone}
+        onFeedback={onFeedback}
+      />
     </MemoryRouter>,
   );
-  return { onToggleDone };
+  return { onToggleDone, onFeedback };
 }
 
 describe("PriorityActionCard", () => {
@@ -71,6 +77,19 @@ describe("PriorityActionCard", () => {
     expect(screen.getByTestId("priority-recommendation")).toHaveTextContent(copy.reportsView.planDone);
     expect(
       screen.queryByRole("link", { name: new RegExp(copy.reportsView.actionGoInventory) }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("asks whether a completed action was useful", () => {
+    const { onFeedback } = renderCard(baseRec, { done: true });
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.actionFeedbackHelpful }));
+    expect(onFeedback).toHaveBeenCalledWith("helpful");
+  });
+
+  it("does not treat a positive signal as a completable action", () => {
+    renderCard({ ...baseRec, id: "R13", tone: "good_signal" });
+    expect(
+      screen.queryByRole("button", { name: copy.reportsView.planMarkDone }),
     ).not.toBeInTheDocument();
   });
 

@@ -9,6 +9,8 @@ import { ActionPlanSection } from "./ActionPlanSection";
 function makeActions(count: number): ActionPlanItem[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `R${index + 2}|subject-${index + 2}`,
+    templateId: "R2",
+    decisionArea: "inventario",
     tone: "action" as const,
     priority: "media" as const,
     action: `Acción ${index + 2}`,
@@ -18,6 +20,8 @@ function makeActions(count: number): ActionPlanItem[] {
 
 const opsNormalSignal: ActionPlanItem = {
   id: "signal|ops-normal",
+  templateId: "signal",
+  decisionArea: "caja",
   tone: "ok",
   action: copy.reportsView.actionOpsNormalAction,
 };
@@ -26,14 +30,23 @@ function renderSection({
   actions = makeActions(3),
   signals = [opsNormalSignal],
   doneIds = new Set<string>(),
+  feedbackById = {},
   onToggleDone = vi.fn(),
+  onFeedback = vi.fn(),
 } = {}) {
   render(
     <MemoryRouter>
-      <ActionPlanSection actions={actions} signals={signals} doneIds={doneIds} onToggleDone={onToggleDone} />
+      <ActionPlanSection
+        actions={actions}
+        signals={signals}
+        doneIds={doneIds}
+        feedbackById={feedbackById}
+        onToggleDone={onToggleDone}
+        onFeedback={onFeedback}
+      />
     </MemoryRouter>,
   );
-  return { onToggleDone };
+  return { onToggleDone, onFeedback };
 }
 
 describe("ActionPlanSection", () => {
@@ -75,15 +88,34 @@ describe("ActionPlanSection", () => {
       screen.getByRole("link", { name: new RegExp(copy.reportsView.actionGoInventory) }),
     ).toHaveAttribute("href", "/inventory");
     fireEvent.click(screen.getByRole("checkbox"));
-    expect(onToggleDone).toHaveBeenCalledWith("R2|subject-2");
+    expect(onToggleDone).toHaveBeenCalledWith(actions[0]);
   });
 
   it("renders nothing when there are no rows at all", () => {
     const { container } = render(
       <MemoryRouter>
-        <ActionPlanSection actions={[]} signals={[]} doneIds={new Set()} onToggleDone={vi.fn()} />
+        <ActionPlanSection
+          actions={[]}
+          signals={[]}
+          doneIds={new Set()}
+          feedbackById={{}}
+          onToggleDone={vi.fn()}
+          onFeedback={vi.fn()}
+        />
       </MemoryRouter>,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("records usefulness feedback only for a completed action", () => {
+    const actions = makeActions(1);
+    const { onFeedback } = renderSection({
+      actions,
+      signals: [],
+      doneIds: new Set([actions[0].id]),
+    });
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.planSectionShow(1) }));
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.actionFeedbackNotYet }));
+    expect(onFeedback).toHaveBeenCalledWith(actions[0], "not_yet");
   });
 });

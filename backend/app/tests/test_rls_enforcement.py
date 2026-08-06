@@ -28,6 +28,8 @@ EXPENSE_A = uuid.UUID("77777777-7777-7777-7777-7777777777a7")
 EXPENSE_B = uuid.UUID("88888888-8888-8888-8888-8888888888b8")
 DELETION_A = uuid.UUID("99999999-9999-9999-9999-9999999999a9")
 DELETION_B = uuid.UUID("99999999-9999-9999-9999-9999999999b9")
+TELEMETRY_A = uuid.UUID("aaaaaaaa-1111-1111-1111-1111111111a1")
+TELEMETRY_B = uuid.UUID("bbbbbbbb-2222-2222-2222-2222222222b2")
 
 
 @pytest.fixture
@@ -84,6 +86,22 @@ def rls_seed(owner_engine):
         )
         conn.execute(
             text(
+                "INSERT INTO telemetry_events "
+                "(id, tenant_id, user_id, event_name, client_event_id, properties, created_at) "
+                "VALUES (:ea, :a, :ua, 'analysis_viewed', 'rls-analysis-a', '{}', now()), "
+                "(:eb, :b, :ub, 'analysis_viewed', 'rls-analysis-b', '{}', now())"
+            ),
+            {
+                "ea": TELEMETRY_A,
+                "eb": TELEMETRY_B,
+                "a": TENANT_A,
+                "b": TENANT_B,
+                "ua": USER_A,
+                "ub": USER_B,
+            },
+        )
+        conn.execute(
+            text(
                 "INSERT INTO subscriptions (id, tenant_id, stripe_subscription_id, status) "
                 "VALUES (:sa, :a, 'sub_rls_a', 'active'), "
                 "(:sb, :b, 'sub_rls_b', 'active')"
@@ -103,6 +121,10 @@ def rls_seed(owner_engine):
         yield
     finally:
         with owner_engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM telemetry_events WHERE id IN (:ea, :eb)"),
+                {"ea": TELEMETRY_A, "eb": TELEMETRY_B},
+            )
             conn.execute(
                 text("DELETE FROM account_deletion_requests WHERE id IN (:da, :db)"),
                 {"da": DELETION_A, "db": DELETION_B},
@@ -174,6 +196,21 @@ def test_expenses_are_visible_only_to_the_current_tenant(
             )
         }
     assert amounts == {100}
+
+
+def test_telemetry_events_are_visible_only_to_the_current_tenant(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        ids = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT id FROM telemetry_events WHERE id IN (:ea, :eb)"),
+                {"ea": TELEMETRY_A, "eb": TELEMETRY_B},
+            )
+        }
+    assert ids == {TELEMETRY_A}
 
 
 def test_account_deletion_requests_are_tenant_isolated(

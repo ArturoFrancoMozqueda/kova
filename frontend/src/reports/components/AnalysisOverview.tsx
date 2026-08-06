@@ -8,6 +8,7 @@ import { formatDayWithWeekday } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { formatMoney, reasonLabel } from "@/orders/format";
+import type { AnalysisHelpfulness } from "@/telemetry/funnel";
 import { formatHourRange, topHoursByNetSales } from "../hours";
 import type { BusinessStoryReport, SalesByHourRow } from "../types";
 import { MIN_MONEY_BASE, calculateSafeGrowth } from "../utils/calculations";
@@ -211,7 +212,9 @@ export function AnalysisOverview({
   hourlyFailed,
   priority,
   priorityDone,
+  priorityFeedback,
   onTogglePriority,
+  onPriorityFeedback,
 }: {
   story: BusinessStoryReport;
   previousStory: BusinessStoryReport | null;
@@ -221,7 +224,9 @@ export function AnalysisOverview({
   hourlyFailed: boolean;
   priority: Recommendation | null;
   priorityDone: boolean;
+  priorityFeedback?: AnalysisHelpfulness;
   onTogglePriority: () => void;
+  onPriorityFeedback: (value: AnalysisHelpfulness) => void;
 }) {
   const rangeDays = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
   const chartStory = rangeDays === 1 && trendStory ? trendStory : story;
@@ -322,7 +327,9 @@ export function AnalysisOverview({
             <PriorityActionCard
               recommendation={priority}
               done={priorityDone}
+              feedback={priorityFeedback}
               onToggleDone={onTogglePriority}
+              onFeedback={onPriorityFeedback}
             />
           </CardContent>
         </Card>

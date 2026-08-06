@@ -58,6 +58,26 @@ Execute one epic per PR, merge only after required checks are green, then contin
   7/30-day analysis remains scheduled for 2026-07-28 and 2026-08-20. Evidence in
   [`docs/audits/CRO-5-ROLLOUT-2026-07-21.md`](audits/CRO-5-ROLLOUT-2026-07-21.md).
 
+## Kova como copiloto — Phase 0 foundation
+
+The 12-month product strategy starts with validation rather than feature parity. The first shipped
+slice measures whether real analysis produces a useful owner action; contract and privacy rules live
+in [`specs/reports/analysis_activation.md`](../specs/reports/analysis_activation.md).
+
+- [x] Keep **Análisis** as the authenticated surface without changing `/reports` or report API
+      contracts.
+- [x] Track tenant-scoped analysis views, evidence opens, action starts, completions and reopens with
+      categorical metadata only.
+- [x] Add the missing successful `close_shift` activation event.
+- [x] Validate analysis payload categories server-side and reject financial or unsupported metadata.
+- [x] Expose a protected, identity-free 7/30-day adoption report for weekly pilot review.
+- [x] Measure explicit recommendation usefulness, prior-window return, active-business adoption and
+      the observable sale → close → analysis journey.
+- [ ] Recruit and observe the planned multi-vertical pilot cohort; this is commercial research, not
+      a code-complete gate.
+- [ ] Close the existing Stripe, inbox-delivery and backup-restore production gates before broad
+      rollout.
+
 ## Current Focus: Paid Beta Readiness
 
 Kova Audit Sprints 1-6 are product-complete enough for controlled paid beta preparation. The

@@ -129,6 +129,27 @@ def test_refresh_endpoint_requires_csrf(db):
     assert r.status_code == 403
 
 
+def test_authenticated_analysis_telemetry_requires_csrf(db):
+    c = _raw_client(db)
+    _signup_and_verify(c, email="csrf-analysis@example.com")
+    _login(c, email="csrf-analysis@example.com")
+    r = c.post(
+        "/api/v1/telemetry/events",
+        json={
+            "event_name": "analysis_viewed",
+            "client_event_id": "csrf-analysis-view",
+            "properties": {
+                "range_days": 7,
+                "preset": "seven_days",
+                "has_previous_period": True,
+                "recommendation_count": 1,
+            },
+        },
+    )
+    assert r.status_code == 403
+    assert r.json()["detail"] == "CSRF validation failed"
+
+
 def test_logout_requires_csrf(db):
     c = _raw_client(db)
     _signup_and_verify(c)

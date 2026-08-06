@@ -18,7 +18,7 @@ describe("usePlanDoneState", () => {
     const first = renderHook(() => usePlanDoneState(story));
     act(() => first.result.current.toggleDone("R2|subject-2"));
 
-    expect(window.localStorage.getItem("kova:plan:tenant-1:2026-07-01:2026-07-07")).toContain(
+    expect(window.localStorage.getItem("kova:plan:v2:tenant-1:2026-07-01:2026-07-07")).toContain(
       "R2|subject-2",
     );
 
@@ -38,5 +38,30 @@ describe("usePlanDoneState", () => {
     });
     const june = renderHook(() => usePlanDoneState(juneStory));
     expect(june.result.current.doneIds.size).toBe(0);
+  });
+
+  it("persists usefulness feedback per tenant and period", () => {
+    const story = makeStory();
+    const first = renderHook(() => usePlanDoneState(story));
+    act(() => first.result.current.setFeedback("R2|subject-2", "helpful"));
+
+    const second = renderHook(() => usePlanDoneState(story));
+    expect(second.result.current.feedbackById["R2|subject-2"]).toBe("helpful");
+
+    act(() => second.result.current.clearFeedback("R2|subject-2"));
+    expect(second.result.current.feedbackById["R2|subject-2"]).toBeUndefined();
+  });
+
+  it("migrates existing unversioned completion state without losing it", () => {
+    window.localStorage.setItem(
+      "kova:plan:tenant-1:2026-07-01:2026-07-07",
+      JSON.stringify(["R4|legacy"]),
+    );
+    const result = renderHook(() => usePlanDoneState(makeStory()));
+
+    expect(result.result.current.doneIds.has("R4|legacy")).toBe(true);
+    expect(
+      window.localStorage.getItem("kova:plan:v2:tenant-1:2026-07-01:2026-07-07"),
+    ).toContain("R4|legacy");
   });
 });

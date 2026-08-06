@@ -3,6 +3,7 @@ import { formatMoney } from "../../orders/format";
 import type { BusinessStoryReport } from "../types";
 import { MIN_COUNT_BASE, calculateSafeGrowth, opsAreNormal } from "./calculations";
 import type { Recommendation } from "./recommendations";
+import type { AnalysisDecisionArea } from "@/telemetry/funnel";
 
 export type ActionPlanTone = "action" | "watch" | "ok";
 
@@ -10,6 +11,8 @@ export type ActionPlanTone = "action" | "watch" | "ok";
  * the evidence explains it in muted text below. */
 export type ActionPlanItem = {
   id: string;
+  templateId: string;
+  decisionArea: AnalysisDecisionArea;
   tone: ActionPlanTone;
   priority?: Recommendation["priority"];
   action: string;
@@ -17,6 +20,26 @@ export type ActionPlanItem = {
   /** In-app route where the owner can execute the action (e.g. /inventory). */
   linkTo?: string;
 };
+
+const DECISION_AREA_BY_TEMPLATE: Record<string, AnalysisDecisionArea> = {
+  R1: "crecimiento",
+  R2: "inventario",
+  R3: "caja",
+  R4: "inventario",
+  R5: "inventario",
+  R6: "caja",
+  R7: "inventario",
+  R8: "caja",
+  R9: "empleado",
+  R10: "crecimiento",
+  R11: "crecimiento",
+  R12: "inventario",
+  R13: "caja",
+};
+
+export function recommendationDecisionArea(templateId: string): AnalysisDecisionArea {
+  return DECISION_AREA_BY_TEMPLATE[templateId] ?? "crecimiento";
+}
 
 /** Route where a recommendation template can be acted on, if any. Inventory
  * templates (stockout, restock, link inventory, overstock) go to /inventory. */
@@ -57,6 +80,8 @@ export function buildActionPlan({
 
   const actions: ActionPlanItem[] = rest.map((rec) => ({
     id: `${rec.id}|${rec.subjectId}`,
+    templateId: rec.id,
+    decisionArea: recommendationDecisionArea(rec.id),
     tone: rec.tone === "good_signal" ? "ok" : "action",
     priority: rec.priority,
     action: rec.action,
@@ -79,6 +104,8 @@ export function buildActionPlan({
     if (growth.kind === "pct" && growth.value <= TICKET_WATCH_DROP_PCT) {
       signals.push({
         id: "signal|ticket-watch",
+        templateId: "signal",
+        decisionArea: "crecimiento",
         tone: "watch",
         action: copy.reportsView.actionWatchTicketAction,
         evidence: copy.reportsView.actionWatchTicketEvidence(
@@ -95,6 +122,8 @@ export function buildActionPlan({
   if (!hasCleanOpsRec && opsAreNormal(summary)) {
     signals.push({
       id: "signal|ops-normal",
+      templateId: "signal",
+      decisionArea: "caja",
       tone: "ok",
       action: copy.reportsView.actionOpsNormalAction,
     });
