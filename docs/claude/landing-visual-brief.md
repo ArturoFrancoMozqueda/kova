@@ -1,7 +1,8 @@
 # Brief visual y UX — Landing "Una venta lo mueve todo"
 
 > **Actualización agosto de 2026 (dirección aprobada):** la landing pública abre
-> en azul Kova y después alterna azul con blanco. El problema operativo se
+> en tinta Kova y después alterna fondos oscuros con blanco. El azul Kova queda
+> como acento de marca. El problema operativo se
 > cuenta como una secuencia visual, no como una tabla oscura. Hero, recorrido y
 > Reportes se apoyan en la interfaz del producto sin leyendas visibles de
 > “captura real”. Se eliminan puntos de estado decorativos, pulsos, browser

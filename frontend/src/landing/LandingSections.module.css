@@ -280,7 +280,7 @@
   background: var(--lp-blue-bg);
 }
 
-.reports .eyebrow { color: var(--lp-blue-muted); }
+.reports .eyebrow { color: var(--lp-blue-tertiary); }
 .reports .title { color: var(--lp-blue-display); }
 .reports .lead { color: var(--lp-blue-muted); }
 

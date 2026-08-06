@@ -74,13 +74,13 @@ export const LANDING_STYLES = `
   .lp-root {
     font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
     --lp-font-display: 'Bricolage Grotesque Variable', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
-    --lp-blue-bg: var(--kova-blue);
-    --lp-blue-display: hsl(var(--primary-foreground));
-    --lp-blue-fg: var(--kova-ink);
-    --lp-blue-muted: color-mix(in srgb, var(--kova-ink) 90%, var(--kova-blue));
-    --lp-blue-tertiary: color-mix(in srgb, var(--kova-ink) 90%, var(--kova-blue));
-    --lp-blue-border: color-mix(in srgb, var(--kova-ink) 20%, transparent);
-    --lp-blue-border-strong: color-mix(in srgb, var(--kova-ink) 34%, transparent);
+    --lp-blue-bg: var(--kova-ink);
+    --lp-blue-display: var(--kova-on-ink);
+    --lp-blue-fg: var(--kova-on-ink);
+    --lp-blue-muted: color-mix(in srgb, var(--kova-on-ink) 66%, var(--kova-ink));
+    --lp-blue-tertiary: var(--kova-blue-light);
+    --lp-blue-border: var(--kova-ink-border);
+    --lp-blue-border-strong: color-mix(in srgb, var(--kova-on-ink) 18%, var(--kova-ink));
     background: var(--page-bg);
     color: var(--page-fg);
     -webkit-font-smoothing: antialiased;
@@ -844,7 +844,7 @@ export const LANDING_STYLES = `
     display: block;
     max-width: 540px;
     margin-bottom: 20px;
-    color: var(--lp-blue-muted);
+    color: var(--lp-blue-tertiary);
     font-size: 11px;
     font-weight: 750;
     letter-spacing: 0.12em;
@@ -866,6 +866,15 @@ export const LANDING_STYLES = `
   }
   .lp-hero-section .lp-hero-title { color: var(--lp-blue-display) !important; }
   .lp-hero-section .lp-hero-copy { color: var(--lp-blue-muted) !important; }
+  .lp-hero-section .lp-hero-actions .lp-cta-fill:first-child {
+    background: var(--kova-on-ink) !important;
+    color: var(--kova-ink) !important;
+  }
+  .lp-hero-section .lp-hero-actions .lp-cta-fill:last-child {
+    border-color: var(--lp-blue-border-strong) !important;
+    background: var(--kova-ink-border) !important;
+    color: var(--kova-on-ink) !important;
+  }
   .lp-hero-section .lp-hero-visual::before {
     background: radial-gradient(52% 58% at 66% 36%, var(--lp-blue-border), transparent 72%);
   }
