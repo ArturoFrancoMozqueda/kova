@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { STANDARD_PLAN_DAILY_APPROX } from "@/billing/standardPlan";
 
 const trackAnonymousEvent = vi.fn();
 const trackAnonymousEventOnce = vi.fn();
@@ -75,11 +74,10 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(viewedSections).toEqual(
       expect.arrayContaining([
         "problema",
-        "beneficios",
         "producto",
+        "incluye",
         "reportes",
         "clientes",
-        "valor",
         "precio",
         "faq",
         "cta-final",
@@ -138,20 +136,17 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     );
     expect(sectionIds).toEqual([
       "problema",
-      "beneficios",
       "producto",
+      "incluye",
       "reportes",
       "clientes",
-      "valor",
       "precio",
       "faq",
       "cta-final",
     ]);
     expect(container.querySelector('a[href="#comercios"]')).toBeNull();
-    expect(screen.getByText("Más que un POS. El control de tu negocio en un solo lugar.")).toBeVisible();
-    expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(
-      /Para cafeterías, panaderías y negocios de mostrador/i,
-    );
+    expect(screen.getByText(/Más que un POS\. El control de tu negocio en un solo lugar\./i)).toBeVisible();
+    expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(/Cada venta actualiza inventario, caja y reportes/i);
   });
 
   it("turns the manual-work pain into a grounded three-step sequence", () => {
@@ -165,32 +160,44 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(problem).toHaveTextContent("La vuelves a cuadrar");
     expect(problem).toHaveTextContent("Venta · $186");
     expect(problem).toHaveTextContent("La misma venta · $186");
-    expect(problem).toHaveTextContent("Una sola venta. Tres tareas manuales. Y todavía quedan dudas.");
+    expect(problem).toHaveTextContent("Una sola venta, capturada tres veces. Y todavía quedan dudas.");
   });
 
-  it("keeps social proof and value framing inside verified product capabilities", () => {
+  it("keeps social proof and capabilities inside verified product behavior", () => {
     const { container } = renderHome();
     const landingText = container.textContent ?? "";
 
     expect(landingText).not.toMatch(/sucursales/i);
+    expect(landingText).not.toContain("Negocios mexicanos ya operan todos los días con Kova.");
     expect(screen.getByText("Decidir con datos")).toBeVisible();
     expect(screen.getByText("Trabajar desde cualquier equipo")).toBeVisible();
-    expect(screen.getByText(`≈ $${STANDARD_PLAN_DAILY_APPROX}`)).toBeVisible();
-    expect(screen.getByText("$299 MXN/mes · Sin comisiones por venta")).toBeVisible();
+    expect(screen.getByText("Ventas sin internet")).toBeVisible();
+    expect(screen.getByText("Turnos y cuadre")).toBeVisible();
+    expect(screen.getByText("Plan Standard")).toBeInTheDocument();
+    expect(landingText).toContain("299");
+    expect(landingText).not.toMatch(/≈\s*\$10/);
     expect(screen.getByRole("button", { name: "¿Kova funciona para mi negocio?" })).toBeVisible();
   });
 
-  it("uses only insights visible in the real reports capture", () => {
+  it("frames reports around grounded owner questions", () => {
     renderHome();
 
-    expect(screen.getByText("$564.00")).toBeInTheDocument();
-    expect(screen.getByText("Cold brew")).toBeInTheDocument();
-    expect(screen.getByText("19:00–20:00")).toBeInTheDocument();
-    expect(screen.getByText("$112.80")).toBeInTheDocument();
+    expect(screen.getAllByText("¿Cuánto vendí?")).toHaveLength(2);
+    expect(screen.getByText("¿Qué producto se mueve?")).toBeInTheDocument();
+    expect(screen.getByText("¿Cuándo vendo más?")).toBeInTheDocument();
+    expect(screen.getByText("¿Qué necesita atención?")).toBeInTheDocument();
     expect(screen.getByAltText(/Reportes de Kova con ventas netas/i)).toHaveAttribute(
       "loading",
       "lazy",
     );
+  });
+
+  it("does not render decorative live or browser dots", () => {
+    const { container } = renderHome();
+    expect(container.querySelector(".lp-live-dot")).toBeNull();
+    expect(container.textContent).not.toContain("● ● ●");
+    expect(container.querySelector(".lp-hero-frame-bar")).toBeNull();
+    expect(container.textContent).not.toMatch(/Captura real(?: del producto| de Reportes| sanitizada)/i);
   });
 
   it("tracks the story CTA at the same signup destination", () => {

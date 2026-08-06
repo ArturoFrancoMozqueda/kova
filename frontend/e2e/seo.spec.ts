@@ -68,7 +68,7 @@ test.describe("technical SEO (prerendered build only)", () => {
   test("app routes serve the empty shell, not landing content", async ({ request }) => {
     const res = await request.get("/dashboard");
     const html = await res.text();
-    expect(html).not.toContain("Conoce exactamente");
+    expect(html).not.toContain("Vende. Kova mantiene el resto bajo control.");
     expect(html).toContain('<script type="module"');
     expect(html).not.toContain('src="/hydrate-prerender.js"');
   });

@@ -23,8 +23,7 @@ export default function FinalCta({
             {t.body}
           </p>
 
-          {/* Los 4 pasos entran escalonados: eco de los chips 01–04 de la
-              historia de la venta, cerrando el mismo lenguaje visual. */}
+          {/* Los números son secuencia operativa, no decoración. */}
           <ol className="lp-cta-steps" data-lp-stagger-group>
             {t.steps.map((step, i) => (
               <li key={step} data-lp-stagger-item style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -32,13 +31,12 @@ export default function FinalCta({
                   className="tabular"
                   aria-hidden="true"
                   style={{
-                    width: 24, height: 24, borderRadius: 999, flexShrink: 0,
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    background: "var(--accent-soft)", color: "var(--accent)",
-                    fontSize: 12, fontWeight: 700,
+                    minWidth: 22, flexShrink: 0,
+                    color: "#8eafff", fontSize: 11, fontWeight: 750,
+                    letterSpacing: "0.12em",
                   }}
                 >
-                  {i + 1}
+                  {String(i + 1).padStart(2, "0")}
                 </span>
                 <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--page-fg)", lineHeight: 1.25 }}>{step}</span>
               </li>

@@ -1,5 +1,20 @@
 # Brief visual y UX — Landing "Una venta lo mueve todo"
 
+> **Actualización agosto de 2026 (dirección aprobada):** la landing pública abre
+> en tinta Kova y después alterna fondos oscuros con blanco. El azul Kova queda
+> como acento de marca. El problema operativo se
+> cuenta como una secuencia visual, no como una tabla oscura. Hero, recorrido y
+> Reportes se apoyan en la interfaz del producto sin leyendas visibles de
+> “captura real”. Se eliminan puntos de estado decorativos, pulsos, browser
+> dots, pills genéricas y loops ambientales. El verde queda reservado a estados
+> semánticos dentro del producto. La firma visual es la secuencia numerada de
+> una venta y el recibo térmico de precio.
+>
+> Orden vigente: **Navbar → Hero → Problema → recorrido de una
+> venta → Capacidades → Reportes → Testimonios → Precio → FAQ → CTA final →
+> Footer**. El recorrido desktop usa tabs accesibles sin autoavance; en mobile
+> muestra los cuatro pasos apilados para no ocultar contenido tras interacción.
+
 > **Actualización julio de 2026:** la implementación vigente es híbrida. Caja
 > comparte presentación con el producto; Inventario, Turnos y Reportes usan
 > capturas reales sanitizadas. `KovaShowcase` concentra la historia y

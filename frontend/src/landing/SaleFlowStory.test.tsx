@@ -32,7 +32,7 @@ describe("SaleFlowStory", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { name: "Cobras en segundos." })).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Cobras en segundos." })[0]).toBeVisible();
     expect(onStepView).toHaveBeenCalledWith("sale", "scroll");
   });
 
@@ -45,12 +45,8 @@ describe("SaleFlowStory", () => {
       "aria-selected",
       "true",
     );
-    expect(
-      screen.getByRole("heading", { name: "El stock baja automáticamente." }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("img", { name: /Inventario de Kova/i }),
-    ).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "El stock baja automáticamente." })[0]).toBeVisible();
+    expect(screen.getAllByRole("img", { name: /Inventario de Kova/i })[0]).toBeVisible();
     expect(onStepView).toHaveBeenCalledWith("inventory", "control");
   });
 

@@ -87,6 +87,10 @@
     {
       "decision": "Structure Analysis around one dominant net-sales chart followed by paired product, hour, payment and priority cards, using an adapted 21st.dev Weekly KPI Chart for the interactive period visualization.",
       "reason": "This matches the approved Analisis reference while preserving Kova's real BusinessStoryReport data, deeper operational sections and accessible interactions."
+    },
+    {
+      "decision": "Open the public landing with a solid Kova-ink hero, then alternate dark product-story sections with white reading sections; reserve Kova blue for brand accents, use a visual operational sequence for the manual-work problem, remove the standalone customer-name strip and never place visible 'real capture' legends over product evidence.",
+      "reason": "The owner explicitly selected the original dark Kova surface, the 'Vende. Kova mantiene el resto bajo control.' thesis and a quieter product-led presentation where the interface proves itself without explanatory capture labels."
     }
   ],
   "evidence": [

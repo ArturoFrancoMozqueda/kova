@@ -5,57 +5,6 @@ import styles from "./LandingSections.module.css";
 
 const t = copy.landing;
 
-export function TrustBar() {
-  return (
-    <section className={styles.trust} aria-labelledby="trust-title">
-      <div className={styles.trustInner}>
-        <div>
-          <span className={styles.eyebrow}>{t.trust.eyebrow}</span>
-          <h2 id="trust-title" className={styles.trustTitle}>{t.trust.title}</h2>
-        </div>
-        <div className={styles.trustNames} aria-label="Negocios que usan Kova">
-          {t.trust.names.map((name) => (
-            <span key={name} className={styles.trustName}>{name}</span>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function BenefitsSection() {
-  return (
-    <section id="beneficios" className={styles.section} aria-labelledby="benefits-title">
-      <div className={styles.inner}>
-        <span className={styles.eyebrow}>{t.benefits.eyebrow}</span>
-        <h2 id="benefits-title" className={styles.title}>{t.benefits.title}</h2>
-        <ol className={styles.benefitGrid}>
-          {t.benefits.items.map((item, index) => (
-            <li key={item.title} className={styles.benefit}>
-              <div className={styles.benefitVisual}>
-                <img
-                  src={item.image}
-                  alt={item.alt}
-                  width={1440}
-                  height={900}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
-              <div className={styles.benefitCopy}>
-                <span className={styles.benefitIndex} aria-hidden="true">{index + 1}</span>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-                <p className={styles.consequence}>{item.consequence}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
-
 export function ProblemSection() {
   return (
     <section id="problema" className={`${styles.section} ${styles.problem}`} aria-labelledby="problem-title">
@@ -67,28 +16,68 @@ export function ProblemSection() {
           </div>
           <div data-lp-stagger-item>
             <p className={styles.lead}>{t.problem.body}</p>
-            <p className={styles.problemPrompt}>{t.problem.prompt}</p>
-            <ul className={styles.problemQuestions}>
-              {t.problem.questions.map((question) => <li key={question}>{question}</li>)}
-            </ul>
           </div>
         </div>
 
-        <div className={styles.manualFlow} data-lp-stagger-group>
+        <div className={styles.problemNarrative} data-lp-stagger-group>
+          <div className={styles.problemScenario} data-lp-stagger-item>
+            <span>{t.problem.scenarioLabel}</span>
+            <strong>{t.problem.scenarioAmount}</strong>
+            <p>{t.problem.scenarioBody}</p>
+            <div className={styles.problemRoute} aria-hidden="true">
+              {t.problem.steps.map((step) => <span key={step.number}>{step.tools}</span>)}
+            </div>
+          </div>
+
           <ol className={styles.problemSteps} aria-label="Tres tareas manuales provocadas por la misma venta">
             {t.problem.steps.map((step) => (
               <li key={step.number} className={styles.problemStep} data-lp-stagger-item>
-                <div className={styles.problemStepTop}>
-                  <span className={styles.problemStepNumber} aria-hidden="true">{step.number}</span>
-                  <span className={styles.problemStepTools}>{step.tools}</span>
+                <span className={styles.problemStepNumber} aria-hidden="true">{step.number}</span>
+                <div>
+                  <h3>{step.title}</h3>
+                  <strong className={styles.problemStepDetail}>{step.detail}</strong>
                 </div>
-                <h3>{step.title}</h3>
-                <strong className={styles.problemStepDetail}>{step.detail}</strong>
+                <span className={styles.problemStepTools}>{step.tools}</span>
               </li>
             ))}
           </ol>
+        </div>
+
+        <div className={styles.problemOutcome} data-lp-stagger-group>
+          <p className={styles.problemPrompt} data-lp-stagger-item>{t.problem.prompt}</p>
+          <ul className={styles.problemQuestions} data-lp-stagger-item>
+            {t.problem.questions.map((question) => <li key={question}>{question}</li>)}
+          </ul>
           <p className={styles.problemClosing} data-lp-stagger-item>{t.problem.closing}</p>
         </div>
+      </div>
+    </section>
+  );
+}
+
+export function CapabilitiesSection() {
+  return (
+    <section id="incluye" className={`${styles.section} ${styles.capabilities}`} aria-labelledby="capabilities-title">
+      <div className={styles.inner}>
+        <div className={styles.capabilitiesHeading} data-lp-stagger-group>
+          <div>
+            <span className={styles.eyebrow} data-lp-stagger-item>{t.capabilities.eyebrow}</span>
+            <h2 id="capabilities-title" className={styles.title} data-lp-stagger-item>{t.capabilities.title}</h2>
+          </div>
+          <p className={styles.lead} data-lp-stagger-item>{t.capabilities.body}</p>
+        </div>
+        <ol className={styles.capabilityList} data-lp-stagger-group>
+          {t.capabilities.items.map((item, index) => (
+            <li key={item.title} className={styles.capability} data-lp-stagger-item>
+              <span className={styles.capabilityIndex} aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+                <span className={styles.capabilityProof}>{item.proof}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );
@@ -108,11 +97,6 @@ export function ReportsSpotlight() {
 
         <div className={styles.reportStage} data-lp-reveal-opt data-lp-reveal-variant="frame">
           <figure className={styles.reportFrame}>
-            <div className={styles.browserBar} aria-hidden="true">
-              <span className={styles.browserDots}>● ● ●</span>
-              <span>kovasuite.com</span>
-              <span>{t.reportsSpotlight.productLabel}</span>
-            </div>
             <div className={styles.reportViewport}>
               <img
                 src="/showcase/reports.png"
@@ -124,14 +108,14 @@ export function ReportsSpotlight() {
               />
             </div>
           </figure>
-          <ul className={styles.reportInsights} data-lp-stagger-group aria-label="Datos visibles en la captura de Reportes">
-            {t.reportsSpotlight.insights.map((insight, index) => (
-              <li key={insight.label} data-position={index + 1} data-lp-stagger-item>
-                <span>{insight.label}</span>
-                <strong>{insight.value}</strong>
+          <ol className={styles.reportQuestions} aria-label={t.reportsSpotlight.questionsLabel}>
+            {t.reportsSpotlight.questions.map((question, index) => (
+              <li key={question}>
+                <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <strong>{question}</strong>
               </li>
             ))}
-          </ul>
+          </ol>
         </div>
       </div>
     </section>
@@ -166,30 +150,6 @@ export function TestimonialsSection({
         <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
           {t.testimonials.cta}
         </Link>
-      </div>
-    </section>
-  );
-}
-
-export function ValueBridge() {
-  return (
-    <section id="valor" className={styles.valueBridge} aria-labelledby="value-title">
-      <div className={styles.valueInner}>
-        <div className={styles.valueCopy}>
-          <span className={styles.eyebrow}>{t.pricing.worthItEyebrow}</span>
-          <h2 id="value-title">{t.pricing.worthItTitle}</h2>
-          <p>{t.pricing.worthItBody}</p>
-        </div>
-        <div className={styles.valueOffer} aria-label={t.pricing.worthItPlan}>
-          <div className={styles.valuePrice}>
-            <strong className="tabular">{t.pricing.worthItDaily}</strong>
-            <span>{t.pricing.worthItDailyLabel}</span>
-          </div>
-          <ul className={styles.valueItems}>
-            {t.pricing.worthItItems.map((item) => <li key={item}>{item}</li>)}
-          </ul>
-          <p className={styles.valuePlan}>{t.pricing.worthItPlan}</p>
-        </div>
       </div>
     </section>
   );

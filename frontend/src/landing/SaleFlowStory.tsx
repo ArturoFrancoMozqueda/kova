@@ -76,7 +76,7 @@ export default function SaleFlowStory({
           </div>
         </div>
 
-        <div className={styles.demo}>
+        <div className={styles.desktopStory}>
           <div className={styles.tablist} role="tablist" aria-label={t.progressLabel}>
             {STORY_STEPS.map((step, index) => {
               const active = activeStep === step.id;
@@ -120,11 +120,6 @@ export default function SaleFlowStory({
                   <span className={styles.receipt}>{step.receipt}</span>
                 </div>
                 <figure className={styles.capture}>
-                  <div className={styles.browserBar}>
-                    <span aria-hidden="true">● ● ●</span>
-                    <span>kovasuite.com</span>
-                    <span>{t.productLabel}</span>
-                  </div>
                   <img
                     src={step.image}
                     alt={step.alt}
@@ -138,6 +133,28 @@ export default function SaleFlowStory({
             );
           })}
         </div>
+
+        <ol className={styles.mobileStory} aria-label={t.progressLabel}>
+          {STORY_STEPS.map((step) => (
+            <li key={step.id} className={styles.mobileStep}>
+              <div className={styles.mobileCopy}>
+                <span className={styles.stepNumber}>{step.number} · {step.title}</span>
+                <h3>{step.heading}</h3>
+                <p>{step.line}</p>
+              </div>
+              <figure className={styles.mobileCapture}>
+                <img
+                  src={step.image}
+                  alt={step.alt}
+                  width={1440}
+                  height={900}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </figure>
+            </li>
+          ))}
+        </ol>
 
         <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
           {t.cta}
