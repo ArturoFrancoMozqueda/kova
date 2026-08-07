@@ -80,7 +80,7 @@ test("desktop sidebar crossfades labels without losing link names", async ({ pag
   await expect(dashboardLabel).toHaveCSS("opacity", "1");
 });
 
-test("desktop product search only appears in the catalog section", async ({ page }) => {
+test("catalog owns the desktop product search without a global command bar", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
@@ -91,12 +91,16 @@ test("desktop product search only appears in the catalog section", async ({ page
   );
   await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: [] }));
   await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/catalog/modifier-groups", (route) => route.fulfill({ json: [] }));
 
   await page.goto("/dashboard");
   await expect(page.locator("#global-product-search")).toHaveCount(0);
+  const contentBox = await page.locator("#contenido-principal").boundingBox();
+  expect(Math.round(contentBox?.y ?? -1)).toBe(0);
 
   await page.goto("/catalog");
-  await expect(page.locator("#global-product-search")).toBeVisible();
+  await expect(page.locator("#global-product-search")).toHaveCount(0);
+  await expect(page.locator("#catalog-product-search")).toBeVisible();
 });
 
 test("public landing explains the single Standard Plan", async ({ page }) => {
