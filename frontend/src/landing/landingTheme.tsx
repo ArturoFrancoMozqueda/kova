@@ -87,6 +87,13 @@ export const LANDING_STYLES = `
     min-height: 100vh;
     transition: background 280ms var(--kova-ease-entrance), color 280ms var(--kova-ease-entrance);
   }
+  /* One continuous ink canvas. Product screenshots and operational cards keep
+     their own surfaces, while navigation, narrative sections and footer no
+     longer alternate between white and dark bands. */
+  .lp-root main > section,
+  .lp-root > footer {
+    background: var(--page-bg);
+  }
   .lp-root .tabular { font-variant-numeric: tabular-nums; }
   .lp-root ::selection { background: var(--accent); color: #fff; }
   .lp-skip-link {
@@ -767,6 +774,20 @@ export const LANDING_STYLES = `
     transform: translate3d(0, 0, 0) scale(1);
   }
 
+  /* Layered hero entrance inspired by 21st's cinematic product reveals. It is
+     a one-shot orientation cue: no ambient loop and no layout properties. */
+  @keyframes lp-hero-copy-in {
+    from { opacity: 0; transform: translate3d(0, 18px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  .lp-root.lp-motion-ready .lp-hero-content > * {
+    animation: lp-hero-copy-in 620ms var(--kova-ease-entrance) both;
+  }
+  .lp-root.lp-motion-ready .lp-hero-content > :nth-child(2) { animation-delay: 70ms; }
+  .lp-root.lp-motion-ready .lp-hero-content > :nth-child(3) { animation-delay: 130ms; }
+  .lp-root.lp-motion-ready .lp-hero-content > :nth-child(4) { animation-delay: 190ms; }
+  .lp-root.lp-motion-ready .lp-hero-content > :nth-child(5) { animation-delay: 250ms; }
+
   /* ── Navbar ─────────────────────────────────────────────────────────────
      Estado base = tope de página (SSR/no-JS). data-scrolled lo agrega un efecto
      tras hidratar: fondo más sólido, sombra suave y padding más compacto. */
@@ -774,7 +795,7 @@ export const LANDING_STYLES = `
     position: sticky;
     top: 0;
     z-index: 50;
-    background: color-mix(in srgb, var(--page-bg) 85%, transparent);
+    background: color-mix(in srgb, var(--page-bg) 92%, transparent);
     backdrop-filter: saturate(140%) blur(12px);
     -webkit-backdrop-filter: saturate(140%) blur(12px);
     border-bottom: 0.5px solid var(--hairline-color);
@@ -784,7 +805,7 @@ export const LANDING_STYLES = `
       box-shadow 220ms var(--kova-ease-entrance);
   }
   .lp-nav[data-scrolled="true"] {
-    background: color-mix(in srgb, var(--page-bg) 94%, transparent);
+    background: color-mix(in srgb, var(--page-bg) 97%, transparent);
     border-bottom-color: transparent;
     /* Hairline con desvanecido centrado: más fino que un borde plano. */
     border-image: linear-gradient(90deg, transparent, var(--hairline-strong) 18%, var(--hairline-strong) 82%, transparent) 1;

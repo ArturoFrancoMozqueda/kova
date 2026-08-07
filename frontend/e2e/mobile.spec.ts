@@ -326,7 +326,33 @@ test("public landing fits common phone and tablet widths", async ({ page }) => {
   }
 });
 
-test("mobile landing keeps the compact sale story operable without overflow", async ({ page }) => {
+test("public landing uses one continuous Kova ink canvas", async ({ page }) => {
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.goto("/");
+  await expect(page.locator(".lp-root")).toBeVisible();
+
+  const backgrounds = await page.evaluate(() => {
+    const color = (selector: string) =>
+      getComputedStyle(document.querySelector<HTMLElement>(selector)!).backgroundColor;
+    return {
+      body: getComputedStyle(document.body).backgroundColor,
+      root: color(".lp-root"),
+      hero: color(".lp-hero-section"),
+      problem: color("#problema"),
+      navigation: color(".lp-nav"),
+    };
+  });
+
+  expect(backgrounds.body).toBe("rgb(15, 17, 23)");
+  expect(backgrounds.root).toBe(backgrounds.body);
+  expect(backgrounds.hero).toBe(backgrounds.body);
+  expect(backgrounds.problem).toBe(backgrounds.body);
+  expect(backgrounds.navigation).not.toBe("rgb(255, 255, 255)");
+});
+
+test("mobile landing keeps the complete sale story readable without overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
@@ -335,13 +361,10 @@ test("mobile landing keeps the compact sale story operable without overflow", as
 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const tabs = story.getByRole("tab");
-  await expect(tabs).toHaveCount(4);
-  await expect(story.getByRole("tabpanel")).toContainText("Cobras en segundos");
-  await story.getByRole("tab", { name: "Inventario" }).click();
-  await expect(story.getByRole("tabpanel")).toContainText(
-    "El stock baja automáticamente",
-  );
+  const steps = story.getByRole("listitem");
+  await expect(steps).toHaveCount(4);
+  await expect(steps.first()).toContainText("Cobras en segundos");
+  await expect(steps.nth(1)).toContainText("El stock baja automáticamente");
   await expect(
     story.getByRole("img", { name: /Inventario de Kova/i }),
   ).toBeVisible();
@@ -415,13 +438,10 @@ test("landing film degrades to a complete static hero under reduced motion", asy
   await expect(page.locator(".lp-hero-frame")).toBeVisible();
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  await expect(story.getByRole("tab")).toHaveCount(4);
-  const reportsTab = story.getByRole("tab", { name: "Reportes" });
-  await reportsTab.click();
-  await expect(reportsTab).toHaveAttribute("aria-selected", "true");
-  await expect(story.locator("#sale-flow-panel-reports")).toContainText(
-    "La venta aparece en tus resultados",
-  );
+  const steps = story.getByRole("listitem");
+  await expect(steps).toHaveCount(4);
+  await expect(steps.nth(3)).toContainText("La venta aparece en tus resultados");
+  await expect(story.getByRole("img", { name: /Reportes de Kova/i })).toBeVisible();
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

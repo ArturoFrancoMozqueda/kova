@@ -74,6 +74,10 @@
   cursor: pointer;
   font: inherit;
   text-align: left;
+  transition:
+    color 180ms var(--kova-ease-entrance),
+    background-color 180ms var(--kova-ease-entrance),
+    transform 180ms var(--kova-ease-entrance);
 }
 
 .tab:last-child { border-right: 0; }
@@ -92,7 +96,7 @@
 }
 
 .tab[aria-selected="true"] {
-  background: hsl(var(--card));
+  background: var(--surface);
   color: var(--page-fg);
   box-shadow: inset 0 -3px 0 var(--page-fg);
 }
@@ -107,9 +111,15 @@
   overflow: hidden;
   border-bottom: 1px solid var(--hairline-strong);
   background: var(--surface);
+  animation: storyPanelIn 420ms var(--kova-ease-entrance) both;
 }
 
 .panel[hidden] { display: none; }
+
+@keyframes storyPanelIn {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
 
 .copy {
   padding: clamp(30px, 4vw, 50px);
@@ -168,6 +178,7 @@
   display: block;
   object-fit: cover;
   object-position: top left;
+  transition: transform 520ms var(--kova-ease-entrance);
 }
 
 .mobileStory { display: none; }
@@ -180,7 +191,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: var(--page-fg);
+  background: var(--cta-blue, var(--kova-blue));
   color: #fff;
   font-size: 14px;
   font-weight: 650;
@@ -204,6 +215,10 @@
     border: 1px solid var(--hairline-strong);
     border-radius: 14px;
     background: var(--surface);
+    transition:
+      transform 240ms var(--kova-ease-entrance),
+      border-color 240ms var(--kova-ease-entrance),
+      box-shadow 240ms var(--kova-ease-entrance);
   }
 
   .mobileCopy { padding: 26px 24px 24px; }
@@ -235,5 +250,20 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tab,
-  .panel { transition: none; }
+  .panel,
+  .capture img,
+  .mobileStep {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .tab:hover { transform: translateY(-2px); }
+  .capture:hover img { transform: scale(1.018); }
+  .mobileStep:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 24px 54px -40px rgba(0, 0, 0, 0.72);
+  }
 }

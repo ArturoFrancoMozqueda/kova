@@ -1,5 +1,12 @@
 # Brief visual y UX — Landing "Una venta lo mueve todo"
 
+> **Actualización 6 de agosto de 2026 (dirección de color unificada):** toda la
+> landing pública —navbar, secciones y footer— vive sobre un solo lienzo tinta
+> Kova. La jerarquía se construye con bordes, tipografía, capturas del producto y
+> superficies operativas elevadas; ya no se alternan bandas blancas y oscuras.
+> El movimiento es puntual y sin loops: entradas por capas, reveals al scroll y
+> microinteracciones de hover, siempre neutralizadas por `prefers-reduced-motion`.
+
 > **Actualización agosto de 2026 (dirección aprobada):** la landing pública abre
 > en tinta Kova y después alterna fondos oscuros con blanco. El azul Kova queda
 > como acento de marca. El problema operativo se

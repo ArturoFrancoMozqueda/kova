@@ -76,7 +76,7 @@ export default function SaleFlowStory({
           </div>
         </div>
 
-        <div className={styles.desktopStory}>
+        <div className={styles.desktopStory} data-lp-reveal-opt data-lp-reveal-variant="frame">
           <div className={styles.tablist} role="tablist" aria-label={t.progressLabel}>
             {STORY_STEPS.map((step, index) => {
               const active = activeStep === step.id;
@@ -134,9 +134,9 @@ export default function SaleFlowStory({
           })}
         </div>
 
-        <ol className={styles.mobileStory} aria-label={t.progressLabel}>
+        <ol className={styles.mobileStory} aria-label={t.progressLabel} data-lp-stagger-group>
           {STORY_STEPS.map((step) => (
-            <li key={step.id} className={styles.mobileStep}>
+            <li key={step.id} className={styles.mobileStep} data-lp-stagger-item>
               <div className={styles.mobileCopy}>
                 <span className={styles.stepNumber}>{step.number} · {step.title}</span>
                 <h3>{step.heading}</h3>
