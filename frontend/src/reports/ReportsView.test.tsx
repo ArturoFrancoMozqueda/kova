@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
@@ -64,13 +64,15 @@ describe("ReportsView", () => {
     // The priority action must be readable without any interaction.
     expect(screen.getByTestId("priority-recommendation")).toBeInTheDocument();
     expect(screen.queryByTestId("margin-analysis")).not.toBeInTheDocument();
-    expect(telemetry.trackAnalysisViewed).toHaveBeenCalledWith(
-      expect.objectContaining({
-        range_days: 7,
-        preset: "custom",
-        recommendation_count: expect.any(Number),
-      }),
-    );
+    await waitFor(() => {
+      expect(telemetry.trackAnalysisViewed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          range_days: 7,
+          preset: "custom",
+          recommendation_count: expect.any(Number),
+        }),
+      );
+    });
   });
 
   it("tracks a completed recommendation and its usefulness feedback", async () => {
@@ -84,11 +86,15 @@ describe("ReportsView", () => {
       expect.objectContaining({ surface: "prioridad" }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.actionFeedbackHelpful }));
-    expect(telemetry.trackAnalysisActionFeedback).toHaveBeenCalledWith(
-      "helpful",
-      expect.objectContaining({ surface: "prioridad" }),
+    fireEvent.click(
+      await screen.findByRole("button", { name: copy.reportsView.actionFeedbackHelpful }),
     );
+    await waitFor(() => {
+      expect(telemetry.trackAnalysisActionFeedback).toHaveBeenCalledWith(
+        "helpful",
+        expect.objectContaining({ surface: "prioridad" }),
+      );
+    });
   });
 
   it("shows exact margin only when the tenant flag is enabled", async () => {
