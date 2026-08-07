@@ -80,6 +80,25 @@ test("desktop sidebar crossfades labels without losing link names", async ({ pag
   await expect(dashboardLabel).toHaveCSS("opacity", "1");
 });
 
+test("desktop product search only appears in the catalog section", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: authenticatedOwner }),
+  );
+  await page.route("**/api/v1/billing/subscription", (route) =>
+    route.fulfill({ json: billingAllowed }),
+  );
+  await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/dashboard");
+  await expect(page.locator("#global-product-search")).toHaveCount(0);
+
+  await page.goto("/catalog");
+  await expect(page.locator("#global-product-search")).toBeVisible();
+});
+
 test("public landing explains the single Standard Plan", async ({ page }) => {
   await page.route("**/api/v1/auth/session", async (route) => {
     await route.fulfill({ json: { authenticated: false } });

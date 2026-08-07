@@ -599,7 +599,7 @@ export default function Home(): ReactNode {
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
-  const theme: Theme = "light";
+  const theme: Theme = "dark";
 
   const rootStyle = useMemo(() => themeVars(theme), [theme]);
   useLandingRevealMotion();
@@ -693,7 +693,7 @@ export default function Home(): ReactNode {
     const body = document.body;
     const prevHtml = html.style.background;
     const prevBody = body.style.background;
-    const landingBg = "#FBFBFD"; // matches light theme --page-bg
+    const landingBg = "#0F1117"; // matches dark theme --page-bg
     html.style.background = landingBg;
     body.style.background = landingBg;
     return () => {

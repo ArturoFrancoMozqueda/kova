@@ -2182,7 +2182,7 @@ export const copy = {
     statusCanceled: "Cancelado",
     statusUnpaid: "Sin pagar",
     noSubscription: "Sin suscripción",
-    subtitle: "Administra la suscripción mensual que mantiene activo tu POS.",
+    subtitle: "Administra la suscripción mensual que mantiene activo tu negocio.",
     valueTitle: "Lo que conservas al activar",
     valueItems: [
       "Caja para vender en efectivo, transferencia y tarjeta manual",

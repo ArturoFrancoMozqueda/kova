@@ -65,6 +65,10 @@
   },
   "decisions": [
     {
+      "decision": "Render the public landing on one continuous Kova ink canvas, including the sticky navigation and footer.",
+      "reason": "The owner selected a unified dark direction; hierarchy now comes from borders, typography, product captures and lifted operational surfaces instead of alternating page backgrounds."
+    },
+    {
       "decision": "Adapt 21st components to Kova primitives instead of adding a parallel component system.",
       "reason": "The product already has audited tokens, permissions and motion contracts that are stronger than catalog defaults."
     },

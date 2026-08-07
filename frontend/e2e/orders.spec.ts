@@ -139,6 +139,14 @@ test("refund exceeding available qty shows specific error toast", async ({ page 
   );
 
   await page.goto("/orders/order-r1");
+  const printableReceipt = page.locator(".print-receipt-root");
+  await expect(printableReceipt).toBeVisible();
+
+  await page.emulateMedia({ media: "print" });
+  await expect(printableReceipt).toBeVisible();
+  await expect(printableReceipt).toContainText("Concha");
+  await page.emulateMedia({ media: "screen" });
+
   await page.getByRole("button", { name: /devolver/i }).click();
   // Force qty > available by typing into the qty input.
   await page.getByLabel(/Concha Cantidad/i).fill("2");

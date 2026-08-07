@@ -1658,9 +1658,8 @@ export default function RegisterView() {
                     {copy.register.newSale}
                   </Button>
                 </div>
-                {/* On-screen preview for desktop. The printable copy lives in the
-                    mobile success overlay (always in the DOM); at print width the
-                    lg:block desktop card is display:none, so it never double-prints. */}
+                {/* On-screen preview for desktop. A separate print-only copy below
+                    stays independent from viewport-specific success layouts. */}
                 {receiptProps && (
                   <TicketPaper className="mt-4">
                     <ReceiptTemplate {...receiptProps} />
@@ -1744,15 +1743,13 @@ export default function RegisterView() {
                 {formatMoney(displayedSaleTotal)}
               </p>
             </div>
-            {/* Printable receipt: this node (always in the DOM whenever a sale is
-                complete) is the single print-receipt-root the print CSS targets,
-                for both mobile and desktop. */}
+            {/* On-screen receipt preview for the mobile success state. */}
             {receiptProps && (
               // kv-tkt-reveal is the opt-in for the band-by-band print-in. It
               // lives here, not on ReceiptTemplate, so the order-detail receipt
               // and the settings preview stay still.
               <TicketPaper className="w-full max-w-xs kv-tkt-reveal">
-                <ReceiptTemplate {...receiptProps} className="print-receipt-root" />
+                <ReceiptTemplate {...receiptProps} />
               </TicketPaper>
             )}
           </div>
@@ -1787,6 +1784,15 @@ export default function RegisterView() {
               </Link>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Keep the printable receipt outside the desktop/mobile success variants.
+          The mobile dialog is `lg:hidden`, which also made its receipt disappear
+          from desktop print previews. */}
+      {receiptProps && (
+        <div className="print-only" aria-hidden="true">
+          <ReceiptTemplate {...receiptProps} className="print-receipt-root" />
         </div>
       )}
 

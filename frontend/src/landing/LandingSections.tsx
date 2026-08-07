@@ -132,12 +132,14 @@ export function TestimonialsSection({
   return (
     <section id="clientes" className={`${styles.section} ${styles.testimonials}`} aria-labelledby="testimonials-title">
       <div className={styles.inner}>
-        <span className={styles.eyebrow}>{t.testimonials.eyebrow}</span>
-        <h2 id="testimonials-title" className={styles.title}>{t.testimonials.title}</h2>
-        <p className={styles.testimonialNote}>{t.testimonials.note}</p>
-        <div className={styles.quotes}>
+        <div data-lp-stagger-group>
+          <span className={styles.eyebrow} data-lp-stagger-item>{t.testimonials.eyebrow}</span>
+          <h2 id="testimonials-title" className={styles.title} data-lp-stagger-item>{t.testimonials.title}</h2>
+          <p className={styles.testimonialNote} data-lp-stagger-item>{t.testimonials.note}</p>
+        </div>
+        <div className={styles.quotes} data-lp-stagger-group>
           {TESTIMONIALS.map((item, index) => (
-            <blockquote key={item.business} className={styles.quote}>
+            <blockquote key={item.business} className={styles.quote} data-lp-stagger-item>
               <div className={styles.quoteTop}>
                 <span className={styles.quoteNumber} aria-hidden="true">0{index + 1}</span>
                 <span className={styles.quoteOutcome}>{item.outcome}</span>

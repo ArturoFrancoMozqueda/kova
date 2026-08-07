@@ -141,6 +141,9 @@
   gap: 18px;
   align-items: center;
   border-bottom: 1px solid var(--hairline-color);
+  transition:
+    transform 220ms var(--kova-ease-entrance),
+    background-color 220ms var(--kova-ease-entrance);
 }
 
 .problemStep:last-child { border-bottom: 0; }
@@ -233,6 +236,9 @@
   grid-template-columns: 46px 1fr;
   gap: 18px;
   border-bottom: 1px solid var(--hairline-color);
+  transition:
+    transform 220ms var(--kova-ease-entrance),
+    background-color 220ms var(--kova-ease-entrance);
 }
 
 .capability:nth-child(odd) {
@@ -299,6 +305,10 @@
   border-radius: 14px;
   background: hsl(var(--card));
   box-shadow: 0 34px 70px -48px rgba(15, 17, 23, 0.38);
+  transition:
+    transform 420ms var(--kova-ease-entrance),
+    border-color 240ms var(--kova-ease-entrance),
+    box-shadow 420ms var(--kova-ease-entrance);
 }
 
 .reportViewport {
@@ -313,6 +323,7 @@
   display: block;
   object-fit: cover;
   object-position: top left;
+  transition: transform 620ms var(--kova-ease-entrance);
 }
 
 .reportQuestions {
@@ -370,6 +381,9 @@
   margin: 0;
   padding: clamp(28px, 4vw, 44px);
   text-align: left;
+  transition:
+    transform 240ms var(--kova-ease-entrance),
+    background-color 240ms var(--kova-ease-entrance);
 }
 
 .quote + .quote { border-left: 1px solid var(--hairline-color); }
@@ -426,6 +440,37 @@
   font-size: 14px;
   font-weight: 650;
   text-decoration: none;
+  transition:
+    transform 180ms var(--kova-ease-entrance),
+    box-shadow 220ms var(--kova-ease-entrance);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .problemStep:hover,
+  .capability:hover { transform: translate3d(4px, 0, 0); }
+  .problemStep:hover,
+  .capability:hover,
+  .quote:hover { background: color-mix(in srgb, var(--surface) 72%, transparent); }
+  .quote:hover { transform: translate3d(0, -3px, 0); }
+  .reportFrame:hover {
+    transform: translate3d(0, -4px, 0);
+    border-color: var(--accent);
+    box-shadow: 0 38px 78px -48px rgba(0, 0, 0, 0.72);
+  }
+  .reportFrame:hover .reportViewport img { transform: scale(1.018); }
+  .cta:hover {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: 0 16px 34px -22px rgba(79, 126, 247, 0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .problemStep,
+  .capability,
+  .reportFrame,
+  .reportViewport img,
+  .quote,
+  .cta { transition: none; }
 }
 
 @media (max-width: 900px) {

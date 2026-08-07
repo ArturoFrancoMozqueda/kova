@@ -183,6 +183,14 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
   await page.getByRole("button", { name: /^cobrar$/i }).click();
 
   await expect(page.getByRole("status")).toContainText(/en cola/i);
+
+  const printableReceipt = page.locator(".print-receipt-root");
+  await expect(printableReceipt).toHaveCount(1);
+  await expect(printableReceipt).toBeHidden();
+
+  await page.emulateMedia({ media: "print" });
+  await expect(printableReceipt).toBeVisible();
+  await expect(printableReceipt).toContainText("Concha");
 });
 
 test("cash is blocked without an open shift but a transfer sale completes", async ({
