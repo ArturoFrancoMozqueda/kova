@@ -1236,6 +1236,7 @@ export const copy = {
   },
   reportsView: {
     title: "Análisis",
+    periodLabel: "Periodo de análisis",
     storyEyebrow: "Historia del negocio",
     loading: "Cargando análisis",
     loadError: "No se pudo cargar el análisis",
@@ -1882,6 +1883,7 @@ export const copy = {
     filterEndDate: "Hasta",
     clearFilters: "Limpiar",
     filterLabel: "Filtrar órdenes",
+    periodLabel: "Periodo de órdenes",
     sortLabel: "Ordenar órdenes",
     sortNewest: "Más recientes",
     sortOldest: "Más antiguas",

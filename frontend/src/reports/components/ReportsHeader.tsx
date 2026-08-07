@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ViewHeader } from "@/components/ui/view-header";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
 import { formatDayMonthLong } from "@/i18n/date";
 import { timezoneLabel } from "@/i18n/timezones";
@@ -51,22 +52,16 @@ export function ReportsHeader({
           onSubmit={onSubmit}
           className="flex max-w-2xl flex-wrap items-end justify-end gap-2"
         >
-          <div className="flex rounded-kova-md bg-kova-mist p-1">
-            {PRESETS.map((preset) => (
-              <Button
-                key={preset}
-                type="button"
-                size="sm"
-                variant="ghost"
-                className={cn(
-                  "h-8 rounded-kova-sm px-4 text-kova-ink hover:bg-white/70",
-                  activePreset === preset && "bg-white shadow-sm hover:bg-white",
-                )}
-                onClick={() => onPreset(preset)}
-              >
-                {copy.reportsView.presetLabel(preset)}
-              </Button>
-            ))}
+          <SegmentedControl
+            ariaLabel={copy.reportsView.periodLabel}
+            options={PRESETS.map((preset) => ({
+              value: preset,
+              label: copy.reportsView.presetLabel(preset),
+            }))}
+            value={activePreset}
+            onValueChange={onPreset}
+            selectionMode="button"
+          >
             <Button
               type="button"
               size="sm"
@@ -78,7 +73,7 @@ export function ReportsHeader({
               <CalendarDays className="mr-1.5 h-4 w-4" />
               {copy.reportsView.customRange}
             </Button>
-          </div>
+          </SegmentedControl>
           <div
             className={cn(
               "basis-full flex-wrap items-end justify-end gap-2 rounded-kova-md border border-kova-border bg-white p-3 shadow-kova-card",
