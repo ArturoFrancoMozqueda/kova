@@ -71,6 +71,13 @@ export function themeVars(theme: Theme): CSSProperties {
 
 /* ─── Landing-scoped CSS ─────────────────────────────────────────────────── */
 export const LANDING_STYLES = `
+  /* The landing is prerendered, so paint the document canvas before React
+     hydrates. The Home effect remains as a fallback and handles restoration
+     during client-side navigation. */
+  html:has(.lp-root),
+  body:has(.lp-root) {
+    background: #0F1117;
+  }
   .lp-root {
     font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
     --lp-font-display: 'Bricolage Grotesque Variable', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
