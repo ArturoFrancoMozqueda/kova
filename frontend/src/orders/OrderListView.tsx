@@ -9,6 +9,7 @@ import { formatMoney, formatDateTime } from "./format";
 import { Card, CardContent } from "@/components/ui/card";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,28 +145,17 @@ export default function OrderListView() {
         className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
         aria-label={copy.orderList.filterLabel}
       >
-        <div className="inline-flex self-start rounded-kova-md bg-kova-mist p-1">
-          {([
-            ["today", "Hoy"],
-            ["week", "Semana"],
-            ["month", "Mes"],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={periodPreset === value}
-              onClick={() => selectPeriod(value)}
-              className={cn(
-                "h-8 rounded-kova-sm px-3 text-xs font-medium transition-colors",
-                periodPreset === value
-                  ? "bg-white text-kova-ink shadow-sm"
-                  : "text-muted-foreground hover:text-kova-ink",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          ariaLabel={copy.orderList.periodLabel}
+          options={[
+            { value: "today", label: "Hoy" },
+            { value: "week", label: "Semana" },
+            { value: "month", label: "Mes" },
+          ] as const}
+          value={periodPreset}
+          onValueChange={selectPeriod}
+          selectionMode="button"
+        />
         {/* Status pills */}
         <div className="flex gap-1.5 flex-wrap">
           {statusOptions.map(({ value, label }) => (

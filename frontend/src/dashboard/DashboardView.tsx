@@ -31,11 +31,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DeltaChip } from "@/components/ui/stat-tile";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ArcKicker } from "@/components/ui/arc-kicker";
 import { calculateSafeGrowth, MIN_MONEY_BASE } from "@/lib/growth";
 import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
-import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { CountUp } from "@/components/brand/RealTime";
 import {
@@ -503,46 +503,16 @@ export default function DashboardView() {
           title={tenantName || copy.app.dashboard}
           meta={periodSubtitle(period, tenantTimezone)}
           actions={
-            <div
-              role="radiogroup"
-              aria-label={copy.dashboard.periodLabel}
-              // Focus lives on the roving-tabindex radios; -1 makes the group
-              // itself programmatically focusable without adding a tab stop.
-              tabIndex={-1}
-              className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--kova-border)] p-0.5 text-xs font-medium"
-              onKeyDown={(e) =>
-                handleRadioGroupKeyDown(
-                  e,
-                  [{ value: "day" }, { value: "week" }, { value: "month" }] as const,
-                  period,
-                  setPeriod,
-                )
-              }
-            >
-              {([
+            <SegmentedControl
+              ariaLabel={copy.dashboard.periodLabel}
+              options={[
                 { value: "day", label: copy.dashboard.periodDay },
                 { value: "week", label: copy.dashboard.periodWeek },
                 { value: "month", label: copy.dashboard.periodMonth },
-              ] as const).map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  data-radio-value={value}
-                  tabIndex={period === value ? 0 : -1}
-                  aria-checked={period === value}
-                  onClick={() => setPeriod(value)}
-                  className={cn(
-                    "rounded-[var(--radius-sm)] px-3 py-1.5 transition-colors",
-                    period === value
-                      ? "bg-[color:var(--kova-ink)] text-white"
-                      : "text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)]",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+              ] as const}
+              value={period}
+              onValueChange={setPeriod}
+            />
           }
         />
       </div>
