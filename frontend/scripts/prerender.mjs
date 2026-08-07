@@ -67,14 +67,10 @@ const ROUTES = [
     assert: "Vende. Kova mantiene el resto bajo control.",
     structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
-    // The HeroFilm poster is the LCP candidate on wide viewports; preloading
-    // both variants with mutually exclusive media queries means every
-    // viewport downloads exactly one. The breakpoint matches the component's
-    // <picture> source and its canvas NARROW_QUERY (860px).
-    preloadImages: [
-      { href: "/film/mobile/frame-0023.webp", media: "(max-width: 860px)" },
-      { href: "/film/desktop/frame-0023.webp", media: "(min-width: 861px)" },
-    ],
+    // HeroProductFrame's capture is the LCP on every viewport: it is the only
+    // image in the first fold and renders eagerly at a single source (no
+    // <picture>, no media variants), so one unconditional preload is exact.
+    preloadImages: [{ href: "/showcase/register.png" }],
   },
   {
     path: "/privacy",
@@ -208,7 +204,7 @@ function injectHead(html, { path, title, description, structuredData, preloadIma
   let out = html;
   const canonical = `${CANONICAL_ORIGIN}${path}`;
   const jsonLd = structuredData ? structuredDataScript(structuredData) : "";
-  // Route-scoped image preloads (the HeroFilm poster). fetchpriority=high puts
+  // Route-scoped image preloads (the hero capture). fetchpriority=high puts
   // the LCP image ahead of fonts/CSS in the queue; deferPrerenderHydration's
   // font-media rewrite only matches as="font", so these pass through intact.
   const images = (preloadImages ?? [])

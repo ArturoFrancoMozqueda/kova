@@ -1,6 +1,6 @@
 # Registro de experimentos CRO activos
 
-Última actualización: 2026-07-29.
+Última actualización: 2026-08-07.
 
 Este registro evita solapar variantes sobre el mismo tramo del embudo. Antes de activar un
 experimento se debe reservar una superficie, confirmar que no existe otro experimento activo en
@@ -47,6 +47,34 @@ ella y preregistrar hipótesis, muestra, métricas, guardrails y rollback.
 - Responsable: owner del producto. Evaluación con los mismos eventos existentes
   (`landing_viewed`, `landing_section_viewed`, `landing_film_chapter`, `landing_cta_clicked`,
   `signup_started`).
+
+## Cierre de la línea base post-overhaul: invalidada (2026-08-04)
+
+- Estado: la línea base declarada el 2026-07-29 no es evaluable. Se cierra sin lectura de
+  resultado. La entrada anterior se conserva tal cual; esta la corrige.
+- Motivo 1 — ventana contaminada al día siguiente. El overhaul se desplegó con el PR #81
+  (2026-07-29) y el PR #82 (`codex/landing-conversion-redesign`, 2026-07-30) ya reescribió la
+  composición de la landing; los PRs #84–88 (2026-08-02) y #89–91 (2026-08-04) siguieron
+  cambiándola. La ventana de atribución limpia fue de un día: 2026-07-29, con 17 `landing_viewed`
+  y 0 clics de CTA. Ninguna de las metas a 2 semanas puede adjudicarse al overhaul.
+- Motivo 2 — dos señales preregistradas nunca emitieron. En `anonymous_telemetry_events` no existe
+  ninguna fila con `landing_cta_clicked{cta:"sticky_mobile"}`, ni un solo evento
+  `landing_film_chapter` en toda la historia de la tabla. Los componentes que los emitían
+  (`landing/StickyCta.tsx`, `landing/film/HeroFilm.tsx`) dejaron de montarse en los rediseños
+  posteriores y permanecieron en el árbol sin renderizarse; este PR elimina ese código muerto. El
+  guardrail de completación del film era inmedible desde el registro de la línea base.
+- Datos observados igualmente (2026-07-29→08-05 UTC, 244 `landing_viewed`): alcance de `precio`
+  15.6%, clics de CTA 16.0%, `cta-final` 6.1%. Los tres superan los objetivos preregistrados
+  (≥4%, ≥3.5%, ≥2%), pero no son atribuibles: los 39 clics de CTA aparecen a partir del
+  2026-08-01 y todos llevan `cta:"hero"`, es decir caen en la ventana de los PRs #83–88.
+- Baseline recalculado con la misma consulta (2026-07-20→27): 455 `landing_viewed`, `precio` 1.5%,
+  clics de CTA 2.4%, `cta-final` 1.1%. Difiere de los 413 / 1.2% / 1.7% / 0.7% anotados el
+  2026-07-29 (ventana o huso horario distinto al consultar). Se deja constancia de ambas lecturas
+  en vez de reescribir la anterior.
+- EXP-01 sigue en pausa; no se asignan variantes. Sin PII; misma telemetría anónima allowlisted.
+- Siguiente paso: cualquier lectura de conversión exige congelar la landing y declarar una ventana
+  nueva antes de medir. Si se quiere recuperar el CTA fijo de móvil hay que reconstruirlo — el
+  original condicionaba su visibilidad a `pastHeroFilm()`, un hero-film que ya no se renderiza.
 
 ## Reglas operativas
 

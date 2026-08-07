@@ -43,7 +43,7 @@ const t = copy.landing;
 // Theme vars + landing CSS (themeVars, LANDING_STYLES, RESPONSIVE_STYLES) live
 // in @/landing/landingTheme so the marketing showcase can reuse them verbatim.
 // El reveal-on-scroll (useLandingRevealMotion) vive en @/landing/useRevealMotion
-// para que SaleStory y otras secciones reusen el mismo mecanismo.
+// para que otras secciones reusen el mismo mecanismo.
 
 /* ─── Navbar ─────────────────────────────────────────────────────────────── */
 const NAV_LINKS = [
