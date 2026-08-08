@@ -18,7 +18,7 @@ async function mockAuthAsOwner(page: Page) {
   });
 }
 
-test("settings receipt logo upload updates the preview", async ({ page }) => {
+test("settings business logo upload can be framed and updates the preview", async ({ page }) => {
   await mockAuthAsOwner(page);
   let logoUrl: string | null = null;
 
@@ -68,24 +68,25 @@ test("settings receipt logo upload updates the preview", async ({ page }) => {
     await route.fulfill({
       contentType: "image/png",
       body: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+        "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAWSURBVChTY/Cv+/4fH2ZAF0DHw0MBANgusMGIqEgSAAAAAElFTkSuQmCC",
         "base64",
       ),
     });
   });
 
-  await page.goto("/settings/receipt");
+  await page.goto("/settings/business-profile");
   await page.setInputFiles("#receipt-logo-file", {
     name: "logo.png",
     mimeType: "image/png",
     buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAWSURBVChTY/Cv+/4fH2ZAF0DHw0MBANgusMGIqEgSAAAAAElFTkSuQmCC",
       "base64",
     ),
   });
+  await page.getByRole("button", { name: "Guardar logo" }).click();
 
-  await expect(page.locator('img[alt="Logo del recibo"]').first()).toBeVisible();
-  await expect(page.getByText(/logo del recibo actualizado/i)).toBeVisible();
+  await expect(page.locator('img[alt="Logo del negocio"]').first()).toBeVisible();
+  await expect(page.getByText(/logo del negocio actualizado/i)).toBeVisible();
 });
 
 test("settings employees explains role permissions before inviting staff", async ({ page }) => {

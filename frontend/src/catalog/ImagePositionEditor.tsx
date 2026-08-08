@@ -11,6 +11,10 @@ type Props = {
   zoom: number;
   onPositionChange: (x: number, y: number) => void;
   onZoomChange: (zoom: number) => void;
+  aspectRatio?: "video" | "square";
+  frameLabel?: string;
+  frameBadge?: string;
+  editorHint?: string;
 };
 
 const ZOOM_MIN = 0.5;
@@ -34,6 +38,10 @@ export function ImagePositionEditor({
   zoom,
   onPositionChange,
   onZoomChange,
+  aspectRatio = "video",
+  frameLabel = copy.catalog.productImageFrameLabel,
+  frameBadge = copy.catalog.productImageFrameBadge,
+  editorHint = copy.catalog.productImageEditorHint,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -142,10 +150,11 @@ export function ImagePositionEditor({
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
               className={cn(
-                "group relative aspect-video w-full max-w-[92%] overflow-hidden rounded-md border-2 border-white bg-muted shadow-2xl ring-1 ring-black/30 select-none touch-none",
+                "group relative w-full max-w-[92%] overflow-hidden rounded-md border-2 border-white bg-muted shadow-2xl ring-1 ring-black/30 select-none touch-none",
+                aspectRatio === "square" ? "aspect-square sm:max-w-[22rem]" : "aspect-video",
                 dragging ? "cursor-grabbing" : "cursor-grab",
               )}
-              aria-label={copy.catalog.productImageFrameLabel}
+              aria-label={frameLabel}
               role="img"
             >
               <img
@@ -176,12 +185,12 @@ export function ImagePositionEditor({
           </div>
           <div className="pointer-events-none absolute left-4 top-4 hidden items-center gap-1.5 rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm sm:flex">
             <Scan className="h-3 w-3" />
-            {copy.catalog.productImageFrameBadge}
+            {frameBadge}
           </div>
         </div>
 
         <div className="space-y-3 border-t border-border bg-background p-3">
-          <p className="text-xs text-muted-foreground">{copy.catalog.productImageEditorHint}</p>
+          <p className="text-xs text-muted-foreground">{editorHint}</p>
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-foreground/70 w-10 shrink-0">
