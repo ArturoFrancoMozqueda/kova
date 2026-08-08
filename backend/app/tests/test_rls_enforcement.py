@@ -299,6 +299,18 @@ def test_billing_policy_denies_empty_tenant_context_without_uuid_cast_error(
     assert count == 0
 
 
+def test_product_policy_denies_empty_tenant_context_without_uuid_cast_error(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        conn.execute(text("SELECT set_config('app.tenant_id', '', false)"))
+        count = conn.execute(
+            text("SELECT count(*) FROM products WHERE id IN (:pa, :pb)"),
+            {"pa": PRODUCT_A, "pb": PRODUCT_B},
+        ).scalar()
+    assert count == 0
+
+
 def test_receipt_policy_denies_empty_tenant_context_without_uuid_cast_error(
     kova_app_engine, rls_seed  # noqa: ARG001
 ):
