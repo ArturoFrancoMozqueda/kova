@@ -1,12 +1,15 @@
-import { type DragEvent, type Dispatch, type SetStateAction, useRef, useState } from "react";
-import { ImagePlus, Trash2, Upload } from "lucide-react";
+import { type DragEvent, type Dispatch, type SetStateAction, useEffect, useRef, useState } from "react";
+import { ImagePlus, Pencil, Trash2, Upload } from "lucide-react";
 
+import { ImagePositionEditor } from "@/catalog/ImagePositionEditor";
+import { productImageStyle } from "@/catalog/imageUrl";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/auth/useAuth";
 import { copy } from "@/i18n/messages";
 import { compressImage } from "@/lib/compressImage";
+import { cropImageToSquare } from "@/lib/cropImage";
 import { cn } from "@/lib/utils";
 
 import { deleteReceiptLogo, getReceiptSettings, uploadReceiptLogo } from "./api";
@@ -34,8 +37,18 @@ export function LogoUploadField({
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [selection, setSelection] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [positionX, setPositionX] = useState(50);
+  const [positionY, setPositionY] = useState(50);
+  const [zoom, setZoom] = useState(1);
   const { toast } = useToast();
   const { setTenantLogoUrl } = useAuth();
+
+  useEffect(() => {
+    return () => {
+      if (selection) URL.revokeObjectURL(selection.previewUrl);
+    };
+  }, [selection]);
 
   const validateInput = (file: File): boolean => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -49,13 +62,21 @@ export function LogoUploadField({
     return true;
   };
 
-  const handleFile = async (file: File | undefined) => {
+  const handleFile = (file: File | undefined) => {
     if (!file || !validateInput(file)) return;
+    setSelection({ file, previewUrl: URL.createObjectURL(file) });
+    setPositionX(50);
+    setPositionY(50);
+    setZoom(1);
+  };
+
+  const handleSave = async () => {
+    if (!selection) return;
     setIsPending(true);
     try {
-      let prepared = file;
+      let prepared = await cropImageToSquare(selection.file, { positionX, positionY, zoom });
       try {
-        prepared = await compressImage(file);
+        prepared = await compressImage(prepared);
       } catch {
         // fall back to original; backend still enforces a size cap
       }
@@ -75,6 +96,7 @@ export function LogoUploadField({
         logo_url: refreshed.logo_url ?? "",
       }));
       toast(copy.settings.logoUploaded, "success");
+      setSelection(null);
     } catch {
       toast(copy.settings.logoUploadError, "error");
     } finally {
@@ -86,7 +108,12 @@ export function LogoUploadField({
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragging(false);
-    void handleFile(event.dataTransfer.files[0]);
+    handleFile(event.dataTransfer.files[0]);
+  };
+
+  const handleCancelSelection = () => {
+    setSelection(null);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   const handleDelete = async () => {
@@ -114,66 +141,101 @@ export function LogoUploadField({
   return (
     <div className="space-y-2 sm:col-span-2">
       <Label htmlFor="receipt-logo-file">{copy.settings.logoUploadLabel}</Label>
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={cn(
-          "rounded-[var(--radius-lg)] border border-dashed border-[color:var(--kova-border)] bg-[color:var(--kova-mist)]/40 p-4 transition-colors",
-          isDragging && "border-[color:var(--kova-blue)] bg-[color:var(--kova-blue)]/5",
-        )}
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--kova-border)] bg-white">
-            {logoUrl ? (
-              <img
-                src={logoUrl}
-                alt={copy.settings.receiptPreviewLogoAlt}
-                className="max-h-12 max-w-12 object-contain"
-              />
-            ) : (
-              <ImagePlus className="h-6 w-6 text-muted-foreground" />
-            )}
+      {selection ? (
+        <div className="overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card" aria-busy={isPending}>
+          <div className="border-b border-kova-border px-4 py-3 sm:px-5">
+            <p className="font-semibold text-kova-ink">{copy.settings.logoEditorTitle}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{copy.settings.logoEditorDescription}</p>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">{copy.settings.logoUploadTitle}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{copy.settings.logoUploadHint}</p>
+          <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_180px]">
+            <ImagePositionEditor
+              src={selection.previewUrl}
+              positionX={positionX}
+              positionY={positionY}
+              zoom={zoom}
+              onPositionChange={(x, y) => {
+                setPositionX(x);
+                setPositionY(y);
+              }}
+              onZoomChange={setZoom}
+              aspectRatio="square"
+              frameLabel={copy.settings.logoEditorFrameLabel}
+              frameBadge={copy.settings.logoEditorFrameBadge}
+              editorHint={copy.settings.logoEditorHint}
+            />
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{copy.settings.logoEditorPreview}</p>
+              <div className="flex items-center gap-3 rounded-kova-md bg-kova-ink p-3 text-white">
+                <span className="h-10 w-10 shrink-0 overflow-hidden rounded-kova-md ring-1 ring-inset ring-white/15">
+                  <img
+                    src={selection.previewUrl}
+                    alt=""
+                    className="h-full w-full"
+                    style={productImageStyle({ image_position_x: positionX, image_position_y: positionY, image_zoom: zoom })}
+                  />
+                </span>
+                <span className="min-w-0 text-sm font-semibold">{copy.settings.logoEditorTenantPlaceholder}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isPending}
-              onClick={() => inputRef.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-              {copy.settings.logoUploadButton}
+          <div className="flex flex-col-reverse gap-2 border-t border-kova-border bg-muted/30 px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+            <Button type="button" variant="outline" disabled={isPending} onClick={handleCancelSelection}>
+              {copy.settings.logoEditorCancel}
             </Button>
-            {logoUrl ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isPending}
-                onClick={() => void handleDelete()}
-              >
-                <Trash2 className="h-4 w-4" />
-                {copy.settings.logoRemoveButton}
-              </Button>
-            ) : null}
+            <Button type="button" disabled={isPending} onClick={() => void handleSave()}>
+              {copy.settings.logoEditorSave}
+            </Button>
           </div>
         </div>
-        <input
-          ref={inputRef}
-          id="receipt-logo-file"
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="sr-only"
-          onChange={(event) => void handleFile(event.currentTarget.files?.[0])}
-        />
-      </div>
+      ) : (
+        <div
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          className={cn(
+            "rounded-kova-lg border border-kova-border bg-white p-4 shadow-sm transition-[border-color,box-shadow] duration-hover sm:p-5",
+            isDragging && "border-kova-blue ring-2 ring-primary/20",
+          )}
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            {logoUrl ? (
+              <img src={logoUrl} alt={copy.settings.receiptPreviewLogoAlt} className="h-16 w-16 shrink-0 rounded-kova-md object-cover ring-1 ring-kova-border" />
+            ) : (
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <ImagePlus className="h-5 w-5" />
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-kova-ink">{logoUrl ? copy.settings.logoActiveHint : copy.settings.logoUploadTitle}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{logoUrl ? copy.settings.logoUploadHint : copy.settings.logoEmptyHint}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" disabled={isPending} onClick={() => inputRef.current?.click()}>
+                {logoUrl ? <Pencil className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                {logoUrl ? copy.settings.logoChangeButton : copy.settings.logoUploadButton}
+              </Button>
+              {logoUrl ? (
+                <Button type="button" variant="outline" disabled={isPending} onClick={() => void handleDelete()}>
+                  <Trash2 className="h-4 w-4" />
+                  {copy.settings.logoRemoveButton}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+      <input
+        ref={inputRef}
+        id="receipt-logo-file"
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="sr-only"
+        disabled={isPending}
+        onChange={(event) => handleFile(event.currentTarget.files?.[0])}
+      />
     </div>
   );
 }

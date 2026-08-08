@@ -21,6 +21,10 @@ vi.mock("@/lib/compressImage", () => ({
   compressImage: vi.fn(async (file: File) => file),
 }));
 
+vi.mock("@/lib/cropImage", () => ({
+  cropImageToSquare: vi.fn(async (file: File) => file),
+}));
+
 vi.mock("./api", () => ({
   deleteReceiptLogo: mocks.deleteReceiptLogo,
   getReceiptSettings: mocks.getReceiptSettings,
@@ -38,6 +42,14 @@ const refreshedSettings = {
 describe("LogoUploadField tenant branding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:logo-preview"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
     mocks.getReceiptSettings.mockResolvedValue(refreshedSettings);
     mocks.uploadReceiptLogo.mockResolvedValue({ logo_url: refreshedSettings.logo_url });
     mocks.deleteReceiptLogo.mockResolvedValue(undefined);
@@ -53,6 +65,7 @@ describe("LogoUploadField tenant branding", () => {
     const file = new File(["logo"], "sweet-home.png", { type: "image/png" });
 
     fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.click(await screen.findByRole("button", { name: copy.settings.logoEditorSave }));
 
     await waitFor(() => {
       expect(mocks.setTenantLogoUrl).toHaveBeenCalledWith(refreshedSettings.logo_url);
@@ -85,6 +98,23 @@ describe("LogoUploadField tenant branding", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(await screen.findByText(copy.settings.logoInvalidType)).toBeInTheDocument();
+    expect(mocks.uploadReceiptLogo).not.toHaveBeenCalled();
+  });
+
+  it("previews and frames a valid logo before uploading it", async () => {
+    const { container } = render(
+      <ToastProvider>
+        <LogoUploadField logoUrl="" setReceipt={vi.fn()} />
+      </ToastProvider>,
+    );
+    const input = container.querySelector("input[type=file]") as HTMLInputElement;
+
+    fireEvent.change(input, {
+      target: { files: [new File(["logo"], "sweet-home.png", { type: "image/png" })] },
+    });
+
+    expect(await screen.findByRole("img", { name: copy.settings.logoEditorFrameLabel })).toBeInTheDocument();
+    expect(screen.getByText(copy.settings.logoEditorPreview)).toBeInTheDocument();
     expect(mocks.uploadReceiptLogo).not.toHaveBeenCalled();
   });
 });

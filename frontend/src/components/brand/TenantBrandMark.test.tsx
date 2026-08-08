@@ -22,7 +22,10 @@ describe("TenantBrandMark", () => {
       <TenantBrandMark {...defaultProps} logoUrl="/api/v1/settings/receipt/logo/tenant-1?v=1" />,
     );
 
-    expect(container.querySelector('img[src*="tenant-1"]')).toBeInTheDocument();
+    const image = container.querySelector('img[src*="tenant-1"]');
+    expect(image).toBeInTheDocument();
+    expect(image).toHaveClass("object-cover");
+    expect(image?.parentElement).not.toHaveClass("p-1", "bg-white");
     expect(container.querySelector("svg")).not.toBeInTheDocument();
   });
 
