@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from sqlalchemy import event
 
 from app.business_settings.models import ReceiptSettings, TenantLogoFile
 
@@ -50,6 +51,32 @@ def test_receipt_logo_upload_stores_file_and_updates_settings(client, db):
     assert logo.bytes_data == PNG_BYTES
     settings = db.get(ReceiptSettings, tenant_id)
     assert settings.logo_url == logo_url
+
+
+def test_receipt_logo_upload_does_not_reload_settings_after_commit(client, db):
+    _signup_verify_login(client, "logo-commit@example.com", "Logo Commit Bakery")
+    committed = False
+    settings_selects_after_commit: list[str] = []
+
+    def mark_commit(_session):
+        nonlocal committed
+        committed = True
+
+    def record_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if committed and "FROM tenant_receipt_settings" in statement:
+            settings_selects_after_commit.append(statement)
+
+    event.listen(db, "after_commit", mark_commit)
+    event.listen(db.bind, "before_cursor_execute", record_sql)
+    try:
+        response = _upload_logo(client)
+    finally:
+        event.remove(db, "after_commit", mark_commit)
+        event.remove(db.bind, "before_cursor_execute", record_sql)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["logo_url"].startswith("/api/v1/settings/receipt/logo/")
+    assert settings_selects_after_commit == []
 
 
 def test_receipt_logo_upload_rejects_large_file(client):

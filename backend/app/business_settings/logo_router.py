@@ -129,7 +129,8 @@ async def upload_receipt_logo(
             created_at=now,
         )
         db.add(settings)
-    settings.logo_url = _logo_url(membership.tenant_id, now)
+    logo_url = _logo_url(membership.tenant_id, now)
+    settings.logo_url = logo_url
     settings.updated_at = now
 
     audit_service.log(
@@ -142,7 +143,10 @@ async def upload_receipt_logo(
         changes={"content_type": logo.content_type, "byte_size": logo.byte_size},
     )
     db.commit()
-    return LogoUploadResponse(logo_url=settings.logo_url)
+    # Session.commit() expires ORM attributes and clears the transaction-local
+    # RLS context. Return the value already persisted instead of starting an
+    # unsafe post-commit refresh of tenant_receipt_settings.
+    return LogoUploadResponse(logo_url=logo_url)
 
 
 @router.delete(
