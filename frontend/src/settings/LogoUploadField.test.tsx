@@ -72,4 +72,19 @@ describe("LogoUploadField tenant branding", () => {
       expect(mocks.setTenantLogoUrl).toHaveBeenCalledWith(null);
     });
   });
+
+  it("rejects SVG before sending it to the backend", async () => {
+    const { container } = render(
+      <ToastProvider>
+        <LogoUploadField logoUrl="" setReceipt={vi.fn()} />
+      </ToastProvider>,
+    );
+    const input = container.querySelector("input[type=file]") as HTMLInputElement;
+    const file = new File(["<svg></svg>"], "sweet-home.svg", { type: "image/svg+xml" });
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(await screen.findByText(copy.settings.logoInvalidType)).toBeInTheDocument();
+    expect(mocks.uploadReceiptLogo).not.toHaveBeenCalled();
+  });
 });

@@ -18,10 +18,10 @@ type ReceiptDraft = {
   logo_url: string;
 };
 
-const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_BYTES = 512 * 1024;
 // Generous pre-compression cap. Raster images get compressed to WebP below
-// MAX_BYTES; SVG is sent as-is and validated against MAX_BYTES.
+// MAX_BYTES before they are sent to the backend.
 const MAX_INPUT_BYTES = 10 * 1024 * 1024;
 
 export function LogoUploadField({
@@ -169,7 +169,7 @@ export function LogoUploadField({
           ref={inputRef}
           id="receipt-logo-file"
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          accept="image/png,image/jpeg,image/webp"
           className="sr-only"
           onChange={(event) => void handleFile(event.currentTarget.files?.[0])}
         />
