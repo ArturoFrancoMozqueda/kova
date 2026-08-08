@@ -2,6 +2,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from sqlalchemy import event
 
 from app.audit.models import AuditLog
 from app.auth.models import Membership
@@ -250,6 +251,43 @@ def test_product_image_upload_and_get_returns_stored_bytes(client):
     assert image.status_code == 200, image.text
     assert image.headers["content-type"].startswith("image/png")
     assert image.content == PNG_BYTES
+
+
+def test_product_image_upload_does_not_reload_product_after_commit(client, db):
+    _signup_verify_login(client, "catalog-image-commit@example.com", "Image Commit Bakery")
+    product = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "image-commit-product"},
+        json={"name": "Latte helado", "price_amount": "55.00"},
+    ).json()
+
+    committed = False
+    product_selects_after_commit: list[str] = []
+
+    def mark_commit(_session):
+        nonlocal committed
+        committed = True
+
+    def record_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if committed and "FROM products" in statement:
+            product_selects_after_commit.append(statement)
+
+    event.listen(db, "after_commit", mark_commit)
+    event.listen(db.bind, "before_cursor_execute", record_sql)
+    try:
+        upload = client.post(
+            f"/api/v1/catalog/products/{product['id']}/image",
+            files={"file": ("latte.png", PNG_BYTES, "image/png")},
+        )
+    finally:
+        event.remove(db, "after_commit", mark_commit)
+        event.remove(db.bind, "before_cursor_execute", record_sql)
+
+    assert upload.status_code == 200, upload.text
+    assert upload.json()["image_url"].startswith(
+        f"/api/v1/catalog/products/{product['id']}/image?v="
+    )
+    assert product_selects_after_commit == []
 
 
 def test_product_image_get_hides_deactivated_products(client):

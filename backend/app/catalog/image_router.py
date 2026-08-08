@@ -167,7 +167,8 @@ async def upload_product_image(
     image.byte_size = len(parsed.data)
     image.updated_at = now
 
-    product.image_url = _image_url(product_id, now)
+    image_url = _image_url(product_id, now)
+    product.image_url = image_url
     product.updated_at = now
 
     audit_service.log(
@@ -180,7 +181,10 @@ async def upload_product_image(
         changes={"content_type": image.content_type, "byte_size": image.byte_size},
     )
     db.commit()
-    return ProductImageUploadResponse(image_url=product.image_url)
+    # Session.commit() expires ORM attributes. Reading product.image_url here
+    # would start a new transaction after the transaction-local RLS context has
+    # been cleared, so return the value already used for the committed update.
+    return ProductImageUploadResponse(image_url=image_url)
 
 
 @router.delete(
