@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
 import { avatarColorFor } from "@/lib/avatarColor";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
-import { LogoMark } from "@/components/brand/Logo";
+import { TenantBrandMark } from "@/components/brand/TenantBrandMark";
 import { BillingBanner } from "@/billing/BillingBanner";
 import { TrialChip } from "@/billing/TrialChip";
 import { formatTenantName } from "@/lib/formatTenantName";
@@ -102,6 +102,7 @@ export default function AppShell() {
 
   const tenantNameRaw = state.status === "authenticated" ? state.tenantName : "";
   const tenantName = formatTenantName(tenantNameRaw);
+  const tenantLogoUrl = state.status === "authenticated" ? state.tenantLogoUrl : null;
   const userEmail = state.status === "authenticated" ? state.user.email : "";
   const userRole = state.status === "authenticated" ? state.user.role : "";
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
@@ -151,7 +152,12 @@ export default function AppShell() {
         "relative flex items-center border-b border-sidebar-border",
         sidebarCollapsed ? "justify-center px-0 py-5" : "gap-3 px-5 py-5",
       )}>
-        <LogoMark size={32} circuitColor="var(--kova-on-ink)" />
+        <TenantBrandMark
+          logoUrl={tenantLogoUrl}
+          size={32}
+          surface="sidebar"
+          fallbackCircuitColor="var(--kova-on-ink)"
+        />
         <div
           aria-hidden={sidebarCollapsed}
           className={cn(
@@ -356,7 +362,12 @@ export default function AppShell() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <LogoMark size={24} circuitColor="var(--kova-ink)" />
+          <TenantBrandMark
+            logoUrl={tenantLogoUrl}
+            size={24}
+            surface="header"
+            fallbackCircuitColor="var(--kova-ink)"
+          />
           {/* Tenant name yields space first so the status/trial chips always fit. */}
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">{tenantName || copy.app.homeTitle}</span>
           {/* Persistent online/offline + queue visibility on mobile, where the

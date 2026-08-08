@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
+import { getReceiptSettings } from "@/settings/api";
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 import { normalizeFeatureFlags, type FeatureFlags } from "./featureFlags";
 
@@ -18,6 +19,7 @@ type AuthState =
       user: AuthUser;
       tenantId: string;
       tenantName: string;
+      tenantLogoUrl: string | null;
       featureFlags: FeatureFlags;
     };
 
@@ -25,6 +27,7 @@ type AuthContextValue = {
   state: AuthState;
   logout: () => Promise<void>;
   refresh: () => Promise<AuthState>;
+  setTenantLogoUrl: (logoUrl: string | null) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -65,10 +68,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session.user,
       tenantId: session.tenant_id,
       tenantName: session.tenant_name,
+      tenantLogoUrl: null,
       featureFlags: normalizeFeatureFlags(session.feature_flags),
     };
     setState(next);
+
+    // Branding should not delay the authenticated shell. Load it after the
+    // session is ready and only apply it if this is still the active tenant.
+    void getReceiptSettings()
+      .then((settings) => {
+        setState((current) =>
+          current.status === "authenticated" && current.tenantId === session.tenant_id
+            ? { ...current, tenantLogoUrl: settings.logo_url }
+            : current,
+        );
+      })
+      .catch(() => undefined);
     return next;
+  }, []);
+
+  const setTenantLogoUrl = useCallback((logoUrl: string | null) => {
+    setState((current) =>
+      current.status === "authenticated" ? { ...current, tenantLogoUrl: logoUrl } : current,
+    );
   }, []);
 
   useEffect(() => {
@@ -133,7 +155,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: "unauthenticated" });
   }, []);
 
-  return <AuthContext.Provider value={{ state, logout, refresh }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ state, logout, refresh, setTenantLogoUrl }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuthContext(): AuthContextValue {

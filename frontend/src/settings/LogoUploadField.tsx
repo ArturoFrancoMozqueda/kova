@@ -4,6 +4,7 @@ import { ImagePlus, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/auth/useAuth";
 import { copy } from "@/i18n/messages";
 import { compressImage } from "@/lib/compressImage";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ export function LogoUploadField({
   const [isDragging, setIsDragging] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
+  const { setTenantLogoUrl } = useAuth();
 
   const validateInput = (file: File): boolean => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
@@ -62,6 +64,7 @@ export function LogoUploadField({
         return;
       }
       const response = await uploadReceiptLogo(prepared);
+      setTenantLogoUrl(response.logo_url);
       setReceipt((current) => ({ ...current, logo_url: response.logo_url }));
       const refreshed = await getReceiptSettings();
       setReceipt((current) => ({
@@ -90,6 +93,7 @@ export function LogoUploadField({
     setIsPending(true);
     try {
       await deleteReceiptLogo();
+      setTenantLogoUrl(null);
       setReceipt((current) => ({ ...current, logo_url: "" }));
       const refreshed = await getReceiptSettings();
       setReceipt((current) => ({
