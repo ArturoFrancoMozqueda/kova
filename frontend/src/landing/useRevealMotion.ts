@@ -119,10 +119,16 @@ export function useLandingRevealMotion() {
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
-          const coversViewport =
-            entry.intersectionRect.height >=
-            (entry.rootBounds?.height ?? window.innerHeight) * VIEWPORT_COVERAGE;
-          if (entry.intersectionRatio < REVEAL_RATIO && !coversViewport) return;
+          // Defaults matter: a partial IntersectionObserver stub (jsdom tests
+          // report `{ isIntersecting, target }` and nothing else) must reveal
+          // content, never throw. Failing open is also the right production
+          // behaviour — the worst outcome here is showing a section early, and
+          // the worst outcome of failing closed is a blank page.
+          const ratio = entry.intersectionRatio ?? 1;
+          const visibleHeight = entry.intersectionRect?.height ?? Infinity;
+          const rootHeight = entry.rootBounds?.height ?? window.innerHeight;
+          const coversViewport = visibleHeight >= rootHeight * VIEWPORT_COVERAGE;
+          if (ratio < REVEAL_RATIO && !coversViewport) return;
           const unit = units.find((candidate) => candidate.trigger === entry.target);
           if (unit) revealUnit(unit);
           observer.unobserve(entry.target);

@@ -16,17 +16,18 @@ rows we can defend.
    engine (RLS bypass) from inside the transaction that created the account.
 
 Revision ID: 0055_trusted_anonymous_telemetry
-Revises: 0054_products_rls_empty_tenant_context
+Revises: 0054_products_rls_empty_context
 Create Date: 2026-08-09
 """
 
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "0055_trusted_anonymous_telemetry"
-down_revision: str | None = "0054_products_rls_empty_tenant_context"
+down_revision: str | None = "0054_products_rls_empty_context"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

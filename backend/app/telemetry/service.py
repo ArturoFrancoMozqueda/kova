@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 # than stored.
 _CLIENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")
 
-_ALLOWED_CONTEXT_KEYS = frozenset({"device_class", "viewport_bucket", "source", "medium", "campaign"})
+_ALLOWED_CONTEXT_KEYS = frozenset(
+    {"device_class", "viewport_bucket", "source", "medium", "campaign"}
+)
 
 
 def normalize_client_id(value: str | None) -> str | None:

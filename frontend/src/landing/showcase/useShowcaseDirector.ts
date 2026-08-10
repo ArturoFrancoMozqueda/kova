@@ -34,12 +34,14 @@ export function useInView<T extends Element>(
           // a target taller than ~1/threshold viewports could never satisfy the
           // ratio and the director would stay paused on a visible section.
           // Treat "fills half the viewport" as in-view too.
-          const coversViewport =
-            entry.intersectionRect.height >=
-            (entry.rootBounds?.height ?? window.innerHeight) * 0.5;
-          setInView(
-            entry.isIntersecting && (entry.intersectionRatio >= threshold || coversViewport),
-          );
+          // Defaults keep a partial stub (jsdom tests report only
+          // `isIntersecting`) working, and fail open: a visible section that
+          // does not play is worse than one that plays a moment early.
+          const ratio = entry.intersectionRatio ?? 1;
+          const visibleHeight = entry.intersectionRect?.height ?? Infinity;
+          const rootHeight = entry.rootBounds?.height ?? window.innerHeight;
+          const coversViewport = visibleHeight >= rootHeight * 0.5;
+          setInView(entry.isIntersecting && (ratio >= threshold || coversViewport));
         });
       },
       { threshold: [0, threshold] },
