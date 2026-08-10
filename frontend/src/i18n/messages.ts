@@ -987,6 +987,8 @@ export const copy = {
     loadError: "No se pudieron cargar los turnos",
     retry: "Reintentar",
     activeShift: "Turno activo",
+    staleShiftNotice: (days: number) =>
+      `Este turno lleva ${days} días abierto. Ciérralo para que el corte cuadre contra el efectivo real; mientras siga abierto, el esperado sigue acumulando ventas de varios días.`,
     noOpenShift: "No hay turno abierto",
     noOpenShiftBody: "Abre un turno con el efectivo inicial de la caja. Así, al cierre, Kova te dice si el dinero cuadra.",
     noOpenShiftAskManager: "Tu rol no puede abrir turnos. Pídele al dueño o a tu gerente que lo abra.",
@@ -2163,6 +2165,15 @@ export const copy = {
     cancel: "Cancelar",
     selectRequired: "Selecciona una opción",
   },
+  emailVerification: {
+    title: "Confirma tu correo",
+    body: (email: string) =>
+      `Te enviamos un enlace a ${email}. Puedes seguir usando Kova, pero necesitas confirmarlo antes de activar tu suscripción.`,
+    resendCta: "Reenviar correo",
+    retryCta: "Intentar de nuevo",
+    sent: "Correo enviado",
+    blockedCheckout: "Confirma tu correo para activar la suscripción.",
+  },
   billingView: {
     title: "Suscripción",
     loading: "Cargando suscripción",
@@ -2199,7 +2210,11 @@ export const copy = {
     nextRenewal: "Próxima renovación",
     accessUntil: "Acceso hasta",
     billingPeriod: "Periodo de suscripción",
-    periodVerifying: "Estamos verificando tu próxima fecha de renovación. Tu acceso actual no cambia.",
+    // Shown when Stripe has not returned an exact period end yet. The previous
+    // copy ("estamos verificando tu próxima fecha…") planted doubt at the exact
+    // moment someone decides whether to trust us with a card. State only what is
+    // certain: the plan is monthly and access is on.
+    periodVerifying: "Se renueva cada mes mientras la suscripción siga activa.",
     graceEnds: "Fin del periodo de gracia",
     notAvailable: "No disponible",
     pastDueBanner: "Pago vencido. Recupera la suscripción para mantener acceso sin interrupciones.",

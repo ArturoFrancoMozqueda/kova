@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BILLING_MANAGE_PERMISSION, BILLING_VIEW_PERMISSION, usePermission } from "../auth/permissions";
+import { useOptionalAuth } from "../auth/useAuth";
 import { copy } from "../i18n/messages";
 import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, cancelSubscription } from "./api";
 import type { BillingSubscription } from "./types";
@@ -167,8 +168,13 @@ export default function BillingView() {
     : location.pathname.endsWith("/cancel")
       ? "cancel"
       : null;
+  const auth = useOptionalAuth();
   const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
   const canManageBilling = usePermission(BILLING_MANAGE_PERMISSION);
+  // Defaults to true so a session shape without the flag (older cached probe)
+  // never blocks a paying customer.
+  const emailVerified =
+    auth?.state.status !== "authenticated" || auth.state.user.email_verified !== false;
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [checkoutConfirmationState, setCheckoutConfirmationState] =
@@ -509,13 +515,26 @@ export default function BillingView() {
                 <>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   {!hasCheckoutBlockingSubscription(loadState.billing) ? (
-                    <Button onClick={() => void beginCheckout()} disabled={actionState === "checkout"}>
-                      {actionState === "checkout" ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
-                      ) : (
-                        <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout(formatPlanPrice(loadState.billing.plan))}</>
+                    <div className="flex flex-col gap-1.5">
+                      <Button
+                        onClick={() => void beginCheckout()}
+                        // Mirrors the server-side gate in `app.billing.router`:
+                        // we do not take money from an address nobody confirmed.
+                        // Disabling here turns a 403 into an explainable state.
+                        disabled={actionState === "checkout" || !emailVerified}
+                      >
+                        {actionState === "checkout" ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" />{copy.billingView.redirecting}</>
+                        ) : (
+                          <><ExternalLink className="h-4 w-4" />{copy.billingView.startCheckout(formatPlanPrice(loadState.billing.plan))}</>
+                        )}
+                      </Button>
+                      {!emailVerified && (
+                        <p className="text-xs text-muted-foreground">
+                          {copy.emailVerification.blockedCheckout}
+                        </p>
                       )}
-                    </Button>
+                    </div>
                   ) : (
                     <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <CheckCircle2 className="h-4 w-4 text-kova-growth" />

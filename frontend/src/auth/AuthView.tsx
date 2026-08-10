@@ -10,7 +10,6 @@ import { AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { AuthLayout } from "./AuthLayout";
 import {
   queueFunnelEvent,
-  trackAnonymousEvent,
   trackSignupValidationFailed,
   type SignupValidationField,
   type SignupValidationReason,
@@ -232,12 +231,28 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         setResendCountdown(30);
         return;
       }
-      // Signup completes before a session exists; send it immediately through
-      // the cookieless path so abandoned verification/login flows are counted.
-      void trackAnonymousEvent("signup_completed");
+      // `signup_completed` is recorded server-side inside the signup request —
+      // the browser no longer asserts its own conversion.
       setVerificationToken(response.dev_verification_token ?? "");
-      setState("created");
       setResendCountdown(30);
+      // The account exists and the person just proved they know the password.
+      // Let them into the product now and ask for email verification from
+      // inside, where a banner can nag without blocking; verification is still
+      // required before any paid action. Waiting on an inbox at this exact
+      // moment was costing a third of all signups.
+      try {
+        await login({ email, password });
+        const next = await refresh();
+        queueFunnelEvent("login");
+        const role = next.status === "authenticated" ? next.user.role : "";
+        navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
+        return;
+      } catch {
+        // Auto-login is a convenience, not a guarantee. If it fails (rate limit,
+        // transient network) fall back to the explicit "check your email" screen
+        // rather than losing the fact that the account was created.
+        setState("created");
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401 || err.status === 403) {

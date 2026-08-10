@@ -31,7 +31,13 @@ import {
   localizeMovementReason,
   localizeMovementType,
   localizeReconciliationStatus,
+  openShiftAgeInDays,
 } from "./format";
+
+/** A shift open this long has stopped describing a single day of trading, so
+ * the corte it will eventually produce cannot be reconciled. Two days rather
+ * than one: overnight venues legitimately cross midnight. */
+const STALE_SHIFT_DAYS = 2;
 
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +63,7 @@ import {
   Banknote,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
   Printer,
   Receipt,
   Wallet,
@@ -229,6 +236,25 @@ export default function ShiftView() {
             <Badge variant="success">{copy.shiftView.badgeOpen}</Badge>
           </CardHeader>
           <CardContent className="space-y-4">
+            {(() => {
+              // A shift left open for days silently invalidates the corte: the
+              // expected-cash figure keeps accumulating sales across what were
+              // really several days of trading, so the closing variance stops
+              // meaning anything. Nothing surfaced this before — a production
+              // tenant was found with a shift open for 19 days.
+              const staleDays = openShiftAgeInDays(currentShift.opened_at);
+              if (staleDays === null || staleDays < STALE_SHIFT_DAYS) return null;
+              return (
+                <p
+                  role="status"
+                  data-testid="stale-shift-notice"
+                  className="flex items-start gap-2 rounded-[var(--radius-md)] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground"
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{copy.shiftView.staleShiftNotice(staleDays)}</span>
+                </p>
+              );
+            })()}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatTile
                 label={copy.shiftView.openedAt}

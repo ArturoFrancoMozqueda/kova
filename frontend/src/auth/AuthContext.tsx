@@ -9,6 +9,10 @@ export type AuthUser = {
   email: string;
   tenant_id: string;
   role: string;
+  /** Unverified accounts can sign in and operate the register, but cannot start
+   * a subscription. Optional so a session probe served by an older backend
+   * reads as verified instead of nagging a confirmed account. */
+  email_verified?: boolean;
 };
 
 type AuthState =
@@ -166,4 +170,14 @@ export function useAuthContext(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuthContext must be used within AuthProvider");
   return ctx;
+}
+
+/** Auth state when it happens to be available, `null` otherwise.
+ *
+ * For views that only *decorate* with identity — showing a verification notice,
+ * disabling a paid CTA — rather than depending on it. Those should degrade, not
+ * crash, when rendered outside a provider (isolated tests, storybook-style
+ * previews). Anything that gates access must keep using `useAuthContext`. */
+export function useOptionalAuthContext(): AuthContextValue | null {
+  return useContext(AuthContext);
 }

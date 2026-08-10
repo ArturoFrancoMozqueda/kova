@@ -100,6 +100,18 @@ export function clientId(): string {
   }
 }
 
+/** Header form of {@link clientId}, for requests the server turns into funnel
+ * events (currently signup). Returns an empty object when there is no window,
+ * so callers can spread it unconditionally. */
+export function funnelClientHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    return { "X-Kova-Client-Id": clientId() };
+  } catch {
+    return {};
+  }
+}
+
 export function hasFunnelClientId(): boolean {
   if (typeof window === "undefined") return false;
   try {

@@ -50,12 +50,15 @@ def _install_auto_csrf(test_client: TestClient) -> TestClient:
     def request_with_csrf(method, url, **kwargs):
         if not getattr(test_client, "_disable_auto_csrf", False):
             if method.upper() in unsafe_methods:
+                headers = dict(kwargs.get("headers") or {})
                 token = test_client.cookies.get("csrf_token")
-                if token:
-                    headers = dict(kwargs.get("headers") or {})
-                    if not any(k.lower() == "x-csrf-token" for k in headers):
-                        headers["x-csrf-token"] = token
-                    kwargs["headers"] = headers
+                if token and not any(k.lower() == "x-csrf-token" for k in headers):
+                    headers["x-csrf-token"] = token
+                # See the `client` fixture: browsers always send Origin on
+                # state-changing requests, and public endpoints now check it.
+                if not any(k.lower() == "origin" for k in headers):
+                    headers["origin"] = settings.frontend_url
+                kwargs["headers"] = headers
         return original_request(method, url, **kwargs)
 
     test_client.request = request_with_csrf  # type: ignore[method-assign]
@@ -174,12 +177,18 @@ def client(db):
 
     def request_with_csrf(method, url, **kwargs):
         if method.upper() in unsafe_methods:
+            headers = dict(kwargs.get("headers") or {})
             token = test_client.cookies.get("csrf_token")
-            if token:
-                headers = dict(kwargs.get("headers") or {})
-                if not any(k.lower() == "x-csrf-token" for k in headers):
-                    headers["x-csrf-token"] = token
-                kwargs["headers"] = headers
+            if token and not any(k.lower() == "x-csrf-token" for k in headers):
+                headers["x-csrf-token"] = token
+            # Browsers attach Origin to every state-changing request; TestClient
+            # does not. Public endpoints now verify it (see
+            # app.shared.origin.require_trusted_origin), so mirror the browser
+            # here rather than making every existing spec set it by hand.
+            # Negative tests override by passing `origin` explicitly.
+            if not any(k.lower() == "origin" for k in headers):
+                headers["origin"] = settings.frontend_url
+            kwargs["headers"] = headers
         return original_request(method, url, **kwargs)
 
     test_client.request = request_with_csrf  # type: ignore[method-assign]

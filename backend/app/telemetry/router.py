@@ -13,6 +13,7 @@ from app.db import get_db, get_privileged_db
 from app.middleware.rate_limit import rate_limit
 from app.shared.dependencies import get_current_session
 from app.shared.exceptions import forbidden
+from app.shared.origin import require_trusted_origin
 from app.telemetry import export
 from app.telemetry.models import AnonymousTelemetryEvent, TelemetryEvent
 from app.telemetry.schemas import (
@@ -64,7 +65,10 @@ def create_event(
     "/events/anonymous",
     response_model=TelemetryEventResponse,
     status_code=202,
-    dependencies=[Depends(rate_limit(30, window_seconds=60, key="telemetry-anon"))],
+    dependencies=[
+        Depends(require_trusted_origin),
+        Depends(rate_limit(30, window_seconds=60, key="telemetry-anon")),
+    ],
 )
 def create_anonymous_event(
     body: AnonymousTelemetryEventCreate,
@@ -76,11 +80,16 @@ def create_anonymous_event(
     ``landing_viewed`` / ``landing_section_viewed`` /
     ``landing_story_step_viewed`` / ``landing_cta_clicked``
     / ``signup_started``. Safe
-    because: the event type is allowlisted (:data:`ANONYMOUS_EVENT_NAMES`), no
-    tenant/user identifiers are accepted, the payload is bounded, and the route
-    is per-IP rate-limited. It writes only to the non-tenanted
-    ``anonymous_telemetry_events`` table and can never mutate business data.
-    The request is cookieless, so it is correctly outside the CSRF path.
+    because: the request must carry a trusted ``Origin`` (see
+    :func:`app.shared.origin.require_trusted_origin`), the event type is
+    allowlisted (:data:`ANONYMOUS_EVENT_NAMES`), no tenant/user identifiers are
+    accepted, the payload is bounded, and the route is per-IP rate-limited. It
+    writes only to the non-tenanted ``anonymous_telemetry_events`` table and can
+    never mutate business data. The request is cookieless, so it is correctly
+    outside the CSRF path.
+
+    ``signup_completed`` is **not** accepted here: the client may not assert its
+    own conversion. The signup route records it server-side.
     """
     db.add(
         AnonymousTelemetryEvent(

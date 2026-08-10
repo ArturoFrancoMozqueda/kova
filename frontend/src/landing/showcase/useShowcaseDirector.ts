@@ -29,9 +29,20 @@ export function useInView<T extends Element>(
     }
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => setInView(entry.isIntersecting));
+        entries.forEach((entry) => {
+          // `intersectionRatio` is capped at viewportHeight / elementHeight, so
+          // a target taller than ~1/threshold viewports could never satisfy the
+          // ratio and the director would stay paused on a visible section.
+          // Treat "fills half the viewport" as in-view too.
+          const coversViewport =
+            entry.intersectionRect.height >=
+            (entry.rootBounds?.height ?? window.innerHeight) * 0.5;
+          setInView(
+            entry.isIntersecting && (entry.intersectionRatio >= threshold || coversViewport),
+          );
+        });
       },
-      { threshold },
+      { threshold: [0, threshold] },
     );
     observer.observe(target);
     return () => observer.disconnect();

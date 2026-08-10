@@ -9,6 +9,7 @@ const telemetry = vi.hoisted(() => ({
   queueFunnelEvent: vi.fn(),
   trackAnonymousEvent: vi.fn().mockResolvedValue(undefined),
   trackSignupValidationFailed: vi.fn().mockResolvedValue(undefined),
+  funnelClientHeaders: vi.fn(() => ({ "X-Kova-Client-Id": "client-123" })),
 }));
 
 vi.mock("@/telemetry/funnel", () => telemetry);
@@ -40,8 +41,14 @@ afterEach(() => {
 });
 
 describe("AuthView signup recovery flows", () => {
-  it("records signup completion immediately without tenant identity", async () => {
-    mockFetch((input, init) => {
+  // Behaviour change (2026-08): the browser used to fire `signup_completed`
+  // itself. Production accumulated ~48 of those events against 2 accounts
+  // actually created, because the anonymous endpoint accepts anything shaped
+  // like a funnel event. The server now records the rung from inside the signup
+  // transaction, and the client only forwards the pseudonymous stitching id.
+  // See docs/audits/DIAGNOSTICO-CRECIMIENTO-2026-08-09.md.
+  it("hands the funnel id to the server instead of asserting its own conversion", async () => {
+    const fetchMock = mockFetch((input, init) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/api/v1/auth/session")) {
         return new Response(JSON.stringify({ authenticated: false }), {
@@ -61,6 +68,73 @@ describe("AuthView signup recovery flows", () => {
           { status: 201, headers: { "content-type": "application/json" } },
         );
       }
+      if (url.includes("/api/v1/auth/login") && init?.method === "POST") {
+        return new Response(JSON.stringify({ message: "ok" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("", { status: 404 });
+    });
+
+    renderAt("/signup");
+    fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), {
+      target: { value: "Sweet Home" },
+    });
+    fireEvent.change(screen.getByLabelText(/Correo/i), {
+      target: { value: "owner@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), {
+      target: { value: "S3cur3pass!" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+
+    const signupCall = async () =>
+      fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).includes("/api/v1/auth/signup") &&
+          (init as RequestInit | undefined)?.method === "POST",
+      );
+
+    await waitFor(async () => expect(await signupCall()).toBeTruthy());
+    const call = await signupCall();
+    const headers = (call?.[1] as RequestInit).headers as Record<string, string>;
+    expect(headers["X-Kova-Client-Id"]).toBe("client-123");
+    expect(telemetry.trackAnonymousEvent).not.toHaveBeenCalledWith("signup_completed");
+  });
+
+  // Verification is no longer a wall in front of the product: a third of all
+  // historical signups never confirmed their address and therefore never got in.
+  // The account now signs straight in; verification is enforced at the paid
+  // boundary and nagged by a persistent banner.
+  it("signs the new owner in instead of parking them on a check-your-email screen", async () => {
+    const fetchMock = mockFetch((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/v1/auth/session")) {
+        return new Response(JSON.stringify({ authenticated: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            message: "created",
+            reason: "account_created",
+            user_id: "user-secret",
+            tenant_id: "tenant-secret",
+            dev_verification_token: "token",
+          }),
+          { status: 201, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (url.includes("/api/v1/auth/login") && init?.method === "POST") {
+        return new Response(JSON.stringify({ message: "ok" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
       return new Response("", { status: 404 });
     });
 
@@ -78,7 +152,13 @@ describe("AuthView signup recovery flows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
 
     await waitFor(() =>
-      expect(telemetry.trackAnonymousEvent).toHaveBeenCalledWith("signup_completed"),
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            String(input).includes("/api/v1/auth/login") &&
+            (init as RequestInit | undefined)?.method === "POST",
+        ),
+      ).toBe(true),
     );
   });
 

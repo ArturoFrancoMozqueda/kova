@@ -72,6 +72,10 @@ class UserResponse(BaseModel):
     email: str
     tenant_id: UUID
     role: str
+    # Unverified accounts can now sign in and use the product, so the client
+    # needs to know in order to show the verification banner and disable paid
+    # actions before the server has to reject them.
+    email_verified: bool = True
 
 
 class MeResponse(BaseModel):

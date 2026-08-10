@@ -231,6 +231,40 @@ def verify_email(db: Session, *, token: str) -> None:
     db.commit()
 
 
+def resend_verification_for_user(db: Session, *, user: User, ip_address: str | None = None) -> None:
+    """Re-issue and re-send the verification email for a signed-in account.
+
+    Needed because sign-in no longer requires verification: someone who never
+    received the first email is now *inside* the product, and must be able to ask
+    for another one without re-entering their password. Idempotent from the
+    caller's perspective — already-verified accounts are a silent no-op so the
+    endpoint cannot be used to probe verification state.
+    """
+    if user.is_email_verified:
+        return
+    repo.invalidate_pending_tokens(db, user_id=user.id, token_type="email_verification")
+    plain_token = _generate_token()
+    repo.create_verification_token(
+        db,
+        user_id=user.id,
+        token_hash=_hash_token(plain_token),
+        token_type="email_verification",
+        expires_at=datetime.now(UTC) + timedelta(seconds=settings.token_ttl_seconds),
+    )
+    membership = repo.get_membership_by_user(db, user.id)
+    audit_service.log(
+        db,
+        action="user.verification_resent_in_app",
+        tenant_id=membership.tenant_id if membership else None,
+        user_id=user.id,
+        resource_type="user",
+        resource_id=user.id,
+        ip_address=ip_address,
+    )
+    db.commit()
+    email_service.send_verification_email(to=user.email, token=plain_token)
+
+
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 def login(
@@ -250,8 +284,13 @@ def login(
         raise unauthorized("Invalid credentials")
     if not verify_password(password, user.hashed_password):
         raise unauthorized("Invalid credentials")
-    if not user.is_email_verified:
-        raise forbidden("Email not verified")
+    # An unverified email no longer blocks the session. The password check above
+    # already proves account control; holding a new owner at the door until an
+    # inbox cooperates was costing a third of all signups (see
+    # docs/audits/DIAGNOSTICO-CRECIMIENTO-2026-08-09.md) and every one of those
+    # losses was invisible. Verification is still mandatory — it is enforced at
+    # the paid boundary (`app.billing.router`) and surfaced as a persistent
+    # in-app banner — so an unverified account can explore and sell, never pay.
     if not user.is_active:
         raise forbidden("Account inactive")
 
@@ -413,6 +452,7 @@ def get_me(db: Session, *, user: User, membership: Membership) -> MeResponse:
             email=user.email,
             tenant_id=membership.tenant_id,
             role=membership.role,
+            email_verified=user.is_email_verified,
         ),
         tenant_id=membership.tenant_id,
         tenant_name=tenant.name if tenant else "",

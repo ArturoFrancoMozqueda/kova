@@ -25,6 +25,18 @@ def _idempotency_key(value: str | None = Header(default=None, alias="Idempotency
     return value
 
 
+def _require_verified_email(user: User) -> None:
+    """Paid actions require a verified address.
+
+    Sign-in no longer waits on email verification (see `app.auth.service.login`),
+    so the check moved here: an owner can explore Kova and run their register
+    unverified, but we will not take money from — or send a receipt to — an
+    address nobody has confirmed.
+    """
+    if not user.is_email_verified:
+        raise forbidden("Verify your email before starting a subscription")
+
+
 @router.get("/subscription", response_model=BillingSubscriptionResponse)
 def subscription_status(
     db: Session = Depends(get_db),
@@ -51,6 +63,7 @@ def create_checkout_session(
     ),
 ):
     user, membership, _ = ctx
+    _require_verified_email(user)
     status_code, response_body = service.create_checkout_session(
         db,
         tenant_id=membership.tenant_id,
