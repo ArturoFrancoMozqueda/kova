@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { renderToString } from "react-dom/server";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { StaticRouter } from "react-router-dom/server";
+import { StaticRouter } from "react-router";
 import { AppRoutes, PRERENDERED_ROUTES } from "./App";
 import { queryClient } from "./lib/queryClient";
 
