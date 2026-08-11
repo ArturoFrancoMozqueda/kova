@@ -1,16 +1,16 @@
-// Vista estática y sanitizada de la Caja productiva. La captura se presenta
-// como evidencia del producto, sin chrome de navegador ni estados decorativos.
+// Vista de Kova en escritorio y móvil. La captura se presenta como evidencia
+// del producto, sin chrome de navegador ni estados decorativos.
 
 export default function HeroProductFrame() {
   return (
     <figure className="lp-hero-frame">
       <div className="lp-hero-frame-screen">
         <img
-          src="/showcase/register.png"
-          alt="Vista real sanitizada de la Caja de Kova con un carrito de $186.00"
+          src="/showcase/kova-laptop-mobile.webp"
+          alt="Kova funcionando en una laptop y un teléfono con Caja y Análisis"
           className="lp-hero-product-capture"
-          width={1440}
-          height={900}
+          width={1536}
+          height={1024}
           loading="eager"
           decoding="async"
         />

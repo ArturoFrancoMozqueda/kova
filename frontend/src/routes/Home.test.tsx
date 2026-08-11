@@ -200,6 +200,15 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.textContent).not.toMatch(/Captura real(?: del producto| de Reportes| sanitizada)/i);
   });
 
+  it("shows the Kova laptop and mobile product image in the hero", () => {
+    renderHome();
+
+    expect(screen.getByAltText(/Kova funcionando en una laptop y un teléfono/i)).toHaveAttribute(
+      "src",
+      "/showcase/kova-laptop-mobile.webp",
+    );
+  });
+
   it("tracks the story CTA at the same signup destination", () => {
     const { container } = renderHome();
     const cta = container.querySelector<HTMLAnchorElement>(

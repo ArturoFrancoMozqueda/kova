@@ -215,13 +215,7 @@ export const LANDING_STYLES = `
   .lp-hero-frame {
     position: relative;
     width: 100%;
-    border-radius: 16px;
-    border: 0.5px solid var(--hairline-strong);
-    background: #FFFFFF;
-    overflow: hidden;
-    box-shadow:
-      0 38px 80px -50px rgba(15,17,23,0.42),
-      0 8px 24px -18px rgba(15,17,23,0.22);
+    margin: 0;
   }
   .lp-root.lp-motion-ready .lp-hero-frame {
     animation: lp-hero-frame-in 700ms var(--kova-ease-entrance) both;
@@ -263,9 +257,7 @@ export const LANDING_STYLES = `
     font-weight: 650;
   }
   .lp-hero-frame-screen {
-    background: #F8FAFB;
-    aspect-ratio: 16 / 10;
-    overflow: hidden;
+    aspect-ratio: 3 / 2;
   }
   .lp-hero-product-capture {
     display: block;
