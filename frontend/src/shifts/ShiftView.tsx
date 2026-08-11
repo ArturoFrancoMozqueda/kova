@@ -246,7 +246,11 @@ export default function ShiftView() {
               if (staleDays === null || staleDays < STALE_SHIFT_DAYS) return null;
               return (
                 <p
-                  role="status"
+                  // Deliberately not role="status": this notice is part of the
+                  // page as rendered, not something that updates and needs
+                  // announcing. Claiming a live region here would both mis-describe
+                  // it to a screen reader and collide with the toast that already
+                  // owns that role on this view.
                   data-testid="stale-shift-notice"
                   className="flex items-start gap-2 rounded-[var(--radius-md)] border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground"
                 >

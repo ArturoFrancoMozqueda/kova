@@ -69,7 +69,12 @@ test("billing page displays the Standard Plan and active subscription", async ({
   await expect(page.getByText(/activo/i).first()).toBeVisible();
   await expect(page.getByText(/tu suscripci[oó]n est[aá] activa/i)).toBeVisible();
   await expect(page.getByText(/checkout no necesario/i)).toBeVisible();
-  await expect(page.getByText(/estamos verificando tu pr[óo]xima fecha de renovaci[óo]n/i)).toBeVisible();
+  // Copy change (2026-08): a stale Stripe period used to read "estamos
+  // verificando tu próxima fecha de renovación" on the one screen where someone
+  // decides whether to trust us with a card. Behaviour is unchanged — a stale
+  // date is still hidden — but the fallback now states the only certainty.
+  await expect(page.getByText(/se renueva cada mes mientras la suscripci[óo]n siga activa/i)).toBeVisible();
+  await expect(page.getByText(/estamos verificando/i)).toHaveCount(0);
   await expect(page.getByText(/^pr[óo]xima renovaci[óo]n$/i)).toHaveCount(0);
   await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
 });
@@ -94,7 +99,10 @@ test("billing page displays a renewal date only for a verified period", async ({
 
   await expect(page.getByText(/^pr[óo]xima renovaci[óo]n$/i)).toBeVisible();
   await expect(page.getByText(/20 ago 2026/i)).toBeVisible();
+  // A verified period shows the real date, so neither the old nor the new
+  // fallback copy should appear.
   await expect(page.getByText(/estamos verificando tu pr[óo]xima fecha/i)).toHaveCount(0);
+  await expect(page.getByText(/se renueva cada mes/i)).toHaveCount(0);
 });
 
 test("billing page redirects to checkout and handles cancellation", async ({ page }) => {
