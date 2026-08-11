@@ -106,16 +106,35 @@ export function useLandingRevealMotion() {
       return cleanup;
     }
 
+    // A ratio threshold alone is a trap for sections taller than the viewport:
+    // `intersectionRatio` is capped at viewportHeight / elementHeight, so a
+    // block ~8x the viewport can never reach 0.12 and stays at opacity 0 —
+    // the reader scrolls into a full screen of nothing. Observing [0, 0.12]
+    // and also accepting "this element already fills most of the screen" keeps
+    // the intended stagger for normal blocks while guaranteeing tall ones
+    // always reveal.
+    const REVEAL_RATIO = 0.12;
+    const VIEWPORT_COVERAGE = 0.5;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
+          // Defaults matter: a partial IntersectionObserver stub (jsdom tests
+          // report `{ isIntersecting, target }` and nothing else) must reveal
+          // content, never throw. Failing open is also the right production
+          // behaviour — the worst outcome here is showing a section early, and
+          // the worst outcome of failing closed is a blank page.
+          const ratio = entry.intersectionRatio ?? 1;
+          const visibleHeight = entry.intersectionRect?.height ?? Infinity;
+          const rootHeight = entry.rootBounds?.height ?? window.innerHeight;
+          const coversViewport = visibleHeight >= rootHeight * VIEWPORT_COVERAGE;
+          if (ratio < REVEAL_RATIO && !coversViewport) return;
           const unit = units.find((candidate) => candidate.trigger === entry.target);
           if (unit) revealUnit(unit);
           observer.unobserve(entry.target);
         });
       },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+      { rootMargin: "0px 0px -10% 0px", threshold: [0, REVEAL_RATIO] },
     );
 
     units.forEach((unit) => observer.observe(unit.trigger));

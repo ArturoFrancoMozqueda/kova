@@ -28,6 +28,7 @@ import { avatarColorFor } from "@/lib/avatarColor";
 import { OfflineIndicator } from "@/offline/OfflineIndicator";
 import { TenantBrandMark } from "@/components/brand/TenantBrandMark";
 import { BillingBanner } from "@/billing/BillingBanner";
+import { EmailVerificationBanner } from "@/auth/EmailVerificationBanner";
 import { TrialChip } from "@/billing/TrialChip";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { FirstUseTour } from "@/onboarding/FirstUseTour";
@@ -394,6 +395,7 @@ export default function AppShell() {
           tabIndex={-1}
           className="relative flex-1 overflow-y-auto overscroll-contain pb-16 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-kova-blue lg:pb-0"
         >
+          <EmailVerificationBanner />
           <BillingBanner />
           <Suspense fallback={<ShellRouteFallback />}>
             <Outlet />

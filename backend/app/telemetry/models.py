@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -26,6 +26,10 @@ class TelemetryEvent(Base):
     )
 
 
+ANONYMOUS_INGEST_CLIENT = "client"
+ANONYMOUS_INGEST_SERVER = "server"
+
+
 class AnonymousTelemetryEvent(Base):
     """Pre-authentication funnel events (landing page-view, CTA click, signup
     start), keyed only by the client-generated ``client_id``.
@@ -48,6 +52,18 @@ class AnonymousTelemetryEvent(Base):
     client_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     client_event_id: Mapped[str] = mapped_column(String(80), nullable=False)
     properties: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    # False for every row written before origin verification shipped (migration
+    # 0055). Those rows are known-contaminated — the funnel they describe does not
+    # reconcile with the accounts actually created — so read paths must exclude
+    # them instead of silently averaging real visitors with scripted noise.
+    is_trusted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true", index=True
+    )
+    # Which side of the wire wrote the row: "client" for landing beacons,
+    # "server" for events the API asserts itself (e.g. signup_completed).
+    ingest_source: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=ANONYMOUS_INGEST_CLIENT, server_default="client"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

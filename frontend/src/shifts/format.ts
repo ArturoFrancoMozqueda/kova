@@ -4,6 +4,20 @@ export function formatShiftDateTime(value: string | Date): string {
   return formatDateTime(value);
 }
 
+/** Whole days a shift has been open, or `null` when the timestamp is unusable.
+ *
+ * Used to warn that a corte has stopped being meaningful: expected cash keeps
+ * accruing sales for as long as the shift stays open, so a multi-day shift
+ * produces a variance nobody can reconcile against a real cash drawer. */
+export function openShiftAgeInDays(openedAt: string | Date): number | null {
+  const opened = openedAt instanceof Date ? openedAt : new Date(openedAt);
+  const ms = opened.getTime();
+  if (Number.isNaN(ms)) return null;
+  const elapsed = Date.now() - ms;
+  if (elapsed < 0) return null;
+  return Math.floor(elapsed / (24 * 60 * 60 * 1000));
+}
+
 export function localizeShiftStatus(status: string | null | undefined): string {
   const normalized = normalizeEnum(status);
   if (normalized === "open") return "Abierto";

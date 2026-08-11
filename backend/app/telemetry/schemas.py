@@ -25,11 +25,23 @@ ANONYMOUS_EVENT_NAMES = frozenset(
         "login_clicked",
         "faq_opened",
         "signup_started",
-        "signup_completed",
         "signup_validation_failed",
         "experiment_exposed",
     }
 )
+
+# Conversion events the client may never assert about itself. ``signup_completed``
+# is the bottom of the funnel and the number every growth decision keys on, so it
+# is written by the server from inside the signup transaction (see
+# ``app.auth.router.signup``) and rejected on the public endpoint. Enforced twice:
+# here at the API boundary, and by the RLS insert policy on
+# ``anonymous_telemetry_events`` (migration 0055), which the runtime ``kova_app``
+# role cannot satisfy.
+BACKEND_ONLY_ANONYMOUS_EVENT_NAMES = frozenset({"signup_completed"})
+
+# Every anonymous event the table may legitimately hold, regardless of writer.
+# Read paths (exports, funnel analysis) should use this set.
+ALL_ANONYMOUS_EVENT_NAMES = ANONYMOUS_EVENT_NAMES | BACKEND_ONLY_ANONYMOUS_EVENT_NAMES
 
 # Property keys an anonymous event must never carry. The endpoint stores no
 # tenant/user identity and no PII; rejecting these keys keeps a client from
@@ -355,6 +367,8 @@ class AnonymousTelemetryEventCreate(StrictModel):
     @field_validator("event_name")
     @classmethod
     def _allowlisted_event(cls, value: str) -> str:
+        if value in BACKEND_ONLY_ANONYMOUS_EVENT_NAMES:
+            raise ValueError("event_name is recorded by the server, not the client")
         if value not in ANONYMOUS_EVENT_NAMES:
             raise ValueError("event_name is not an allowed anonymous event")
         return value

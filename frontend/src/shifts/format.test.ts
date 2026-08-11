@@ -5,6 +5,7 @@ import {
   localizeMovementType,
   localizeReconciliationStatus,
   localizeShiftStatus,
+  openShiftAgeInDays,
 } from "./format";
 
 describe("shift format helpers", () => {
@@ -26,6 +27,21 @@ describe("shift format helpers", () => {
     expect(localizeReconciliationStatus("balanced")).toBe("Caja cuadrada");
     expect(localizeReconciliationStatus("overage")).toBe("Sobrante");
     expect(localizeReconciliationStatus("shortage")).toBe("Faltante");
+  });
+
+  // A production tenant was found with a shift open for 19 days, which quietly
+  // makes its corte unreconcilable. The view warns past two days.
+  it("measures how long a shift has been open, in whole days", () => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+    expect(openShiftAgeInDays(hoursAgo(3))).toBe(0);
+    expect(openShiftAgeInDays(hoursAgo(30))).toBe(1);
+    expect(openShiftAgeInDays(hoursAgo(24 * 19))).toBe(19);
+  });
+
+  it("returns null for unusable or future open timestamps", () => {
+    expect(openShiftAgeInDays("not-a-date")).toBeNull();
+    // Clock skew on a cheap register should not render "-1 días abierto".
+    expect(openShiftAgeInDays(new Date(Date.now() + 60_000).toISOString())).toBeNull();
   });
 
   it("classifies positive drawer movements", () => {

@@ -1,4 +1,5 @@
 import { csrfHeaders } from "../lib/csrf";
+import { funnelClientHeaders } from "../telemetry/funnel";
 import type {
   LoginRequest,
   MeResponse,
@@ -33,9 +34,22 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function signup(body: SignupRequest): Promise<SignupResponse> {
+  // The pseudonymous funnel id travels as a header, not in the body: it is
+  // analytics stitching, not part of the account being created. The server
+  // records `signup_completed` itself once the account exists — the browser is
+  // no longer trusted to assert its own conversion.
   return requestJson<SignupResponse>("/api/v1/auth/signup", {
     method: "POST",
+    headers: funnelClientHeaders(),
     body: JSON.stringify(body),
+  });
+}
+
+/** Ask for a fresh verification email for the *signed-in* account. The address
+ * is resolved server-side from the session, never sent by the client. */
+export function resendVerificationEmail(): Promise<MessageResponse> {
+  return requestJson<MessageResponse>("/api/v1/auth/verify/resend", {
+    method: "POST",
   });
 }
 

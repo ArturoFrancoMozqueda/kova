@@ -197,8 +197,11 @@ def test_rejects_money_in_anonymous_properties(client):
     resp = client.post(
         ANON_URL,
         json={
-            "event_name": "signup_completed",
-            "client_event_id": "signup_completed:money",
+            # A client-writable event, so the 422 below is unambiguously about
+            # the money key rather than the (separately tested) rule that
+            # signup_completed may only be written by the server.
+            "event_name": "signup_started",
+            "client_event_id": "signup_started:money",
             "client_id": "visitor-abc",
             "properties": {"total_amount": "299.00"},
         },

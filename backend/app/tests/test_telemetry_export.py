@@ -56,8 +56,11 @@ def test_cro_export_joins_anonymous_and_authenticated_by_client_id(client, monke
     anonymous = client.post(
         "/api/v1/telemetry/events/anonymous",
         json={
-            "event_name": "signup_completed",
-            "client_event_id": "signup_completed:export",
+            # `signup_completed` is server-authored now (see
+            # test_telemetry_origin_guard), so the client-side rung the export
+            # has to stitch is signup_started.
+            "event_name": "signup_started",
+            "client_event_id": "signup_started:export",
             "client_id": client_id,
             "properties": {**common, "path": "/signup", "cta": "hero"},
         },
@@ -84,7 +87,7 @@ def test_cro_export_joins_anonymous_and_authenticated_by_client_id(client, monke
     rows = list(csv.DictReader(io.StringIO(response.text)))
     client_rows = [row for row in rows if row["client_id"] == client_id]
     assert {row["event"] for row in client_rows} == {
-        "signup_completed",
+        "signup_started",
         "first_sale_completed",
     }
     assert {row["conversion_state"] for row in client_rows} == {"activated"}

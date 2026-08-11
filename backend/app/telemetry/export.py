@@ -75,6 +75,10 @@ def build_cro_export(
         select(AnonymousTelemetryEvent)
         .where(AnonymousTelemetryEvent.created_at >= start)
         .where(AnonymousTelemetryEvent.created_at <= end)
+        # Rows written before origin verification shipped cannot be attributed to
+        # a real visitor, and mixing them into an export makes every downstream
+        # rate wrong in a way that looks plausible. Exclude them at the source.
+        .where(AnonymousTelemetryEvent.is_trusted.is_(True))
     ).all()
     authenticated = db.scalars(
         select(TelemetryEvent)

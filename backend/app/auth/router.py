@@ -1,6 +1,6 @@
 import hashlib
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.auth import service
@@ -20,6 +20,7 @@ from app.db import get_db, get_privileged_db
 from app.middleware.csrf import clear_csrf_cookie, set_csrf_cookie
 from app.middleware.rate_limit import enforce_rate_limit, rate_limit
 from app.shared.dependencies import get_current_session
+from app.telemetry import service as telemetry_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -61,6 +62,12 @@ def signup(
     body: SignupRequest,
     request: Request,
     response: Response,
+    # Pseudonymous, browser-generated id that stitches this signup back to the
+    # visitor's landing view. Optional by design: a blocked localStorage costs us
+    # the attribution join, never the account. Device/channel segmentation is
+    # recovered by joining this id to the visitor's earlier landing events, so no
+    # further context needs to cross the wire.
+    x_kova_client_id: str | None = Header(default=None, alias="X-Kova-Client-Id"),
     # Pre-session: creates a brand-new tenant + its first membership/subscription
     # before any tenant context exists. Runs on the privileged engine (RLS bypass);
     # there is no cross-tenant read, only inserts for the tenant just created.
@@ -80,6 +87,11 @@ def signup(
         accepted_terms=body.accepted_terms,
         ip_address=request.client.host if request.client else None,
     )
+    if outcome.reason == service.SignupOutcome.ACCOUNT_CREATED:
+        # Written here, not by the browser: the event is now true by
+        # construction — no account, no event. See
+        # docs/audits/DIAGNOSTICO-CRECIMIENTO-2026-08-09.md for why this moved.
+        telemetry_service.record_signup_completed(db, client_id=x_kova_client_id)
     dev_token = (
         outcome.verification_token_plain
         if settings.app_env == "local"
@@ -112,6 +124,30 @@ def signup(
 def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_privileged_db)):
     service.verify_email(db, token=body.token)
     return MessageResponse(message="Email verified.")
+
+
+@router.post(
+    "/verify/resend",
+    response_model=MessageResponse,
+    dependencies=[Depends(rate_limit(5, window_seconds=3600, key="auth-verify-resend"))],
+)
+def resend_verification(
+    request: Request,
+    # Pre-verification account acting on itself; privileged engine matches the
+    # rest of the identity flows, which are tenant-agnostic by construction.
+    db: Session = Depends(get_privileged_db),
+    ctx=Depends(get_current_session),
+):
+    """Re-send the verification email to the signed-in account's own address.
+
+    The address is never taken from the request — only from the session — so this
+    cannot be used to mail an arbitrary recipient.
+    """
+    user, _, _ = ctx
+    service.resend_verification_for_user(
+        db, user=user, ip_address=request.client.host if request.client else None
+    )
+    return MessageResponse(message="Verification email sent.")
 
 
 @router.post("/login", dependencies=[Depends(rate_limit(20, key="auth-login", fail_closed=True))])

@@ -34,6 +34,10 @@ export type MeResponse = {
     email: string;
     tenant_id: string;
     role: string;
+    /** Unverified accounts can sign in and operate, but cannot subscribe.
+     * Optional so an older cached session shape degrades to "verified" rather
+     * than nagging someone who already confirmed. */
+    email_verified?: boolean;
   };
   tenant_id: string;
   tenant_name: string;

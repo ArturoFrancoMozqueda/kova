@@ -166,10 +166,44 @@ def test_login_wrong_password_returns_401(client):
     assert r.status_code == 401
 
 
-def test_login_unverified_email_returns_403(client):
+# Behaviour change (2026-08): verification is no longer a wall in front of the
+# product. A third of every account ever created never confirmed its address and
+# therefore never got in — an invisible loss, since the funnel only counted
+# signups. The password check is unchanged; what moved is *where* verification is
+# enforced. See docs/audits/DIAGNOSTICO-CRECIMIENTO-2026-08-09.md.
+def test_login_unverified_email_succeeds_but_is_flagged(client):
     _signup(client)
-    r = client.post("/api/v1/auth/login", json={"email": "owner@example.com", "password": "S3cur3pass!"})
+    r = client.post(
+        "/api/v1/auth/login", json={"email": "owner@example.com", "password": "S3cur3pass!"}
+    )
+    assert r.status_code == 200
+    assert "access_token" in r.cookies
+
+    # The client needs the flag to show the verification banner and disable the
+    # paid CTA rather than letting the person walk into a 403.
+    me = client.get("/api/v1/auth/me")
+    assert me.status_code == 200
+    assert me.json()["user"]["email_verified"] is False
+
+
+def test_unverified_account_cannot_start_a_subscription(client):
+    """The wall moved to the paid boundary: explore and sell, never pay."""
+    _signup(client)
+    login = client.post(
+        "/api/v1/auth/login", json={"email": "owner@example.com", "password": "S3cur3pass!"}
+    )
+    assert login.status_code == 200
+
+    r = client.post("/api/v1/billing/checkout", headers={"Idempotency-Key": "unverified-1"})
     assert r.status_code == 403
+
+
+def test_verified_account_reports_email_verified(client):
+    data = _signup(client)
+    _verify(client, data["dev_verification_token"])
+    _login(client)
+
+    assert client.get("/api/v1/auth/me").json()["user"]["email_verified"] is True
 
 
 # ── Me ────────────────────────────────────────────────────────────────────────

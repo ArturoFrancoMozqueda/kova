@@ -212,7 +212,12 @@ describe("BillingView plan and period trust", () => {
     expect(screen.queryByText(/Estamos verificando tu próxima fecha/i)).not.toBeInTheDocument();
   });
 
-  it("hides a stale period date and explains that verification is in progress", async () => {
+  // Copy change (2026-08): a stale period used to read "estamos verificando tu
+  // próxima fecha de renovación", which plants doubt on the one screen where
+  // someone decides whether to trust us with a card. The behaviour is unchanged
+  // — a stale date is still hidden — but the fallback now states the only thing
+  // we know for certain: the plan is monthly and access is on.
+  it("hides a stale period date and states the monthly renewal instead", async () => {
     getBillingSubscription.mockResolvedValue(
       activeBilling({
         status: "active",
@@ -225,10 +230,9 @@ describe("BillingView plan and period trust", () => {
 
     expect(await screen.findByText("Periodo de suscripción")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Estamos verificando tu próxima fecha de renovación. Tu acceso actual no cambia.",
-      ),
+      screen.getByText("Se renueva cada mes mientras la suscripción siga activa."),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Estamos verificando/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Próxima renovación")).not.toBeInTheDocument();
     expect(screen.queryByText(/1 jun 2026/i)).not.toBeInTheDocument();
   });
