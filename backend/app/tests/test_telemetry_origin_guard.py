@@ -6,6 +6,10 @@ Regression cover for the contamination described in
 because any client could post a well-formed funnel event. Two independent
 guards now stand in the way — an Origin check, and moving the conversion rung to
 the server — and both are exercised here.
+
+Assertions look at the rows *this test* produced rather than at table counts.
+The suite shares one database and earlier modules leave anonymous events behind,
+so an absolute count would be measuring the rest of the suite.
 """
 from fastapi.testclient import TestClient
 
@@ -26,6 +30,22 @@ def _landing_event(client_event_id: str = "landing:1") -> dict:
     }
 
 
+def _stored(db, client_event_id: str) -> AnonymousTelemetryEvent | None:
+    return (
+        db.query(AnonymousTelemetryEvent)
+        .filter(AnonymousTelemetryEvent.client_event_id == client_event_id)
+        .one_or_none()
+    )
+
+
+def _events_for_client(db, client_id: str) -> list[AnonymousTelemetryEvent]:
+    return (
+        db.query(AnonymousTelemetryEvent)
+        .filter(AnonymousTelemetryEvent.client_id == client_id)
+        .all()
+    )
+
+
 def _raw_client() -> TestClient:
     """A client that sends exactly the headers a test gives it.
 
@@ -39,10 +59,10 @@ def _raw_client() -> TestClient:
 
 
 def test_accepts_events_from_the_configured_front_end(client, db):
-    response = client.post(ANON_URL, json=_landing_event())
+    response = client.post(ANON_URL, json=_landing_event("landing:trusted"))
 
     assert response.status_code == 202, response.text
-    assert db.query(AnonymousTelemetryEvent).count() == 1
+    assert _stored(db, "landing:trusted") is not None
 
 
 def test_accepts_the_www_sibling_of_the_configured_origin(db):
@@ -56,7 +76,7 @@ def test_accepts_the_www_sibling_of_the_configured_origin(db):
     )
 
     assert response.status_code == 202, response.text
-    assert db.query(AnonymousTelemetryEvent).count() == 1
+    assert _stored(db, "landing:www") is not None
 
 
 def test_rejects_events_with_no_origin_at_all(db):
@@ -64,7 +84,7 @@ def test_rejects_events_with_no_origin_at_all(db):
     response = _raw_client().post(ANON_URL, json=_landing_event("landing:naked"))
 
     assert response.status_code == 403
-    assert db.query(AnonymousTelemetryEvent).count() == 0
+    assert _stored(db, "landing:naked") is None
 
 
 def test_rejects_events_from_a_foreign_origin(db):
@@ -75,7 +95,7 @@ def test_rejects_events_from_a_foreign_origin(db):
     )
 
     assert response.status_code == 403
-    assert db.query(AnonymousTelemetryEvent).count() == 0
+    assert _stored(db, "landing:foreign") is None
 
 
 def test_falls_back_to_referer_when_origin_is_absent(db):
@@ -88,7 +108,7 @@ def test_falls_back_to_referer_when_origin_is_absent(db):
     )
 
     assert response.status_code == 202, response.text
-    assert db.query(AnonymousTelemetryEvent).count() == 1
+    assert _stored(db, "landing:referer") is not None
 
 
 def test_client_may_not_claim_its_own_signup_completion(client, db):
@@ -103,7 +123,7 @@ def test_client_may_not_claim_its_own_signup_completion(client, db):
     )
 
     assert response.status_code == 422
-    assert db.query(AnonymousTelemetryEvent).count() == 0
+    assert _events_for_client(db, "visitor-forger") == []
 
 
 def test_signup_records_its_own_conversion_with_the_visitor_stitching_id(client, db):
@@ -119,15 +139,21 @@ def test_signup_records_its_own_conversion_with_the_visitor_stitching_id(client,
     )
     assert response.status_code == 201, response.text
 
-    events = db.query(AnonymousTelemetryEvent).all()
+    events = _events_for_client(db, "visitor-real")
     assert [event.event_name for event in events] == ["signup_completed"]
-    assert events[0].client_id == "visitor-real"
     assert events[0].ingest_source == "server"
     assert events[0].is_trusted is True
 
 
 def test_signup_still_records_the_conversion_without_a_stitching_id(client, db):
     # localStorage can be blocked. We lose the attribution join, never the count.
+    before = {
+        event.id
+        for event in db.query(AnonymousTelemetryEvent)
+        .filter(AnonymousTelemetryEvent.event_name == "signup_completed")
+        .all()
+    }
+
     response = client.post(
         SIGNUP_URL,
         json={
@@ -139,9 +165,15 @@ def test_signup_still_records_the_conversion_without_a_stitching_id(client, db):
     )
     assert response.status_code == 201, response.text
 
-    events = db.query(AnonymousTelemetryEvent).all()
-    assert [event.event_name for event in events] == ["signup_completed"]
-    assert events[0].client_id.startswith("server:")
+    added = [
+        event
+        for event in db.query(AnonymousTelemetryEvent)
+        .filter(AnonymousTelemetryEvent.event_name == "signup_completed")
+        .all()
+        if event.id not in before
+    ]
+    assert len(added) == 1
+    assert added[0].client_id.startswith("server:")
 
 
 def test_failed_signup_records_no_conversion(client, db):
@@ -157,4 +189,4 @@ def test_failed_signup_records_no_conversion(client, db):
     )
 
     assert response.status_code == 400
-    assert db.query(AnonymousTelemetryEvent).count() == 0
+    assert _events_for_client(db, "visitor-blocked") == []
