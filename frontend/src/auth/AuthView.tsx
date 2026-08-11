@@ -201,6 +201,25 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
     if (firstFieldId) document.getElementById(firstFieldId)?.focus();
   };
 
+  /** Sign in with the credentials just typed and land in the product.
+   *
+   * Returns false instead of throwing when the sign-in does not go through, so
+   * each signup branch can fall back to its own explanatory screen. The password
+   * is validated by `login` itself — this never bypasses authentication, it only
+   * removes the inbox round-trip between creating an account and using it. */
+  const enterProduct = async (): Promise<boolean> => {
+    try {
+      await login({ email, password });
+      const next = await refresh();
+      queueFunnelEvent("login");
+      const role = next.status === "authenticated" ? next.user.role : "";
+      navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSignupFieldErrors({});
@@ -226,9 +245,17 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
         return;
       }
       if (response.reason === "verification_resent") {
+        // Someone who signed up before, never confirmed, and came back. This is
+        // the case the old flow trapped hardest: it resent an email they had
+        // already failed to receive once and left them on this screen forever.
+        // They typed a password, so try it — `login` verifies it, which is why
+        // attempting here cannot let anyone into an account that is not theirs.
         setVerificationToken(response.dev_verification_token ?? "");
-        setState("verification_resent");
         setResendCountdown(30);
+        if (await enterProduct()) return;
+        // Wrong password for that address (or login unavailable): the resent
+        // email is genuinely the only way forward, so say so.
+        setState("verification_resent");
         return;
       }
       // `signup_completed` is recorded server-side inside the signup request —
@@ -240,19 +267,11 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
       // inside, where a banner can nag without blocking; verification is still
       // required before any paid action. Waiting on an inbox at this exact
       // moment was costing a third of all signups.
-      try {
-        await login({ email, password });
-        const next = await refresh();
-        queueFunnelEvent("login");
-        const role = next.status === "authenticated" ? next.user.role : "";
-        navigate(role === "owner" || role === "manager" ? "/dashboard" : "/register");
-        return;
-      } catch {
-        // Auto-login is a convenience, not a guarantee. If it fails (rate limit,
-        // transient network) fall back to the explicit "check your email" screen
-        // rather than losing the fact that the account was created.
-        setState("created");
-      }
+      if (await enterProduct()) return;
+      // Auto-login is a convenience, not a guarantee. If it fails (rate limit,
+      // transient network) fall back to the explicit "check your email" screen
+      // rather than losing the fact that the account was created.
+      setState("created");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401 || err.status === 403) {

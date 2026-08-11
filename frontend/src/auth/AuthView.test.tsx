@@ -104,6 +104,66 @@ describe("AuthView signup recovery flows", () => {
     expect(telemetry.trackAnonymousEvent).not.toHaveBeenCalledWith("signup_completed");
   });
 
+  // The returning-visitor case: an account exists but was never confirmed, so
+  // the API answers `verification_resent` rather than creating anything. The old
+  // flow resent an email they had already failed to receive and left them stuck
+  // on that screen. They typed a password, so we try it — `login` validates it,
+  // which is why this cannot open an account that is not theirs.
+  it("lets an unconfirmed returning owner in instead of resending another email", async () => {
+    const fetchMock = mockFetch((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/v1/auth/session")) {
+        return new Response(JSON.stringify({ authenticated: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.includes("/api/v1/auth/signup") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            message: "Verification email re-sent.",
+            reason: "verification_resent",
+            user_id: null,
+            tenant_id: null,
+            dev_verification_token: "token",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (url.includes("/api/v1/auth/login") && init?.method === "POST") {
+        return new Response(JSON.stringify({ message: "ok" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("", { status: 404 });
+    });
+
+    renderAt("/signup");
+    fireEvent.change(screen.getByLabelText(/Nombre del negocio/i), {
+      target: { value: "Sweet Home" },
+    });
+    fireEvent.change(screen.getByLabelText(/Correo/i), {
+      target: { value: "owner@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), {
+      target: { value: "S3cur3pass!" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            String(input).includes("/api/v1/auth/login") &&
+            (init as RequestInit | undefined)?.method === "POST",
+        ),
+      ).toBe(true),
+    );
+    expect(screen.queryByText(/Ya tenías una cuenta sin verificar/i)).not.toBeInTheDocument();
+  });
+
   // Verification is no longer a wall in front of the product: a third of all
   // historical signups never confirmed their address and therefore never got in.
   // The account now signs straight in; verification is enforced at the paid
