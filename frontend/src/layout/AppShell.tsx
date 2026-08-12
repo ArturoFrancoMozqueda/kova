@@ -3,11 +3,18 @@ import { NavLink, Outlet } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
-import { usePermission, REPORTS_VIEW_ALL_PERMISSION, BILLING_VIEW_PERMISSION, EXPENSES_MANAGE_PERMISSION } from "@/auth/permissions";
+import {
+  BILLING_VIEW_PERMISSION,
+  CUSTOMER_ORDER_VIEW_PERMISSION,
+  EXPENSES_MANAGE_PERMISSION,
+  REPORTS_VIEW_ALL_PERMISSION,
+  usePermission,
+} from "@/auth/permissions";
 import {
   ShoppingCart,
   LayoutGrid,
   ClipboardList,
+  ClipboardCheck,
   Package,
   Clock,
   BarChart3,
@@ -41,12 +48,13 @@ type NavItem = {
   icon: React.ReactNode;
   group: "operation" | "business";
   permission?: string;
-  feature?: "margin_reports";
+  feature?: "margin_reports" | "customer_orders";
 };
 
 const adminNavItems: NavItem[] = [
   { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" />, group: "business" },
@@ -59,6 +67,7 @@ const adminNavItems: NavItem[] = [
 
 const cashierNavItems: NavItem[] = [
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
+  { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
 ];
@@ -109,19 +118,25 @@ export default function AppShell() {
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
   const canManageExpenses = usePermission(EXPENSES_MANAGE_PERMISSION);
+  const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
+  const customerOrdersEnabled = useFeature("customer_orders");
 
   const navItems = isAdminRole(userRole) ? adminNavItems : cashierNavItems;
 
   const bottomNavItems: NavItem[] = isAdminRole(userRole)
     ? [
         { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" },
-        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
+        customerOrdersEnabled
+          ? { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-5 w-5" />, group: "operation" }
+          : { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
         { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-5 w-5" />, group: "operation" },
       ]
     : [
         { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" },
-        { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
+        customerOrdersEnabled
+          ? { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-5 w-5" />, group: "operation" }
+          : { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-5 w-5" />, group: "operation" },
         { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-5 w-5" />, group: "operation" },
       ];
 
@@ -129,7 +144,9 @@ export default function AppShell() {
     if (item.permission === "reports.view_all") return canViewReports;
     if (item.permission === "billing.view") return canViewBilling;
     if (item.permission === "expenses.manage" && !canManageExpenses) return false;
+    if (item.permission === CUSTOMER_ORDER_VIEW_PERMISSION && !canViewCustomerOrders) return false;
     if (item.feature === "margin_reports" && !marginReportsEnabled) return false;
+    if (item.feature === "customer_orders" && !customerOrdersEnabled) return false;
     return true;
   });
   const operationNavItems = filteredNavItems.filter((item) => item.group === "operation");

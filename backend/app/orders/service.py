@@ -1,5 +1,6 @@
 import hashlib
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -9,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.catalog.models import Product
 from app.idempotency import service as idempotency_service
 from app.inventory import repository as inventory_repo
 from app.modifiers import service as modifier_service
@@ -97,6 +99,7 @@ def _payment_body(payment: Payment) -> dict[str, Any]:
 
 def _item_modifiers(db: Session, *, tenant_id: UUID, order_item_id: UUID) -> list[dict]:
     from app.modifiers.models import OrderItemModifier
+
     mods = (
         db.query(OrderItemModifier)
         .filter(
@@ -140,6 +143,21 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
     }
 
 
+def serialize_order(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]:
+    """Serialize a financial sale for another backend workflow."""
+    return _order_body(db, tenant_id=tenant_id, order=order)
+
+
+@dataclass(frozen=True)
+class PricedOrderLine:
+    product: Product
+    product_name: str
+    quantity: int
+    unit_price: Decimal
+    line_total: Decimal
+    modifier_snapshots: list[dict[str, Any]]
+
+
 def _validate_payments(
     payments: list[PaymentCreate], total: Decimal
 ) -> list[tuple[Decimal, Decimal | None, Decimal]]:
@@ -161,6 +179,82 @@ def _validate_payments(
         else:
             result.append((amount, None, Decimal("0.00")))
     return result
+
+
+def persist_completed_order(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    priced_items: list[PricedOrderLine],
+    payments: list[PaymentCreate],
+    client_uuid: UUID | None = None,
+    link_to_open_shift: bool = True,
+    shift_id: UUID | None = None,
+    occurred_at: datetime | None = None,
+) -> Order:
+    """Persist one trusted, fully paid sale without audit, idempotency or commit."""
+    total = calculator.order_total([line.line_total for line in priced_items])
+    validated_payments = _validate_payments(payments, total)
+
+    if link_to_open_shift:
+        open_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
+        if any(payment.method == "cash" for payment in payments) and not open_shift:
+            raise bad_request("Open a shift before accepting cash payments")
+        shift_id = open_shift.id if open_shift else None
+
+    order = repo.create_order(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        subtotal_amount=total,
+        total_amount=total,
+        client_uuid=client_uuid,
+        shift_id=shift_id,
+        occurred_at=_clamp_occurred_at(occurred_at),
+    )
+    for line in priced_items:
+        order_item = repo.create_order_item(
+            db,
+            tenant_id=tenant_id,
+            order_id=order.id,
+            product=line.product,
+            product_name=line.product_name,
+            quantity=line.quantity,
+            unit_price_amount=line.unit_price,
+            line_total_amount=line.line_total,
+        )
+        for snapshot in line.modifier_snapshots:
+            db.add(
+                OrderItemModifier(
+                    tenant_id=tenant_id,
+                    order_item_id=order_item.id,
+                    **snapshot,
+                )
+            )
+        if line.product.track_inventory:
+            repo.create_inventory_movement(
+                db,
+                tenant_id=tenant_id,
+                product_id=line.product.id,
+                order_id=order.id,
+                quantity_delta=-line.quantity,
+            )
+
+    for payment_entry, (amount, tendered, change_due) in zip(
+        payments, validated_payments, strict=True
+    ):
+        repo.create_payment(
+            db,
+            tenant_id=tenant_id,
+            order_id=order.id,
+            method=payment_entry.method,
+            amount=amount,
+            amount_tendered=tendered,
+            change_due=change_due,
+            reference=payment_entry.reference,
+        )
+    return order
 
 
 def create_order(
@@ -189,7 +283,7 @@ def create_order(
         if existing:
             return 200, _order_body(db, tenant_id=tenant_id, order=existing)
 
-    priced_items = []
+    priced_items: list[PricedOrderLine] = []
     # Aggregate requested quantities per product so multiple cart lines
     # for the same product (e.g. with different modifiers) collectively
     # validate against current on-hand.
@@ -201,31 +295,43 @@ def create_order(
         if not product:
             raise not_found("Product not found")
         price_delta, modifier_snapshots = modifier_service.validate_and_price_modifiers(
-            db, tenant_id=tenant_id, product_id=product.id,
+            db,
+            tenant_id=tenant_id,
+            product_id=product.id,
             modifier_option_ids=item.modifier_option_ids,
         )
         effective_price = calculator.money(product.price_amount + price_delta)
         line_total = calculator.line_total(effective_price, item.quantity)
         priced_items.append(
-            (product, item.quantity, effective_price, line_total, modifier_snapshots)
+            PricedOrderLine(
+                product=product,
+                product_name=product.name,
+                quantity=item.quantity,
+                unit_price=effective_price,
+                line_total=line_total,
+                modifier_snapshots=modifier_snapshots,
+            )
         )
         if product.track_inventory:
-            quantity_by_product[product.id] = (
-                quantity_by_product.get(product.id, 0) + item.quantity
-            )
+            quantity_by_product[product.id] = quantity_by_product.get(product.id, 0) + item.quantity
 
     # Out-of-stock guard: prevent selling tracked products below zero.
     for product_id, requested_qty in quantity_by_product.items():
-        on_hand = inventory_repo.stock_on_hand(
+        on_hand = inventory_repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product_id)
+        from app.customer_orders import repository as customer_order_repo
+
+        reserved = customer_order_repo.active_reserved_quantity(
             db, tenant_id=tenant_id, product_id=product_id
         )
-        if requested_qty > on_hand:
+        available = max(0, on_hand - reserved)
+        if requested_qty > available:
             raise HTTPException(
                 status_code=422,
                 detail={
                     "code": "OUT_OF_STOCK",
                     "product_id": str(product_id),
-                    "available": on_hand,
+                    "available": available,
+                    "reserved": reserved,
                     "requested": requested_qty,
                     "message": (
                         "No hay stock suficiente para vender este producto. "
@@ -234,7 +340,7 @@ def create_order(
                 },
             )
 
-    subtotal = calculator.order_total([lt for _, _, _, lt, _ in priced_items])
+    subtotal = calculator.order_total([line.line_total for line in priced_items])
     total = subtotal
     validated_payments = _validate_payments(body.payments, total)
 
@@ -266,29 +372,31 @@ def create_order(
         shift_id=shift_id,
         occurred_at=_clamp_occurred_at(occurred_at),
     )
-    for product, quantity, effective_price, line_total, modifier_snapshots in priced_items:
+    for line in priced_items:
         order_item = repo.create_order_item(
             db,
             tenant_id=tenant_id,
             order_id=order.id,
-            product=product,
-            quantity=quantity,
-            unit_price_amount=effective_price,
-            line_total_amount=line_total,
+            product=line.product,
+            quantity=line.quantity,
+            unit_price_amount=line.unit_price,
+            line_total_amount=line.line_total,
         )
-        for snap in modifier_snapshots:
-            db.add(OrderItemModifier(
-                tenant_id=tenant_id,
-                order_item_id=order_item.id,
-                **snap,
-            ))
-        if product.track_inventory:
+        for snap in line.modifier_snapshots:
+            db.add(
+                OrderItemModifier(
+                    tenant_id=tenant_id,
+                    order_item_id=order_item.id,
+                    **snap,
+                )
+            )
+        if line.product.track_inventory:
             repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
-                product_id=product.id,
+                product_id=line.product.id,
                 order_id=order.id,
-                quantity_delta=-quantity,
+                quantity_delta=-line.quantity,
             )
 
     for payment_entry, (amount, tendered, change_due) in zip(
@@ -465,8 +573,7 @@ def create_refund(
                     "available": available,
                     "requested": refund_item.quantity,
                     "message": (
-                        f"La cantidad excede lo disponible para devolución "
-                        f"(máx. {available})."
+                        f"La cantidad excede lo disponible para devolución (máx. {available})."
                     ),
                 },
             )
@@ -484,9 +591,9 @@ def create_refund(
     collected = repo.collected_by_method(db, tenant_id=tenant_id, order_id=order_id).get(
         method, Decimal("0.00")
     )
-    already_refunded = repo.refunded_by_method(
-        db, tenant_id=tenant_id, order_id=order_id
-    ).get(method, Decimal("0.00"))
+    already_refunded = repo.refunded_by_method(db, tenant_id=tenant_id, order_id=order_id).get(
+        method, Decimal("0.00")
+    )
     available_in_method = calculator.money(collected - already_refunded)
     if total_refunded > available_in_method:
         raise HTTPException(

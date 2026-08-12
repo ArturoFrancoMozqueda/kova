@@ -36,6 +36,7 @@ def test_session_exposes_supported_tenant_override(client, db: Session) -> None:
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).one()
     tenant.feature_overrides = {
         "margin_reports": True,
+        "customer_orders": False,
         "unknown_flag": True,
         "not_a_boolean": "true",
     }
@@ -44,7 +45,10 @@ def test_session_exposes_supported_tenant_override(client, db: Session) -> None:
     response = client.get("/api/v1/auth/session")
 
     assert response.status_code == 200, response.text
-    assert response.json()["feature_flags"] == {"margin_reports": True}
+    assert response.json()["feature_flags"] == {
+        "margin_reports": True,
+        "customer_orders": False,
+    }
 
 
 def test_session_defaults_supported_flags_to_false(client) -> None:
@@ -53,8 +57,14 @@ def test_session_defaults_supported_flags_to_false(client) -> None:
     response = client.get("/api/v1/auth/session")
 
     assert response.status_code == 200, response.text
-    assert response.json()["feature_flags"] == {"margin_reports": False}
+    assert response.json()["feature_flags"] == {
+        "margin_reports": False,
+        "customer_orders": False,
+    }
 
 
 def test_non_boolean_override_does_not_enable_feature() -> None:
-    assert resolve_feature_flags({"margin_reports": "true"}) == {"margin_reports": False}
+    assert resolve_feature_flags({"margin_reports": "true"}) == {
+        "margin_reports": False,
+        "customer_orders": False,
+    }

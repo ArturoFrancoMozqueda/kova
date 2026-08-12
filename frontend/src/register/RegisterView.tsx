@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { CustomerOrderCheckoutRegister } from "@/customerOrders/CustomerOrderCheckoutRegister";
 import {
   CATALOG_CREATE_PERMISSION,
   ORDER_CREATE_PERMISSION,
@@ -165,7 +166,7 @@ const paymentMethodOptions: { value: PaymentMethod; label: string; icon: React.R
   { value: "manual_card", label: copy.register.manualCard, icon: <CreditCard className="h-5 w-5" /> },
 ];
 
-export default function RegisterView() {
+function RegularRegisterView() {
   useDocumentTitle(copy.documentTitles.register);
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
@@ -1055,7 +1056,7 @@ export default function RegisterView() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {filteredProducts.map((product) => {
                   const stock = stockMap.get(product.id);
-                  const isOut = stock?.track_inventory && stock.stock_on_hand === 0;
+                  const isOut = stock?.track_inventory && stock.available_quantity === 0;
                   const isLow = stock?.is_low_stock && !isOut;
                   return (
                     <RegisterProductCard
@@ -1798,4 +1799,15 @@ export default function RegisterView() {
 
     </ViewLayout>
   );
+}
+
+export default function RegisterView() {
+  const [searchParams] = useSearchParams();
+  const customerOrderId = searchParams.get("customerOrderId");
+
+  if (customerOrderId) {
+    return <CustomerOrderCheckoutRegister orderId={customerOrderId} />;
+  }
+
+  return <RegularRegisterView />;
 }

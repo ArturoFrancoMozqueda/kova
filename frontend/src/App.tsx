@@ -19,6 +19,9 @@ const CatalogView = lazy(() => import("./catalog/CatalogView"));
 const DashboardView = lazy(() => import("./dashboard/DashboardView"));
 const InventoryView = lazy(() => import("./inventory/InventoryView"));
 const ExpensesView = lazy(() => import("./expenses/ExpensesView"));
+const CustomerOrderDetailView = lazy(() => import("./customerOrders/CustomerOrderDetailView"));
+const CustomerOrderFormView = lazy(() => import("./customerOrders/CustomerOrderFormView"));
+const CustomerOrderListView = lazy(() => import("./customerOrders/CustomerOrderListView"));
 const OrderDetail = lazy(() => import("./orders/OrderDetail"));
 const OrderListView = lazy(() => import("./orders/OrderListView"));
 const SyncQueueView = lazy(() => import("./offline/SyncQueueView"));
@@ -104,6 +107,10 @@ export function AppRoutes() {
               <Route path="/catalog" element={<CatalogView />} />
               <Route path="/inventory" element={<InventoryView />} />
               <Route path="/expenses" element={<ExpensesView />} />
+              <Route path="/pedidos" element={<CustomerOrderListView />} />
+              <Route path="/pedidos/nuevo" element={<CustomerOrderFormView />} />
+              <Route path="/pedidos/:orderId" element={<CustomerOrderDetailView />} />
+              <Route path="/pedidos/:orderId/editar" element={<CustomerOrderFormView />} />
               <Route path="/orders" element={<OrderListView />} />
               <Route path="/orders/:orderId" element={<OrderDetail />} />
               <Route path="/reports" element={<ReportsView />} />
@@ -120,6 +127,7 @@ export function AppRoutes() {
               {/* Spanish slug aliases */}
               <Route path="/caja" element={<Navigate to="/register" replace />} />
               <Route path="/ordenes" element={<Navigate to="/orders" replace />} />
+              <Route path="/ventas" element={<Navigate to="/orders" replace />} />
               <Route path="/inventario" element={<Navigate to="/inventory" replace />} />
               <Route path="/gastos" element={<Navigate to="/expenses" replace />} />
               <Route path="/configuracion" element={<Navigate to="/settings" replace />} />

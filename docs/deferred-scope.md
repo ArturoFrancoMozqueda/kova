@@ -20,6 +20,7 @@ Do not implement these for beta:
 - Usage-based billing
 - Multi-location
 - KDS
+- Pedidos especializados por restaurante (mesas, comandas, estaciones de cocina)
 - Tables / floor plan
 - Appointments
 - Loyalty

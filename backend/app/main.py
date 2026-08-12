@@ -15,6 +15,7 @@ from app.business_settings.router import router as business_settings_router
 from app.catalog.image_router import router as catalog_image_router
 from app.catalog.router import router as catalog_router
 from app.config import settings
+from app.customer_orders.router import router as customer_orders_router
 from app.db import assert_rls_active
 from app.employees.router import router as employees_router
 from app.expenses.router import router as expenses_router
@@ -122,18 +123,14 @@ def create_app() -> FastAPI:
     _error_logger = logging.getLogger("app.errors")
 
     @app.exception_handler(SQLAlchemyError)
-    async def _sqlalchemy_exception_handler(
-        request: Request, exc: SQLAlchemyError
-    ) -> JSONResponse:
+    async def _sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
         _error_logger.exception(
             "database_error", extra={"path": request.url.path, "method": request.method}
         )
         return JSONResponse(status_code=500, content={"detail": "Database error"})
 
     @app.exception_handler(Exception)
-    async def _unhandled_exception_handler(
-        request: Request, exc: Exception
-    ) -> JSONResponse:
+    async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         _error_logger.exception(
             "unhandled_error", extra={"path": request.url.path, "method": request.method}
         )
@@ -146,6 +143,7 @@ def create_app() -> FastAPI:
     app.include_router(business_settings_router)
     app.include_router(business_settings_logo_router)
     app.include_router(catalog_router)
+    app.include_router(customer_orders_router)
     app.include_router(catalog_image_router)
     app.include_router(employees_router)
     app.include_router(expenses_router)

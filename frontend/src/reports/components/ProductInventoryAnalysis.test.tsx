@@ -11,6 +11,8 @@ const trackedLowStock: StockItem = {
   sku: null,
   track_inventory: true,
   stock_on_hand: 3,
+  reserved_quantity: 0,
+  available_quantity: 3,
   low_stock_threshold: 10,
   is_low_stock: true,
 };

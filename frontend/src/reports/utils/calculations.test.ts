@@ -71,6 +71,8 @@ function stock(overrides: Partial<StockItem> = {}): StockItem {
     sku: null,
     track_inventory: true,
     stock_on_hand: 20,
+    reserved_quantity: 0,
+    available_quantity: 20,
     low_stock_threshold: 5,
     is_low_stock: false,
     ...overrides,
