@@ -123,7 +123,7 @@ test("refund and void modals post to the order APIs", async ({ page }) => {
   });
 
   await page.goto("/orders/demo");
-  await expect(page.getByRole("heading", { name: /detalle de la orden/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /detalle de la venta/i })).toBeVisible();
 
   await page.getByRole("button", { name: /^devolver$/i }).click();
   await page.getByLabel("Concha Cantidad").fill("1");
@@ -136,5 +136,5 @@ test("refund and void modals post to the order APIs", async ({ page }) => {
   await page.getByRole("button", { name: /^cancelar$/i }).click();
   await page.getByLabel(/revierte el inventario de la orden/i).check();
   await page.getByRole("button", { name: /cancelar orden/i }).click();
-  await expect(page.getByText(/orden cancelada/i)).toBeVisible();
+  await expect(page.getByText(/venta cancelada/i)).toBeVisible();
 });
