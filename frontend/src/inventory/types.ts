@@ -4,6 +4,8 @@ export type StockItem = {
   sku: string | null;
   track_inventory: boolean;
   stock_on_hand: number;
+  reserved_quantity: number;
+  available_quantity: number;
   low_stock_threshold: number | null;
   is_low_stock: boolean;
 };

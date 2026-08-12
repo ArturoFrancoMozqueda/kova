@@ -156,6 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await import("../offline/catalogCache")
       .then(({ clearCatalogCache }) => clearCatalogCache())
       .catch(() => undefined);
+    await import("../customerOrders/cache")
+      .then(({ clearCustomerOrderCache }) => clearCustomerOrderCache())
+      .catch(() => undefined);
     setState({ status: "unauthenticated" });
   }, []);
 

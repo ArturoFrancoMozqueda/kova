@@ -89,12 +89,13 @@ def create_order_item(
     quantity: int,
     line_total_amount: Decimal,
     unit_price_amount: Decimal | None = None,
+    product_name: str | None = None,
 ) -> OrderItem:
     item = OrderItem(
         tenant_id=tenant_id,
         order_id=order_id,
         product_id=product.id,
-        product_name=product.name,
+        product_name=product_name if product_name is not None else product.name,
         quantity=quantity,
         unit_price_amount=(
             unit_price_amount if unit_price_amount is not None else product.price_amount

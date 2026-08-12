@@ -8,6 +8,11 @@ class Permission(StrEnum):
     ORDERS_CREATE = "orders.create"
     ORDERS_REFUND = "orders.refund"
     ORDERS_VOID = "orders.void"
+    CUSTOMER_ORDERS_VIEW = "customer_orders.view"
+    CUSTOMER_ORDERS_CREATE = "customer_orders.create"
+    CUSTOMER_ORDERS_UPDATE = "customer_orders.update"
+    CUSTOMER_ORDERS_CANCEL = "customer_orders.cancel"
+    CUSTOMER_ORDERS_CHECKOUT = "customer_orders.checkout"
     SHIFTS_OPEN = "shifts.open"
     SHIFTS_CLOSE = "shifts.close"
     INVENTORY_ADJUST = "inventory.adjust"
@@ -28,6 +33,11 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.ORDERS_CREATE,
         Permission.ORDERS_REFUND,
         Permission.ORDERS_VOID,
+        Permission.CUSTOMER_ORDERS_VIEW,
+        Permission.CUSTOMER_ORDERS_CREATE,
+        Permission.CUSTOMER_ORDERS_UPDATE,
+        Permission.CUSTOMER_ORDERS_CANCEL,
+        Permission.CUSTOMER_ORDERS_CHECKOUT,
         Permission.SHIFTS_OPEN,
         Permission.SHIFTS_CLOSE,
         Permission.INVENTORY_ADJUST,
@@ -35,8 +45,24 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.REPORTS_VIEW_ALL,
         Permission.SETTINGS_MANAGE,
     },
-    "cashier": {Permission.ORDERS_CREATE, Permission.SHIFTS_OPEN, Permission.SHIFTS_CLOSE},
-    "staff": {Permission.ORDERS_CREATE},
+    "cashier": {
+        Permission.ORDERS_CREATE,
+        Permission.CUSTOMER_ORDERS_VIEW,
+        Permission.CUSTOMER_ORDERS_CREATE,
+        Permission.CUSTOMER_ORDERS_UPDATE,
+        Permission.CUSTOMER_ORDERS_CANCEL,
+        Permission.CUSTOMER_ORDERS_CHECKOUT,
+        Permission.SHIFTS_OPEN,
+        Permission.SHIFTS_CLOSE,
+    },
+    "staff": {
+        Permission.ORDERS_CREATE,
+        Permission.CUSTOMER_ORDERS_VIEW,
+        Permission.CUSTOMER_ORDERS_CREATE,
+        Permission.CUSTOMER_ORDERS_UPDATE,
+        Permission.CUSTOMER_ORDERS_CANCEL,
+        Permission.CUSTOMER_ORDERS_CHECKOUT,
+    },
 }
 
 

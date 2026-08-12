@@ -72,7 +72,7 @@ describe("buildRecommendations", () => {
     const input = emptyInput(story, null);
     input.trackedIds = new Set(["p1"]);
     input.stockByProduct = new Map([
-      ["p1", { product_id: "p1", product_name: "Coca", sku: null, track_inventory: true, stock_on_hand: 6, low_stock_threshold: 10, is_low_stock: true }],
+      ["p1", { product_id: "p1", product_name: "Coca", sku: null, track_inventory: true, stock_on_hand: 6, reserved_quantity: 0, available_quantity: 6, low_stock_threshold: 10, is_low_stock: true }],
     ]);
     input.velocityByProduct = new Map([
       ["p1", { product_id: "p1", product_name: "Coca", units_per_day_7d: "6", days_until_out: "1", stock_on_hand: 6 }],

@@ -16,6 +16,8 @@ class InventoryStockItem(BaseModel):
     sku: str | None
     track_inventory: bool
     stock_on_hand: int
+    reserved_quantity: int
+    available_quantity: int
     low_stock_threshold: int | None
     is_low_stock: bool
 

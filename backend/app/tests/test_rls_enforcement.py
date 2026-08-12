@@ -30,6 +30,8 @@ DELETION_A = uuid.UUID("99999999-9999-9999-9999-9999999999a9")
 DELETION_B = uuid.UUID("99999999-9999-9999-9999-9999999999b9")
 TELEMETRY_A = uuid.UUID("aaaaaaaa-1111-1111-1111-1111111111a1")
 TELEMETRY_B = uuid.UUID("bbbbbbbb-2222-2222-2222-2222222222b2")
+CUSTOMER_ORDER_A = uuid.UUID("cccccccc-1111-1111-1111-1111111111a1")
+CUSTOMER_ORDER_B = uuid.UUID("dddddddd-2222-2222-2222-2222222222b2")
 
 
 @pytest.fixture
@@ -51,6 +53,21 @@ def rls_seed(owner_engine):
                 "(:pa, :a, 'Prod A', 10.00), (:pb, :b, 'Prod B', 20.00)"
             ),
             {"pa": PRODUCT_A, "pb": PRODUCT_B, "a": TENANT_A, "b": TENANT_B},
+        )
+        conn.execute(
+            text(
+                "INSERT INTO customer_orders "
+                "(id, tenant_id, folio, status, fulfillment_type, source_channel, "
+                "subtotal_amount, total_amount, version, created_at, updated_at) VALUES "
+                "(:oa, :a, 'PED-RLS0001', 'new', 'pickup', 'counter', 10, 10, 1, now(), now()), "
+                "(:ob, :b, 'PED-RLS0002', 'new', 'pickup', 'counter', 20, 20, 1, now(), now())"
+            ),
+            {
+                "oa": CUSTOMER_ORDER_A,
+                "ob": CUSTOMER_ORDER_B,
+                "a": TENANT_A,
+                "b": TENANT_B,
+            },
         )
         conn.execute(
             text(
@@ -122,6 +139,10 @@ def rls_seed(owner_engine):
     finally:
         with owner_engine.begin() as conn:
             conn.execute(
+                text("DELETE FROM customer_orders WHERE id IN (:oa, :ob)"),
+                {"oa": CUSTOMER_ORDER_A, "ob": CUSTOMER_ORDER_B},
+            )
+            conn.execute(
                 text("DELETE FROM telemetry_events WHERE id IN (:ea, :eb)"),
                 {"ea": TELEMETRY_A, "eb": TELEMETRY_B},
             )
@@ -181,6 +202,41 @@ def test_cross_tenant_read_is_blocked(kova_app_engine, rls_seed):  # noqa: ARG00
             )
         }
     assert names == {"Prod A"}, f"tenant A must only see its own product, saw {names}"
+
+
+def test_customer_orders_are_visible_only_to_current_tenant(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        ids = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT id FROM customer_orders WHERE id IN (:oa, :ob)"),
+                {"oa": CUSTOMER_ORDER_A, "ob": CUSTOMER_ORDER_B},
+            )
+        }
+    assert ids == {CUSTOMER_ORDER_A}
+
+
+def test_customer_order_cross_tenant_insert_is_rejected(
+    kova_app_engine, rls_seed  # noqa: ARG001
+):
+    from sqlalchemy.exc import DBAPIError
+
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        with pytest.raises(DBAPIError) as exc:
+            conn.execute(
+                text(
+                    "INSERT INTO customer_orders "
+                    "(tenant_id, folio, status, fulfillment_type, source_channel, "
+                    "subtotal_amount, total_amount, version, created_at, updated_at) "
+                    "VALUES (:b, 'PED-EVIL001', 'new', 'pickup', 'counter', 1, 1, 1, now(), now())"
+                ),
+                {"b": TENANT_B},
+            )
+        assert "row-level security" in str(exc.value).lower()
 
 
 def test_expenses_are_visible_only_to_the_current_tenant(

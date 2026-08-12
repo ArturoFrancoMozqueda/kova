@@ -19,6 +19,7 @@ import app.auth.models  # noqa: F401
 import app.billing.models  # noqa: F401
 import app.business_settings.models  # noqa: F401
 import app.catalog.models  # noqa: F401
+import app.customer_orders.models  # noqa: F401
 import app.employees.models  # noqa: F401
 import app.expenses.models  # noqa: F401
 import app.idempotency.models  # noqa: F401

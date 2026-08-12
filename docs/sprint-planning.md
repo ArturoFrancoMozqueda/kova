@@ -2006,6 +2006,10 @@ their workflow. Barcode/SKU input speeds up checkout. Stock history is auditable
 
 ## Sprint 20 — Restaurant Preset
 
+> **Sustituido por ADR-014 (2026-08-12):** el planteamiento de `kitchen_status` sobre `orders`
+> no debe implementarse. Preparación y entrega pertenecen al módulo tenant-scoped de Pedidos;
+> `orders` permanece como venta financiera. Un KDS especializado sigue diferido.
+
 ### Goal
 
 Restaurant tenants can self-onboard with a preset and use the POS for a modifier-heavy table-service
@@ -2046,8 +2050,9 @@ workflow, including item notes per line and a kitchen view placeholder.
 
 #### KDS Data Hook
 
-- [ ] Add `kitchen_status` column to `orders`: `none` | `pending` | `in_progress` | `ready`. Default `none`.
-- [ ] Add `PATCH /api/v1/orders/{id}/kitchen-status` endpoint (manager / owner only).
+- [x] Superseded: do not add `kitchen_status` to `orders`; use the independent customer-orders
+  operational lifecycle defined by ADR-014.
+- [x] Superseded: do not add a kitchen-status endpoint to the financial sales API.
 - [ ] Do not build a KDS screen in this sprint — data layer only.
 - [ ] Document KDS screen as a deferred Sprint 23+ item in `docs/deferred-scope.md`.
 
@@ -2055,7 +2060,7 @@ workflow, including item notes per line and a kitchen view placeholder.
 
 - Restaurant preset creates a usable menu with modifier groups.
 - Item notes are stored and displayed correctly.
-- `kitchen_status` column exists and is patchable.
+- Operational preparation state lives outside financial sales, according to ADR-014.
 - No KDS UI introduced in this sprint.
 
 ---

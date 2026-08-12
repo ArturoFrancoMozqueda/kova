@@ -62,6 +62,12 @@ def _stock_body(
 ) -> dict[str, Any]:
     if stock is None:
         stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
+    from app.customer_orders import repository as customer_order_repo
+
+    reserved = customer_order_repo.active_reserved_quantity(
+        db, tenant_id=tenant_id, product_id=product.id
+    )
+    available = max(0, stock - reserved)
     threshold = product.low_stock_threshold
     return {
         "product_id": str(product.id),
@@ -69,8 +75,12 @@ def _stock_body(
         "sku": product.sku,
         "track_inventory": product.track_inventory,
         "stock_on_hand": stock,
+        "reserved_quantity": reserved,
+        "available_quantity": available,
         "low_stock_threshold": threshold,
-        "is_low_stock": product.track_inventory and threshold is not None and stock <= threshold,
+        "is_low_stock": product.track_inventory
+        and threshold is not None
+        and available <= threshold,
     }
 
 
