@@ -13,6 +13,12 @@ import {
   trackSignupValidationFailed,
 } from "./funnel";
 
+function anonymousEventCalls(fetchMock: ReturnType<typeof vi.fn>) {
+  return fetchMock.mock.calls.filter(
+    ([url]) => url === "/api/v1/telemetry/events/anonymous",
+  );
+}
+
 describe("anonymous funnel path", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -21,7 +27,17 @@ describe("anonymous funnel path", () => {
     window.sessionStorage.clear();
     window.history.replaceState({}, "", "/");
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
-    fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+    fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/v1/telemetry/events/anonymous/session") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: "signed-anonymous-token", expires_in: 900 }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(new Response(null, { status: 202 }));
+    });
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -33,12 +49,17 @@ describe("anonymous funnel path", () => {
   it("posts anonymous events cookieless to the anonymous endpoint", async () => {
     await trackAnonymousEvent("landing_cta_clicked", { cta: "hero" });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const sessionCall = fetchMock.mock.calls[0];
+    expect(sessionCall[0]).toBe("/api/v1/telemetry/events/anonymous/session");
+    expect(sessionCall[1].credentials).toBe("omit");
+
+    const [[url, init]] = anonymousEventCalls(fetchMock);
     expect(url).toBe("/api/v1/telemetry/events/anonymous");
     expect(init.method).toBe("POST");
     // Cookieless → no session leak, and correctly outside the CSRF path.
     expect(init.credentials).toBe("omit");
+    expect(init.headers["X-Kova-Anonymous-Token"]).toBe("signed-anonymous-token");
 
     const body = JSON.parse(init.body as string);
     expect(body.event_name).toBe("landing_cta_clicked");
@@ -64,7 +85,7 @@ describe("anonymous funnel path", () => {
   it("sends signup failures with categorical metadata only", async () => {
     await trackSignupValidationFailed("password", "weak_password");
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const body = JSON.parse(anonymousEventCalls(fetchMock)[0][1].body as string);
     expect(body.event_name).toBe("signup_validation_failed");
     expect(body.properties).toMatchObject({
       field: "password",
@@ -86,16 +107,15 @@ describe("anonymous funnel path", () => {
     trackAnonymousEventOnce("landing_viewed", "landing_viewed");
     trackAnonymousEventOnce("landing_viewed", "landing_viewed");
     trackAnonymousEventOnce("landing_viewed", "landing_viewed");
-    // Let the queued microtasks settle.
-    await Promise.resolve();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(anonymousEventCalls(fetchMock)).toHaveLength(1));
   });
 
   it("reuses a stable client_id across events (links pre-auth to signup)", async () => {
     await trackAnonymousEvent("landing_viewed");
     await trackAnonymousEvent("landing_cta_clicked", { cta: "pricing" });
-    const first = JSON.parse(fetchMock.mock.calls[0][1].body as string).client_id;
-    const second = JSON.parse(fetchMock.mock.calls[1][1].body as string).client_id;
+    const eventCalls = anonymousEventCalls(fetchMock);
+    const first = JSON.parse(eventCalls[0][1].body as string).client_id;
+    const second = JSON.parse(eventCalls[1][1].body as string).client_id;
     expect(first).toBe(second);
   });
 
@@ -109,8 +129,9 @@ describe("anonymous funnel path", () => {
     window.history.replaceState({}, "", "/signup?utm_source=other");
     await trackAnonymousEvent("signup_completed");
 
-    const first = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    const second = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const eventCalls = anonymousEventCalls(fetchMock);
+    const first = JSON.parse(eventCalls[0][1].body as string);
+    const second = JSON.parse(eventCalls[1][1].body as string);
     expect(first.properties).toMatchObject({
       path: "/",
       source: "google",
@@ -140,10 +161,8 @@ describe("anonymous funnel path", () => {
   it("records an experiment exposure once per browser session and variant", async () => {
     trackExperimentExposed("exp_01_cta_specificity", "treatment", "hero");
     trackExperimentExposed("exp_01_cta_specificity", "treatment", "hero");
-    await Promise.resolve();
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    await vi.waitFor(() => expect(anonymousEventCalls(fetchMock)).toHaveLength(1));
+    const body = JSON.parse(anonymousEventCalls(fetchMock)[0][1].body as string);
     expect(body).toMatchObject({
       event_name: "experiment_exposed",
       properties: {

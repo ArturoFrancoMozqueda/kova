@@ -5,6 +5,7 @@ const CLIENT_ID_KEY = "kova:funnel-client-id";
 const FIRST_TOUCH_KEY = "kova:funnel-first-touch";
 const CTA_SPECIFICITY_EXPERIMENT_KEY = "kova:experiment:exp_01_cta_specificity";
 const EXPERIMENT_EXPOSURE_SESSION_PREFIX = "kova:experiment-exposed:";
+const ANONYMOUS_SESSION_KEY = "kova:anonymous-telemetry-session";
 
 type FunnelEvent = {
   event_name: string;
@@ -16,6 +17,12 @@ type FirstTouch = {
   source: string;
   medium: string;
   campaign: string;
+};
+
+type AnonymousTelemetrySession = {
+  token: string;
+  clientId: string;
+  expiresAt: number;
 };
 
 export type SignupValidationField = "business" | "email" | "password" | "terms" | "form";
@@ -82,6 +89,7 @@ const FORBIDDEN_PROPERTY_KEY_PATTERN =
   /(^|_)(email|name|phone|password|amount|tenant_id|user_id|order_id|product_id|customer_id|employee_id|supplier_id|subscription_id|query|url)($|_)/i;
 
 let fallbackClientId: string | null = null;
+let anonymousSessionRequest: Promise<string | null> | null = null;
 
 function newClientId(): string {
   if (!fallbackClientId) fallbackClientId = crypto.randomUUID();
@@ -309,6 +317,102 @@ export function trackFunnelEventOnce(
 // the same pseudonymous client_id is copied into authenticated events later.
 const anonymousFiredThisLoad = new Set<string>();
 
+function readAnonymousSession(expectedClientId: string): AnonymousTelemetrySession | null {
+  try {
+    const raw = window.sessionStorage.getItem(ANONYMOUS_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AnonymousTelemetrySession>;
+    if (
+      typeof parsed.token !== "string" ||
+      parsed.clientId !== expectedClientId ||
+      typeof parsed.expiresAt !== "number" ||
+      parsed.expiresAt <= Date.now() + 5_000
+    ) {
+      window.sessionStorage.removeItem(ANONYMOUS_SESSION_KEY);
+      return null;
+    }
+    return parsed as AnonymousTelemetrySession;
+  } catch {
+    return null;
+  }
+}
+
+function storeAnonymousSession(session: AnonymousTelemetrySession) {
+  try {
+    window.sessionStorage.setItem(ANONYMOUS_SESSION_KEY, JSON.stringify(session));
+  } catch {
+    /* A storage-restricted browser can still use the token for this request. */
+  }
+}
+
+function clearAnonymousSession() {
+  try {
+    window.sessionStorage.removeItem(ANONYMOUS_SESSION_KEY);
+  } catch {
+    /* best effort */
+  }
+}
+
+async function anonymousSessionToken(expectedClientId: string): Promise<string | null> {
+  const cached = readAnonymousSession(expectedClientId);
+  if (cached) return cached.token;
+  if (anonymousSessionRequest) return anonymousSessionRequest;
+
+  anonymousSessionRequest = (async () => {
+    try {
+      const response = await fetch("/api/v1/telemetry/events/anonymous/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "omit",
+        body: JSON.stringify({ client_id: expectedClientId }),
+      });
+      if (!response.ok) return null;
+      const payload = (await response.json()) as { token?: unknown; expires_in?: unknown };
+      if (
+        typeof payload.token !== "string" ||
+        typeof payload.expires_in !== "number" ||
+        payload.expires_in <= 0
+      ) {
+        return null;
+      }
+      storeAnonymousSession({
+        token: payload.token,
+        clientId: expectedClientId,
+        expiresAt: Date.now() + payload.expires_in * 1_000,
+      });
+      return payload.token;
+    } catch {
+      return null;
+    } finally {
+      anonymousSessionRequest = null;
+    }
+  })();
+  return anonymousSessionRequest;
+}
+
+async function postAnonymousEvent(
+  body: Record<string, unknown>,
+  expectedClientId: string,
+  allowTokenRefresh = true,
+): Promise<void> {
+  const token = await anonymousSessionToken(expectedClientId);
+  if (!token) return;
+  const response = await fetch("/api/v1/telemetry/events/anonymous", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "X-Kova-Anonymous-Token": token,
+    },
+    credentials: "omit",
+    keepalive: true,
+    body: JSON.stringify(body),
+  });
+  if (response.status === 401 && allowTokenRefresh) {
+    clearAnonymousSession();
+    await postAnonymousEvent(body, expectedClientId, false);
+  }
+}
+
 export async function trackAnonymousEvent(
   event_name: string,
   properties: Record<string, unknown> = {},
@@ -324,13 +428,7 @@ export async function trackAnonymousEvent(
     ),
   };
   try {
-    await fetch("/api/v1/telemetry/events/anonymous", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      credentials: "omit",
-      keepalive: true,
-      body: JSON.stringify(body),
-    });
+    await postAnonymousEvent(body, String(context.client_id));
   } catch {
     /* best effort only — pre-auth analytics must never break the landing */
   }

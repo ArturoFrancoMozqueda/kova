@@ -17,6 +17,32 @@ La ruta `GET /api/v1/telemetry/internal/cro-export`:
 No copies la llave a scripts, historiales, tickets o documentación. Inyéctala desde el gestor de
 secretos del entorno operativo.
 
+## Tablero mínimo de crecimiento
+
+La ruta `GET /api/v1/telemetry/internal/growth-snapshot` devuelve las cuatro verdades de
+adquisición y activación directamente desde Postgres, sin depender de telemetría y sin devolver
+identidades:
+
+- `users_created`;
+- `users_verified`;
+- `tenants_with_completed_sale`;
+- `paying_tenants` (suscripción activa más pago Stripe exitoso procesado con `livemode=true`).
+
+Consulta el snapshot desde una terminal de operador. La llave debe existir sólo en la variable de
+entorno de la sesión:
+
+```powershell
+$headers = @{ "X-Internal-Key" = $env:INTERNAL_API_KEY }
+$snapshot = Invoke-RestMethod `
+  -Uri "https://api.kovasuite.com/api/v1/telemetry/internal/growth-snapshot" `
+  -Headers $headers
+$snapshot | Format-List generated_at, users_created, users_verified, `
+  tenants_with_completed_sale, paying_tenants
+```
+
+Guarda un corte fechado sólo cuando se necesite comparar periodos. No agregues correo, nombre,
+`tenant_id` ni `user_id`: el contrato de este endpoint es deliberadamente agregado.
+
 ## Ejecución
 
 ```bash

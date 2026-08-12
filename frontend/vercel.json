@@ -66,6 +66,9 @@
       "source": "/api/v1/:path*",
       "destination": "https://api.kovasuite.com/api/v1/:path*"
     },
-    { "source": "/(.*)", "destination": "/app-shell.html" }
+    {
+      "source": "/((?!_vercel/).*)",
+      "destination": "/app-shell.html"
+    }
   ]
 }

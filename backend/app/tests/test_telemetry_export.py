@@ -1,11 +1,14 @@
 import csv
 import io
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 
 from sqlalchemy import func, select
 
+from app.billing.models import Subscription, WebhookEvent
 from app.config import settings
+from app.orders.models import Order
 from app.telemetry.export import summarize_analysis_adoption
 from app.telemetry.models import TelemetryEvent
 from app.telemetry.schemas import AnalysisAdoptionReport
@@ -43,6 +46,99 @@ def test_cro_export_requires_internal_key(client, monkeypatch):
     )
 
 
+def test_growth_snapshot_uses_real_business_tables(client, db, monkeypatch):
+    monkeypatch.setattr(settings, "internal_api_key", "growth-secret")
+    url = "/api/v1/telemetry/internal/growth-snapshot"
+
+    assert client.get(url).status_code == 403
+    baseline_response = client.get(url, headers={"X-Internal-Key": "growth-secret"})
+    assert baseline_response.status_code == 200, baseline_response.text
+    baseline = baseline_response.json()
+
+    signup = client.post(
+        "/api/v1/auth/signup",
+        json={
+            "email": "growth-truth@example.com",
+            "password": "S3cur3pass!",
+            "tenant_name": "Negocio Growth Truth",
+            "accepted_terms": True,
+        },
+    )
+    assert signup.status_code == 201, signup.text
+    signup_body = signup.json()
+    tenant_id = signup_body["tenant_id"]
+    assert client.post(
+        "/api/v1/auth/verify",
+        json={"token": signup_body["dev_verification_token"]},
+    ).status_code == 200
+
+    db.add(
+        Order(
+            tenant_id=tenant_id,
+            status="completed",
+            subtotal_amount=Decimal("100.00"),
+            total_amount=Decimal("100.00"),
+        )
+    )
+    db.add(
+        Subscription(
+            tenant_id=tenant_id,
+            stripe_subscription_id="sub_growth_truth",
+            status="active",
+        )
+    )
+    db.flush()
+
+    active_without_payment = client.get(
+        url, headers={"X-Internal-Key": "growth-secret"}
+    ).json()
+    assert active_without_payment["paying_tenants"] == baseline["paying_tenants"]
+
+    db.add(
+        WebhookEvent(
+            tenant_id=tenant_id,
+            stripe_event_id="evt_growth_test_payment",
+            event_type="invoice.payment_succeeded",
+            processing_status="processed",
+            payload={"livemode": False},
+        )
+    )
+    db.flush()
+    test_payment = client.get(
+        url, headers={"X-Internal-Key": "growth-secret"}
+    ).json()
+    assert test_payment["paying_tenants"] == baseline["paying_tenants"]
+
+    db.add(
+        WebhookEvent(
+            tenant_id=tenant_id,
+            stripe_event_id="evt_growth_live_payment",
+            event_type="invoice.paid",
+            processing_status="processed",
+            payload={"livemode": True},
+        )
+    )
+    db.flush()
+
+    response = client.get(url, headers={"X-Internal-Key": "growth-secret"})
+    assert response.status_code == 200, response.text
+    snapshot = response.json()
+    assert snapshot["users_created"] == baseline["users_created"] + 1
+    assert snapshot["users_verified"] == baseline["users_verified"] + 1
+    assert (
+        snapshot["tenants_with_completed_sale"]
+        == baseline["tenants_with_completed_sale"] + 1
+    )
+    assert snapshot["paying_tenants"] == baseline["paying_tenants"] + 1
+    assert set(snapshot) == {
+        "generated_at",
+        "users_created",
+        "users_verified",
+        "tenants_with_completed_sale",
+        "paying_tenants",
+    }
+
+
 def test_cro_export_joins_anonymous_and_authenticated_by_client_id(client, monkeypatch):
     monkeypatch.setattr(settings, "internal_api_key", "cro-secret")
     client_id = "cro-client-123"
@@ -63,6 +159,12 @@ def test_cro_export_joins_anonymous_and_authenticated_by_client_id(client, monke
             "client_event_id": "signup_started:export",
             "client_id": client_id,
             "properties": {**common, "path": "/signup", "cta": "hero"},
+        },
+        headers={
+            "X-Kova-Anonymous-Token": client.post(
+                "/api/v1/telemetry/events/anonymous/session",
+                json={"client_id": client_id},
+            ).json()["token"]
         },
     )
     assert anonymous.status_code == 202, anonymous.text

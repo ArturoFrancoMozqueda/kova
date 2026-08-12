@@ -105,6 +105,7 @@ def create_app() -> FastAPI:
             "X-Internal-Key",
             "X-CSRF-Token",
             "X-Kova-Client-Id",
+            "X-Kova-Anonymous-Token",
         ],
     )
     # Report payloads (business-story) are large JSON; compress anything over

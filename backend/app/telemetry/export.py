@@ -5,9 +5,11 @@ from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
+from app.auth.models import User
+from app.billing.models import Subscription, WebhookEvent
 from app.orders.models import Order
 from app.shifts.models import Shift
 from app.telemetry.models import AnonymousTelemetryEvent, TelemetryEvent
@@ -44,6 +46,61 @@ _CONVERSION_LABEL = {
     4: "activated",
     5: "paid",
 }
+
+
+def build_growth_snapshot(db: Session) -> dict[str, Any]:
+    """Return the four acquisition/activation truths directly from Postgres.
+
+    Definitions are intentionally narrow and stable:
+    - created/verified count user rows and the persisted verification flag;
+    - activated tenants have at least one non-voided completed order;
+    - paying tenants have both an active Stripe-backed subscription and a
+      processed successful live-mode payment event. Test-mode, trial and
+      past-due rows are not represented as paying.
+    """
+    users_created = db.scalar(select(func.count()).select_from(User)) or 0
+    users_verified = (
+        db.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(User.is_email_verified.is_(True))
+        )
+        or 0
+    )
+    tenants_with_completed_sale = (
+        db.scalar(
+            select(func.count(func.distinct(Order.tenant_id))).where(
+                Order.status == "completed"
+            )
+        )
+        or 0
+    )
+    paying_tenants = (
+        db.scalar(
+            select(func.count(func.distinct(Subscription.tenant_id))).where(
+                Subscription.status == "active",
+                Subscription.stripe_subscription_id.is_not(None),
+                exists(
+                    select(WebhookEvent.id).where(
+                        WebhookEvent.tenant_id == Subscription.tenant_id,
+                        WebhookEvent.processing_status == "processed",
+                        WebhookEvent.event_type.in_(
+                            ("invoice.paid", "invoice.payment_succeeded")
+                        ),
+                        WebhookEvent.payload["livemode"].as_boolean().is_(True),
+                    )
+                ),
+            )
+        )
+        or 0
+    )
+    return {
+        "generated_at": datetime.now(UTC),
+        "users_created": users_created,
+        "users_verified": users_verified,
+        "tenants_with_completed_sale": tenants_with_completed_sale,
+        "paying_tenants": paying_tenants,
+    }
 
 ANALYSIS_EVENT_NAMES = (
     "analysis_viewed",
