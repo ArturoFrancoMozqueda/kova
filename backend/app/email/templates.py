@@ -1,9 +1,8 @@
 """Shared HTML wrapper for Kova lifecycle emails.
 
 Uses table-based layout + inline CSS for Gmail/Outlook compatibility.
-The Kova mark is rendered as inline SVG (best-effort: Apple Mail,
-Outlook desktop, most webmail render it; Gmail strips it and falls
-back to the text wordmark, which is intentional).
+The Kova mark is a public PNG because Gmail strips inline SVG from
+message bodies.
 """
 
 from __future__ import annotations
@@ -24,24 +23,9 @@ FONT_STACK = (
     "'Helvetica Neue', Arial, sans-serif"
 )
 
-# Logo (isotipo) — same node geometry as frontend/src/components/brand/Logo.tsx.
-# Inline SVG renders in Apple Mail/Outlook desktop/most webmail; Gmail
-# strips SVG, so we also show the "kova" wordmark next to it.
-_LOGO_SVG = f"""
-<svg width="40" height="40" viewBox="0 0 64 64" fill="none"
-  xmlns="http://www.w3.org/2000/svg" role="img" aria-label="kova">
-  <path d="M 32 8 A 52 52 0 0 1 52.78 44" stroke="{KOVA_INK}"
-    stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M 52.78 44 A 52 52 0 0 1 11.22 44" stroke="{KOVA_INK}"
-    stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M 11.22 44 A 52 52 0 0 1 32 8" stroke="{KOVA_INK}"
-    stroke-width="2" stroke-linecap="round" fill="none"/>
-  <circle cx="32" cy="8" r="5" fill="{KOVA_INK}"/>
-  <circle cx="52.78" cy="44" r="5" fill="{KOVA_INK}"/>
-  <circle cx="11.22" cy="44" r="5" fill="{KOVA_INK}"/>
-  <circle cx="32" cy="32" r="5" fill="{KOVA_BLUE}"/>
-</svg>
-""".strip()
+# Same isotipo as frontend/src/components/brand/Logo.tsx. Keep the URL on the
+# canonical production origin so Gmail can proxy and cache it reliably.
+KOVA_LOGO_URL = "https://kovasuite.com/email/kova-mark.png"
 
 
 def _button(label: str, url: str) -> str:
@@ -110,7 +94,11 @@ border: 1px solid {KOVA_BORDER}; border-radius: 14px; overflow: hidden;">
           <td style="padding: 24px 32px; border-bottom: 1px solid {KOVA_BORDER};">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td style="vertical-align: middle; padding-right: 12px;">{_LOGO_SVG}</td>
+                <td style="vertical-align: middle; padding-right: 12px;">
+                  <img src="{KOVA_LOGO_URL}" width="40" height="40" alt="" \
+style="display: block; width: 40px; height: 40px; border: 0; outline: none; \
+text-decoration: none;">
+                </td>
                 <td style="vertical-align: middle; font-family: {FONT_STACK}; \
 font-size: 22px; font-weight: 600; color: {KOVA_INK}; letter-spacing: -0.02em;">kova</td>
               </tr>

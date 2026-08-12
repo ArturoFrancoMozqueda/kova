@@ -66,6 +66,10 @@ deliberadamente. No se crearon cuentas, cobros, suscripciones ni datos de client
 | Fin de prueba | `delivered` | Inbox; asunto y texto en español correctos |
 | Restablecimiento de contraseña | `delivered` | Inbox; token QA inválido |
 
+La primera prueba visual confirmó que Gmail elimina SVG embebido. La plantilla base ahora usa el
+isotipo PNG público `https://kovasuite.com/email/kova-mark.png`, mantiene el wordmark textual como
+fallback y fija sus dimensiones para evitar saltos de layout.
+
 ### QA todavía pendiente
 
 - [ ] Repetir las cinco plantillas en buzones de prueba Outlook/Hotmail e iCloud.
