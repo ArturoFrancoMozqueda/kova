@@ -1,90 +1,93 @@
-# Email deliverability — Kova
+# Entregabilidad de correo — Kova
 
-Pre-beta checklist for the five Kova lifecycle emails:
-verificación, bienvenida (post-checkout), recibo de pago, fin de prueba,
-y reset de contraseña.
+Estado verificado el 12 de agosto de 2026 para los cinco correos de ciclo de vida:
+verificación, bienvenida, recibo de pago, fin de prueba y restablecimiento de contraseña.
 
-## 1. Sending domain (Resend)
+## 1. Configuración de producción
 
-- [ ] Dominio de envío configurado en Resend (p. ej. `mail.kovasuite.com`).
-- [ ] `EMAIL_FROM` en producción apunta a una dirección de ese dominio
-      (p. ej. `Kova <hola@mail.kovasuite.com>`). El startup-gate ya bloquea
+- [x] Dominio `mail.kovasuite.com` verificado en Resend.
+- [x] Remitente efectivo: `Kova <no-reply@mail.kovasuite.com>`.
+- [x] `RESEND_API_KEY` configurada en Fly.io. El startup gate bloquea producción si falta.
+- [x] `EMAIL_FROM` configurado con el dominio verificado. El startup gate rechaza
       `onboarding@resend.dev` en producción.
-- [ ] `RESEND_API_KEY` set en producción. El startup-gate aborta el boot
-      si falta.
 
-## 2. Registros DNS
+No copies valores de secretos a tickets, logs, documentos o comandos locales. Para comprobar su
+presencia usa únicamente los nombres de las variables o el startup gate.
 
-Todos en el panel del proveedor del dominio raíz, no del subdominio
-salvo donde se indique.
+## 2. DNS publicado en Cloudflare
 
-### SPF
-- [ ] Registro `TXT` en el dominio de envío (subdominio si aplica):
-      `v=spf1 include:_spf.resend.com -all`
-- [ ] Verificar con `dig TXT mail.kovasuite.com +short` (o `nslookup -q=txt`).
+Los siguientes valores son los que Resend asignó a este dominio; no los sustituyas por ejemplos
+genéricos de otros proveedores.
+
+### SPF y return path
+
+- [x] `TXT send.mail.kovasuite.com`:
+      `v=spf1 include:amazonses.com ~all`
+- [x] `MX send.mail.kovasuite.com`, prioridad `10`:
+      `feedback-smtp.us-east-1.amazonses.com`
+- [x] Ambos registros aparecen como verificados en Resend y responden en DNS público.
 
 ### DKIM
-- [ ] Resend muestra el `CNAME` DKIM a publicar — pegarlo tal cual
-      (suele ser `resend._domainkey.<dominio>` apuntando a un host de
-      Resend).
-- [ ] Estado `Verified` en el dashboard de Resend antes de enviar a
-      producción.
+
+- [x] `TXT resend._domainkey.mail.kovasuite.com` publicado con la clave entregada por Resend.
+- [x] Estado `Verified` en Resend y resolución confirmada en DNS público.
 
 ### DMARC
-- [ ] Política inicial, modo `quarantine`, sin afectar legítimos:
-      ```
-      TXT _dmarc.kovasuite.com
-      v=DMARC1; p=quarantine; rua=mailto:dmarc@kovasuite.com; pct=100; adkim=s; aspf=s
-      ```
-- [ ] Buzón `dmarc@kovasuite.com` activo y monitoreado al menos las primeras
-      dos semanas.
-- [ ] Subir a `p=reject` cuando los reportes muestren 0 fallos durante
-      14 días seguidos.
 
-### MX / return-path (opcional pero recomendado)
-- [ ] Si Resend pide un `return-path` (bounce) personalizado, añadir el
-      `CNAME` indicado (mejora alineación SPF).
+- [x] `TXT _dmarc.kovasuite.com`:
+      `v=DMARC1; p=quarantine; rua=mailto:dmarc@kovasuite.com; pct=100; adkim=s; aspf=s`
+- [x] La misma política está publicada en `_dmarc.mail.kovasuite.com` para el subdominio remitente.
+- [x] Cloudflare Email Routing está habilitado.
+- [x] `dmarc@kovasuite.com` reenvía a `posprojectsupport@gmail.com`.
+- [ ] Mantener el buzón y los reportes bajo observación durante 14 días antes de considerar
+      `p=reject`. El cambio requiere cero fallos legítimos sostenidos y una revisión explícita.
 
-## 3. QA real de entrega
+## 3. Evidencia de entrega
 
-Para cada uno de los 5 emails, enviar a un buzón real y verificar:
+El 12 de agosto de 2026 se envió una prueba controlada desde el backend desplegado en Fly.io a
+`dmarc@kovasuite.com`, usando la configuración real de producción. Resultado:
 
-| Email | Trigger en local | Buzones a probar |
+- [x] Resend: `delivered`.
+- [x] Cloudflare Email Routing: mensaje reenviado al destino operativo.
+- [x] Gmail web: llegó a Inbox en aproximadamente un segundo.
+- [x] Remitente visible: `Kova <no-reply@mail.kovasuite.com>`; sin `via resend.dev`.
+- [x] Gmail “Show original”: `SPF: PASS`, `DKIM: PASS` para `mail.kovasuite.com` y
+      `DMARC: PASS` con política `quarantine`.
+- [x] Transporte al buzón final mediante TLS.
+
+También se enviaron las cinco plantillas reales, prefijadas con `[QA Kova]` y con tokens inválidos
+deliberadamente. No se crearon cuentas, cobros, suscripciones ni datos de cliente.
+
+| Plantilla | Resend | Gmail web |
 |---|---|---|
-| verificación | `POST /api/v1/auth/signup` | Gmail, Outlook/Hotmail, iCloud |
-| bienvenida | webhook `checkout.session.completed` (Stripe CLI) | mismos |
-| recibo de pago | webhook `invoice.payment_succeeded` | mismos |
-| fin de prueba | `uv run python scripts/send_trial_reminders.py` con `created_at` ajustado | mismos |
-| reset de contraseña | `POST /api/v1/auth/password-reset` | mismos |
+| Verificación | `delivered` | Inbox; asunto y texto en español correctos |
+| Bienvenida | `delivered` | Inbox; asunto y texto en español correctos |
+| Recibo de pago | `delivered` | Inbox; marcado como QA, sin cargo real |
+| Fin de prueba | `delivered` | Inbox; asunto y texto en español correctos |
+| Restablecimiento de contraseña | `delivered` | Inbox; token QA inválido |
 
-Checklist por buzón:
+### QA todavía pendiente
 
-- [ ] Llega a **inbox**, no a spam ni a promociones.
-- [ ] Remitente se muestra como `Kova <hola@mail.kovasuite.com>` (no como
-      "via resend.dev").
-- [ ] Asunto sin truncar, sin caracteres Unicode rotos.
-- [ ] Enlaces abren al dominio correcto (`https://kovasuite.com/...`) y
-      funcionan en una pestaña privada.
-- [ ] Render correcto en Gmail web, Gmail iOS/Android, Outlook web,
-      Outlook desktop, Hotmail web.
-- [ ] Modo oscuro de Gmail/Outlook no rompe el contraste.
-- [ ] Copy en es-MX revisado por humano (sin "thee", sin "you", sin
-      placeholders sin sustituir).
-- [ ] Verificar headers en Gmail (`Show original`):
-      `SPF: PASS`, `DKIM: PASS`, `DMARC: PASS`.
+- [ ] Repetir las cinco plantillas en buzones de prueba Outlook/Hotmail e iCloud.
+- [ ] Revisar render y modo oscuro en Gmail iOS/Android, Outlook web/desktop e iCloud.
+- [ ] Abrir enlaces QA en una sesión privada y confirmar destino `https://kovasuite.com` sin usar
+      tokens reales ni disparar cobros.
+- [ ] Hacer revisión humana final de copy y contraste en cada cliente.
 
-## 4. Métricas post-lanzamiento
+## 4. Monitoreo
 
-- [ ] Dashboard de Resend monitoreado primeras 2 semanas: bounce rate
-      <2%, complaint rate <0.1%.
-- [ ] Si bounce rate sube, pausar campañas no transaccionales y revisar
-      higiene de la lista.
+- [ ] Revisar Resend y los reportes DMARC diariamente durante las primeras dos semanas.
+- [ ] Mantener bounce rate por debajo de 2% y complaint rate por debajo de 0.1%.
+- [ ] Ante un rebote permanente, corregir el destinatario y conservar la supresión; no reintentar
+      repetidamente una dirección inexistente.
+- [ ] Si aumenta el bounce rate, pausar mensajes no transaccionales y revisar la higiene de la lista.
 
-## 5. Cron de recordatorio de prueba
+La muestra actual es demasiado pequeña para inferir una tasa estable de entregabilidad.
 
-- [ ] Configurar cron (Render Cron Job, GitHub Actions schedule, o
-      systemd timer) que ejecute una vez al día:
-      `uv run python scripts/send_trial_reminders.py`
-- [ ] Recomendado: 14:00 UTC (08:00 CDMX) para que los correos lleguen
-      en horario laboral.
-- [ ] Logs del cron persistidos al menos 30 días.
+## 5. Recordatorio de fin de prueba
+
+- [x] GitHub Actions ejecuta `uv run python scripts/send_trial_reminders.py` diariamente a las
+      `06:00 UTC` (`00:00` en Ciudad de México).
+- [x] El job es idempotente por tenant mediante `trial_reminder_sent_at`.
+- [x] Los diez runs programados más recientes al 12 de agosto de 2026 terminaron correctamente.
+- [ ] Confirmar que la retención de logs operativos cubra al menos 30 días.
