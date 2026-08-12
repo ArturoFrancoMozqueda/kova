@@ -161,7 +161,7 @@ describe("OrderDetail", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: /detalle de la orden/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /detalle de la venta/i })).toBeInTheDocument();
     expect(screen.getByText(/devoluci[oó]n de cliente/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Devolver" })).not.toBeInTheDocument();
     expect(screen.getByText(/no puede devolver ni cancelar/i)).toBeInTheDocument();
@@ -178,7 +178,7 @@ describe("OrderDetail", () => {
 
     render(<App />);
 
-    await screen.findByRole("heading", { name: /detalle de la orden/i });
+    await screen.findByRole("heading", { name: /detalle de la venta/i });
     expect(document.querySelector(".kv-tkt-reveal")).toBeNull();
     expect(document.querySelector("[data-tkt-band]")).not.toBeNull();
   });
@@ -258,7 +258,7 @@ describe("OrderDetail", () => {
       "/api/v1/orders/order-1/void",
       expect.objectContaining({ method: "POST" }),
     ));
-    expect(await screen.findByText(/orden cancelada/i)).toBeInTheDocument();
+    expect(await screen.findByText(/venta cancelada/i)).toBeInTheDocument();
   });
 
   it("explains unavailable actions on voided orders without implying a role problem", async () => {
@@ -272,7 +272,7 @@ describe("OrderDetail", () => {
 
     render(<App />);
 
-    expect(await screen.findByText(/esta orden ya no acepta/i)).toBeInTheDocument();
+    expect(await screen.findByText(/esta venta ya no acepta/i)).toBeInTheDocument();
     expect(screen.queryByText(/tu rol no puede devolver ni cancelar/i)).not.toBeInTheDocument();
   });
 
