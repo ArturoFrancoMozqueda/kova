@@ -37,14 +37,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Vercel Web Analytics: an independent second source for landing traffic.
-         Our own funnel table is the primary instrument, but it is the thing that
-         was contaminated (docs/audits/DIAGNOSTICO-CRECIMIENTO-2026-08-09.md), and
-         a single instrument you cannot cross-check is how bad numbers survive.
-         Same-origin, so the existing `script-src 'self'` CSP already allows it.
-         REQUIRES Web Analytics to be switched on for the project in the Vercel
-         dashboard — until then this path 404s and nothing is collected. -->
-    <script defer src="/_vercel/insights/script.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -6,9 +6,9 @@ y reset de contraseña.
 
 ## 1. Sending domain (Resend)
 
-- [ ] Dominio de envío configurado en Resend (p. ej. `mail.kova.mx`).
+- [ ] Dominio de envío configurado en Resend (p. ej. `mail.kovasuite.com`).
 - [ ] `EMAIL_FROM` en producción apunta a una dirección de ese dominio
-      (p. ej. `Kova <hola@mail.kova.mx>`). El startup-gate ya bloquea
+      (p. ej. `Kova <hola@mail.kovasuite.com>`). El startup-gate ya bloquea
       `onboarding@resend.dev` en producción.
 - [ ] `RESEND_API_KEY` set en producción. El startup-gate aborta el boot
       si falta.
@@ -21,7 +21,7 @@ salvo donde se indique.
 ### SPF
 - [ ] Registro `TXT` en el dominio de envío (subdominio si aplica):
       `v=spf1 include:_spf.resend.com -all`
-- [ ] Verificar con `dig TXT mail.kova.mx +short` (o `nslookup -q=txt`).
+- [ ] Verificar con `dig TXT mail.kovasuite.com +short` (o `nslookup -q=txt`).
 
 ### DKIM
 - [ ] Resend muestra el `CNAME` DKIM a publicar — pegarlo tal cual
@@ -33,10 +33,10 @@ salvo donde se indique.
 ### DMARC
 - [ ] Política inicial, modo `quarantine`, sin afectar legítimos:
       ```
-      TXT _dmarc.kova.mx
-      v=DMARC1; p=quarantine; rua=mailto:dmarc@kova.mx; pct=100; adkim=s; aspf=s
+      TXT _dmarc.kovasuite.com
+      v=DMARC1; p=quarantine; rua=mailto:dmarc@kovasuite.com; pct=100; adkim=s; aspf=s
       ```
-- [ ] Buzón `dmarc@kova.mx` activo y monitoreado al menos las primeras
+- [ ] Buzón `dmarc@kovasuite.com` activo y monitoreado al menos las primeras
       dos semanas.
 - [ ] Subir a `p=reject` cuando los reportes muestren 0 fallos durante
       14 días seguidos.
@@ -60,10 +60,10 @@ Para cada uno de los 5 emails, enviar a un buzón real y verificar:
 Checklist por buzón:
 
 - [ ] Llega a **inbox**, no a spam ni a promociones.
-- [ ] Remitente se muestra como `Kova <hola@mail.kova.mx>` (no como
+- [ ] Remitente se muestra como `Kova <hola@mail.kovasuite.com>` (no como
       "via resend.dev").
 - [ ] Asunto sin truncar, sin caracteres Unicode rotos.
-- [ ] Enlaces abren al dominio correcto (`https://kova.mx/...`) y
+- [ ] Enlaces abren al dominio correcto (`https://kovasuite.com/...`) y
       funcionan en una pestaña privada.
 - [ ] Render correcto en Gmail web, Gmail iOS/Android, Outlook web,
       Outlook desktop, Hotmail web.

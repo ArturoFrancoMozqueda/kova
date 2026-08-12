@@ -1,5 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { inject as injectAnalytics } from "@vercel/analytics";
+import { injectSpeedInsights } from "@vercel/speed-insights";
 import { registerSW } from "virtual:pwa-register";
 import App, { PRERENDERED_ROUTES } from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -8,6 +10,15 @@ import { forceReload, isReloadSafePath, safelyUpdateServiceWorker } from "./pwaU
 // (workbox globPatterns includes woff2), so the brand font works offline too.
 import "@fontsource-variable/inter";
 import "./styles.css";
+
+// Independent acquisition and real-user performance sources. The project has
+// both products enabled in Vercel; the official packages receive Vercel's
+// deployment-specific endpoints at build time and follow SPA navigation. Keep
+// local development and tests free of observability traffic.
+if (import.meta.env.PROD) {
+  injectAnalytics({ framework: "vite" });
+  injectSpeedInsights({ framework: "vite" });
+}
 
 // One-shot version probe at boot. Fetches the deploy-time version.json
 // (NetworkOnly via the SW runtime route) and compares to the hash baked into

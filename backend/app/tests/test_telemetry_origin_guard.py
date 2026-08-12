@@ -11,6 +11,9 @@ Assertions look at the rows *this test* produced rather than at table counts.
 The suite shares one database and earlier modules leave anonymous events behind,
 so an absolute count would be measuring the rest of the suite.
 """
+from datetime import UTC, datetime, timedelta
+
+import jwt
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -18,6 +21,7 @@ from app.main import app as fastapi_app
 from app.telemetry.models import AnonymousTelemetryEvent
 
 ANON_URL = "/api/v1/telemetry/events/anonymous"
+ANON_SESSION_URL = "/api/v1/telemetry/events/anonymous/session"
 SIGNUP_URL = "/api/v1/auth/signup"
 
 
@@ -58,8 +62,32 @@ def _raw_client() -> TestClient:
     return raw
 
 
+def _anonymous_token(client: TestClient, client_id: str, *, headers=None) -> str:
+    response = client.post(
+        ANON_SESSION_URL,
+        json={"client_id": client_id},
+        headers=headers or {},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()["token"]
+
+
+def _event_headers(token: str, *, origin: str | None = None, referer: str | None = None):
+    headers = {"X-Kova-Anonymous-Token": token}
+    if origin:
+        headers["origin"] = origin
+    if referer:
+        headers["referer"] = referer
+    return headers
+
+
 def test_accepts_events_from_the_configured_front_end(client, db):
-    response = client.post(ANON_URL, json=_landing_event("landing:trusted"))
+    token = _anonymous_token(client, "visitor-origin")
+    response = client.post(
+        ANON_URL,
+        json=_landing_event("landing:trusted"),
+        headers=_event_headers(token),
+    )
 
     assert response.status_code == 202, response.text
     assert _stored(db, "landing:trusted") is not None
@@ -69,10 +97,13 @@ def test_accepts_the_www_sibling_of_the_configured_origin(db):
     # kovasuite.com and www.kovasuite.com both resolve to the landing; dropping
     # one of them would silently halve the funnel.
     scheme, _, host = settings.frontend_url.partition("://")
-    response = _raw_client().post(
+    raw = _raw_client()
+    origin = f"{scheme}://www.{host}"
+    token = _anonymous_token(raw, "visitor-origin", headers={"origin": origin})
+    response = raw.post(
         ANON_URL,
         json=_landing_event("landing:www"),
-        headers={"origin": f"{scheme}://www.{host}"},
+        headers=_event_headers(token, origin=origin),
     )
 
     assert response.status_code == 202, response.text
@@ -101,14 +132,56 @@ def test_rejects_events_from_a_foreign_origin(db):
 def test_falls_back_to_referer_when_origin_is_absent(db):
     # Referrer-Policy variations can strip Origin on some navigations; the host
     # of a same-site Referer is still evidence of a real page.
-    response = _raw_client().post(
+    raw = _raw_client()
+    referer = f"{settings.frontend_url}/precio"
+    token = _anonymous_token(raw, "visitor-origin", headers={"referer": referer})
+    response = raw.post(
         ANON_URL,
         json=_landing_event("landing:referer"),
-        headers={"referer": f"{settings.frontend_url}/precio"},
+        headers=_event_headers(token, referer=referer),
     )
 
     assert response.status_code == 202, response.text
     assert _stored(db, "landing:referer") is not None
+
+
+def test_rejects_missing_anonymous_session(client, db):
+    response = client.post(ANON_URL, json=_landing_event("landing:no-session"))
+
+    assert response.status_code == 401
+    assert _stored(db, "landing:no-session") is None
+
+
+def test_rejects_anonymous_session_bound_to_another_client(client, db):
+    token = _anonymous_token(client, "visitor-other")
+    response = client.post(
+        ANON_URL,
+        json=_landing_event("landing:cross-client"),
+        headers=_event_headers(token),
+    )
+
+    assert response.status_code == 401
+    assert _stored(db, "landing:cross-client") is None
+
+
+def test_rejects_expired_anonymous_session(client, db):
+    expired = jwt.encode(
+        {
+            "sub": "visitor-origin",
+            "purpose": "anonymous_telemetry",
+            "exp": int((datetime.now(UTC) - timedelta(seconds=1)).timestamp()),
+        },
+        settings.secret_key,
+        algorithm="HS256",
+    )
+    response = client.post(
+        ANON_URL,
+        json=_landing_event("landing:expired-session"),
+        headers=_event_headers(expired),
+    )
+
+    assert response.status_code == 401
+    assert _stored(db, "landing:expired-session") is None
 
 
 def test_client_may_not_claim_its_own_signup_completion(client, db):

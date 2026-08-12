@@ -40,6 +40,12 @@ in `docs/audits/`.
 The active conversion backlog is [`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CRO-FUNNEL.md).
 Execute one epic per PR, merge only after required checks are green, then continue in order.
 
+The 2026-08-09 production diagnosis supersedes the contaminated CRO baseline for growth decisions.
+Requirement-by-requirement execution and proof now live in
+[`docs/plans/PLAN-GROWTH-EXECUTION.md`](plans/PLAN-GROWTH-EXECUTION.md); do not treat the scheduled
+2026-08-20 analysis as trustworthy unless its window excludes all rows quarantined by migration
+`0055`.
+
 - [x] Epic CRO-0 — measurement context, diagnostic events, protected 30-day export and baseline.
 - [x] Epic CRO-1 — mobile home and showcase.
 - [x] Epic CRO-2 — clear, recoverable signup: backend-aligned password rules, field-specific 422

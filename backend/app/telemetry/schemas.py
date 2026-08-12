@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Any, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -383,6 +384,25 @@ class AnonymousTelemetryEventCreate(StrictModel):
         _validate_common_context(self.properties)
         _validate_diagnostic_event(self.event_name, self.properties)
         return self
+
+
+class AnonymousTelemetrySessionCreate(StrictModel):
+    client_id: str = Field(min_length=1, max_length=80, pattern=CLIENT_ID_PATTERN.pattern)
+
+
+class AnonymousTelemetrySessionResponse(StrictModel):
+    token: str
+    expires_in: int = Field(gt=0, le=3600)
+
+
+class GrowthSnapshot(StrictModel):
+    """Identity-free operator counts sourced directly from business tables."""
+
+    generated_at: datetime
+    users_created: int = Field(ge=0)
+    users_verified: int = Field(ge=0)
+    tenants_with_completed_sale: int = Field(ge=0)
+    paying_tenants: int = Field(ge=0)
 
 
 class TelemetryEventResponse(BaseModel):

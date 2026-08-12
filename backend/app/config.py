@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,6 +44,10 @@ class Settings(BaseSettings):
     # so a continuously-refreshed (e.g. stolen) refresh token still forces re-login.
     refresh_token_absolute_ttl_seconds: int = 7_776_000  # 90 days
     token_ttl_seconds: int = 86_400             # 24 h for verify/reset tokens
+    # Short-lived, non-authenticating proof issued to the public landing before
+    # it can write anonymous funnel events. It is bound to the pseudonymous
+    # client id and carries no user, tenant, or permission claims.
+    anonymous_telemetry_token_ttl_seconds: int = Field(default=900, gt=0, le=3600)
     sentry_dsn: str | None = None
     sentry_traces_sample_rate: float = 0.0
     stripe_secret_key: str | None = None

@@ -12,6 +12,17 @@ from app.telemetry.models import AnonymousTelemetryEvent
 from app.telemetry.schemas import MAX_PROPERTIES
 
 ANON_URL = "/api/v1/telemetry/events/anonymous"
+ANON_SESSION_URL = "/api/v1/telemetry/events/anonymous/session"
+
+
+def _post_anonymous(client, body: dict):
+    session = client.post(ANON_SESSION_URL, json={"client_id": body["client_id"]})
+    assert session.status_code == 200, session.text
+    return client.post(
+        ANON_URL,
+        json=body,
+        headers={"X-Kova-Anonymous-Token": session.json()["token"]},
+    )
 
 
 def test_accepts_focused_landing_conversion_events(client, db):
@@ -28,9 +39,9 @@ def test_accepts_focused_landing_conversion_events(client, db):
     ]
 
     for index, (event_name, properties) in enumerate(cases):
-        response = client.post(
-            ANON_URL,
-            json={
+        response = _post_anonymous(
+            client,
+            {
                 "event_name": event_name,
                 "client_event_id": f"{event_name}:{index}",
                 "client_id": "visitor-conversion",
@@ -48,9 +59,9 @@ def test_accepts_focused_landing_conversion_events(client, db):
 
 
 def test_accepts_allowlisted_anonymous_event(client, db):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_viewed",
             "client_event_id": "landing_viewed:1",
             "client_id": "visitor-abc",
@@ -72,9 +83,9 @@ def test_accepts_allowlisted_anonymous_event(client, db):
 
 def test_accepts_landing_section_viewed(client, db):
     # Scroll-depth rung of the landing funnel: one event per section id.
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_section_viewed",
             "client_event_id": "landing_section_viewed:precio:1",
             "client_id": "visitor-scroll",
@@ -91,9 +102,9 @@ def test_accepts_landing_section_viewed(client, db):
 
 
 def test_accepts_categorized_landing_story_step(client, db):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_story_step_viewed",
             "client_event_id": "landing_story_step_viewed:inventory:1",
             "client_id": "visitor-story",
@@ -114,9 +125,9 @@ def test_accepts_categorized_landing_story_step(client, db):
 
 
 def test_rejects_unknown_landing_story_category(client):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_story_step_viewed",
             "client_event_id": "landing_story_step_viewed:bad",
             "client_id": "visitor-story",
@@ -127,9 +138,9 @@ def test_rejects_unknown_landing_story_category(client):
 
 
 def test_accepts_categorized_signup_validation_without_pii(client, db):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "signup_validation_failed",
             "client_event_id": "signup_validation_failed:1",
             "client_id": "visitor-validation",
@@ -152,9 +163,9 @@ def test_accepts_categorized_signup_validation_without_pii(client, db):
 
 
 def test_rejects_free_text_diagnostic_categories(client):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "signup_validation_failed",
             "client_event_id": "signup_validation_failed:bad",
             "client_id": "visitor-validation",
@@ -168,9 +179,9 @@ def test_rejects_free_text_diagnostic_categories(client):
 
 
 def test_rejects_non_allowlisted_event_type(client):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "first_sale_completed",  # authed-only event, not allowed
             "client_event_id": "x:1",
             "client_id": "visitor-abc",
@@ -181,9 +192,9 @@ def test_rejects_non_allowlisted_event_type(client):
 
 
 def test_rejects_tenant_field_in_properties(client):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_cta_clicked",
             "client_event_id": "cta:1",
             "client_id": "visitor-abc",
@@ -194,9 +205,9 @@ def test_rejects_tenant_field_in_properties(client):
 
 
 def test_rejects_money_in_anonymous_properties(client):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             # A client-writable event, so the 422 below is unambiguously about
             # the money key rather than the (separately tested) rule that
             # signup_completed may only be written by the server.
@@ -212,9 +223,9 @@ def test_rejects_money_in_anonymous_properties(client):
 def test_rejects_unknown_top_level_field(client):
     # StrictModel forbids extra fields — a client cannot attach tenant_id/user_id
     # at the top level to try to influence storage.
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_viewed",
             "client_event_id": "landing_viewed:2",
             "client_id": "visitor-abc",
@@ -226,9 +237,9 @@ def test_rejects_unknown_top_level_field(client):
 
 
 def test_rejects_oversized_property_blob(client):
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_viewed",
             "client_event_id": "landing_viewed:3",
             "client_id": "visitor-abc",
@@ -245,8 +256,8 @@ def test_duplicate_client_event_id_is_idempotent(client, db):
         "client_id": "visitor-dup",
         "properties": {},
     }
-    first = client.post(ANON_URL, json=body)
-    second = client.post(ANON_URL, json=body)
+    first = _post_anonymous(client, body)
+    second = _post_anonymous(client, body)
     assert first.status_code == 202
     assert second.status_code == 202
     rows = (
@@ -259,9 +270,9 @@ def test_duplicate_client_event_id_is_idempotent(client, db):
 
 def test_anonymous_endpoint_requires_no_auth(client):
     # No session cookie is set on this fresh client; the endpoint still accepts.
-    resp = client.post(
-        ANON_URL,
-        json={
+    resp = _post_anonymous(
+        client,
+        {
             "event_name": "landing_viewed",
             "client_event_id": "landing_viewed:noauth",
             "client_id": "visitor-noauth",

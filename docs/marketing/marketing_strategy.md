@@ -138,6 +138,8 @@ Anclada en `.claude/rules/brand-ux-copy.md`:
 | **"¿Y mis datos? ¿Es confiable? (es beta)"** | Respaldo automático en la nube, datos aislados por negocio, modo offline. Beta privada con negocios reales y atención directa del equipo — eres prioridad, no número. |
 | **"¿Y si se va el internet?"** | Sigue cobrando offline y sincroniza solo cuando vuelve la señal. |
 | **"¿Me amarra un contrato?"** | No. Cancelas con un click, sin penalización ni preguntas. |
+| **"¿Puedo facturar desde Kova?"** | "Hoy Kova no emite CFDI. Puedes mantener tu proceso fiscal actual y usar Kova para caja, inventario y análisis. CFDI está en el roadmap mediante un PAC verificado, pero no prometemos una fecha hasta validarlo con 10 pilotos. Si facturar dentro del POS es indispensable hoy, Kova todavía no reemplaza esa parte de tu operación." |
+| **"¿Kova cobra la tarjeta o se conecta con mi terminal?"** | "Hoy Kova registra la forma de pago para que el corte cuadre, pero el cobro se procesa por separado en tu terminal de Clip, Mercado Pago u otro proveedor. La integración está diferida hasta validar demanda y proveedor con 10 pilotos. No presentamos el registro manual como cobro integrado." |
 
 ### 2.12 Canales de adquisición recomendados (priorizados para etapa beta)
 
