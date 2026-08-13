@@ -265,6 +265,8 @@ test("out-of-stock product cannot be added to the cart", async ({ page }) => {
           sku: "OUT-001",
           track_inventory: true,
           stock_on_hand: 0,
+          reserved_quantity: 0,
+          available_quantity: 0,
           low_stock_threshold: 5,
           is_low_stock: true,
         },
