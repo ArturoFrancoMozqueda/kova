@@ -86,7 +86,10 @@ def _confirm(client, order: dict, *, key: str | None = None):
 
 
 def test_feature_flag_blocks_customer_order_api(client, db: Session) -> None:
-    _signup_login(client, prefix="flag-off")
+    tenant_id = _signup_login(client, prefix="flag-off")
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).one()
+    tenant.feature_overrides = {**tenant.feature_overrides, "customer_orders": False}
+    db.commit()
     response = client.get("/api/v1/customer-orders")
     assert response.status_code == 403
 
