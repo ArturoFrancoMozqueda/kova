@@ -1,7 +1,9 @@
-# Runbook: rollout piloto de Pedidos
+# Runbook: rollout y rollback de Pedidos
 
-Pedidos se despliega con `customer_orders=false` por defecto. La migración crea el dominio y sus
-permisos, pero no lo muestra ni permite llamar la API hasta habilitar explícitamente cada tenant.
+Pedidos está habilitado globalmente mediante `customer_orders=true` como valor predeterminado.
+El frontend y la API lo exponen a todos los tenants que tengan los permisos correspondientes.
+Un override explícito `customer_orders=false` permite apagarlo para un tenant sin debilitar RLS,
+billing ni aislamiento de datos.
 
 ## Requisitos previos
 
@@ -13,17 +15,16 @@ permisos, pero no lo muestra ni permite llamar la API hasta habilitar explícita
 
 Nunca copie URLs de base de datos, tokens, teléfonos, direcciones o notas a tickets o logs.
 
-## Selección del piloto
+## Preparación operativa
 
-Empezar con 3–5 negocios de rubros distintos. Registrar internamente solo `tenant_id`, rubro,
-responsable y ventana de activación. Antes de activar, confirmar que cada negocio:
+Antes de anunciar el módulo a un negocio, confirmar que:
 
 - tiene catálogo e inventario reales;
 - entiende la separación Pedidos / Caja / Ventas;
 - sabe que no hay anticipos, pagos parciales, KDS, reparto ni CFDI en el pedido;
 - dispone de un producto “Envío local” si necesita cobrar envío.
 
-## Activar un tenant
+## Override por tenant
 
 Ejecutar desde `backend/` con las variables del entorno objetivo. Primero inspeccionar:
 
@@ -41,11 +42,11 @@ python scripts/set_customer_orders_feature.py `
   --confirm-tenant-name "<NOMBRE EXACTO MOSTRADO>"
 ```
 
-No ejecutar actualizaciones masivas ni cambiar el valor por defecto del feature flag.
+El comando sigue disponible para retirar un override `false` o forzar la activación de un tenant.
 
 ## Verificación inmediata
 
-1. Cerrar y volver a iniciar sesión en el tenant piloto.
+1. Cerrar y volver a iniciar sesión en un tenant de verificación.
 2. Confirmar que `GET /api/v1/auth/session` expone `customer_orders: true`.
 3. Verificar que aparece **Pedidos** junto a Caja y Ventas.
 4. Crear un pedido pequeño, confirmar y comprobar `reserved_quantity` / `available_quantity`.
@@ -55,7 +56,7 @@ No ejecutar actualizaciones masivas ni cambiar el valor por defecto del feature 
 8. Entregar el pedido; imprimir el documento de pedido y confirmar que no se presenta como recibo.
 9. Simular modo offline del navegador y validar consulta de solo lectura, sin mutaciones.
 
-## Monitoreo del piloto
+## Monitoreo
 
 Revisar logs categóricos `customer_order event=...` y errores HTTP, sin PII:
 
@@ -84,8 +85,8 @@ Deshabilitar oculta frontend y bloquea la API. No elimina pedidos, reservas ni v
 Si existen reservas activas, resolver o cancelar los pedidos antes del rollback siempre que sea
 posible; de lo contrario escalar para liberar reservas de forma auditada antes de reabrir Caja.
 
-## Apertura gradual
+## Rollback global
 
-Habilitar el siguiente grupo únicamente después de una ventana estable sin duplicados, fugas de
-reserva, diferencias de turno ni fallas P0/P1. Mantener activación por tenant hasta contar con
-evidencia suficiente para una decisión separada sobre disponibilidad general.
+Revertir `DEFAULT_FEATURE_FLAGS[CUSTOMER_ORDERS]` a `False` y desplegar por el flujo normal de
+GitHub. Los tenants con override explícito `true` permanecerán habilitados; usar el comando
+administrativo para deshabilitarlos si también deben entrar al rollback.

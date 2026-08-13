@@ -51,7 +51,7 @@ def test_session_exposes_supported_tenant_override(client, db: Session) -> None:
     }
 
 
-def test_session_defaults_supported_flags_to_false(client) -> None:
+def test_session_uses_global_feature_defaults(client) -> None:
     _signup_verify_login(client)
 
     response = client.get("/api/v1/auth/session")
@@ -59,12 +59,12 @@ def test_session_defaults_supported_flags_to_false(client) -> None:
     assert response.status_code == 200, response.text
     assert response.json()["feature_flags"] == {
         "margin_reports": False,
-        "customer_orders": False,
+        "customer_orders": True,
     }
 
 
 def test_non_boolean_override_does_not_enable_feature() -> None:
     assert resolve_feature_flags({"margin_reports": "true"}) == {
         "margin_reports": False,
-        "customer_orders": False,
+        "customer_orders": True,
     }

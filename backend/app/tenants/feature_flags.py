@@ -5,7 +5,7 @@ CUSTOMER_ORDERS = "customer_orders"
 
 DEFAULT_FEATURE_FLAGS: dict[str, bool] = {
     MARGIN_REPORTS: False,
-    CUSTOMER_ORDERS: False,
+    CUSTOMER_ORDERS: True,
 }
 
 
