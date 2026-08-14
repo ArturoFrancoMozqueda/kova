@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
+from app.business_settings import repository as business_settings_repo
 from app.catalog.models import Product
 from app.idempotency import service as idempotency_service
 from app.inventory import repository as inventory_repo
@@ -452,6 +453,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
     refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
     void = repo.get_void(db, tenant_id=tenant_id, order_id=order_id)
     tenant = tenant_repo.get_by_id(db, tenant_id)
+    receipt_settings = business_settings_repo.get_receipt_settings(db, tenant_id=tenant_id)
 
     total_tendered = calculator.money(
         sum(p.amount_tendered_amount for p in payments if p.amount_tendered_amount is not None)
@@ -466,6 +468,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
         "order_id": str(order.id),
         "receipt_number": str(order.id).replace("-", "")[-8:].upper(),
         "tenant_name": tenant.name if tenant else "",
+        "paper_width_mm": receipt_settings.paper_width_mm if receipt_settings else 80,
         # Ring-time so the receipt shows when the sale happened, not when an
         # offline sale later synced.
         "created_at": (order.occurred_at or order.created_at).isoformat(),

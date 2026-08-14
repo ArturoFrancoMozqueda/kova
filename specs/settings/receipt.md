@@ -21,6 +21,8 @@ initial state so the owner can review and save the first receipt configuration.
 - If the tenant has no receipt settings row, the endpoint returns a valid initial tenant-scoped
   response using the tenant name as `receipt_business_name`.
 - Owner or manager can save receipt business name, footer, tax/contact text, and logo URL.
+- Owner or manager can choose 58 mm or 80 mm thermal paper; 80 mm is the default.
+- A legacy installed PWA that saves settings without `paper_width_mm` preserves the existing choice.
 - The receipt settings preview uses the same receipt template as order detail reprints.
 - Receipt settings remain scoped to the authenticated tenant.
 
@@ -57,4 +59,5 @@ No offline queue changes. Settings are online-only for beta.
 - Fresh tenants see either real receipt settings or a valid initial state.
 - Saving receipt settings persists the values and writes an audit log.
 - Previewing receipt settings renders through the shared receipt template used by `/orders/{id}`.
+- The preview and browser print root expose the selected 58/80 mm width through the shared template.
 - Tenant A cannot read or overwrite Tenant B receipt settings.

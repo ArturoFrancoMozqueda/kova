@@ -116,6 +116,7 @@ class ReceiptResponse(BaseModel):
     order_id: UUID
     receipt_number: str
     tenant_name: str
+    paper_width_mm: Literal[58, 80] = 80
     created_at: datetime
     status: str
     items: list[ReceiptItemLine]

@@ -28,12 +28,13 @@ interface CloseShiftModalProps {
 export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShiftModalProps) {
   const [actualCash, setActualCash] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
-  const { pendingCount, failedEntries } = useSyncQueue();
+  const { pendingCount, failedEntries } = useSyncQueue(shift.id);
   // Sales still queued or failed offline aren't on the server yet, so they're
   // not in this shift's expected cash. Warn before closing so the cut isn't
-  // silently incomplete. Non-blocking: a permanently failed sale shouldn't
-  // trap the cashier from ever closing.
+  // silently incomplete. Dead letters are unfinished sales too and need an
+  // explicit recovery before the shift can produce a trustworthy close.
   const unsyncedCount = pendingCount + failedEntries.length;
+  const closeBlocked = unsyncedCount > 0;
 
   // Explain that the actual cash count is required to close, instead of only
   // greying the button.
@@ -41,7 +42,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (cashError) {
+    if (cashError || closeBlocked) {
       setSubmitAttempted(true);
       return;
     }
@@ -191,7 +192,7 @@ export function CloseShiftModal({ shift, pending, onSubmit, onCancel }: CloseShi
           <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>
             {copy.closeShiftModal.cancel}
           </Button>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || closeBlocked}>
             {pending ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

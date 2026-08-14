@@ -67,8 +67,12 @@ def upsert_receipt_settings(
     if settings is None:
         settings = ReceiptSettings(tenant_id=tenant_id, created_at=now)
         db.add(settings)
-    for field, value in body.model_dump().items():
+    values = body.model_dump()
+    paper_width_mm = values.pop("paper_width_mm")
+    for field, value in values.items():
         setattr(settings, field, value)
+    if paper_width_mm is not None:
+        settings.paper_width_mm = paper_width_mm
     settings.updated_at = now
     audit_service.log(
         db,

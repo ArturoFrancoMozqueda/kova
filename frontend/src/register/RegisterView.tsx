@@ -41,6 +41,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewHeader } from "@/components/ui/view-header";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
+import { exactSkuMatches, skuSearchMatches } from "./skuSearch";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,6 +70,13 @@ import {
 import { trackFunnelEventOnce, trackSaleValidationBlocked } from "@/telemetry/funnel";
 import { productImageSrc, productImageSrcSet, productImageStyle } from "@/catalog/imageUrl";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { getReceiptSettings } from "@/settings/api";
+import {
+  cacheReceiptPaperWidth,
+  normalizeReceiptPaperWidth,
+  readCachedReceiptPaperWidth,
+  type ReceiptPaperWidth,
+} from "@/lib/receiptPaper";
 
 type LoadState =
   | { status: "loading" }
@@ -172,6 +180,9 @@ function RegularRegisterView() {
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
+  const [paperWidthMm, setPaperWidthMm] = useState<ReceiptPaperWidth>(() =>
+    tenantId ? readCachedReceiptPaperWidth(tenantId) : 80,
+  );
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
   const { toast } = useToast();
@@ -216,6 +227,7 @@ function RegularRegisterView() {
   const hasOpenShift: boolean | null =
     openShift === undefined ? null : openShift !== null;
   const [skuQuery, setSkuQuery] = useState("");
+  const [skuSearchPending, setSkuSearchPending] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skuMatches, setSkuMatches] = useState<Product[]>([]);
@@ -229,6 +241,26 @@ function RegularRegisterView() {
     setCashSubmitAttempted(false);
     cashValidationTrackedRef.current = false;
   }, []);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setPaperWidthMm(80);
+      return;
+    }
+    setPaperWidthMm(readCachedReceiptPaperWidth(tenantId));
+    let cancelled = false;
+    void getReceiptSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        const width = normalizeReceiptPaperWidth(settings.paper_width_mm);
+        setPaperWidthMm(width);
+        cacheReceiptPaperWidth(tenantId, width);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
 
   const resetSale = useCallback(() => {
     setCart({});
@@ -366,6 +398,7 @@ function RegularRegisterView() {
         payments: saleReceipt.payments,
         totalTendered: saleReceipt.total_tendered,
         totalChange: saleReceipt.total_change,
+        paperWidthMm: saleReceipt.paper_width_mm ?? paperWidthMm,
       };
     }
     if (!pendingReceipt) return null;
@@ -376,6 +409,7 @@ function RegularRegisterView() {
         pendingReceipt.clientUuid.split("-")[0].toUpperCase(),
       ),
       createdAt: snapshot.created_at,
+      paperWidthMm: snapshot.paper_width_mm ?? paperWidthMm,
       items: snapshot.items,
       subtotalAmount: snapshot.subtotal_amount,
       totalAmount: snapshot.total_amount,
@@ -384,7 +418,7 @@ function RegularRegisterView() {
       totalChange: snapshot.total_change,
       pendingSync: true,
     };
-  }, [pendingReceipt, saleReceipt]);
+  }, [paperWidthMm, pendingReceipt, saleReceipt]);
 
   // Best-effort refresh of the open-shift state. Leaves state at `undefined`
   // (unknown) on failure so we never block cash just because the check failed.
@@ -452,32 +486,53 @@ function RegularRegisterView() {
     return loadState.products.filter((p) => p.category_id === selectedCategory);
   }, [loadState, selectedCategory]);
 
-  // SKU/barcode search: debounced, filters across ALL products (ignores category filter)
+  const clearSkuTimer = () => {
+    if (skuDebounceRef.current) clearTimeout(skuDebounceRef.current);
+    skuDebounceRef.current = null;
+  };
+
+  const clearSkuSearch = () => {
+    clearSkuTimer();
+    setSkuQuery("");
+    setSkuMatches([]);
+    setSkuSearchPending(false);
+  };
+
+  const resolveSkuQuery = (value: string, addSingleMatch: boolean) => {
+    if (!value.trim() || loadState.status !== "ready") {
+      setSkuMatches([]);
+      setSkuSearchPending(false);
+      return;
+    }
+    const matches = skuSearchMatches(loadState.products, value);
+    if (addSingleMatch && matches.length === 1) {
+      addProduct(matches[0]);
+      clearSkuSearch();
+      // Keyboard-wedge scanners send the next code immediately. Keep the
+      // input ready even after React commits the cart update.
+      window.requestAnimationFrame(() => skuInputRef.current?.focus());
+      return;
+    }
+    setSkuMatches(matches);
+    setSkuSearchPending(false);
+  };
+
+  // SKU/barcode search: debounced for typing, immediate on scanner Enter.
+  // It always searches the complete catalog, independent of category filters.
   const handleSkuChange = (value: string) => {
     setSkuQuery(value);
-    if (skuDebounceRef.current) clearTimeout(skuDebounceRef.current);
+    clearSkuTimer();
+    setSkuSearchPending(Boolean(value.trim()));
     skuDebounceRef.current = setTimeout(() => {
-      if (!value.trim() || loadState.status !== "ready") {
-        setSkuMatches([]);
-        return;
-      }
-      const q = value.trim().toLowerCase();
-      const exactSku = loadState.products.filter(
-        (p) => p.sku?.toLowerCase() === q,
-      );
-      if (exactSku.length === 1) {
-        addProduct(exactSku[0]);
-        setSkuQuery("");
-        setSkuMatches([]);
-        return;
-      }
-      const partial = loadState.products.filter(
-        (p) =>
-          p.sku?.toLowerCase().includes(q) ||
-          p.name.toLowerCase().includes(q),
-      );
-      setSkuMatches(partial);
+      skuDebounceRef.current = null;
+      const exact = loadState.status === "ready" ? exactSkuMatches(loadState.products, value) : [];
+      resolveSkuQuery(value, exact.length === 1);
     }, 150);
+  };
+
+  const submitSkuQuery = () => {
+    clearSkuTimer();
+    resolveSkuQuery(skuQuery, true);
   };
 
   const cartItems = useMemo(() => Object.values(cart), [cart]);
@@ -772,6 +827,7 @@ function RegularRegisterView() {
     const receiptSnapshot: OfflineReceiptSnapshot = {
       business_name: tenantName,
       created_at: new Date().toISOString(),
+      paper_width_mm: paperWidthMm,
       items: cartItems.map((item) => ({
         product_name: item.product.name,
         quantity: item.quantity,
@@ -948,14 +1004,12 @@ function RegularRegisterView() {
                 value={skuQuery}
                 onChange={(e) => handleSkuChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && skuMatches.length === 1) {
-                    addProduct(skuMatches[0]);
-                    setSkuQuery("");
-                    setSkuMatches([]);
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitSkuQuery();
                   }
                   if (e.key === "Escape") {
-                    setSkuQuery("");
-                    setSkuMatches([]);
+                    clearSkuSearch();
                   }
                 }}
                 placeholder={copy.register.skuSearchPlaceholder}
@@ -964,7 +1018,7 @@ function RegularRegisterView() {
               {skuQuery && (
                 <button
                   type="button"
-                  onClick={() => { setSkuQuery(""); setSkuMatches([]); }}
+                  onClick={clearSkuSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -973,7 +1027,7 @@ function RegularRegisterView() {
             </div>
 
             {/* SKU match results */}
-            {skuQuery && skuMatches.length === 0 && (
+            {skuQuery && !skuSearchPending && skuMatches.length === 0 && (
               <p className="mt-1.5 text-xs text-muted-foreground px-1">
                 {copy.register.skuNoMatch(skuQuery)}
               </p>
@@ -987,8 +1041,7 @@ function RegularRegisterView() {
                     type="button"
                     onClick={() => {
                       addProduct(p);
-                      setSkuQuery("");
-                      setSkuMatches([]);
+                      clearSkuSearch();
                       // Keep the scanner/typing flow going — return focus so
                       // the cashier can ring the next item without re-clicking.
                       skuInputRef.current?.focus();
