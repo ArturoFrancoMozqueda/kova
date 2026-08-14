@@ -83,9 +83,24 @@ Mirror [.env.example](../.env.example), but supply real values via the hosting p
 - `APP_ENV` — `staging` or `production`
 - `APP_DATABASE_URL` — runtime connection as the least-privilege `kova_app` role (subject to RLS). This is what the app serves requests with.
 - `MIGRATION_DATABASE_URL` — owner (`postgres`) connection for Alembic migrations and RLS-bypass paths (webhook, public assets, pre-session auth).
+
 - `DATABASE_URL` — legacy single URL. Still honored as the fallback for both of the above when they are unset (keeps local dev working), but staging/production should set the two explicit URLs so the runtime role is `kova_app`.
 
 Local-only `POSTGRES_*` variables and the `db` Docker service are **not** used in staging/production.
+
+Production startup requires `APP_DATABASE_URL` to be explicit and different
+from `MIGRATION_DATABASE_URL`. It queries Postgres catalogs and aborts if the
+runtime role is a superuser, has `BYPASSRLS`, owns a tenant table, or any
+canonical tenant table lacks RLS, `FORCE ROW LEVEL SECURITY`, `USING`, or
+`WITH CHECK`. Local/CI retain diagnostic logging so migrations can bootstrap.
+
+### Updating the pinned `uv` build runtime
+
+`backend/Dockerfile` pins the `uv` image by release and multi-platform digest.
+Inspect an update with
+`docker buildx imagetools inspect ghcr.io/astral-sh/uv:<version>`, review the
+upstream release, then change both version and digest in one commit. Build the
+backend twice from that commit and compare image/SBOM inputs before deploying.
 
 The frontend uses same-origin relative API paths (`/api/v1/...`). Production routing is handled by
 `frontend/vercel.json`, which rewrites those paths to the Fly backend. No `VITE_API_BASE_URL` is

@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     # and single-instance deploys but unsafe across replicas).
     upstash_redis_rest_url: str | None = None
     upstash_redis_rest_token: str | None = None
+    trusted_client_ip_header: str = "fly-client-ip"
     email_from: str = "onboarding@resend.dev"
 
     @property
