@@ -15,10 +15,11 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 30% 10%;
 
-    /* Primary — Kova blue (HSL of #4F7EF7) so every legacy bg-primary /
+    /* Primary — accessible Kova blue (HSL of #3B69D7) so every legacy bg-primary /
        text-primary / border-primary / ring-primary utility consumed by
-       authenticated screens picks up the brand accent automatically. */
-    --primary: 225 91% 64%;
+       authenticated screens picks up the brand accent automatically. This
+       shade preserves the brand hue while clearing 4.5:1 against white. */
+    --primary: 222 66% 54%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 16% 93%;
@@ -46,7 +47,7 @@
 
     --border: 214 18% 88%;
     --input: 214 18% 88%;
-    --ring: 225 91% 64%;
+    --ring: 222 66% 54%;
     --radius: 0.625rem;
 
     /* Sidebar — Kova ink palette. HSL equivalents of the brand hex tokens
@@ -62,7 +63,7 @@
        Defined but not yet applied to component semantics. Wired into Tailwind
        via theme.extend.colors.kova and theme.extend.borderRadius.kova-*.
        Existing tokens above remain authoritative until later phases. */
-    --kova-blue: #4F7EF7;
+    --kova-blue: #3B69D7;
     --kova-blue-light: #7BA7FF;
     --kova-ink: #0F1117;
     --kova-mist: #F5F6FA;

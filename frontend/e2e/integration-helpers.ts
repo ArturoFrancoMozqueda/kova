@@ -10,7 +10,10 @@ export async function createTenantThroughUi(
 ): Promise<{ email: string; password: string }> {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const credentials = {
-    email: `audit-${label}-${suffix}@example.test`,
+    // `EmailStr` intentionally rejects special-use TLDs such as `.test`.
+    // example.com is reserved for documentation/testing and still exercises
+    // the real public signup contract without targeting a live mailbox.
+    email: `audit-${label}-${suffix}@example.com`,
     password: "Kova-Test-Only-2026!",
   };
 
