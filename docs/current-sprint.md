@@ -37,6 +37,13 @@ in `docs/audits/`.
 
 ## Active CRO execution
 
+## Audit remediation execution
+
+The approved execution backlog is
+[`docs/plans/PLAN-AUDIT-REMEDIATION-2026-08-13.md`](plans/PLAN-AUDIT-REMEDIATION-2026-08-13.md).
+Execute one epic per feature branch, merge only after its required checks and evidence are complete,
+and keep provider/production-dependent items open until their external gate is reproducible.
+
 The active conversion backlog is [`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CRO-FUNNEL.md).
 Execute one epic per PR, merge only after required checks are green, then continue in order.
 
