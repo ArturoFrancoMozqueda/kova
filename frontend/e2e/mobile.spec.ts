@@ -140,11 +140,11 @@ function makeStoryPayload(overrides = {}) {
   };
 }
 
-function makeSyncResponse(orderId: string, total: string) {
+function makeSyncResponse(clientUuid: string, orderId: string, total: string) {
   return {
     results: [
       {
-        client_uuid: "00000000-0000-4000-8000-000000000001",
+        client_uuid: clientUuid,
         status: "synced",
         order_id: orderId,
         order: {
@@ -577,11 +577,11 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
   // On phones the manual range hides behind "Personalizar" so the first
   // screen leads with data; presets stay one tap away.
   await expect(page.getByRole("button", { name: /7 días/i })).toBeVisible();
-  await expect(page.getByLabel(/fecha inicial/i)).toBeHidden();
+  await expect(page.getByLabel(/^desde$/i)).toBeHidden();
   await page.getByRole("button", { name: /personalizar/i }).click();
   await expect(page.getByRole("button", { name: /aplicar/i })).toBeVisible();
-  await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
-  await page.getByLabel(/fecha final/i).fill("2026-05-19");
+  await page.getByLabel(/^desde$/i).fill("2026-05-13");
+  await page.getByLabel(/^hasta$/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
   await expect(page.getByText(/ventas netas/i).first()).toBeVisible();
@@ -609,7 +609,12 @@ test("register quick sale keeps CTAs above mobile navigation", async ({ page }) 
   );
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     expect(route.request().method()).toBe("POST");
-    await route.fulfill({ json: makeSyncResponse("order-mobile", "18.50") });
+    const body = route.request().postDataJSON() as {
+      sales: Array<{ client_uuid: string }>;
+    };
+    await route.fulfill({
+      json: makeSyncResponse(body.sales[0].client_uuid, "order-mobile", "18.50"),
+    });
   });
 
   await page.goto("/register");
@@ -785,7 +790,7 @@ test("inventory fits at 390px with empty state", async ({ page }) => {
   await page.route("**/api/v1/inventory/movements**", (route) => route.fulfill({ json: [] }));
 
   await page.goto("/inventory");
-  await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inventario", exact: true })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
