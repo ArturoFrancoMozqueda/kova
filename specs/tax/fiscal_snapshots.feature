@@ -13,4 +13,3 @@ Feature: Snapshots fiscales inmutables
     Given una venta con desglose fiscal sin timbrado PAC
     Then el documento se identifica como recibo operativo
     And no muestra UUID fiscal ni estado emitido
-

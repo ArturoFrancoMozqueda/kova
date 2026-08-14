@@ -60,4 +60,3 @@ puede resolverse. Nunca descarta ni duplica la venta.
 - Tenant B no puede consultar snapshots de A por ruta ni SQL con `kova_app`.
 - Una excepción a mitad de persistencia hace rollback de orden, snapshots, pago e inventario.
 - Export sin CFDI no usa palabras `timbrado`, `emitido` o `factura`.
-

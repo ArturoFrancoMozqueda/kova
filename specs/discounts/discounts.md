@@ -80,4 +80,3 @@ Una futura cola versionada deberá llevar intención y una capacidad firmada; el
 - Cashier sin permiso recibe `403`; tenant B recibe `404`.
 - Ticket/reporte muestran gross, descuento y neto reconciliables.
 - E2E online; control deshabilitado y explicación al quedar offline.
-

@@ -61,4 +61,3 @@ Referencias oficiales vigentes al redactar esta ADR:
 - Decisión escrita de costo (`último costo` o `promedio móvil`) antes de confirmar recepciones.
 - Formato real de al menos un adquirente/banco antes de construir conciliación productiva.
 - Evidencia de demanda antes de variantes; no usar variantes para adelantar multi-almacén.
-

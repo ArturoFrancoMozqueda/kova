@@ -21,4 +21,3 @@ Feature: Descuentos auditables
     Given que la caja perdió conexión
     Then Kova permite vender sin descuento
     And explica que los descuentos requieren conexión
-
