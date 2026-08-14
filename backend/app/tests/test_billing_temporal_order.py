@@ -242,6 +242,7 @@ def test_concurrent_replay_is_claimed_once(owner_engine, monkeypatch) -> None:
     subscription_id = f"sub_{uuid4().hex}"
     with Session(owner_engine) as seed:
         seed.add(Tenant(id=tenant_id, name="Concurrent Billing", slug=f"concurrent-{uuid4().hex}"))
+        seed.flush()
         seed.add(
             Subscription(
                 tenant_id=tenant_id,
