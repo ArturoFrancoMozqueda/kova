@@ -94,13 +94,14 @@ runtime role is a superuser, has `BYPASSRLS`, owns a tenant table, or any
 canonical tenant table lacks RLS, `FORCE ROW LEVEL SECURITY`, `USING`, or
 `WITH CHECK`. Local/CI retain diagnostic logging so migrations can bootstrap.
 
-### Updating the pinned `uv` build runtime
+### Updating pinned container build inputs
 
-`backend/Dockerfile` pins the `uv` image by release and multi-platform digest.
-Inspect an update with
-`docker buildx imagetools inspect ghcr.io/astral-sh/uv:<version>`, review the
-upstream release, then change both version and digest in one commit. Build the
-backend twice from that commit and compare image/SBOM inputs before deploying.
+`backend/Dockerfile` pins both the Python base and `uv` images by release and
+multi-platform digest. Inspect updates with `docker buildx imagetools inspect`,
+review the upstream releases, then change each tag and digest together in one
+commit. CI builds the backend twice without layer reuse, requires identical
+image IDs, generates an SPDX JSON SBOM from the reproduced image and stores it
+as a commit-addressed artifact before any migration or deploy job can run.
 
 The frontend uses same-origin relative API paths (`/api/v1/...`). Production routing is handled by
 `frontend/vercel.json`, which rewrites those paths to the Fly backend. No `VITE_API_BASE_URL` is
@@ -130,8 +131,12 @@ Configure a protected GitHub `production` environment with required reviewers an
   `PRODUCTION_SMOKE_PRODUCT_NAME` for a controlled, replenishable product. Without that explicit
   authorization, the same non-skippable test executes read-only.
 
-Disable Vercel's independent Git production auto-promotion before enabling this workflow; otherwise
-it can race the tested candidate. Keep credentials only in the protected environment. A failed
+Operational status recorded on 2026-08-13: the smoke tenant credentials are configured only in the
+protected Production environment and mutation secrets remain unset, so the smoke is read-only. The
+`VERCEL_TOKEN` must be renewed no later than **2027-08-14**; never record its value in this document.
+
+`frontend/vercel.json` sets `git.deploymentEnabled` to `false`, so connected Git cannot race the
+tested candidate or its CI-controlled promotion. Keep credentials only in the protected environment. A failed
 post-deploy gate prevents Vercel promotion and restores Fly's exact pre-deploy image when it was
 captured successfully. If image capture is empty, stop and use `fly releases` plus
 `fly deploy --image <previous-image>`; never guess an image or roll back a destructive migration.
@@ -144,7 +149,7 @@ history. Replenish only the dedicated product through the normal audited stock w
 1. Tag a release: `git tag vX.Y.Z && git push --tags`.
 2. CI builds the backend image and a frontend bundle.
 3. Deploy backend image to Fly.io (`fly deploy`) with `DATABASE_URL` pointing at the target Supabase project. The `release_command` in `backend/fly.toml` runs `alembic upgrade head` against `DATABASE_URL` automatically before the new version is promoted; if the migration fails the deploy is aborted and the previous version keeps serving traffic. For long-running backfills, skip the auto-migration by deploying with `flyctl deploy --no-release-command` and run the migration manually via `fly ssh console`.
-4. Deploy frontend bundle to Vercel (auto-deploys from `main` once configured).
+4. Deploy the frontend candidate from the CI workflow; connected Git deployments are disabled.
 5. Verify:
    - `curl https://api.<domain>/health`
    - `curl https://api.<domain>/health/db` — proves the backend can reach Supabase.
