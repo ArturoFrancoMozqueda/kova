@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
@@ -15,6 +16,14 @@ class StripePriceError(Exception):
 
 class StripeSubscriptionError(Exception):
     pass
+
+
+STRIPE_READ_TIMEOUT_SECONDS = 3
+STRIPE_READ_MAX_ATTEMPTS = 2
+
+
+def _retryable_http_error(exc: HTTPError) -> bool:
+    return exc.code == 429 or 500 <= exc.code < 600
 
 
 class StripePriceClient:
@@ -146,19 +155,28 @@ class StripeSubscriptionClient:
         stripe_subscription_id: str,
     ) -> dict[str, Any]:
         subscription_id = quote(stripe_subscription_id, safe="")
-        request = Request(
-            f"https://api.stripe.com/v1/subscriptions/{subscription_id}",
-            headers={"Authorization": f"Bearer {secret_key}"},
-            method="GET",
-        )
-        try:
-            with urlopen(request, timeout=10) as response:
-                body = response.read().decode()
-        except HTTPError as exc:
-            detail = exc.read().decode(errors="replace")
-            raise StripeSubscriptionError(detail) from exc
-        except URLError as exc:
-            raise StripeSubscriptionError(str(exc.reason)) from exc
+        body: str | None = None
+        for attempt in range(STRIPE_READ_MAX_ATTEMPTS):
+            request = Request(
+                f"https://api.stripe.com/v1/subscriptions/{subscription_id}",
+                headers={"Authorization": f"Bearer {secret_key}"},
+                method="GET",
+            )
+            try:
+                with urlopen(request, timeout=STRIPE_READ_TIMEOUT_SECONDS) as response:
+                    body = response.read().decode()
+                break
+            except HTTPError as exc:
+                if not _retryable_http_error(exc) or attempt == STRIPE_READ_MAX_ATTEMPTS - 1:
+                    detail = exc.read().decode(errors="replace")
+                    raise StripeSubscriptionError(detail) from exc
+            except URLError as exc:
+                if attempt == STRIPE_READ_MAX_ATTEMPTS - 1:
+                    raise StripeSubscriptionError(str(exc.reason)) from exc
+            time.sleep(0.1 * (attempt + 1))
+
+        if body is None:  # Defensive: the bounded loop either returns a body or raises.
+            raise StripeSubscriptionError("Stripe subscription lookup failed")
 
         parsed = json.loads(body)
         if not isinstance(parsed, dict):
