@@ -142,7 +142,9 @@ export default function SaleFlowStory({
                 <h3>{step.heading}</h3>
                 <p>{step.line}</p>
               </div>
-              <figure className={styles.mobileCapture}>
+              {/* data-step selecciona el recorte legible del paso (ver
+                  SaleFlowStory.module.css, bloque ≤800px). */}
+              <figure className={styles.mobileCapture} data-step={step.id}>
                 <img
                   src={step.image}
                   alt={step.alt}

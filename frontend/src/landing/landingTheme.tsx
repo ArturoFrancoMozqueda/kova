@@ -81,6 +81,11 @@ export const LANDING_STYLES = `
   .lp-root {
     font-family: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
     --lp-font-display: 'Bricolage Grotesque Variable', 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    /* Riel de página: un solo margen lateral, una sola medida y un solo ritmo
+       vertical para navbar, hero, secciones (inline y CSS modules) y footer. */
+    --lp-gutter: clamp(20px, 4vw, 64px);
+    --lp-measure: 1200px;
+    --lp-section-block: clamp(76px, 8vw, 112px);
     --lp-blue-bg: var(--kova-ink);
     --lp-blue-display: var(--kova-on-ink);
     --lp-blue-fg: var(--kova-on-ink);
@@ -121,52 +126,50 @@ export const LANDING_STYLES = `
   .lp-skip-link:focus { transform: translateY(0); }
   .lp-root :target { scroll-margin-top: 84px; }
 
+  /* ── Riel de página ───────────────────────────────────────────────────────
+     Un solo margen y una sola medida para navbar, hero, secciones y footer.
+     Los módulos CSS de la landing (LandingSections/SaleFlowStory) usan estos
+     mismos valores: si cambian aquí, cambian allá. */
   .lp-section {
-    padding: 72px 32px;
+    padding: var(--lp-section-block) var(--lp-gutter);
     border-top: 0.5px solid var(--hairline-color);
   }
-  .lp-section-compact { padding: 72px 32px; }
-  /* Tramo medio comprimido (funnel: la atrición vive entre el film y el
-     precio) — aplica a #una-venta, #panel-dueno y #problema sin tocar el
-     padding global de .lp-section. */
   .lp-section-inner {
-    max-width: 1180px;
+    max-width: var(--lp-measure);
     margin: 0 auto;
   }
+  /* Kicker de sección: guión de acento + versalita. Una sola regla para toda
+     la página (secciones inline y módulos CSS comparten esta definición). */
   .lp-section-label {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 22px;
+    margin-bottom: 16px;
     font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
+    font-weight: 750;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--accent);
   }
-  /* Guión de acento del kicker: una sola regla que da ritmo a toda la página. */
   .lp-section-label::before {
     content: "";
     width: 22px;
     height: 1px;
-    background: var(--accent);
+    background: currentColor;
+    opacity: 0.55;
     flex-shrink: 0;
   }
+  /* Escala de titulares: idéntica a la de los módulos CSS de la landing, para
+     que #precio, #faq y el CTA final no lean como otra tipografía. */
   .lp-section-title {
     font-family: var(--lp-font-display);
-    font-size: clamp(32px, 4vw, 54px);
+    font-size: clamp(34px, 4.3vw, 56px);
     font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: 1.04;
+    letter-spacing: -0.04em;
+    line-height: 1.02;
     margin: 0;
     color: var(--page-fg);
   }
-  /* Crescendo tipográfico: el valle utilitario (bento/comercios/diferencia/
-     faq) baja la voz y #precio la sube — la página construye hacia la oferta. */
-  .lp-section-title[data-scale="quiet"] { font-size: clamp(26px, 3vw, 40px); }
-  .lp-section-title[data-scale="grand"] { font-size: clamp(38px, 5.2vw, 72px); letter-spacing: -0.02em; }
-  .lp-section[data-density="tight"] { padding: 56px 32px; }
-  .lp-section[data-density="grand"] { padding: 104px 32px 96px; }
   .lp-hero-title { font-family: var(--lp-font-display); }
   .lp-section-copy {
     margin: 16px 0 0;
@@ -224,38 +227,6 @@ export const LANDING_STYLES = `
     from { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.985); }
     to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   }
-  /* Compatibilidad con la ruta interna de captura cinematográfica. El hero
-     público no monta chrome ni leyendas sobre la evidencia del producto. */
-  .lp-hero-frame-bar {
-    min-height: 44px;
-    padding: 0 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    border-bottom: 0.5px solid var(--hairline-color);
-    background: #FFFFFF;
-  }
-  .lp-hero-frame-url {
-    flex: 1;
-    color: var(--text-tertiary);
-    font-size: 11px;
-    font-weight: 500;
-    text-align: center;
-  }
-  .lp-hero-capture-label {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    z-index: 2;
-    padding: 6px 10px;
-    border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 6px;
-    background: rgba(15,17,23,0.88);
-    color: #F0F4FF;
-    font-size: 10px;
-    font-weight: 650;
-  }
   .lp-hero-frame-screen {
     aspect-ratio: 3 / 2;
   }
@@ -310,6 +281,8 @@ export const LANDING_STYLES = `
     max-width: 760px;
   }
 
+  /* Banda de cierre: la única superficie elevada de la página, así el último
+     bloque se lee como oferta y no como otra sección más de la retahíla. */
   .lp-cta-band {
     --page-fg: #F4F6FB;
     --text-muted: #A8B0C0;
@@ -317,21 +290,47 @@ export const LANDING_STYLES = `
     --accent-soft: rgba(142,175,255,0.14);
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 34px;
     align-items: center;
-    padding: 56px 40px;
-    border-radius: 18px;
-    border: 0.5px solid rgba(255,255,255,0.1);
-    background: #11141B;
-    box-shadow: 0 34px 74px -50px rgba(15,17,23,0.55);
+    padding: clamp(44px, 6vw, 72px) clamp(24px, 5vw, 64px);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.09);
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(79,126,247,0.10), transparent 62%),
+      #14171F;
+    box-shadow: 0 40px 90px -56px rgba(0,0,0,0.85);
   }
+  /* Secuencia operativa en cuatro tramos iguales: cada paso lleva su propia
+     regla superior, así la fila lee como progresión y no como texto suelto. */
   .lp-cta-steps {
+    width: 100%;
+    max-width: 720px;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px 26px;
+    gap: 0;
     list-style: none;
     padding: 0;
     margin: 0;
+  }
+  .lp-cta-step {
+    min-width: 0;
+    padding: 14px 16px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid rgba(255,255,255,0.14);
+  }
+  .lp-cta-step-index {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.14em;
+  }
+  .lp-cta-step-label {
+    color: var(--page-fg);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.3;
   }
 
   .lp-root.lp-motion-ready [data-lp-reveal="true"] {
@@ -409,9 +408,11 @@ export const LANDING_STYLES = `
     box-shadow: 0 10px 30px -22px rgba(0,0,0,0.75);
   }
   .lp-nav-shell {
-    max-width: 1280px;
+    /* La medida es de contenido, así que el ancho máximo incluye los márgenes
+       laterales: el logo cae exactamente sobre el riel de las secciones. */
+    max-width: calc(var(--lp-measure) + 2 * var(--lp-gutter));
     margin: 0 auto;
-    padding: 14px 32px;
+    padding: 14px var(--lp-gutter);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -451,7 +452,7 @@ export const LANDING_STYLES = `
   .lp-mobile-menu { display: none; }
 
   .lp-hero-section {
-    padding: 76px 32px 82px;
+    padding: 76px var(--lp-gutter) 82px;
     background: var(--lp-blue-bg);
     border-bottom: 1px solid var(--lp-blue-border);
   }
@@ -504,13 +505,6 @@ export const LANDING_STYLES = `
     color: var(--text-muted);
     font-size: 11px;
   }
-  .lp-benefit-strip {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 28px;
-  }
-
   .lp-cta-fill {
     position: relative;
     overflow: hidden;
@@ -575,12 +569,26 @@ export const LANDING_STYLES = `
     border-top: 2px dotted var(--ticket-rule);
     margin: 0;
   }
+  /* Renglón de recibo: texto a la izquierda, puntos de relleno y palomita.
+     Se alinean al pie del texto para que una línea que envuelve no deje el
+     relleno colgando en el primer renglón. */
+  .lp-tkt-feature {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--ticket-ink);
+  }
+  .lp-tkt-feature > svg {
+    flex-shrink: 0;
+    margin-bottom: 3px;
+  }
   .lp-tkt-leader {
     flex: 1;
     min-width: 18px;
     border-bottom: 2px dotted var(--ticket-rule);
-    transform: translateY(-4px);
-    margin: 0 8px;
+    margin: 0 8px 5px;
   }
   .lp-tkt-money {
     font-variant-numeric: tabular-nums;
@@ -707,17 +715,12 @@ export const RESPONSIVE_STYLES = `
     .lp-pos-preview { grid-template-columns: minmax(0, 1fr) minmax(320px, 38%); }
   }
   @media (max-width: 900px) {
-    .lp-section { padding: 64px 24px !important; }
-    .lp-section-compact { padding: 60px 24px !important; }
-    .lp-section[data-density="tight"] { padding: 52px 24px !important; }
-    .lp-section[data-density="grand"] { padding: 84px 24px 76px !important; }
     .lp-section-inner { max-width: 100% !important; }
     .lp-hero-grid {
       grid-template-columns: 1fr !important;
     }
-    .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin-top: 28px !important; }
     .lp-footer-grid { grid-template-columns: 1fr 1fr !important; }
-    .lp-hero-section { min-height: auto !important; padding: 38px 24px 48px !important; }
+    .lp-hero-section { min-height: auto !important; padding-top: 38px !important; padding-bottom: 48px !important; }
     .lp-hero-grid { gap: 32px !important; margin-top: 16px !important; }
     .lp-hero-title {
       font-size: 38px !important;
@@ -734,20 +737,13 @@ export const RESPONSIVE_STYLES = `
     .lp-root * {
       font-family: ui-sans-serif, system-ui, sans-serif !important;
     }
-    .lp-section { padding: 52px 20px !important; }
-    .lp-section-compact { padding: 48px 20px !important; }
-    .lp-section[data-density="tight"] { padding: 44px 20px !important; }
-    .lp-section[data-density="grand"] { padding: 68px 20px 60px !important; }
-    /* Compresión móvil: los previews casi full-bleed son el mayor costo de
-       altura del tramo medio; un cap de ancho reduce su altura intrínseca. */
-    /* El ticket del corte duplica en móvil al ticket térmico de #precio; el
-       argumento del descuadre lo cargan los recortes + el punch. */
+    /* Mismo ritmo vertical comprimido que los módulos CSS de la landing. */
+    .lp-root { --lp-section-block: 72px; }
     .lp-section-title { font-size: 32px !important; line-height: 1.06 !important; }
-    .lp-section-title[data-scale="quiet"] { font-size: 27px !important; }
-    .lp-section-title[data-scale="grand"] { font-size: 37px !important; }
     .lp-section-copy { font-size: 15px !important; }
     .lp-nav-shell {
-      padding: 12px 16px !important;
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
       gap: 12px !important;
     }
     .lp-desktop-nav {
@@ -795,7 +791,7 @@ export const RESPONSIVE_STYLES = `
       border-bottom: 0.5px solid var(--hairline-color);
     }
     .lp-mobile-menu-inner .lp-mobile-link:last-child { border-bottom: none; }
-    .lp-hero-section { padding: 24px 20px 38px !important; }
+    .lp-hero-section { padding-top: 24px !important; padding-bottom: 38px !important; }
     .lp-hero-title { font-size: 31px !important; }
     .lp-hero-copy {
       font-size: 15px !important;
@@ -807,7 +803,6 @@ export const RESPONSIVE_STYLES = `
        sin ocupar toda la pantalla. */
     .lp-hero-visual { order: 2; max-width: 100% !important; margin-top: 6px !important; }
     .lp-hero-frame-screen { max-height: 320px !important; }
-    .lp-benefit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 22px !important; }
     .lp-hero-actions {
       display: grid !important;
       grid-template-columns: 1fr !important;
@@ -840,7 +835,6 @@ export const RESPONSIVE_STYLES = `
     .lp-story-card .lp-rep-secondary { display: none !important; }
     .lp-story-card .lp-rep-bar[data-extra="1"] { display: none !important; }
     .lp-footer-grid { grid-template-columns: 1fr !important; }
-    .lp-cta-band { padding: 40px 22px !important; }
     .lp-cta-steps { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
     .lp-tkt-body { padding: 20px 18px !important; }
     .lp-tkt-total-num { font-size: 48px !important; }
