@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_SUPPORT_EMAIL = "posprojectsupport@gmail.com"
 REQUIRED_EMAIL_SENDERS = (
@@ -108,7 +107,8 @@ def validate_restore_target(
         port = None
     if port != 5432:
         errors.append("RESTORE_URL debe usar el session pooler en puerto 5432")
-    if not parsed.hostname or "supabase.com" not in parsed.hostname:
+    hostname = (parsed.hostname or "").lower()
+    if hostname != "supabase.com" and not hostname.endswith(".supabase.com"):
         errors.append("RESTORE_URL no parece apuntar a Supabase")
     if not parsed.username or not parsed.username.endswith(f".{project_ref}"):
         errors.append("el usuario de RESTORE_URL no coincide con project-ref")

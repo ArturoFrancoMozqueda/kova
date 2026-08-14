@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import importlib.util
 import hashlib
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
-
 
 SCRIPT = Path(__file__).resolve().parents[1] / "check_ops_readiness.py"
 SPEC = importlib.util.spec_from_file_location("check_ops_readiness", SCRIPT)
@@ -69,6 +68,20 @@ class RestorePreflightTests(unittest.TestCase):
             )
         self.assertIn("RESTORE_URL debe exigir SSL", errors)
         self.assertIn("el archivo no tiene cabecera de dump custom de PostgreSQL", errors)
+
+    def test_rejects_hostname_that_only_contains_supabase_name(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            errors = OPS.validate_restore_target(
+                restore_url=(
+                    "postgresql://postgres.restore123:secret@supabase.com.attacker.test:5432/"
+                    "postgres?sslmode=require"
+                ),
+                backup=self._dump(directory),
+                project_ref="restore123",
+                production_project_ref="prod123",
+                expected_sha256=None,
+            )
+        self.assertIn("RESTORE_URL no parece apuntar a Supabase", errors)
 
     def test_verifies_expected_sha256(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
