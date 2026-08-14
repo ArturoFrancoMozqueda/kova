@@ -230,7 +230,8 @@ function Hero({
               style={{
                 fontSize: "clamp(36px, 4.6vw, 60px)",
                 fontWeight: 600,
-                letterSpacing: "-0.015em",
+                // Mismo tracking de display que los titulares de sección.
+                letterSpacing: "-0.04em",
                 lineHeight: 1,
                 margin: 0,
                 color: "var(--page-fg)",
@@ -307,10 +308,10 @@ function FAQ({
   const items = t.faq.items;
 
   return (
-    <section id="faq" className="lp-section lp-section-compact">
-      <div className="lp-section-inner" style={{ maxWidth: 980 }}>
+    <section id="faq" className="lp-section">
+      <div className="lp-section-inner">
         <div data-lp-stagger-group>
-          <span className="lp-section-label" data-lp-stagger-item style={{ marginBottom: 24 }}>
+          <span className="lp-section-label" data-lp-stagger-item>
             {t.faq.eyebrow}
           </span>
           <h2 className="lp-section-title" data-lp-stagger-item style={{ maxWidth: 720 }}>
@@ -459,14 +460,10 @@ function Pricing({
 
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
                 {feats.map((f, i) => (
-                  <li
-                    key={f}
-                    className="lp-tkt-line"
-                    style={{ ...tktLine(2 + i), display: "flex", alignItems: "baseline", fontSize: 14, color: "var(--ticket-ink)", lineHeight: 1.4 }}
-                  >
+                  <li key={f} className="lp-tkt-line lp-tkt-feature" style={tktLine(2 + i)}>
                     <span>{f}</span>
                     <span className="lp-tkt-leader" aria-hidden="true" />
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, alignSelf: "center" }} aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                       <path d="M2 6L5 9L10 3" stroke="var(--ticket-ok)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </li>
@@ -541,8 +538,8 @@ function Footer({
   onWhatsAppClick: (section: string) => void;
 }) {
   return (
-    <footer style={{ padding: "80px 32px 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+    <footer style={{ padding: "80px var(--lp-gutter) 56px", borderTop: "0.5px solid var(--hairline-color)" }}>
+      <div style={{ maxWidth: "var(--lp-measure)", margin: "0 auto" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 48, alignItems: "start" }} className="lp-footer-grid">
           <div>
             <span style={{ color: "var(--page-fg)", display: "inline-flex" }}>

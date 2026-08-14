@@ -23,22 +23,15 @@ export default function FinalCta({
             {t.body}
           </p>
 
-          {/* Los números son secuencia operativa, no decoración. */}
+          {/* Los números son secuencia operativa, no decoración: cada paso es un
+              tramo con su propia regla, así la fila lee como progresión. */}
           <ol className="lp-cta-steps" data-lp-stagger-group>
             {t.steps.map((step, i) => (
-              <li key={step} data-lp-stagger-item style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                <span
-                  className="tabular"
-                  aria-hidden="true"
-                  style={{
-                    minWidth: 22, flexShrink: 0,
-                    color: "#8eafff", fontSize: 11, fontWeight: 750,
-                    letterSpacing: "0.12em",
-                  }}
-                >
+              <li key={step} className="lp-cta-step" data-lp-stagger-item>
+                <span className="lp-cta-step-index tabular" aria-hidden="true">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--page-fg)", lineHeight: 1.25 }}>{step}</span>
+                <span className="lp-cta-step-label">{step}</span>
               </li>
             ))}
           </ol>

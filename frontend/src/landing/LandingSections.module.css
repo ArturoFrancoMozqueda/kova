@@ -1,21 +1,34 @@
 .section {
-  padding: clamp(76px, 8vw, 112px) clamp(20px, 4vw, 64px);
+  /* Riel compartido con .lp-section (landingTheme.tsx). */
+  padding: var(--lp-section-block) var(--lp-gutter);
   scroll-margin-top: 88px;
 }
 
 .inner {
-  width: min(100%, 1200px);
+  width: min(100%, var(--lp-measure));
   margin: 0 auto;
 }
 
+/* Mismo kicker que .lp-section-label: guión de acento + versalita. */
 .eyebrow {
-  display: block;
-  margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
   color: var(--accent);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  flex-shrink: 0;
+  background: currentColor;
+  opacity: 0.55;
 }
 
 .title {
@@ -37,8 +50,10 @@
   line-height: 1.65;
 }
 
+/* Un solo lienzo tinta: las secciones no pintan fondo propio (lo asegura
+   `.lp-root main > section` y el e2e "one continuous Kova ink canvas"); la
+   separación la carga la línea de corte. */
 .problem {
-  background: var(--surface);
   border-bottom: 1px solid var(--hairline-color);
 }
 
@@ -104,12 +119,17 @@
   padding-top: 20px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 18px;
+  gap: 6px 10px;
   border-top: 1px solid var(--hairline-color);
 }
 
+/* La flecha va DELANTE de cada escala siguiente, no detrás de la anterior: al
+   envolver, la línea nueva empieza con "→ TICKETS…" en vez de dejar una flecha
+   colgando al final de la línea anterior. */
 .problemRoute span {
-  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: var(--page-fg);
   font-size: 10px;
   font-weight: 700;
@@ -117,11 +137,10 @@
   text-transform: uppercase;
 }
 
-.problemRoute span:not(:last-child)::after {
+.problemRoute span:not(:first-child)::before {
   content: "→";
-  position: absolute;
-  left: calc(100% + 7px);
   color: var(--accent);
+  letter-spacing: 0;
 }
 
 .problemSteps {
@@ -218,7 +237,7 @@
   letter-spacing: -0.02em;
 }
 
-.capabilities { background: var(--surface); }
+.capabilities { border-top: 1px solid var(--hairline-color); }
 
 .capabilityList {
   display: grid;
@@ -248,6 +267,14 @@
 
 .capability:nth-child(even) { padding-left: 36px; }
 
+/* La prueba se ancla al pie de la celda: dos capacidades de la misma fila
+   comparten la línea aunque su descripción ocupe distinto número de renglones. */
+.capability > div {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .capabilityIndex {
   color: var(--accent);
   font-size: 11px;
@@ -273,8 +300,10 @@
 
 .capabilityProof {
   display: block;
-  margin-top: 16px;
-  padding-top: 12px;
+  /* `auto` empuja la prueba al pie; los 18px de padding garantizan el aire
+     mínimo cuando la celda ya está llena. */
+  margin-top: auto;
+  padding-top: 18px;
   border-top: 1px solid var(--hairline-color);
   color: var(--page-fg);
   font-size: 12px;
@@ -303,7 +332,7 @@
   overflow: hidden;
   border: 1px solid var(--lp-blue-border-strong);
   border-radius: 14px;
-  background: hsl(var(--card));
+  background: #f8fafb;
   box-shadow: 0 34px 70px -48px rgba(15, 17, 23, 0.38);
   transition:
     transform 420ms var(--kova-ease-entrance),
@@ -380,6 +409,8 @@
 .quote {
   margin: 0;
   padding: clamp(28px, 4vw, 44px);
+  display: flex;
+  flex-direction: column;
   text-align: left;
   transition:
     transform 240ms var(--kova-ease-entrance),
@@ -412,16 +443,21 @@
 }
 
 .quote p {
-  margin: 0;
+  /* Comilla de apertura colgada: la primera línea alinea ópticamente con el
+     resto del bloque en vez de arrancar desplazada. */
+  margin: 0 0 0 -0.42em;
   color: var(--page-fg);
   font-family: var(--lp-font-display);
   font-size: clamp(20px, 2.4vw, 28px);
   letter-spacing: -0.025em;
   line-height: 1.35;
+  text-wrap: pretty;
 }
 
+/* El crédito se ancla al pie: dos citas de distinto largo comparten línea. */
 .quote footer {
-  margin-top: 24px;
+  margin-top: auto;
+  padding-top: 24px;
   color: var(--accent);
   font-size: 14px;
   font-weight: 700;
