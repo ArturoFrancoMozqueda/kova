@@ -237,7 +237,7 @@ export default function AppShell() {
         ].map((section) => section.items.length > 0 ? (
           <div key={section.id} className={cn("space-y-1", section.id === "business" && "mt-5")}>
             {!sidebarCollapsed && (
-              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted/70">
+              <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">
                 {section.label}
               </p>
             )}

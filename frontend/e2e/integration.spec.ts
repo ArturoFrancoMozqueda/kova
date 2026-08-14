@@ -15,8 +15,8 @@ test.describe("stack efímero sin mocks", () => {
 
     await createTenantThroughUi(page, "tenant-a");
     await page.goto("/catalog");
-    await expect(page.getByRole("heading", { name: /cat[aá]logo/i })).toBeVisible();
-    await page.getByRole("button", { name: /nuevo producto/i }).click();
+    await expect(page.getByRole("heading", { name: "Catálogo", exact: true, level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: /^nuevo producto$/i }).first().click();
     await page.getByLabel(/nombre del producto/i).fill(productName);
     await page.getByLabel(/^precio/i).fill("37.50");
     await page.getByRole("button", { name: /guardar producto/i }).click();
@@ -25,7 +25,7 @@ test.describe("stack efímero sin mocks", () => {
     await logoutThroughUi(page);
     await createTenantThroughUi(page, "tenant-b");
     await page.goto("/catalog");
-    await expect(page.getByRole("heading", { name: /cat[aá]logo/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Catálogo", exact: true, level: 1 })).toBeVisible();
     await expect(page.getByText(productName, { exact: true })).toHaveCount(0);
   });
 });
