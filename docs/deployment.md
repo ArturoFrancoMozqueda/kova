@@ -100,9 +100,12 @@ canonical tenant table lacks RLS, `FORCE ROW LEVEL SECURITY`, `USING`, or
 multi-platform digest. Inspect updates with `docker buildx imagetools inspect`,
 review the upstream releases, then change each tag and digest together in one
 commit. CI builds the backend twice without layer reuse, requires identical
-image IDs with BuildKit's `SOURCE_DATE_EPOCH=0`, generates an SPDX JSON SBOM
-from the reproduced image and stores it as a commit-addressed artifact before
-any migration or deploy job can run.
+OCI manifests and archives, and generates an SPDX JSON SBOM from the reproduced
+image. The build uses `SOURCE_DATE_EPOCH=0`, BuildKit's
+`rewrite-timestamp=true`, disables nondeterministic inline provenance for this
+comparison, and runs `uv sync --no-cache` so temporary cache paths never enter
+the image layer. The SBOM remains a separate commit-addressed artifact. All of
+these checks run before any migration or deploy job can start.
 
 The frontend uses same-origin relative API paths (`/api/v1/...`). Production routing is handled by
 `frontend/vercel.json`, which rewrites those paths to the Fly backend. No `VITE_API_BASE_URL` is
