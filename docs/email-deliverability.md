@@ -78,6 +78,11 @@ fallback y fija sus dimensiones para evitar saltos de layout.
       tokens reales ni disparar cobros.
 - [ ] Hacer revisión humana final de copy y contraste en cada cliente.
 
+Usar buzones de QA, tokens deliberadamente inválidos y el registro sin PII de
+[`runbooks/ops-beta-gate.md`](runbooks/ops-beta-gate.md). Un estado `delivered` del proveedor no
+equivale a Inbox. OPS-1 permanece en curso hasta documentar Outlook y Hotmail; esta revisión tampoco
+autoriza migrar el canal de soporte.
+
 ## 4. Monitoreo
 
 - [ ] Revisar Resend y los reportes DMARC diariamente durante las primeras dos semanas.

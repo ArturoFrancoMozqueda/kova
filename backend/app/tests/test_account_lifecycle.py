@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.account_lifecycle.models import AccountDeletionRequest
 from app.account_lifecycle.service import purge_due_accounts
 from app.auth.models import Membership, User
+from app.config import settings
 from app.tenants.models import Tenant
 
 
@@ -100,6 +101,7 @@ def test_deletion_requires_reauthentication_and_exact_name(client: TestClient) -
 def test_owner_schedules_and_cancels_deletion(client: TestClient) -> None:
     _signup_login(client, "delete-owner@example.com", "Tienda Reversible")
 
+    requested_after = datetime.now(UTC)
     scheduled = client.post(
         "/api/v1/account/deletion",
         json={"password": "S3cur3pass!", "tenant_name": "Tienda Reversible"},
@@ -107,6 +109,9 @@ def test_owner_schedules_and_cancels_deletion(client: TestClient) -> None:
     assert scheduled.status_code == 200, scheduled.text
     assert scheduled.json()["status"] == "pending"
     assert scheduled.json()["purge_after"]
+    purge_after = datetime.fromisoformat(scheduled.json()["purge_after"])
+    assert purge_after >= requested_after + timedelta(days=settings.account_deletion_grace_days)
+    assert settings.account_deletion_grace_days >= 30
     assert client.get("/api/v1/account/deletion").json()["status"] == "pending"
 
     canceled = client.delete("/api/v1/account/deletion")

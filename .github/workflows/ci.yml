@@ -44,6 +44,10 @@ jobs:
         run: uv sync
       - name: Lint
         run: uv run ruff check .
+      - name: Check local operational contracts
+        run: |
+          uv run python ../scripts/check_ops_readiness.py repository
+          uv run python -m unittest discover -s ../scripts/tests
       - name: Apply migrations
         run: uv run alembic upgrade head
       - name: Run integration suite

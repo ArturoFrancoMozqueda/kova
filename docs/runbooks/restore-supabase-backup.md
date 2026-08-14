@@ -71,6 +71,22 @@ aws s3 cp "s3://$env:R2_BUCKET/supabase/postgres/$BACKUP" "./$BACKUP" --endpoint
 ```
 
 Verify file size matches what the workflow reported (visible in the workflow run summary).
+For backups created after the SHA-256 metadata gate was deployed, retrieve the trusted checksum and
+compare it locally (do not copy credentials or URLs into the drill log):
+
+```powershell
+$EXPECTED_SHA256 = aws s3api head-object `
+  --bucket $env:R2_BUCKET `
+  --key "supabase/postgres/$BACKUP" `
+  --endpoint-url $env:R2_ENDPOINT `
+  --query "Metadata.sha256" `
+  --output text
+$LOCAL_SHA256 = (Get-FileHash ".\$BACKUP" -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($EXPECTED_SHA256 -ne $LOCAL_SHA256) { throw "Backup checksum mismatch" }
+```
+
+Los backups anteriores pueden no incluir este metadata; para ellos registrar la limitación y
+contrastar al menos tamaño, cabecera custom y el workflow exacto que los produjo.
 
 ---
 
@@ -93,6 +109,21 @@ $RESTORE_URL = "postgresql://postgres.<NEW-PROJECT-REF>:<NEW-PASSWORD>@<region>.
 ---
 
 ## Step 4 — Restore the dump
+
+Antes de cualquier comando destructivo, ejecutar el preflight local. `RESTORE_URL` se lee del
+entorno y nunca se imprime; los refs se obtienen del dashboard y no son secretos:
+
+```powershell
+python scripts/check_ops_readiness.py restore-preflight `
+  --backup ".\$BACKUP" `
+  --project-ref "<NEW-PROJECT-REF>" `
+  --production-project-ref "<PRODUCTION-PROJECT-REF>" `
+  --expected-sha256 "$EXPECTED_SHA256" `
+  --ack-disposable-target
+```
+
+Este paso sólo comprueba cabecera/formato, checksum, SSL, puerto y que el ref destino sea distinto
+de producción. No conecta ni restaura. Si falla, detenerse; no omitir el guard.
 
 ```powershell
 pg_restore `
@@ -175,8 +206,12 @@ Optional but recommended:
 
 ## Drill log
 
-Record every drill execution here:
+Medir desde el inicio de la recuperación hasta el smoke read-only aprobado (**RTO**). Calcular el
+tiempo entre el dato más reciente verificable del dump y el inicio del incidente/drill (**RPO**).
+No registrar URLs de conexión, credenciales, nombres de personas ni datos de clientes.
 
-| Date (UTC) | Operator | Backup restored | Outcome | Notes |
-|---|---|---|---|---|
-| _2026-MM-DD_ | _name_ | _kova-…dump_ | _OK / Issue_ | _link to workflow run_ |
+Record every drill execution here (store detailed evidence in restricted storage):
+
+| Date (UTC) | Operator | Backup restored | RTO | RPO | RLS/read smoke | Cleanup | Notes |
+|---|---|---|---|---|---|---|---|
+| _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |
