@@ -30,7 +30,9 @@ export const test = base.extend<GuardFixtures>({
   apiRequestGuard: [
     async ({ page }, use) => {
       const unexpected: string[] = [];
-      const guardEnabled = process.env.PLAYWRIGHT_SUITE !== "production-smoke";
+      const guardEnabled =
+        process.env.PLAYWRIGHT_SUITE !== "production-smoke" &&
+        process.env.KOVA_INTEGRATION !== "1";
 
       if (guardEnabled) {
         await page.route("**/api/v1/**", async (route) => {
