@@ -35,14 +35,14 @@ Open (tracked in `PLAN-DESIGN.md`): Épicas 1–4 (shared kit + per-tab redesign
 backend hardening PLAN-05/B5) and Épica 6 (operational gates below). PLAN-UX-04/05 detail specs live
 in `docs/audits/`.
 
-## Active CRO execution
-
 ## Audit remediation execution
 
 The approved execution backlog is
 [`docs/plans/PLAN-AUDIT-REMEDIATION-2026-08-13.md`](plans/PLAN-AUDIT-REMEDIATION-2026-08-13.md).
 Execute one epic per feature branch, merge only after its required checks and evidence are complete,
 and keep provider/production-dependent items open until their external gate is reproducible.
+
+## Active CRO execution
 
 The active conversion backlog is [`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CRO-FUNNEL.md).
 Execute one epic per PR, merge only after required checks are green, then continue in order.
