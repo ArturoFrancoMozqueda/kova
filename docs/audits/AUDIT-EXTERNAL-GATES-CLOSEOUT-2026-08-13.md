@@ -51,9 +51,10 @@ revisión humana, consentimiento o evidencia de negocio permanecen abiertos.
   valores.
 - Los runs programados observados terminaron correctamente: backup `31689517306`, purga
   `31687212936` y recordatorios `31677055806`.
-- La sesión local no tiene variables Stripe, correo, R2 o base de datos y no contiene archivos
-  `.env`. Están disponibles Docker, `psql`, `pg_restore`, `flyctl` y `gh`; faltan Stripe CLI y AWS
-  CLI.
+- La sesión local no tiene variables Stripe, correo, R2 o base de datos. Existe `backend/.env`
+  ignorado por git únicamente con la lista local de administradores internos; no contiene las
+  credenciales de proveedor anteriores. Están disponibles Docker, `psql`, `pg_restore`, `flyctl`
+  y `gh`; faltan Stripe CLI y AWS CLI.
 - El despliegue Fly observado corresponde al SHA remoto `4cc6bfe755d2b056802950bdef027bed15e10295`,
   no al commit base de este corte. Por tanto, tampoco sirve como evidencia de despliegue exacto del
   plan local.
@@ -179,3 +180,11 @@ preflights de DNS, presencia nominal de secretos y salud reciente de workflows p
 bloqueos restantes son concretos: staging inexistente, credenciales/herramientas test aisladas
 ausentes, operaciones que requieren autorización humana y evidencia comercial/consentimiento que
 no existe en git.
+
+## Actualización posterior al corte — 2026-08-14
+
+El propietario autorizó explícitamente despliegues y cambios en producción. Se configuraron en
+GitHub los secretos de Vercel necesarios y un tenant dedicado para smoke autenticado read-only; no
+se habilitaron ventas de smoke. La autorización operativa no elimina los otros prerequisitos: crear
+staging requiere aprobar un costo nuevo, y MKT-5/PROD-2/OPS-6 siguen necesitando consentimiento,
+investigación o revisión profesional que no puede generarse desde el repositorio.

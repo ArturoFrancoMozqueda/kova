@@ -1,7 +1,7 @@
 # Plan de remediación de auditoría integral — Kova
 
 Última actualización: 2026-08-13
-Estado: ejecución local integrada; gates externos y de producción pendientes
+Estado: ejecución local integrada; publicación y gates externos finales en curso
 Fuente: auditoría paralela técnica, consumidor/UX y marketing/CRO, complementada con recorrido
 autenticado de producción sobre el tenant de QA autorizado.
 
@@ -24,6 +24,28 @@ sobre tenants de clientes.
 | OPS | Controles y runbooks locales reproducibles | [`AUDIT-OPS`](../audits/AUDIT-OPS-REMEDIATION-2026-08-13.md) | OPS-1..6 conservan evidencia externa u operación autorizada pendiente |
 | PROD | PROD-1 cerrado como decisión; PROD-2 protocolizado | [`AUDIT-PROD`](../audits/AUDIT-PROD-REMEDIATION-2026-08-13.md), [`ADR-015`](../adr/ADR-015-expenses-standard-plan-rollout.md) | PROD-2 requiere 5–10 señales consistentes por segmento |
 
+### Corte adicional de cierre — 2026-08-14
+
+- Se incorporó el `origin/main` vigente (`4cc6bfe`) sin conflictos y se repitieron las 29 pruebas
+  focalizadas de landing, signup, legales y precio: todas verdes.
+- El backend migró hasta `head` sobre Postgres 16 efímero. La primera suite detectó dos fallos de
+  integración legítimos; tras corregir el contrato de `/health` y el orden del fixture concurrente,
+  la segunda suite completa terminó con salida 0.
+- Vercel tiene ahora un token CI restringido al proyecto, con renovación prevista antes de
+  2027-08-14; `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID` están almacenados en GitHub sin
+  exponer sus valores.
+- Se creó un tenant productivo dedicado al smoke autenticado y sus credenciales quedaron en el
+  environment `Production`. `PRODUCTION_SMOKE_ALLOW_MUTATIONS` permanece sin configurar: el smoke
+  es deliberadamente read-only.
+- La integración Git de Vercel queda deshabilitada por configuración para que no compita con el
+  candidato inmutable, smoke y promoción del workflow.
+- El gate de supply chain exige doble build reproducible y SBOM SPDX antes de migraciones o deploy.
+  BuildKit local se bloqueó sin producir contenedores; GitHub Actions Linux conserva este gate
+  fail-closed y será la evidencia autoritativa de publicación.
+- El backup real `kova-2026-08-13T10-05-39Z.dump` fue localizado. No existe staging gratuito:
+  Supabase Free ya ocupa sus dos slots y una branch temporal cuesta USD 0.01344/h, además del
+  consumo medido de Fly. No se reutilizó ni alteró el proyecto CENEVAL fuera de alcance.
+
 ### Ramas integradas localmente
 
 - `feature/audit-offline-remediation`
@@ -41,6 +63,11 @@ Las ramas `feature/audit-rel-test-integration`, `feature/audit-ops-preflight-hos
 última verificación integrada de offline y reportes quedó en 17/17 pruebas E2E mocked verdes. Los
 gates externos anteriores impiden declarar cerrado el plan global o avanzar a venta amplia; no son
 fallos ocultos de merge.
+
+Las ramas de cierre `feature/audit-integrated-stack-closeout`,
+`feature/audit-release-security-closeout`, `feature/audit-external-gates-closeout` y
+`feature/audit-staging-feasibility` agregan la evidencia integrada, el supply chain reproducible,
+el inventario externo y el preflight de costo/capacidad de staging.
 
 ## 1. Propósito
 
