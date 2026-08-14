@@ -179,6 +179,21 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(screen.getByRole("button", { name: "¿Kova funciona para mi negocio?" })).toBeVisible();
   });
 
+  it("states the commercial limits at the decision point", () => {
+    const { container } = renderHome();
+    const landingText = container.textContent ?? "";
+
+    expect(landingText).toContain("Beta privada controlada");
+    expect(landingText).toContain("tarjeta manual");
+    expect(screen.getByRole("button", { name: "¿Kova procesa cobros con tarjeta?" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "¿Kova emite facturas o CFDI?" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "¿Kova calcula IVA u otros impuestos?" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "¿Qué pasa cuando termina la prueba?" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "¿Puedo exportar mis datos si cancelo?" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "¿Cómo funciona el soporte durante la beta?" })).toBeVisible();
+    expect(landingText).not.toMatch(/terminal integrada/i);
+  });
+
   it("frames reports around grounded owner questions", () => {
     renderHome();
 
