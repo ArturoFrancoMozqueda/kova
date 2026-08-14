@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import { createTenantThroughUi, integrationEnabled } from "./integration-helpers";
 
 const require = createRequire(import.meta.url);
