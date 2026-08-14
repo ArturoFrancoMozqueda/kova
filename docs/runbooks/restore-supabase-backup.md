@@ -92,9 +92,21 @@ contrastar al menos tamaño, cabecera custom y el workflow exacto que los produj
 
 ## Step 3 — Create a fresh Supabase project
 
+Antes de crear recursos, comprobar el plan y la capacidad real de la organización. Supabase Free
+permite como máximo dos proyectos activos por cuenta/organización (incluyendo proyectos de
+organizaciones donde la persona sea Owner/Admin). Un precio mostrado como `0` no garantiza que
+quede cuota disponible. No pausar, reutilizar ni eliminar un proyecto de otra aplicación para hacer
+espacio, y no crear una branch o clone con costo sin una aprobación de gasto explícita.
+
+Registrar en la evidencia del drill, sin secretos: organización elegida, plan, número de proyectos
+activos, región y confirmación de que el destino es nuevo y desechable. Si no existe capacidad Free,
+detenerse antes de crear el proyecto. El restore físico «Restore to a New Project» es una alternativa
+pagada y puede replicar el tamaño/costo de producción; no debe confundirse con este restore lógico.
+
 1. Supabase dashboard → **New project** → name it `kova-restore-<YYYYMMDD>`.
 2. Use the same region as production (currently `us-west-1`) to keep latency similar.
-3. Choose Free tier — the drill does not need Pro.
+3. Choose Free tier only after confirming that an active-project slot is available — the drill does
+   not need Pro.
 4. Wait until the project is fully provisioned (status “Healthy”).
 5. **Settings → Database → Connection string** → copy the **session pooler (port 5432)** URL and the password (only shown once).
 
