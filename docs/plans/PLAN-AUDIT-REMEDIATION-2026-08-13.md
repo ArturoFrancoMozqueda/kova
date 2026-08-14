@@ -1,9 +1,44 @@
 # Plan de remediación de auditoría integral — Kova
 
 Última actualización: 2026-08-13  
-Estado: propuesto; ninguna tarea de este documento se considera cerrada por defecto  
+Estado: ejecución local integrada; gates externos y de producción pendientes  
 Fuente: auditoría paralela técnica, consumidor/UX y marketing/CRO, complementada con recorrido
 autenticado de producción sobre el tenant de QA autorizado.
+
+## Corte de ejecución — 2026-08-13
+
+Este corte sustituye los estados iniciales de “Pendiente” incluidos más abajo como baseline del
+backlog. Todo el trabajo local se integró en `main` mediante feature branches por épica. No se hizo
+push, deploy, cargo Stripe, cambio DNS, envío de correo, cierre de turno, restore, purga ni operación
+sobre tenants de clientes.
+
+| Épica | Estado verificable | Evidencia | Gate que permanece abierto |
+|---|---|---|---|
+| OFF | OFF-1..5 implementados y verificados localmente | [`AUDIT-OFF`](../audits/AUDIT-OFF-REMEDIATION-2026-08-13.md) | OFF-6: drill staging/PWA con conciliación real |
+| BILL | BILL-1..3 implementados; Ruff/contratos verdes | [`AUDIT-BILL`](../audits/AUDIT-BILL-REMEDIATION-2026-08-13.md) | BILL-4 y pytest/migración integrada con Postgres/Stripe test |
+| SEC | SEC-1/2/4/5/6 implementados; SEC-3 automatizado | [`AUDIT-SEC`](../audits/AUDIT-SEC-REMEDIATION-2026-08-13.md) | Smoke staging de dos tenants, build/SBOM del contenedor |
+| REL | REL-1..4 implementados; E2E mocked y contratos verdes | [`AUDIT-REL`](../audits/AUDIT-REL-REMEDIATION-2026-08-13.md) | Primer deploy exacto y smoke productivo autorizado |
+| TEST | TEST-1..4 automatizados y conectados a CI | [`AUDIT-TEST`](../audits/AUDIT-TEST-REMEDIATION-2026-08-13.md) | Ejecutar stack Docker/axe en CI y TEST-5 manual |
+| UX | UX-1..8 implementados; 37 tests, lint, typecheck y build verdes | [`AUDIT-UX`](../audits/AUDIT-UX-REMEDIATION-2026-08-13.md) | Pase manual de dispositivos/lector cubierto por TEST-5 |
+| MKT | MKT-1/2/3/4/6 y MKT-7 inmediato implementados | [`AUDIT-MKT`](../audits/AUDIT-MKT-REMEDIATION-2026-08-13.md) | MKT-5 consentimiento/caso; SEO profundo condicionado por entrevistas |
+| OPS | Controles y runbooks locales reproducibles | [`AUDIT-OPS`](../audits/AUDIT-OPS-REMEDIATION-2026-08-13.md) | OPS-1..6 conservan evidencia externa u operación autorizada pendiente |
+| PROD | PROD-1 cerrado como decisión; PROD-2 protocolizado | [`AUDIT-PROD`](../audits/AUDIT-PROD-REMEDIATION-2026-08-13.md), [`ADR-015`](../adr/ADR-015-expenses-standard-plan-rollout.md) | PROD-2 requiere 5–10 señales consistentes por segmento |
+
+### Ramas integradas localmente
+
+- `feature/audit-offline-remediation`
+- `feature/audit-billing-remediation`
+- `feature/audit-security-remediation`
+- `feature/audit-release-remediation`
+- `feature/audit-testing-remediation`
+- `feature/audit-ux-remediation`
+- `feature/audit-marketing-remediation`
+- `feature/audit-operations-remediation`
+- `feature/audit-product-remediation`
+
+Las ramas `feature/audit-rel-test-integration` y `feature/audit-ops-preflight-hostname` cerraron
+hallazgos de revisión cruzada antes del corte final. Los gates externos anteriores impiden declarar
+cerrado el plan global o avanzar a venta amplia; no son fallos ocultos de merge.
 
 ## 1. Propósito
 
@@ -101,7 +136,7 @@ adjuntar evidencia.
   productivo seguro.
 - [ ] **Pruebas:** TEST-1 integración efímera; TEST-2 ergonomía backend; TEST-3 OpenAPI; TEST-4 axe
   real; TEST-5 QA WCAG manual.
-- [ ] **UX:** UX-1 loading; UX-2 Gastos; UX-3 fechas accesibles; UX-4 headings/targets; UX-5
+- [x] **UX:** UX-1 loading; UX-2 Gastos; UX-3 fechas accesibles; UX-4 headings/targets; UX-5
   pluralización; UX-6 title sync; UX-7 updater React; UX-8 HTML válido.
 - [ ] **Marketing:** MKT-1 tarjeta manual; MKT-2 CFDI; MKT-3 claims de Seguridad; MKT-4 etapa;
   MKT-5 prueba social; MKT-6 objeciones; MKT-7 precio/SEO.
