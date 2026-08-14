@@ -6,11 +6,13 @@ import { verifyDeployment } from "./verify-deployment.mjs";
 const sha = "0123456789abcdef0123456789abcdef01234567";
 let origin;
 let server;
+let frontendBypassHeader;
 
 before(async () => {
   server = createServer((request, response) => {
     response.setHeader("content-type", "application/json");
     if (request.url === "/version.json") {
+      frontendBypassHeader = request.headers["x-vercel-protection-bypass"];
       response.end(JSON.stringify({ hash: sha.slice(0, 12) }));
     } else if (request.url === "/health") {
       response.end(JSON.stringify({ status: "ok", release_sha: sha }));
@@ -31,9 +33,15 @@ after(async () => {
 });
 
 test("accepts matching frontend, backend, and database deployment contracts", async () => {
-  const result = await verifyDeployment({ frontendUrl: origin, backendUrl: origin, sha });
+  const result = await verifyDeployment({
+    frontendUrl: origin,
+    backendUrl: origin,
+    sha,
+    frontendBypassSecret: "automation-test-secret",
+  });
   assert.equal(result.commit, sha);
   assert.equal(result.database, "reachable");
+  assert.equal(frontendBypassHeader, "automation-test-secret");
 });
 
 test("rejects a deployment from a different commit", async () => {
