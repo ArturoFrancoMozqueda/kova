@@ -1,6 +1,7 @@
 import json
 import logging
 
+from app.config import settings
 from app.observability.logging import configure_logging
 
 
@@ -20,6 +21,15 @@ def test_request_log_has_request_tenant_and_user_fields(client, capsys):
     assert payload["request_id"] == "test-request-id"
     assert "tenant_id" in payload
     assert "user_id" in payload
+
+
+def test_health_exposes_release_identity(client, monkeypatch):
+    monkeypatch.setattr(settings, "kova_release_sha", "abc123")
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "release_sha": "abc123"}
 
 
 def test_openapi_docs_endpoint_loads(client):

@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Page, expect, test } from "./fixtures";
 
 async function mockAuthAsOwner(page: Page) {
   await page.route("**/api/v1/auth/session", async (route) => {

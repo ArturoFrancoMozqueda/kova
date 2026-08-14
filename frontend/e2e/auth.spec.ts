@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 // Behaviour change (2026-08): signup no longer parks the new owner on a
 // check-your-email screen — a third of every account ever created never
