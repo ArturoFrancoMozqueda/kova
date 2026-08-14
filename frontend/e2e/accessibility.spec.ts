@@ -61,7 +61,7 @@ test.describe("axe en Chromium contra el stack real", () => {
   test("modales financieros conservan contraste y semántica", async ({ page }) => {
     await createTenantThroughUi(page, "axe-modal");
     await page.goto("/shifts");
-    const openRegister = page.getByRole("button", { name: /abrir caja/i });
+    const openRegister = page.getByRole("button", { name: /^abrir turno$/i });
     await expect(openRegister).toBeVisible();
     await openRegister.click();
     await expect(page.getByRole("dialog")).toBeVisible();
