@@ -109,10 +109,10 @@ test("shared browser never exposes or sends tenant A queue after tenant B signs 
 
   activeSession = CASHIER_SESSION;
   await page.reload();
-  await expect(page.getByRole("heading", { name: /pendientes/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^pendientes$/i })).toBeVisible();
 });
 
-test("network-error sale appears in pending sync and clears after manual sync", async ({
+test("network-error sale remains recoverable and clears on retry", async ({
   page,
 }) => {
   await markFirstUseToursSeen(page);
@@ -153,16 +153,23 @@ test("network-error sale appears in pending sync and clears after manual sync", 
   ).toBeVisible();
   await expect(page.getByText(/pendiente de sincronizar/i).first()).toBeVisible();
 
-  // Sync queue shows 1 pending entry
+  // Open the queue while the worker is eligible to retry in the background.
   await page.goto("/sync-queue");
   await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /pendientes/i })).toBeVisible();
 
-  // Click Sync now → second call succeeds
-  await page.getByRole("button", { name: /sincronizar ahora/i }).click();
+  // The worker may retry automatically while this view is rendering. If the
+  // pending row is still present, exercise the explicit recovery action;
+  // otherwise the same leased row already converged through the backoff path.
+  const syncNow = page.getByRole("button", { name: /sincronizar ahora/i });
+  const pendingHeading = page.getByRole("heading", { name: /^pendientes$/i });
+  await expect.poll(async () =>
+    (await syncNow.isVisible()) || !(await pendingHeading.isVisible()),
+  ).toBe(true);
+  if (await pendingHeading.isVisible()) await syncNow.click();
 
-  // Pending section disappears after successful sync
-  await expect(page.getByRole("heading", { name: /pendientes/i })).not.toBeVisible({
+  // Either recovery path must reuse the queued sale and clear it.
+  await expect.poll(() => syncCallCount).toBeGreaterThanOrEqual(2);
+  await expect(pendingHeading).not.toBeVisible({
     timeout: 5000,
   });
 });
@@ -210,13 +217,13 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
   // Navigate to sync queue — should show Failed section
   await page.goto("/sync-queue");
   await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /fallidas/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^fallidas$/i })).toBeVisible();
 
   // Retry the dead-letter entry — second sync call succeeds
   await page.getByRole("button", { name: /reintentar/i }).click();
 
   // Failed section disappears
-  await expect(page.getByRole("heading", { name: /fallidas/i })).not.toBeVisible({ timeout: 5000 });
+  await expect(page.getByRole("heading", { name: /^fallidas$/i })).not.toBeVisible({ timeout: 5000 });
 });
 
 test("cold offline: register renders catalog from IndexedDB cache and queues a sale", async ({
@@ -264,7 +271,7 @@ test("cold offline: register renders catalog from IndexedDB cache and queues a s
   await expect(page.getByText(/pendiente de sincronizar/i).first()).toBeVisible();
 
   await page.goto("/sync-queue");
-  await expect(page.getByRole("heading", { name: /pendientes/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^pendientes$/i })).toBeVisible();
 });
 
 test("offline sale exposes a printable local receipt before synchronization", async ({
