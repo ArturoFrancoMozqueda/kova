@@ -303,16 +303,16 @@ jobs:
       - run: npm ci
         working-directory: frontend
       - name: Pull production build configuration
-        run: npx --yes vercel@47.2.2 pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: npx --yes vercel@59.0.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build immutable production candidate
-        run: npx --yes vercel@47.2.2 build --prod --token="$VERCEL_TOKEN"
+        run: npx --yes vercel@59.0.0 build --prod --token="$VERCEL_TOKEN"
         env:
           COMMIT_SHA: ${{ github.sha }}
       - id: deploy
         name: Deploy candidate without production promotion
         shell: bash
         run: |
-          url="$(npx --yes vercel@47.2.2 deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN")"
+          url="$(npx --yes vercel@59.0.0 deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -380,7 +380,7 @@ jobs:
         with:
           node-version: "20"
       - name: Promote the tested artifact without rebuilding
-        run: npx --yes vercel@47.2.2 promote "${{ needs.deploy-vercel-preview.outputs.url }}" --yes --token="$VERCEL_TOKEN"
+        run: npx --yes vercel@59.0.0 promote "${{ needs.deploy-vercel-preview.outputs.url }}" --yes --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
