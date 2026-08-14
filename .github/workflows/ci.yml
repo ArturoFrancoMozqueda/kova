@@ -335,47 +335,9 @@ jobs:
         env:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
-  production-smoke:
-    name: production-smoke (authenticated, non-skippable)
-    needs: [deploy-fly, deploy-vercel-preview, post-deploy-read-only]
-    runs-on: ubuntu-latest
-    environment: production
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - id: identity
-        name: Derive idempotent smoke identity from commit
-        shell: bash
-        run: |
-          sha="$GITHUB_SHA"
-          echo "uuid=${sha:0:8}-${sha:8:4}-4${sha:13:3}-8${sha:17:3}-${sha:20:12}" >> "$GITHUB_OUTPUT"
-          echo "reference=KOVA-SMOKE-${sha:0:12}" >> "$GITHUB_OUTPUT"
-      - name: Run production smoke with zero skips allowed
-        run: npm run test:production-smoke
-        env:
-          PLAYWRIGHT_BASE_URL: ${{ needs.deploy-vercel-preview.outputs.url }}
-          PRODUCTION_SMOKE: "1"
-          PRODUCTION_SMOKE_EMAIL: ${{ secrets.PRODUCTION_SMOKE_EMAIL }}
-          PRODUCTION_SMOKE_PASSWORD: ${{ secrets.PRODUCTION_SMOKE_PASSWORD }}
-          PRODUCTION_SMOKE_TENANT_ID: ${{ secrets.PRODUCTION_SMOKE_TENANT_ID }}
-          PRODUCTION_SMOKE_ALLOW_MUTATIONS: ${{ secrets.PRODUCTION_SMOKE_ALLOW_MUTATIONS }}
-          PRODUCTION_SMOKE_PRODUCT_NAME: ${{ secrets.PRODUCTION_SMOKE_PRODUCT_NAME }}
-          PRODUCTION_SMOKE_CLIENT_UUID: ${{ steps.identity.outputs.uuid }}
-          PRODUCTION_SMOKE_REFERENCE: ${{ steps.identity.outputs.reference }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-
   promote-vercel:
     name: promote accepted Vercel candidate
-    needs: [deploy-vercel-preview, production-smoke]
+    needs: [deploy-vercel-preview, post-deploy-read-only]
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -404,10 +366,10 @@ jobs:
 
   rollback-fly:
     name: rollback Fly after failed post-deploy gate
-    needs: [deploy-fly, post-deploy-read-only, production-smoke]
+    needs: [deploy-fly, post-deploy-read-only]
     if: >-
       ${{ always() && needs.deploy-fly.result == 'success' &&
-          (needs.post-deploy-read-only.result != 'success' || needs.production-smoke.result != 'success') &&
+          needs.post-deploy-read-only.result != 'success' &&
           needs.deploy-fly.outputs.previous_image != '' }}
     runs-on: ubuntu-latest
     environment: production

@@ -123,21 +123,17 @@ steps below are recovery/reference steps only; do not run them in parallel with 
 
 The release graph is: named checks (`integration`, `e2e-mocked`, dependency/secret checks) â†’
 migration reversibility â†’ Fly deploy plus an unpromoted Vercel production candidate â†’ exact-commit
-health/read-only verification â†’ authenticated `production-smoke` â†’ promotion of the already-tested
-Vercel artifact â†’ final alias verification. Fly receives `KOVA_RELEASE_SHA` at image build time and
+health/read-only verification â†’ promotion of the already-tested Vercel artifact â†’ final alias
+verification. Fly receives `KOVA_RELEASE_SHA` at image build time and
 `/health` exposes it; Vercel's `version.json` exposes the first 12 characters of the same SHA.
 
 Configure a protected GitHub `production` environment with required reviewers and these secrets:
 
 - `FLY_API_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_URL`.
-- `PRODUCTION_SMOKE_EMAIL`, `PRODUCTION_SMOKE_PASSWORD`, `PRODUCTION_SMOKE_TENANT_ID` for a
-  dedicated smoke tenant only.
-- Optional mutations require `PRODUCTION_SMOKE_ALLOW_MUTATIONS=1` and
-  `PRODUCTION_SMOKE_PRODUCT_NAME` for a controlled, replenishable product. Without that explicit
-  authorization, the same non-skippable test executes read-only.
+- `VERCEL_AUTOMATION_BYPASS_SECRET` for read-only verification of the protected staged candidate.
 
-Operational status recorded on 2026-08-13: the smoke tenant credentials are configured only in the
-protected Production environment and mutation secrets remain unset, so the smoke is read-only. The
+Authenticated production QA uses an explicitly authorized human account and the manual checklist;
+credentials are never stored in GitHub Actions and CI does not create tenants, sales, or sessions. The
 `VERCEL_TOKEN` must be renewed no later than **2027-08-14**; never record its value in this document.
 
 `frontend/vercel.json` sets `git.deploymentEnabled` to `false`, so connected Git cannot race the
@@ -146,10 +142,8 @@ post-deploy gate prevents Vercel promotion and restores Fly's exact pre-deploy i
 captured successfully. If image capture is empty, stop and use `fly releases` plus
 `fly deploy --image <previous-image>`; never guess an image or roll back a destructive migration.
 
-The authorized sale uses a deterministic UUID and `KOVA-SMOKE-<commit>` payment reference, so a
-workflow retry reconciles to the same idempotency key. Smoke sales remain as identifiable ledger
-records; do not delete or void them automatically because that would create misleading accounting
-history. Replenish only the dedicated product through the normal audited stock workflow.
+If a manual sale is explicitly authorized, use a unique traceable reference. Do not delete or void
+the ledger entry automatically because that would create misleading accounting history.
 
 1. Tag a release: `git tag vX.Y.Z && git push --tags`.
 2. CI builds the backend image and a frontend bundle.

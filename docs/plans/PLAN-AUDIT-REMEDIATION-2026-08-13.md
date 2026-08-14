@@ -31,12 +31,12 @@ sobre tenants de clientes.
 - El backend migró hasta `head` sobre Postgres 16 efímero. La primera suite detectó dos fallos de
   integración legítimos; tras corregir el contrato de `/health` y el orden del fixture concurrente,
   la segunda suite completa terminó con salida 0.
-- Vercel tiene ahora un token CI restringido al proyecto, con renovación prevista antes de
+- Vercel tiene ahora un token CI dedicado, con renovación prevista antes de
   2027-08-14; `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID` están almacenados en GitHub sin
   exponer sus valores.
-- Se creó un tenant productivo dedicado al smoke autenticado y sus credenciales quedaron en el
-  environment `Production`. `PRODUCTION_SMOKE_ALLOW_MUTATIONS` permanece sin configurar: el smoke
-  es deliberadamente read-only.
+- La aceptación automática de producción es read-only y verifica SHA, salud y base de datos. El QA
+  autenticado se ejecuta manualmente con una cuenta humana autorizada; CI no almacena credenciales
+  de usuario ni crea tenants, sesiones o ventas.
 - La integración Git de Vercel queda deshabilitada por configuración para que no compita con el
   candidato inmutable, smoke y promoción del workflow.
 - El gate de supply chain exige doble build reproducible y SBOM SPDX antes de migraciones o deploy.
