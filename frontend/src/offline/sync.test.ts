@@ -11,16 +11,21 @@ vi.mock("./queue", () => ({
 import { rollbackOfflineSaleAttempt } from "./queue";
 import { parseRetryAfterMs, RateLimitError, syncOfflineSales } from "./sync";
 import type { OfflineSaleQueueItem } from "./types";
+import { setActiveOfflineTenant } from "./activeTenant";
 
 function queueItem(overrides: Partial<OfflineSaleQueueItem> = {}): OfflineSaleQueueItem {
   return {
     client_uuid: "00000000-0000-4000-8000-000000000001",
+    tenant_id: "tenant-1",
     status: "pending",
     sale: {
       items: [{ product_id: "product-1", quantity: 1 }],
       payments: [{ method: "cash", amount: "18.50", amount_tendered: "20.00" }],
     },
     attempt_count: 0,
+    sync_owner: "worker-1",
+    lease_id: "lease-1",
+    sync_started_at: "2026-07-01T23:50:01.000Z",
     created_at: "2026-07-01T23:50:00.000Z",
     updated_at: "2026-07-01T23:50:00.000Z",
     ...overrides,
@@ -48,10 +53,12 @@ describe("syncOfflineSales", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    setActiveOfflineTenant("tenant-1");
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    setActiveOfflineTenant(null);
   });
 
   it("sends the ring-time occurred_at (created_at) in the payload", async () => {
@@ -77,7 +84,7 @@ describe("syncOfflineSales", () => {
       }),
     );
 
-    await syncOfflineSales([
+    await syncOfflineSales("tenant-1", [
       queueItem({
         receipt_snapshot: {
           business_name: "Panadería Kova",
@@ -111,9 +118,11 @@ describe("syncOfflineSales", () => {
       ),
     );
 
-    await expect(syncOfflineSales([queueItem()])).rejects.toBeInstanceOf(RateLimitError);
+    await expect(syncOfflineSales("tenant-1", [queueItem()])).rejects.toBeInstanceOf(RateLimitError);
     expect(rollbackOfflineSaleAttempt).toHaveBeenCalledWith(
+      "tenant-1",
       "00000000-0000-4000-8000-000000000001",
+      "lease-1",
       expect.any(String),
     );
   });
@@ -130,8 +139,36 @@ describe("syncOfflineSales", () => {
       ),
     );
 
-    const err = await syncOfflineSales([queueItem()]).catch((e) => e);
+    const err = await syncOfflineSales("tenant-1", [queueItem()]).catch((e) => e);
     expect(err).toBeInstanceOf(RateLimitError);
     expect((err as RateLimitError).retryAfterMs).toBe(12_000);
+  });
+
+  it("refuses to send a batch after the authenticated tenant changes", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    setActiveOfflineTenant("tenant-2");
+
+    await expect(syncOfflineSales("tenant-1", [queueItem()])).rejects.toThrow(/tenant changed/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("aborts an in-flight request when logout changes the active tenant", async () => {
+    vi.stubGlobal("fetch", vi.fn((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    })));
+
+    const pending = syncOfflineSales("tenant-1", [queueItem()]);
+    await Promise.resolve();
+    setActiveOfflineTenant(null);
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(vi.mocked((await import("./queue")).markOfflineSaleStatus)).toHaveBeenCalledWith(
+      "tenant-1",
+      expect.any(String),
+      "lease-1",
+      "pending",
+      expect.any(String),
+    );
   });
 });

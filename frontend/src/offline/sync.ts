@@ -7,6 +7,7 @@ import {
   rollbackOfflineSaleAttempt,
 } from "./queue";
 import type { OfflineSaleQueueItem } from "./types";
+import { getActiveOfflineTenant, onActiveOfflineTenantChange } from "./activeTenant";
 
 type ApiSyncResult = {
   client_uuid: string;
@@ -52,32 +53,55 @@ export function parseRetryAfterMs(header: string | null): number {
   return DEFAULT_RETRY_AFTER_MS;
 }
 
-export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<SyncItemResult[]> {
-  for (const item of items) {
-    await markOfflineSaleStatus(item.client_uuid, "syncing");
+export async function syncOfflineSales(
+  tenantId: string,
+  items: OfflineSaleQueueItem[],
+): Promise<SyncItemResult[]> {
+  if (items.some((item) => item.tenant_id !== tenantId || !item.lease_id)) {
+    throw new Error("Offline sync batch is not owned and leased by the active tenant");
+  }
+  if (getActiveOfflineTenant() !== tenantId) {
+    await Promise.all(items.map((item) =>
+      markOfflineSaleStatus(
+        tenantId,
+        item.client_uuid,
+        item.lease_id!,
+        "pending",
+        "La sesión cambió antes de sincronizar.",
+      ),
+    ));
+    throw new Error("Authenticated tenant changed before offline sync");
   }
 
   let apiResults: ApiSyncResult[];
 
   try {
-    const response = await fetch("/api/v1/sync/offline-sales", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...csrfHeaders("POST") },
-      credentials: "include",
-      body: JSON.stringify({
-        sales: items.map((item) => ({
-          client_uuid: item.client_uuid,
-          order: item.sale,
-          // Omit when absent so legacy queue items send the exact same payload
-          // as before this field existed.
-          ...(item.shift_id ? { shift_id: item.shift_id } : {}),
-          // Ring-time: created_at is stamped when the sale is queued on the
-          // device, so the backend buckets it into the day it was actually
-          // rung, not the day it synced. Omitted for legacy items without it.
-          ...(item.created_at ? { occurred_at: item.created_at } : {}),
-        })),
-      }),
+    const controller = new AbortController();
+    const unsubscribe = onActiveOfflineTenantChange((activeTenant) => {
+      if (activeTenant !== tenantId) controller.abort();
     });
+    // Revalidate immediately before fetch. The listener also aborts an in-flight
+    // request if logout/login changes ownership while the network is pending.
+    if (getActiveOfflineTenant() !== tenantId) controller.abort();
+    let response: Response;
+    try {
+      response = await fetch("/api/v1/sync/offline-sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...csrfHeaders("POST") },
+        credentials: "include",
+        signal: controller.signal,
+        body: JSON.stringify({
+          sales: items.map((item) => ({
+            client_uuid: item.client_uuid,
+            order: item.sale,
+            ...(item.shift_id ? { shift_id: item.shift_id } : {}),
+            ...(item.created_at ? { occurred_at: item.created_at } : {}),
+          })),
+        }),
+      });
+    } finally {
+      unsubscribe();
+    }
 
     if (!response.ok) {
       // 429: server rate-limited us. Don't dead-letter the sales — mark them
@@ -86,7 +110,7 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
       if (response.status === 429) {
         const message = "Rate limited; will retry on next sync.";
         for (const item of items) {
-          await rollbackOfflineSaleAttempt(item.client_uuid, message);
+          await rollbackOfflineSaleAttempt(tenantId, item.client_uuid, item.lease_id!, message);
         }
         // Signal the worker so it schedules a Retry-After-honoring retry and
         // stops sending the remaining chunks (a big backlog must not turn into
@@ -94,7 +118,15 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
         throw new RateLimitError(message, parseRetryAfterMs(response.headers.get("Retry-After")));
       }
       const message = `Sync failed with status ${response.status}`;
-      await Promise.all(items.map((item) => markOfflineSaleFailed(item.client_uuid, message)));
+      if (response.status >= 500) {
+        await Promise.all(items.map((item) =>
+          markOfflineSaleStatus(tenantId, item.client_uuid, item.lease_id!, "pending", message),
+        ));
+        throw new Error(message);
+      }
+      await Promise.all(items.map((item) =>
+        markOfflineSaleFailed(tenantId, item.client_uuid, item.lease_id!, message),
+      ));
       return items.map((item) => ({
         client_uuid: item.client_uuid,
         status: "failed" as const,
@@ -109,7 +141,13 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
   } catch (err) {
     // Network error — mark back to pending so sync worker can retry
     for (const item of items) {
-      await markOfflineSaleStatus(item.client_uuid, "pending");
+      await markOfflineSaleStatus(
+        tenantId,
+        item.client_uuid,
+        item.lease_id!,
+        "pending",
+        err instanceof Error ? err.message : "Network error",
+      );
     }
     throw err;
   }
@@ -117,10 +155,14 @@ export async function syncOfflineSales(items: OfflineSaleQueueItem[]): Promise<S
   const results: SyncItemResult[] = [];
   for (const result of apiResults) {
     if (result.status === "synced") {
-      await markOfflineSaleSynced(result.client_uuid, result.order_id ?? undefined);
+      const item = items.find((candidate) => candidate.client_uuid === result.client_uuid);
+      if (!item) continue;
+      await markOfflineSaleSynced(tenantId, result.client_uuid, item.lease_id!, result.order_id ?? undefined);
       results.push({ ...result, status: "synced" });
     } else {
-      await markOfflineSaleFailed(result.client_uuid, result.error ?? "Sync failed");
+      const item = items.find((candidate) => candidate.client_uuid === result.client_uuid);
+      if (!item) continue;
+      await markOfflineSaleFailed(tenantId, result.client_uuid, item.lease_id!, result.error ?? "Sync failed");
       results.push({ ...result, status: "failed", order_id: null, order: null });
     }
   }

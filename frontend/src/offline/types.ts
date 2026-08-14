@@ -1,4 +1,4 @@
-export type OfflineSaleStatus = "pending" | "syncing" | "synced" | "failed";
+export type OfflineSaleStatus = "pending" | "syncing" | "synced" | "failed" | "quarantined";
 
 export type OfflinePaymentDraft = {
   method: "cash" | "bank_transfer" | "manual_card";
@@ -42,6 +42,13 @@ export type OfflineReceiptSnapshot = {
 
 export type OfflineSaleQueueItem = {
   client_uuid: string;
+  /**
+   * Authenticated session tenant that owned the register when the sale was rung.
+   * This value is supplied by AuthContext, never by a form or sale payload.
+   * `client_uuid` remains the backend idempotency identity; tenant + UUID is the
+   * logical local identity used for every queue read and mutation.
+   */
+  tenant_id: string;
   status: OfflineSaleStatus;
   sale: OfflineSaleDraft;
   // Local-only printable snapshot. Never included in the sync API payload.
@@ -52,8 +59,25 @@ export type OfflineSaleQueueItem = {
   // was open or the shift state was unknown at ring time.
   shift_id?: string;
   attempt_count: number;
+  sync_owner?: string;
+  lease_id?: string;
+  sync_started_at?: string;
   last_error?: string;
   synced_order_id?: string;
   created_at: string;
   updated_at: string;
 };
+
+/** Rows written by PWA bundles before tenant ownership existed.
+ *
+ * Dexie v4 preserves them without inventing an owner and marks them as
+ * quarantined. They are intentionally excluded from all normal queue queries;
+ * a future guided recovery flow may export/reconcile them after proving their
+ * tenant. Never cast these rows to OfflineSaleQueueItem.
+ */
+export type LegacyOfflineSaleQueueItem = Omit<OfflineSaleQueueItem, "tenant_id" | "status"> & {
+  tenant_id?: undefined;
+  status: "quarantined";
+};
+
+export type StoredOfflineSaleQueueItem = OfflineSaleQueueItem | LegacyOfflineSaleQueueItem;

@@ -70,6 +70,48 @@ test("sync queue view shows empty state when no offline sales exist", async ({ p
   await expect(page.getByText(/sin ventas pendientes o fallidas/i)).toBeVisible();
 });
 
+test("shared browser never exposes or sends tenant A queue after tenant B signs in", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  let activeSession: {
+    authenticated: boolean;
+    user: { id: string; email: string; tenant_id: string; role: string };
+    tenant_id: string;
+    tenant_name: string;
+  } = CASHIER_SESSION;
+  let syncRequests = 0;
+  await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: activeSession }));
+  await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: CATALOG }));
+  await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/sync/offline-sales", (route) => {
+    syncRequests += 1;
+    return route.abort();
+  });
+
+  await page.goto("/register");
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("button", { name: /^cobrar$/i }).click();
+  await expect(page.getByText(/pendiente de sincronizar/i).first()).toBeVisible();
+  await expect.poll(() => syncRequests).toBeGreaterThan(0);
+  const requestsAfterTenantA = syncRequests;
+
+  activeSession = {
+    ...CASHIER_SESSION,
+    user: { ...CASHIER_SESSION.user, id: "user-2", email: "cashier-b@bakery.com", tenant_id: "tenant-2" },
+    tenant_id: "tenant-2",
+    tenant_name: "Bakery B",
+  };
+  await page.goto("/sync-queue");
+  await page.reload();
+  await expect(page.getByText(/sin ventas pendientes o fallidas/i)).toBeVisible();
+  await page.waitForTimeout(250);
+  expect(syncRequests).toBe(requestsAfterTenantA);
+
+  activeSession = CASHIER_SESSION;
+  await page.reload();
+  await expect(page.getByRole("heading", { name: /pendientes/i })).toBeVisible();
+});
+
 test("network-error sale appears in pending sync and clears after manual sync", async ({
   page,
 }) => {
