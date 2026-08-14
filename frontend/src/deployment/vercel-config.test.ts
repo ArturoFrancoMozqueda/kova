@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import config from "../../vercel.json";
 
 describe("Vercel routing contract", () => {
+  it("keeps connected Git deployments disabled so CI owns promotion", () => {
+    expect(config.git).toEqual({ deploymentEnabled: false });
+  });
+
   it("keeps Vercel observability routes out of the SPA fallback", () => {
     const fallback = config.rewrites.at(-1);
 

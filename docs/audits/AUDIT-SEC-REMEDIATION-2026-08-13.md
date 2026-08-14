@@ -101,3 +101,24 @@ Docker Engine; el daemon local no estaba disponible durante esta remediación.
   estaba disponible (`localhost:5432`); no se alteraron fixtures para ocultarlo.
 - Docker manifest: digest resuelto y verificado; build/SBOM pendiente por daemon
   no disponible.
+
+## Cierre local adicional — 2026-08-13
+
+- La imagen base `python:3.12-slim` también quedó fijada por digest
+  multi-plataforma; ya no queda una base mutable detrás del runtime `uv` fijado.
+- La imagen productiva dejó de instalar `build-essential` y dependencias de
+  desarrollo. `uv sync --frozen --no-dev` consume estrictamente `uv.lock` y
+  `UV_NO_SYNC=1` impide una resolución implícita al arrancar.
+- El nuevo check CI `reproducible container and SBOM` construye dos veces sin
+  reutilizar capas, exige IDs de imagen idénticos, genera un SBOM SPDX JSON con
+  una acción fijada por commit y lo conserva como artifact ligado al SHA. El
+  job de migraciones —y por transitividad cualquier deploy— depende de este
+  control.
+- Verificaciones locales completadas: digest de Python y `uv` resueltos con
+  `buildx imagetools inspect`; instalación productiva congelada resuelve 43
+  paquetes sin grupos dev; YAML y `actionlint` 1.7.12 aprobados.
+
+El doble build local no se usa como evidencia de aprobación: el daemon quedó
+ocupado por el stack integrado y las solicitudes aisladas se cancelaron para
+no interferir. El mismo doble build ahora es un gate fail-closed de CI, por lo
+que una imagen no reproducible o un SBOM ausente bloquean migrations/deploy.

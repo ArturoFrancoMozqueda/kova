@@ -136,6 +136,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  container-supply-chain:
+    name: reproducible container and SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build backend image twice without layer reuse
+        shell: bash
+        run: |
+          docker build --no-cache --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:first" backend
+          docker build --no-cache --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:second" backend
+          first="$(docker image inspect kova-backend:first --format '{{.Id}}')"
+          second="$(docker image inspect kova-backend:second --format '{{.Id}}')"
+          test "$first" = "$second" || {
+            echo "Backend image is not reproducible: $first != $second" >&2
+            exit 1
+          }
+          echo "Backend image reproduced as $first"
+      - name: Generate SPDX JSON SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          image: kova-backend:first
+          format: spdx-json
+          output-file: backend-sbom.spdx.json
+          upload-artifact: false
+      - name: Upload backend SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-sbom-${{ github.sha }}
+          path: backend-sbom.spdx.json
+          if-no-files-found: error
+
   integration:
     runs-on: ubuntu-latest
     steps:
@@ -168,7 +199,7 @@ jobs:
 
   migrations:
     name: migration reversibility
-    needs: [backend-integration, frontend-unit-build, e2e-mocked, integration, dependency-audit, no-secrets]
+    needs: [backend-integration, frontend-unit-build, e2e-mocked, integration, dependency-audit, no-secrets, container-supply-chain]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -353,7 +384,7 @@ jobs:
     needs: [deploy-fly, post-deploy-read-only, production-smoke]
     if: >-
       ${{ always() && needs.deploy-fly.result == 'success' &&
-          (needs.post-deploy-read-only.result == 'failure' || needs.production-smoke.result == 'failure') &&
+          (needs.post-deploy-read-only.result != 'success' || needs.production-smoke.result != 'success') &&
           needs.deploy-fly.outputs.previous_image != '' }}
     runs-on: ubuntu-latest
     environment: production

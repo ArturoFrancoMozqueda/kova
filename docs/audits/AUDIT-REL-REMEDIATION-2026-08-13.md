@@ -37,12 +37,22 @@ Implementación de REL-1 a REL-4 sin desplegar, promover, leer secretos ni modif
 
 ## Prerrequisitos externos pendientes
 
-1. Crear/proteger el environment GitHub `production` con reviewers y secrets enumerados en
-   `docs/deployment.md`.
-2. Desactivar auto-promoción Git de Vercel para evitar carrera con el candidato de CI.
-3. Provisionar el tenant smoke y, si se autorizan ventas, su producto/stock y turno controlados.
-4. Ejecutar el primer release supervisado, comprobar rollback image capture y conservar el resumen
+1. Confirmar reviewers y los secrets de deploy enumerados en `docs/deployment.md` dentro del
+   environment GitHub `production`; las credenciales smoke ya están configuradas allí.
+2. Ejecutar el primer release supervisado, comprobar rollback image capture y conservar el resumen
    de CI como evidencia de aceptación.
 
-Hasta completar estos cuatro puntos no se afirma que un smoke o rollback productivo real haya sido
+Hasta completar estos dos puntos no se afirma que un smoke o rollback productivo real haya sido
 validado.
+
+## Cierre local adicional — 2026-08-13
+
+- `frontend/vercel.json` deshabilita deployments de Git conectado con
+  `git.deploymentEnabled: false`; una prueba de contrato evita que reaparezca la carrera con el
+  candidato y la promoción controlados por CI.
+- El rollback de Fly ahora se evalúa ante cualquier gate downstream distinto de `success`, incluido
+  el caso en que el deploy de Vercel falla y los smokes quedan `skipped`.
+- Las credenciales del tenant smoke están configuradas en el environment protegido Production en
+  modo sólo lectura; las variables de mutación permanecen sin configurar. No se registraron email,
+  tenant, contraseña ni valores de tokens.
+- Renovación operativa de `VERCEL_TOKEN`: a más tardar el **2027-08-14**.
