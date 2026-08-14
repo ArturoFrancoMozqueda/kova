@@ -2,7 +2,7 @@
 // /kova-showcase-video (export para grabación social). Estos dos specs vivían
 // en mobile.spec.ts apuntando a "/", pero el showcase salió de la landing
 // cuando el film del producto se convirtió en el hero.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 async function expectNoHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(() => {

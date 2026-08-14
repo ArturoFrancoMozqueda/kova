@@ -110,6 +110,37 @@ Future sprints will add: session secrets, `SENTRY_DSN`, `STRIPE_*`, and (if/when
 
 ## Deploy Procedure (Manual, Beta)
 
+For pushes to `main`, `.github/workflows/ci.yml` is now the release source of truth. The manual
+steps below are recovery/reference steps only; do not run them in parallel with CI.
+
+### Automated release gate
+
+The release graph is: named checks (`integration`, `e2e-mocked`, dependency/secret checks) â†’
+migration reversibility â†’ Fly deploy plus an unpromoted Vercel production candidate â†’ exact-commit
+health/read-only verification â†’ authenticated `production-smoke` â†’ promotion of the already-tested
+Vercel artifact â†’ final alias verification. Fly receives `KOVA_RELEASE_SHA` at image build time and
+`/health` exposes it; Vercel's `version.json` exposes the first 12 characters of the same SHA.
+
+Configure a protected GitHub `production` environment with required reviewers and these secrets:
+
+- `FLY_API_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_URL`.
+- `PRODUCTION_SMOKE_EMAIL`, `PRODUCTION_SMOKE_PASSWORD`, `PRODUCTION_SMOKE_TENANT_ID` for a
+  dedicated smoke tenant only.
+- Optional mutations require `PRODUCTION_SMOKE_ALLOW_MUTATIONS=1` and
+  `PRODUCTION_SMOKE_PRODUCT_NAME` for a controlled, replenishable product. Without that explicit
+  authorization, the same non-skippable test executes read-only.
+
+Disable Vercel's independent Git production auto-promotion before enabling this workflow; otherwise
+it can race the tested candidate. Keep credentials only in the protected environment. A failed
+post-deploy gate prevents Vercel promotion and restores Fly's exact pre-deploy image when it was
+captured successfully. If image capture is empty, stop and use `fly releases` plus
+`fly deploy --image <previous-image>`; never guess an image or roll back a destructive migration.
+
+The authorized sale uses a deterministic UUID and `KOVA-SMOKE-<commit>` payment reference, so a
+workflow retry reconciles to the same idempotency key. Smoke sales remain as identifiable ledger
+records; do not delete or void them automatically because that would create misleading accounting
+history. Replenish only the dedicated product through the normal audited stock workflow.
+
 1. Tag a release: `git tag vX.Y.Z && git push --tags`.
 2. CI builds the backend image and a frontend bundle.
 3. Deploy backend image to Fly.io (`fly deploy`) with `DATABASE_URL` pointing at the target Supabase project. The `release_command` in `backend/fly.toml` runs `alembic upgrade head` against `DATABASE_URL` automatically before the new version is promoted; if the migration fails the deploy is aborted and the previous version keeps serving traffic. For long-running backfills, skip the auto-migration by deploying with `flyctl deploy --no-release-command` and run the migration manually via `fly ssh console`.

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 // These assertions only hold against a prerendered build (Vercel or
 // `vite preview` over `dist`). The default Playwright webServer is the dev

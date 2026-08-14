@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     database_pool_timeout: int = 10
     database_pool_recycle_seconds: int = 300
     frontend_url: str = "http://localhost:5173"
+    # Immutable source identity injected by the Fly image build. It is public
+    # deployment metadata, never a secret, and lets post-deploy gates prove the
+    # frontend and backend came from the same commit.
+    kova_release_sha: str = "unknown"
 
     # Auth
     secret_key: str = "change-me-in-production-use-a-long-random-string"

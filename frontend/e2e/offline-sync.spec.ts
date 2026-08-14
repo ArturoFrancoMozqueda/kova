@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 
 const CASHIER_SESSION = {
@@ -280,6 +280,9 @@ test("offline sale exposes a printable local receipt before synchronization", as
   );
   await page.route("**/api/v1/catalog/categories", (route) =>
     route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/v1/sync/offline-sales", (route) =>
+    route.abort("internetdisconnected"),
   );
 
   await page.goto("/register");
