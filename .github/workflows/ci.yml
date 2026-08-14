@@ -144,8 +144,8 @@ jobs:
       - name: Build backend image twice without layer reuse
         shell: bash
         run: |
-          docker build --no-cache --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:first" backend
-          docker build --no-cache --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:second" backend
+          docker build --no-cache --build-arg SOURCE_DATE_EPOCH=0 --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:first" backend
+          docker build --no-cache --build-arg SOURCE_DATE_EPOCH=0 --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:second" backend
           first="$(docker image inspect kova-backend:first --format '{{.Id}}')"
           second="$(docker image inspect kova-backend:second --format '{{.Id}}')"
           test "$first" = "$second" || {
