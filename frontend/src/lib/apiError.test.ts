@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resolveApiErrorMessage } from "./apiError";
+import { apiErrorDetailText, resolveApiErrorMessage } from "./apiError";
 import { copy } from "@/i18n/messages";
 
 class FakeApiError extends Error {
@@ -50,5 +50,13 @@ describe("resolveApiErrorMessage", () => {
 
   it("keeps the module fallback for unknown errors", () => {
     expect(resolveApiErrorMessage(new Error("???"), FALLBACK)).toBe(FALLBACK);
+  });
+
+  it("reads an actionable FastAPI string detail without returning other fields", () => {
+    const error = new FakeApiError(
+      JSON.stringify({ detail: "Faltan columnas: precio", internal: "do-not-show" }),
+      400,
+    );
+    expect(apiErrorDetailText(error)).toBe("Faltan columnas: precio");
   });
 });

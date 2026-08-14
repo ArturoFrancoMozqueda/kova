@@ -83,4 +83,52 @@ describe("CatalogImportDialog", () => {
     expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
     expect(commitCatalogImport).not.toHaveBeenCalled();
   });
+
+  it("explains how to convert Excel and rejects an xlsx before calling the API", async () => {
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+
+    expect(screen.getByText(/elige CSV UTF-8/i)).toBeVisible();
+    const workbook = new File(["excel"], "catalogo.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV"), {
+      target: { files: [workbook] },
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/CSV UTF-8/i);
+    expect(previewCatalogImport).not.toHaveBeenCalled();
+  });
+
+  it("shows the backend validation detail so the owner can fix the file", async () => {
+    previewCatalogImport.mockRejectedValue(
+      Object.assign(new Error(JSON.stringify({ detail: "Encabezados inválidos; falta precio" })), {
+        status: 400,
+      }),
+    );
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+
+    const file = new File(["nombre\nConcha\n"], "catalogo.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV"), { target: { files: [file] } });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Encabezados inválidos; falta precio",
+    );
+  });
+
+  it("does not expose a server error body", async () => {
+    previewCatalogImport.mockRejectedValue(
+      Object.assign(new Error(JSON.stringify({ detail: "internal stack and database name" })), {
+        status: 503,
+      }),
+    );
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+
+    const file = new File(["nombre,precio\nConcha,18\n"], "catalogo.csv", {
+      type: "text/csv",
+    });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV"), { target: { files: [file] } });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/problema de nuestro lado/i);
+    expect(screen.queryByText(/internal stack/i)).not.toBeInTheDocument();
+  });
 });
