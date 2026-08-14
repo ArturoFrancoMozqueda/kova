@@ -289,9 +289,6 @@ jobs:
     environment: production
     outputs:
       url: ${{ steps.deploy.outputs.url }}
-    defaults:
-      run:
-        working-directory: frontend
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -304,6 +301,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+        working-directory: frontend
       - name: Pull production build configuration
         run: npx --yes vercel@46.1.1 pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build immutable production candidate
