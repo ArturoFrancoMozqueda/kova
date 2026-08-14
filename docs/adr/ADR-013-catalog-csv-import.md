@@ -12,7 +12,8 @@ Los negocios que migran a Kova necesitan cargar productos, costos e inventario s
 
 - Se usa un flujo de dos pasos: `dry_run` valida y normaliza; confirmar vuelve a validar y escribe todo en una sola transacción.
 - El commit exige `Idempotency-Key` y vincula la respuesta al hash exacto del archivo.
-- El CSV admite hasta 1,000 filas y 2 MB, codificación UTF-8 y columnas conocidas únicamente.
+- El CSV admite hasta 1,000 filas y 2 MB, codificación UTF-8 con o sin BOM y columnas conocidas únicamente.
+- La plantilla descargable incluye BOM para que Excel reconozca UTF-8 y conserve acentos de es-MX. La interfaz explica guardar el libro como `CSV UTF-8 (delimitado por comas)`; Kova no procesa `.xlsx` directamente.
 - Las categorías activas se reutilizan por nombre; las faltantes se crean. Una categoría desactivada produce un error explícito y nunca se reactiva de forma implícita.
 - El stock inicial se registra como movimiento de ajuste en el ledger de inventario, no como actualización directa.
 - La operación requiere `catalog.create`, acceso comercial vigente y genera un evento de auditoría agregado.

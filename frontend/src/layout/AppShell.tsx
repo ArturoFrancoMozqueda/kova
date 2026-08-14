@@ -28,6 +28,7 @@ import {
   X,
   ChevronsLeft,
   ChevronsRight,
+  CircleHelp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -41,6 +42,7 @@ import { formatTenantName } from "@/lib/formatTenantName";
 import { FirstUseTour } from "@/onboarding/FirstUseTour";
 import { flushFunnelEvents } from "@/telemetry/funnel";
 import { ShellRouteFallback } from "@/components/ui/route-fallback";
+import { SupportDialog } from "@/support/SupportDialog";
 
 type NavItem = {
   to: string;
@@ -98,6 +100,7 @@ export default function AppShell() {
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((prev) => {
@@ -287,6 +290,19 @@ export default function AppShell() {
       {/* Footer */}
       <div className={cn("border-t border-sidebar-border space-y-3", sidebarCollapsed ? "p-2" : "p-4")}>
         {!sidebarCollapsed && <OfflineIndicator />}
+        <button
+          type="button"
+          onClick={() => setSupportOpen(true)}
+          aria-label={copy.app.support}
+          title={sidebarCollapsed ? copy.app.support : undefined}
+          className={cn(
+            "relative flex h-10 w-full items-center rounded-kova-md text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue-light",
+            sidebarCollapsed ? "justify-center px-2" : "gap-3 px-2.5",
+          )}
+        >
+          <CircleHelp className="h-4 w-4 shrink-0" />
+          {!sidebarCollapsed ? <span>{copy.app.support}</span> : null}
+        </button>
         <div
           data-capture-account
           className={cn("relative flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}
@@ -440,6 +456,7 @@ export default function AppShell() {
           </Suspense>
         </div>
         <FirstUseTour />
+        <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} />
 
         {/* Bottom navigation — mobile only */}
         <nav

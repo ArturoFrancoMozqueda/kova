@@ -25,7 +25,10 @@ TEMPLATE_COLUMNS = (
     "stock_inicial",
     "umbral_stock",
 )
-TEMPLATE_CSV = ",".join(TEMPLATE_COLUMNS) + "\r\n"
+# Excel recognizes the UTF-8 BOM and preserves Spanish accents when the owner
+# opens the downloaded template. `_decode` already accepts the same BOM on
+# upload through `utf-8-sig`.
+TEMPLATE_CSV = "\ufeff" + ",".join(TEMPLATE_COLUMNS) + "\r\n"
 
 
 def _decimal(value: str, *, label: str, required: bool) -> tuple[Decimal | None, str | None]:
