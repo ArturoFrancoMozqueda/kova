@@ -15,16 +15,33 @@ const workerId = crypto.randomUUID();
 let syncingTenant: string | null = null;
 let retryTimer: ReturnType<typeof window.setTimeout> | null = null;
 let retryTenant: string | null = null;
+let activationTimer: ReturnType<typeof window.setTimeout> | null = null;
 
 export function stopOfflineSync() {
   if (retryTimer) window.clearTimeout(retryTimer);
+  if (activationTimer) window.clearTimeout(activationTimer);
   retryTimer = null;
   retryTenant = null;
+  activationTimer = null;
+}
+
+function scheduleActivationSync(tenantId: string) {
+  if (activationTimer) window.clearTimeout(activationTimer);
+  activationTimer = window.setTimeout(() => {
+    activationTimer = null;
+    if (getActiveOfflineTenant() === tenantId) void triggerSync(tenantId);
+  }, 0);
 }
 
 // This module is loaded only by authenticated offline surfaces. Once loaded,
 // session changes synchronously tear down any tenant-specific backoff timer.
-onActiveOfflineTenantChange(() => stopOfflineSync());
+// Publishing a new tenant also schedules a fresh sync: React runs child effects
+// before parent effects, so Register can attempt triggerSync while AuthProvider
+// has not published its tenant yet. The deferred retry closes that mount race.
+onActiveOfflineTenantChange((tenantId) => {
+  stopOfflineSync();
+  if (tenantId) scheduleActivationSync(tenantId);
+});
 
 function scheduleRetryIn(tenantId: string, delayMs: number) {
   stopOfflineSync();
@@ -95,5 +112,10 @@ export async function triggerSync(tenantId: string): Promise<void> {
     }
   } finally {
     syncingTenant = null;
+    const activeTenant = getActiveOfflineTenant();
+    // If the tenant changed while another worker was still unwinding, the
+    // activation callback may have observed `syncingTenant` and returned.
+    // Re-arm it after release so the new tenant cannot be stranded.
+    if (activeTenant && activeTenant !== tenantId) scheduleActivationSync(activeTenant);
   }
 }
