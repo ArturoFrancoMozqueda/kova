@@ -355,6 +355,77 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(screen.queryByText(copy.register.offlineCatalogNotice)).not.toBeInTheDocument();
   });
 
+  it("adds a keyboard-wedge scan on Enter without waiting for the debounce", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    const scanner = await screen.findByPlaceholderText(copy.register.skuSearchPlaceholder);
+    fireEvent.change(scanner, { target: { value: "PAN-001" } });
+    fireEvent.keyDown(scanner, { key: "Enter" });
+
+    expect(screen.getByRole("button", { name: copy.register.removeItem(product.name) })).toBeVisible();
+    expect(scanner).toHaveValue("");
+    await waitFor(() => expect(scanner).toHaveFocus());
+  });
+
+  it("accepts consecutive scans without duplicating the delayed callback", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    const scanner = await screen.findByPlaceholderText(copy.register.skuSearchPlaceholder);
+    fireEvent.change(scanner, { target: { value: "PAN-001" } });
+    fireEvent.keyDown(scanner, { key: "Enter" });
+    fireEvent.change(scanner, { target: { value: "PAN-001" } });
+    fireEvent.keyDown(scanner, { key: "Enter" });
+
+    const cart = screen.getByLabelText(copy.register.cart);
+    await waitFor(() => expect(cart).toHaveTextContent("2"));
+    await new Promise((resolve) => window.setTimeout(resolve, 200));
+    expect(cart).toHaveTextContent("2");
+  });
+
+  it("does not choose between duplicate exact SKUs and reports a no-match after lookup", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    const duplicate: Product = {
+      ...product,
+      id: "product-duplicate",
+      name: "Concha grande",
+    };
+    catalogApi.listProducts.mockResolvedValue([product, duplicate]);
+    renderRegister();
+
+    const scanner = await screen.findByPlaceholderText(copy.register.skuSearchPlaceholder);
+    fireEvent.change(scanner, { target: { value: "PAN-001" } });
+    fireEvent.keyDown(scanner, { key: "Enter" });
+
+    expect(await screen.findByText(copy.register.skuMultipleMatches)).toBeVisible();
+    expect(screen.queryByRole("button", { name: copy.register.removeItem(product.name) })).not.toBeInTheDocument();
+
+    fireEvent.change(scanner, { target: { value: "NO-EXISTE" } });
+    fireEvent.keyDown(scanner, { key: "Enter" });
+    expect(await screen.findByText(copy.register.skuNoMatch("NO-EXISTE"))).toBeVisible();
+  });
+
+  it("scans from the tenant catalog cache while offline", async () => {
+    getOpenShift.mockRejectedValue(new Error("offline"));
+    catalogApi.listProducts.mockRejectedValue(new Error("offline"));
+    catalogApi.listCategories.mockRejectedValue(new Error("offline"));
+    catalogCache.readCatalogCache.mockResolvedValue({
+      tenant_id: "tenant-1",
+      products: [product],
+      categories: [],
+      cached_at: "2026-07-09T16:30:00.000Z",
+    });
+    renderRegister();
+
+    const scanner = await screen.findByPlaceholderText(copy.register.skuSearchPlaceholder);
+    fireEvent.change(scanner, { target: { value: "PAN-001" } });
+    fireEvent.keyDown(scanner, { key: "Enter" });
+
+    expect(screen.getByRole("button", { name: copy.register.removeItem(product.name) })).toBeVisible();
+    expect(screen.getByText(copy.register.offlineCatalogNotice)).toBeVisible();
+  });
+
   it("shows the receipt and prints it in one tap after a synced sale", async () => {
     getOpenShift.mockResolvedValue(openShift);
     queueOfflineSale.mockResolvedValue({ client_uuid: "c-1" });

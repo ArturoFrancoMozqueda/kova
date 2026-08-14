@@ -19,6 +19,7 @@ export type OfflineSaleDraft = {
 export type OfflineReceiptSnapshot = {
   business_name: string;
   created_at: string;
+  paper_width_mm?: import("@/lib/receiptPaper").ReceiptPaperWidth;
   items: Array<{
     product_name: string;
     quantity: number;

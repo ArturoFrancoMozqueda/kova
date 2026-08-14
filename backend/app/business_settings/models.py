@@ -1,7 +1,16 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -35,9 +44,14 @@ class ReceiptSettings(Base):
     footer: Mapped[str | None] = mapped_column(Text, nullable=True)
     tax_contact_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    paper_width_mm: Mapped[int] = mapped_column(Integer, nullable=False, default=80)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    __table_args__ = (
+        CheckConstraint("paper_width_mm IN (58, 80)", name="ck_receipt_settings_paper_width"),
     )
 
 

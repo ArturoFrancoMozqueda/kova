@@ -71,6 +71,7 @@ export type Receipt = {
   order_id: string;
   receipt_number: string;
   tenant_name: string;
+  paper_width_mm?: import("@/lib/receiptPaper").ReceiptPaperWidth;
   created_at: string;
   status: "completed" | "voided";
   items: Array<{

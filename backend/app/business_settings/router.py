@@ -78,6 +78,7 @@ def get_receipt_settings(
             footer=None,
             tax_contact_text=None,
             logo_url=None,
+            paper_width_mm=80,
             created_at=membership.created_at,
             updated_at=membership.created_at,
         )
