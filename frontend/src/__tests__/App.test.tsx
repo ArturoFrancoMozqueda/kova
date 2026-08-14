@@ -3,22 +3,33 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { invalidateBillingSubscription } from "@/billing/api";
 
+const offlineRows = vi.hoisted(() => new Map<string, Record<string, unknown>>());
+
 // ─── Offline module mocks (no IndexedDB in jsdom) ────────────────────────────
 
 vi.mock("../offline/queue", () => ({
-  queueOfflineSale: vi.fn(async (sale: unknown) => ({
-    client_uuid: "00000000-0000-4000-8000-000000000001",
-    status: "pending",
-    sale,
-    attempt_count: 0,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  queueOfflineSale: vi.fn(async (tenantId: string, sale: unknown) => {
+    const row = {
+      client_uuid: "00000000-0000-4000-8000-000000000001",
+      tenant_id: tenantId,
+      status: "pending",
+      sale,
+      attempt_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    offlineRows.set(row.client_uuid, row);
+    return row;
+  }),
+  claimOfflineSale: vi.fn(async (_tenantId: string, clientUuid: string) => ({
+    ...offlineRows.get(clientUuid),
+    lease_id: "lease-1",
   })),
   retryDeadLetter: vi.fn(),
 }));
 
 vi.mock("../offline/sync", () => ({
-  syncOfflineSales: vi.fn(async (items: Array<{ client_uuid: string; sale: unknown }>) => {
+  syncOfflineSales: vi.fn(async (_tenantId: string, items: Array<{ client_uuid: string; sale: unknown }>) => {
     const response = await fetch("/api/v1/sync/offline-sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -31,7 +42,7 @@ vi.mock("../offline/sync", () => ({
   }),
 }));
 
-vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn() }));
+vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn(), stopOfflineSync: vi.fn() }));
 
 vi.mock("../offline/useSyncQueue", () => ({
   useSyncQueue: () => ({ pendingCount: 0, failedEntries: [], syncNow: vi.fn(), retryDeadLetter: vi.fn() }),

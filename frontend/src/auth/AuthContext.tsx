@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { getReceiptSettings } from "@/settings/api";
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 import { normalizeFeatureFlags, type FeatureFlags } from "./featureFlags";
+import { setActiveOfflineTenant } from "@/offline/activeTenant";
 
 export type AuthUser = {
   id: string;
@@ -39,6 +40,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [state, setState] = useState<AuthState>({ status: "loading" });
+  const authenticatedTenantId = state.status === "authenticated" ? state.tenantId : null;
+
+  useEffect(() => {
+    setActiveOfflineTenant(authenticatedTenantId);
+    return () => {
+      setActiveOfflineTenant(null);
+    };
+  }, [authenticatedTenantId]);
 
   const refresh = useCallback(async () => {
     const probe = async () => {

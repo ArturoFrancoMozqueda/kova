@@ -17,7 +17,7 @@ import { getReceipt } from "../orders/api";
 import { ReceiptTemplate } from "../orders/ReceiptTemplate";
 import { TicketPaper } from "@/components/ui/ticket";
 import type { Order, Receipt } from "../orders/types";
-import { queueOfflineSale } from "../offline/queue";
+import { claimOfflineSale, queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
 import { triggerSync } from "../offline/syncWorker";
 import { readCatalogCache, saveCatalogCache } from "../offline/catalogCache";
@@ -395,13 +395,13 @@ function RegularRegisterView() {
 
   useEffect(() => {
     void load();
-    void triggerSync();
+    if (tenantId) void triggerSync(tenantId);
     // Best-effort: stock badges are informational; register still works if this fails
     listStock()
       .then((items) => setStockMap(new Map(items.map((i) => [i.product_id, i]))))
       .catch(() => undefined);
     refreshShift();
-  }, [load, refreshShift]);
+  }, [load, refreshShift, tenantId]);
 
   // Re-check the shift when the cashier returns to the tab: another device may
   // have opened or closed the drawer in the meantime.
@@ -795,7 +795,8 @@ function RegularRegisterView() {
 
     let queueItem: OfflineSaleQueueItem;
     try {
-      queueItem = await queueOfflineSale(sale, openShift?.id, receiptSnapshot);
+      if (!tenantId) throw new Error("Authenticated tenant required");
+      queueItem = await queueOfflineSale(tenantId, sale, openShift?.id, receiptSnapshot);
     } catch {
       toast(copy.register.saleError, "error");
       setSubmitting(false);
@@ -814,9 +815,11 @@ function RegularRegisterView() {
     setSplitPayments([createPaymentDraft("cash")]);
     setSubmitting(false);
 
-    void syncOfflineSales([queueItem])
+    void claimOfflineSale(tenantId!, queueItem.client_uuid, `register:${crypto.randomUUID()}`)
+      .then((claimed) => claimed ? syncOfflineSales(tenantId!, [claimed]) : [])
       .then((results) => {
         const result = results[0];
+        if (!result) return;
         if (result.status === "synced" && result.order) {
           trackFunnelEventOnce("first_sale", "first_sale_completed");
           if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
