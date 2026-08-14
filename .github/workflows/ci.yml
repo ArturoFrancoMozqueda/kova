@@ -312,7 +312,7 @@ jobs:
         name: Deploy candidate without production promotion
         shell: bash
         run: |
-          url="$(npx --yes vercel@46.1.1 deploy --prebuilt --token="$VERCEL_TOKEN")"
+          url="$(npx --yes vercel@46.1.1 deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
