@@ -112,10 +112,10 @@ Docker Engine; el daemon local no estaba disponible durante esta remediación.
   al arrancar.
 - El nuevo check CI `reproducible container and SBOM` construye dos veces sin
   reutilizar capas, normaliza config y filesystem con `SOURCE_DATE_EPOCH=0` y
-  `rewrite-timestamp=true`, exige manifests y archivos OCI idénticos, genera un
-  SBOM SPDX JSON con una acción fijada por commit y lo conserva como artifact
-  ligado al SHA. El job de migraciones —y por transitividad cualquier deploy—
-  depende de este control.
+  `rewrite-timestamp=true`, exige configs y archivos Docker tar idénticos,
+  carga el primer archivo verificado y genera desde él un SBOM SPDX JSON con
+  una acción fijada por commit. El job de migraciones —y por transitividad
+  cualquier deploy— depende de este control.
 - Verificaciones locales completadas: digest de Python y `uv` resueltos con
   `buildx imagetools inspect`; instalación Linux productiva congelada resuelve
   42 paquetes sin grupos dev; YAML y `actionlint` 1.7.12 aprobados.
@@ -126,8 +126,9 @@ las capas generadas tenían timestamps distintos. El workflow ahora pasa
 `SOURCE_DATE_EPOCH=0`; una segunda ejecución mostró que la única capa aún
 variable era `RUN uv sync`, porque `/root/.cache/uv/archive-v0` incluía nombres
 temporales aleatorios. `uv sync --no-cache` elimina ese contenido y el exporter
-OCI reescribe timestamps. Dos builds locales independientes produjeron el mismo
-manifest `4d57bbed…` y archivos OCI byte-a-byte idénticos
-(`d6b10d4a…`). Docker Scout indexó correctamente 176 paquetes desde el artefacto
-reproducido. La comparación exacta no se debilitó; cualquier regresión bloquea
+Docker reescribe timestamps. Dos builds locales independientes produjeron el
+mismo config `3718b9b3…` y archivos Docker tar byte-a-byte idénticos
+(`fc0b512d…`); `docker load` restauró correctamente `kova-backend:first` desde
+ese archivo. Docker Scout indexó 176 paquetes desde el artefacto reproducido.
+La comparación exacta no se debilitó; cualquier regresión bloquea
 migrations/deploy.
