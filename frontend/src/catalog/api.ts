@@ -43,15 +43,22 @@ async function sendCatalogImport(
   file: File,
   dryRun: boolean,
 ): Promise<CatalogImportResponse> {
-  const response = await fetch(`/api/v1/catalog/import?dry_run=${dryRun}`, {
+  const fileFormat = file.name.toLowerCase().endsWith(".xlsx") ? "xlsx" : "csv";
+  const contentType = fileFormat === "xlsx"
+    ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    : "text/csv";
+  const response = await fetch(
+    `/api/v1/catalog/import?dry_run=${dryRun}&format=${fileFormat}`,
+    {
     method: "POST",
     headers: {
-      "content-type": "text/csv",
+      "content-type": contentType,
       ...csrfHeaders("POST"),
       ...(dryRun ? {} : { "Idempotency-Key": ikey() }),
     },
     body: file,
-  });
+    },
+  );
   if (!response.ok) {
     throw new ApiError(await response.text(), response.status);
   }

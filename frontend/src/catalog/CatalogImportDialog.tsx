@@ -35,8 +35,8 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     setFile(selected);
     setPreview(null);
     setError(null);
-    if (!selected.name.toLowerCase().endsWith(".csv")) {
-      setError(copy.catalog.importCsvOnly);
+    if (!/\.(csv|xlsx)$/i.test(selected.name)) {
+      setError(copy.catalog.importUnsupportedFile);
       return;
     }
     if (selected.size > 2 * 1024 * 1024) {
@@ -107,7 +107,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
           ref={inputRef}
           className="sr-only"
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           aria-label={copy.catalog.importChooseFile}
           onChange={(event) => void chooseFile(event.target.files?.[0])}
         />

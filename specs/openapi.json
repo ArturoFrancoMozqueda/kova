@@ -7673,6 +7673,36 @@
             }
           },
           {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -7691,7 +7721,7 @@
         ],
         "requestBody": {
           "content": {
-            "text/csv": {
+            "application/octet-stream": {
               "schema": {
                 "contentMediaType": "application/octet-stream",
                 "title": "Content",
