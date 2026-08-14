@@ -33,6 +33,16 @@ class Subscription(Base):
     stripe_period_synced_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    stripe_lifecycle_watermark_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    stripe_lifecycle_event_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stripe_lifecycle_event_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    stripe_payment_watermark_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    stripe_payment_event_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stripe_payment_event_type: Mapped[str | None] = mapped_column(String(120), nullable=True)
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     past_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     grace_period_ends_at: Mapped[datetime | None] = mapped_column(
