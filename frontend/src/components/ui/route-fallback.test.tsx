@@ -22,7 +22,8 @@ describe("ShellRouteFallback", () => {
   });
 
   it("can render immediately when the caller needs an eager status", () => {
-    render(<ShellRouteFallback delayMs={0} label="Preparando caja" />);
+    render(<ShellRouteFallback delayMs={0} label="Preparando caja" viewName="Caja" />);
     expect(screen.getByRole("status", { name: "Preparando caja" })).toBeVisible();
+    expect(screen.getByText("Caja")).toBeVisible();
   });
 });

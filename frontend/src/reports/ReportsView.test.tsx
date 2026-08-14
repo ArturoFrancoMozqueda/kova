@@ -55,6 +55,18 @@ afterEach(() => {
 });
 
 describe("ReportsView", () => {
+  it("associates unique Desde and Hasta labels with constrained date inputs", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    renderView();
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.customRange }));
+
+    const from = screen.getByLabelText(copy.reportsView.startDate);
+    const to = screen.getByLabelText(copy.reportsView.endDate);
+    expect(from).toHaveAttribute("id", "report-start-date");
+    expect(to).toHaveAttribute("id", "report-end-date");
+    expect(from).toHaveAttribute("max", today);
+    expect(to).toHaveAttribute("min", today);
+  });
   it("renders the summary once data loads", async () => {
     (getBusinessStory as Mock).mockResolvedValue(makeStory());
     renderView();

@@ -3,9 +3,12 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { ToastProvider } from "@/components/ui/toast";
+import { copy } from "@/i18n/messages";
+
+const access = vi.hoisted(() => ({ featureEnabled: true }));
 
 vi.mock("@/hooks/useDocumentTitle", () => ({ useDocumentTitle: () => {} }));
-vi.mock("@/auth/useFeature", () => ({ useFeature: () => true }));
+vi.mock("@/auth/useFeature", () => ({ useFeature: () => access.featureEnabled }));
 vi.mock("@/auth/permissions", () => ({
   EXPENSES_MANAGE_PERMISSION: "expenses.manage",
   usePermission: () => true,
@@ -32,9 +35,22 @@ function renderView() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  access.featureEnabled = true;
 });
 
 describe("ExpensesView", () => {
+  it("explains the real feature gate instead of redirecting silently", () => {
+    access.featureEnabled = false;
+    renderView();
+
+    expect(screen.getByRole("heading", { name: copy.expenses.unavailableTitle })).toBeVisible();
+    expect(screen.getByText(copy.expenses.unavailableBody)).toBeVisible();
+    expect(screen.getByRole("link", { name: copy.expenses.backToReports })).toHaveAttribute(
+      "href",
+      "/reports",
+    );
+    expect(listExpenses).not.toHaveBeenCalled();
+  });
   it("shows exact period totals and real expense rows", async () => {
     (listExpenses as Mock).mockResolvedValue([
       {

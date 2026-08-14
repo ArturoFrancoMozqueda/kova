@@ -136,7 +136,7 @@ export default function OrderListView() {
       <div className="mb-6">
         <ViewHeader
           title={copy.orderList.title}
-          meta={`${data?.total ?? 0} ${copy.orderList.total}`}
+          meta={copy.orderList.total(data?.total ?? 0)}
         />
       </div>
 
@@ -178,19 +178,23 @@ export default function OrderListView() {
         {/* Date range */}
         <div className="flex items-end gap-2 flex-1">
           <div className="space-y-1 flex-1 min-w-0">
-            <Label className="text-xs">{copy.orderList.filterStartDate}</Label>
+            <Label className="text-xs" htmlFor="orders-start-date">{copy.orderList.filterStartDate}</Label>
             <Input
+              id="orders-start-date"
               type="date"
               value={startDate}
+              max={endDate || undefined}
               onChange={(e) => { setPeriodPreset(null); setStartDate(e.target.value); }}
               className="h-9 text-sm"
             />
           </div>
           <div className="space-y-1 flex-1 min-w-0">
-            <Label className="text-xs">{copy.orderList.filterEndDate}</Label>
+            <Label className="text-xs" htmlFor="orders-end-date">{copy.orderList.filterEndDate}</Label>
             <Input
+              id="orders-end-date"
               type="date"
               value={endDate}
+              min={startDate || undefined}
               onChange={(e) => { setPeriodPreset(null); setEndDate(e.target.value); }}
               className="h-9 text-sm"
             />
@@ -303,7 +307,9 @@ export default function OrderListView() {
                     <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.date}</th>
                     <th scope="col" className="text-left px-4 py-3 font-semibold">{copy.orderList.status}</th>
                     <th scope="col" className="text-right px-4 py-3 font-semibold">{copy.orderList.amount}</th>
-                    <th scope="col" className="px-4 py-3 w-20" />
+                    <th scope="col" className="px-4 py-3 w-20">
+                      <span className="sr-only">Acciones</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

@@ -127,6 +127,16 @@ describe("RegisterView cash-without-shift guard", () => {
     fireEvent.click(addButton);
   }
 
+  it("uses one Caja h1 with Catálogo and Carrito as section headings", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    expect(await screen.findByRole("heading", { level: 2, name: copy.register.catalog })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 1, name: copy.register.title })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: copy.register.cart })).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
   it("disables cash and shows the blocking copy when no shift is open", async () => {
     getOpenShift.mockResolvedValue(null);
     renderRegister();
@@ -294,6 +304,23 @@ describe("RegisterView cash-without-shift guard", () => {
       ).toBeInTheDocument(),
     );
     expect(lineOrder()).toEqual([product.name, secondProduct.name]);
+  });
+
+  it("removes a line without updating ToastProvider from the cart updater", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.removeItem(product.name) }));
+
+    expect(await screen.findByText(copy.register.itemRemoved(product.name))).toBeInTheDocument();
+    expect(
+      errorSpy.mock.calls.some((call) =>
+        call.some((value) => String(value).includes("Cannot update a component")),
+      ),
+    ).toBe(false);
+    errorSpy.mockRestore();
   });
 
   it("renders the saved catalog when product and category fetches fail offline", async () => {

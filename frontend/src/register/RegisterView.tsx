@@ -37,8 +37,9 @@ import { formatTenantName } from "@/lib/formatTenantName";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { ViewHeader } from "@/components/ui/view-header";
 import { RegisterPaymentMethodSelector, RegisterProductCard } from "./RegisterPresentation";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { Badge } from "@/components/ui/badge";
@@ -648,22 +649,23 @@ function RegularRegisterView() {
   };
 
   const removeItem = (cartKey: string) => {
+    const removed = cart[cartKey];
+    if (!removed) return;
+    const keyOrderBeforeRemoval = Object.keys(cart);
     setCart((current) => {
-      const removed = current[cartKey];
-      if (!removed) return current;
-      const keyOrderBeforeRemoval = Object.keys(current);
+      if (!current[cartKey]) return current;
       const next = { ...current };
       delete next[cartKey];
-      toast(copy.register.itemRemoved(removed.product.name), {
-        variant: "info",
-        action: {
-          label: copy.register.undo,
-          onAction: () => {
-            setCart((c) => restoreCartLine(c, keyOrderBeforeRemoval, cartKey, removed));
-          },
-        },
-      });
       return next;
+    });
+    toast(copy.register.itemRemoved(removed.product.name), {
+      variant: "info",
+      action: {
+        label: copy.register.undo,
+        onAction: () => {
+          setCart((current) => restoreCartLine(current, keyOrderBeforeRemoval, cartKey, removed));
+        },
+      },
     });
   };
 
@@ -842,7 +844,8 @@ function RegularRegisterView() {
 
   if (loadState.status === "loading") {
     return (
-      <ViewLayout width="wide">
+      <ViewLayout width="wide" className="space-y-6" aria-busy="true">
+        <ViewHeader title={copy.register.title} meta={copy.register.loading} />
         <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
           <Card>
             <CardContent className="p-6">
@@ -885,6 +888,9 @@ function RegularRegisterView() {
 
   return (
     <ViewLayout width="wide" className="pb-40 lg:pb-10 animate-fade-in">
+      <div className="mb-6">
+        <ViewHeader title={copy.register.title} />
+      </div>
       {loadState.status === "ready" && loadState.fromCache && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-kova-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -916,10 +922,10 @@ function RegularRegisterView() {
         <Card className="overflow-hidden border-kova-border/90">
           <CardHeader className="border-b bg-white p-5 pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+              <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
                 <ShoppingBag className="h-4 w-4" />
                 {copy.register.catalog}
-              </CardTitle>
+              </h2>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">{copy.register.itemCount(loadState.products.length)}</Badge>
                 {canManageCatalog ? (
@@ -1160,10 +1166,10 @@ function RegularRegisterView() {
           <Card aria-label={copy.register.cart} className="xl:block">
             <CardHeader className="hidden border-b pb-3 xl:block">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
                   <ShoppingCart className="h-4 w-4" />
                   {copy.register.cart}
-                </CardTitle>
+                </h2>
                 {cartUnitCount > 0 && (
                   <Badge key={cartUnitCount} variant="secondary" className="kv-count-pop">
                     {cartUnitCount}
