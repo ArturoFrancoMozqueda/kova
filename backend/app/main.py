@@ -22,7 +22,7 @@ from app.expenses.router import router as expenses_router
 from app.health.router import router as health_router
 from app.imports.router import router as imports_router
 from app.inventory.router import router as inventory_router
-from app.middleware.body_size import body_size_limit_middleware
+from app.middleware.body_size import BodySizeLimitMiddleware
 from app.middleware.csrf import csrf_middleware
 from app.middleware.security_headers import security_headers_middleware
 from app.modifiers.router import router as modifiers_router
@@ -70,6 +70,14 @@ def _validate_config() -> None:
     # test events verify against production and mutate real subscription state.
     billing_service.validate_webhook_secret_mode()
     if settings.app_env == "production":
+        if not settings.app_database_url:
+            raise RuntimeError(
+                "APP_DATABASE_URL must be set explicitly in production for the RLS runtime role"
+            )
+        if settings.app_database_url == settings.effective_migration_database_url:
+            raise RuntimeError(
+                "APP_DATABASE_URL must differ from the privileged migration connection"
+            )
         if not settings.resend_api_key:
             raise RuntimeError(
                 "RESEND_API_KEY must be set in production — lifecycle emails "
@@ -118,7 +126,7 @@ def create_app() -> FastAPI:
     app.middleware("http")(csrf_middleware)
     app.middleware("http")(request_context_middleware)
     # Added last → runs outermost: reject oversized bodies before any other work.
-    app.middleware("http")(body_size_limit_middleware)
+    app.add_middleware(BodySizeLimitMiddleware)
 
     _error_logger = logging.getLogger("app.errors")
 

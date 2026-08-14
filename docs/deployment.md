@@ -83,9 +83,30 @@ Mirror [.env.example](../.env.example), but supply real values via the hosting p
 - `APP_ENV` — `staging` or `production`
 - `APP_DATABASE_URL` — runtime connection as the least-privilege `kova_app` role (subject to RLS). This is what the app serves requests with.
 - `MIGRATION_DATABASE_URL` — owner (`postgres`) connection for Alembic migrations and RLS-bypass paths (webhook, public assets, pre-session auth).
+
 - `DATABASE_URL` — legacy single URL. Still honored as the fallback for both of the above when they are unset (keeps local dev working), but staging/production should set the two explicit URLs so the runtime role is `kova_app`.
 
 Local-only `POSTGRES_*` variables and the `db` Docker service are **not** used in staging/production.
+
+Production startup requires `APP_DATABASE_URL` to be explicit and different
+from `MIGRATION_DATABASE_URL`. It queries Postgres catalogs and aborts if the
+runtime role is a superuser, has `BYPASSRLS`, owns a tenant table, or any
+canonical tenant table lacks RLS, `FORCE ROW LEVEL SECURITY`, `USING`, or
+`WITH CHECK`. Local/CI retain diagnostic logging so migrations can bootstrap.
+
+### Updating pinned container build inputs
+
+`backend/Dockerfile` pins both the Python base and `uv` images by release and
+multi-platform digest. Inspect updates with `docker buildx imagetools inspect`,
+review the upstream releases, then change each tag and digest together in one
+commit. CI builds the backend twice without layer reuse, requires identical
+Docker image configs and loadable archives, and generates an SPDX JSON SBOM
+from the reproduced image. The build uses `SOURCE_DATE_EPOCH=0`, BuildKit's
+`rewrite-timestamp=true`, disables nondeterministic inline provenance for this
+comparison, and runs `uv sync --no-cache` so temporary cache paths never enter
+the image layer. Both archives carry the same explicit image tag; CI loads the
+first verified archive before scanning it. The SBOM remains a separate
+commit-addressed artifact. All checks run before any migration or deploy job.
 
 The frontend uses same-origin relative API paths (`/api/v1/...`). Production routing is handled by
 `frontend/vercel.json`, which rewrites those paths to the Fly backend. No `VITE_API_BASE_URL` is
@@ -95,10 +116,45 @@ Future sprints will add: session secrets, `SENTRY_DSN`, `STRIPE_*`, and (if/when
 
 ## Deploy Procedure (Manual, Beta)
 
+For pushes to `main`, `.github/workflows/ci.yml` is now the release source of truth. The manual
+steps below are recovery/reference steps only; do not run them in parallel with CI.
+
+### Automated release gate
+
+The release graph is: named checks (`integration`, `e2e-mocked`, dependency/secret checks) â†’
+migration reversibility â†’ Fly deploy plus an unpromoted Vercel production candidate â†’ exact-commit
+health/read-only verification â†’ authenticated `production-smoke` â†’ promotion of the already-tested
+Vercel artifact â†’ final alias verification. Fly receives `KOVA_RELEASE_SHA` at image build time and
+`/health` exposes it; Vercel's `version.json` exposes the first 12 characters of the same SHA.
+
+Configure a protected GitHub `production` environment with required reviewers and these secrets:
+
+- `FLY_API_TOKEN`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_URL`.
+- `PRODUCTION_SMOKE_EMAIL`, `PRODUCTION_SMOKE_PASSWORD`, `PRODUCTION_SMOKE_TENANT_ID` for a
+  dedicated smoke tenant only.
+- Optional mutations require `PRODUCTION_SMOKE_ALLOW_MUTATIONS=1` and
+  `PRODUCTION_SMOKE_PRODUCT_NAME` for a controlled, replenishable product. Without that explicit
+  authorization, the same non-skippable test executes read-only.
+
+Operational status recorded on 2026-08-13: the smoke tenant credentials are configured only in the
+protected Production environment and mutation secrets remain unset, so the smoke is read-only. The
+`VERCEL_TOKEN` must be renewed no later than **2027-08-14**; never record its value in this document.
+
+`frontend/vercel.json` sets `git.deploymentEnabled` to `false`, so connected Git cannot race the
+tested candidate or its CI-controlled promotion. Keep credentials only in the protected environment. A failed
+post-deploy gate prevents Vercel promotion and restores Fly's exact pre-deploy image when it was
+captured successfully. If image capture is empty, stop and use `fly releases` plus
+`fly deploy --image <previous-image>`; never guess an image or roll back a destructive migration.
+
+The authorized sale uses a deterministic UUID and `KOVA-SMOKE-<commit>` payment reference, so a
+workflow retry reconciles to the same idempotency key. Smoke sales remain as identifiable ledger
+records; do not delete or void them automatically because that would create misleading accounting
+history. Replenish only the dedicated product through the normal audited stock workflow.
+
 1. Tag a release: `git tag vX.Y.Z && git push --tags`.
 2. CI builds the backend image and a frontend bundle.
 3. Deploy backend image to Fly.io (`fly deploy`) with `DATABASE_URL` pointing at the target Supabase project. The `release_command` in `backend/fly.toml` runs `alembic upgrade head` against `DATABASE_URL` automatically before the new version is promoted; if the migration fails the deploy is aborted and the previous version keeps serving traffic. For long-running backfills, skip the auto-migration by deploying with `flyctl deploy --no-release-command` and run the migration manually via `fly ssh console`.
-4. Deploy frontend bundle to Vercel (auto-deploys from `main` once configured).
+4. Deploy the frontend candidate from the CI workflow; connected Git deployments are disabled.
 5. Verify:
    - `curl https://api.<domain>/health`
    - `curl https://api.<domain>/health/db` — proves the backend can reach Supabase.

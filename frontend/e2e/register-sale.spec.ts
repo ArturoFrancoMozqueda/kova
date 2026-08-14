@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 
 const CASHIER_SESSION = {
@@ -32,11 +32,11 @@ const CATALOG = [
   },
 ];
 
-function makeSyncResponse(orderId: string, total: string) {
+function makeSyncResponse(clientUuid: string, orderId: string, total: string) {
   return {
     results: [
       {
-        client_uuid: "00000000-0000-4000-8000-000000000001",
+        client_uuid: clientUuid,
         status: "synced",
         order_id: orderId,
         order: {
@@ -89,7 +89,9 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
       items: [{ product_id: "product-1", quantity: 1 }],
       payments: [{ method: "cash", amount: "18.50", amount_tendered: "20.00" }],
     });
-    await route.fulfill({ json: makeSyncResponse("order-1", "18.50") });
+    await route.fulfill({
+      json: makeSyncResponse(body.sales[0].client_uuid, "order-1", "18.50"),
+    });
   });
 
   await page.goto("/register");
@@ -140,7 +142,9 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
         { method: "bank_transfer", amount: "8.50", reference: "SPEI-001" },
       ],
     });
-    await route.fulfill({ json: makeSyncResponse("order-split", "18.50") });
+    await route.fulfill({
+      json: makeSyncResponse(body.sales[0].client_uuid, "order-split", "18.50"),
+    });
   });
 
   await page.goto("/register");
@@ -211,12 +215,18 @@ test("cash is blocked without an open shift but a transfer sale completes", asyn
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     const body = route.request().postDataJSON() as {
-      sales: Array<{ order: { payments: Array<{ method: string }> }; shift_id?: string }>;
+      sales: Array<{
+        client_uuid: string;
+        order: { payments: Array<{ method: string }> };
+        shift_id?: string;
+      }>;
     };
     // A blocked-cash sale must never reach the wire; only the transfer does.
     expect(body.sales[0].order.payments[0].method).toBe("bank_transfer");
     expect(body.sales[0].shift_id).toBeUndefined();
-    await route.fulfill({ json: makeSyncResponse("order-transfer", "18.50") });
+    await route.fulfill({
+      json: makeSyncResponse(body.sales[0].client_uuid, "order-transfer", "18.50"),
+    });
   });
 
   await page.goto("/register");

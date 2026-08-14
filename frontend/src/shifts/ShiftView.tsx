@@ -180,10 +180,7 @@ export default function ShiftView() {
   if (loadState.status === "loading") {
     return (
       <ViewLayout width="wide" className="space-y-6">
-        <div>
-          <Skeleton className="h-4 w-24 mb-2" />
-          <Skeleton className="h-8 w-48" />
-        </div>
+        <ViewHeader title={copy.shiftView.title} meta={copy.shiftView.loading} />
         <Card>
           <CardContent className="p-6 space-y-4">
             <Skeleton className="h-6 w-32" />

@@ -3,14 +3,24 @@ Allow: /
 
 # Authenticated app routes (client-side only — they serve the empty shell and
 # have no indexable content). Keep crawlers off them to avoid wasted budget.
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /accept-invite
 Disallow: /dashboard
 Disallow: /register
 Disallow: /catalog
 Disallow: /catalogo
 Disallow: /inventory
 Disallow: /inventario
+Disallow: /expenses
+Disallow: /gastos
+Disallow: /pedidos
 Disallow: /orders
 Disallow: /ordenes
+Disallow: /ventas
 Disallow: /reports
 Disallow: /reportes
 Disallow: /shifts
@@ -21,6 +31,8 @@ Disallow: /settings
 Disallow: /configuracion
 Disallow: /billing
 Disallow: /sync-queue
+Disallow: /kova-showcase-video
+Disallow: /dev/
 Disallow: /api/
 
 Sitemap: https://kovasuite.com/sitemap.xml

@@ -39,7 +39,7 @@ export const copy = {
       ctaPrimary: "Probar Kova gratis",
       ctaSecondary: "Ver cómo funciona",
       dailyNote: `≈ $${STANDARD_PLAN_DAILY_APPROX} al día`,
-      trialBadge: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta`,
+      trialBadge: `Beta privada controlada · ${BILLING_TRIAL_LABEL} gratis · Sin tarjeta`,
     },
     benefits: {
       eyebrow: "Lo esencial, conectado",
@@ -47,7 +47,7 @@ export const copy = {
       items: [
         {
           title: "Cobra rápidamente",
-          body: "Registra ventas en efectivo, transferencia, tarjeta o pagos divididos sin perder el orden.",
+          body: "Registra ventas en efectivo, transferencia, tarjeta manual o pagos divididos sin perder el orden.",
           consequence: "La fila avanza y cada pago queda en su lugar.",
           image: "/showcase/register.png",
           alt: "Caja de Kova con productos, ticket y métodos de pago.",
@@ -73,7 +73,7 @@ export const copy = {
       title: "La operación completa, sin brincar entre herramientas.",
       body: "Kova conecta las tareas que ocurren alrededor de cada cobro. Lo que registras una vez queda listo para operar y revisar.",
       items: [
-        { title: "Cobros claros", body: "Registra efectivo, transferencia, tarjeta o pagos divididos desde la misma venta.", proof: "Cada método queda identificado en el corte." },
+        { title: "Cobros claros", body: "Registra efectivo, transferencia, tarjeta manual o pagos divididos desde la misma venta.", proof: "Cada método queda identificado en el corte; Kova no procesa el dinero." },
         { title: "Ventas sin internet", body: "Si la señal falla, sigues cobrando y Kova sincroniza cuando vuelve la conexión.", proof: "Sin capturar la misma venta dos veces." },
         { title: "Turnos y cuadre", body: "Abre, registra movimientos y compara el efectivo contado contra lo esperado.", proof: "Cada diferencia queda ligada a un turno." },
         { title: "Inventario conectado", body: "Las ventas descuentan existencias y las alertas señalan qué necesita reposición.", proof: "Sabes qué atender antes de perder una venta." },
@@ -260,7 +260,7 @@ export const copy = {
         caja: {
           eyebrow: "Caja",
           title: "De carrito a cobrado",
-          line: "Busca o escanea, arma el ticket y cobra en efectivo, transferencia o tarjeta.",
+          line: "Busca o escanea, arma el ticket y registra efectivo, transferencia o tarjeta manual.",
         },
         inventario: {
           eyebrow: "Inventario",
@@ -295,7 +295,7 @@ export const copy = {
       roleManager: "Gerente",
       roleCashier: "Cajero",
       items: [
-        { title: "Cobra como sea", line: "Efectivo, transferencia, tarjeta y pagos divididos sin perder el orden." },
+        { title: "Registra cada cobro", line: "Efectivo, transferencia, tarjeta manual y pagos divididos sin perder el orden." },
         { title: "Inventario que avisa", line: "Cada venta descuenta stock y te muestra qué producto necesita atención." },
         { title: "Caja cuadrada", line: "Apertura, cierre y efectivo esperado para saber cuánto debe haber en caja." },
         { title: "Análisis que cuenta", line: "Qué se vende, cuándo se mueve más y por dónde entra el dinero." },
@@ -327,7 +327,7 @@ export const copy = {
       body: "Crea tu cuenta, carga tus productos, abre tu turno y empieza a cobrar.",
       steps: ["Crea tu cuenta", "Carga tus productos", "Abre tu turno", "Cobra"],
       button: "Probar Kova gratis",
-      fineprint: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
+      fineprint: `Beta privada controlada · ${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
     },
     testimonials: {
       eyebrow: "Clientes reales",
@@ -373,12 +373,17 @@ export const copy = {
       title: "Lo importante antes de empezar.",
       items: [
         { q: "¿Necesito comprar algún aparato?", a: "No. Kova funciona en el navegador de la computadora, tablet o celular que ya tienes en el mostrador. Sin lectores obligatorios, sin equipo en renta y sin contratos de hardware." },
-        { q: "¿Kova funciona sin internet?", a: "Sí. Si se cae la señal, Kova sigue cobrando y guarda las ventas. Cuando vuelve el internet, las sincroniza sin que captures todo otra vez." },
+        { q: "¿Kova procesa cobros con tarjeta?", a: "No. Kova registra que tu cliente pagó con la terminal o el medio que tú uses, pero no procesa el dinero ni funciona como terminal bancaria." },
+        { q: "¿Kova emite facturas o CFDI?", a: "No actualmente. El recibo de Kova puede mostrar los datos fiscales que configures, pero no es una factura ni un CFDI. Si emitir CFDI desde el POS es indispensable para ti, escríbenos antes de registrarte para confirmar si Kova encaja." },
+        { q: "¿Kova calcula IVA u otros impuestos?", a: "No actualmente. Kova registra el precio de venta que configures, pero no calcula ni desglosa impuestos y no sustituye tu proceso fiscal o contable." },
+        { q: "¿Kova funciona sin internet?", a: "Sí, para la caja preparada en ese dispositivo. Si se cae la señal, la venta queda guardada localmente y Kova intenta sincronizarla cuando vuelve la conexión. Configura tu catálogo y abre el turno con conexión antes de operar offline." },
         { q: "¿Cómo cargo mis productos?", a: "Puedes capturarlos directamente o subirlos con una plantilla de Excel o CSV. Empieza por los que más vendes y completa el catálogo sobre la marcha." },
         { q: "¿Cuánto tardo en empezar a cobrar?", a: "El camino son cuatro pasos: creas tu cuenta, cargas tus productos, abres tu turno y cobras. Puedes hacer tu primera venta el mismo día que empiezas." },
         { q: `¿Qué incluye el plan de ${STANDARD_PLAN_PRICE_LABEL}?`, a: "Incluye caja, inventario, empleados con roles, reportes, modo sin internet, recibos con tu logo y respaldo en la nube. Un solo plan, sin comisiones por venta ni módulos escondidos." },
+        { q: "¿Qué pasa cuando termina la prueba?", a: `Necesitas activar el ${STANDARD_PLAN.name} para seguir usando las funciones operativas. La suscripción es mensual y la activación se confirma desde Kova después del pago en Stripe.` },
         { q: "¿Puedo cancelar cuando quiera?", a: "Sí. Puedes cancelar cuando quieras, sin plazos forzosos ni penalización." },
-        { q: "¿Mis datos siguen siendo míos?", a: "Sí. Tus ventas, productos y cortes son tuyos. Puedes exportar una copia desde Configuración antes de eliminar tu cuenta." },
+        { q: "¿Puedo exportar mis datos si cancelo?", a: "Cancelar la suscripción no elimina tu cuenta. La persona propietaria puede descargar una copia desde Configuración antes de solicitar la eliminación de la cuenta." },
+        { q: "¿Cómo funciona el soporte durante la beta?", a: "Atendemos por correo en horario hábil de México, de lunes a viernes de 9:00 a 19:00, hora de CDMX. Los incidentes que impiden operar se atienden con prioridad, sin un SLA formal durante la beta." },
         { q: "¿Kova funciona para mi negocio?", a: "Kova está hecho para cafeterías, panaderías y negocios de mostrador que venden productos y cobran en caja. Si necesitas mesas, comandas complejas o citas por horario, escríbenos y te decimos con honestidad si encaja con tu operación." },
       ],
       contactPrefix: "¿Tienes otra duda? ",
@@ -414,7 +419,7 @@ export const copy = {
       trustItems: ["Hecho en México 🇲🇽", "Atendido por humanos, no por bots"],
       trustSecurityLink: "Cómo cuidamos tus datos",
       features: [
-        "Cobros en efectivo, transferencia, tarjeta y pagos divididos",
+        "Registro de efectivo, transferencia, tarjeta manual y pagos divididos",
         "Modo sin internet",
         "Apertura, cierre y cuadre de caja",
         "Control de inventario y alertas",
@@ -485,6 +490,7 @@ export const copy = {
     notFound: "Página no encontrada",
     settings: "Configuración",
     shifts: "Turnos",
+    syncQueue: "Cola de sincronización",
   },
   notFound: {
     heading: "Esta página no existe",
@@ -885,7 +891,7 @@ export const copy = {
     resetTokenMissingHint: "Es posible que el correo se haya recortado al abrirlo. Pide un nuevo enlace e intenta otra vez.",
     resetTokenRequestAgain: "Pedir un enlace nuevo",
     loginSubtitle: "Inicia sesión y mantén tu negocio en flujo.",
-    signupSubtitle: `Prueba ${BILLING_TRIAL_LABEL} sin tarjeta. Después, ${STANDARD_PLAN_PRICE_LABEL}.`,
+    signupSubtitle: `Acceso en beta privada controlada: prueba ${BILLING_TRIAL_LABEL} sin tarjeta. Después, ${STANDARD_PLAN_PRICE_LABEL}.`,
     tenantNamePlaceholder: "Nombre de tu negocio",
     emailPlaceholder: "tu@negocio.com",
     passwordPlaceholderLogin: "Escribe tu contraseña",
@@ -1205,8 +1211,8 @@ export const copy = {
     eyebrow: "Control del negocio",
     meta: "Registra solo gastos reales del negocio. Kova los usa para aproximar tu resultado operativo.",
     add: "Registrar gasto",
-    startDate: "Fecha inicial",
-    endDate: "Fecha final",
+    startDate: "Desde",
+    endDate: "Hasta",
     apply: "Aplicar",
     periodTotal: "Gastos registrados en el periodo",
     records: (count: number) => `${count} registro${count === 1 ? "" : "s"}`,
@@ -1217,6 +1223,9 @@ export const copy = {
     emptyBody: "Registra renta, servicios y otros gastos operativos para entender mejor cuánto queda después de vender.",
     deniedTitle: "No tienes acceso a gastos",
     deniedBody: "Solo dueños y gerentes pueden consultar o modificar los gastos del negocio.",
+    unavailableTitle: "Gastos no está disponible en tu cuenta",
+    unavailableBody: "Esta función depende del acceso a reportes de margen. Puedes seguir consultando las ventas y el desempeño real de tu negocio en Análisis.",
+    backToReports: "Volver a Análisis",
     createTitle: "Registrar gasto",
     editTitle: "Editar gasto",
     formBody: "La fecha y el monto se reflejarán en el análisis del mismo periodo.",
@@ -1257,8 +1266,8 @@ export const copy = {
     loading: "Cargando análisis",
     loadError: "No se pudo cargar el análisis",
     retry: "Reintentar",
-    startDate: "Fecha inicial",
-    endDate: "Fecha final",
+    startDate: "Desde",
+    endDate: "Hasta",
     apply: "Aplicar",
     customRange: "Personalizar",
     customRangeClose: "Ocultar fechas",
@@ -1685,7 +1694,7 @@ export const copy = {
       cashHeavyAction: "Prepara cambio antes del pico y cuadra caja al cierre.",
       decliningMultiFinding: "Varios productos van a la baja",
       decliningMultiEvidence: (count: number) =>
-        `${count} productos vendieron bastante menos que el periodo anterior.`,
+        `${count} producto${count === 1 ? " vendió" : "s vendieron"} bastante menos que el periodo anterior.`,
       decliningMultiAction: "Revisa precio, exhibición o si faltó stock en esos productos.",
       decliningFinding: (name: string) => `${name} va a la baja`,
       decliningEvidence: (prev: number, cur: number) =>
@@ -1707,7 +1716,8 @@ export const copy = {
       newProductEvidence: (units: number) =>
         `Vendió ${units} ${units === 1 ? "unidad" : "unidades"} sin ventas previas.`,
       newProductAction: "Dale visibilidad y asegúrale stock para que siga creciendo.",
-      newProductMultiFinding: (count: number) => `${count} productos nuevos arrancaron bien`,
+      newProductMultiFinding: (count: number) =>
+        `${count} producto${count === 1 ? " nuevo arrancó" : "s nuevos arrancaron"} bien`,
       newProductMultiEvidence: (names: string[], units: number) =>
         `${names.join(", ")}${names.length >= 3 ? " y más" : ""} suman ${units} unidades sin ventas previas.`,
       newProductMultiAction: "Dales visibilidad y asegúrales stock para que sigan creciendo.",
@@ -1717,7 +1727,7 @@ export const copy = {
       overstockAction: "Frena compras y considera una promoción para moverlo.",
       cleanOpsFinding: "Operación limpia",
       cleanOpsEvidence: (orders: number) =>
-        `${orders} órdenes sin devoluciones ni cancelaciones.`,
+        `${orders} ${orders === 1 ? "orden" : "órdenes"} sin devoluciones ni cancelaciones.`,
       cleanOpsAction: "Usa este periodo como referencia para comparar días con problemas.",
     },
 
@@ -1884,7 +1894,7 @@ export const copy = {
     emptyBody: "Cuando cobres tu primera venta, aparecerá aquí con su recibo y detalle.",
     emptyCta: "Ir a la caja",
     emptyFiltered: "No hay ventas con esos filtros.",
-    total: "ventas",
+    total: (count: number) => `${count} ${count === 1 ? "venta" : "ventas"}`,
     date: "Fecha",
     status: "Estado",
     amount: "Monto",

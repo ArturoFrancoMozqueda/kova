@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     database_pool_timeout: int = 10
     database_pool_recycle_seconds: int = 300
     frontend_url: str = "http://localhost:5173"
+    # Immutable source identity injected by the Fly image build. It is public
+    # deployment metadata, never a secret, and lets post-deploy gates prove the
+    # frontend and backend came from the same commit.
+    kova_release_sha: str = "unknown"
 
     # Auth
     secret_key: str = "change-me-in-production-use-a-long-random-string"
@@ -66,6 +70,7 @@ class Settings(BaseSettings):
     # and single-instance deploys but unsafe across replicas).
     upstash_redis_rest_url: str | None = None
     upstash_redis_rest_token: str | None = None
+    trusted_client_ip_header: str = "fly-client-ip"
     email_from: str = "onboarding@resend.dev"
 
     @property

@@ -21,6 +21,8 @@ def test_billing_models_are_mapped(db: Session) -> None:
         "status",
         "currency",
         "amount_minor_units",
+        "stripe_lifecycle_watermark_at",
+        "stripe_payment_watermark_at",
     }.issubset(subscription_columns)
     assert {"tenant_id", "stripe_event_id", "event_type", "processing_status"}.issubset(
         webhook_columns

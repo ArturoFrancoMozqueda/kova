@@ -176,6 +176,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     fileParallelism: false,
-    exclude: ["node_modules", "dist", "e2e"],
+    exclude: ["node_modules", "dist", "e2e", "scripts/**/*.test.mjs"],
   },
 });

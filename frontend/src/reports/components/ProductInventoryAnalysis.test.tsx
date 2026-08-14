@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { makeStory } from "../__fixtures__/story";
 import type { StockItem } from "../../inventory/types";
@@ -43,6 +43,7 @@ describe("ProductTableSection", () => {
 
 describe("ProductsPanel", () => {
   it("leads with the top product answered in exact figures", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const story = makeStory({
       product_drivers: [
         { product_id: "p1", product_name: "Latte mediano", quantity_sold: 40, gross_sales: "4000", sales_share_pct: 40 },
@@ -55,6 +56,12 @@ describe("ProductsPanel", () => {
     expect(screen.getByText("Latte mediano · $4,000.00 (40% de la venta)")).toBeInTheDocument();
     // The bento cell links to the full table for the rest of the detail.
     expect(screen.getByRole("button", { name: /Ver tabla completa/ })).toBeInTheDocument();
+    expect(
+      errorSpy.mock.calls.some((call) =>
+        call.some((value) => String(value).includes("validateDOMNesting")),
+      ),
+    ).toBe(false);
+    errorSpy.mockRestore();
   });
 
   it("shows the empty state when there are no product drivers", () => {

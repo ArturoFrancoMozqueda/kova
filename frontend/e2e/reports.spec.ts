@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Page, expect, test } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 
 async function mockAuthAs(page: Page, role: string, marginReports = false) {
@@ -673,8 +673,8 @@ test("reports page displays analytics dashboard layout", async ({ page }) => {
 
   await page.goto("/reports");
   await page.getByRole("button", { name: /personalizar/i }).click();
-  await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
-  await page.getByLabel(/fecha final/i).fill("2026-05-19");
+  await page.getByLabel(/^desde$/i).fill("2026-05-13");
+  await page.getByLabel(/^hasta$/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
   // Compact overview follows the approved analytics direction: one dominant
@@ -757,8 +757,8 @@ test("reports keeps the latest applied range when an earlier request finishes la
 
   await page.goto("/reports");
   await page.getByRole("button", { name: /personalizar/i }).click();
-  await page.getByLabel(/fecha inicial/i).fill("2026-05-13");
-  await page.getByLabel(/fecha final/i).fill("2026-05-19");
+  await page.getByLabel(/^desde$/i).fill("2026-05-13");
+  await page.getByLabel(/^hasta$/i).fill("2026-05-19");
   await page.getByRole("button", { name: /aplicar/i }).click();
 
   const expectedCaption = page.getByText(

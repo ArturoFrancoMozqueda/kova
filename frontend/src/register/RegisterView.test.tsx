@@ -9,6 +9,7 @@ import type { Shift } from "@/shifts/types";
 // Mocks for every side-effecting dependency RegisterView pulls in.
 const getOpenShift = vi.fn();
 const queueOfflineSale = vi.fn();
+const claimOfflineSale = vi.fn();
 const syncOfflineSales = vi.fn();
 const getReceipt = vi.fn();
 const catalogApi = vi.hoisted(() => ({
@@ -27,11 +28,12 @@ const telemetry = vi.hoisted(() => ({
 vi.mock("@/shifts/api", () => ({ getOpenShift: () => getOpenShift() }));
 vi.mock("../offline/queue", () => ({
   queueOfflineSale: (...args: unknown[]) => queueOfflineSale(...args),
+  claimOfflineSale: (...args: unknown[]) => claimOfflineSale(...args),
 }));
 vi.mock("../offline/sync", () => ({
   syncOfflineSales: (...args: unknown[]) => syncOfflineSales(...args),
 }));
-vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn() }));
+vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn(), stopOfflineSync: vi.fn() }));
 vi.mock("../orders/api", () => ({ getReceipt: (...args: unknown[]) => getReceipt(...args) }));
 vi.mock("@/telemetry/funnel", () => telemetry);
 vi.mock("../inventory/api", () => ({ listStock: () => Promise.resolve([]) }));
@@ -103,6 +105,8 @@ describe("RegisterView cash-without-shift guard", () => {
   beforeEach(() => {
     getOpenShift.mockReset();
     queueOfflineSale.mockReset();
+    claimOfflineSale.mockReset();
+    claimOfflineSale.mockImplementation(async (_tenantId, clientUuid) => ({ client_uuid: clientUuid }));
     syncOfflineSales.mockReset();
     getReceipt.mockReset();
     getReceipt.mockRejectedValue(new Error("no receipt"));
@@ -122,6 +126,16 @@ describe("RegisterView cash-without-shift guard", () => {
     });
     fireEvent.click(addButton);
   }
+
+  it("uses one Caja h1 with Catálogo and Carrito as section headings", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    expect(await screen.findByRole("heading", { level: 2, name: copy.register.catalog })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 1, name: copy.register.title })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: copy.register.cart })).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
 
   it("disables cash and shows the blocking copy when no shift is open", async () => {
     getOpenShift.mockResolvedValue(null);
@@ -156,6 +170,7 @@ describe("RegisterView cash-without-shift guard", () => {
 
     await waitFor(() => expect(queueOfflineSale).toHaveBeenCalledTimes(1));
     expect(queueOfflineSale).toHaveBeenCalledWith(
+      "tenant-1",
       expect.anything(),
       "shift-123",
       expect.anything(),
@@ -291,6 +306,23 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(lineOrder()).toEqual([product.name, secondProduct.name]);
   });
 
+  it("removes a line without updating ToastProvider from the cart updater", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.removeItem(product.name) }));
+
+    expect(await screen.findByText(copy.register.itemRemoved(product.name))).toBeInTheDocument();
+    expect(
+      errorSpy.mock.calls.some((call) =>
+        call.some((value) => String(value).includes("Cannot update a component")),
+      ),
+    ).toBe(false);
+    errorSpy.mockRestore();
+  });
+
   it("renders the saved catalog when product and category fetches fail offline", async () => {
     getOpenShift.mockRejectedValue(new Error("offline"));
     catalogApi.listProducts.mockRejectedValue(new Error("offline"));
@@ -410,6 +442,7 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(screen.getAllByText(/1 x Concha/).length).toBeGreaterThan(0);
     expect(getReceipt).not.toHaveBeenCalled();
     expect(queueOfflineSale).toHaveBeenCalledWith(
+      "tenant-1",
       expect.anything(),
       undefined,
       expect.objectContaining({

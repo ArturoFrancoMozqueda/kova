@@ -11,8 +11,10 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { StatTile } from "@/components/ui/stat-tile";
 import { CloudUpload, RefreshCw, AlertCircle, Inbox, Wifi, WifiOff } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function SyncQueueView() {
+  useDocumentTitle(copy.documentTitles.syncQueue);
   const isOnline = useIsOnline();
   const { pendingCount, failedEntries, syncNow, retryDeadLetter } = useSyncQueue();
   const { state } = useAuth();

@@ -1,12 +1,16 @@
-name: CI
+name: CI and release
 
 on:
   push:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  backend:
+  backend-integration:
+    name: integration (FastAPI + Postgres)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -33,27 +37,31 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v6
         with:
           version: "0.9.18"
       - name: Install dependencies
         run: uv sync
       - name: Lint
         run: uv run ruff check .
+      - name: Check local operational contracts
+        run: |
+          uv run python ../scripts/check_ops_readiness.py repository
+          uv run python -m unittest discover -s ../scripts/tests
       - name: Apply migrations
         run: uv run alembic upgrade head
-      - name: Test
+      - name: Run integration suite
         run: uv run pytest
-      - name: Export OpenAPI
-        run: uv run python scripts/export_openapi.py
+      - name: Check versioned OpenAPI contract
+        run: uv run python scripts/export_openapi.py --check
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v4
         with:
           name: openapi-json
-          path: backend/openapi.json
+          path: specs/openapi.json
 
-  frontend:
+  frontend-unit-build:
+    name: unit/build (React)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,22 +71,157 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run check:api-contract
+      - run: npm test -- --run
+      - run: npm run test:release-contract
+      - run: npm run build
+      - run: npm run check:bundle-secrets
+
+  e2e-mocked:
+    name: e2e-mocked (Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run mocked E2E suite
+        run: npm run test:e2e-mocked
+
+  dependency-audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.9.18"
+      - name: Audit Python runtime dependencies
+        run: uv sync --no-dev && uv run --with pip-audit pip-audit
+        working-directory: backend
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - name: Audit npm runtime dependencies
+        run: npm audit --omit=dev --audit-level=high --package-lock-only
+        working-directory: frontend
+
+  no-secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container-supply-chain:
+    name: reproducible container and SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up isolated BuildKit builder
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          driver: docker-container
+      - name: Build backend image twice without layer reuse
+        shell: bash
+        run: |
+          first_archive="$RUNNER_TEMP/kova-backend-first.docker.tar"
+          second_archive="$RUNNER_TEMP/kova-backend-second.docker.tar"
+          common_args=(
+            --quiet
+            --no-cache
+            --provenance=false
+            --build-arg SOURCE_DATE_EPOCH=0
+            --build-arg "KOVA_RELEASE_SHA=$GITHUB_SHA"
+          )
+          docker buildx build "${common_args[@]}" \
+            --output "type=docker,name=kova-backend:first,dest=$first_archive,rewrite-timestamp=true" backend
+          docker buildx build "${common_args[@]}" \
+            --output "type=docker,name=kova-backend:first,dest=$second_archive,rewrite-timestamp=true" backend
+          first="$(tar -xOf "$first_archive" manifest.json | jq -er \
+            'if length == 1 then .[0].Config else error("expected one image") end')"
+          second="$(tar -xOf "$second_archive" manifest.json | jq -er \
+            'if length == 1 then .[0].Config else error("expected one image") end')"
+          first_archive_sha="$(sha256sum "$first_archive" | cut -d ' ' -f 1)"
+          second_archive_sha="$(sha256sum "$second_archive" | cut -d ' ' -f 1)"
+          test "$first" = "$second" && test "$first_archive_sha" = "$second_archive_sha" || {
+            echo "Backend image is not reproducible:" >&2
+            echo "manifest $first != $second" >&2
+            echo "archive $first_archive_sha != $second_archive_sha" >&2
+            exit 1
+          }
+          docker load --input "$first_archive"
+          echo "Backend image reproduced exactly as $first ($first_archive_sha)"
+      - name: Generate SPDX JSON SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          image: kova-backend:first
+          format: spdx-json
+          output-file: backend-sbom.spdx.json
+          upload-artifact: false
+      - name: Upload backend SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-sbom-${{ github.sha }}
+          path: backend-sbom.spdx.json
+          if-no-files-found: error
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-      - name: Install
+      - name: Install frontend dependencies
         run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Test
-        run: npm test -- --run
-      - name: Build
-        run: npm run build
-      - name: Scan bundle for secrets
-        run: npm run check:bundle-secrets
+        working-directory: frontend
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Start disposable application stack
+        run: docker compose -f docker-compose.test.yml up -d --build --wait
+      - name: Run integration and real-browser axe gates
+        run: npm run test:integration
+        working-directory: frontend
+        env:
+          KOVA_INTEGRATION: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5174
+      - name: Collect disposable stack logs
+        if: failure()
+        run: docker compose -f docker-compose.test.yml logs --no-color
+      - name: Tear down disposable stack
+        if: always()
+        run: docker compose -f docker-compose.test.yml down --volumes --remove-orphans
 
   migrations:
+    name: migration reversibility
+    needs: [backend-integration, frontend-unit-build, e2e-mocked, integration, dependency-audit, no-secrets, container-supply-chain]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -108,17 +251,95 @@ jobs:
         with:
           version: "0.9.18"
       - run: uv sync
-      - name: Upgrade
-        run: uv run alembic upgrade head
-      - name: Downgrade to base
-        run: uv run alembic downgrade base
-      - name: Re-upgrade
-        run: uv run alembic upgrade head
+      - run: uv run alembic upgrade head
+      - run: uv run alembic downgrade base
+      - run: uv run alembic upgrade head
 
-  smoke:
+  deploy-fly:
+    name: deploy Fly (exact commit)
+    needs: [migrations]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: [backend, frontend, migrations]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    outputs:
+      previous_image: ${{ steps.previous.outputs.image }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
+      - id: previous
+        name: Capture rollback image
+        shell: bash
+        run: |
+          image="$(flyctl status --json | jq -r '.Machines[0].config.image // .machines[0].config.image // empty')"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+        working-directory: backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Deploy backend image from this commit
+        run: flyctl deploy --remote-only --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --strategy rolling --wait-timeout 5m
+        working-directory: backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-vercel-preview:
+    name: deploy Vercel candidate (exact commit)
+    needs: [migrations]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Pull production build configuration
+        run: npx --yes vercel@46.1.1 pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build immutable production candidate
+        run: npx --yes vercel@46.1.1 build --prod --token="$VERCEL_TOKEN"
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+      - id: deploy
+        name: Deploy candidate without production promotion
+        shell: bash
+        run: |
+          url="$(npx --yes vercel@46.1.1 deploy --prebuilt --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  post-deploy-read-only:
+    name: production health/read-only smoke
+    needs: [deploy-fly, deploy-vercel-preview]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - name: Wait for exact Fly and Vercel candidates
+        run: npx --yes wait-on@9.0.1 "${{ needs.deploy-vercel-preview.outputs.url }}/version.json" "https://api.kovasuite.com/health/db" --timeout 180000
+      - name: Verify commit and health contracts
+        run: node frontend/scripts/verify-deployment.mjs --frontend "${{ needs.deploy-vercel-preview.outputs.url }}" --backend "https://api.kovasuite.com" --sha "$GITHUB_SHA"
+
+  production-smoke:
+    name: production-smoke (authenticated, non-skippable)
+    needs: [deploy-fly, deploy-vercel-preview, post-deploy-read-only]
+    runs-on: ubuntu-latest
+    environment: production
     defaults:
       run:
         working-directory: frontend
@@ -127,83 +348,73 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
-          cache: "npm"
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install
-        run: npm ci
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
-      - name: Wait for Vercel deployment
-        run: npx wait-on ${{ secrets.VERCEL_URL }} --timeout 120000
-      - name: E2E smoke against deployed app
-        run: npm run test:e2e
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - id: identity
+        name: Derive idempotent smoke identity from commit
+        shell: bash
+        run: |
+          sha="$GITHUB_SHA"
+          echo "uuid=${sha:0:8}-${sha:8:4}-4${sha:13:3}-8${sha:17:3}-${sha:20:12}" >> "$GITHUB_OUTPUT"
+          echo "reference=KOVA-SMOKE-${sha:0:12}" >> "$GITHUB_OUTPUT"
+      - name: Run production smoke with zero skips allowed
+        run: npm run test:production-smoke
         env:
-          PLAYWRIGHT_BASE_URL: ${{ secrets.VERCEL_URL }}
+          PLAYWRIGHT_BASE_URL: ${{ needs.deploy-vercel-preview.outputs.url }}
+          PRODUCTION_SMOKE: "1"
+          PRODUCTION_SMOKE_EMAIL: ${{ secrets.PRODUCTION_SMOKE_EMAIL }}
+          PRODUCTION_SMOKE_PASSWORD: ${{ secrets.PRODUCTION_SMOKE_PASSWORD }}
+          PRODUCTION_SMOKE_TENANT_ID: ${{ secrets.PRODUCTION_SMOKE_TENANT_ID }}
+          PRODUCTION_SMOKE_ALLOW_MUTATIONS: ${{ secrets.PRODUCTION_SMOKE_ALLOW_MUTATIONS }}
+          PRODUCTION_SMOKE_PRODUCT_NAME: ${{ secrets.PRODUCTION_SMOKE_PRODUCT_NAME }}
+          PRODUCTION_SMOKE_CLIENT_UUID: ${{ steps.identity.outputs.uuid }}
+          PRODUCTION_SMOKE_REFERENCE: ${{ steps.identity.outputs.reference }}
 
-  deploy:
+  promote-vercel:
+    name: promote accepted Vercel candidate
+    needs: [deploy-vercel-preview, production-smoke]
     runs-on: ubuntu-latest
-    needs: [smoke]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to a SHA rather than @master: this step runs inside the
-      # production deploy job with FLY_API_TOKEN in scope, so a mutable branch
-      # reference would let upstream changes execute here without review.
-      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master @ 2026-04-08
-      - name: Deploy backend to Fly.io
-        run: flyctl deploy --remote-only
-        working-directory: backend
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.9.18"
-      # Audits the runtime dependency set only (--no-dev). Dev tooling never
-      # ships to Fly, and letting a pytest/ruff advisory block a deploy would
-      # train the team to ignore this job.
-      - name: Install runtime dependencies
-        run: uv sync --no-dev
-        working-directory: backend
-      - name: Audit Python dependencies
-        run: uv run --with pip-audit pip-audit
-        working-directory: backend
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
-      # --package-lock-only resolves the tree from the lockfile instead of
-      # node_modules. Without it npm rejected the installed tree ("Invalid
-      # package tree", 400) and fell back to the retired /security/audits/quick
-      # endpoint: the runner is Linux, so npm ci skips the platform-specific
-      # optional deps (e.g. @rollup/rollup-win32-*) that the lockfile lists.
-      # Reading the lockfile directly is platform-independent and removes the
-      # need to install anything at all.
-      #
-      # --omit=dev because devDependencies never reach the bundle. That scoping
-      # matters here: every current high/critical advisory is dev-only (eslint,
-      # vite, vitest, postcss, vite-plugin-pwa), so auditing the full tree would
-      # leave this job permanently red and train the team to ignore it.
-      - name: Audit npm dependencies
-        run: npm audit --omit=dev --audit-level=high --package-lock-only
-        working-directory: frontend
+      - name: Promote the tested artifact without rebuilding
+        run: npx --yes vercel@46.1.1 promote "${{ needs.deploy-vercel-preview.outputs.url }}" --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-  no-secrets:
+  release-acceptance:
+    name: release acceptance
+    needs: [deploy-fly, promote-vercel]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
+    environment: production
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          fetch-depth: 0
-      - name: Gitleaks scan
-        uses: gitleaks/gitleaks-action@v2
+          node-version: "20"
+      - name: Verify promoted frontend and backend commit
+        run: node frontend/scripts/verify-deployment.mjs --frontend "${{ secrets.VERCEL_URL }}" --backend "https://api.kovasuite.com" --sha "$GITHUB_SHA"
+
+  rollback-fly:
+    name: rollback Fly after failed post-deploy gate
+    needs: [deploy-fly, post-deploy-read-only, production-smoke]
+    if: >-
+      ${{ always() && needs.deploy-fly.result == 'success' &&
+          (needs.post-deploy-read-only.result != 'success' || needs.production-smoke.result != 'success') &&
+          needs.deploy-fly.outputs.previous_image != '' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
+      - name: Restore the exact previous Fly image
+        run: flyctl deploy --image "${{ needs.deploy-fly.outputs.previous_image }}" --strategy rolling --wait-timeout 5m
+        working-directory: backend
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

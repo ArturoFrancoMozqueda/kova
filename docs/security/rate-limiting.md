@@ -1,6 +1,6 @@
 # Rate limiting
 
-Last updated: 2026-06-21
+Last updated: 2026-08-13
 Owner: backend
 Related code:
 - `backend/app/middleware/rate_limit.py` — pluggable rate-limit factory
@@ -66,9 +66,16 @@ combines that with the client IP to form the final bucket key:
 bucket = "<endpoint-key>:<client-ip>"
 ```
 
-When `key` is omitted, the matched FastAPI route pattern is used. The IP
-comes from `X-Forwarded-For` (first hop) when present, otherwise
-`request.client.host`.
+When `key` is omitted, the matched FastAPI route pattern is used. The IP comes
+from Fly.io's edge-controlled `Fly-Client-IP` header (configured by
+`TRUSTED_CLIENT_IP_HEADER`) and falls back to the direct socket peer when that
+header is absent or invalid. `X-Forwarded-For` is deliberately ignored because
+an internet client can prepend values and rotate buckets. IPv4, IPv6, and
+IPv4-mapped IPv6 are normalized before building the key.
+
+This trust model assumes the backend remains reachable through Fly Proxy. If
+direct public access or another proxy is introduced, update the trusted header
+and edge controls together; never restore first-hop `X-Forwarded-For`.
 
 ## Current thresholds
 

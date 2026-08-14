@@ -71,14 +71,42 @@ aws s3 cp "s3://$env:R2_BUCKET/supabase/postgres/$BACKUP" "./$BACKUP" --endpoint
 ```
 
 Verify file size matches what the workflow reported (visible in the workflow run summary).
+For backups created after the SHA-256 metadata gate was deployed, retrieve the trusted checksum and
+compare it locally (do not copy credentials or URLs into the drill log):
+
+```powershell
+$EXPECTED_SHA256 = aws s3api head-object `
+  --bucket $env:R2_BUCKET `
+  --key "supabase/postgres/$BACKUP" `
+  --endpoint-url $env:R2_ENDPOINT `
+  --query "Metadata.sha256" `
+  --output text
+$LOCAL_SHA256 = (Get-FileHash ".\$BACKUP" -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($EXPECTED_SHA256 -ne $LOCAL_SHA256) { throw "Backup checksum mismatch" }
+```
+
+Los backups anteriores pueden no incluir este metadata; para ellos registrar la limitación y
+contrastar al menos tamaño, cabecera custom y el workflow exacto que los produjo.
 
 ---
 
 ## Step 3 — Create a fresh Supabase project
 
+Antes de crear recursos, comprobar el plan y la capacidad real de la organización. Supabase Free
+permite como máximo dos proyectos activos por cuenta/organización (incluyendo proyectos de
+organizaciones donde la persona sea Owner/Admin). Un precio mostrado como `0` no garantiza que
+quede cuota disponible. No pausar, reutilizar ni eliminar un proyecto de otra aplicación para hacer
+espacio, y no crear una branch o clone con costo sin una aprobación de gasto explícita.
+
+Registrar en la evidencia del drill, sin secretos: organización elegida, plan, número de proyectos
+activos, región y confirmación de que el destino es nuevo y desechable. Si no existe capacidad Free,
+detenerse antes de crear el proyecto. El restore físico «Restore to a New Project» es una alternativa
+pagada y puede replicar el tamaño/costo de producción; no debe confundirse con este restore lógico.
+
 1. Supabase dashboard → **New project** → name it `kova-restore-<YYYYMMDD>`.
 2. Use the same region as production (currently `us-west-1`) to keep latency similar.
-3. Choose Free tier — the drill does not need Pro.
+3. Choose Free tier only after confirming that an active-project slot is available — the drill does
+   not need Pro.
 4. Wait until the project is fully provisioned (status “Healthy”).
 5. **Settings → Database → Connection string** → copy the **session pooler (port 5432)** URL and the password (only shown once).
 
@@ -93,6 +121,21 @@ $RESTORE_URL = "postgresql://postgres.<NEW-PROJECT-REF>:<NEW-PASSWORD>@<region>.
 ---
 
 ## Step 4 — Restore the dump
+
+Antes de cualquier comando destructivo, ejecutar el preflight local. `RESTORE_URL` se lee del
+entorno y nunca se imprime; los refs se obtienen del dashboard y no son secretos:
+
+```powershell
+python scripts/check_ops_readiness.py restore-preflight `
+  --backup ".\$BACKUP" `
+  --project-ref "<NEW-PROJECT-REF>" `
+  --production-project-ref "<PRODUCTION-PROJECT-REF>" `
+  --expected-sha256 "$EXPECTED_SHA256" `
+  --ack-disposable-target
+```
+
+Este paso sólo comprueba cabecera/formato, checksum, SSL, puerto y que el ref destino sea distinto
+de producción. No conecta ni restaura. Si falla, detenerse; no omitir el guard.
 
 ```powershell
 pg_restore `
@@ -175,8 +218,12 @@ Optional but recommended:
 
 ## Drill log
 
-Record every drill execution here:
+Medir desde el inicio de la recuperación hasta el smoke read-only aprobado (**RTO**). Calcular el
+tiempo entre el dato más reciente verificable del dump y el inicio del incidente/drill (**RPO**).
+No registrar URLs de conexión, credenciales, nombres de personas ni datos de clientes.
 
-| Date (UTC) | Operator | Backup restored | Outcome | Notes |
-|---|---|---|---|---|
-| _2026-MM-DD_ | _name_ | _kova-…dump_ | _OK / Issue_ | _link to workflow run_ |
+Record every drill execution here (store detailed evidence in restricted storage):
+
+| Date (UTC) | Operator | Backup restored | RTO | RPO | RLS/read smoke | Cleanup | Notes |
+|---|---|---|---|---|---|---|---|
+| _2026-MM-DD_ | _role_ | _kova-…dump_ | _duration_ | _duration_ | _OK / Issue_ | _verified_ | _private evidence link_ |

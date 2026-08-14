@@ -1,0 +1,79 @@
+# Disposable, local/CI-only stack. Never point these services at hosted data.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: pos
+      POSTGRES_PASSWORD: pos
+      POSTGRES_DB: pos_test
+    ports:
+      - "${TEST_DB_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos -d pos_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: local
+      DATABASE_URL: postgresql+psycopg://pos:pos@db:5432/pos_test
+      MIGRATION_DATABASE_URL: postgresql+psycopg://pos:pos@db:5432/pos_test
+    command: ["/usr/local/bin/uv", "run", "alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  provision-rls:
+    image: postgres:16
+    environment:
+      PGPASSWORD: pos
+    volumes:
+      - ./backend/scripts/provision_app_role.sql:/test/provision_app_role.sql:ro
+    command:
+      - sh
+      - -ec
+      - >-
+        psql -h db -U pos -d pos_test
+        -v kova_app_password=kova_app_test
+        -f /test/provision_app_role.sql
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: local
+      DATABASE_URL: postgresql+psycopg://pos:pos@db:5432/pos_test
+      MIGRATION_DATABASE_URL: postgresql+psycopg://pos:pos@db:5432/pos_test
+      APP_DATABASE_URL: postgresql+psycopg://kova_app:kova_app_test@db:5432/pos_test
+      FRONTEND_URL: http://127.0.0.1:5174
+      SECRET_KEY: integration-only-not-a-production-secret
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/db')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    depends_on:
+      provision-rls:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_BASE_URL: http://backend:8000
+    ports:
+      - "${TEST_FRONTEND_PORT:-5174}:5173"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    depends_on:
+      backend:
+        condition: service_healthy

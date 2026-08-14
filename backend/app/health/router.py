@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 
+from app.config import settings
 from app.db import engine
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -8,7 +9,7 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 @router.get("")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "release_sha": settings.kova_release_sha}
 
 
 @router.head("")

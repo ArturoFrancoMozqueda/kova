@@ -237,7 +237,7 @@ export default function CatalogView() {
     return (
       <ViewLayout width="wide" className="space-y-6" aria-busy="true">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
+          <ViewHeader title={copy.catalog.title} meta={copy.catalog.loading} />
           <Skeleton className="h-9 w-32" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">

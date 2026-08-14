@@ -80,6 +80,16 @@ class ReconcileCheckoutRequest(BaseModel):
     checkout_session_id: str = Field(min_length=1, max_length=255)
 
 
+class InternalReconcileRequest(BaseModel):
+    limit: int = Field(default=100, ge=1, le=500)
+
+
+class InternalReconcileResponse(BaseModel):
+    checked: int
+    updated: int
+    failed: int
+
+
 class InternalSubscriptionItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

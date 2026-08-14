@@ -28,9 +28,11 @@ export function RouteFallback({ label = "Cargando" }: { label?: string }) {
  */
 export function ShellRouteFallback({
   label = "Cargando vista",
+  viewName = "Tu espacio de trabajo",
   delayMs = 140,
 }: {
   label?: string;
+  viewName?: string;
   delayMs?: number;
 }) {
   const [visible, setVisible] = useState(delayMs <= 0);
@@ -53,7 +55,7 @@ export function ShellRouteFallback({
       <div className="mb-7 flex items-center justify-between gap-4">
         <div className="space-y-3">
           <Skeleton className="h-3 w-24 rounded-full" />
-          <Skeleton className="h-8 w-52 rounded-lg" />
+          <p className="text-3xl font-bold tracking-[-0.035em] text-kova-ink">{viewName}</p>
         </div>
         <Skeleton className="h-10 w-28" />
       </div>

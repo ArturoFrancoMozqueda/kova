@@ -6,6 +6,8 @@ from app.billing import repository, service
 from app.billing.schemas import (
     BillingSubscriptionResponse,
     CheckoutSessionResponse,
+    InternalReconcileRequest,
+    InternalReconcileResponse,
     InternalSubscriptionListResponse,
     ReconcileCheckoutRequest,
 )
@@ -144,3 +146,18 @@ def internal_list_subscriptions(
         raise forbidden("Invalid or missing internal API key")
     items = repository.list_all_subscriptions(db, offset=offset, limit=limit)
     return InternalSubscriptionListResponse(items=items, total=len(items))
+
+
+@router.post(
+    "/internal/reconcile",
+    response_model=InternalReconcileResponse,
+    tags=["internal"],
+)
+def internal_reconcile_subscriptions(
+    body: InternalReconcileRequest,
+    x_internal_key: str | None = Header(default=None, alias="X-Internal-Key"),
+    db: Session = Depends(get_privileged_db),
+):
+    if not settings.internal_api_key or x_internal_key != settings.internal_api_key:
+        raise forbidden("Invalid or missing internal API key")
+    return service.reconcile_subscriptions(db, limit=body.limit)
