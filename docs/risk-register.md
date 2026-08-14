@@ -24,6 +24,10 @@ This document tracks the highest-risk areas of the POS SaaS project.
 | Performance issues | Medium | Medium | indexes, p95 targets, load tests before GA | Engineering |
 | Stripe dependency | Medium | Low | accept for v1, isolate billing adapter | Engineering |
 | Offline UX confusion | Medium | Medium | clear sync indicator, dead-letter UX, user recovery actions | Design/Engineering |
+| Offline queue cross-tenant ownership or stuck leases | Critical | Medium | tenant-scoped Dexie rows, legacy quarantine, recoverable leases, A/B and crash tests | Engineering |
+| Out-of-order Stripe webhook state | Critical | Medium | persisted event watermark, stale-event policy, authoritative reconciliation, test-mode gate | Engineering |
+| Incomplete production RLS posture | Critical | Medium | dedicated non-owner runtime role, fail-closed boot checks, two-tenant smoke | Engineering |
+| Deploy accepted without post-deploy smoke | Critical | Medium | commit-pinned Vercel/Fly deploys and non-skippable production smoke | Engineering |
 
 ## Critical Risks
 
