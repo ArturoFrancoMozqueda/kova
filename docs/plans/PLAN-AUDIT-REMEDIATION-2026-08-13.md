@@ -1,7 +1,7 @@
 # Plan de remediación de auditoría integral — Kova
 
-Última actualización: 2026-08-13  
-Estado: ejecución local integrada; gates externos y de producción pendientes  
+Última actualización: 2026-08-13
+Estado: ejecución local integrada; gates externos y de producción pendientes
 Fuente: auditoría paralela técnica, consumidor/UX y marketing/CRO, complementada con recorrido
 autenticado de producción sobre el tenant de QA autorizado.
 
