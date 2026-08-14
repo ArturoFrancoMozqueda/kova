@@ -8,6 +8,45 @@ from app.config import settings, sqlalchemy_database_url
 
 logger = logging.getLogger(__name__)
 
+# Canonical inventory of tables whose rows belong to a tenant. Keep this list
+# aligned with tenant-scoped migrations; production startup rejects drift.
+TENANT_SCOPED_TABLES = (
+    "account_deletion_requests",
+    "audit_logs",
+    "cash_movements",
+    "categories",
+    "customer_order_item_modifiers",
+    "customer_order_items",
+    "customer_orders",
+    "expenses",
+    "idempotency_keys",
+    "inventory_movements",
+    "inventory_reservations",
+    "membership_invitations",
+    "memberships",
+    "modifier_groups",
+    "modifier_options",
+    "order_item_modifiers",
+    "order_items",
+    "orders",
+    "payments",
+    "product_image_files",
+    "product_modifier_groups",
+    "products",
+    "refund_items",
+    "refunds",
+    "sessions",
+    "shifts",
+    "subscriptions",
+    "telemetry_events",
+    "tenant_business_profiles",
+    "tenant_logo_files",
+    "tenant_onboarding_state",
+    "tenant_receipt_settings",
+    "voids",
+    "webhook_events",
+)
+
 
 class Base(DeclarativeBase):
     pass
@@ -27,7 +66,6 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
-
 # Privileged engine. Connects as the owner/superuser (BYPASSRLS) role and is the
 # ONLY sanctioned way to run the deliberately tenant-agnostic paths that have no
 # request tenant context: the Stripe webhook + internal endpoints, public asset
@@ -44,9 +82,7 @@ privileged_engine = create_engine(
     pool_recycle=settings.database_pool_recycle_seconds,
     future=True,
 )
-PrivilegedSessionLocal = sessionmaker(
-    bind=privileged_engine, autoflush=False, autocommit=False
-)
+PrivilegedSessionLocal = sessionmaker(bind=privileged_engine, autoflush=False, autocommit=False)
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -66,45 +102,80 @@ def get_privileged_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def _rls_posture_errors(
+    *,
+    role_is_super: bool,
+    role_bypasses_rls: bool,
+    owned_tables: set[str],
+    table_posture: dict[str, tuple[bool, bool, bool, bool]],
+) -> list[str]:
+    errors: list[str] = []
+    if role_is_super:
+        errors.append("runtime role is a superuser")
+    if role_bypasses_rls:
+        errors.append("runtime role has BYPASSRLS")
+    if owned_tables:
+        errors.append("runtime role owns tenant tables: " + ", ".join(sorted(owned_tables)))
+    for table in TENANT_SCOPED_TABLES:
+        posture = table_posture.get(table)
+        if posture is None:
+            errors.append(f"{table}: table missing")
+            continue
+        labels = ("RLS", "FORCE RLS", "policy USING", "policy WITH CHECK")
+        missing = [label for label, present in zip(labels, posture, strict=True) if not present]
+        if missing:
+            errors.append(f"{table}: missing " + ", ".join(missing))
+    return errors
+
+
 def assert_rls_active() -> None:
-    """Boot-time posture check: log the runtime connection role and whether RLS
-    is actually forced on a representative tenant table. In production, warn
-    loudly if the app connected as an owner/superuser (which would silently
-    bypass RLS) or if FORCE is not active. Never raises — observability only."""
+    """Verify the complete runtime RLS posture and fail closed in production."""
     try:
         with engine.connect() as conn:
-            role = conn.execute(text("SELECT current_user")).scalar()
-            is_super = conn.execute(
+            role_row = conn.execute(
+                text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+            ).one()
+            owned_tables = set(
+                conn.execute(
+                    text(
+                        "SELECT c.relname FROM pg_class c "
+                        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                        "WHERE n.nspname = 'public' AND c.relkind = 'r' "
+                        "AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user) "
+                        "AND c.relname = ANY(:tables)"
+                    ),
+                    {"tables": list(TENANT_SCOPED_TABLES)},
+                ).scalars()
+            )
+            rows = conn.execute(
                 text(
-                    "SELECT rolsuper OR rolbypassrls FROM pg_roles "
-                    "WHERE rolname = current_user"
-                )
-            ).scalar()
-            forced = conn.execute(
-                text(
-                    "SELECT relforcerowsecurity FROM pg_class "
-                    "WHERE relname = 'products'"
-                )
-            ).scalar()
-    except Exception:  # pragma: no cover - diagnostics must never break boot
-        logger.exception("Could not verify RLS posture at startup")
+                    "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity, "
+                    "COALESCE(bool_or(p.polqual IS NOT NULL), false), "
+                    "COALESCE(bool_or(p.polwithcheck IS NOT NULL), false) "
+                    "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                    "LEFT JOIN pg_policy p ON p.polrelid = c.oid "
+                    "WHERE n.nspname = 'public' AND c.relkind = 'r' "
+                    "AND c.relname = ANY(:tables) "
+                    "GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity"
+                ),
+                {"tables": list(TENANT_SCOPED_TABLES)},
+            ).all()
+    except Exception as exc:
+        if settings.app_env == "production":
+            raise RuntimeError("Could not verify RLS posture at startup") from exc
+        logger.warning("Could not verify RLS posture at startup", exc_info=True)
         return
 
-    logger.info(
-        "DB runtime role=%s bypasses_rls=%s products.force_rls=%s",
-        role,
-        is_super,
-        forced,
+    errors = _rls_posture_errors(
+        role_is_super=bool(role_row[0]),
+        role_bypasses_rls=bool(role_row[1]),
+        owned_tables=owned_tables,
+        table_posture={row[0]: tuple(bool(value) for value in row[1:]) for row in rows},
     )
-    if settings.app_env not in {"local", "ci"}:
-        if is_super:
-            logger.error(
-                "SECURITY: app connected as an owner/superuser/BYPASSRLS role "
-                "(%s); RLS tenant isolation is NOT enforced at runtime.",
-                role,
-            )
-        if not forced:
-            logger.error(
-                "SECURITY: FORCE ROW LEVEL SECURITY is not active on tenant "
-                "tables; RLS may be bypassable."
-            )
+    if errors:
+        message = "Incomplete RLS posture: " + "; ".join(errors)
+        if settings.app_env == "production":
+            raise RuntimeError(message)
+        logger.warning(message)
+        return
+    logger.info("RLS posture verified for %d tenant tables", len(TENANT_SCOPED_TABLES))

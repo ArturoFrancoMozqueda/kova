@@ -53,6 +53,8 @@ def test_config_allows_explicit_production_stripe_test_mode(monkeypatch) -> None
     monkeypatch.setattr(settings, "stripe_allow_test_mode_in_production", True)
     monkeypatch.setattr(settings, "resend_api_key", "re_test_123")
     monkeypatch.setattr(settings, "email_from", "hola@kova.example")
+    monkeypatch.setattr(settings, "app_database_url", "postgresql://kova_app@runtime/db")
+    monkeypatch.setattr(settings, "migration_database_url", "postgresql://owner@migration/db")
 
     _validate_config()
 
@@ -66,12 +68,12 @@ def test_login_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
         client.post(
             "/api/v1/auth/login",
             json=payload,
-            headers={"X-Forwarded-For": test_ip},
+            headers={"Fly-Client-IP": test_ip},
         )
     response = client.post(
         "/api/v1/auth/login",
         json=payload,
-        headers={"X-Forwarded-For": test_ip},
+        headers={"Fly-Client-IP": test_ip},
     )
     assert response.status_code == 429
     # Retry-After counts down from the oldest in-window hit. Login now runs bcrypt
@@ -91,12 +93,12 @@ def test_signup_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
         client.post(
             "/api/v1/auth/signup",
             json=payload,
-            headers={"X-Forwarded-For": test_ip},
+            headers={"Fly-Client-IP": test_ip},
         )
     response = client.post(
         "/api/v1/auth/signup",
         json=payload,
-        headers={"X-Forwarded-For": test_ip},
+        headers={"Fly-Client-IP": test_ip},
     )
     assert response.status_code == 429
 
@@ -109,12 +111,12 @@ def test_password_reset_rate_limit_returns_429(client: TestClient, monkeypatch) 
         client.post(
             "/api/v1/auth/password-reset/request",
             json=payload,
-            headers={"X-Forwarded-For": test_ip},
+            headers={"Fly-Client-IP": test_ip},
         )
     response = client.post(
         "/api/v1/auth/password-reset/request",
         json=payload,
-        headers={"X-Forwarded-For": test_ip},
+        headers={"Fly-Client-IP": test_ip},
     )
     assert response.status_code == 429
 
@@ -130,19 +132,19 @@ def test_rate_limit_is_per_ip(client: TestClient, monkeypatch) -> None:
         client.post(
             "/api/v1/auth/login",
             json={"email": "ip-a@example.com", "password": "wrong1"},
-            headers={"X-Forwarded-For": ip_a},
+            headers={"Fly-Client-IP": ip_a},
         )
     # ip_a is now throttled
     assert client.post(
         "/api/v1/auth/login",
         json={"email": "ip-a@example.com", "password": "wrong1"},
-        headers={"X-Forwarded-For": ip_a},
+        headers={"Fly-Client-IP": ip_a},
     ).status_code == 429
     # ip_b is independent — first request should not be throttled (returns 401 for bad creds)
     response_b = client.post(
         "/api/v1/auth/login",
         json={"email": "ip-b@example.com", "password": "wrong1"},
-        headers={"X-Forwarded-For": ip_b},
+        headers={"Fly-Client-IP": ip_b},
     )
     assert response_b.status_code != 429
 
@@ -158,12 +160,12 @@ def test_login_per_account_rate_limit_across_ips(client: TestClient, monkeypatch
         client.post(
             "/api/v1/auth/login",
             json={"email": email, "password": "wrong1"},
-            headers={"X-Forwarded-For": f"198.51.100.{i}"},
+            headers={"Fly-Client-IP": f"198.51.100.{i}"},
         )
     blocked = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": "wrong1"},
-        headers={"X-Forwarded-For": "198.51.100.200"},
+        headers={"Fly-Client-IP": "198.51.100.200"},
     )
     assert blocked.status_code == 429
 
@@ -173,10 +175,10 @@ def test_verify_rate_limit_returns_429(client: TestClient, monkeypatch) -> None:
     ip = "203.0.113.1"
     for _ in range(20):
         client.post(
-            "/api/v1/auth/verify", json={"token": "x"}, headers={"X-Forwarded-For": ip}
+            "/api/v1/auth/verify", json={"token": "x"}, headers={"Fly-Client-IP": ip}
         )
     response = client.post(
-        "/api/v1/auth/verify", json={"token": "x"}, headers={"X-Forwarded-For": ip}
+        "/api/v1/auth/verify", json={"token": "x"}, headers={"Fly-Client-IP": ip}
     )
     assert response.status_code == 429
 
@@ -189,11 +191,11 @@ def test_password_reset_confirm_rate_limit_returns_429(client: TestClient, monke
         client.post(
             "/api/v1/auth/password-reset/confirm",
             json=payload,
-            headers={"X-Forwarded-For": ip},
+            headers={"Fly-Client-IP": ip},
         )
     response = client.post(
         "/api/v1/auth/password-reset/confirm",
         json=payload,
-        headers={"X-Forwarded-For": ip},
+        headers={"Fly-Client-IP": ip},
     )
     assert response.status_code == 429

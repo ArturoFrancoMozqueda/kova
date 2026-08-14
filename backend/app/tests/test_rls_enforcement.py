@@ -42,8 +42,7 @@ def rls_seed(owner_engine):
     with owner_engine.begin() as conn:
         conn.execute(
             text(
-                "INSERT INTO tenants (id, name, slug) VALUES "
-                "(:a, 'RLS A', :sa), (:b, 'RLS B', :sb)"
+                "INSERT INTO tenants (id, name, slug) VALUES (:a, 'RLS A', :sa), (:b, 'RLS B', :sb)"
             ),
             {"a": TENANT_A, "b": TENANT_B, "sa": f"rls-{TENANT_A}", "sb": f"rls-{TENANT_B}"},
         )
@@ -205,7 +204,8 @@ def test_cross_tenant_read_is_blocked(kova_app_engine, rls_seed):  # noqa: ARG00
 
 
 def test_customer_orders_are_visible_only_to_current_tenant(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
@@ -220,7 +220,8 @@ def test_customer_orders_are_visible_only_to_current_tenant(
 
 
 def test_customer_order_cross_tenant_insert_is_rejected(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     from sqlalchemy.exc import DBAPIError
 
@@ -240,7 +241,8 @@ def test_customer_order_cross_tenant_insert_is_rejected(
 
 
 def test_expenses_are_visible_only_to_the_current_tenant(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
@@ -255,7 +257,8 @@ def test_expenses_are_visible_only_to_the_current_tenant(
 
 
 def test_telemetry_events_are_visible_only_to_the_current_tenant(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
@@ -270,7 +273,8 @@ def test_telemetry_events_are_visible_only_to_the_current_tenant(
 
 
 def test_account_deletion_requests_are_tenant_isolated(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
@@ -285,7 +289,8 @@ def test_account_deletion_requests_are_tenant_isolated(
 
 
 def test_expense_cross_tenant_insert_is_rejected(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     from sqlalchemy.exc import DBAPIError
 
@@ -314,7 +319,8 @@ def test_no_context_sees_nothing(kova_app_engine, rls_seed):  # noqa: ARG001
 
 
 def test_users_are_visible_only_through_current_tenant_membership(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
@@ -329,7 +335,8 @@ def test_users_are_visible_only_through_current_tenant_membership(
 
 
 def test_tenant_name_is_visible_only_for_current_tenant(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
@@ -344,7 +351,8 @@ def test_tenant_name_is_visible_only_for_current_tenant(
 
 
 def test_billing_policy_denies_empty_tenant_context_without_uuid_cast_error(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         conn.execute(text("SELECT set_config('app.tenant_id', '', false)"))
@@ -356,7 +364,8 @@ def test_billing_policy_denies_empty_tenant_context_without_uuid_cast_error(
 
 
 def test_product_policy_denies_empty_tenant_context_without_uuid_cast_error(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         conn.execute(text("SELECT set_config('app.tenant_id', '', false)"))
@@ -368,7 +377,8 @@ def test_product_policy_denies_empty_tenant_context_without_uuid_cast_error(
 
 
 def test_receipt_policy_denies_empty_tenant_context_without_uuid_cast_error(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         conn.execute(text("SELECT set_config('app.tenant_id', '', false)"))
@@ -377,7 +387,8 @@ def test_receipt_policy_denies_empty_tenant_context_without_uuid_cast_error(
 
 
 def test_receipt_policy_preserves_tenant_isolation(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
@@ -391,7 +402,8 @@ def test_receipt_policy_preserves_tenant_isolation(
 
 
 def test_receipt_upsert_restores_rls_context_before_post_commit_refresh(
-    kova_app_engine, rls_seed  # noqa: ARG001
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
 ):
     with Session(kova_app_engine) as db:
         _set_tenant(db, TENANT_A)
@@ -414,8 +426,7 @@ def test_cross_tenant_insert_is_rejected(kova_app_engine, rls_seed):  # noqa: AR
         with pytest.raises(DBAPIError) as exc:
             conn.execute(
                 text(
-                    "INSERT INTO products (tenant_id, name, price_amount) "
-                    "VALUES (:b, 'Evil', 1.00)"
+                    "INSERT INTO products (tenant_id, name, price_amount) VALUES (:b, 'Evil', 1.00)"
                 ),
                 {"b": TENANT_B},
             )
@@ -434,3 +445,13 @@ def test_cross_tenant_update_is_rejected(kova_app_engine, rls_seed):  # noqa: AR
                 {"b": TENANT_B, "pa": PRODUCT_A},
             )
         assert "row-level security" in str(exc.value).lower()
+
+
+def test_cross_tenant_delete_cannot_target_another_tenant(
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
+):
+    with kova_app_engine.begin() as conn:
+        _set_tenant(conn, TENANT_A)
+        result = conn.execute(text("DELETE FROM products WHERE id = :pb"), {"pb": PRODUCT_B})
+        assert result.rowcount == 0

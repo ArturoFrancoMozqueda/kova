@@ -9,12 +9,14 @@ scaling.
 
 See ``docs/security/rate-limiting.md`` for the threat model and thresholds.
 """
+
 from __future__ import annotations
 
 import logging
 import math
 import time
 from collections import defaultdict
+from ipaddress import ip_address
 from threading import Lock
 from typing import Protocol
 
@@ -34,10 +36,24 @@ _FAIL_CLOSED_RETRY_SECONDS = 30
 
 
 def _get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    candidate = request.headers.get(settings.trusted_client_ip_header)
+    if not candidate:
+        candidate = request.client.host if request.client else None
+    if not candidate:
+        return "unknown"
+    try:
+        parsed = ip_address(candidate.strip())
+    except ValueError:
+        fallback = request.client.host if request.client else None
+        if not fallback or fallback == candidate:
+            return "unknown"
+        try:
+            parsed = ip_address(fallback.strip())
+        except ValueError:
+            return "unknown"
+    if getattr(parsed, "ipv4_mapped", None) is not None:
+        parsed = parsed.ipv4_mapped
+    return parsed.compressed
 
 
 def _route_pattern(request: Request) -> str:

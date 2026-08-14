@@ -1,7 +1,8 @@
 from collections.abc import Awaitable, Callable
+from typing import Any
 
-from fastapi import Request, Response
-from fastapi.responses import JSONResponse
+from starlette.responses import JSONResponse
+from starlette.types import Message, Receive, Scope, Send
 
 # Generous global ceiling: above the largest legitimate upload (1 MB product
 # image) so JSON endpoints and uploads alike are covered, while still rejecting
@@ -10,18 +11,59 @@ from fastapi.responses import JSONResponse
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
 
 
-async def body_size_limit_middleware(
-    request: Request,
-    call_next: Callable[[Request], Awaitable[Response]],
-) -> Response:
-    # Browser clients (fetch/XHR) always set Content-Length for JSON and
-    # multipart bodies, so the declared length is a reliable, cheap early gate.
-    content_length = request.headers.get("content-length")
-    if content_length is not None:
+class _BodyTooLarge(Exception):
+    pass
+
+
+class BodySizeLimitMiddleware:
+    """ASGI-native byte limit that also covers chunked requests."""
+
+    def __init__(self, app: Callable[..., Awaitable[Any]]) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers", []))
+        content_length = headers.get(b"content-length")
+        if content_length is not None:
+            try:
+                declared = int(content_length)
+            except ValueError:
+                await self._reject(400, "Invalid Content-Length", scope, receive, send)
+                return
+            if declared < 0:
+                await self._reject(400, "Invalid Content-Length", scope, receive, send)
+                return
+            if declared > MAX_REQUEST_BYTES:
+                await self._reject(413, "Request body too large", scope, receive, send)
+                return
+
+        received = 0
+
+        async def limited_receive() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > MAX_REQUEST_BYTES:
+                    raise _BodyTooLarge
+            return message
+
         try:
-            declared = int(content_length)
-        except ValueError:
-            return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length"})
-        if declared > MAX_REQUEST_BYTES:
-            return JSONResponse(status_code=413, content={"detail": "Request body too large"})
-    return await call_next(request)
+            await self.app(scope, limited_receive, send)
+        except _BodyTooLarge:
+            await self._reject(413, "Request body too large", scope, receive, send)
+
+    @staticmethod
+    async def _reject(
+        status_code: int,
+        detail: str,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        response = JSONResponse(status_code=status_code, content={"detail": detail})
+        await response(scope, receive, send)
