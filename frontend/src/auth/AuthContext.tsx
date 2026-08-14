@@ -4,6 +4,7 @@ import { getReceiptSettings } from "@/settings/api";
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 import { normalizeFeatureFlags, type FeatureFlags } from "./featureFlags";
 import { setActiveOfflineTenant } from "@/offline/activeTenant";
+import { captureApiRequestId, clearLatestRequestId } from "@/lib/supportContext";
 
 export type AuthUser = {
   id: string;
@@ -44,8 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setActiveOfflineTenant(authenticatedTenantId);
+    clearLatestRequestId();
     return () => {
       setActiveOfflineTenant(null);
+      clearLatestRequestId();
     };
   }, [authenticatedTenantId]);
 
@@ -134,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     window.fetch = async (input, init) => {
       const response = await originalFetch(input, init);
+      captureApiRequestId(input, response);
       if (response.status !== 401) return response;
       const url = typeof input === "string" ? input : (input as URL | Request).toString();
       if (!url.includes("/api/") || shouldSkip(url)) return response;
@@ -147,7 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const ok = await refreshPromise.catch(() => false);
       if (!ok) return response;
       // Retry the original request once with refreshed cookies.
-      return originalFetch(input, init);
+      const retriedResponse = await originalFetch(input, init);
+      captureApiRequestId(input, retriedResponse);
+      return retriedResponse;
     };
 
     return () => {
@@ -157,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await apiLogout();
+    clearLatestRequestId();
     // Wipe the cached catalog so a different tenant on this device can never
     // read the previous tenant's products from IndexedDB. Best-effort:
     // logout must still complete if the cache clear fails. Imported on demand

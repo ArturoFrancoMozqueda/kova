@@ -47,6 +47,21 @@ export function apiErrorDetail(err: unknown): Record<string, unknown> | null {
   }
 }
 
+/** Returns a user-facing string detail from FastAPI without exposing the rest
+ * of the response body. Useful for validation endpoints whose actionable
+ * feedback lives in `detail` rather than in a field map. */
+export function apiErrorDetailText(err: unknown): string | null {
+  if (!err || typeof err !== "object" || !("message" in err)) return null;
+  const message = (err as { message: unknown }).message;
+  if (typeof message !== "string") return null;
+  try {
+    const body = JSON.parse(message) as { detail?: unknown };
+    return typeof body?.detail === "string" ? body.detail : null;
+  } catch {
+    return null;
+  }
+}
+
 export function resolveApiErrorMessage(err: unknown, fallback: string): string {
   if (isNetworkError(err)) return copy.errors.network;
   const status = apiErrorStatus(err);
