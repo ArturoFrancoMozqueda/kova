@@ -110,15 +110,19 @@ Docker Engine; el daemon local no estaba disponible durante esta remediación.
   desarrollo. `uv sync --frozen --no-dev` consume estrictamente `uv.lock` y
   `UV_NO_SYNC=1` impide una resolución implícita al arrancar.
 - El nuevo check CI `reproducible container and SBOM` construye dos veces sin
-  reutilizar capas, exige IDs de imagen idénticos, genera un SBOM SPDX JSON con
-  una acción fijada por commit y lo conserva como artifact ligado al SHA. El
-  job de migraciones —y por transitividad cualquier deploy— depende de este
-  control.
+  reutilizar capas, normaliza timestamps de BuildKit con `SOURCE_DATE_EPOCH=0`,
+  exige IDs de imagen idénticos, genera un SBOM SPDX JSON con una acción fijada
+  por commit y lo conserva como artifact ligado al SHA. El job de migraciones
+  —y por transitividad cualquier deploy— depende de este control.
 - Verificaciones locales completadas: digest de Python y `uv` resueltos con
   `buildx imagetools inspect`; instalación productiva congelada resuelve 43
   paquetes sin grupos dev; YAML y `actionlint` 1.7.12 aprobados.
 
-El doble build local no se usa como evidencia de aprobación: el daemon quedó
-ocupado por el stack integrado y las solicitudes aisladas se cancelaron para
-no interferir. El mismo doble build ahora es un gate fail-closed de CI, por lo
-que una imagen no reproducible o un SBOM ausente bloquean migrations/deploy.
+El doble build local sin normalización completó correctamente ambos builds y el
+gate detectó la no reproducibilidad esperada: IDs `f69ae6ad…` y `6d1f90e7…`;
+las capas generadas tenían timestamps distintos. El workflow ahora pasa
+`SOURCE_DATE_EPOCH=0`, manteniendo la comparación estricta de IDs en vez de
+debilitarla. Docker Scout generó un SPDX 2.3 válido con 177 entradas de paquete
+para la imagen inspeccionada. El doble build normalizado y el SBOM permanecen
+como gate fail-closed de CI, por lo que cualquier regresión bloquea
+migrations/deploy.
