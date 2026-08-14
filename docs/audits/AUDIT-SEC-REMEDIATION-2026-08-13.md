@@ -107,22 +107,27 @@ Docker Engine; el daemon local no estaba disponible durante esta remediación.
 - La imagen base `python:3.12-slim` también quedó fijada por digest
   multi-plataforma; ya no queda una base mutable detrás del runtime `uv` fijado.
 - La imagen productiva dejó de instalar `build-essential` y dependencias de
-  desarrollo. `uv sync --frozen --no-dev` consume estrictamente `uv.lock` y
-  `UV_NO_SYNC=1` impide una resolución implícita al arrancar.
+  desarrollo. `uv sync --frozen --no-cache --no-dev` consume estrictamente
+  `uv.lock` sin persistir caché y `UV_NO_SYNC=1` impide una resolución implícita
+  al arrancar.
 - El nuevo check CI `reproducible container and SBOM` construye dos veces sin
-  reutilizar capas, normaliza timestamps de BuildKit con `SOURCE_DATE_EPOCH=0`,
-  exige IDs de imagen idénticos, genera un SBOM SPDX JSON con una acción fijada
-  por commit y lo conserva como artifact ligado al SHA. El job de migraciones
-  —y por transitividad cualquier deploy— depende de este control.
+  reutilizar capas, normaliza config y filesystem con `SOURCE_DATE_EPOCH=0` y
+  `rewrite-timestamp=true`, exige manifests y archivos OCI idénticos, genera un
+  SBOM SPDX JSON con una acción fijada por commit y lo conserva como artifact
+  ligado al SHA. El job de migraciones —y por transitividad cualquier deploy—
+  depende de este control.
 - Verificaciones locales completadas: digest de Python y `uv` resueltos con
-  `buildx imagetools inspect`; instalación productiva congelada resuelve 43
-  paquetes sin grupos dev; YAML y `actionlint` 1.7.12 aprobados.
+  `buildx imagetools inspect`; instalación Linux productiva congelada resuelve
+  42 paquetes sin grupos dev; YAML y `actionlint` 1.7.12 aprobados.
 
 El doble build local sin normalización completó correctamente ambos builds y el
 gate detectó la no reproducibilidad esperada: IDs `f69ae6ad…` y `6d1f90e7…`;
 las capas generadas tenían timestamps distintos. El workflow ahora pasa
-`SOURCE_DATE_EPOCH=0`, manteniendo la comparación estricta de IDs en vez de
-debilitarla. Docker Scout generó un SPDX 2.3 válido con 177 entradas de paquete
-para la imagen inspeccionada. El doble build normalizado y el SBOM permanecen
-como gate fail-closed de CI, por lo que cualquier regresión bloquea
+`SOURCE_DATE_EPOCH=0`; una segunda ejecución mostró que la única capa aún
+variable era `RUN uv sync`, porque `/root/.cache/uv/archive-v0` incluía nombres
+temporales aleatorios. `uv sync --no-cache` elimina ese contenido y el exporter
+OCI reescribe timestamps. Dos builds locales independientes produjeron el mismo
+manifest `4d57bbed…` y archivos OCI byte-a-byte idénticos
+(`d6b10d4a…`). Docker Scout indexó correctamente 176 paquetes desde el artefacto
+reproducido. La comparación exacta no se debilitó; cualquier regresión bloquea
 migrations/deploy.

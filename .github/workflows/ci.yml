@@ -144,15 +144,34 @@ jobs:
       - name: Build backend image twice without layer reuse
         shell: bash
         run: |
-          docker build --no-cache --build-arg SOURCE_DATE_EPOCH=0 --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:first" backend
-          docker build --no-cache --build-arg SOURCE_DATE_EPOCH=0 --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --tag "kova-backend:second" backend
-          first="$(docker image inspect kova-backend:first --format '{{.Id}}')"
-          second="$(docker image inspect kova-backend:second --format '{{.Id}}')"
-          test "$first" = "$second" || {
-            echo "Backend image is not reproducible: $first != $second" >&2
+          first_archive="$RUNNER_TEMP/kova-backend-first.oci.tar"
+          second_archive="$RUNNER_TEMP/kova-backend-second.oci.tar"
+          common_args=(
+            --quiet
+            --no-cache
+            --provenance=false
+            --build-arg SOURCE_DATE_EPOCH=0
+            --build-arg "KOVA_RELEASE_SHA=$GITHUB_SHA"
+          )
+          docker buildx build "${common_args[@]}" \
+            --output "type=oci,dest=$first_archive,rewrite-timestamp=true" backend
+          docker buildx build "${common_args[@]}" \
+            --output "type=oci,dest=$second_archive,rewrite-timestamp=true" backend
+          first="$(tar -xOf "$first_archive" index.json | jq -er \
+            'if (.manifests | length) == 1 then .manifests[0].digest else error("expected one manifest") end')"
+          second="$(tar -xOf "$second_archive" index.json | jq -er \
+            'if (.manifests | length) == 1 then .manifests[0].digest else error("expected one manifest") end')"
+          first_archive_sha="$(sha256sum "$first_archive" | cut -d ' ' -f 1)"
+          second_archive_sha="$(sha256sum "$second_archive" | cut -d ' ' -f 1)"
+          test "$first" = "$second" && test "$first_archive_sha" = "$second_archive_sha" || {
+            echo "Backend image is not reproducible:" >&2
+            echo "manifest $first != $second" >&2
+            echo "archive $first_archive_sha != $second_archive_sha" >&2
             exit 1
           }
-          echo "Backend image reproduced as $first"
+          docker load --input "$first_archive"
+          docker tag "$first" kova-backend:first
+          echo "Backend image reproduced exactly as $first ($first_archive_sha)"
       - name: Generate SPDX JSON SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
         with:
