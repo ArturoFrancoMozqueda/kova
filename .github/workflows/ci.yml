@@ -328,10 +328,12 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
-      - name: Wait for exact Fly and Vercel candidates
-        run: npx --yes wait-on@9.0.1 "${{ needs.deploy-vercel-preview.outputs.url }}/version.json" "https://api.kovasuite.com/health/db" --timeout 180000
+      - name: Wait for Fly candidate
+        run: npx --yes wait-on@9.0.1 "https://api.kovasuite.com/health/db" --timeout 180000
       - name: Verify commit and health contracts
         run: node frontend/scripts/verify-deployment.mjs --frontend "${{ needs.deploy-vercel-preview.outputs.url }}" --backend "https://api.kovasuite.com" --sha "$GITHUB_SHA"
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   production-smoke:
     name: production-smoke (authenticated, non-skippable)
@@ -369,6 +371,7 @@ jobs:
           PRODUCTION_SMOKE_PRODUCT_NAME: ${{ secrets.PRODUCTION_SMOKE_PRODUCT_NAME }}
           PRODUCTION_SMOKE_CLIENT_UUID: ${{ steps.identity.outputs.uuid }}
           PRODUCTION_SMOKE_REFERENCE: ${{ steps.identity.outputs.reference }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
   promote-vercel:
     name: promote accepted Vercel candidate

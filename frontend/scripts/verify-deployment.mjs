@@ -7,22 +7,27 @@ function requireArg(name) {
   return value;
 }
 
-async function getJson(url) {
+async function getJson(url, extraHeaders = {}) {
   const response = await globalThis.fetch(url, {
-    headers: { "cache-control": "no-cache" },
+    headers: { "cache-control": "no-cache", ...extraHeaders },
     redirect: "follow",
   });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} from ${url}`);
   return { body: await response.json(), headers: response.headers };
 }
 
-export async function verifyDeployment({ frontendUrl, backendUrl, sha }) {
+export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendBypassSecret }) {
   const normalizedFrontend = frontendUrl.replace(/\/$/, "");
   const normalizedBackend = backendUrl.replace(/\/$/, "");
   const expectedFrontendHash = sha.slice(0, 12);
 
   const [frontend, backend, database] = await Promise.all([
-    getJson(`${normalizedFrontend}/version.json`),
+    getJson(
+      `${normalizedFrontend}/version.json`,
+      frontendBypassSecret
+        ? { "x-vercel-protection-bypass": frontendBypassSecret }
+        : {},
+    ),
     getJson(`${normalizedBackend}/health`),
     getJson(`${normalizedBackend}/health/db`),
   ]);
@@ -54,6 +59,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     frontendUrl: requireArg("frontend"),
     backendUrl: requireArg("backend"),
     sha: requireArg("sha"),
+    frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   });
   console.log(JSON.stringify(result));
 }
