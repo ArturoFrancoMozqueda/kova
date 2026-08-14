@@ -141,6 +141,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Set up isolated BuildKit builder
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+        with:
+          driver: docker-container
       - name: Build backend image twice without layer reuse
         shell: bash
         run: |
