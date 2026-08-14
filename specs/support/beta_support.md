@@ -6,9 +6,12 @@
 
 ## Support Channel
 
-**Minimum for beta:** A dedicated email address or WhatsApp group per tenant.
-- Suggested: `beta@[yourdomain]` forwarded to engineering
-- Response SLA: same business day for P0/P1 issues
+**Canal oficial durante la beta:** `posprojectsupport@gmail.com`.
+
+- La ayuda autenticada muestra siempre el correo oficial.
+- WhatsApp aparece como canal secundario solo mientras exista un número verificado configurado en la fuente de verdad del frontend.
+- La ayuda puede adjuntar el último `X-Request-ID` seguro observado en una respuesta de la API. No adjunta tenant, correo del usuario, cookies, tokens, cuerpos de respuesta ni datos de pago.
+- La beta no promete un SLA formal. Los incidentes que impiden operar se atienden con prioridad durante el horario hábil publicado.
 
 ## Feedback Process
 
@@ -36,8 +39,8 @@ Template location: `docs/beta-agreement-template.md` (to be created)
 3. Engineering seeds a small sample catalog (5 categories, 10 products)
 4. Owner walkthrough: login, catalog review, first sale, shift, reports
 5. Billing: Stripe Standard Plan activated at $299 MXN
-6. Support channel established (email or WhatsApp)
-7. Sentry tenant_id noted for log filtering
+6. Confirmar que el propietario puede abrir Ayuda y enviar correo al canal oficial
+7. Para un incidente reproducible, confirmar que Ayuda muestra una referencia técnica correlacionable en logs
 
 ## Runbook Locations
 
@@ -48,7 +51,9 @@ Template location: `docs/beta-agreement-template.md` (to be created)
 
 ## Acceptance Criteria
 
-- Support email configured and tested before beta launch.
+- El correo oficial de soporte está configurado y se prueba antes del lanzamiento beta.
+- WhatsApp no se renderiza si su número verificado está vacío.
+- La referencia técnica contiene exclusivamente el `X-Request-ID` validado de una respuesta same-origin de `/api/`.
 - Beta agreement template complete.
 - Onboarding checklist followed for each beta tenant.
 - Feedback process documented and agreed with each tenant.

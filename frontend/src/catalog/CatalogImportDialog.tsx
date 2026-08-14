@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload }
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { resolveApiErrorMessage } from "@/lib/apiError";
+import { apiErrorDetailText, apiErrorStatus, resolveApiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { copy } from "../i18n/messages";
 import { catalogImportTemplateUrl, commitCatalogImport, previewCatalogImport } from "./api";
@@ -35,6 +35,10 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     setFile(selected);
     setPreview(null);
     setError(null);
+    if (!/\.(csv|xlsx)$/i.test(selected.name)) {
+      setError(copy.catalog.importUnsupportedFile);
+      return;
+    }
     if (selected.size > 2 * 1024 * 1024) {
       setError(copy.catalog.importFileTooLarge);
       return;
@@ -43,7 +47,10 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     try {
       setPreview(await previewCatalogImport(selected));
     } catch (cause) {
-      setError(resolveApiErrorMessage(cause, copy.catalog.importPreviewError));
+      const detail = apiErrorStatus(cause) !== null && apiErrorStatus(cause)! < 500
+        ? apiErrorDetailText(cause)
+        : null;
+      setError(detail ?? resolveApiErrorMessage(cause, copy.catalog.importPreviewError));
     } finally {
       setPending(false);
     }
@@ -56,7 +63,10 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     try {
       await onImported(await commitCatalogImport(file));
     } catch (cause) {
-      setError(resolveApiErrorMessage(cause, copy.catalog.importCommitError));
+      const detail = apiErrorStatus(cause) !== null && apiErrorStatus(cause)! < 500
+        ? apiErrorDetailText(cause)
+        : null;
+      setError(detail ?? resolveApiErrorMessage(cause, copy.catalog.importCommitError));
     } finally {
       setPending(false);
     }
@@ -76,6 +86,11 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
             <div>
               <p className="text-sm font-semibold text-kova-ink">{copy.catalog.importPrepareTitle}</p>
               <p className="mt-1 text-sm text-muted-foreground">{copy.catalog.importPrepareBody}</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+                <li>{copy.catalog.importExcelStepOne}</li>
+                <li>{copy.catalog.importExcelStepTwo}</li>
+                <li>{copy.catalog.importExcelStepThree}</li>
+              </ol>
             </div>
           </div>
           <a
@@ -92,13 +107,13 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
           ref={inputRef}
           className="sr-only"
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           aria-label={copy.catalog.importChooseFile}
           onChange={(event) => void chooseFile(event.target.files?.[0])}
         />
         <button
           type="button"
-          className="flex min-h-28 w-full flex-col items-center justify-center rounded-kova-lg border border-dashed border-kova-border bg-white px-4 py-5 text-center transition-colors hover:border-kova-blue hover:bg-kova-mist/30 focus:outline-none focus:ring-2 focus:ring-kova-blue focus:ring-offset-2"
+          className="flex min-h-28 w-full flex-col items-center justify-center rounded-kova-lg border border-dashed border-kova-border bg-white px-4 py-5 text-center transition-colors hover:border-kova-blue hover:bg-kova-mist/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2"
           onClick={() => inputRef.current?.click()}
           disabled={pending}
         >

@@ -61,6 +61,7 @@ def owner_saves_receipt_settings(receipt_context):
             "receipt_business_name": "Recibo Smoke Cafe",
             "footer": "Gracias por tu compra",
             "tax_contact_text": "RFC disponible en mostrador",
+            "paper_width_mm": 58,
         },
     )
 
@@ -74,6 +75,7 @@ def api_returns_initial_receipt_configuration(receipt_context):
     assert body["footer"] is None
     assert body["tax_contact_text"] is None
     assert body["logo_url"] is None
+    assert body["paper_width_mm"] == 80
 
 
 @then("the response uses the tenant name as the receipt business name")
@@ -94,6 +96,7 @@ def settings_are_stored_for_tenant(receipt_context):
     assert body["tenant_id"] == receipt_context["signup"]["tenant_id"]
     assert body["receipt_business_name"] == "Recibo Smoke Cafe"
     assert body["footer"] == "Gracias por tu compra"
+    assert body["paper_width_mm"] == 58
 
 
 @then("an audit log records the update")
@@ -107,3 +110,19 @@ def audit_log_records_update(receipt_context, db):
     assert entry.resource_type == "tenant"
     assert entry.resource_id == tenant_id
 
+
+def test_legacy_receipt_settings_put_preserves_paper_width(client):
+    _signup_verify_login(client, tenant_name="Legacy Receipt Cafe")
+    configured = client.put(
+        "/api/v1/settings/receipt",
+        json={"receipt_business_name": "Legacy Receipt Cafe", "paper_width_mm": 58},
+    )
+    assert configured.status_code == 200, configured.text
+    assert configured.json()["paper_width_mm"] == 58
+
+    legacy_put = client.put(
+        "/api/v1/settings/receipt",
+        json={"receipt_business_name": "Legacy Receipt Cafe", "footer": "Gracias"},
+    )
+    assert legacy_put.status_code == 200, legacy_put.text
+    assert legacy_put.json()["paper_width_mm"] == 58

@@ -10,6 +10,7 @@ Use this checklist before finishing meaningful Kova changes.
 - Billing gate.
 - Checkout/success/cancel behavior when relevant.
 - Product setup.
+- Catalog import: preview one CSV and one single-sheet XLSX; verify formulas/macros/multiple sheets are rejected without writes.
 - Employee setup.
 - Inventory setup.
 - POS sale flow.

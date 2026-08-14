@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createProduct, setProductModifierGroups, updateProduct } from "./api";
+import {
+  createProduct,
+  previewCatalogImport,
+  setProductModifierGroups,
+  updateProduct,
+} from "./api";
 import type { ProductCreate, ProductUpdate } from "./types";
 
 function mockProductResponse() {
@@ -96,5 +101,24 @@ describe("catalog api product payloads", () => {
         { modifier_group_id: "group-2", sort_order: 1 },
       ],
     });
+  });
+
+  it("sends xlsx with a coherent format query and media type", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const workbook = new File(["xlsx"], "catalogo.xlsx", {
+      type: "application/octet-stream",
+    });
+
+    await previewCatalogImport(workbook);
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(
+      "/api/v1/catalog/import?dry_run=true&format=xlsx",
+    );
+    expect(init.headers).toEqual(expect.objectContaining({
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }));
+    expect(init.body).toBe(workbook);
   });
 });

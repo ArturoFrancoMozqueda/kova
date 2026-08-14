@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,7 @@ import {
   getReceiptSettings,
   listEmployees,
   listInvitations,
+  saveReceiptSettings,
 } from "./api";
 
 const authMocks = vi.hoisted(() => ({
@@ -86,6 +87,7 @@ describe("SettingsView business logo placement", () => {
       footer: null,
       tax_contact_text: null,
       logo_url: null,
+      paper_width_mm: 80,
     });
     vi.mocked(listEmployees).mockResolvedValue([]);
     vi.mocked(listInvitations).mockResolvedValue([]);
@@ -111,5 +113,26 @@ describe("SettingsView business logo placement", () => {
 
     expect(await screen.findByText(copy.settings.receiptSettings)).toBeInTheDocument();
     expect(screen.queryByLabelText(copy.settings.logoUploadLabel)).not.toBeInTheDocument();
+  });
+
+  it("previews and saves a compact 58 mm receipt without new UI primitives", async () => {
+    vi.mocked(saveReceiptSettings).mockResolvedValue({
+      tenant_id: "tenant-1",
+      receipt_business_name: "Sweet Home",
+      footer: null,
+      tax_contact_text: null,
+      logo_url: null,
+      paper_width_mm: 58,
+    });
+    const { container } = renderSettings("/settings/receipt");
+
+    const width = await screen.findByLabelText(copy.settings.receiptPaperWidth);
+    fireEvent.change(width, { target: { value: "58" } });
+    expect(container.querySelector('.receipt-template[data-paper-width="58"]')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.saveReceipt }));
+
+    await waitFor(() => expect(saveReceiptSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ paper_width_mm: 58 }),
+    ));
   });
 });

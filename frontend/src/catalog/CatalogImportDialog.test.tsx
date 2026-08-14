@@ -56,7 +56,7 @@ describe("CatalogImportDialog", () => {
     render(<CatalogImportDialog open onClose={vi.fn()} onImported={onImported} />);
 
     const file = new File(["nombre,precio\nConcha,18\n"], "catalogo.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Elegir archivo CSV"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [file] } });
 
     await screen.findByText("Concha");
     expect(previewCatalogImport).toHaveBeenCalledWith(file);
@@ -77,10 +77,73 @@ describe("CatalogImportDialog", () => {
     render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
 
     const file = new File(["nombre,precio\nConcha,error\n"], "errores.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Elegir archivo CSV"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [file] } });
 
     expect(await screen.findByText(/precio debe ser un número válido/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
     expect(commitCatalogImport).not.toHaveBeenCalled();
+  });
+
+  it("accepts an xlsx workbook for the same preview flow", async () => {
+    previewCatalogImport.mockResolvedValue(validPreview);
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+
+    expect(screen.getByText(/acepta CSV UTF-8 o un libro .xlsx/i)).toBeVisible();
+    const workbook = new File(["excel"], "catalogo.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), {
+      target: { files: [workbook] },
+    });
+
+    await screen.findByText("Concha");
+    expect(previewCatalogImport).toHaveBeenCalledWith(workbook);
+  });
+
+  it("rejects legacy or macro-enabled Excel files before calling the API", async () => {
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+    const workbook = new File(["excel"], "catalogo.xlsm", {
+      type: "application/vnd.ms-excel.sheet.macroEnabled.12",
+    });
+
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), {
+      target: { files: [workbook] },
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no admite .xls, .xlsm/i);
+    expect(previewCatalogImport).not.toHaveBeenCalled();
+  });
+
+  it("shows the backend validation detail so the owner can fix the file", async () => {
+    previewCatalogImport.mockRejectedValue(
+      Object.assign(new Error(JSON.stringify({ detail: "Encabezados inválidos; falta precio" })), {
+        status: 400,
+      }),
+    );
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+
+    const file = new File(["nombre\nConcha\n"], "catalogo.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [file] } });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Encabezados inválidos; falta precio",
+    );
+  });
+
+  it("does not expose a server error body", async () => {
+    previewCatalogImport.mockRejectedValue(
+      Object.assign(new Error(JSON.stringify({ detail: "internal stack and database name" })), {
+        status: 503,
+      }),
+    );
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+
+    const file = new File(["nombre,precio\nConcha,18\n"], "catalogo.csv", {
+      type: "text/csv",
+    });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [file] } });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/problema de nuestro lado/i);
+    expect(screen.queryByText(/internal stack/i)).not.toBeInTheDocument();
   });
 });

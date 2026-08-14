@@ -5296,6 +5296,15 @@
             "title": "Order Id",
             "type": "string"
           },
+          "paper_width_mm": {
+            "default": 80,
+            "enum": [
+              58,
+              80
+            ],
+            "title": "Paper Width Mm",
+            "type": "integer"
+          },
           "payments": {
             "items": {
               "$ref": "#/components/schemas/ReceiptPaymentLine"
@@ -5401,6 +5410,15 @@
             ],
             "title": "Logo Url"
           },
+          "paper_width_mm": {
+            "default": 80,
+            "enum": [
+              58,
+              80
+            ],
+            "title": "Paper Width Mm",
+            "type": "integer"
+          },
           "receipt_business_name": {
             "maxLength": 255,
             "minLength": 1,
@@ -5465,6 +5483,21 @@
               }
             ],
             "title": "Logo Url"
+          },
+          "paper_width_mm": {
+            "anyOf": [
+              {
+                "enum": [
+                  58,
+                  80
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paper Width Mm"
           },
           "receipt_business_name": {
             "maxLength": 255,
@@ -7673,6 +7706,36 @@
             }
           },
           {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -7691,7 +7754,7 @@
         ],
         "requestBody": {
           "content": {
-            "text/csv": {
+            "application/octet-stream": {
               "schema": {
                 "contentMediaType": "application/octet-stream",
                 "title": "Content",
