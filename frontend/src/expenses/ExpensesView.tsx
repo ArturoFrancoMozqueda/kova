@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Navigate } from "react-router-dom";
-import { CalendarDays, Pencil, Plus, ReceiptText, Trash2, WalletCards } from "lucide-react";
+import { BarChart3, CalendarDays, Pencil, Plus, ReceiptText, Trash2, WalletCards } from "lucide-react";
 
 import { useFeature } from "@/auth/useFeature";
 import { EXPENSES_MANAGE_PERMISSION, usePermission } from "@/auth/permissions";
@@ -70,7 +69,18 @@ export default function ExpensesView() {
     [expenses],
   );
 
-  if (!enabled) return <Navigate to="/reports" replace />;
+  if (!enabled) {
+    return (
+      <ViewLayout width="focused">
+        <ViewEmpty
+          icon={<BarChart3 className="h-6 w-6" />}
+          title={copy.expenses.unavailableTitle}
+          body={copy.expenses.unavailableBody}
+          primaryCta={{ label: copy.expenses.backToReports, to: "/reports" }}
+        />
+      </ViewLayout>
+    );
+  }
   if (!canManage) {
     return <ViewPermissionDenied title={copy.expenses.deniedTitle} description={copy.expenses.deniedBody} />;
   }

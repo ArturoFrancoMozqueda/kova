@@ -86,6 +86,7 @@ export function ReportsHeader({
                 id="report-start-date"
                 type="date"
                 value={startDate}
+                max={endDate || undefined}
                 onChange={(event) => onStartDateChange(event.target.value)}
                 className="w-full sm:w-40"
               />
@@ -96,6 +97,7 @@ export function ReportsHeader({
                 id="report-end-date"
                 type="date"
                 value={endDate}
+                min={startDate || undefined}
                 onChange={(event) => onEndDateChange(event.target.value)}
                 className="w-full sm:w-40"
               />

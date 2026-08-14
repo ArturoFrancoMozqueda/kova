@@ -725,7 +725,7 @@ export default function DashboardView() {
                           </div>
                           <Link
                             to="/reports"
-                            className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[color:var(--kova-blue)] hover:underline"
+                            className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-kova-md text-sm font-semibold text-[color:var(--kova-blue)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue focus-visible:ring-offset-2"
                           >
                             {copy.dashboard.topHoursViewMore}
                             <ArrowRight className="h-4 w-4" />

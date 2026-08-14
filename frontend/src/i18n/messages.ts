@@ -485,6 +485,7 @@ export const copy = {
     notFound: "Página no encontrada",
     settings: "Configuración",
     shifts: "Turnos",
+    syncQueue: "Cola de sincronización",
   },
   notFound: {
     heading: "Esta página no existe",
@@ -1205,8 +1206,8 @@ export const copy = {
     eyebrow: "Control del negocio",
     meta: "Registra solo gastos reales del negocio. Kova los usa para aproximar tu resultado operativo.",
     add: "Registrar gasto",
-    startDate: "Fecha inicial",
-    endDate: "Fecha final",
+    startDate: "Desde",
+    endDate: "Hasta",
     apply: "Aplicar",
     periodTotal: "Gastos registrados en el periodo",
     records: (count: number) => `${count} registro${count === 1 ? "" : "s"}`,
@@ -1217,6 +1218,9 @@ export const copy = {
     emptyBody: "Registra renta, servicios y otros gastos operativos para entender mejor cuánto queda después de vender.",
     deniedTitle: "No tienes acceso a gastos",
     deniedBody: "Solo dueños y gerentes pueden consultar o modificar los gastos del negocio.",
+    unavailableTitle: "Gastos no está disponible en tu cuenta",
+    unavailableBody: "Esta función depende del acceso a reportes de margen. Puedes seguir consultando las ventas y el desempeño real de tu negocio en Análisis.",
+    backToReports: "Volver a Análisis",
     createTitle: "Registrar gasto",
     editTitle: "Editar gasto",
     formBody: "La fecha y el monto se reflejarán en el análisis del mismo periodo.",
@@ -1257,8 +1261,8 @@ export const copy = {
     loading: "Cargando análisis",
     loadError: "No se pudo cargar el análisis",
     retry: "Reintentar",
-    startDate: "Fecha inicial",
-    endDate: "Fecha final",
+    startDate: "Desde",
+    endDate: "Hasta",
     apply: "Aplicar",
     customRange: "Personalizar",
     customRangeClose: "Ocultar fechas",
@@ -1685,7 +1689,7 @@ export const copy = {
       cashHeavyAction: "Prepara cambio antes del pico y cuadra caja al cierre.",
       decliningMultiFinding: "Varios productos van a la baja",
       decliningMultiEvidence: (count: number) =>
-        `${count} productos vendieron bastante menos que el periodo anterior.`,
+        `${count} producto${count === 1 ? " vendió" : "s vendieron"} bastante menos que el periodo anterior.`,
       decliningMultiAction: "Revisa precio, exhibición o si faltó stock en esos productos.",
       decliningFinding: (name: string) => `${name} va a la baja`,
       decliningEvidence: (prev: number, cur: number) =>
@@ -1707,7 +1711,8 @@ export const copy = {
       newProductEvidence: (units: number) =>
         `Vendió ${units} ${units === 1 ? "unidad" : "unidades"} sin ventas previas.`,
       newProductAction: "Dale visibilidad y asegúrale stock para que siga creciendo.",
-      newProductMultiFinding: (count: number) => `${count} productos nuevos arrancaron bien`,
+      newProductMultiFinding: (count: number) =>
+        `${count} producto${count === 1 ? " nuevo arrancó" : "s nuevos arrancaron"} bien`,
       newProductMultiEvidence: (names: string[], units: number) =>
         `${names.join(", ")}${names.length >= 3 ? " y más" : ""} suman ${units} unidades sin ventas previas.`,
       newProductMultiAction: "Dales visibilidad y asegúrales stock para que sigan creciendo.",
@@ -1717,7 +1722,7 @@ export const copy = {
       overstockAction: "Frena compras y considera una promoción para moverlo.",
       cleanOpsFinding: "Operación limpia",
       cleanOpsEvidence: (orders: number) =>
-        `${orders} órdenes sin devoluciones ni cancelaciones.`,
+        `${orders} ${orders === 1 ? "orden" : "órdenes"} sin devoluciones ni cancelaciones.`,
       cleanOpsAction: "Usa este periodo como referencia para comparar días con problemas.",
     },
 
@@ -1884,7 +1889,7 @@ export const copy = {
     emptyBody: "Cuando cobres tu primera venta, aparecerá aquí con su recibo y detalle.",
     emptyCta: "Ir a la caja",
     emptyFiltered: "No hay ventas con esos filtros.",
-    total: "ventas",
+    total: (count: number) => `${count} ${count === 1 ? "venta" : "ventas"}`,
     date: "Fecha",
     status: "Estado",
     amount: "Monto",

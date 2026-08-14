@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
 import { useFeature } from "@/auth/useFeature";
@@ -94,6 +94,7 @@ function readStoredSidebarCollapsed(): boolean {
 }
 
 export default function AppShell() {
+  const location = useLocation();
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
@@ -121,6 +122,19 @@ export default function AppShell() {
   const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
   const customerOrdersEnabled = useFeature("customer_orders");
+  const loadingViewName = (() => {
+    const path = location.pathname;
+    if (path.startsWith("/register") || path === "/caja") return copy.register.title;
+    if (path.startsWith("/shifts") || path === "/turnos") return copy.shiftView.title;
+    if (path.startsWith("/catalog") || path === "/catalogo") return copy.catalog.title;
+    if (path.startsWith("/inventory") || path === "/inventario") return copy.inventoryView.title;
+    if (path.startsWith("/reports") || path === "/reportes") return copy.reportsView.title;
+    if (path.startsWith("/orders") || path === "/ventas" || path === "/ordenes") return copy.orderList.title;
+    if (path.startsWith("/expenses") || path === "/gastos") return copy.expenses.title;
+    if (path.startsWith("/sync-queue")) return copy.syncQueue.title;
+    if (path.startsWith("/settings")) return copy.settings.title;
+    return copy.app.dashboard;
+  })();
 
   const navItems = isAdminRole(userRole) ? adminNavItems : cashierNavItems;
 
@@ -414,7 +428,14 @@ export default function AppShell() {
         >
           <EmailVerificationBanner />
           <BillingBanner />
-          <Suspense fallback={<ShellRouteFallback />}>
+          <Suspense
+            fallback={(
+              <ShellRouteFallback
+                label={`Cargando ${loadingViewName}`}
+                viewName={loadingViewName}
+              />
+            )}
+          >
             <Outlet />
           </Suspense>
         </div>
