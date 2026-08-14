@@ -49,6 +49,10 @@ Evidencia local ejecutada en Windows, rama `feature/audit-offline-remediation`:
   compartido A/B, cold offline, dead-letter/reintento, recibo local y UUID idempotente. Los
   requests auxiliares no mockeados del entorno local emitieron `ECONNREFUSED`, pero el endpoint de
   sync estuvo interceptado y sus aserciones fueron verdes.
+- Verificación posterior al merge en `main`: `offline-sync.spec.ts` + `reports.spec.ts`, 17/17
+  verdes. Los selectores de estados `Pendientes` y `Fallidas` exigen el encabezado exacto para no
+  confundirlos con “Sin ventas pendientes o fallidas”; el caso de error de red prueba tanto el
+  reintento automático como el manual y exige una segunda llamada con la misma venta.
 - `npm run build`: verde, incluida compilación TypeScript, bundle cliente/SSR y prerender.
 
 ## Limitaciones y gates abiertos
