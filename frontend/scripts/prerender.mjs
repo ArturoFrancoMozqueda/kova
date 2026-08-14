@@ -23,36 +23,39 @@ const DEFAULT_TITLE = "Kova | Punto de venta e inventario para negocios en Méxi
 const DEFAULT_DESCRIPTION =
   "Kova es el punto de venta para cafeterías, panaderías y negocios de mostrador. Cobra, controla inventario y cuadra caja desde una sola app.";
 
-// JSON-LD structured data for the landing page. A <script type="application/
-// ld+json"> is a passive data block, not executable JS. Price mirrors
-// src/billing/standardPlan.ts ($299 MXN/month = 29900 minor units).
-const LANDING_STRUCTURED_DATA = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "@id": `${CANONICAL_ORIGIN}/#organization`,
-      name: "Kova",
-      url: `${CANONICAL_ORIGIN}/`,
-      logo: `${CANONICAL_ORIGIN}/icons/pwa-512.svg`,
-      email: "posprojectsupport@gmail.com",
-      areaServed: "MX",
-    },
-    {
-      "@type": "SoftwareApplication",
-      name: "Kova",
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web",
-      url: `${CANONICAL_ORIGIN}/`,
-      description: DEFAULT_DESCRIPTION,
-      offers: {
-        "@type": "Offer",
-        price: "299",
-        priceCurrency: "MXN",
+// A <script type="application/ld+json"> is a passive data block, not
+// executable JS. Price/currency arrive from LANDING_SEO in the built SSR
+// entry, which in turn imports billing/standardPlan.ts. Keeping this builder
+// parameterized prevents the prerender script from becoming a second price.
+function buildLandingStructuredData({ price, currency }) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${CANONICAL_ORIGIN}/#organization`,
+        name: "Kova",
+        url: `${CANONICAL_ORIGIN}/`,
+        logo: `${CANONICAL_ORIGIN}/icons/pwa-512.svg`,
+        email: "posprojectsupport@gmail.com",
+        areaServed: "MX",
       },
-    },
-  ],
-};
+      {
+        "@type": "SoftwareApplication",
+        name: "Kova",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        url: `${CANONICAL_ORIGIN}/`,
+        description: DEFAULT_DESCRIPTION,
+        offers: {
+          "@type": "Offer",
+          price,
+          priceCurrency: currency,
+        },
+      },
+    ],
+  };
+}
 
 // Each content-bearing route. `assert` is a substring that MUST appear in the
 // rendered HTML — our guarantee that the route actually rendered its content
@@ -65,7 +68,6 @@ const ROUTES = [
     path: "/",
     out: "index.html",
     assert: "Vende. Kova mantiene el resto bajo control.",
-    structuredData: LANDING_STRUCTURED_DATA,
     moduleKey: "src/routes/Home.tsx",
     // HeroProductFrame's capture is the LCP on every viewport: it is the only
     // image in the first fold and renders eagerly at a single source (no
@@ -273,7 +275,11 @@ async function main() {
   const entryUrl = pathToFileURL(
     resolve(__dirname, "..", "dist-server", "entry-prerender.js"),
   ).href;
-  const { render } = await import(entryUrl);
+  const { render, LANDING_SEO } = await import(entryUrl);
+
+  if (!LANDING_SEO?.price || !LANDING_SEO?.currency) {
+    throw new Error("prerender: SSR entry did not expose canonical landing price data");
+  }
 
   for (const route of ROUTES) {
     const appHtml = await render(route.path);
@@ -282,7 +288,10 @@ async function main() {
         `prerender: rendered ${route.path} is missing expected content "${route.assert}" — SSR likely emitted a fallback.`,
       );
     }
-    let html = injectHead(shell, route);
+    const routeHead = route.path === "/"
+      ? { ...route, structuredData: buildLandingStructuredData(LANDING_SEO) }
+      : route;
+    let html = injectHead(shell, routeHead);
     html = injectRouteAssets(html, manifest, route.moduleKey);
     html = deferPrerenderHydration(html);
     html = html.replace(ROOT_MARKER, `<div id="root">${appHtml}</div>`);

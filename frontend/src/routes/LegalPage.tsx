@@ -123,11 +123,11 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
     ],
   },
   terms: {
-    eyebrow: "Legal · Versión 1.0",
+    eyebrow: "Legal · Versión 1.1",
     title: "Términos y condiciones de uso",
     intro:
       "Contrato de servicio SaaS. Al crear una cuenta, acceder o utilizar la plataforma Kova, usted acepta íntegramente los presentes Términos y Condiciones. Si no está de acuerdo con alguna de sus disposiciones, no utilice el servicio.",
-    lastUpdated: "28 de mayo de 2026 (fecha de entrada en vigor)",
+    lastUpdated: "13 de agosto de 2026",
     sections: [
       {
         heading: "1. Definiciones",
@@ -158,9 +158,11 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
       {
         heading: "4. Descripción del servicio y limitaciones",
         body: [
-          "4.1 Kova es una herramienta de administración operacional para negocios. El servicio incluye: registro de productos, control de inventario, procesamiento de ventas, control de caja, generación de reportes y acceso desde múltiples dispositivos.",
-          "4.2 Kova no es una institución financiera, banco, ni procesador de pagos regulado. Los servicios de pago son facilitados a través de terceros certificados bajo sus propias regulaciones.",
+          "4.1 Kova es una herramienta de administración operacional para negocios. El servicio incluye: registro de productos, control de inventario, registro de ventas, control de caja, generación de reportes y acceso desde múltiples dispositivos.",
+          "4.2 Kova registra el método con el que un cliente pagó en el mostrador, incluida la tarjeta manual, pero no es una terminal bancaria ni procesa ese dinero. El negocio utiliza por separado la terminal o el medio de cobro que elija.",
           "4.3 La disponibilidad del servicio es un objetivo de Kova, pero no está garantizada de forma absoluta. Pueden ocurrir interrupciones por mantenimiento, actualizaciones, fallas de infraestructura o causas de fuerza mayor.",
+          "4.4 Los recibos de Kova son comprobantes operativos de la venta. Aunque pueden mostrar texto fiscal configurado por el negocio, no son facturas ni CFDI. Kova no emite CFDI ni calcula o desglosa impuestos actualmente.",
+          "4.5 Kova se ofrece actualmente como beta privada controlada, con cambios frecuentes y acompañamiento directo. No existe un SLA formal durante esta etapa.",
         ],
       },
       {
@@ -168,7 +170,7 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
         body: [
           "5.1 Kova ofrece un período de prueba gratuita de 7 días sin requerir método de pago. Al finalizar, el usuario deberá contratar un plan de pago para continuar.",
           "5.2 Incumplimiento de pago. El incumplimiento de pago podrá resultar en: (i) suspensión temporal de funcionalidades premium; (ii) suspensión total de la cuenta tras 180 días naturales de mora; y (iii) restricción de acceso a la información asociada a la cuenta mientras el adeudo permanezca pendiente.",
-          "5.3 Kova no procesa directamente datos de tarjetas de crédito. Los datos de pago son manejados íntegramente por procesadores certificados PCI-DSS.",
+          "5.3 El cobro de la suscripción de Kova se realiza mediante Stripe. Kova no recibe ni almacena en sus servidores los datos completos de la tarjeta usada para pagar la suscripción.",
         ],
       },
       {
@@ -258,38 +260,35 @@ const content: Record<LegalPageProps["variant"], VariantContent> = {
     title: "Cómo protegemos tu negocio",
     intro:
       "Kova maneja la operación de tu PyME: ventas, inventario, turnos, y datos de tus clientes. Esta página explica con honestidad cómo cuidamos esa información durante la beta y qué puedes esperar de nosotros.",
-    lastUpdated: "25 de mayo de 2026",
+    lastUpdated: "13 de agosto de 2026",
     sections: [
       {
         heading: "Aislamiento por inquilino",
         body: [
-          "Cada negocio (tenant) en Kova vive en un espacio lógico aislado. Aplicamos dos capas de aislamiento que se refuerzan entre sí:",
-          "Capa de aplicación: cada petición a la API valida tu sesión, identifica tu tenant y pasa ese identificador explícitamente a la base de datos para filtrar resultados.",
-          "Capa de base de datos: PostgreSQL aplica políticas Row-Level Security (RLS) en todas las tablas con datos comerciales. Incluso si la capa de aplicación tuviera un bug, RLS impide que una consulta sin tenant_id devuelva renglones de otro negocio.",
+          "Cada negocio (tenant) en Kova vive en un espacio lógico aislado. La API valida la sesión y establece el negocio activo antes de consultar datos.",
+          "Además, PostgreSQL aplica Row-Level Security (RLS) a las tablas con datos de cada negocio. El backend de producción debe iniciar con un rol sin privilegios para evadir RLS; si esa postura no se cumple, el arranque se detiene.",
         ],
       },
       {
         heading: "Sesiones y cookies",
         body: [
-          "Tu sesión vive en cookies HttpOnly (no accesibles por JavaScript), marcadas Secure (solo HTTPS) y SameSite=Lax (no se envían en navegaciones cross-site).",
-          "Tokens: access token de 15 minutos (JWT firmado HS256) y refresh token opaco de 30 días almacenado como SHA-256 en la base. No usamos localStorage para credenciales.",
-          "Protección CSRF: las peticiones de escritura llevan un token de doble verificación (cookie csrf_token + header X-CSRF-Token) que el servidor compara en tiempo constante. Los webhooks de Stripe se validan por firma; no por cookie.",
+          "La sesión usa cookies HttpOnly para que las credenciales no estén disponibles para el JavaScript de la página. En producción también se envían sólo por HTTPS y con una política SameSite; no guardamos credenciales en localStorage.",
+          "Las peticiones que cambian información requieren una comprobación CSRF adicional. Los webhooks de Stripe siguen un control distinto y se validan con la firma del proveedor.",
           "Contraseñas: se almacenan con hash bcrypt; nunca en texto plano.",
         ],
       },
       {
         heading: "Respaldos y recuperación",
         body: [
-          "Tomamos respaldos completos diarios de la base de datos (pg_dump) y los subimos a Cloudflare R2 con retención de 7 días.",
-          "El workflow se ejecuta automáticamente cada noche y se verifica al terminar. Si una corrida falla, recibimos alerta.",
-          "Practicamos restauración: documentamos el procedimiento en docs/runbooks/restore-supabase-backup.md y lo ejercitamos antes de habilitar billing en vivo.",
+          "Kova mantiene un proceso programado para crear un respaldo lógico diario y conservarlo por 7 días en almacenamiento separado. Cada ejecución valida que el archivo se haya subido; una falla queda visible en el sistema de automatización.",
+          "El procedimiento de restauración está documentado, pero el simulacro completo con un respaldo real todavía es un gate operativo pendiente. No presentamos la recuperación como probada hasta completar y registrar ese ejercicio.",
         ],
       },
       {
         heading: "Monitoreo de disponibilidad",
         body: [
           "Monitoreamos tres puntos críticos con UptimeRobot: el frontend (kovasuite.com), la API (api.kovasuite.com/health) y la API + base (api.kovasuite.com/health/db).",
-          "Si alguno cae, recibimos alerta inmediata. Reportes públicos y SLA formal son parte del trabajo posterior a la beta inicial.",
+          "Los monitores consultan esos puntos cada 5 minutos y alertan después de confirmar una falla. No ofrecemos un SLA formal durante la beta privada controlada.",
         ],
       },
       {
