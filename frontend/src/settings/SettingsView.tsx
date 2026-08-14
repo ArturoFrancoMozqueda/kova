@@ -38,6 +38,11 @@ import {
   type AccountDeletionStatus,
 } from "./api";
 import { cn } from "@/lib/utils";
+import {
+  cacheReceiptPaperWidth,
+  normalizeReceiptPaperWidth,
+  type ReceiptPaperWidth,
+} from "@/lib/receiptPaper";
 
 type LoadState = "loading" | "ready" | "error";
 type Role = "owner" | "manager" | "cashier";
@@ -127,6 +132,7 @@ export default function SettingsView() {
   const { state, refresh } = useAuth();
   const { toast } = useToast();
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
+  const tenantId = state.status === "authenticated" ? state.tenantId : "";
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -143,6 +149,7 @@ export default function SettingsView() {
     footer: "",
     tax_contact_text: "",
     logo_url: "",
+    paper_width_mm: 80 as ReceiptPaperWidth,
   });
   const [invite, setInvite] = useState<{ email: string; role: Role }>({
     email: "",
@@ -200,7 +207,12 @@ export default function SettingsView() {
           footer: receiptSettings.footer ?? "",
           tax_contact_text: receiptSettings.tax_contact_text ?? "",
           logo_url: receiptSettings.logo_url ?? "",
+          paper_width_mm: normalizeReceiptPaperWidth(receiptSettings.paper_width_mm),
         });
+        cacheReceiptPaperWidth(
+          tenantId,
+          normalizeReceiptPaperWidth(receiptSettings.paper_width_mm),
+        );
       }
       setEmployees(employeeRows);
       setInvitations(invitationRows);
@@ -208,7 +220,7 @@ export default function SettingsView() {
     } catch {
       setLoadState("error");
     }
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     void load();
@@ -281,12 +293,13 @@ export default function SettingsView() {
   async function submitReceipt(event: FormEvent) {
     event.preventDefault();
     try {
-      await saveReceiptSettings({
+      const saved = await saveReceiptSettings({
         ...receipt,
         footer: receipt.footer || null,
         tax_contact_text: receipt.tax_contact_text || null,
         logo_url: receipt.logo_url || null,
       });
+      cacheReceiptPaperWidth(tenantId, normalizeReceiptPaperWidth(saved.paper_width_mm));
       toast(copy.settings.saved, "success");
       void load();
     } catch {
@@ -378,6 +391,23 @@ export default function SettingsView() {
               <Field label={copy.settings.receiptName} value={receipt.receipt_business_name} onChange={(value) => setReceipt((x) => ({ ...x, receipt_business_name: value }))} required />
               <Field label={copy.settings.receiptFooter} value={receipt.footer} onChange={(value) => setReceipt((x) => ({ ...x, footer: value }))} />
               <Field label={copy.settings.taxContact} value={receipt.tax_contact_text} onChange={(value) => setReceipt((x) => ({ ...x, tax_contact_text: value }))} />
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="receipt-paper-width">{copy.settings.receiptPaperWidth}</Label>
+                <Select
+                  id="receipt-paper-width"
+                  value={String(receipt.paper_width_mm)}
+                  onChange={(event) => setReceipt((current) => ({
+                    ...current,
+                    paper_width_mm: normalizeReceiptPaperWidth(event.target.value),
+                  }))}
+                >
+                  <option value="80">{copy.settings.receiptPaper80}</option>
+                  <option value="58">{copy.settings.receiptPaper58}</option>
+                </Select>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {copy.settings.receiptPaperHint}
+                </p>
+              </div>
               <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveReceipt}</Button>
             </form>
             <ReceiptPreview receipt={receipt} />
@@ -690,6 +720,7 @@ type ReceiptDraft = {
   footer: string;
   tax_contact_text: string;
   logo_url: string;
+  paper_width_mm: ReceiptPaperWidth;
 };
 
 function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
@@ -700,7 +731,10 @@ function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
       <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {copy.settings.receiptPreviewTitle}
       </p>
-      <TicketPaper className="max-w-xs">
+      <TicketPaper
+        className="max-w-xs transition-[width] duration-quick ease-standard"
+        style={{ width: receipt.paper_width_mm === 58 ? "218px" : "302px" }}
+      >
         <ReceiptTemplate
           aria-label={copy.settings.receiptPreviewTitle}
           businessName={name}
@@ -708,6 +742,7 @@ function ReceiptPreview({ receipt }: { receipt: ReceiptDraft }) {
           taxContactText={receipt.tax_contact_text.trim() || undefined}
           footer={receipt.footer.trim() || undefined}
           createdAt={new Date()}
+          paperWidthMm={receipt.paper_width_mm}
           items={[
             {
               product_name: copy.settings.receiptPreviewItem,

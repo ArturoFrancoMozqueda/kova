@@ -715,6 +715,10 @@ export const copy = {
     receiptName: "Nombre del negocio en el recibo",
     receiptFooter: "Pie del recibo",
     taxContact: "Texto fiscal o de contacto",
+    receiptPaperWidth: "Ancho del papel térmico",
+    receiptPaper58: "58 mm · compacto",
+    receiptPaper80: "80 mm · recomendado",
+    receiptPaperHint: "Kova ajusta el ticket al ancho elegido. La impresora y el navegador todavía deben usar el mismo tamaño de papel.",
     logoUploadLabel: "Logo del negocio",
     logoUploadTitle: "Arrastra el logo o súbelo desde tu equipo",
     logoUploadHint: "PNG, JPG o WebP. Máximo 512 KB.",
@@ -1082,8 +1086,8 @@ export const copy = {
     pendingSalesTitle: "Tienes ventas sin sincronizar",
     pendingSalesWarning: (n: number) =>
       n === 1
-        ? "1 venta hecha sin conexión aún no se sincroniza. No entra en este corte y tu caja podría no cuadrar. Conéctate para sincronizarla antes de cerrar."
-        : `${n} ventas hechas sin conexión aún no se sincronizan. No entran en este corte y tu caja podría no cuadrar. Conéctate para sincronizarlas antes de cerrar.`,
+        ? "1 venta de este turno aún no se sincroniza. Resuélvela en la cola antes de cerrar para que entre en el corte."
+        : `${n} ventas de este turno aún no se sincronizan. Resuélvelas en la cola antes de cerrar para que entren en el corte.`,
   },
   cashMovementModal: {
     title: "Registrar movimiento de efectivo",

@@ -520,9 +520,14 @@
 }
 
 @media print {
-  @page {
+  @page receipt-80 {
     margin: 6mm;
     size: 80mm auto;
+  }
+
+  @page receipt-58 {
+    margin: 4mm;
+    size: 58mm auto;
   }
 
   body {
@@ -545,10 +550,21 @@
     position: absolute;
     left: 0;
     top: 0;
-    width: 72mm;
+    width: 68mm;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+  }
+
+  .print-receipt-root[data-paper-width="80"],
+  .print-corte-root[data-paper-width="80"] {
+    page: receipt-80;
+  }
+
+  .print-receipt-root[data-paper-width="58"],
+  .print-corte-root[data-paper-width="58"] {
+    page: receipt-58;
+    width: 50mm;
   }
 
   /* En pantalla el scroller de contenido es `position: relative` para que los

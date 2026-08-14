@@ -1,4 +1,5 @@
 import { csrfHeaders } from "../lib/csrf";
+import type { ReceiptPaperWidth } from "../lib/receiptPaper";
 export type BusinessProfile = {
   tenant_id: string;
   public_name: string;
@@ -15,6 +16,7 @@ export type ReceiptSettings = {
   footer: string | null;
   tax_contact_text: string | null;
   logo_url: string | null;
+  paper_width_mm?: ReceiptPaperWidth;
 };
 
 export type LogoUploadResponse = {

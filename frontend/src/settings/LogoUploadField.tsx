@@ -11,6 +11,7 @@ import { copy } from "@/i18n/messages";
 import { compressImage } from "@/lib/compressImage";
 import { cropImageToSquare } from "@/lib/cropImage";
 import { cn } from "@/lib/utils";
+import type { ReceiptPaperWidth } from "@/lib/receiptPaper";
 
 import { deleteReceiptLogo, getReceiptSettings, uploadReceiptLogo } from "./api";
 
@@ -19,6 +20,7 @@ type ReceiptDraft = {
   footer: string;
   tax_contact_text: string;
   logo_url: string;
+  paper_width_mm: ReceiptPaperWidth;
 };
 
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];

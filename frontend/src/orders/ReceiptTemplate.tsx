@@ -2,6 +2,7 @@ import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { formatDateTime, formatMoney, reasonLabel } from "./format";
 import type { HTMLAttributes } from "react";
+import type { ReceiptPaperWidth } from "@/lib/receiptPaper";
 
 type ReceiptModifier = {
   modifier_group_name?: string;
@@ -50,6 +51,7 @@ type ReceiptTemplateProps = {
   refunds?: ReceiptTemplateRefund[];
   voidReason?: string;
   pendingSync?: boolean;
+  paperWidthMm?: ReceiptPaperWidth;
   className?: string;
 } & HTMLAttributes<HTMLDivElement>;
 
@@ -82,7 +84,9 @@ export function ReceiptTemplate({
   refunds = [],
   voidReason,
   pendingSync = false,
+  paperWidthMm = 80,
   className,
+  style,
   ...containerProps
 }: ReceiptTemplateProps) {
   const showCashSettlement = Number(totalTendered ?? "0") > 0;
@@ -90,11 +94,12 @@ export function ReceiptTemplate({
   return (
     <div
       {...containerProps}
+      data-paper-width={paperWidthMm}
       className={cn(
         "receipt-template rounded-[2px] p-4 font-mono text-[11px] leading-snug text-[color:var(--ticket-ink)]",
         className,
       )}
-      style={{ fontVariantNumeric: "tabular-nums" }}
+      style={{ ...style, fontVariantNumeric: "tabular-nums" }}
     >
       <div {...band(0)} className="flex flex-col items-center gap-2 text-center">
         {logoUrl ? (

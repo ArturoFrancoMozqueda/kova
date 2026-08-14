@@ -14,6 +14,13 @@ import { resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { trackFunnelEvent } from "@/telemetry/funnel";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { getReceiptSettings } from "@/settings/api";
+import {
+  cacheReceiptPaperWidth,
+  normalizeReceiptPaperWidth,
+  readCachedReceiptPaperWidth,
+  type ReceiptPaperWidth,
+} from "@/lib/receiptPaper";
 import {
   closeShift,
   getOpenShift,
@@ -91,6 +98,10 @@ export default function ShiftView() {
   const canOpen = usePermission(SHIFT_OPEN_PERMISSION);
   const canClose = usePermission(SHIFT_CLOSE_PERMISSION);
   const { state } = useAuth();
+  const tenantId = state.status === "authenticated" ? state.tenantId : null;
+  const [paperWidthMm, setPaperWidthMm] = useState<ReceiptPaperWidth>(() =>
+    tenantId ? readCachedReceiptPaperWidth(tenantId) : 80,
+  );
   const businessName = formatTenantName(
     state.status === "authenticated" ? state.tenantName : "",
   );
@@ -111,6 +122,23 @@ export default function ShiftView() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    setPaperWidthMm(readCachedReceiptPaperWidth(tenantId));
+    let cancelled = false;
+    void getReceiptSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        const width = normalizeReceiptPaperWidth(settings.paper_width_mm);
+        setPaperWidthMm(width);
+        cacheReceiptPaperWidth(tenantId, width);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
 
   // Once the selected corte is committed to the DOM, print it and clear.
   // window.print() blocks until the dialog resolves, so the node is present
@@ -557,6 +585,7 @@ export default function ShiftView() {
           <CorteTemplate
             businessName={businessName}
             shift={corteShift}
+            paperWidthMm={paperWidthMm}
             className="print-corte-root"
           />
         </div>
@@ -569,7 +598,11 @@ export default function ShiftView() {
         </DialogHeader>
         {viewCorteShift ? (
           <TicketPaper>
-            <CorteTemplate businessName={businessName} shift={viewCorteShift} />
+            <CorteTemplate
+              businessName={businessName}
+              shift={viewCorteShift}
+              paperWidthMm={paperWidthMm}
+            />
           </TicketPaper>
         ) : null}
       </Dialog>

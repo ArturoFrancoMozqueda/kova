@@ -4,18 +4,19 @@
 // CorteTemplate) sigue siendo el propio print-receipt-root/print-corte-root
 // y se imprime exactamente igual — el papel se neutraliza en @media print
 // (ver styles.css). Clases .tkt-* definidas ahí.
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function TicketPaper({
   children,
   className,
+  ...containerProps
 }: {
   children: ReactNode;
   className?: string;
-}) {
+} & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("tkt-paper", className)}>
+    <div {...containerProps} className={cn("tkt-paper", className)}>
       <div className="tkt-edge" aria-hidden="true" />
       <div className="tkt-body rounded-b-[2px] px-1 pb-1 pt-0.5">{children}</div>
       <div className="tkt-edge" data-side="bottom" aria-hidden="true" />

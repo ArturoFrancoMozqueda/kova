@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import EmailStr, Field
@@ -28,9 +29,13 @@ class ReceiptSettingsUpsert(StrictModel):
     footer: str | None = Field(default=None, max_length=1000)
     tax_contact_text: str | None = Field(default=None, max_length=1000)
     logo_url: str | None = Field(default=None, max_length=1000)
+    # Optional on writes so an older installed PWA cannot reset a tenant's
+    # 58 mm preference merely because its PUT payload predates this field.
+    paper_width_mm: Literal[58, 80] | None = None
 
 
 class ReceiptSettingsResponse(ReceiptSettingsUpsert):
+    paper_width_mm: Literal[58, 80] = 80
     tenant_id: UUID
     created_at: datetime
     updated_at: datetime

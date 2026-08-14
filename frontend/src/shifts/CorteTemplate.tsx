@@ -3,11 +3,13 @@ import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/orders/format";
 import type { Shift } from "./types";
+import type { ReceiptPaperWidth } from "@/lib/receiptPaper";
 import { formatShiftDateTime, localizeReconciliationStatus } from "./format";
 
 type CorteTemplateProps = {
   businessName: string;
   shift: Shift;
+  paperWidthMm?: ReceiptPaperWidth;
 } & HTMLAttributes<HTMLDivElement>;
 
 function sumMovements(shift: Shift, type: string): number {
@@ -24,7 +26,7 @@ function sumMovements(shift: Shift, type: string): number {
  * refund_payout) rather than recomputed, so it can never drift from the frozen
  * expected value.
  */
-export function CorteTemplate({ businessName, shift, className, ...containerProps }: CorteTemplateProps) {
+export function CorteTemplate({ businessName, shift, paperWidthMm = 80, className, style, ...containerProps }: CorteTemplateProps) {
   const opening = shift.opening_cash_amount ? Number(shift.opening_cash_amount) : 0;
   const cashIn = sumMovements(shift, "cash_in");
   const cashOut = sumMovements(shift, "cash_out");
@@ -37,11 +39,12 @@ export function CorteTemplate({ businessName, shift, className, ...containerProp
   return (
     <div
       {...containerProps}
+      data-paper-width={paperWidthMm}
       className={cn(
         "corte-template rounded-[2px] p-4 font-mono text-[11px] leading-snug text-[color:var(--ticket-ink)]",
         className,
       )}
-      style={{ fontVariantNumeric: "tabular-nums" }}
+      style={{ ...style, fontVariantNumeric: "tabular-nums" }}
     >
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="text-sm font-semibold tracking-tight">{businessName}</p>

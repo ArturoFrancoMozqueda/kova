@@ -7,7 +7,7 @@ import { triggerSync } from "./syncWorker";
 import type { OfflineSaleQueueItem } from "./types";
 import { useAuth } from "@/auth/useAuth";
 
-export function useSyncQueue() {
+export function useSyncQueue(shiftId?: string) {
   const { state } = useAuth();
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
   const [pendingCount, setPendingCount] = useState(0);
@@ -19,19 +19,21 @@ export function useSyncQueue() {
       setFailedEntries([]);
       return;
     }
-    const pendingSub = liveQuery(() =>
-      offlineDb.offline_sales
+    const pendingSub = liveQuery(async () => {
+      const entries = await offlineDb.offline_sales
         .where("[tenant_id+status]")
         .anyOf([[tenantId, "pending"], [tenantId, "syncing"]])
-        .count(),
-    ).subscribe((count) => setPendingCount(count));
+        .toArray() as OfflineSaleQueueItem[];
+      return shiftId ? entries.filter((entry) => entry.shift_id === shiftId).length : entries.length;
+    }).subscribe((count) => setPendingCount(count));
 
-    const failedSub = liveQuery(() =>
-      offlineDb.offline_sales
+    const failedSub = liveQuery(async () => {
+      const entries = await offlineDb.offline_sales
         .where("[tenant_id+status]")
         .equals([tenantId, "failed"])
-        .sortBy("updated_at"),
-    ).subscribe((entries) => setFailedEntries(entries as OfflineSaleQueueItem[]));
+        .sortBy("updated_at") as OfflineSaleQueueItem[];
+      return shiftId ? entries.filter((entry) => entry.shift_id === shiftId) : entries;
+    }).subscribe((entries) => setFailedEntries(entries));
 
     const onOnline = () => void triggerSync(tenantId);
     window.addEventListener("online", onOnline);
@@ -41,7 +43,7 @@ export function useSyncQueue() {
       failedSub.unsubscribe();
       window.removeEventListener("online", onOnline);
     };
-  }, [tenantId]);
+  }, [shiftId, tenantId]);
 
   return {
     pendingCount,

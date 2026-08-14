@@ -46,6 +46,7 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
             businessName={formatTenantName(receipt.tenant_name)}
             receiptNumber={receipt.receipt_number}
             createdAt={receipt.created_at}
+            paperWidthMm={receipt.paper_width_mm ?? 80}
             items={receipt.items}
             subtotalAmount={receipt.subtotal_amount}
             totalAmount={receipt.total_amount}

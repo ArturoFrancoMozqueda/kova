@@ -28,6 +28,7 @@ Receipts are legally required for retail transactions, build customer trust, and
 - Receipt data is immutable once generated (snapshot of state at retrieval time).
 - The order detail page exposes an `Imprimir ticket` action for completed or corrected orders.
 - The print action uses the same receipt template rendered on screen, so reprints match the receipt preview.
+- Browser printing uses the tenant's configured 58 mm or 80 mm paper width and defaults to 80 mm.
 
 ## Non-Functional Requirements
 
@@ -105,6 +106,7 @@ Reason: operator_error
 - PDF rendering
 - Email delivery
 - Hardware printer SDK
+- Silent/background printing
 - QR code
 - Folio number
 - Receipt history/archival
@@ -119,4 +121,5 @@ Reason: operator_error
 - Receipt formatted for 80-character terminal display.
 - Clicking `Imprimir ticket` from `/orders/{id}` opens the browser print dialog.
 - Browser print output isolates the receipt content and hides surrounding app chrome/actions.
+- 58 mm and 80 mm print roots select their matching named browser page size.
 - Tenant B cannot retrieve Tenant A's receipts.
