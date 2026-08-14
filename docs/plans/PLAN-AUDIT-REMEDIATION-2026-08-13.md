@@ -36,9 +36,11 @@ sobre tenants de clientes.
 - `feature/audit-operations-remediation`
 - `feature/audit-product-remediation`
 
-Las ramas `feature/audit-rel-test-integration` y `feature/audit-ops-preflight-hostname` cerraron
-hallazgos de revisión cruzada antes del corte final. Los gates externos anteriores impiden declarar
-cerrado el plan global o avanzar a venta amplia; no son fallos ocultos de merge.
+Las ramas `feature/audit-rel-test-integration`, `feature/audit-ops-preflight-hostname` y
+`feature/audit-offline-e2e-race` cerraron hallazgos de revisión cruzada antes del corte final. La
+última verificación integrada de offline y reportes quedó en 17/17 pruebas E2E mocked verdes. Los
+gates externos anteriores impiden declarar cerrado el plan global o avanzar a venta amplia; no son
+fallos ocultos de merge.
 
 ## 1. Propósito
 
