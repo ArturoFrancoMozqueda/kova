@@ -44,9 +44,12 @@ datos personales o firmas.
 
 | Gate | Fecha UTC | Entorno/proveedor | Commit | Resultado | Evidencia privada | Bloqueo |
 |---|---|---|---|---|---|---|
-| OPS-1 | | | | | | |
-| OPS-2 | | | | | | |
-| OPS-3 | | | | | | |
-| OPS-4 | | | | | | |
-| OPS-5 | | | | | | |
-| OPS-6 | | | | | | |
+| OPS-1 | 2026-08-14 | DNS/Resend/Gmail/GitHub Actions | `8e15269` | Parcial: DNS público y Gmail verificados; recordatorios verdes | Registro privado previo de Gmail | Outlook/Hotmail, render/móvil/enlaces y monitoreo |
+| OPS-2 | 2026-08-14 | Cloudflare Email Routing | `8e15269` | Bloqueado | No aplica | Falta recepción y respuesta de `soporte@kovasuite.com` |
+| OPS-3 | 2026-08-14 | GitHub Actions/R2 | `8e15269` | Parcial: backup programado verde; restore no ejecutado | Run `31689517306` | Destino fresco, autorización, restore, RTO/RPO y limpieza |
+| OPS-4 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | No aplica | Tenant, responsable, autorización y conteo humano |
+| OPS-5 | 2026-08-14 | GitHub Actions | `8e15269` | Parcial: workflow verde; drill no ejecutado | Run `31687212936` | Tenant desechable, autorización, recorrido y retención |
+| OPS-6 | 2026-08-14 | No ejecutado | `8e15269` | Bloqueado | Debe crearse fuera de git | Revisión profesional, identidad, firma y aceptación |
+
+Detalle del corte y comandos reproducibles:
+[`AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md`](../audits/AUDIT-EXTERNAL-GATES-CLOSEOUT-2026-08-13.md).
