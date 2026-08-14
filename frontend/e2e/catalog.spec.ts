@@ -197,7 +197,7 @@ test("catalog imports a reviewed CSV only after owner confirmation", async ({ pa
   });
 
   await page.goto("/catalog");
-  await page.getByRole("button", { name: /importar csv/i }).click();
+  await page.getByRole("button", { name: /importar catálogo/i }).click();
   await page.getByLabel(/elegir archivo csv/i).setInputFiles({
     name: "catalogo.csv",
     mimeType: "text/csv",
@@ -271,7 +271,7 @@ test("catalog blocks CSV commit while preview rows have errors", async ({ page }
   });
 
   await page.goto("/catalog");
-  await page.getByRole("button", { name: /importar csv/i }).click();
+  await page.getByRole("button", { name: /importar catálogo/i }).click();
   await page.getByLabel(/elegir archivo csv/i).setInputFiles({
     name: "catalogo-con-errores.csv",
     mimeType: "text/csv",

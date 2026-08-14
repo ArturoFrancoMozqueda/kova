@@ -1,10 +1,13 @@
 import csv
 import hashlib
 import io
+import zipfile
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
@@ -15,6 +18,13 @@ from app.shared.exceptions import bad_request
 from app.shared.validation import reject_html
 
 MAX_IMPORT_ROWS = 1000
+MAX_IMPORT_BYTES = 2 * 1024 * 1024
+MAX_XLSX_ARCHIVE_FILES = 128
+MAX_XLSX_UNCOMPRESSED_BYTES = 16 * 1024 * 1024
+MAX_XLSX_PART_BYTES = 8 * 1024 * 1024
+MAX_XLSX_CELL_CHARACTERS = 2000
+CatalogImportFormat = Literal["csv", "xlsx"]
+ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
 TEMPLATE_COLUMNS = (
     "nombre",
     "sku",
@@ -76,20 +86,11 @@ def _decode(content: bytes) -> str:
         raise bad_request("El CSV debe estar codificado en UTF-8") from exc
 
 
-def validate_catalog_csv(db: Session, *, tenant_id: UUID, content: bytes) -> dict[str, Any]:
-    if not content.strip():
-        raise bad_request("El archivo CSV está vacío")
-    text = _decode(content)
-    try:
-        dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;")
-    except csv.Error:
-        dialect = csv.excel
-    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
-    headers = [str(value or "").strip().lower() for value in (reader.fieldnames or [])]
+def _validate_headers(headers: list[str], *, source_label: str) -> None:
     if not headers:
-        raise bad_request("El CSV no contiene encabezados")
+        raise bad_request(f"El {source_label} no contiene encabezados")
     if len(headers) != len(set(headers)):
-        raise bad_request("El CSV contiene encabezados repetidos")
+        raise bad_request(f"El {source_label} contiene encabezados repetidos")
     missing = [column for column in ("nombre", "precio") if column not in headers]
     unknown = [column for column in headers if column not in TEMPLATE_COLUMNS]
     if missing or unknown:
@@ -99,6 +100,131 @@ def validate_catalog_csv(db: Session, *, tenant_id: UUID, content: bytes) -> dic
         if unknown:
             details.append(f"columnas no reconocidas: {', '.join(unknown)}")
         raise bad_request("Encabezados inválidos; " + "; ".join(details))
+
+
+def _parse_catalog_csv(content: bytes) -> list[tuple[int, dict[str, Any]]]:
+    if not content.strip():
+        raise bad_request("El archivo CSV está vacío")
+    text = _decode(content)
+    try:
+        dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;")
+    except csv.Error:
+        dialect = csv.excel
+    reader = csv.DictReader(io.StringIO(text), dialect=dialect)
+    headers = [str(value or "").strip().lower() for value in (reader.fieldnames or [])]
+    _validate_headers(headers, source_label="CSV")
+    raw_rows: list[tuple[int, dict[str, Any]]] = []
+    for row_number, raw in enumerate(reader, start=2):
+        if not any(str(value or "").strip() for value in raw.values()):
+            continue
+        if len(raw_rows) >= MAX_IMPORT_ROWS:
+            raise bad_request(f"El archivo admite máximo {MAX_IMPORT_ROWS} productos")
+        raw_rows.append((row_number, dict(raw)))
+    return raw_rows
+
+
+def _validate_xlsx_package(content: bytes) -> None:
+    if not content:
+        raise bad_request("El archivo Excel está vacío")
+    if len(content) > MAX_IMPORT_BYTES:
+        raise bad_request("El archivo debe pesar 2 MB o menos")
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            entries = archive.infolist()
+            if len(entries) > MAX_XLSX_ARCHIVE_FILES:
+                raise bad_request("El archivo Excel contiene demasiados componentes")
+            names = {entry.filename for entry in entries}
+            if "[Content_Types].xml" not in names or "xl/workbook.xml" not in names:
+                raise bad_request("El archivo no es un libro .xlsx válido")
+            total_uncompressed = 0
+            for entry in entries:
+                path_parts = entry.filename.replace("\\", "/").split("/")
+                if entry.filename.startswith(("/", "\\")) or ".." in path_parts:
+                    raise bad_request("El archivo Excel contiene rutas no permitidas")
+                if entry.flag_bits & 0x1:
+                    raise bad_request("El archivo Excel está cifrado; quita la contraseña")
+                if entry.file_size > MAX_XLSX_PART_BYTES:
+                    raise bad_request("El archivo Excel excede los límites permitidos")
+                total_uncompressed += entry.file_size
+                if total_uncompressed > MAX_XLSX_UNCOMPRESSED_BYTES:
+                    raise bad_request("El archivo Excel excede los límites permitidos")
+            lowered_names = {name.casefold() for name in names}
+            if any(name.endswith("vbaproject.bin") for name in lowered_names):
+                raise bad_request("Los archivos con macros no están permitidos")
+            content_types = archive.read("[Content_Types].xml").lower()
+            if b"macroenabled" in content_types or b"vba" in content_types:
+                raise bad_request("Los archivos con macros no están permitidos")
+    except zipfile.BadZipFile as exc:
+        raise bad_request(
+            "No pudimos abrir el archivo Excel. Verifica que no esté cifrado ni dañado"
+        ) from exc
+
+
+def _parse_catalog_xlsx(content: bytes) -> list[tuple[int, dict[str, Any]]]:
+    _validate_xlsx_package(content)
+    try:
+        workbook = load_workbook(
+            io.BytesIO(content),
+            read_only=True,
+            data_only=False,
+            keep_links=False,
+        )
+    except (
+        InvalidFileException,
+        zipfile.BadZipFile,
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+    ) as exc:
+        raise bad_request(
+            "No pudimos abrir el archivo Excel. Verifica que no esté cifrado ni dañado"
+        ) from exc
+
+    try:
+        if len(workbook.worksheets) != 1:
+            raise bad_request("El archivo Excel debe contener exactamente una hoja")
+        worksheet = workbook.worksheets[0]
+        if worksheet.max_row > MAX_IMPORT_ROWS + 1:
+            raise bad_request(f"El archivo admite máximo {MAX_IMPORT_ROWS} productos")
+        if worksheet.max_column > len(TEMPLATE_COLUMNS):
+            raise bad_request(f"El archivo admite máximo {len(TEMPLATE_COLUMNS)} columnas")
+
+        raw_rows: list[tuple[int, dict[str, Any]]] = []
+        headers: list[str] | None = None
+        for row_number, cells in enumerate(worksheet.iter_rows(), start=1):
+            values: list[Any] = []
+            for cell in cells:
+                if cell.data_type == "f":
+                    raise bad_request(
+                        f"La celda {cell.coordinate} contiene una fórmula; reemplázala por su valor"
+                    )
+                value = cell.value
+                if isinstance(value, str) and len(value) > MAX_XLSX_CELL_CHARACTERS:
+                    raise bad_request(
+                        f"La celda {cell.coordinate} excede el límite de caracteres"
+                    )
+                values.append(value)
+            if row_number == 1:
+                headers = [str(value or "").strip().lower() for value in values]
+                _validate_headers(headers, source_label="archivo Excel")
+                continue
+            if headers is None:
+                raise bad_request("El archivo Excel no contiene encabezados")
+            if not any(str(value or "").strip() for value in values):
+                continue
+            raw_rows.append((row_number, dict(zip(headers, values, strict=True))))
+        return raw_rows
+    finally:
+        workbook.close()
+
+
+def _validate_catalog_rows(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    raw_rows: list[tuple[int, dict[str, Any]]],
+) -> dict[str, Any]:
 
     existing_skus = {
         product.sku.upper()
@@ -114,9 +240,7 @@ def validate_catalog_csv(db: Session, *, tenant_id: UUID, content: bytes) -> dic
     }
     seen_skus: set[str] = set()
     rows = []
-    for row_number, raw in enumerate(reader, start=2):
-        if len(rows) >= MAX_IMPORT_ROWS:
-            raise bad_request(f"El CSV admite máximo {MAX_IMPORT_ROWS} productos")
+    for row_number, raw in raw_rows:
         values = {
             str(key or "").strip().lower(): str(value or "").strip()
             for key, value in raw.items()
@@ -188,7 +312,7 @@ def validate_catalog_csv(db: Session, *, tenant_id: UUID, content: bytes) -> dic
             }
         )
     if not rows:
-        raise bad_request("El CSV no contiene productos")
+        raise bad_request("El archivo no contiene productos")
     error_rows = sum(1 for row in rows if row["errors"])
     return {
         "dry_run": True,
@@ -202,23 +326,62 @@ def validate_catalog_csv(db: Session, *, tenant_id: UUID, content: bytes) -> dic
     }
 
 
-def commit_catalog_csv(
+def validate_catalog_import(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    content: bytes,
+    file_format: CatalogImportFormat,
+) -> dict[str, Any]:
+    if file_format == "csv" and content.startswith(ZIP_SIGNATURES):
+        raise bad_request("El contenido del archivo no coincide con el formato CSV seleccionado")
+    raw_rows = (
+        _parse_catalog_csv(content)
+        if file_format == "csv"
+        else _parse_catalog_xlsx(content)
+    )
+    return _validate_catalog_rows(db, tenant_id=tenant_id, raw_rows=raw_rows)
+
+
+def validate_catalog_csv(db: Session, *, tenant_id: UUID, content: bytes) -> dict[str, Any]:
+    """Backward-compatible CSV entry point used by existing callers/tests."""
+    return validate_catalog_import(db, tenant_id=tenant_id, content=content, file_format="csv")
+
+
+def _catalog_import_request_hash(
+    content: bytes,
+    *,
+    file_format: CatalogImportFormat,
+) -> str:
+    # Preserve the historical CSV identity exactly. XLSX is namespaced so the
+    # same bytes cannot replay an idempotent request created for another format.
+    payload = content if file_format == "csv" else b"xlsx\0" + content
+    return hashlib.sha256(payload).hexdigest()
+
+
+def commit_catalog_import(
     db: Session,
     *,
     tenant_id: UUID,
     user_id: UUID,
     content: bytes,
     idempotency_key: str,
+    file_format: CatalogImportFormat,
 ) -> tuple[int, dict[str, Any]]:
-    request_hash = hashlib.sha256(content).hexdigest()
+    request_hash = _catalog_import_request_hash(content, file_format=file_format)
     existing = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
     if existing:
         if existing.request_hash != request_hash:
             raise bad_request("Idempotency key reused with different request body")
         return existing.response_status or 200, existing.response_body or {}
-    result = validate_catalog_csv(db, tenant_id=tenant_id, content=content)
+    result = validate_catalog_import(
+        db,
+        tenant_id=tenant_id,
+        content=content,
+        file_format=file_format,
+    )
     if result["error_rows"]:
-        raise bad_request("Corrige todos los errores del CSV antes de confirmar")
+        raise bad_request("Corrige todos los errores del archivo antes de confirmar")
     categories = {
         category.name.casefold(): category
         for category in catalog_repo.list_categories(db, tenant_id=tenant_id)
@@ -265,7 +428,7 @@ def commit_catalog_csv(
                 user_id=user_id,
                 movement_type="adjustment",
                 quantity_delta=values["initial_stock"],
-                reason="Importación CSV: stock inicial",
+                reason=f"Importación {file_format.upper()}: stock inicial",
             )
             initial_movements += 1
     response = {
@@ -289,7 +452,8 @@ def commit_catalog_csv(
                 "created_categories",
                 "initial_stock_movements",
             )
-        },
+        }
+        | {"file_format": file_format},
     )
     idempotency_service.store(
         db,
@@ -301,3 +465,22 @@ def commit_catalog_csv(
     )
     db.commit()
     return 201, response
+
+
+def commit_catalog_csv(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    content: bytes,
+    idempotency_key: str,
+) -> tuple[int, dict[str, Any]]:
+    """Backward-compatible CSV entry point used by existing callers/tests."""
+    return commit_catalog_import(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        content=content,
+        idempotency_key=idempotency_key,
+        file_format="csv",
+    )

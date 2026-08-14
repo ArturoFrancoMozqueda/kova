@@ -4,6 +4,7 @@ Spec:
 - `specs/catalog/categories.md`
 - `specs/catalog/products.md`
 - `specs/catalog/variants.md`
+- `specs/catalog/import_xlsx.md`
 
 | Scenario ID | Gherkin File | Scenario Name | Layer | Test File | Tags | Required By | Automation Status | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -17,3 +18,6 @@ Spec:
 | CATALOG-008 | docs/adr/ADR-013-catalog-csv-import.md | UTF-8 BOM and es-MX accents survive catalog preview | Backend integration | backend/app/tests/test_catalog_import.py | @catalog @import @encoding | Beta | Automated | Proves Excel-friendly BOM handling without normalizing away accents or ñ |
 | CATALOG-009 | docs/adr/ADR-013-catalog-csv-import.md | Import failure rolls back every catalog write | Backend integration | backend/app/tests/test_catalog_import.py | @catalog @import @transaction | Beta | Automated | Simulates a failure after the first product and verifies no product, movement, or audit row remains |
 | CATALOG-010 | docs/adr/ADR-013-catalog-csv-import.md | Replayed commit returns the stored response once | Backend integration | backend/app/tests/test_catalog_import.py | @catalog @import @idempotency | Beta | Automated | Same tenant, key and file produce one import and one audit event |
+| CATALOG-011 | specs/catalog/import_xlsx.md | XLSX preview and commit reuse catalog semantics | Backend integration | backend/app/tests/test_catalog_import.py | @catalog @import @xlsx @idempotency | Beta | Automated | Preserves accents, Decimal values, ledger writes and replay semantics |
+| CATALOG-012 | specs/catalog/import_xlsx.md | Unsafe or ambiguous workbooks are rejected | Backend integration | backend/app/tests/test_catalog_import.py | @catalog @import @xlsx @security | Beta | Automated | Covers formulas, macros, encryption/corruption, multiple sheets and resource limits |
+| CATALOG-013 | specs/catalog/import_xlsx.md | UI accepts XLSX and sends coherent format/media type | Frontend unit | frontend/src/catalog/CatalogImportDialog.test.tsx; frontend/src/catalog/api.test.ts | @ui @catalog @import @xlsx | Beta | Automated | Reuses the existing preview and confirmation dialog |

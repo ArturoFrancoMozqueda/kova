@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Body, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
@@ -28,8 +30,10 @@ def download_template(
 @router.post("", response_model=CatalogImportResponse)
 def import_catalog(
     response: Response,
-    content: bytes = Body(media_type="text/csv"),
+    content: bytes = Body(media_type="application/octet-stream"),
     dry_run: bool = Query(default=True),
+    file_format: Literal["csv", "xlsx"] = Query(default="csv", alias="format"),
+    content_type: str | None = Header(default=None, alias="Content-Type"),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
     ctx: tuple[User, Membership, UserSession] = Depends(
@@ -37,18 +41,33 @@ def import_catalog(
     ),
 ):
     user, membership, _ = ctx
+    media_type = (content_type or "").split(";", 1)[0].strip().lower()
+    allowed_media_types = {
+        "csv": {"text/csv", "application/csv", "application/vnd.ms-excel"},
+        "xlsx": {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+    }
+    if media_type not in allowed_media_types[file_format]:
+        raise bad_request(
+            f"El tipo de archivo no coincide con el formato {file_format.upper()} seleccionado"
+        )
     if dry_run:
-        return service.validate_catalog_csv(
-            db, tenant_id=membership.tenant_id, content=content
+        return service.validate_catalog_import(
+            db,
+            tenant_id=membership.tenant_id,
+            content=content,
+            file_format=file_format,
         )
     if not idempotency_key:
         raise bad_request("Idempotency-Key header is required")
-    status_code, body = service.commit_catalog_csv(
+    status_code, body = service.commit_catalog_import(
         db,
         tenant_id=membership.tenant_id,
         user_id=user.id,
         content=content,
         idempotency_key=idempotency_key,
+        file_format=file_format,
     )
     response.status_code = status_code
     return body
