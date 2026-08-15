@@ -22,6 +22,8 @@ class Permission(StrEnum):
     BILLING_VIEW = "billing.view"
     BILLING_MANAGE = "billing.manage"
     SETTINGS_MANAGE = "settings.manage"
+    FISCAL_VIEW = "fiscal.view"
+    FISCAL_MANAGE = "fiscal.manage"
 
 
 ROLE_PERMISSIONS: dict[str, set[Permission]] = {
@@ -44,6 +46,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.EXPENSES_MANAGE,
         Permission.REPORTS_VIEW_ALL,
         Permission.SETTINGS_MANAGE,
+        Permission.FISCAL_VIEW,
     },
     "cashier": {
         Permission.ORDERS_CREATE,

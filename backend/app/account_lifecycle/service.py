@@ -113,14 +113,16 @@ def build_account_export(db: Session, *, tenant_id: UUID) -> BinaryIO:
                 archive,
                 name="datos/tenant.csv",
                 columns=["id", "name", "slug", "is_active", "created_at", "updated_at"],
-                rows=[[
-                    tenant.id,
-                    tenant.name,
-                    tenant.slug,
-                    tenant.is_active,
-                    tenant.created_at,
-                    tenant.updated_at,
-                ]],
+                rows=[
+                    [
+                        tenant.id,
+                        tenant.name,
+                        tenant.slug,
+                        tenant.is_active,
+                        tenant.created_at,
+                        tenant.updated_at,
+                    ]
+                ],
             )
             manifest["tables"]["tenant"] = 1  # type: ignore[index]
         members = db.execute(
@@ -160,9 +162,7 @@ def get_deletion_status(db: Session, *, tenant_id: UUID) -> AccountDeletionReque
     )
 
 
-def _get_latest_deletion_request(
-    db: Session, *, tenant_id: UUID
-) -> AccountDeletionRequest | None:
+def _get_latest_deletion_request(db: Session, *, tenant_id: UUID) -> AccountDeletionRequest | None:
     return db.scalar(
         select(AccountDeletionRequest).where(AccountDeletionRequest.tenant_id == tenant_id)
     )
@@ -263,6 +263,10 @@ def purge_due_accounts(db: Session, *, now: datetime | None = None) -> int:
     purged = 0
     for request in due:
         tenant_id = request.tenant_id
+        # Immutable fiscal history may only be physically removed as part of
+        # this privileged, audited whole-account purge. Transaction-local keeps
+        # the bypass from leaking to the pooled connection after commit/rollback.
+        db.execute(text("SET LOCAL app.allow_fiscal_history_delete = 'on'"))
         user_ids = list(
             db.execute(
                 text("SELECT user_id FROM memberships WHERE tenant_id = :tenant_id"),
@@ -292,9 +296,7 @@ def purge_due_accounts(db: Session, *, now: datetime | None = None) -> int:
             ).first()
             if not still_member:
                 params = {"user_id": user_id}
-                db.execute(
-                    text("DELETE FROM verification_tokens WHERE user_id = :user_id"), params
-                )
+                db.execute(text("DELETE FROM verification_tokens WHERE user_id = :user_id"), params)
                 db.execute(text("DELETE FROM sessions WHERE user_id = :user_id"), params)
                 db.execute(text("DELETE FROM users WHERE id = :user_id"), {"user_id": user_id})
         request.status = "completed"

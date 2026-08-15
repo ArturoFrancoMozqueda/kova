@@ -1,0 +1,178 @@
+import { type Page, expect, test } from "./fixtures";
+
+const settings = {
+  frequency: "monthly",
+  weekly_close_day: 7,
+  monthly_close_day: 31,
+  auto_close_enabled: false,
+  timezone: "America/Mexico_City",
+  scheduler_status: "active",
+};
+
+const preview = {
+  frequency: "monthly",
+  period_start: "2024-02-01",
+  period_end: "2024-02-29",
+  timezone: "America/Mexico_City",
+  document_kind: "operational_draft",
+  fiscal_status: "not_issued",
+  gross_amount: "232.00",
+  discount_total_amount: "0.00",
+  tax_total_amount: "32.00",
+  total_amount: "232.00",
+  refund_total_amount: "18.00",
+  net_total_amount: "214.00",
+  order_count: 2,
+  excluded_individually_confirmed_count: 1,
+};
+
+async function mockSettingsShell(
+  page: Page,
+  { role = "owner", enabled = true }: { role?: string; enabled?: boolean } = {},
+) {
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({
+      json: {
+        authenticated: true,
+        user: { id: "user-1", email: `${role}@kova.test`, tenant_id: "tenant-1", role },
+        tenant_id: "tenant-1",
+        tenant_name: "Kova Test",
+        feature_flags: { fiscal_global_drafts: enabled },
+      },
+    }),
+  );
+  await page.route("**/api/v1/settings/business-profile", (route) =>
+    route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        public_name: "Kova Test",
+        support_email: null,
+        support_phone: null,
+        timezone: "America/Mexico_City",
+        locale: "es-MX",
+        currency: "MXN",
+      },
+    }),
+  );
+  await page.route("**/api/v1/settings/receipt", (route) =>
+    route.fulfill({
+      json: {
+        tenant_id: "tenant-1",
+        receipt_business_name: "Kova Test",
+        footer: null,
+        tax_contact_text: null,
+        logo_url: null,
+        paper_width_mm: 80,
+      },
+    }),
+  );
+  await page.route("**/api/v1/employees", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/employees/invitations", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/account/deletion**", (route) =>
+    route.fulfill({ json: { status: "none", requested_at: null, purge_after: null } }),
+  );
+  await page.route("**/api/v1/billing/subscription", (route) =>
+    route.fulfill({
+      json: { subscription: null, access: { status: "trial_active", reason: "trial_active" } },
+    }),
+  );
+}
+
+async function mockFiscalReadRoutes(page: Page) {
+  await page.route("**/api/v1/fiscal/global-drafts/settings", async (route) => {
+    if (route.request().method() === "PUT") {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      Object.assign(settings, body);
+    }
+    await route.fulfill({ json: settings });
+  });
+  await page.route("**/api/v1/fiscal/global-drafts/batches", (route) =>
+    route.fulfill({ json: { items: [], total: 0 } }),
+  );
+  await page.route("**/api/v1/fiscal/global-drafts/preview**", (route) =>
+    route.fulfill({ json: preview }),
+  );
+}
+
+test("owner configures, previews and closes an internal period draft", async ({ page }) => {
+  await mockSettingsShell(page);
+  await mockFiscalReadRoutes(page);
+
+  let closeKey = "";
+  await page.route("**/api/v1/fiscal/global-drafts/close", async (route) => {
+    closeKey = route.request().headers()["idempotency-key"] ?? "";
+    expect(JSON.parse(route.request().postData() ?? "{}")).toEqual({ period_end: "2024-02-29" });
+    await route.fulfill({
+      status: 201,
+      json: {
+        ...preview,
+        id: "batch-1",
+        status: "closed",
+        order_ids: ["order-1", "order-2"],
+        closed_at: "2024-03-01T06:00:00Z",
+      },
+    });
+  });
+
+  await page.goto("/settings/fiscal");
+  await expect(page.getByRole("heading", { name: "Preparación por periodo" })).toBeVisible();
+  await page.getByRole("checkbox", { name: /preparar automáticamente/i }).check();
+  await page.getByRole("button", { name: "Guardar preparación" }).click();
+  await expect(page.getByText("Preparación por periodo guardada.")).toBeVisible();
+
+  await page.getByLabel("Fecha de cierre").fill("2024-02-29");
+  await page.getByRole("button", { name: "Preparar vista previa" }).click();
+  await expect(page.getByText("Vista previa lista")).toBeVisible();
+  await expect(page.getByText(/2 ventas incluidas.*1 excluida/i)).toBeVisible();
+  await page.getByRole("button", { name: "Cerrar periodo" }).click();
+  await page.getByRole("button", { name: "Guardar borrador interno" }).click();
+  await expect(page.getByText("Borrador interno guardado.")).toBeVisible();
+  expect(closeKey).not.toBe("");
+
+  const body = await page.locator("body").innerText();
+  expect(body).toMatch(/borrador interno/i);
+  expect(body).toMatch(/recibo operativo/i);
+  expect(body).not.toMatch(/CFDI|XML|PDF|PAC|timbrad|factura emitida/i);
+});
+
+test("manager can preview but cannot mutate or close", async ({ page }) => {
+  await mockSettingsShell(page, { role: "manager" });
+  await mockFiscalReadRoutes(page);
+
+  await page.goto("/settings/fiscal");
+  await expect(page.getByText("Consulta de solo lectura")).toBeVisible();
+  await expect(page.getByLabel("Periodicidad")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Guardar preparación" })).toHaveCount(0);
+  await page.getByLabel("Fecha de cierre").fill("2024-02-29");
+  await page.getByRole("button", { name: "Preparar vista previa" }).click();
+  await expect(page.getByText("Vista previa lista")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cerrar periodo" })).toHaveCount(0);
+});
+
+test("direct access with the flag off mounts no fiscal client", async ({ page }) => {
+  await mockSettingsShell(page, { enabled: false });
+  let fiscalRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("/api/v1/fiscal/")) fiscalRequests += 1;
+  });
+
+  await page.goto("/settings/fiscal");
+  await expect(page.getByRole("heading", { name: "Perfil del negocio" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Borradores por periodo" })).toHaveCount(0);
+  expect(fiscalRequests).toBe(0);
+});
+
+test("offline mode disables period mutations while Caja remains available", async ({ page, context }) => {
+  await mockSettingsShell(page);
+  await mockFiscalReadRoutes(page);
+  await page.goto("/settings/fiscal");
+  await expect(page.getByRole("heading", { name: "Preparación por periodo" })).toBeVisible();
+
+  await context.setOffline(true);
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+
+  await expect(page.getByText("Necesitas conexión para hacer cambios")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Guardar preparación" })).toBeDisabled();
+  await expect(page.getByLabel("Fecha de cierre")).toBeDisabled();
+  await expect(page.getByText(/seguir vendiendo desde Caja/i)).toBeVisible();
+});

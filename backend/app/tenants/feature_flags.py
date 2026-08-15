@@ -2,10 +2,12 @@ from collections.abc import Mapping
 
 MARGIN_REPORTS = "margin_reports"
 CUSTOMER_ORDERS = "customer_orders"
+FISCAL_GLOBAL_DRAFTS = "fiscal_global_drafts"
 
 DEFAULT_FEATURE_FLAGS: dict[str, bool] = {
     MARGIN_REPORTS: False,
     CUSTOMER_ORDERS: True,
+    FISCAL_GLOBAL_DRAFTS: False,
 }
 
 

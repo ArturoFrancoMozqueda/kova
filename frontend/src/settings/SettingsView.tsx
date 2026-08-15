@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FiscalGlobalDraftsPanel } from "@/fiscal/FiscalGlobalDraftsPanel";
 import { useToast } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
 import { ReceiptTemplate } from "@/orders/ReceiptTemplate";
@@ -46,7 +47,7 @@ import {
 
 type LoadState = "loading" | "ready" | "error";
 type Role = "owner" | "manager" | "cashier";
-type SettingsTab = "profile" | "receipt" | "employees" | "advanced";
+type SettingsTab = "profile" | "receipt" | "employees" | "fiscal" | "advanced";
 
 const roleOptions: { value: Role; label: string; description: string }[] = [
   {
@@ -93,12 +94,14 @@ const settingsTabs: { id: SettingsTab; label: string; to: string }[] = [
   { id: "profile", label: copy.settings.tabProfile, to: "/settings/business-profile" },
   { id: "receipt", label: copy.settings.tabReceipt, to: "/settings/receipt" },
   { id: "employees", label: copy.settings.tabEmployees, to: "/settings/employees" },
+  { id: "fiscal", label: copy.settings.tabFiscal, to: "/settings/fiscal" },
   { id: "advanced", label: copy.settings.tabAdvanced, to: "/settings/advanced" },
 ];
 
 function tabFromPath(pathname: string): SettingsTab {
   if (pathname.endsWith("/receipt")) return "receipt";
   if (pathname.endsWith("/employees")) return "employees";
+  if (pathname.endsWith("/fiscal")) return "fiscal";
   if (pathname.endsWith("/advanced")) return "advanced";
   return "profile";
 }
@@ -170,6 +173,13 @@ export default function SettingsView() {
   });
   const activeTab = tabFromPath(location.pathname);
   const isOwner = state.status === "authenticated" && state.user.role === "owner";
+  const userRole = state.status === "authenticated" ? state.user.role : "";
+  const canViewFiscal =
+    state.status === "authenticated" &&
+    state.featureFlags.fiscal_global_drafts &&
+    (userRole === "owner" || userRole === "manager");
+  const visibleSettingsTabs = settingsTabs.filter((tab) => tab.id !== "fiscal" || canViewFiscal);
+  const visibleActiveTab = activeTab === "fiscal" && !canViewFiscal ? "profile" : activeTab;
 
   const runPendingAction = useCallback(async () => {
     if (!pendingAction) return;
@@ -350,13 +360,13 @@ export default function SettingsView() {
         aria-label={copy.settings.tabsLabel}
         className="flex gap-1 overflow-x-auto rounded-kova-lg border border-kova-border bg-white p-1.5 shadow-kova-card lg:sticky lg:top-4 lg:flex-col"
       >
-        {settingsTabs.map((tab) => (
+        {visibleSettingsTabs.map((tab) => (
           <Link
             key={tab.id}
             to={tab.to}
             className={cn(
               "shrink-0 rounded-kova-sm px-3 py-2.5 text-sm font-medium transition-colors",
-              activeTab === tab.id
+              visibleActiveTab === tab.id
                 ? "bg-kova-ink text-white"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
@@ -367,7 +377,7 @@ export default function SettingsView() {
       </nav>
       <section className="min-w-0 space-y-6">
 
-      {activeTab === "profile" && (
+      {visibleActiveTab === "profile" && (
       <Card>
         <CardHeader><CardTitle>{copy.settings.businessProfile}</CardTitle></CardHeader>
         <CardContent>
@@ -382,7 +392,7 @@ export default function SettingsView() {
       </Card>
       )}
 
-      {activeTab === "receipt" && (
+      {visibleActiveTab === "receipt" && (
       <Card>
         <CardHeader><CardTitle>{copy.settings.receiptSettings}</CardTitle></CardHeader>
         <CardContent>
@@ -416,7 +426,7 @@ export default function SettingsView() {
       </Card>
       )}
 
-      {activeTab === "employees" && (
+      {visibleActiveTab === "employees" && (
       <Card>
         <CardHeader>
           <CardTitle>{copy.settings.employees}</CardTitle>
@@ -562,7 +572,11 @@ export default function SettingsView() {
       </Card>
       )}
 
-      {activeTab === "advanced" && (
+      {visibleActiveTab === "fiscal" && canViewFiscal && (
+        <FiscalGlobalDraftsPanel role={userRole} />
+      )}
+
+      {visibleActiveTab === "advanced" && (
         <>
         <Card>
           <CardHeader>
