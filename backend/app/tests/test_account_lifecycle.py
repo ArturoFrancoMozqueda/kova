@@ -1,7 +1,8 @@
 import io
 import zipfile
-from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -11,6 +12,7 @@ from app.account_lifecycle.models import AccountDeletionRequest
 from app.account_lifecycle.service import purge_due_accounts
 from app.auth.models import Membership, User
 from app.config import settings
+from app.fiscal.models import FiscalGlobalDraftBatch, FiscalGlobalDraftSettings
 from app.tenants.models import Tenant
 
 
@@ -26,9 +28,7 @@ def _signup_login(client: TestClient, email: str, tenant_name: str) -> dict:
     )
     token = signup.json()["dev_verification_token"]
     client.post("/api/v1/auth/verify", json={"token": token})
-    login = client.post(
-        "/api/v1/auth/login", json={"email": email, "password": "S3cur3pass!"}
-    )
+    login = client.post("/api/v1/auth/login", json={"email": email, "password": "S3cur3pass!"})
     assert login.status_code == 200, login.text
     return signup.json()
 
@@ -68,9 +68,7 @@ def test_owner_exports_tenant_data_as_zip(client: TestClient) -> None:
 
 def test_only_owner_can_export_or_schedule(client: TestClient, db: Session) -> None:
     signup = _signup_login(client, "manager-export@example.com", "Negocio Gerente")
-    membership = db.scalar(
-        select(Membership).where(Membership.tenant_id == signup["tenant_id"])
-    )
+    membership = db.scalar(select(Membership).where(Membership.tenant_id == signup["tenant_id"]))
     assert membership is not None
     membership.role = "manager"
     db.commit()
@@ -139,6 +137,39 @@ def test_due_purge_removes_only_requested_tenant(client: TestClient, db: Session
     second = _signup_login(second_client, "purge-b@example.com", "Purge B")
     first_user = db.scalar(select(User).where(User.email == "purge-a@example.com"))
     assert first_user is not None
+    first_tenant_id = UUID(first["tenant_id"])
+    db.add(
+        FiscalGlobalDraftSettings(
+            tenant_id=first_tenant_id,
+            frequency="daily",
+            weekly_close_day=7,
+            monthly_close_day=31,
+            auto_close_enabled=False,
+            created_by_user_id=first_user.id,
+            updated_by_user_id=first_user.id,
+        )
+    )
+    db.add(
+        FiscalGlobalDraftBatch(
+            tenant_id=first_tenant_id,
+            frequency="daily",
+            period_start=date(2026, 1, 1),
+            period_end=date(2026, 1, 1),
+            timezone="America/Mexico_City",
+            status="closed",
+            document_kind="operational_draft",
+            fiscal_status="not_issued",
+            gross_amount=Decimal("0.00"),
+            discount_total_amount=Decimal("0.00"),
+            tax_total_amount=Decimal("0.00"),
+            total_amount=Decimal("0.00"),
+            refund_total_amount=Decimal("0.00"),
+            net_total_amount=Decimal("0.00"),
+            order_count=0,
+            excluded_individually_confirmed_count=0,
+            created_by_user_id=first_user.id,
+        )
+    )
     db.add(
         AccountDeletionRequest(
             id=uuid4(),
@@ -154,9 +185,7 @@ def test_due_purge_removes_only_requested_tenant(client: TestClient, db: Session
     assert db.scalar(select(User).where(User.email == "purge-a@example.com")) is None
     assert db.get(Tenant, second["tenant_id"]) is not None
     tombstone = db.scalar(
-        select(AccountDeletionRequest).where(
-            AccountDeletionRequest.tenant_id == first["tenant_id"]
-        )
+        select(AccountDeletionRequest).where(AccountDeletionRequest.tenant_id == first["tenant_id"])
     )
     assert tombstone is not None
     assert tombstone.status == "completed"

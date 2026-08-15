@@ -19,9 +19,7 @@ def _signup_verify_login(client) -> UUID:
     )
     assert response.status_code == 201, response.text
     signup = response.json()
-    verify = client.post(
-        "/api/v1/auth/verify", json={"token": signup["dev_verification_token"]}
-    )
+    verify = client.post("/api/v1/auth/verify", json={"token": signup["dev_verification_token"]})
     assert verify.status_code == 200, verify.text
     login = client.post(
         "/api/v1/auth/login",
@@ -48,6 +46,7 @@ def test_session_exposes_supported_tenant_override(client, db: Session) -> None:
     assert response.json()["feature_flags"] == {
         "margin_reports": True,
         "customer_orders": False,
+        "fiscal_global_drafts": False,
     }
 
 
@@ -60,6 +59,7 @@ def test_session_uses_global_feature_defaults(client) -> None:
     assert response.json()["feature_flags"] == {
         "margin_reports": False,
         "customer_orders": True,
+        "fiscal_global_drafts": False,
     }
 
 
@@ -67,4 +67,5 @@ def test_non_boolean_override_does_not_enable_feature() -> None:
     assert resolve_feature_flags({"margin_reports": "true"}) == {
         "margin_reports": False,
         "customer_orders": True,
+        "fiscal_global_drafts": False,
     }

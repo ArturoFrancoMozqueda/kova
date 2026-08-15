@@ -121,6 +121,7 @@ export function AppRoutes() {
               <Route path="/settings/business-profile" element={<SettingsView />} />
               <Route path="/settings/receipt" element={<SettingsView />} />
               <Route path="/settings/employees" element={<SettingsView />} />
+              <Route path="/settings/fiscal" element={<SettingsView />} />
               <Route path="/settings/advanced" element={<SettingsView />} />
               <Route path="/settings" element={<SettingsView />} />
               <Route path="/sync-queue" element={<SyncQueueView />} />

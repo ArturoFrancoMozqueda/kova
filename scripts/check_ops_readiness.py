@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
+WORKFLOWS = ROOT / ".github" / "workflows"
 CANONICAL_SUPPORT_EMAIL = "posprojectsupport@gmail.com"
 REQUIRED_EMAIL_SENDERS = (
     "send_verification_email",
@@ -24,6 +25,58 @@ REQUIRED_EMAIL_SENDERS = (
     "send_trial_ending_email",
     "send_password_reset_email",
 )
+PINNED_ACTION = re.compile(r"^\s*-?\s*uses:\s*[^\s@]+@[0-9a-f]{40}(?:\s+#\s*\S.*)?$")
+
+
+def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
+    """Return static workflow safety-contract violations without contacting GitHub."""
+    errors: list[str] = []
+    for path in sorted(workflows.glob("*.yml")):
+        content = path.read_text(encoding="utf-8")
+        if not re.search(r"(?m)^permissions:\s*(?:\{\})?\s*$", content):
+            errors.append(f"workflow sin permisos explícitos mínimos: {path.name}")
+        for line_number, line in enumerate(content.splitlines(), start=1):
+            if "uses:" in line and not PINNED_ACTION.fullmatch(line):
+                errors.append(
+                    f"action sin SHA inmutable: {path.name}:{line_number}"
+                )
+
+    ci = (workflows / "ci.yml").read_text(encoding="utf-8")
+    ci_markers = (
+        "concurrency:",
+        "format('{0}-{1}', github.workflow, github.ref)",
+        "format('{0}-pr-{1}', github.workflow, github.event.pull_request.number)",
+        "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+    )
+    for marker in ci_markers:
+        if marker not in ci:
+            errors.append(f"contrato de concurrencia CI faltante: {marker}")
+
+    fiscal = (workflows / "fiscal-global-drafts.yml").read_text(encoding="utf-8")
+    fiscal_markers = (
+        'cron: "23 */6 * * *"',
+        "workflow_dispatch:",
+        "permissions: {}",
+        "group: fiscal-global-drafts",
+        "cancel-in-progress: false",
+        "-X POST",
+        "X-Internal-Key: $INTERNAL_API_KEY",
+        "--data '{\"tenant_limit\":100,\"periods_per_tenant\":31}'",
+        "https://pos-project-backend.fly.dev/api/v1/fiscal/internal/global-drafts/auto-close",
+        'if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then',
+        "'tenants_examined'",
+        "'batches_created'",
+        "'batches_replayed'",
+        "'periods_skipped_empty'",
+        "'failures'",
+        'if response["failures"]:',
+    )
+    for marker in fiscal_markers:
+        if marker not in fiscal:
+            errors.append(f"contrato scheduler fiscal faltante: {marker}")
+    if re.search(r"echo\s+[\"']?\$INTERNAL_API_KEY", fiscal):
+        errors.append("scheduler fiscal intenta imprimir INTERNAL_API_KEY")
+    return errors
 
 
 def _text(relative_path: str) -> str:
@@ -33,6 +86,7 @@ def _text(relative_path: str) -> str:
 def repository_errors() -> list[str]:
     """Return local OPS contract violations without accessing external systems."""
     errors: list[str] = []
+    errors.extend(workflow_contract_errors())
     support = _text("frontend/src/lib/support.ts")
     if f'SUPPORT_EMAIL = "{CANONICAL_SUPPORT_EMAIL}"' not in support:
         errors.append("OPS-2: el canal canónico cambió sin evidencia del inbox de dominio")

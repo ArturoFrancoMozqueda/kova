@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Integer, Numeric, String
+from sqlalchemy import CheckConstraint, DateTime, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -18,6 +18,7 @@ class Order(Base):
         # Orders are only ever "completed" or "voided"; guard against typos
         # writing an unknown status that would silently drop out of reports.
         CheckConstraint("status IN ('completed', 'voided')", name="ck_orders_status"),
+        UniqueConstraint("tenant_id", "id", name="uq_orders_tenant_id_id"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
