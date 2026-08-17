@@ -1,6 +1,8 @@
 # Capturas reales para marketing
 
-`register.png`, `inventory.png`, `shifts.png` y `reports.png` son capturas sanitizadas del producto real a 1440×900. Incluyen el AppShell vigente; no se deben envolver en una réplica manual de la navegación.
+`register.png`, `sale-register.jpeg`, `inventory.png`, `inventory-story.jpeg`, `shifts.png`, `reports.png` y `analysis-story.jpeg` son capturas sanitizadas del producto real. Incluyen el AppShell vigente; no se deben envolver en una réplica manual de la navegación.
+
+`sale-register.jpeg`, `inventory-story.jpeg` y `analysis-story.jpeg` se usan únicamente en los pasos “Venta”, “Inventario” y “Análisis” del recorrido de la landing. Los assets PNG permanecen como las capturas de las demás secciones.
 
 La captura de Caja se usa de forma estática en el hero. La única experiencia operable está en “Kova en acción”, usa estado y activos locales y muestra explícitamente `Demo interactiva · No registra ventas`.
 

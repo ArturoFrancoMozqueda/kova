@@ -441,7 +441,7 @@ test("landing film degrades to a complete static hero under reduced motion", asy
   const steps = story.getByRole("listitem");
   await expect(steps).toHaveCount(4);
   await expect(steps.nth(3)).toContainText("La venta aparece en tus resultados");
-  await expect(story.getByRole("img", { name: /Reportes de Kova/i })).toBeVisible();
+  await expect(story.getByRole("img", { name: /Análisis de Kova/i })).toBeVisible();
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {

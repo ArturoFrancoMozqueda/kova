@@ -95,7 +95,7 @@ export const copy = {
           line: "Arma el ticket, elige el método de pago y completa la venta.",
           receipt: "Venta registrada",
           heading: "Cobras en segundos.",
-          image: "/showcase/register.png",
+          image: "/showcase/sale-register.jpeg",
           alt: "Caja de Kova mostrando una venta lista para cobrarse.",
         },
         {
@@ -105,7 +105,7 @@ export const copy = {
           line: "Los productos vendidos se descuentan y Kova señala lo que está por agotarse.",
           receipt: "Stock actualizado",
           heading: "El stock baja automáticamente.",
-          image: "/showcase/inventory.png",
+          image: "/showcase/inventory-story.jpeg",
           alt: "Inventario de Kova mostrando existencias y stock bajo.",
         },
         {
@@ -121,12 +121,12 @@ export const copy = {
         {
           id: "reports",
           number: "04",
-          title: "Reportes",
+          title: "Análisis",
           line: "La venta aparece en tus resultados, productos top y mejores horarios.",
           receipt: "Resultados actualizados",
           heading: "La venta aparece en tus resultados.",
-          image: "/showcase/reports.png",
-          alt: "Reportes de Kova con ventas, productos y horarios destacados.",
+          image: "/showcase/analysis-story.jpeg",
+          alt: "Análisis de Kova con ventas, productos y horarios destacados.",
         },
       ],
       cta: "Probar Kova gratis",

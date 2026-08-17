@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SaleFlowStory from "./SaleFlowStory";
@@ -28,11 +28,18 @@ describe("SaleFlowStory", () => {
     renderStory();
 
     expect(screen.getAllByRole("tab")).toHaveLength(4);
-    expect(screen.getByRole("tab", { name: "Venta" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.getAllByRole("heading", { name: "Cobras en segundos." })[0]).toBeVisible();
+    const saleTab = screen.getByRole("tab", { name: "Venta" });
+    expect(saleTab).toHaveAttribute("aria-selected", "true");
+    expect(within(saleTab).getByText("Venta registrada")).toBeVisible();
+    expect(
+      screen.getAllByRole("tab").filter((tab) => tab.tabIndex === 0),
+    ).toEqual([saleTab]);
+    expect(
+      screen.getAllByRole("heading", { name: "Cobras en segundos." })[0],
+    ).toBeVisible();
+    expect(
+      screen.getAllByRole("img", { name: /venta lista para cobrarse/i })[0],
+    ).toHaveAttribute("src", "/showcase/sale-register.jpeg");
     expect(onStepView).toHaveBeenCalledWith("sale", "scroll");
   });
 
@@ -45,8 +52,14 @@ describe("SaleFlowStory", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getAllByRole("heading", { name: "El stock baja automáticamente." })[0]).toBeVisible();
-    expect(screen.getAllByRole("img", { name: /Inventario de Kova/i })[0]).toBeVisible();
+    expect(
+      screen.getAllByRole("heading", {
+        name: "El stock baja automáticamente.",
+      })[0],
+    ).toBeVisible();
+    expect(
+      screen.getAllByRole("img", { name: /Inventario de Kova/i })[0],
+    ).toHaveAttribute("src", "/showcase/inventory-story.jpeg");
     expect(onStepView).toHaveBeenCalledWith("inventory", "control");
   });
 
@@ -60,12 +73,20 @@ describe("SaleFlowStory", () => {
     fireEvent.keyDown(screen.getByRole("tab", { name: "Inventario" }), {
       key: "End",
     });
-    expect(screen.getByRole("tab", { name: "Reportes" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Análisis" })).toHaveFocus();
+    expect(
+      screen.getAllByRole("img", { name: /Análisis de Kova/i })[0],
+    ).toHaveAttribute("src", "/showcase/analysis-story.jpeg");
 
-    fireEvent.keyDown(screen.getByRole("tab", { name: "Reportes" }), {
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Análisis" }), {
       key: "Home",
     });
     expect(screen.getByRole("tab", { name: "Venta" })).toHaveFocus();
+
+    fireEvent.keyDown(screen.getByRole("tab", { name: "Venta" }), {
+      key: "ArrowLeft",
+    });
+    expect(screen.getByRole("tab", { name: "Análisis" })).toHaveFocus();
   });
 
   it("uses the signup destination for the story CTA", () => {

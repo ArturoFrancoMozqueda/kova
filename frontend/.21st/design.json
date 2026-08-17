@@ -3,17 +3,11 @@
   "project": {
     "name": "pos-frontend",
     "productType": null,
-    "stack": [
-      "react",
-      "tailwind-v3",
-      "vite"
-    ]
+    "stack": ["react", "tailwind-v3", "vite"]
   },
   "sources": {
     "tokens": [],
-    "components": [
-      "src/components/ui"
-    ],
+    "components": ["src/components/ui"],
     "assets": [],
     "instructions": []
   },
@@ -91,6 +85,10 @@
     {
       "decision": "Open the public landing with a solid Kova-ink hero, then alternate dark product-story sections with white reading sections; reserve Kova blue for brand accents, use a visual operational sequence for the manual-work problem, remove the standalone customer-name strip and never place visible 'real capture' legends over product evidence.",
       "reason": "The owner explicitly selected the original dark Kova surface, the 'Vende. Kova mantiene el resto bajo control.' thesis and a quieter product-led presentation where the interface proves itself without explanatory capture labels."
+    },
+    {
+      "decision": "Use Ant Design interaction patterns—Steps plus Tabs for the product story and restrained Card plus Tag hierarchy for capabilities—while retaining Kova tokens, native components and stacked mobile behavior.",
+      "reason": "The owner requested premium patterns from the official Ant Design component catalog; implementing the patterns locally preserves Kova's identity, accessibility and bundle size without adding antd or fake product data."
     }
   ],
   "evidence": [
