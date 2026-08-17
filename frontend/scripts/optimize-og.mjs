@@ -3,8 +3,8 @@
 // scrapers — WhatsApp especially — won't render previews from very heavy
 // images, so we downscale to the declared 1200×630 and keep the file small.
 //
-// Master:  output/Kova OG link-share.png   (2400×1260, tracked)
-// Output:  frontend/public/og-image-v2.png (1200×630, referenced by index.html)
+// Master:  output/Kova OG link-share-v3.png   (generated high-res source, tracked)
+// Output:  frontend/public/og-image-v3.png    (1200×630, referenced by index.html)
 //
 // Re-run after re-exporting the design:  npm run optimize:og
 import { chromium } from "@playwright/test";
@@ -13,8 +13,8 @@ import { dirname, resolve } from "node:path";
 import { writeFile, rm, stat } from "node:fs/promises";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SRC = resolve(__dirname, "..", "..", "output", "Kova OG link-share.png");
-const OUT = resolve(__dirname, "..", "public", "og-image-v2.png");
+const SRC = resolve(__dirname, "..", "..", "output", "Kova OG link-share-v3.png");
+const OUT = resolve(__dirname, "..", "public", "og-image-v3.png");
 const TMP_HTML = resolve(__dirname, "..", "..", "output", "_og_resize.html");
 
 const WIDTH = 1200;
@@ -23,7 +23,7 @@ const HEIGHT = 630;
 // A same-origin file:// page so the relative <img> can load (about:blank can't).
 const html = `<!doctype html><meta charset="utf-8">
 <style>html,body{margin:0;padding:0;background:#0A0C12}
-img{display:block;width:${WIDTH}px;height:${HEIGHT}px;object-fit:cover}</style>
+img{display:block;width:${WIDTH}px;height:${HEIGHT}px;object-fit:contain}</style>
 <img src="${SRC.split(/[\\/]/).pop()}">`;
 
 async function main() {

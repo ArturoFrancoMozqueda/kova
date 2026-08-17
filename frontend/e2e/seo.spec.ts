@@ -18,6 +18,21 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).toContain("Vende. Kova mantiene el resto bajo control.");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
+    expect(html).toContain(
+      '<meta property="og:title" content="Kova | Controla cada venta y entiende tu negocio" />',
+    );
+    expect(html).toContain(
+      '<meta property="og:description" content="Cobra, controla inventario, cuadra caja y convierte tus ventas en respuestas claras para decidir mejor. 7 días gratis, sin tarjeta." />',
+    );
+    expect(html).toContain(
+      '<meta property="og:image" content="https://kovasuite.com/og-image-v3.png" />',
+    );
+    expect(html).toContain('<meta property="og:image:type" content="image/png" />');
+    expect(html).toContain('<meta property="og:image:width" content="1200" />');
+    expect(html).toContain('<meta property="og:image:height" content="630" />');
+    expect(html).toContain(
+      '<meta name="twitter:image:alt" content="Laptop y teléfono muestran Caja y Análisis de Kova junto al mensaje: Cada venta. Todo bajo control." />',
+    );
     // El JSON-LD describe la organización y su aplicación, incluida la oferta.
     expect(html).toContain('"@type":"Organization"');
     expect(html).toContain('"@type":"SoftwareApplication"');
@@ -33,6 +48,17 @@ test.describe("technical SEO (prerendered build only)", () => {
     );
     // Los frames del film ya no se renderizan: no deben competir por prioridad.
     expect(html).not.toContain("/film/");
+  });
+
+  test("social preview image is public and matches its declared contract", async ({ request }) => {
+    const res = await request.get("/og-image-v3.png");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("image/png");
+
+    const image = await res.body();
+    expect(image.subarray(1, 4).toString("ascii")).toBe("PNG");
+    expect(image.readUInt32BE(16)).toBe(1200);
+    expect(image.readUInt32BE(20)).toBe(630);
   });
 
   test("landing bootstrap hydrates the prerendered HTML", async ({ page }) => {

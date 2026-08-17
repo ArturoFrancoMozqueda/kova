@@ -21,7 +21,7 @@ const CANONICAL_ORIGIN = "https://kovasuite.com";
 // inherit the landing's title/description.
 const DEFAULT_TITLE = "Kova | Punto de venta e inventario para negocios en México";
 const DEFAULT_DESCRIPTION =
-  "Kova es el punto de venta para cafeterías, panaderías y negocios de mostrador. Cobra, controla inventario y cuadra caja desde una sola app.";
+  "Kova conecta ventas, inventario, caja y reportes para que entiendas tu negocio y decidas con claridad. Pruébalo 7 días gratis, sin tarjeta.";
 
 // A <script type="application/ld+json"> is a passive data block, not
 // executable JS. Price/currency arrive from LANDING_SEO in the built SSR
