@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarClock, CircleAlert, FileCheck2, RefreshCw } from "lucide-react";
+import {
+  CalendarClock,
+  CircleAlert,
+  Download,
+  FileCheck2,
+  FileSpreadsheet,
+  Printer,
+  RefreshCw,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -16,6 +25,7 @@ import { useIsOnline } from "@/offline/useSyncQueue";
 
 import {
   closeFiscalDraft,
+  downloadFiscalDraftAccountantReport,
   getFiscalDraftSettings,
   listFiscalDraftBatches,
   previewFiscalDraft,
@@ -57,6 +67,12 @@ const date = new Intl.DateTimeFormat("es-MX", {
   year: "numeric",
 });
 
+const dateTime = new Intl.DateTimeFormat("es-MX", {
+  timeZone: "America/Mexico_City",
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
 function formatMoney(value: string): string {
   return money.format(Number(value));
 }
@@ -74,7 +90,13 @@ function settingsBody(settings: FiscalDraftSettings) {
   };
 }
 
-export function FiscalGlobalDraftsPanel({ role }: { role: string }) {
+export function FiscalGlobalDraftsPanel({
+  role,
+  tenantName,
+}: {
+  role: string;
+  tenantName: string;
+}) {
   const isOwner = role === "owner";
   const isOnline = useIsOnline();
   const { toast } = useToast();
@@ -87,6 +109,9 @@ export function FiscalGlobalDraftsPanel({ role }: { role: string }) {
   const [saveBusy, setSaveBusy] = useState(false);
   const [closeBusy, setCloseBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
+  const [downloadBusyBatchId, setDownloadBusyBatchId] = useState<string | null>(null);
+  const [downloadErrorBatchId, setDownloadErrorBatchId] = useState<string | null>(null);
   const closeAttempt = useRef<{ periodEnd: string; key: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -152,6 +177,20 @@ export function FiscalGlobalDraftsPanel({ role }: { role: string }) {
       toast(copy.settings.fiscalCloseError, "error");
     } finally {
       setCloseBusy(false);
+    }
+  }
+
+  async function downloadAccountantReport(batchId: string) {
+    if (!isOnline) return;
+    setDownloadBusyBatchId(batchId);
+    setDownloadErrorBatchId(null);
+    try {
+      const filename = await downloadFiscalDraftAccountantReport(batchId);
+      toast(copy.settings.fiscalAccountantDownloadSuccess(filename), "success");
+    } catch {
+      setDownloadErrorBatchId(batchId);
+    } finally {
+      setDownloadBusyBatchId(null);
     }
   }
 
@@ -381,21 +420,46 @@ export function FiscalGlobalDraftsPanel({ role }: { role: string }) {
               body={copy.settings.fiscalHistoryEmptyBody}
             />
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {batches.map((batch) => (
                 <div
                   key={batch.id}
-                  className="flex flex-col gap-3 rounded-kova-md border border-kova-border p-4 sm:flex-row sm:items-center"
+                  className="rounded-kova-md border border-kova-border p-4"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">
-                      {formatDate(batch.period_start)} – {formatDate(batch.period_end)}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {copy.settings.fiscalOrdersCount(batch.order_count)} · {formatMoney(batch.total_amount)}
-                    </p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">
+                        {formatDate(batch.period_start)} – {formatDate(batch.period_end)}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {copy.settings.fiscalOrdersCount(batch.order_count)} · {formatMoney(batch.total_amount)}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">{copy.settings.fiscalInternalDraftBadge}</Badge>
                   </div>
-                  <Badge variant="secondary">{copy.settings.fiscalInternalDraftBadge}</Badge>
+
+                  <Disclosure
+                    open={expandedBatchId === batch.id}
+                    onOpenChange={(open) => setExpandedBatchId(open ? batch.id : null)}
+                    trigger={
+                      expandedBatchId === batch.id
+                        ? copy.settings.fiscalAccountantReportHide
+                        : copy.settings.fiscalAccountantReportShow
+                    }
+                    variant="outline"
+                    triggerClassName="mt-3 w-full sm:w-auto"
+                    panelClassName="mt-4 border-t border-kova-border pt-4"
+                  >
+                    <AccountantReport
+                      batch={batch}
+                      tenantName={tenantName}
+                      isOnline={isOnline}
+                      downloadBusy={downloadBusyBatchId === batch.id}
+                      downloadError={downloadErrorBatchId === batch.id}
+                      printable={expandedBatchId === batch.id}
+                      onDownload={() => void downloadAccountantReport(batch.id)}
+                    />
+                  </Disclosure>
                 </div>
               ))}
             </div>
@@ -414,6 +478,109 @@ export function FiscalGlobalDraftsPanel({ role }: { role: string }) {
         onCancel={() => setConfirmClose(false)}
       />
     </div>
+  );
+}
+
+function AccountantReport({
+  batch,
+  tenantName,
+  isOnline,
+  downloadBusy,
+  downloadError,
+  printable,
+  onDownload,
+}: {
+  batch: FiscalDraftBatch;
+  tenantName: string;
+  isOnline: boolean;
+  downloadBusy: boolean;
+  downloadError: boolean;
+  printable: boolean;
+  onDownload: () => void;
+}) {
+  const titleId = `accountant-report-${batch.id}`;
+
+  return (
+    <article
+      className={`${printable ? "print-accountant-report-root " : ""}rounded-kova-lg border border-kova-border bg-white p-4 sm:p-5`}
+      aria-labelledby={titleId}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-kova-ink">
+            <FileSpreadsheet className="h-5 w-5" aria-hidden />
+            <h3 id={titleId} className="font-semibold">
+              {copy.settings.fiscalAccountantReportTitle}
+            </h3>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {tenantName}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {formatDate(batch.period_start)} – {formatDate(batch.period_end)}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{copy.settings.fiscalOperationalReceiptBadge}</Badge>
+          <Badge variant="secondary">{copy.settings.fiscalNotIssuedBadge}</Badge>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-muted-foreground">
+        {copy.settings.fiscalAccountantReportBody}
+      </p>
+      <p className="mt-2 rounded-kova-md border border-kova-border bg-kova-mist px-3 py-2 text-xs font-semibold text-kova-ink">
+        {copy.settings.fiscalAccountantReportState}
+      </p>
+
+      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+        <Metric label={copy.settings.fiscalGross} value={formatMoney(batch.gross_amount)} />
+        <Metric label={copy.settings.fiscalDiscounts} value={formatMoney(batch.discount_total_amount)} />
+        <Metric label={copy.settings.fiscalTaxes} value={formatMoney(batch.tax_total_amount)} />
+        <Metric label={copy.settings.fiscalTotal} value={formatMoney(batch.total_amount)} />
+        <Metric label={copy.settings.fiscalRefunds} value={formatMoney(batch.refund_total_amount)} />
+        <Metric label={copy.settings.fiscalNetTotal} value={formatMoney(batch.net_total_amount)} strong />
+      </dl>
+
+      <div className="mt-5 border-t border-kova-border pt-4 text-xs leading-5 text-muted-foreground">
+        <p>{copy.settings.fiscalAccountantReportCounts(
+          batch.order_count,
+          batch.excluded_individually_confirmed_count,
+        )}</p>
+        <p className="mt-1">{copy.settings.fiscalAccountantReportClosedAt(
+          dateTime.format(new Date(batch.closed_at)),
+        )}</p>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-2 print:hidden sm:flex-row">
+        <Button
+          type="button"
+          disabled={!isOnline || downloadBusy}
+          aria-busy={downloadBusy}
+          onClick={onDownload}
+        >
+          <Download className="h-4 w-4" aria-hidden />
+          {downloadBusy
+            ? copy.settings.fiscalAccountantDownloading
+            : copy.settings.fiscalAccountantDownload}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => window.print()}>
+          <Printer className="h-4 w-4" aria-hidden />
+          {copy.settings.fiscalAccountantPrint}
+        </Button>
+      </div>
+
+      {!isOnline ? (
+        <p className="mt-3 text-sm text-muted-foreground print:hidden" role="status">
+          {copy.settings.fiscalAccountantOffline}
+        </p>
+      ) : null}
+      {downloadError ? (
+        <p className="mt-3 text-sm text-kova-danger print:hidden" role="alert">
+          {copy.settings.fiscalAccountantDownloadError}
+        </p>
+      ) : null}
+    </article>
   );
 }
 

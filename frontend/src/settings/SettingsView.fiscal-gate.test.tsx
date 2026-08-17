@@ -27,7 +27,7 @@ vi.mock("@/auth/useAuth", () => ({
 }));
 
 vi.mock("@/fiscal/FiscalGlobalDraftsPanel", () => ({
-  FiscalGlobalDraftsPanel: (props: { role: string }) => {
+  FiscalGlobalDraftsPanel: (props: { role: string; tenantName: string }) => {
     fiscalPanel(props);
     return <div>Panel fiscal focal</div>;
   },
@@ -86,7 +86,7 @@ describe("SettingsView fiscal feature gate", () => {
 
     expect(await screen.findByText("Panel fiscal focal")).toBeVisible();
     expect(screen.getByRole("link", { name: copy.settings.tabFiscal })).toBeVisible();
-    expect(fiscalPanel).toHaveBeenCalledWith({ role: "owner" });
+    expect(fiscalPanel).toHaveBeenCalledWith({ role: "owner", tenantName: "Kova Test" });
   });
 
   it("allows enabled managers to consult the panel", async () => {
@@ -94,7 +94,7 @@ describe("SettingsView fiscal feature gate", () => {
     renderSettings();
 
     expect(await screen.findByText("Panel fiscal focal")).toBeVisible();
-    expect(fiscalPanel).toHaveBeenCalledWith({ role: "manager" });
+    expect(fiscalPanel).toHaveBeenCalledWith({ role: "manager", tenantName: "Kova Test" });
   });
 
   it("does not mount or request the focal panel on direct access when the flag is off", async () => {
@@ -107,8 +107,8 @@ describe("SettingsView fiscal feature gate", () => {
     expect(fiscalPanel).not.toHaveBeenCalled();
   });
 
-  it("keeps the focal navigation hidden from cashiers", async () => {
-    authState.role = "cashier";
+  it.each(["cashier", "staff"])("keeps the focal navigation hidden from %s users", async (role) => {
+    authState.role = role;
     renderSettings();
 
     expect(await screen.findByText(copy.settings.businessProfile)).toBeVisible();

@@ -26,6 +26,14 @@ const preview = {
   excluded_individually_confirmed_count: 1,
 };
 
+const closedBatch = {
+  ...preview,
+  id: "batch-1",
+  status: "closed",
+  order_ids: ["order-1", "order-2"],
+  closed_at: "2024-03-01T06:00:00Z",
+};
+
 async function mockSettingsShell(
   page: Page,
   { role = "owner", enabled = true }: { role?: string; enabled?: boolean } = {},
@@ -78,7 +86,7 @@ async function mockSettingsShell(
   );
 }
 
-async function mockFiscalReadRoutes(page: Page) {
+async function mockFiscalReadRoutes(page: Page, batches: typeof closedBatch[] = []) {
   await page.route("**/api/v1/fiscal/global-drafts/settings", async (route) => {
     if (route.request().method() === "PUT") {
       const body = JSON.parse(route.request().postData() ?? "{}");
@@ -87,7 +95,7 @@ async function mockFiscalReadRoutes(page: Page) {
     await route.fulfill({ json: settings });
   });
   await page.route("**/api/v1/fiscal/global-drafts/batches", (route) =>
-    route.fulfill({ json: { items: [], total: 0 } }),
+    route.fulfill({ json: { items: batches, total: batches.length } }),
   );
   await page.route("**/api/v1/fiscal/global-drafts/preview**", (route) =>
     route.fulfill({ json: preview }),
@@ -149,7 +157,7 @@ test("manager can preview but cannot mutate or close", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Cerrar periodo" })).toHaveCount(0);
 });
 
-test("direct access with the flag off mounts no fiscal client", async ({ page }) => {
+test("the resolved kill flag hides the route and mounts no fiscal client", async ({ page }) => {
   await mockSettingsShell(page, { enabled: false });
   let fiscalRequests = 0;
   page.on("request", (request) => {
@@ -164,7 +172,7 @@ test("direct access with the flag off mounts no fiscal client", async ({ page })
 
 test("offline mode disables period mutations while Caja remains available", async ({ page, context }) => {
   await mockSettingsShell(page);
-  await mockFiscalReadRoutes(page);
+  await mockFiscalReadRoutes(page, [closedBatch]);
   await page.goto("/settings/fiscal");
   await expect(page.getByRole("heading", { name: "Preparación por periodo" })).toBeVisible();
 
@@ -175,4 +183,59 @@ test("offline mode disables period mutations while Caja remains available", asyn
   await expect(page.getByRole("button", { name: "Guardar preparación" })).toBeDisabled();
   await expect(page.getByLabel("Fecha de cierre")).toBeDisabled();
   await expect(page.getByText(/seguir vendiendo desde Caja/i)).toBeVisible();
+
+  await page.getByRole("button", { name: "Ver reporte para contador" }).click();
+  await expect(page.getByRole("button", { name: "Descargar CSV" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Imprimir o guardar como PDF" })).toBeEnabled();
+  await expect(page.getByText(/Conéctate para descargar el CSV/i)).toBeVisible();
+});
+
+test("manager downloads and prints the read-only accountant report", async ({ page }) => {
+  await mockSettingsShell(page, { role: "manager" });
+  await mockFiscalReadRoutes(page, [closedBatch]);
+  await page.route("**/api/v1/fiscal/global-drafts/batches/batch-1/accountant-report.csv", (route) =>
+    route.fulfill({
+      body: "estado_fiscal,aviso,periodo,total_neto\nNO_EMITIDO,NO_ES_CFDI,2024-02,214.00\n",
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Disposition": 'attachment; filename="reporte-control-interno-2024-02.csv"',
+        "Content-Type": "text/csv; charset=utf-8",
+      },
+    }),
+  );
+
+  await page.goto("/settings/fiscal");
+  await page.getByRole("button", { name: "Ver reporte para contador" }).click();
+  await expect(page.getByRole("heading", { name: "Reporte de control interno" })).toBeVisible();
+  await expect(page.getByText("Kova Test", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText("Borrador interno · No es CFDI")).toBeVisible();
+  await expect(page.getByText(/Kova no calcula impuestos hoy/i)).toBeVisible();
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar CSV" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("reporte-control-interno-2024-02.csv");
+
+  await page.evaluate(() => {
+    window.print = () => document.body.setAttribute("data-accountant-report-printed", "true");
+  });
+  await page.getByRole("button", { name: "Imprimir o guardar como PDF" }).click();
+  await expect(page.locator("body")).toHaveAttribute("data-accountant-report-printed", "true");
+  await expect(page.getByRole("button", { name: "Guardar preparación" })).toHaveCount(0);
+});
+
+test("accountant CSV failure is recoverable and does not show a false success", async ({ page }) => {
+  await mockSettingsShell(page);
+  await mockFiscalReadRoutes(page, [closedBatch]);
+  await page.route("**/api/v1/fiscal/global-drafts/batches/batch-1/accountant-report.csv", (route) =>
+    route.fulfill({ status: 500, body: "internal" }),
+  );
+
+  await page.goto("/settings/fiscal");
+  await page.getByRole("button", { name: "Ver reporte para contador" }).click();
+  await page.getByRole("button", { name: "Descargar CSV" }).click();
+
+  await expect(page.getByText(/No pudimos descargar el CSV\./i)).toBeVisible();
+  await expect(page.getByText(/Descarga iniciada:/i)).toHaveCount(0);
 });

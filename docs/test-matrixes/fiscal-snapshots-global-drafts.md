@@ -2,7 +2,8 @@
 
 Estado: criterios de aceptación para la épica 05. Este alcance conserva evidencia interna de venta y
 permite cerrar **borradores internos** por periodo. No emite, timbra, cancela ni representa un CFDI;
-no genera XML/PDF y no integra un PAC.
+no genera XML ni integra un PAC. El reporte para contador puede invocar la impresión del navegador,
+pero Kova no genera ni persiste archivos PDF.
 
 ## Invariantes bloqueantes
 
@@ -20,8 +21,9 @@ no genera XML/PDF y no integra un PAC.
   interna de snapshots.
 - Tenant y permisos se resuelven desde la sesión. IDs ajenos responden `404`; permisos insuficientes
   responden `403`.
-- Toda copy de esta capacidad dice `recibo operativo` o `borrador interno`; nunca atribuye emisión,
-  timbrado, UUID fiscal, CFDI, XML, PDF ni PAC.
+- Toda copy identifica `recibo operativo`, `borrador interno`, `no emitido` y
+  `Borrador interno · No es CFDI`; nunca atribuye emisión, timbrado, UUID fiscal, XML o PAC. La acción
+  `Imprimir o guardar como PDF` sólo abre la impresión nativa del navegador.
 
 ## Matriz negativa y de bordes
 
@@ -89,6 +91,20 @@ no genera XML/PDF y no integra un PAC.
 | FS-60 | Referencias tenant | Intentar combinar orden/item/batch de tenants distintos | Constraint/referencia compuesta rechaza la escritura aun fuera de la API | Integración PG |
 | FS-61 | Ecuación monetaria | Persistir/leer líneas y orden con descuentos/impuesto | `gross - discount + tax = total`; sumas de líneas reconcilian con orden | Unit/PG |
 | FS-62 | Marker no confiable | Cliente incluye `individual_fiscal_status` en venta/sync | Se ignora/rechaza conforme contrato compatible; nunca confirma atención individual desde cliente | API/BDD |
+| FS-63 | Export tenant | Tenant B solicita `/batches/{id}/accountant-report.csv` de A | `404`, sin tamaño, filename, filas ni importes del tenant A | API/PG |
+| FS-64 | Export RBAC | Owner/manager y cashier/staff solicitan el mismo reporte | Owner y manager descargan; cashier y staff reciben `403` | API/E2E |
+| FS-65 | Kill flag | Kill switch resuelve `fiscal_global_drafts=false` en sesión | La ruta/panel no se monta, no hay requests fiscales y el endpoint también rechaza | API/E2E |
+| FS-66 | CSV injection | Nombre del negocio/metadata exportable inicia con `=`, `+`, `-`, `@`, tab o retorno | El campo se neutraliza como texto y conserva su valor legible; no ejecuta fórmulas | Unit/security |
+| FS-67 | CSV RFC 4180 | Campos contienen coma, comillas, CR/LF y acentos | Escape consistente, comillas duplicadas, filas parseables y UTF-8 | Unit/contract |
+| FS-68 | Headers descarga | Descargar un reporte permitido | `text/csv; charset=utf-8`, `Content-Disposition` con filename seguro, `Cache-Control: no-store` y `X-Content-Type-Options: nosniff` | API/security |
+| FS-69 | Privacidad | Venta contiene nombre, correo, teléfono, dirección o datos fiscales de cliente | Ninguno aparece en CSV, UI, errores, logs ni filename | API/security |
+| FS-70 | Datos congelados | Producto/cliente cambia después del cierre | CSV usa sólo asociaciones y snapshots del batch cerrado; importes reconcilian con su detalle | Integración PG |
+| FS-71 | Vacío exportable | Batch histórico válido queda sin filas exportables | CSV conserva BOM/encabezados definidos y cero filas; no inventa datos | Unit/API |
+| FS-72 | Descarga UI | Descargar con filename RFC 5987/quoted y después repetir | Usa el filename del header, revoca el object URL y cada clic hace una sola descarga | Vitest/E2E |
+| FS-73 | Print UI | Owner/manager imprime reporte compacto | `window.print` muestra únicamente control interno real; no llama endpoint PDF ni persiste blob | Vitest/E2E |
+| FS-74 | Offline export | Se pierde red con un reporte ya visible | CSV queda deshabilitado con explicación; impresión local sigue disponible; ninguna falsa descarga | Vitest/E2E |
+| FS-75 | Error export | CSV responde `401/403/404/500` o falla la red | Error accionable, sin body técnico/PII y sin toast de éxito falso; reintento disponible | Vitest/E2E |
+| FS-76 | Copy contador | Abrir reporte, descarga, error, offline e impresión | Muestra `reporte de control interno`, `recibo operativo`, `no emitido`, `no es CFDI` y que Kova no calcula impuestos hoy | Unit/E2E |
 
 ## Recorridos Playwright mocked
 
@@ -102,13 +118,17 @@ no genera XML/PDF y no integra un PAC.
 7. Copy guard: búsqueda case-insensitive de términos prohibidos en toda la vista y recibo actualizado.
 8. Auto-preparación: habilitar/deshabilitar y confirmar que el texto promete preparación del borrador,
    no un documento externo ni una emisión automática.
+9. Reporte contador owner/manager: abrir detalle -> reconciliar totales congelados -> descargar CSV con
+   filename del servidor -> imprimir con `window.print`.
+10. Export negativo: cashier/staff/tenant ajeno/kill flag, descarga `500`, offline, CSV injection,
+    privacidad, UTF-8/RFC 4180 y respuesta vacía con encabezados.
 
 ## Evidencia requerida para cierre
 
 - Unit/golden de `Decimal`, límites de zona y calendario.
 - Integración en PostgreSQL real para rollback, concurrencia, RLS y ambos caminos de venta.
 - BDD de inmutabilidad, offline replay, solapamiento, marker individual, refund/void y copy.
-- Vitest de API/vista y Playwright mocked de los siete recorridos.
+- Vitest de API/vista y Playwright mocked de los diez recorridos.
 - `ruff`, typecheck, lint y contrato OpenAPI.
-- QA manual con una cuenta owner y cashier. Ninguna validación de timbrado, PAC, XML/PDF o CFDI forma
-  parte de esta épica.
+- QA manual con una cuenta owner y cashier. La impresión del navegador sí forma parte de esta épica;
+  timbrado, PAC, XML, CFDI o generación/persistencia de PDF no forman parte del alcance.

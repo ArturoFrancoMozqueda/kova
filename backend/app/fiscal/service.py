@@ -1,5 +1,7 @@
 import calendar
+import csv
 import hashlib
+import io
 import json
 import logging
 from datetime import UTC, date, datetime, timedelta
@@ -17,6 +19,7 @@ from app.fiscal.models import FiscalGlobalDraftBatch, FiscalGlobalDraftSettings
 from app.fiscal.schemas import FiscalGlobalDraftSettingsUpsert
 from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request, conflict, not_found
+from app.tenants import repository as tenant_repo
 
 logger = logging.getLogger(__name__)
 
@@ -351,6 +354,112 @@ def list_batches(db: Session, *, tenant_id: UUID, limit: int, offset: int) -> di
     }
 
 
+ACCOUNTANT_REPORT_COLUMNS = (
+    "folio_venta",
+    "id_venta",
+    "nombre_negocio",
+    "id_negocio",
+    "zona_horaria",
+    "periodo_inicio",
+    "periodo_fin",
+    "cerrado_en",
+    "importe_bruto",
+    "descuentos",
+    "impuestos",
+    "total",
+    "reembolsos",
+    "neto",
+    "moneda",
+    "version_motor_precios",
+    "version_catalogo_impuestos",
+    "tipo_documento",
+    "origen_documento",
+    "estado_fiscal",
+    "estado_impuestos",
+    "aviso",
+    "nota",
+)
+
+
+def _csv_safe(value: object) -> str:
+    """Prevent spreadsheet formula execution while preserving CSV semantics."""
+    rendered = "" if value is None else str(value)
+    if rendered.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
+        return f"'{rendered}"
+    return rendered
+
+
+def accountant_report_csv(db: Session, *, tenant_id: UUID, batch_id: UUID) -> tuple[bytes, str]:
+    batch = repo.get_batch(db, tenant_id=tenant_id, batch_id=batch_id)
+    if not batch:
+        raise not_found("Global draft not found")
+    if batch.status != "closed":
+        raise conflict("Only closed global drafts can be exported")
+
+    rows = repo.accountant_report_rows(db, tenant_id=tenant_id, batch_id=batch.id)
+    tenant = tenant_repo.get_by_id(db, tenant_id)
+    reconciled = {
+        "gross_amount": _money(sum((row.gross_amount for _, row in rows), Decimal("0"))),
+        "discount_total_amount": _money(
+            sum((row.discount_total_amount for _, row in rows), Decimal("0"))
+        ),
+        "tax_total_amount": _money(sum((row.tax_total_amount for _, row in rows), Decimal("0"))),
+        "total_amount": _money(sum((row.total_amount for _, row in rows), Decimal("0"))),
+        "refund_total_amount": _money(
+            sum((assignment.refund_total_amount for assignment, _ in rows), Decimal("0"))
+        ),
+        "net_total_amount": _money(
+            sum((assignment.net_total_amount for assignment, _ in rows), Decimal("0"))
+        ),
+    }
+    if len(rows) != batch.order_count or any(
+        value != _money(getattr(batch, field)) for field, value in reconciled.items()
+    ):
+        raise conflict("Global draft rows do not reconcile with the closed batch")
+
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\r\n")
+    writer.writerow(ACCOUNTANT_REPORT_COLUMNS)
+    closed_at = batch.closed_at
+    if closed_at.tzinfo is None:
+        closed_at = closed_at.replace(tzinfo=UTC)
+    closed_at = closed_at.astimezone(FISCAL_TIMEZONE)
+    for assignment, snapshot in rows:
+        order_id = assignment.order_id
+        writer.writerow(
+            [
+                _csv_safe(order_id.hex[-8:].upper()),
+                _csv_safe(order_id),
+                _csv_safe(tenant.name if tenant else ""),
+                _csv_safe(tenant_id),
+                FISCAL_TIMEZONE_NAME,
+                batch.period_start.isoformat(),
+                batch.period_end.isoformat(),
+                closed_at.isoformat(),
+                _csv_safe(_money(snapshot.gross_amount)),
+                _csv_safe(_money(snapshot.discount_total_amount)),
+                _csv_safe(_money(snapshot.tax_total_amount)),
+                _csv_safe(_money(snapshot.total_amount)),
+                _csv_safe(_money(assignment.refund_total_amount)),
+                _csv_safe(_money(assignment.net_total_amount)),
+                _csv_safe(snapshot.currency),
+                _csv_safe(snapshot.pricing_engine_version),
+                _csv_safe(snapshot.tax_catalog_version),
+                "BORRADOR_INTERNO",
+                "RECIBO_OPERATIVO",
+                "NO_EMITIDO",
+                "BASELINE_IMPUESTOS_NO_CALCULADOS",
+                "NO_ES_CFDI",
+                "Control interno: no es CFDI, no está timbrado ni emitido fiscalmente.",
+            ]
+        )
+
+    filename = (
+        f"kova-reporte-contador-{batch.period_start.isoformat()}_{batch.period_end.isoformat()}.csv"
+    )
+    return b"\xef\xbb\xbf" + output.getvalue().encode("utf-8"), filename
+
+
 def _is_close_day(settings: FiscalGlobalDraftSettings, candidate: date) -> bool:
     if settings.frequency == "daily":
         return True
@@ -392,6 +501,10 @@ def auto_close_due_periods(
     periods_per_tenant: int,
     now: datetime | None = None,
 ) -> dict[str, int]:
+    from app.tenants.feature_flags import FISCAL_GLOBAL_DRAFTS, is_feature_killed
+
+    if is_feature_killed(FISCAL_GLOBAL_DRAFTS):
+        raise HTTPException(status_code=403, detail="Fiscal global drafts are disabled")
     current = (now or datetime.now(UTC)).astimezone(FISCAL_TIMEZONE)
     candidates = repo.auto_close_candidates(db, limit=tenant_limit)
     created = replayed = skipped = failures = 0

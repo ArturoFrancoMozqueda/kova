@@ -7,6 +7,7 @@ import { copy } from "@/i18n/messages";
 import { FiscalGlobalDraftsPanel } from "./FiscalGlobalDraftsPanel";
 import {
   closeFiscalDraft,
+  downloadFiscalDraftAccountantReport,
   getFiscalDraftSettings,
   listFiscalDraftBatches,
   previewFiscalDraft,
@@ -21,6 +22,7 @@ vi.mock("@/offline/useSyncQueue", () => ({
 
 vi.mock("./api", () => ({
   closeFiscalDraft: vi.fn(),
+  downloadFiscalDraftAccountantReport: vi.fn(),
   getFiscalDraftSettings: vi.fn(),
   listFiscalDraftBatches: vi.fn(),
   previewFiscalDraft: vi.fn(),
@@ -53,10 +55,18 @@ const preview = {
   excluded_individually_confirmed_count: 1,
 };
 
+const batch = {
+  ...preview,
+  id: "batch-1",
+  status: "closed" as const,
+  order_ids: ["order-1", "order-2"],
+  closed_at: "2024-03-01T06:00:00Z",
+};
+
 function renderPanel(role = "owner") {
   return render(
     <ToastProvider>
-      <FiscalGlobalDraftsPanel role={role} />
+      <FiscalGlobalDraftsPanel role={role} tenantName="Café Kova" />
     </ToastProvider>,
   );
 }
@@ -69,13 +79,10 @@ describe("FiscalGlobalDraftsPanel", () => {
     vi.mocked(listFiscalDraftBatches).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(previewFiscalDraft).mockResolvedValue(preview);
     vi.mocked(saveFiscalDraftSettings).mockResolvedValue({ ...settings, auto_close_enabled: true });
-    vi.mocked(closeFiscalDraft).mockResolvedValue({
-      ...preview,
-      id: "batch-1",
-      status: "closed",
-      order_ids: ["order-1", "order-2"],
-      closed_at: "2024-03-01T06:00:00Z",
-    });
+    vi.mocked(closeFiscalDraft).mockResolvedValue(batch);
+    vi.mocked(downloadFiscalDraftAccountantReport).mockResolvedValue(
+      "reporte-control-interno-2024-02.csv",
+    );
   });
 
   it("lets an owner configure, preview and confirm a close with honest copy", async () => {
@@ -141,5 +148,64 @@ describe("FiscalGlobalDraftsPanel", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(copy.settings.fiscalLoadError);
     expect(screen.getByRole("button", { name: copy.dashboard.retry })).toBeVisible();
+  });
+
+  it("shows the frozen accountant report and lets an owner download or print it", async () => {
+    vi.mocked(listFiscalDraftBatches).mockResolvedValue({ items: [batch], total: 1 });
+    const print = vi.spyOn(window, "print").mockImplementation(() => undefined);
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: copy.settings.fiscalAccountantReportShow }));
+
+    expect(screen.getByRole("heading", { name: copy.settings.fiscalAccountantReportTitle })).toBeVisible();
+    expect(screen.getByText("Café Kova")).toBeVisible();
+    expect(screen.getByText(copy.settings.fiscalAccountantReportState)).toBeVisible();
+    expect(screen.getAllByText(/no es CFDI/i)).toHaveLength(2);
+    expect(screen.getByText(/Kova no calcula impuestos hoy/i)).toBeVisible();
+    expect(screen.getByText(copy.settings.fiscalOperationalReceiptBadge)).toBeVisible();
+    expect(screen.getByText(copy.settings.fiscalNotIssuedBadge)).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantDownload }));
+    await waitFor(() => expect(downloadFiscalDraftAccountantReport).toHaveBeenCalledWith(batch.id));
+
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantPrint }));
+    expect(print).toHaveBeenCalledOnce();
+  });
+
+  it("allows a manager to export the read-only report", async () => {
+    vi.mocked(listFiscalDraftBatches).mockResolvedValue({ items: [batch], total: 1 });
+    renderPanel("manager");
+
+    fireEvent.click(await screen.findByRole("button", { name: copy.settings.fiscalAccountantReportShow }));
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantDownload }));
+
+    await waitFor(() => expect(downloadFiscalDraftAccountantReport).toHaveBeenCalledWith(batch.id));
+    expect(screen.queryByRole("button", { name: copy.settings.fiscalSaveSettings })).not.toBeInTheDocument();
+  });
+
+  it("keeps printing available offline but disables the network download", async () => {
+    onlineState.value = false;
+    vi.mocked(listFiscalDraftBatches).mockResolvedValue({ items: [batch], total: 1 });
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: copy.settings.fiscalAccountantReportShow }));
+
+    expect(screen.getByRole("button", { name: copy.settings.fiscalAccountantDownload })).toBeDisabled();
+    expect(screen.getByRole("button", { name: copy.settings.fiscalAccountantPrint })).toBeEnabled();
+    expect(screen.getByText(copy.settings.fiscalAccountantOffline)).toBeVisible();
+    expect(downloadFiscalDraftAccountantReport).not.toHaveBeenCalled();
+  });
+
+  it("shows an actionable error when the CSV download fails", async () => {
+    vi.mocked(listFiscalDraftBatches).mockResolvedValue({ items: [batch], total: 1 });
+    vi.mocked(downloadFiscalDraftAccountantReport).mockRejectedValueOnce(new Error("network"));
+    renderPanel();
+
+    fireEvent.click(await screen.findByRole("button", { name: copy.settings.fiscalAccountantReportShow }));
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantDownload }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      copy.settings.fiscalAccountantDownloadError,
+    );
   });
 });

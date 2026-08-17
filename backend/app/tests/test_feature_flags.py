@@ -46,7 +46,7 @@ def test_session_exposes_supported_tenant_override(client, db: Session) -> None:
     assert response.json()["feature_flags"] == {
         "margin_reports": True,
         "customer_orders": False,
-        "fiscal_global_drafts": False,
+        "fiscal_global_drafts": True,
     }
 
 
@@ -59,7 +59,7 @@ def test_session_uses_global_feature_defaults(client) -> None:
     assert response.json()["feature_flags"] == {
         "margin_reports": False,
         "customer_orders": True,
-        "fiscal_global_drafts": False,
+        "fiscal_global_drafts": True,
     }
 
 
@@ -67,5 +67,17 @@ def test_non_boolean_override_does_not_enable_feature() -> None:
     assert resolve_feature_flags({"margin_reports": "true"}) == {
         "margin_reports": False,
         "customer_orders": True,
-        "fiscal_global_drafts": False,
+        "fiscal_global_drafts": True,
     }
+
+
+def test_explicit_fiscal_opt_out_and_kill_switch_dominate(monkeypatch) -> None:
+    assert resolve_feature_flags({"fiscal_global_drafts": False})["fiscal_global_drafts"] is False
+    assert resolve_feature_flags({"fiscal_global_drafts": "false"})["fiscal_global_drafts"] is True
+
+    monkeypatch.setattr(
+        "app.config.settings.fiscal_global_drafts_kill_switch",
+        True,
+    )
+    assert resolve_feature_flags(None)["fiscal_global_drafts"] is False
+    assert resolve_feature_flags({"fiscal_global_drafts": True})["fiscal_global_drafts"] is False

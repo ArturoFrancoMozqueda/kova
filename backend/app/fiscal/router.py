@@ -157,6 +157,38 @@ def get_global_draft_batch(
     return service.get_batch(db, tenant_id=membership.tenant_id, batch_id=batch_id)
 
 
+@router.get(
+    "/global-drafts/batches/{batch_id}/accountant-report.csv",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "CSV UTF-8 de control interno; no es CFDI ni constancia de timbrado.",
+            "content": {"text/csv": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+def download_accountant_report(
+    batch_id: UUID,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_fiscal_global_drafts(Permission.FISCAL_VIEW)
+    ),
+):
+    _, membership, _ = ctx
+    content, filename = service.accountant_report_csv(
+        db, tenant_id=membership.tenant_id, batch_id=batch_id
+    )
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.post(
     "/internal/global-drafts/auto-close",
     response_model=FiscalAutoCloseResponse,
