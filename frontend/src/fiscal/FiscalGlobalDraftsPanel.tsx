@@ -30,11 +30,18 @@ import {
   listFiscalDraftBatches,
   previewFiscalDraft,
   saveFiscalDraftSettings,
+  FiscalDraftApiError,
   type FiscalDraftBatch,
   type FiscalDraftFrequency,
   type FiscalDraftPreview,
   type FiscalDraftSettings,
 } from "./api";
+import {
+  latestCompletedPeriodEnd,
+  todayInMexicoCity,
+  validatePeriodEnd,
+  type FiscalPeriodValidation,
+} from "./periods";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -90,6 +97,30 @@ function settingsBody(settings: FiscalDraftSettings) {
   };
 }
 
+function settingsMatch(left: FiscalDraftSettings, right: FiscalDraftSettings): boolean {
+  return (
+    left.frequency === right.frequency &&
+    left.weekly_close_day === right.weekly_close_day &&
+    left.monthly_close_day === right.monthly_close_day &&
+    left.auto_close_enabled === right.auto_close_enabled
+  );
+}
+
+function periodValidationMessage(
+  validation: FiscalPeriodValidation,
+  settings: FiscalDraftSettings,
+): string | null {
+  if (validation.valid) return null;
+  if (validation.reason === "not_completed") return copy.settings.fiscalPeriodNotCompleted;
+  if (validation.reason === "weekly_mismatch") {
+    return copy.settings.fiscalPeriodWeeklyMismatch(weekdayOptions[settings.weekly_close_day - 1]);
+  }
+  if (validation.reason === "monthly_mismatch" && validation.expected) {
+    return copy.settings.fiscalPeriodMonthlyMismatch(formatDate(validation.expected));
+  }
+  return copy.settings.fiscalPeriodInvalid;
+}
+
 export function FiscalGlobalDraftsPanel({
   role,
   tenantName,
@@ -102,10 +133,12 @@ export function FiscalGlobalDraftsPanel({
   const { toast } = useToast();
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [settings, setSettings] = useState<FiscalDraftSettings | null>(null);
+  const [persistedSettings, setPersistedSettings] = useState<FiscalDraftSettings | null>(null);
   const [batches, setBatches] = useState<FiscalDraftBatch[]>([]);
   const [periodEnd, setPeriodEnd] = useState("");
   const [preview, setPreview] = useState<FiscalDraftPreview | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewInlineError, setPreviewInlineError] = useState<string | null>(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [closeBusy, setCloseBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -122,6 +155,8 @@ export function FiscalGlobalDraftsPanel({
         listFiscalDraftBatches(),
       ]);
       setSettings(currentSettings);
+      setPersistedSettings(currentSettings.configured ? currentSettings : null);
+      setPeriodEnd(latestCompletedPeriodEnd(currentSettings));
       setBatches(batchList.items);
       setLoadState("ready");
     } catch {
@@ -139,6 +174,11 @@ export function FiscalGlobalDraftsPanel({
     try {
       const saved = await saveFiscalDraftSettings(settingsBody(settings));
       setSettings(saved);
+      setPersistedSettings(saved);
+      setPeriodEnd(latestCompletedPeriodEnd(saved));
+      setPreview(null);
+      setPreviewInlineError(null);
+      closeAttempt.current = null;
       toast(copy.settings.fiscalSettingsSaved, "success");
     } catch {
       toast(copy.settings.fiscalSettingsSaveError, "error");
@@ -147,21 +187,55 @@ export function FiscalGlobalDraftsPanel({
     }
   }
 
+  function editSettings(update: (current: FiscalDraftSettings) => FiscalDraftSettings) {
+    if (!settings) return;
+    const next = update(settings);
+    setSettings(next);
+    setPeriodEnd(latestCompletedPeriodEnd(next));
+    setPreview(null);
+    setPreviewInlineError(null);
+    setConfirmClose(false);
+    closeAttempt.current = null;
+  }
+
   async function preparePreview() {
-    if (!periodEnd || !isOnline) return;
+    if (!settings || !periodEnd || !isOnline) return;
+    const hasPendingSettings =
+      !settings.configured || !persistedSettings || !settingsMatch(settings, persistedSettings);
+    const validation = validatePeriodEnd(periodEnd, settings);
+    if (hasPendingSettings || !validation.valid) return;
     setPreviewBusy(true);
     setPreview(null);
+    setPreviewInlineError(null);
     try {
       setPreview(await previewFiscalDraft(periodEnd));
-    } catch {
-      toast(copy.settings.fiscalPreviewError, "error");
+    } catch (error) {
+      if (error instanceof FiscalDraftApiError) {
+        if (error.code === "FISCAL_SETTINGS_REQUIRED") {
+          setSettings((current) => (current ? { ...current, configured: false } : current));
+          setPersistedSettings(null);
+        } else if (error.code === "FISCAL_PERIOD_END_MISMATCH") {
+          setPreviewInlineError(copy.settings.fiscalPreviewServerMismatch);
+        } else if (error.code === "FISCAL_PERIOD_NOT_COMPLETED") {
+          setPreviewInlineError(copy.settings.fiscalPeriodNotCompleted);
+        } else if (error.status < 500) {
+          setPreviewInlineError(copy.settings.fiscalPreviewRejected);
+        } else {
+          toast(copy.settings.fiscalPreviewError, "error");
+        }
+      } else {
+        toast(copy.settings.fiscalPreviewError, "error");
+      }
     } finally {
       setPreviewBusy(false);
     }
   }
 
   async function closePeriod() {
-    if (!periodEnd || !isOwner || !isOnline) return;
+    if (!settings || !periodEnd || !isOwner || !isOnline) return;
+    const hasPendingSettings =
+      !settings.configured || !persistedSettings || !settingsMatch(settings, persistedSettings);
+    if (hasPendingSettings || !validatePeriodEnd(periodEnd, settings).valid) return;
     setCloseBusy(true);
     try {
       if (closeAttempt.current?.periodEnd !== periodEnd) {
@@ -214,6 +288,28 @@ export function FiscalGlobalDraftsPanel({
   }
 
   const mutationsDisabled = !isOwner || !isOnline;
+  const todayIso = todayInMexicoCity();
+  const latestConfiguredEnd = latestCompletedPeriodEnd(settings, todayIso);
+  const latestCalendarDate = latestCompletedPeriodEnd(
+    { ...settings, frequency: "daily" },
+    todayIso,
+  );
+  const settingsNeedSave =
+    !settings.configured || !persistedSettings || !settingsMatch(settings, persistedSettings);
+  const periodValidation = validatePeriodEnd(periodEnd, settings, todayIso);
+  const periodError =
+    !settingsNeedSave && periodEnd ? periodValidationMessage(periodValidation, settings) : null;
+  const previewBlocked = settingsNeedSave || !periodEnd || !periodValidation.valid;
+  const setupTitle = !isOwner
+    ? copy.settings.fiscalSetupRequiredManagerTitle
+    : settings.configured
+      ? copy.settings.fiscalUnsavedSettingsTitle
+      : copy.settings.fiscalSetupRequiredOwnerTitle;
+  const setupBody = !isOwner
+    ? copy.settings.fiscalSetupRequiredManagerBody
+    : settings.configured
+      ? copy.settings.fiscalUnsavedSettingsBody
+      : copy.settings.fiscalSetupRequiredOwnerBody;
 
   return (
     <div className="space-y-6">
@@ -258,13 +354,10 @@ export function FiscalGlobalDraftsPanel({
               id="fiscal-frequency"
               value={settings.frequency}
               disabled={mutationsDisabled}
-              onChange={(event) =>
-                setSettings((current) =>
-                  current
-                    ? { ...current, frequency: event.target.value as FiscalDraftFrequency }
-                    : current,
-                )
-              }
+              onChange={(event) => editSettings((current) => ({
+                ...current,
+                frequency: event.target.value as FiscalDraftFrequency,
+              }))}
             >
               {Object.entries(frequencyLabels).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -279,11 +372,10 @@ export function FiscalGlobalDraftsPanel({
                 id="fiscal-weekday"
                 value={String(settings.weekly_close_day)}
                 disabled={mutationsDisabled}
-                onChange={(event) =>
-                  setSettings((current) =>
-                    current ? { ...current, weekly_close_day: Number(event.target.value) } : current,
-                  )
-                }
+                onChange={(event) => editSettings((current) => ({
+                  ...current,
+                  weekly_close_day: Number(event.target.value),
+                }))}
               >
                 {weekdayOptions.map((label, index) => (
                   <option key={label} value={index + 1}>{label}</option>
@@ -302,11 +394,10 @@ export function FiscalGlobalDraftsPanel({
                 max={31}
                 value={settings.monthly_close_day}
                 disabled={mutationsDisabled}
-                onChange={(event) =>
-                  setSettings((current) =>
-                    current ? { ...current, monthly_close_day: Number(event.target.value) } : current,
-                  )
-                }
+                onChange={(event) => editSettings((current) => ({
+                  ...current,
+                  monthly_close_day: Math.min(31, Math.max(1, Number(event.target.value) || 1)),
+                }))}
               />
               <p className="text-xs leading-5 text-muted-foreground">
                 {copy.settings.fiscalMonthEndHint}
@@ -321,11 +412,10 @@ export function FiscalGlobalDraftsPanel({
               type="checkbox"
               checked={settings.auto_close_enabled}
               disabled={mutationsDisabled}
-              onChange={(event) =>
-                setSettings((current) =>
-                  current ? { ...current, auto_close_enabled: event.target.checked } : current,
-                )
-              }
+              onChange={(event) => editSettings((current) => ({
+                ...current,
+                auto_close_enabled: event.target.checked,
+              }))}
             />
             <label htmlFor="fiscal-auto-close">
               <span className="block text-sm font-semibold">{copy.settings.fiscalAutoTitle}</span>
@@ -338,7 +428,7 @@ export function FiscalGlobalDraftsPanel({
           {isOwner ? (
             <Button
               className="justify-self-start sm:col-span-2"
-              disabled={saveBusy || !isOnline}
+              disabled={saveBusy || !isOnline || !settingsNeedSave}
               onClick={() => void saveSettings()}
             >
               {copy.settings.fiscalSaveSettings}
@@ -355,6 +445,17 @@ export function FiscalGlobalDraftsPanel({
           </p>
         </CardHeader>
         <CardContent className="space-y-5">
+          {settingsNeedSave ? (
+            <div
+              id="fiscal-preview-setup-status"
+              className="rounded-kova-md border border-kova-blue/25 bg-kova-blue/[0.04] p-4"
+              role="status"
+            >
+              <p className="text-sm font-semibold text-kova-ink">{setupTitle}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{setupBody}</p>
+            </div>
+          ) : null}
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="w-full space-y-1 sm:max-w-xs">
               <Label htmlFor="fiscal-period-end">{copy.settings.fiscalPeriodEnd}</Label>
@@ -362,16 +463,40 @@ export function FiscalGlobalDraftsPanel({
                 id="fiscal-period-end"
                 type="date"
                 value={periodEnd}
-                disabled={!isOnline}
+                max={latestCalendarDate}
+                disabled={!isOnline || settingsNeedSave}
+                aria-invalid={periodError || previewInlineError ? true : undefined}
+                aria-describedby={[
+                  "fiscal-period-end-help",
+                  settingsNeedSave ? "fiscal-preview-setup-status" : null,
+                  periodError ? "fiscal-period-end-error" : null,
+                  previewInlineError ? "fiscal-preview-server-error" : null,
+                ].filter(Boolean).join(" ")}
                 onChange={(event) => {
                   setPeriodEnd(event.target.value);
                   setPreview(null);
+                  setPreviewInlineError(null);
+                  setConfirmClose(false);
+                  closeAttempt.current = null;
                 }}
               />
+              <p id="fiscal-period-end-help" className="text-xs leading-5 text-muted-foreground">
+                {copy.settings.fiscalLatestCompletedClose(formatDate(latestConfiguredEnd))}
+              </p>
+              {periodError ? (
+                <p id="fiscal-period-end-error" className="text-sm text-kova-danger" role="alert">
+                  {periodError}
+                </p>
+              ) : null}
+              {previewInlineError ? (
+                <p id="fiscal-preview-server-error" className="text-sm text-kova-danger" role="alert">
+                  {previewInlineError}
+                </p>
+              ) : null}
             </div>
             <Button
               variant="outline"
-              disabled={!periodEnd || !isOnline || previewBusy}
+              disabled={!isOnline || previewBusy || previewBlocked}
               onClick={() => void preparePreview()}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -397,7 +522,13 @@ export function FiscalGlobalDraftsPanel({
                 {copy.settings.fiscalCloseHint}
               </p>
               <Button
-                disabled={!isOnline || closeBusy || preview.order_count === 0}
+                disabled={
+                  !isOnline ||
+                  closeBusy ||
+                  preview.order_count === 0 ||
+                  settingsNeedSave ||
+                  !periodValidation.valid
+                }
                 onClick={() => setConfirmClose(true)}
               >
                 {copy.settings.fiscalCloseAction}

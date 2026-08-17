@@ -2673,6 +2673,10 @@
             "title": "Auto Close Enabled",
             "type": "boolean"
           },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
           "frequency": {
             "enum": [
               "daily",
@@ -2704,6 +2708,7 @@
           }
         },
         "required": [
+          "configured",
           "frequency",
           "weekly_close_day",
           "monthly_close_day",

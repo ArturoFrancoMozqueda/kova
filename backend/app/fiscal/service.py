@@ -36,8 +36,16 @@ def _money(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def _fiscal_bad_request(code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=400,
+        detail={"code": code, "message": message},
+    )
+
+
 def _settings_body(settings: FiscalGlobalDraftSettings) -> dict[str, Any]:
     return {
+        "configured": True,
         "frequency": settings.frequency,
         "weekly_close_day": settings.weekly_close_day,
         "monthly_close_day": settings.monthly_close_day,
@@ -51,6 +59,7 @@ def get_settings(db: Session, *, tenant_id: UUID) -> dict[str, Any]:
     settings = repo.get_settings(db, tenant_id=tenant_id)
     if not settings:
         return {
+            "configured": False,
             "frequency": "monthly",
             "weekly_close_day": 7,
             "monthly_close_day": 31,
@@ -112,12 +121,18 @@ def resolve_period(
         return period_end, period_end
     if frequency == "weekly":
         if period_end.isoweekday() != weekly_close_day:
-            raise bad_request("period_end must match the configured weekly closing day")
+            raise _fiscal_bad_request(
+                "FISCAL_PERIOD_END_MISMATCH",
+                "period_end must match the configured weekly closing day",
+            )
         return period_end - timedelta(days=6), period_end
     if frequency == "monthly":
         expected = _month_close(period_end.year, period_end.month, monthly_close_day)
         if period_end != expected:
-            raise bad_request("period_end must match the configured monthly closing day")
+            raise _fiscal_bad_request(
+                "FISCAL_PERIOD_END_MISMATCH",
+                "period_end must match the configured monthly closing day",
+            )
         previous_year, previous_month = _previous_month(period_end)
         previous_close = _month_close(previous_year, previous_month, monthly_close_day)
         return previous_close + timedelta(days=1), period_end
@@ -153,7 +168,10 @@ def _totals(snapshots, *, refund_totals: dict[UUID, Decimal]) -> dict[str, Decim
 def preview(db: Session, *, tenant_id: UUID, period_end: date) -> dict[str, Any]:
     settings = repo.get_settings(db, tenant_id=tenant_id)
     if not settings:
-        raise bad_request("Configure global draft settings before preparing a preview")
+        raise _fiscal_bad_request(
+            "FISCAL_SETTINGS_REQUIRED",
+            "Configure global draft settings before preparing a preview",
+        )
     period_start, resolved_end = resolve_period(
         frequency=settings.frequency,
         period_end=period_end,
@@ -161,7 +179,10 @@ def preview(db: Session, *, tenant_id: UUID, period_end: date) -> dict[str, Any]
         monthly_close_day=settings.monthly_close_day,
     )
     if resolved_end >= datetime.now(FISCAL_TIMEZONE).date():
-        raise bad_request("Only completed local calendar periods can be previewed")
+        raise _fiscal_bad_request(
+            "FISCAL_PERIOD_NOT_COMPLETED",
+            "Only completed local calendar periods can be previewed",
+        )
     start_utc, end_utc = _utc_bounds(period_start, resolved_end)
     snapshots = repo.eligible_order_snapshots(
         db,
@@ -231,7 +252,10 @@ def close_period(
 
     settings = repo.get_settings(db, tenant_id=tenant_id)
     if not settings:
-        raise bad_request("Configure global draft settings before closing a period")
+        raise _fiscal_bad_request(
+            "FISCAL_SETTINGS_REQUIRED",
+            "Configure global draft settings before closing a period",
+        )
     period_start, resolved_end = resolve_period(
         frequency=settings.frequency,
         period_end=period_end,
@@ -239,7 +263,10 @@ def close_period(
         monthly_close_day=settings.monthly_close_day,
     )
     if resolved_end >= datetime.now(FISCAL_TIMEZONE).date():
-        raise bad_request("Only completed local calendar periods can be closed")
+        raise _fiscal_bad_request(
+            "FISCAL_PERIOD_NOT_COMPLETED",
+            "Only completed local calendar periods can be closed",
+        )
 
     repo.acquire_tenant_close_lock(db, tenant_id=tenant_id)
     overlapping = repo.find_overlapping_batch(

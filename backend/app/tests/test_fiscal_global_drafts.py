@@ -15,6 +15,7 @@ from app.auth.models import Membership, User
 from app.fiscal import repository as fiscal_repo
 from app.fiscal.models import (
     FiscalGlobalDraftBatch,
+    FiscalGlobalDraftSettings,
     OrderFiscalSnapshot,
     OrderItemFiscalSnapshot,
 )
@@ -116,18 +117,172 @@ def test_period_contract_uses_iso_weekdays_and_month_end_normalization() -> None
         monthly_close_day=31,
     ) == (date(2026, 2, 1), date(2026, 2, 28))
     assert resolve_period(
+        frequency="monthly",
+        period_end=date(2024, 2, 29),
+        weekly_close_day=7,
+        monthly_close_day=31,
+    ) == (date(2024, 2, 1), date(2024, 2, 29))
+    assert resolve_period(
         frequency="weekly",
         period_end=date(2026, 8, 16),  # Sunday, ISO 7
         weekly_close_day=7,
         monthly_close_day=31,
     ) == (date(2026, 8, 10), date(2026, 8, 16))
-    with pytest.raises(HTTPException):
+    with pytest.raises(HTTPException) as exc_info:
         resolve_period(
             frequency="weekly",
             period_end=date(2026, 8, 15),
             weekly_close_day=7,
             monthly_close_day=31,
         )
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["code"] == "FISCAL_PERIOD_END_MISMATCH"
+
+
+def test_settings_defaults_are_explicitly_unconfigured_and_get_does_not_persist(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="unconfigured")
+    assert db.get(FiscalGlobalDraftSettings, tenant_id) is None
+
+    response = client.get("/api/v1/fiscal/global-drafts/settings")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "configured": False,
+        "frequency": "monthly",
+        "weekly_close_day": 7,
+        "monthly_close_day": 31,
+        "auto_close_enabled": False,
+        "timezone": "America/Mexico_City",
+        "scheduler_status": "active",
+    }
+    assert db.get(FiscalGlobalDraftSettings, tenant_id) is None
+
+    preview = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": "2026-07-16"},
+    )
+    assert preview.status_code == 400
+    assert preview.json()["detail"] == {
+        "code": "FISCAL_SETTINGS_REQUIRED",
+        "message": "Configure global draft settings before preparing a preview",
+    }
+
+    close = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "unconfigured-close"},
+        json={"period_end": "2026-07-16"},
+    )
+    assert close.status_code == 400
+    assert close.json()["detail"]["code"] == "FISCAL_SETTINGS_REQUIRED"
+    assert db.get(FiscalGlobalDraftSettings, tenant_id) is None
+
+
+def test_put_settings_marks_configuration_as_persisted(client, db: Session) -> None:
+    tenant_id = _signup_login(client, prefix="configured")
+
+    response = client.put(
+        "/api/v1/fiscal/global-drafts/settings",
+        json={
+            "frequency": "monthly",
+            "weekly_close_day": 7,
+            "monthly_close_day": 31,
+            "auto_close_enabled": False,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["configured"] is True
+    assert db.get(FiscalGlobalDraftSettings, tenant_id) is not None
+    assert client.get("/api/v1/fiscal/global-drafts/settings").json()["configured"] is True
+
+
+def test_preview_enforces_persisted_monthly_weekly_and_completed_periods(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="period-validation")
+    _enable(db, tenant_id)
+    monthly = client.put(
+        "/api/v1/fiscal/global-drafts/settings",
+        json={
+            "frequency": "monthly",
+            "weekly_close_day": 7,
+            "monthly_close_day": 31,
+            "auto_close_enabled": False,
+        },
+    )
+    assert monthly.status_code == 200, monthly.text
+
+    mismatch = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": "2026-07-16"},
+    )
+    assert mismatch.status_code == 400
+    assert mismatch.json()["detail"]["code"] == "FISCAL_PERIOD_END_MISMATCH"
+
+    valid_month = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": "2026-07-31"},
+    )
+    assert valid_month.status_code == 200, valid_month.text
+    assert valid_month.json()["period_start"] == "2026-07-01"
+    assert valid_month.json()["period_end"] == "2026-07-31"
+
+    weekly = client.put(
+        "/api/v1/fiscal/global-drafts/settings",
+        json={
+            "frequency": "weekly",
+            "weekly_close_day": 7,
+            "monthly_close_day": 31,
+            "auto_close_enabled": False,
+        },
+    )
+    assert weekly.status_code == 200, weekly.text
+    wrong_weekday = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": "2026-07-16"},
+    )
+    assert wrong_weekday.status_code == 400
+    assert wrong_weekday.json()["detail"]["code"] == "FISCAL_PERIOD_END_MISMATCH"
+    wrong_weekday_close = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "weekly-wrong-close-day"},
+        json={"period_end": "2026-07-16"},
+    )
+    assert wrong_weekday_close.status_code == 400
+    assert wrong_weekday_close.json()["detail"]["code"] == "FISCAL_PERIOD_END_MISMATCH"
+
+    valid_week = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": "2026-07-12"},
+    )
+    assert valid_week.status_code == 200, valid_week.text
+    assert valid_week.json()["period_start"] == "2026-07-06"
+    assert valid_week.json()["period_end"] == "2026-07-12"
+
+    _daily_settings(client)
+    today = datetime.now(FISCAL_TIMEZONE).date()
+    incomplete = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": today.isoformat()},
+    )
+    assert incomplete.status_code == 400
+    assert incomplete.json()["detail"]["code"] == "FISCAL_PERIOD_NOT_COMPLETED"
+    incomplete_close = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "daily-incomplete-period"},
+        json={"period_end": today.isoformat()},
+    )
+    assert incomplete_close.status_code == 400
+    assert incomplete_close.json()["detail"]["code"] == "FISCAL_PERIOD_NOT_COMPLETED"
+
+    invalid_date = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": "2026-02-30"},
+    )
+    assert invalid_date.status_code == 422
+    assert client.get("/api/v1/fiscal/global-drafts/preview").status_code == 422
 
 
 def test_feature_flag_defaults_available_and_explicit_opt_out_closes_gate(

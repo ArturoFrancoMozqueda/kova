@@ -105,6 +105,12 @@ pero Kova no genera ni persiste archivos PDF.
 | FS-74 | Offline export | Se pierde red con un reporte ya visible | CSV queda deshabilitado con explicación; impresión local sigue disponible; ninguna falsa descarga | Vitest/E2E |
 | FS-75 | Error export | CSV responde `401/403/404/500` o falla la red | Error accionable, sin body técnico/PII y sin toast de éxito falso; reintento disponible | Vitest/E2E |
 | FS-76 | Copy contador | Abrir reporte, descarga, error, offline e impresión | Muestra `reporte de control interno`, `recibo operativo`, `no emitido`, `no es CFDI` y que Kova no calcula impuestos hoy | Unit/E2E |
+| FS-77 | Configuración ausente | GET de settings para un tenant sin fila persistida | Devuelve `configured=false` y valores iniciales sin escribir ni aparentar configuración guardada | API/PG |
+| FS-78 | Owner sin configurar | Owner abre la propuesta inicial | Debe guardarla antes de preview/cierre; al guardar recibe `configured=true` y el último cierre concluido | Vitest/E2E |
+| FS-79 | Manager sin configurar | Manager abre la propuesta inicial | Ve estado de sólo lectura que atribuye la configuración al owner; no puede guardar, previsualizar ni cerrar | Vitest/E2E |
+| FS-80 | Cambios pendientes | Owner cambia periodicidad o día tras preparar una vista previa | La vista previa se limpia y preview/cierre quedan bloqueados hasta guardar | Vitest/E2E |
+| FS-81 | Incidente mensual | Con día 31, hoy 2026-08-16, se intenta 2026-07-16 | Error inline propone 2026-07-31 y no envía request; el servidor también rechaza el desfase | Unit/API/E2E |
+| FS-82 | Locale y zona | Repetir el cierre en navegador es-MX y en-US con `America/Mexico_City` | El valor y query permanecen ISO `YYYY-MM-DD`; actual/futuro se evalúa en la fecha local mexicana | Unit/E2E |
 
 ## Recorridos Playwright mocked
 
@@ -122,13 +128,19 @@ pero Kova no genera ni persiste archivos PDF.
    filename del servidor -> imprimir con `window.print`.
 10. Export negativo: cashier/staff/tenant ajeno/kill flag, descarga `500`, offline, CSV injection,
     privacidad, UTF-8/RFC 4180 y respuesta vacía con encabezados.
+11. Configuración ausente: owner guarda la propuesta antes del preview; manager ve por qué no puede
+    continuar y ninguna lectura crea configuración implícita.
+12. Incidente de fecha: mensual día 31 propone el último cierre concluido; 2026-07-16 muestra error
+    inline sin request y la query válida conserva `period_end=2026-07-31` en es-MX y en-US.
+13. Configuración pendiente: cambiar frecuencia o día limpia la vista previa y bloquea preview/cierre
+    hasta guardar.
 
 ## Evidencia requerida para cierre
 
 - Unit/golden de `Decimal`, límites de zona y calendario.
 - Integración en PostgreSQL real para rollback, concurrencia, RLS y ambos caminos de venta.
 - BDD de inmutabilidad, offline replay, solapamiento, marker individual, refund/void y copy.
-- Vitest de API/vista y Playwright mocked de los diez recorridos.
+- Vitest de API/vista y Playwright mocked de los trece recorridos.
 - `ruff`, typecheck, lint y contrato OpenAPI.
 - QA manual con una cuenta owner y cashier. La impresión del navegador sí forma parte de esta épica;
   timbrado, PAC, XML, CFDI o generación/persistencia de PDF no forman parte del alcance.

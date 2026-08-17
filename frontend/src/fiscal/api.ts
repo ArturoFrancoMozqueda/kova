@@ -3,6 +3,7 @@ import { csrfHeaders } from "@/lib/csrf";
 export type FiscalDraftFrequency = "daily" | "weekly" | "monthly";
 
 export type FiscalDraftSettings = {
+  configured: boolean;
   frequency: FiscalDraftFrequency;
   weekly_close_day: number;
   monthly_close_day: number;
@@ -10,6 +11,11 @@ export type FiscalDraftSettings = {
   timezone: "America/Mexico_City";
   scheduler_status: "active";
 };
+
+export type FiscalDraftErrorCode =
+  | "FISCAL_SETTINGS_REQUIRED"
+  | "FISCAL_PERIOD_END_MISMATCH"
+  | "FISCAL_PERIOD_NOT_COMPLETED";
 
 export type FiscalDraftSettingsUpdate = Pick<
   FiscalDraftSettings,
@@ -49,8 +55,28 @@ export class FiscalDraftApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly code?: FiscalDraftErrorCode,
   ) {
     super(message);
+  }
+}
+
+async function responseError(response: Response): Promise<FiscalDraftApiError> {
+  const body = await response.text();
+  try {
+    const parsed = JSON.parse(body) as {
+      detail?: string | { code?: FiscalDraftErrorCode; message?: string };
+    };
+    if (typeof parsed.detail === "object" && parsed.detail) {
+      return new FiscalDraftApiError(
+        parsed.detail.message ?? "Fiscal draft request failed",
+        response.status,
+        parsed.detail.code,
+      );
+    }
+    return new FiscalDraftApiError(parsed.detail ?? body, response.status);
+  } catch {
+    return new FiscalDraftApiError(body, response.status);
   }
 }
 
@@ -64,7 +90,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
-    throw new FiscalDraftApiError(await response.text(), response.status);
+    throw await responseError(response);
   }
   return (await response.json()) as T;
 }
@@ -135,7 +161,7 @@ export async function downloadFiscalDraftAccountantReport(batchId: string): Prom
     `${BASE_URL}/batches/${encodeURIComponent(batchId)}/accountant-report.csv`,
   );
   if (!response.ok) {
-    throw new FiscalDraftApiError(await response.text(), response.status);
+    throw await responseError(response);
   }
 
   const blob = await response.blob();

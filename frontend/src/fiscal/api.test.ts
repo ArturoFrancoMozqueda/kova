@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeFiscalDraft,
   downloadFiscalDraftAccountantReport,
+  FiscalDraftApiError,
   previewFiscalDraft,
   saveFiscalDraftSettings,
 } from "./api";
@@ -24,6 +25,26 @@ describe("fiscal draft api", () => {
       "/api/v1/fiscal/global-drafts/preview?period_end=2024-02-29",
       expect.objectContaining({ headers: expect.objectContaining({ "Content-Type": "application/json" }) }),
     );
+  });
+
+  it("preserves the structured fiscal error code without exposing it as UI copy", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          detail: {
+            code: "FISCAL_SETTINGS_REQUIRED",
+            message: "Configure settings first",
+          },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(previewFiscalDraft("2026-07-31")).rejects.toMatchObject({
+      status: 400,
+      code: "FISCAL_SETTINGS_REQUIRED",
+      message: "Configure settings first",
+    } satisfies Partial<FiscalDraftApiError>);
   });
 
   it("sends CSRF and the stable idempotency identity on close", async () => {
@@ -66,14 +87,18 @@ describe("fiscal draft api", () => {
 
   it("downloads the accountant CSV using the server filename", async () => {
     const csvBody = "estado_fiscal,aviso,periodo\nNO_EMITIDO,NO_ES_CFDI,2026-07";
+    const csvBlob = new Blob([csvBody], { type: "text/csv;charset=utf-8" });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(csvBody, {
-        status: 200,
+      {
+        ok: true,
+        blob: async () => csvBlob,
         headers: {
-          "Content-Disposition": "attachment; filename*=UTF-8''reporte-control-interno-julio.csv",
-          "Content-Type": "text/csv; charset=utf-8",
+          get: (name: string) =>
+            name.toLowerCase() === "content-disposition"
+              ? "attachment; filename*=UTF-8''reporte-control-interno-julio.csv"
+              : null,
         },
-      }),
+      } as Response,
     );
     const createObjectUrl = vi.fn<(blob: Blob) => string>(() => "blob:kova-accountant-report");
     const revokeObjectUrl = vi.fn();
@@ -95,8 +120,9 @@ describe("fiscal draft api", () => {
     expect(downloadedFilename).toBe(filename);
     expect(createObjectUrl).toHaveBeenCalledTimes(1);
     const [downloadBlob] = createObjectUrl.mock.calls[0];
+    expect(downloadBlob).toBe(csvBlob);
     expect(downloadBlob.type).toBe("text/csv;charset=utf-8");
-    expect(await downloadBlob.text()).toBe(csvBody);
+    expect(downloadBlob.size).toBe(new TextEncoder().encode(csvBody).byteLength);
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:kova-accountant-report");
   });
 
