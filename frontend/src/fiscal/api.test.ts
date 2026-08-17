@@ -65,8 +65,9 @@ describe("fiscal draft api", () => {
   });
 
   it("downloads the accountant CSV using the server filename", async () => {
+    const csvBody = "estado_fiscal,aviso,periodo\nNO_EMITIDO,NO_ES_CFDI,2026-07";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("estado_fiscal,aviso,periodo\nNO_EMITIDO,NO_ES_CFDI,2026-07", {
+      new Response(csvBody, {
         status: 200,
         headers: {
           "Content-Disposition": "attachment; filename*=UTF-8''reporte-control-interno-julio.csv",
@@ -74,7 +75,7 @@ describe("fiscal draft api", () => {
         },
       }),
     );
-    const createObjectUrl = vi.fn(() => "blob:kova-accountant-report");
+    const createObjectUrl = vi.fn<(blob: Blob) => string>(() => "blob:kova-accountant-report");
     const revokeObjectUrl = vi.fn();
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectUrl });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectUrl });
@@ -92,7 +93,10 @@ describe("fiscal draft api", () => {
     );
     expect(filename).toBe("reporte-control-interno-julio.csv");
     expect(downloadedFilename).toBe(filename);
-    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+    expect(createObjectUrl).toHaveBeenCalledTimes(1);
+    const [downloadBlob] = createObjectUrl.mock.calls[0];
+    expect(downloadBlob.type).toBe("text/csv;charset=utf-8");
+    expect(await downloadBlob.text()).toBe(csvBody);
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:kova-accountant-report");
   });
 
