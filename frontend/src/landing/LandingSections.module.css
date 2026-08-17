@@ -68,7 +68,9 @@
 
 .problemHeading .lead,
 .reportsHeading .lead,
-.capabilitiesHeading .lead { margin-top: 0; }
+.capabilitiesHeading .lead {
+  margin-top: 0;
+}
 
 .problemNarrative {
   margin-top: 52px;
@@ -165,7 +167,9 @@
     background-color 220ms var(--kova-ease-entrance);
 }
 
-.problemStep:last-child { border-bottom: 0; }
+.problemStep:last-child {
+  border-bottom: 0;
+}
 
 .problemStepNumber {
   color: var(--accent);
@@ -237,35 +241,53 @@
   letter-spacing: -0.02em;
 }
 
-.capabilities { border-top: 1px solid var(--hairline-color); }
+.capabilities {
+  border-top: 1px solid var(--hairline-color);
+}
 
 .capabilityList {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
   margin: 52px 0 0;
   padding: 0;
-  border-top: 1px solid var(--hairline-strong);
   list-style: none;
 }
 
 .capability {
   min-width: 0;
-  padding: 26px 28px 28px 0;
-  display: grid;
-  grid-template-columns: 46px 1fr;
-  gap: 18px;
-  border-bottom: 1px solid var(--hairline-color);
+  min-height: 228px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
   transition:
     transform 220ms var(--kova-ease-entrance),
-    background-color 220ms var(--kova-ease-entrance);
+    border-color 220ms var(--kova-ease-entrance),
+    box-shadow 220ms var(--kova-ease-entrance);
 }
 
-.capability:nth-child(odd) {
-  padding-right: 36px;
-  border-right: 1px solid var(--hairline-color);
+.capabilityTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.capability:nth-child(even) { padding-left: 36px; }
+.capabilityIcon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--hairline-color));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent);
+}
 
 /* La prueba se ancla al pie de la celda: dos capacidades de la misma fila
    comparten la línea aunque su descripción ocupe distinto número de renglones. */
@@ -276,7 +298,7 @@
 }
 
 .capabilityIndex {
-  color: var(--accent);
+  color: var(--text-tertiary);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.14em;
@@ -299,15 +321,19 @@
 }
 
 .capabilityProof {
-  display: block;
+  width: fit-content;
+  max-width: 100%;
   /* `auto` empuja la prueba al pie; los 18px de padding garantizan el aire
      mínimo cuando la celda ya está llena. */
   margin-top: auto;
-  padding-top: 18px;
-  border-top: 1px solid var(--hairline-color);
+  padding: 7px 10px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--page-bg) 68%, transparent);
   color: var(--page-fg);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .reports {
@@ -315,9 +341,15 @@
   background: var(--lp-blue-bg);
 }
 
-.reports .eyebrow { color: var(--lp-blue-tertiary); }
-.reports .title { color: var(--lp-blue-display); }
-.reports .lead { color: var(--lp-blue-muted); }
+.reports .eyebrow {
+  color: var(--lp-blue-tertiary);
+}
+.reports .title {
+  color: var(--lp-blue-display);
+}
+.reports .lead {
+  color: var(--lp-blue-muted);
+}
 
 .reportStage {
   margin-top: 52px;
@@ -388,8 +420,12 @@
   line-height: 1.35;
 }
 
-.testimonials { text-align: center; }
-.testimonials .title { margin-inline: auto; }
+.testimonials {
+  text-align: center;
+}
+.testimonials .title {
+  margin-inline: auto;
+}
 
 .testimonialNote {
   max-width: 650px;
@@ -417,7 +453,9 @@
     background-color 240ms var(--kova-ease-entrance);
 }
 
-.quote + .quote { border-left: 1px solid var(--hairline-color); }
+.quote + .quote {
+  border-left: 1px solid var(--hairline-color);
+}
 
 .quoteTop {
   margin-bottom: 26px;
@@ -482,18 +520,29 @@
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .problemStep:hover {
+    transform: translate3d(4px, 0, 0);
+  }
+  .capability:hover {
+    transform: translate3d(0, -3px, 0);
+    border-color: color-mix(in srgb, var(--accent) 54%, var(--hairline-color));
+    box-shadow: 0 24px 52px -42px rgba(0, 0, 0, 0.76);
+  }
   .problemStep:hover,
-  .capability:hover { transform: translate3d(4px, 0, 0); }
-  .problemStep:hover,
-  .capability:hover,
-  .quote:hover { background: color-mix(in srgb, var(--surface) 72%, transparent); }
-  .quote:hover { transform: translate3d(0, -3px, 0); }
+  .quote:hover {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+  }
+  .quote:hover {
+    transform: translate3d(0, -3px, 0);
+  }
   .reportFrame:hover {
     transform: translate3d(0, -4px, 0);
     border-color: var(--accent);
     box-shadow: 0 38px 78px -48px rgba(0, 0, 0, 0.72);
   }
-  .reportFrame:hover .reportViewport img { transform: scale(1.018); }
+  .reportFrame:hover .reportViewport img {
+    transform: scale(1.018);
+  }
   .cta:hover {
     transform: translate3d(0, -2px, 0);
     box-shadow: 0 16px 34px -22px rgba(79, 126, 247, 0.9);
@@ -506,16 +555,22 @@
   .reportFrame,
   .reportViewport img,
   .quote,
-  .cta { transition: none; }
+  .cta {
+    transition: none;
+  }
 }
 
 @media (max-width: 900px) {
   .problemHeading,
   .reportsHeading,
   .capabilitiesHeading,
-  .reportStage { grid-template-columns: 1fr; }
+  .reportStage {
+    grid-template-columns: 1fr;
+  }
 
-  .problemNarrative { grid-template-columns: 1fr; }
+  .problemNarrative {
+    grid-template-columns: 1fr;
+  }
   .problemScenario {
     min-height: 0;
     border-right: 0;
@@ -527,17 +582,27 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .reportQuestions li { min-height: 90px; }
+  .reportQuestions li {
+    min-height: 90px;
+  }
 }
 
 @media (max-width: 640px) {
-  .section { padding-block: 72px; }
+  .section {
+    padding-block: 72px;
+  }
 
   .quotes,
-  .capabilityList { grid-template-columns: 1fr; }
+  .capabilityList {
+    grid-template-columns: 1fr;
+  }
 
-  .problemScenario { padding: 32px 24px; }
-  .problemScenario > strong { font-size: 68px; }
+  .problemScenario {
+    padding: 32px 24px;
+  }
+  .problemScenario > strong {
+    font-size: 68px;
+  }
   .problemStep {
     padding: 24px 20px;
     grid-template-columns: 34px minmax(0, 1fr);
@@ -547,22 +612,42 @@
     grid-column: 2;
     text-align: left;
   }
-  .problemQuestions { grid-template-columns: 1fr; }
-  .problemQuestions li { padding: 15px 0; border-top: 0; }
-  .problemQuestions li:first-child { border-top: 1px solid var(--hairline-color); }
+  .problemQuestions {
+    grid-template-columns: 1fr;
+  }
+  .problemQuestions li {
+    padding: 15px 0;
+    border-top: 0;
+  }
+  .problemQuestions li:first-child {
+    border-top: 1px solid var(--hairline-color);
+  }
 
   .capability,
   .capability:nth-child(odd),
   .capability:nth-child(even) {
-    padding: 24px 0;
-    border-right: 0;
+    min-height: 0;
+    padding: 22px;
   }
 
-  .reportViewport { aspect-ratio: 4 / 3; }
-  .reportViewport img { width: auto; min-width: 100%; object-position: 64% top; }
+  .reportViewport {
+    aspect-ratio: 4 / 3;
+  }
+  .reportViewport img {
+    width: auto;
+    min-width: 100%;
+    object-position: 64% top;
+  }
 
-  .reportQuestions { grid-template-columns: 1fr; }
-  .reportQuestions li { min-height: 0; }
+  .reportQuestions {
+    grid-template-columns: 1fr;
+  }
+  .reportQuestions li {
+    min-height: 0;
+  }
 
-  .quote + .quote { border-top: 1px solid var(--hairline-color); border-left: 0; }
+  .quote + .quote {
+    border-top: 1px solid var(--hairline-color);
+    border-left: 0;
+  }
 }

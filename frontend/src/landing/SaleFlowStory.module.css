@@ -67,21 +67,29 @@
   line-height: 1.55;
 }
 
-.desktopStory { margin-top: 50px; }
+.desktopStory {
+  margin-top: 50px;
+}
 
 .tablist {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-block: 1px solid var(--lp-blue-border-strong);
+  overflow: hidden;
+  border: 1px solid var(--lp-blue-border-strong);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
 }
 
 .tab {
+  position: relative;
   min-width: 0;
-  min-height: 64px;
-  padding: 12px 18px;
-  display: flex;
+  min-height: 78px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  gap: 12px;
   border: 0;
   border-right: 1px solid var(--lp-blue-border);
   border-radius: 0;
@@ -93,15 +101,36 @@
   transition:
     color 180ms var(--kova-ease-entrance),
     background-color 180ms var(--kova-ease-entrance),
-    transform 180ms var(--kova-ease-entrance);
+    transform 180ms var(--kova-ease-entrance),
+    box-shadow 180ms var(--kova-ease-entrance);
 }
 
-.tab:last-child { border-right: 0; }
+.tab:last-child {
+  border-right: 0;
+}
 
-.tab span {
+.tabMarker {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--lp-blue-border-strong);
+  border-radius: 999px;
   color: var(--lp-blue-tertiary);
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 750;
   font-variant-numeric: tabular-nums;
+  transition:
+    color 180ms var(--kova-ease-entrance),
+    border-color 180ms var(--kova-ease-entrance),
+    background-color 180ms var(--kova-ease-entrance);
+}
+
+.tabCopy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
 .tab strong {
@@ -111,13 +140,31 @@
   white-space: nowrap;
 }
 
+.tabMeta {
+  overflow: hidden;
+  color: var(--lp-blue-tertiary);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tab[aria-selected="true"] {
   background: var(--surface);
   color: var(--page-fg);
-  box-shadow: inset 0 -3px 0 var(--page-fg);
+  box-shadow: inset 0 -3px 0 var(--accent);
 }
 
-.tab[aria-selected="true"] span { color: var(--accent); }
+.tab[aria-selected="true"] .tabMarker {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--kova-ink);
+}
+
+.tab[aria-selected="true"] .tabMeta {
+  color: var(--accent);
+}
 
 .panel {
   min-height: 520px;
@@ -125,16 +172,26 @@
   grid-template-columns: minmax(260px, 0.36fr) minmax(0, 1fr);
   align-items: stretch;
   overflow: hidden;
-  border-bottom: 1px solid var(--hairline-strong);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 0 0 14px 14px;
   background: var(--surface);
+  box-shadow: 0 32px 74px -56px rgba(15, 17, 23, 0.62);
   animation: storyPanelIn 420ms var(--kova-ease-entrance) both;
 }
 
-.panel[hidden] { display: none; }
+.panel[hidden] {
+  display: none;
+}
 
 @keyframes storyPanelIn {
-  from { opacity: 0; transform: translate3d(0, 12px, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .copy {
@@ -146,7 +203,9 @@
 }
 
 .copy .stepNumber,
-.mobileCopy .stepNumber { color: var(--accent); }
+.mobileCopy .stepNumber {
+  color: var(--accent);
+}
 
 .copy h3,
 .mobileCopy h3 {
@@ -202,7 +261,15 @@
   transition: transform 520ms var(--kova-ease-entrance);
 }
 
-.mobileStory { display: none; }
+/* La captura nueva de Inventario empieza más cerca del borde del contenido;
+   este origen conserva completo su encabezado al descartar la barra lateral. */
+.capture[data-step="inventory"] img {
+  transform-origin: 90% 0;
+}
+
+.mobileStory {
+  display: none;
+}
 
 .cta {
   min-height: 48px;
@@ -219,9 +286,14 @@
   text-decoration: none;
 }
 
-@media (max-width: 800px) {
-  .heading { grid-template-columns: 1fr; gap: 24px; }
-  .desktopStory { display: none; }
+@media (max-width: 900px) {
+  .heading {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .desktopStory {
+    display: none;
+  }
 
   .mobileStory {
     margin: 42px 0 0;
@@ -242,8 +314,12 @@
       box-shadow 240ms var(--kova-ease-entrance);
   }
 
-  .mobileCopy { padding: 26px 24px 24px; }
-  .mobileCopy h3 { font-size: clamp(25px, 6vw, 34px); }
+  .mobileCopy {
+    padding: 26px 24px 24px;
+  }
+  .mobileCopy h3 {
+    font-size: clamp(25px, 6vw, 34px);
+  }
 
   /* En un teléfono la captura completa se reduce a ~0.2× y nada se lee. Cada
      paso muestra en su lugar el fragmento real que prueba lo que dice el copy
@@ -269,18 +345,34 @@
   }
 
   /* Carrito: la última línea de la venta y el total de $186.00. */
-  .mobileCapture[data-step="sale"] img { --crop-x: 98%; --crop-y: 64%; }
+  .mobileCapture[data-step="sale"] img {
+    --crop-x: 98%;
+    --crop-y: 64%;
+  }
   /* Tarjeta de existencias con su badge de estado. */
-  .mobileCapture[data-step="inventory"] img { --crop-x: 100%; --crop-y: 60%; }
+  .mobileCapture[data-step="inventory"] img {
+    --crop-x: 26%;
+    --crop-y: 34%;
+  }
   /* Tiles de movimientos y efectivo esperado del turno abierto. */
-  .mobileCapture[data-step="cash"] img { --crop-x: 84%; --crop-y: 22%; }
-  /* Resumen del periodo: ventas netas y órdenes. */
-  .mobileCapture[data-step="reports"] img { --crop-x: 29%; --crop-y: 24%; }
+  .mobileCapture[data-step="cash"] img {
+    --crop-x: 84%;
+    --crop-y: 22%;
+  }
+  /* Análisis del periodo: ventas netas y comparación diaria. */
+  .mobileCapture[data-step="reports"] img {
+    --crop-x: 29%;
+    --crop-y: 24%;
+  }
 }
 
 @media (max-width: 480px) {
-  .mobileCopy { padding: 24px 20px 22px; }
-  .cta { width: 100%; }
+  .mobileCopy {
+    padding: 24px 20px 22px;
+  }
+  .cta {
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -294,8 +386,12 @@
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .tab:hover { transform: translateY(-2px); }
-  .capture:hover img { --capture-zoom: 1.242; }
+  .tab:hover {
+    transform: translateY(-2px);
+  }
+  .capture:hover img {
+    --capture-zoom: 1.242;
+  }
   .mobileStep:hover {
     transform: translateY(-3px);
     border-color: var(--accent);

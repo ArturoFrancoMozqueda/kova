@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { Link } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import styles from "./SaleFlowStory.module.css";
@@ -46,7 +52,10 @@ export default function SaleFlowStory({
     [onStepView],
   );
 
-  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+  const onTabKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
     let nextIndex: number | null = null;
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       nextIndex = (index + 1) % STORY_STEPS.length;
@@ -63,12 +72,18 @@ export default function SaleFlowStory({
   };
 
   return (
-    <section id="producto" className={styles.section} aria-labelledby="sale-flow-title">
+    <section
+      id="producto"
+      className={styles.section}
+      aria-labelledby="sale-flow-title"
+    >
       <div className={styles.inner}>
         <div className={styles.heading}>
           <div>
             <span className={styles.eyebrow}>{t.eyebrow}</span>
-            <h2 id="sale-flow-title" className={styles.title}>{t.title}</h2>
+            <h2 id="sale-flow-title" className={styles.title}>
+              {t.title}
+            </h2>
           </div>
           <div>
             <p className={styles.lead}>{t.body}</p>
@@ -76,14 +91,24 @@ export default function SaleFlowStory({
           </div>
         </div>
 
-        <div className={styles.desktopStory} data-lp-reveal-opt data-lp-reveal-variant="frame">
-          <div className={styles.tablist} role="tablist" aria-label={t.progressLabel}>
+        <div
+          className={styles.desktopStory}
+          data-lp-reveal-opt
+          data-lp-reveal-variant="frame"
+        >
+          <div
+            className={styles.tablist}
+            role="tablist"
+            aria-label={t.progressLabel}
+          >
             {STORY_STEPS.map((step, index) => {
               const active = activeStep === step.id;
               return (
                 <button
                   key={step.id}
-                  ref={(node) => { tabRefs.current[index] = node; }}
+                  ref={(node) => {
+                    tabRefs.current[index] = node;
+                  }}
                   id={`sale-flow-tab-${step.id}`}
                   type="button"
                   role="tab"
@@ -94,8 +119,15 @@ export default function SaleFlowStory({
                   onClick={() => selectStep(step.id)}
                   onKeyDown={(event) => onTabKeyDown(event, index)}
                 >
-                  <span aria-hidden="true">{step.number}</span>
-                  <strong>{step.title}</strong>
+                  <span className={styles.tabMarker} aria-hidden="true">
+                    {step.number}
+                  </span>
+                  <span className={styles.tabCopy}>
+                    <strong>{step.title}</strong>
+                    <span className={styles.tabMeta} aria-hidden="true">
+                      {step.receipt}
+                    </span>
+                  </span>
                 </button>
               );
             })}
@@ -114,12 +146,14 @@ export default function SaleFlowStory({
                 tabIndex={0}
               >
                 <div className={styles.copy}>
-                  <span className={styles.stepNumber}>{step.number} · {step.title}</span>
+                  <span className={styles.stepNumber}>
+                    {step.number} · {step.title}
+                  </span>
                   <h3>{step.heading}</h3>
                   <p>{step.line}</p>
                   <span className={styles.receipt}>{step.receipt}</span>
                 </div>
-                <figure className={styles.capture}>
+                <figure className={styles.capture} data-step={step.id}>
                   <img
                     src={step.image}
                     alt={step.alt}
@@ -134,16 +168,26 @@ export default function SaleFlowStory({
           })}
         </div>
 
-        <ol className={styles.mobileStory} aria-label={t.progressLabel} data-lp-stagger-group>
+        <ol
+          className={styles.mobileStory}
+          aria-label={t.progressLabel}
+          data-lp-stagger-group
+        >
           {STORY_STEPS.map((step) => (
-            <li key={step.id} className={styles.mobileStep} data-lp-stagger-item>
+            <li
+              key={step.id}
+              className={styles.mobileStep}
+              data-lp-stagger-item
+            >
               <div className={styles.mobileCopy}>
-                <span className={styles.stepNumber}>{step.number} · {step.title}</span>
+                <span className={styles.stepNumber}>
+                  {step.number} · {step.title}
+                </span>
                 <h3>{step.heading}</h3>
                 <p>{step.line}</p>
               </div>
               {/* data-step selecciona el recorte legible del paso (ver
-                  SaleFlowStory.module.css, bloque ≤800px). */}
+                  SaleFlowStory.module.css, bloque ≤900px). */}
               <figure className={styles.mobileCapture} data-step={step.id}>
                 <img
                   src={step.image}

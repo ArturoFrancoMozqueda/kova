@@ -7,7 +7,8 @@ const trackAnonymousEventOnce = vi.fn();
 
 vi.mock("@/telemetry/funnel", () => ({
   trackAnonymousEvent: (...args: unknown[]) => trackAnonymousEvent(...args),
-  trackAnonymousEventOnce: (...args: unknown[]) => trackAnonymousEventOnce(...args),
+  trackAnonymousEventOnce: (...args: unknown[]) =>
+    trackAnonymousEventOnce(...args),
 }));
 
 // Unauthenticated visitor → primary CTAs point to /signup.
@@ -38,7 +39,10 @@ describe("landing telemetry (PLAN-UX-03)", () => {
 
   it("fires landing_viewed once on mount", () => {
     renderHome();
-    expect(trackAnonymousEventOnce).toHaveBeenCalledWith("landing_viewed", "landing_viewed");
+    expect(trackAnonymousEventOnce).toHaveBeenCalledWith(
+      "landing_viewed",
+      "landing_viewed",
+    );
     expect(trackAnonymousEventOnce).toHaveBeenCalledWith(
       "story:sale",
       "landing_story_step_viewed",
@@ -113,15 +117,16 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     });
     expect(heroCta[0]).toHaveAttribute("href", "/signup");
     fireEvent.click(heroCta[0]);
-    expect(trackAnonymousEvent).toHaveBeenCalledWith(
-      "landing_cta_clicked",
-      { cta: "hero" },
-    );
+    expect(trackAnonymousEvent).toHaveBeenCalledWith("landing_cta_clicked", {
+      cta: "hero",
+    });
   });
 
   it("keeps hero copy outside the reveal gate used below the fold", () => {
     const { container } = renderHome();
-    expect(container.querySelector(".lp-hero-grid")).not.toHaveAttribute("data-lp-reveal");
+    expect(container.querySelector(".lp-hero-grid")).not.toHaveAttribute(
+      "data-lp-reveal",
+    );
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
   });
 
@@ -145,8 +150,14 @@ describe("landing telemetry (PLAN-UX-03)", () => {
       "cta-final",
     ]);
     expect(container.querySelector('a[href="#comercios"]')).toBeNull();
-    expect(screen.getByText(/Más que un POS\. El control de tu negocio en un solo lugar\./i)).toBeVisible();
-    expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(/Cada venta actualiza inventario, caja y reportes/i);
+    expect(
+      screen.getByText(
+        /Más que un POS\. El control de tu negocio en un solo lugar\./i,
+      ),
+    ).toBeVisible();
+    expect(container.querySelector(".lp-hero-copy")).toHaveTextContent(
+      /Cada venta actualiza inventario, caja y reportes/i,
+    );
   });
 
   it("turns the manual-work pain into a grounded three-step sequence", () => {
@@ -160,7 +171,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(problem).toHaveTextContent("La vuelves a cuadrar");
     expect(problem).toHaveTextContent("Venta · $186");
     expect(problem).toHaveTextContent("La misma venta · $186");
-    expect(problem).toHaveTextContent("Una sola venta, capturada tres veces. Y todavía quedan dudas.");
+    expect(problem).toHaveTextContent(
+      "Una sola venta, capturada tres veces. Y todavía quedan dudas.",
+    );
   });
 
   it("keeps social proof and capabilities inside verified product behavior", () => {
@@ -168,15 +181,24 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     const landingText = container.textContent ?? "";
 
     expect(landingText).not.toMatch(/sucursales/i);
-    expect(landingText).not.toContain("Negocios mexicanos ya operan todos los días con Kova.");
+    expect(landingText).not.toContain(
+      "Negocios mexicanos ya operan todos los días con Kova.",
+    );
     expect(screen.getByText("Decidir con datos")).toBeVisible();
     expect(screen.getByText("Trabajar desde cualquier equipo")).toBeVisible();
     expect(screen.getByText("Ventas sin internet")).toBeVisible();
     expect(screen.getByText("Turnos y cuadre")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Cada método queda identificado en el corte; Kova no procesa el dinero.",
+      ),
+    ).toBeVisible();
     expect(screen.getByText("Plan Standard")).toBeInTheDocument();
     expect(landingText).toContain("299");
     expect(landingText).not.toMatch(/≈\s*\$10/);
-    expect(screen.getByRole("button", { name: "¿Kova funciona para mi negocio?" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "¿Kova funciona para mi negocio?" }),
+    ).toBeVisible();
   });
 
   it("states the commercial limits at the decision point", () => {
@@ -185,12 +207,32 @@ describe("landing telemetry (PLAN-UX-03)", () => {
 
     expect(landingText).toContain("Beta privada controlada");
     expect(landingText).toContain("tarjeta manual");
-    expect(screen.getByRole("button", { name: "¿Kova procesa cobros con tarjeta?" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "¿Kova emite facturas o CFDI?" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "¿Kova calcula IVA u otros impuestos?" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "¿Qué pasa cuando termina la prueba?" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "¿Puedo exportar mis datos si cancelo?" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "¿Cómo funciona el soporte durante la beta?" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "¿Kova procesa cobros con tarjeta?" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "¿Kova emite facturas o CFDI?" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "¿Kova calcula IVA u otros impuestos?",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "¿Qué pasa cuando termina la prueba?",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "¿Puedo exportar mis datos si cancelo?",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "¿Cómo funciona el soporte durante la beta?",
+      }),
+    ).toBeVisible();
     expect(landingText).not.toMatch(/terminal integrada/i);
   });
 
@@ -201,10 +243,9 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(screen.getByText("¿Qué producto se mueve?")).toBeInTheDocument();
     expect(screen.getByText("¿Cuándo vendo más?")).toBeInTheDocument();
     expect(screen.getByText("¿Qué necesita atención?")).toBeInTheDocument();
-    expect(screen.getByAltText(/Reportes de Kova con ventas netas/i)).toHaveAttribute(
-      "loading",
-      "lazy",
-    );
+    expect(
+      screen.getByAltText(/Reportes de Kova con ventas netas/i),
+    ).toHaveAttribute("loading", "lazy");
   });
 
   it("does not render decorative live or browser dots", () => {
@@ -212,16 +253,17 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-live-dot")).toBeNull();
     expect(container.textContent).not.toContain("● ● ●");
     expect(container.querySelector(".lp-hero-frame-bar")).toBeNull();
-    expect(container.textContent).not.toMatch(/Captura real(?: del producto| de Reportes| sanitizada)/i);
+    expect(container.textContent).not.toMatch(
+      /Captura real(?: del producto| de Reportes| sanitizada)/i,
+    );
   });
 
   it("shows the Kova laptop and mobile product image in the hero", () => {
     renderHome();
 
-    expect(screen.getByAltText(/Kova funcionando en una laptop y un teléfono/i)).toHaveAttribute(
-      "src",
-      "/showcase/kova-laptop-mobile.webp",
-    );
+    expect(
+      screen.getByAltText(/Kova funcionando en una laptop y un teléfono/i),
+    ).toHaveAttribute("src", "/showcase/kova-laptop-mobile.webp");
   });
 
   it("tracks the story CTA at the same signup destination", () => {
@@ -231,9 +273,8 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     );
     expect(cta).not.toBeNull();
     fireEvent.click(cta!);
-    expect(trackAnonymousEvent).toHaveBeenCalledWith(
-      "landing_cta_clicked",
-      { cta: "story" },
-    );
+    expect(trackAnonymousEvent).toHaveBeenCalledWith("landing_cta_clicked", {
+      cta: "story",
+    });
   });
 });
