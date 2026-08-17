@@ -78,6 +78,16 @@ def rls_seed(owner_engine):
         )
         conn.execute(
             text(
+                "INSERT INTO fiscal_global_draft_settings "
+                "(tenant_id, frequency, weekly_close_day, monthly_close_day, "
+                "auto_close_enabled, created_at, updated_at) VALUES "
+                "(:a, 'daily', 7, 31, false, now(), now()), "
+                "(:b, 'weekly', 7, 31, false, now(), now())"
+            ),
+            {"a": TENANT_A, "b": TENANT_B},
+        )
+        conn.execute(
+            text(
                 "INSERT INTO expenses "
                 "(id, tenant_id, category, amount, expense_date, created_at, updated_at) "
                 "VALUES (:ea, :a, 'renta', 100.00, CURRENT_DATE, now(), now()), "
@@ -174,6 +184,10 @@ def rls_seed(owner_engine):
                 {"a": TENANT_A, "b": TENANT_B},
             )
             conn.execute(
+                text("DELETE FROM fiscal_global_draft_settings WHERE tenant_id IN (:a, :b)"),
+                {"a": TENANT_A, "b": TENANT_B},
+            )
+            conn.execute(
                 text("DELETE FROM audit_logs WHERE tenant_id IN (:a, :b)"),
                 {"a": TENANT_A, "b": TENANT_B},
             )
@@ -217,6 +231,22 @@ def test_customer_orders_are_visible_only_to_current_tenant(
             )
         }
     assert ids == {CUSTOMER_ORDER_A}
+
+
+def test_fiscal_global_settings_are_visible_only_to_current_tenant(
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
+):
+    with kova_app_engine.connect() as conn:
+        _set_tenant(conn, TENANT_A)
+        rows = conn.execute(
+            text(
+                "SELECT tenant_id, frequency FROM fiscal_global_draft_settings "
+                "WHERE tenant_id IN (:a, :b)"
+            ),
+            {"a": TENANT_A, "b": TENANT_B},
+        ).all()
+    assert rows == [(TENANT_A, "daily")]
 
 
 def test_customer_order_cross_tenant_insert_is_rejected(

@@ -1,4 +1,4 @@
-# ADR-013: Importación transaccional del catálogo por CSV
+# ADR-013: Importación transaccional del catálogo por CSV y XLSX
 
 ## Estado
 
@@ -12,8 +12,10 @@ Los negocios que migran a Kova necesitan cargar productos, costos e inventario s
 
 - Se usa un flujo de dos pasos: `dry_run` valida y normaliza; confirmar vuelve a validar y escribe todo en una sola transacción.
 - El commit exige `Idempotency-Key` y vincula la respuesta al hash exacto del archivo.
-- El CSV admite hasta 1,000 filas y 2 MB, codificación UTF-8 con o sin BOM y columnas conocidas únicamente.
-- La plantilla descargable incluye BOM para que Excel reconozca UTF-8 y conserve acentos de es-MX. La interfaz explica guardar el libro como `CSV UTF-8 (delimitado por comas)`; Kova no procesa `.xlsx` directamente.
+- CSV y XLSX convergen en una sola canalización de normalización, validación, preview y commit. No existen reglas de negocio ni escrituras separadas por formato.
+- Ambos formatos admiten hasta 1,000 productos, 2 MB y las mismas ocho columnas conocidas. CSV usa UTF-8 con o sin BOM; la plantilla descargable incluye BOM para conservar acentos de es-MX en Excel.
+- XLSX admite exactamente una hoja y rechaza fórmulas, macros, libros cifrados, paquetes corruptos, más de ocho columnas, celdas de más de 2,000 caracteres y paquetes con tamaño descomprimido fuera de límites. Las fórmulas nunca se evalúan ni se sustituyen por valores cacheados.
+- El formato seleccionado en la API debe coincidir con el `Content-Type`; el frontend deriva ambos de una extensión `.csv` o `.xlsx` admitida y rechaza `.xls`/`.xlsm` antes de enviar.
 - Las categorías activas se reutilizan por nombre; las faltantes se crean. Una categoría desactivada produce un error explícito y nunca se reactiva de forma implícita.
 - El stock inicial se registra como movimiento de ajuste en el ledger de inventario, no como actualización directa.
 - La operación requiere `catalog.create`, acceso comercial vigente y genera un evento de auditoría agregado.
@@ -21,4 +23,4 @@ Los negocios que migran a Kova necesitan cargar productos, costos e inventario s
 
 ## Consecuencias
 
-El usuario obtiene una vista previa fiel antes de escribir y puede reintentar con seguridad. La importación privilegia consistencia y trazabilidad sobre aceptar archivos ambiguos o parcialmente válidos.
+El usuario obtiene la misma vista previa y garantías al migrar desde CSV o un libro moderno de Excel. Puede reintentar con seguridad porque el hash e idempotencia se calculan sobre los bytes exactos del archivo. La importación privilegia consistencia, límites de recursos y trazabilidad sobre aceptar libros ambiguos o parcialmente válidos.

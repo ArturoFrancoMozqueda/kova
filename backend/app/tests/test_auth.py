@@ -1,9 +1,11 @@
 """Auth flow integration tests (Sprint 0B)."""
+
 from fastapi.testclient import TestClient
 
 from app.catalog.models import Product
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _signup(client: TestClient, email="owner@example.com", tenant="Acme Bakery") -> dict:
     r = client.post(
@@ -39,6 +41,7 @@ def signup_and_login(client: TestClient, email="owner@example.com", tenant="Acme
 
 
 # ── Signup ────────────────────────────────────────────────────────────────────
+
 
 def test_signup_creates_user_and_tenant(client):
     data = _signup(client)
@@ -138,6 +141,7 @@ def test_signup_returns_dev_token_in_local_env(client):
 
 # ── Verify ────────────────────────────────────────────────────────────────────
 
+
 def test_verify_email(client):
     data = _signup(client)
     r = client.post("/api/v1/auth/verify", json={"token": data["dev_verification_token"]})
@@ -150,6 +154,7 @@ def test_verify_invalid_token_returns_400(client):
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
+
 
 def test_login_sets_cookies(client):
     data = _signup(client)
@@ -208,6 +213,7 @@ def test_verified_account_reports_email_verified(client):
 
 # ── Me ────────────────────────────────────────────────────────────────────────
 
+
 def test_me_returns_user_and_tenant(client):
     signup_and_login(client)
     r = client.get("/api/v1/auth/me")
@@ -216,7 +222,11 @@ def test_me_returns_user_and_tenant(client):
     assert body["user"]["email"] == "owner@example.com"
     assert body["user"]["role"] == "owner"
     assert body["tenant_id"]
-    assert body["feature_flags"] == {"margin_reports": False, "customer_orders": True}
+    assert body["feature_flags"] == {
+        "margin_reports": False,
+        "customer_orders": True,
+        "fiscal_global_drafts": True,
+    }
 
 
 def test_me_unauthenticated_returns_401(client):
@@ -243,11 +253,16 @@ def test_session_probe_returns_user_and_tenant_when_authenticated(client):
     body = r.json()
     assert body["authenticated"] is True
     assert body["user"]["email"] == "owner@example.com"
-    assert body["feature_flags"] == {"margin_reports": False, "customer_orders": True}
+    assert body["feature_flags"] == {
+        "margin_reports": False,
+        "customer_orders": True,
+        "fiscal_global_drafts": True,
+    }
     assert body["tenant_name"] == "Acme Bakery"
 
 
 # ── Refresh ───────────────────────────────────────────────────────────────────
+
 
 def test_refresh_issues_new_access_token(client):
     signup_and_login(client)
@@ -264,6 +279,7 @@ def test_refresh_without_cookie_returns_401(client):
 
 
 # ── Logout ────────────────────────────────────────────────────────────────────
+
 
 def test_logout_revokes_session(client):
     signup_and_login(client)
@@ -284,6 +300,7 @@ def test_logout_all_revokes_all_sessions(client):
 
 # ── Password reset ────────────────────────────────────────────────────────────
 
+
 def test_password_reset_flow(client):
     data = _signup(client)
     _verify(client, data["dev_verification_token"])
@@ -295,15 +312,22 @@ def test_password_reset_flow(client):
     assert reset_token
 
     # Confirm reset
-    r2 = client.post("/api/v1/auth/password-reset/confirm", json={"token": reset_token, "new_password": "N3wpass!"})
+    r2 = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": reset_token, "new_password": "N3wpass!"},
+    )
     assert r2.status_code == 200
 
     # Old password rejected
-    r3 = client.post("/api/v1/auth/login", json={"email": "owner@example.com", "password": "S3cur3pass!"})
+    r3 = client.post(
+        "/api/v1/auth/login", json={"email": "owner@example.com", "password": "S3cur3pass!"}
+    )
     assert r3.status_code == 401
 
     # New password accepted
-    r4 = client.post("/api/v1/auth/login", json={"email": "owner@example.com", "password": "N3wpass!"})
+    r4 = client.post(
+        "/api/v1/auth/login", json={"email": "owner@example.com", "password": "N3wpass!"}
+    )
     assert r4.status_code == 200
 
 
@@ -318,6 +342,10 @@ def test_password_reset_token_single_use(client):
     r = client.post("/api/v1/auth/password-reset/request", json={"email": "owner@example.com"})
     token = r.json()["dev_reset_token"]
 
-    client.post("/api/v1/auth/password-reset/confirm", json={"token": token, "new_password": "N3wpass!"})
-    r2 = client.post("/api/v1/auth/password-reset/confirm", json={"token": token, "new_password": "Another1!"})
+    client.post(
+        "/api/v1/auth/password-reset/confirm", json={"token": token, "new_password": "N3wpass!"}
+    )
+    r2 = client.post(
+        "/api/v1/auth/password-reset/confirm", json={"token": token, "new_password": "Another1!"}
+    )
     assert r2.status_code == 400

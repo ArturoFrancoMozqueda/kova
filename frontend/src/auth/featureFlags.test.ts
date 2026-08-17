@@ -7,6 +7,7 @@ describe("normalizeFeatureFlags", () => {
     expect(normalizeFeatureFlags(undefined)).toEqual({
       margin_reports: false,
       customer_orders: false,
+      fiscal_global_drafts: false,
     });
   });
 
@@ -14,10 +15,17 @@ describe("normalizeFeatureFlags", () => {
     expect(normalizeFeatureFlags({ margin_reports: true, unknown_flag: true })).toEqual({
       margin_reports: true,
       customer_orders: false,
+      fiscal_global_drafts: false,
     });
     expect(normalizeFeatureFlags({ margin_reports: false })).toEqual({
       margin_reports: false,
       customer_orders: false,
+      fiscal_global_drafts: false,
+    });
+    expect(normalizeFeatureFlags({ fiscal_global_drafts: true })).toEqual({
+      margin_reports: false,
+      customer_orders: false,
+      fiscal_global_drafts: true,
     });
   });
 });

@@ -2414,6 +2414,341 @@
         "title": "ExpenseUpdate",
         "type": "object"
       },
+      "FiscalGlobalDraftBatchListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FiscalGlobalDraftBatchResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "FiscalGlobalDraftBatchListResponse",
+        "type": "object"
+      },
+      "FiscalGlobalDraftBatchResponse": {
+        "properties": {
+          "closed_at": {
+            "format": "date-time",
+            "title": "Closed At",
+            "type": "string"
+          },
+          "discount_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total Amount",
+            "type": "string"
+          },
+          "document_kind": {
+            "const": "operational_draft",
+            "default": "operational_draft",
+            "title": "Document Kind",
+            "type": "string"
+          },
+          "excluded_individually_confirmed_count": {
+            "title": "Excluded Individually Confirmed Count",
+            "type": "integer"
+          },
+          "fiscal_status": {
+            "const": "not_issued",
+            "default": "not_issued",
+            "title": "Fiscal Status",
+            "type": "string"
+          },
+          "frequency": {
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Frequency",
+            "type": "string"
+          },
+          "gross_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gross Amount",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "net_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Total Amount",
+            "type": "string"
+          },
+          "order_count": {
+            "title": "Order Count",
+            "type": "integer"
+          },
+          "order_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Order Ids",
+            "type": "array"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "refund_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refund Total Amount",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "closed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tax_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Total Amount",
+            "type": "string"
+          },
+          "timezone": {
+            "const": "America/Mexico_City",
+            "default": "America/Mexico_City",
+            "title": "Timezone",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "frequency",
+          "period_start",
+          "period_end",
+          "gross_amount",
+          "discount_total_amount",
+          "tax_total_amount",
+          "total_amount",
+          "refund_total_amount",
+          "net_total_amount",
+          "order_count",
+          "excluded_individually_confirmed_count",
+          "id",
+          "status",
+          "order_ids",
+          "closed_at"
+        ],
+        "title": "FiscalGlobalDraftBatchResponse",
+        "type": "object"
+      },
+      "FiscalGlobalDraftClose": {
+        "properties": {
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period_end"
+        ],
+        "title": "FiscalGlobalDraftClose",
+        "type": "object"
+      },
+      "FiscalGlobalDraftPreviewResponse": {
+        "properties": {
+          "discount_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Total Amount",
+            "type": "string"
+          },
+          "document_kind": {
+            "const": "operational_draft",
+            "default": "operational_draft",
+            "title": "Document Kind",
+            "type": "string"
+          },
+          "excluded_individually_confirmed_count": {
+            "title": "Excluded Individually Confirmed Count",
+            "type": "integer"
+          },
+          "fiscal_status": {
+            "const": "not_issued",
+            "default": "not_issued",
+            "title": "Fiscal Status",
+            "type": "string"
+          },
+          "frequency": {
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Frequency",
+            "type": "string"
+          },
+          "gross_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gross Amount",
+            "type": "string"
+          },
+          "net_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Total Amount",
+            "type": "string"
+          },
+          "order_count": {
+            "title": "Order Count",
+            "type": "integer"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "refund_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refund Total Amount",
+            "type": "string"
+          },
+          "tax_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Total Amount",
+            "type": "string"
+          },
+          "timezone": {
+            "const": "America/Mexico_City",
+            "default": "America/Mexico_City",
+            "title": "Timezone",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "frequency",
+          "period_start",
+          "period_end",
+          "gross_amount",
+          "discount_total_amount",
+          "tax_total_amount",
+          "total_amount",
+          "refund_total_amount",
+          "net_total_amount",
+          "order_count",
+          "excluded_individually_confirmed_count"
+        ],
+        "title": "FiscalGlobalDraftPreviewResponse",
+        "type": "object"
+      },
+      "FiscalGlobalDraftSettingsResponse": {
+        "properties": {
+          "auto_close_enabled": {
+            "title": "Auto Close Enabled",
+            "type": "boolean"
+          },
+          "frequency": {
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Frequency",
+            "type": "string"
+          },
+          "monthly_close_day": {
+            "title": "Monthly Close Day",
+            "type": "integer"
+          },
+          "scheduler_status": {
+            "const": "active",
+            "default": "active",
+            "title": "Scheduler Status",
+            "type": "string"
+          },
+          "timezone": {
+            "const": "America/Mexico_City",
+            "default": "America/Mexico_City",
+            "title": "Timezone",
+            "type": "string"
+          },
+          "weekly_close_day": {
+            "title": "Weekly Close Day",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "frequency",
+          "weekly_close_day",
+          "monthly_close_day",
+          "auto_close_enabled"
+        ],
+        "title": "FiscalGlobalDraftSettingsResponse",
+        "type": "object"
+      },
+      "FiscalGlobalDraftSettingsUpsert": {
+        "properties": {
+          "auto_close_enabled": {
+            "default": false,
+            "title": "Auto Close Enabled",
+            "type": "boolean"
+          },
+          "frequency": {
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "title": "Frequency",
+            "type": "string"
+          },
+          "monthly_close_day": {
+            "default": 31,
+            "maximum": 31.0,
+            "minimum": 1.0,
+            "title": "Monthly Close Day",
+            "type": "integer"
+          },
+          "weekly_close_day": {
+            "default": 7,
+            "maximum": 7.0,
+            "minimum": 1.0,
+            "title": "Weekly Close Day",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "frequency"
+        ],
+        "title": "FiscalGlobalDraftSettingsUpsert",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -7706,6 +8041,36 @@
             }
           },
           {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
             "in": "header",
             "name": "Idempotency-Key",
             "required": false,
@@ -7724,7 +8089,7 @@
         ],
         "requestBody": {
           "content": {
-            "text/csv": {
+            "application/octet-stream": {
               "schema": {
                 "contentMediaType": "application/octet-stream",
                 "title": "Content",
@@ -9785,6 +10150,311 @@
         "summary": "Export Account",
         "tags": [
           "account-lifecycle"
+        ]
+      }
+    },
+    "/api/v1/fiscal/global-drafts/batches": {
+      "get": {
+        "operationId": "list_global_draft_batches_api_v1_fiscal_global_drafts_batches_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalGlobalDraftBatchListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Global Draft Batches",
+        "tags": [
+          "fiscal"
+        ]
+      }
+    },
+    "/api/v1/fiscal/global-drafts/batches/{batch_id}": {
+      "get": {
+        "operationId": "get_global_draft_batch_api_v1_fiscal_global_drafts_batches__batch_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalGlobalDraftBatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Global Draft Batch",
+        "tags": [
+          "fiscal"
+        ]
+      }
+    },
+    "/api/v1/fiscal/global-drafts/batches/{batch_id}/accountant-report.csv": {
+      "get": {
+        "operationId": "download_accountant_report_api_v1_fiscal_global_drafts_batches__batch_id__accountant_report_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "CSV UTF-8 de control interno; no es CFDI ni constancia de timbrado."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Accountant Report",
+        "tags": [
+          "fiscal"
+        ]
+      }
+    },
+    "/api/v1/fiscal/global-drafts/close": {
+      "post": {
+        "operationId": "close_global_draft_api_v1_fiscal_global_drafts_close_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiscalGlobalDraftClose"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalGlobalDraftBatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Close Global Draft",
+        "tags": [
+          "fiscal"
+        ]
+      }
+    },
+    "/api/v1/fiscal/global-drafts/preview": {
+      "get": {
+        "operationId": "preview_global_draft_api_v1_fiscal_global_drafts_preview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Period End",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalGlobalDraftPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Global Draft",
+        "tags": [
+          "fiscal"
+        ]
+      }
+    },
+    "/api/v1/fiscal/global-drafts/settings": {
+      "get": {
+        "operationId": "get_global_draft_settings_api_v1_fiscal_global_drafts_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalGlobalDraftSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Global Draft Settings",
+        "tags": [
+          "fiscal"
+        ]
+      },
+      "put": {
+        "operationId": "put_global_draft_settings_api_v1_fiscal_global_drafts_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiscalGlobalDraftSettingsUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalGlobalDraftSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Global Draft Settings",
+        "tags": [
+          "fiscal"
         ]
       }
     },

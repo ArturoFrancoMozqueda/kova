@@ -5,6 +5,8 @@ on:
     - cron: "17 8 * * *"
   workflow_dispatch:
 
+permissions: {}
+
 concurrency:
   group: account-purge
   cancel-in-progress: false

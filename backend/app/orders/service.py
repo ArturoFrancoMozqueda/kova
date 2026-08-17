@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.business_settings import repository as business_settings_repo
 from app.catalog.models import Product
+from app.fiscal import repository as fiscal_repo
 from app.idempotency import service as idempotency_service
 from app.inventory import repository as inventory_repo
 from app.modifiers import service as modifier_service
@@ -255,6 +256,7 @@ def persist_completed_order(
             change_due=change_due,
             reference=payment_entry.reference,
         )
+    fiscal_repo.capture_baseline_snapshot(db, tenant_id=tenant_id, order=order)
     return order
 
 
@@ -413,6 +415,8 @@ def create_order(
             change_due=change_due,
             reference=payment_entry.reference,
         )
+
+    fiscal_repo.capture_baseline_snapshot(db, tenant_id=tenant_id, order=order)
 
     response_body = _order_body(db, tenant_id=tenant_id, order=order)
     audit_service.log(
