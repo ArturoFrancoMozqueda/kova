@@ -40,10 +40,10 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-function mutation<T>(url: string, body: unknown, method = "POST"): Promise<T> {
+function mutation<T>(url: string, body: unknown, method = "POST", idempotencyKey: string = crypto.randomUUID()): Promise<T> {
   return requestJson<T>(url, {
     method,
-    headers: { "Idempotency-Key": crypto.randomUUID() },
+    headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(body),
   });
 }
@@ -113,9 +113,10 @@ export function checkoutCustomerOrder(
   id: string,
   version: number,
   payments: CustomerOrderPayments,
+  idempotencyKey?: string,
 ): Promise<CustomerOrderCheckoutResponse> {
   return mutation<CustomerOrderCheckoutResponse>(`/api/v1/customer-orders/${id}/checkout`, {
     version,
     payments,
-  });
+  }, "POST", idempotencyKey);
 }

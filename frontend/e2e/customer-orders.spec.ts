@@ -119,6 +119,9 @@ test("Pedidos is separate from Ventas and opens its operational detail", async (
 test("Caja checkout for a customer order uses the dedicated endpoint once", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await mockShell(page);
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: { id: "shift-customer-order", tenant_id: "tenant-1", status: "open" } }),
+  );
   let checkoutCalls = 0;
   await page.route("**/api/v1/customer-orders/customer-order-1", (route) =>
     route.fulfill({ json: customerOrder }),

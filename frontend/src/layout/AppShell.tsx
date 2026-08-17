@@ -208,7 +208,7 @@ export default function AppShell() {
           type="button"
           onClick={closeSidebar}
           aria-label={copy.app.closeMenu}
-          className="ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors lg:hidden"
+          className="ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors xl:hidden"
         >
           <X className="h-4 w-4" />
         </button>
@@ -218,7 +218,7 @@ export default function AppShell() {
           onClick={toggleSidebarCollapsed}
           aria-label={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
           className={cn(
-            "hidden lg:flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors shrink-0",
+            "hidden xl:flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors shrink-0",
             sidebarCollapsed ? "mt-0" : "ml-auto",
           )}
         >
@@ -365,7 +365,7 @@ export default function AppShell() {
       {backdrop.mounted && (
         <div
           className={cn(
-            "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden",
+            "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm xl:hidden",
             backdrop.exiting ? "animate-fade-out pointer-events-none" : "animate-fade-in",
           )}
           onClick={closeSidebar}
@@ -389,8 +389,8 @@ export default function AppShell() {
           // content div, which is an ancestor of .print-receipt-root and
           // .print-corte-root, turning it into their containing block and
           // breaking thermal printing. Now at least it animates width alone.
-          "lg:relative lg:translate-x-0 lg:shrink-0 lg:transition-[width] lg:duration-modal lg:ease-standard",
-          sidebarCollapsed ? "lg:w-[60px]" : "lg:w-[260px]",
+          "xl:relative xl:translate-x-0 xl:shrink-0 xl:transition-[width] xl:duration-modal xl:ease-standard",
+          sidebarCollapsed ? "xl:w-[60px]" : "xl:w-[260px]",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -400,7 +400,7 @@ export default function AppShell() {
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
         {/* Mobile top bar */}
-        <header className="flex items-center gap-2 border-b bg-background px-3 py-3 lg:hidden shrink-0">
+        <header className="flex items-center gap-2 border-b bg-background px-3 py-3 xl:hidden shrink-0">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -440,7 +440,7 @@ export default function AppShell() {
         <div
           id="contenido-principal"
           tabIndex={-1}
-          className="relative flex-1 overflow-y-auto overscroll-contain pb-16 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-kova-blue lg:pb-0"
+          className="relative flex-1 overflow-y-auto overscroll-contain pb-16 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-kova-blue xl:pb-0"
         >
           <EmailVerificationBanner />
           <BillingBanner />
@@ -460,7 +460,7 @@ export default function AppShell() {
 
         {/* Bottom navigation — mobile only */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-kova-border bg-white/95 backdrop-blur lg:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-kova-border bg-white/95 backdrop-blur xl:hidden"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           aria-label={copy.auth.accountNavigation}
         >

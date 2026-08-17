@@ -178,6 +178,9 @@ test("sale is queued when sync endpoint is unavailable (offline)", async ({ page
   await page.route("**/api/v1/catalog/categories", (route) =>
     route.fulfill({ json: [] }),
   );
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: { id: "shift-offline", tenant_id: "tenant-1", status: "open" } }),
+  );
   await page.route("**/api/v1/sync/offline-sales", (route) => route.abort());
 
   await page.goto("/register");

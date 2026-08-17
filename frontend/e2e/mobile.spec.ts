@@ -634,6 +634,34 @@ test("register quick sale keeps CTAs above mobile navigation", async ({ page }) 
   await expectNoHorizontalOverflow(page);
 });
 
+test("register sale summary fits the zoom-equivalent 1024-1279px band", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockCommon(page, { viewport: { width: 1272, height: 700 } });
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: { id: "shift-zoom", tenant_id: "tenant-1", status: "open" } }),
+  );
+  await page.goto("/register");
+
+  const addProduct = page.getByRole("button", { name: "Agregar Concha" });
+  await addProduct.click();
+  const summary = page.getByRole("dialog", { name: "Resumen de venta" });
+  await expect(summary).toBeVisible();
+  await expect(page.getByText("Concha", { exact: true }).last()).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+
+  const box = await summary.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(1272);
+  await expectMobileSidebarClosed(page);
+  await expectMobileTaskNavigation(page);
+  await expectNoHorizontalOverflow(page);
+
+  await page.keyboard.press("Escape");
+  await expect(summary).toHaveCount(0);
+  await expect(addProduct).toBeFocused();
+});
+
 test("first-use guidance stays clear of the desktop checkout and exits cleanly", async ({ page }) => {
   await mockCommon(page, { viewport: { width: 1536, height: 960 } });
 
