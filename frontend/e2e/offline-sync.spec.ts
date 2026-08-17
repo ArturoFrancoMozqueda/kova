@@ -1,5 +1,4 @@
-import { expect, test } from "./fixtures";
-import type { Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 
 const CASHIER_SESSION = {
@@ -161,24 +160,25 @@ test("network-error sale remains recoverable and clears on retry", async ({
     page.getByRole("paragraph").filter({ hasText: "Venta guardada en este dispositivo" }),
   ).toBeVisible();
   await expect(page.getByText(/pendiente de sincronizar/i).first()).toBeVisible();
+  await expect.poll(() => syncCallCount).toBeGreaterThanOrEqual(1);
 
   // Open the queue while the worker is eligible to retry in the background.
   await page.goto("/sync-queue");
   await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
 
-  // The worker may retry automatically while this view is rendering. If the
-  // pending row is still present, exercise the explicit recovery action;
-  // otherwise the same leased row already converged through the backoff path.
+  // The first worker may still be unwinding when the queue view appears. Retry
+  // the explicit action until that lease is released, or until the scheduled
+  // background retry has already converged.
   const pendingHeading = page.getByRole("heading", { name: /^pendientes$/i });
-  await expect.poll(async () =>
-    (await pendingHeading.isVisible()) || syncCallCount >= 2,
-  ).toBe(true);
-  if (await pendingHeading.isVisible()) {
-    await page.getByRole("button", { name: /sincronizar ahora/i }).click();
-  }
+  const syncNow = page.getByRole("button", { name: /sincronizar ahora/i });
+  await expect.poll(async () => {
+    if (syncCallCount < 2 && await syncNow.isVisible()) {
+      await syncNow.click({ timeout: 1_000 }).catch(() => undefined);
+    }
+    return syncCallCount;
+  }, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
 
   // Either recovery path must reuse the queued sale and clear it.
-  await expect.poll(() => syncCallCount).toBeGreaterThanOrEqual(2);
   await expect(pendingHeading).not.toBeVisible({
     timeout: 5000,
   });
