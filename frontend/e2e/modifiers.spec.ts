@@ -102,6 +102,9 @@ test("add to cart is disabled until required modifier is selected", async ({ pag
 
 test("selecting a modifier adds it to cart with effective price", async ({ page }) => {
   await markFirstUseToursSeen(page);
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: { id: "shift-modifiers", tenant_id: "tenant-1", status: "open" } }),
+  );
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: OWNER_SESSION }),
   );

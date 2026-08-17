@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import type { Page } from "@playwright/test";
 import { markFirstUseToursSeen } from "./helpers";
 
 const CASHIER_SESSION = {
@@ -23,6 +24,12 @@ const CATALOG = [
     modifier_groups: [],
   },
 ];
+
+async function mockOpenShift(page: Page) {
+  await page.route("**/api/v1/shifts/current", (route) =>
+    route.fulfill({ json: { id: "shift-1", tenant_id: "tenant-1", status: "open" } }),
+  );
+}
 
 function syncSuccess(clientUuid: string, orderId: string) {
   return {
@@ -72,6 +79,7 @@ test("sync queue view shows empty state when no offline sales exist", async ({ p
 
 test("shared browser never exposes or sends tenant A queue after tenant B signs in", async ({ page }) => {
   await markFirstUseToursSeen(page);
+  await mockOpenShift(page);
   let activeSession: {
     authenticated: boolean;
     user: { id: string; email: string; tenant_id: string; role: string };
@@ -116,6 +124,7 @@ test("network-error sale remains recoverable and clears on retry", async ({
   page,
 }) => {
   await markFirstUseToursSeen(page);
+  await mockOpenShift(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -160,12 +169,13 @@ test("network-error sale remains recoverable and clears on retry", async ({
   // The worker may retry automatically while this view is rendering. If the
   // pending row is still present, exercise the explicit recovery action;
   // otherwise the same leased row already converged through the backoff path.
-  const syncNow = page.getByRole("button", { name: /sincronizar ahora/i });
   const pendingHeading = page.getByRole("heading", { name: /^pendientes$/i });
   await expect.poll(async () =>
-    (await syncNow.isVisible()) || !(await pendingHeading.isVisible()),
+    (await pendingHeading.isVisible()) || syncCallCount >= 2,
   ).toBe(true);
-  if (await pendingHeading.isVisible()) await syncNow.click();
+  if (await pendingHeading.isVisible()) {
+    await page.getByRole("button", { name: /sincronizar ahora/i }).click();
+  }
 
   // Either recovery path must reuse the queued sale and clear it.
   await expect.poll(() => syncCallCount).toBeGreaterThanOrEqual(2);
@@ -176,6 +186,7 @@ test("network-error sale remains recoverable and clears on retry", async ({
 
 test("server-error sale appears in dead letter and succeeds on retry", async ({ page }) => {
   await markFirstUseToursSeen(page);
+  await mockOpenShift(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -211,8 +222,8 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await page.getByRole("button", { name: /^cobrar$/i }).click();
-  // Notice shown (server returned failed result, not a network error)
-  await expect(page.getByRole("status")).toBeVisible();
+  // A definitive server rejection is announced assertively and restores the cart.
+  await expect(page.getByRole("alert")).toHaveText(/la venta fue rechazada y no se registró/i);
 
   // Navigate to sync queue — should show Failed section
   await page.goto("/sync-queue");
@@ -263,7 +274,7 @@ test("cold offline: register renders catalog from IndexedDB cache and queues a s
 
   // A sale can still be rung and lands in the offline queue.
   await page.getByRole("button", { name: "Agregar Concha" }).click();
-  await page.getByLabel(/efectivo recibido/i).fill("20.00");
+  await page.getByRole("radio", { name: /transferencia/i }).click();
   await page.getByRole("button", { name: /^cobrar$/i }).click();
   await expect(
     page.getByRole("paragraph").filter({ hasText: "Venta guardada en este dispositivo" }),
@@ -279,6 +290,7 @@ test("offline sale exposes a printable local receipt before synchronization", as
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await markFirstUseToursSeen(page);
+  await mockOpenShift(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
@@ -320,6 +332,7 @@ test("offline sale exposes a printable local receipt before synchronization", as
 
 test("duplicate sync of same client_uuid returns same order (idempotency)", async ({ page }) => {
   await markFirstUseToursSeen(page);
+  await mockOpenShift(page);
   await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ json: CASHIER_SESSION }),
   );
