@@ -1,6 +1,7 @@
 import { type Page, expect, test } from "./fixtures";
 
 const settings = {
+  configured: true,
   frequency: "monthly",
   weekly_close_day: 7,
   monthly_close_day: 31,
@@ -86,13 +87,18 @@ async function mockSettingsShell(
   );
 }
 
-async function mockFiscalReadRoutes(page: Page, batches: typeof closedBatch[] = []) {
+async function mockFiscalReadRoutes(
+  page: Page,
+  batches: typeof closedBatch[] = [],
+  initialSettings = settings,
+) {
+  const currentSettings = { ...initialSettings };
   await page.route("**/api/v1/fiscal/global-drafts/settings", async (route) => {
     if (route.request().method() === "PUT") {
       const body = JSON.parse(route.request().postData() ?? "{}");
-      Object.assign(settings, body);
+      Object.assign(currentSettings, body, { configured: true });
     }
-    await route.fulfill({ json: settings });
+    await route.fulfill({ json: currentSettings });
   });
   await page.route("**/api/v1/fiscal/global-drafts/batches", (route) =>
     route.fulfill({ json: { items: batches, total: batches.length } }),
@@ -239,3 +245,114 @@ test("accountant CSV failure is recoverable and does not show a false success", 
   await expect(page.getByText(/No pudimos descargar el CSV\./i)).toBeVisible();
   await expect(page.getByText(/Descarga iniciada:/i)).toHaveCount(0);
 });
+
+test("owner persists defaults before the incident date flow can preview", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-08-16T18:00:00Z"));
+  await mockSettingsShell(page);
+  await mockFiscalReadRoutes(page, [], { ...settings, configured: false });
+  let previewUrl = "";
+  await page.route("**/api/v1/fiscal/global-drafts/preview**", (route) => {
+    previewUrl = route.request().url();
+    return route.fulfill({
+      json: { ...preview, period_start: "2026-07-01", period_end: "2026-07-31" },
+    });
+  });
+
+  await page.goto("/settings/fiscal");
+  await expect(page.getByText("Guarda la preparación para continuar")).toBeVisible();
+  await expect(page.getByLabel("Fecha de cierre")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Preparar vista previa" })).toBeDisabled();
+  expect(previewUrl).toBe("");
+
+  await page.getByRole("button", { name: "Guardar preparación" }).click();
+  await expect(page.getByLabel("Fecha de cierre")).toBeEnabled();
+  await expect(page.getByLabel("Fecha de cierre")).toHaveValue("2026-07-31");
+  await page.getByRole("button", { name: "Preparar vista previa" }).click();
+
+  await expect(page.getByText("Vista previa lista")).toBeVisible();
+  expect(new URL(previewUrl).searchParams.get("period_end")).toBe("2026-07-31");
+});
+
+test("monthly day 31 rejects July 16 inline without a request", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-08-16T18:00:00Z"));
+  await mockSettingsShell(page);
+  await mockFiscalReadRoutes(page);
+  let previewRequests = 0;
+  await page.route("**/api/v1/fiscal/global-drafts/preview**", (route) => {
+    previewRequests += 1;
+    return route.fulfill({ json: preview });
+  });
+
+  await page.goto("/settings/fiscal");
+  await page.getByLabel("Fecha de cierre").fill("2026-07-16");
+
+  await expect(page.getByRole("alert").filter({ hasText: "la fecha de cierre" })).toContainText(
+    "31 jul 2026",
+  );
+  await expect(page.getByRole("button", { name: "Preparar vista previa" })).toBeDisabled();
+  expect(previewRequests).toBe(0);
+});
+
+test("dirty settings clear a prepared preview and block another request", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-08-16T18:00:00Z"));
+  await mockSettingsShell(page);
+  await mockFiscalReadRoutes(page);
+  let previewRequests = 0;
+  await page.route("**/api/v1/fiscal/global-drafts/preview**", (route) => {
+    previewRequests += 1;
+    return route.fulfill({
+      json: { ...preview, period_start: "2026-07-01", period_end: "2026-07-31" },
+    });
+  });
+
+  await page.goto("/settings/fiscal");
+  await page.getByRole("button", { name: "Preparar vista previa" }).click();
+  await expect(page.getByText("Vista previa lista")).toBeVisible();
+  expect(previewRequests).toBe(1);
+
+  await page.getByLabel("Día de cierre mensual").fill("15");
+
+  await expect(page.getByText("Vista previa lista")).toHaveCount(0);
+  await expect(page.getByText("Hay cambios sin guardar")).toBeVisible();
+  await expect(page.getByLabel("Fecha de cierre")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Preparar vista previa" })).toBeDisabled();
+  expect(previewRequests).toBe(1);
+});
+
+test("manager sees who must configure synthetic defaults", async ({ page }) => {
+  await mockSettingsShell(page, { role: "manager" });
+  await mockFiscalReadRoutes(page, [], { ...settings, configured: false });
+
+  await page.goto("/settings/fiscal");
+
+  await expect(page.getByText("El propietario aún no guarda esta preparación")).toBeVisible();
+  await expect(page.getByLabel("Fecha de cierre")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Guardar preparación" })).toHaveCount(0);
+});
+
+for (const locale of ["es-MX", "en-US"] as const) {
+  test.describe(`Mexico date input with ${locale} locale`, () => {
+    test.use({ locale, timezoneId: "America/Mexico_City" });
+
+    test("keeps the ISO query independent from the native date display", async ({ page }) => {
+      await page.clock.setFixedTime(new Date("2026-08-16T18:00:00Z"));
+      await mockSettingsShell(page);
+      await mockFiscalReadRoutes(page);
+      let previewUrl = "";
+      await page.route("**/api/v1/fiscal/global-drafts/preview**", (route) => {
+        previewUrl = route.request().url();
+        return route.fulfill({
+          json: { ...preview, period_start: "2026-07-01", period_end: "2026-07-31" },
+        });
+      });
+
+      await page.goto("/settings/fiscal");
+      expect(await page.evaluate(() => navigator.language)).toBe(locale);
+      await expect(page.getByLabel("Fecha de cierre")).toHaveValue("2026-07-31");
+      await page.getByRole("button", { name: "Preparar vista previa" }).click();
+
+      await expect(page.getByText("Vista previa lista")).toBeVisible();
+      expect(new URL(previewUrl).searchParams.get("period_end")).toBe("2026-07-31");
+    });
+  });
+}

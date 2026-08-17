@@ -8,6 +8,7 @@ import { FiscalGlobalDraftsPanel } from "./FiscalGlobalDraftsPanel";
 import {
   closeFiscalDraft,
   downloadFiscalDraftAccountantReport,
+  FiscalDraftApiError,
   getFiscalDraftSettings,
   listFiscalDraftBatches,
   previewFiscalDraft,
@@ -20,16 +21,21 @@ vi.mock("@/offline/useSyncQueue", () => ({
   useIsOnline: () => onlineState.value,
 }));
 
-vi.mock("./api", () => ({
-  closeFiscalDraft: vi.fn(),
-  downloadFiscalDraftAccountantReport: vi.fn(),
-  getFiscalDraftSettings: vi.fn(),
-  listFiscalDraftBatches: vi.fn(),
-  previewFiscalDraft: vi.fn(),
-  saveFiscalDraftSettings: vi.fn(),
-}));
+vi.mock("./api", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./api")>();
+  return {
+    ...original,
+    closeFiscalDraft: vi.fn(),
+    downloadFiscalDraftAccountantReport: vi.fn(),
+    getFiscalDraftSettings: vi.fn(),
+    listFiscalDraftBatches: vi.fn(),
+    previewFiscalDraft: vi.fn(),
+    saveFiscalDraftSettings: vi.fn(),
+  };
+});
 
 const settings = {
+  configured: true,
   frequency: "monthly" as const,
   weekly_close_day: 7,
   monthly_close_day: 31,
@@ -37,6 +43,8 @@ const settings = {
   timezone: "America/Mexico_City" as const,
   scheduler_status: "active" as const,
 };
+
+const unconfiguredSettings = { ...settings, configured: false };
 
 const preview = {
   frequency: "monthly" as const,
@@ -148,6 +156,102 @@ describe("FiscalGlobalDraftsPanel", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(copy.settings.fiscalLoadError);
     expect(screen.getByRole("button", { name: copy.dashboard.retry })).toBeVisible();
+  });
+
+  it("requires an owner to persist synthetic defaults before previewing", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-08-16T18:00:00Z"));
+    vi.mocked(getFiscalDraftSettings).mockResolvedValueOnce(unconfiguredSettings);
+    vi.mocked(saveFiscalDraftSettings).mockResolvedValueOnce(settings);
+    try {
+      renderPanel();
+
+      expect(await screen.findByText(copy.settings.fiscalSetupRequiredOwnerTitle)).toBeVisible();
+      expect(screen.getByLabelText(copy.settings.fiscalPeriodEnd)).toBeDisabled();
+      expect(screen.getByRole("button", { name: copy.settings.fiscalPreparePreview })).toBeDisabled();
+      expect(screen.getByRole("button", { name: copy.settings.fiscalSaveSettings })).toBeEnabled();
+
+      fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalSaveSettings }));
+      await waitFor(() => expect(saveFiscalDraftSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ frequency: "monthly", monthly_close_day: 31 }),
+      ));
+
+      const periodInput = screen.getByLabelText(copy.settings.fiscalPeriodEnd);
+      await waitFor(() => expect(periodInput).toBeEnabled());
+      expect(periodInput).toHaveValue("2026-07-31");
+      fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalPreparePreview }));
+      await waitFor(() => expect(previewFiscalDraft).toHaveBeenCalledWith("2026-07-31"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("explains an unconfigured read-only state to managers", async () => {
+    vi.mocked(getFiscalDraftSettings).mockResolvedValueOnce(unconfiguredSettings);
+    renderPanel("manager");
+
+    expect(await screen.findByText(copy.settings.fiscalSetupRequiredManagerTitle)).toBeVisible();
+    expect(screen.getByLabelText(copy.settings.fiscalPeriodEnd)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: copy.settings.fiscalSaveSettings })).not.toBeInTheDocument();
+    expect(previewFiscalDraft).not.toHaveBeenCalled();
+  });
+
+  it("blocks the incident date inline without making a preview request", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-08-16T18:00:00Z"));
+    try {
+      renderPanel();
+      const periodInput = await screen.findByLabelText(copy.settings.fiscalPeriodEnd);
+      expect(periodInput).toHaveValue("2026-07-31");
+
+      fireEvent.change(periodInput, { target: { value: "2026-07-16" } });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(/fecha de cierre es.*31 jul 2026/i);
+      expect(screen.getByRole("button", { name: copy.settings.fiscalPreparePreview })).toBeDisabled();
+      expect(previewFiscalDraft).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("invalidates a prepared preview when settings become dirty", async () => {
+    renderPanel();
+    const periodInput = await screen.findByLabelText(copy.settings.fiscalPeriodEnd);
+    fireEvent.change(periodInput, { target: { value: "2024-02-29" } });
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalPreparePreview }));
+    expect(await screen.findByText(copy.settings.fiscalPreviewReady)).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText(copy.settings.fiscalMonthlyCloseDay), {
+      target: { value: "15" },
+    });
+
+    expect(screen.queryByText(copy.settings.fiscalPreviewReady)).not.toBeInTheDocument();
+    expect(screen.getByText(copy.settings.fiscalUnsavedSettingsTitle)).toBeVisible();
+    expect(periodInput).toBeDisabled();
+    expect(screen.getByRole("button", { name: copy.settings.fiscalPreparePreview })).toBeDisabled();
+  });
+
+  it("maps structured preview rejections inline and reserves toast for server failures", async () => {
+    vi.mocked(previewFiscalDraft)
+      .mockRejectedValueOnce(
+        new FiscalDraftApiError(
+          "mismatch",
+          400,
+          "FISCAL_PERIOD_END_MISMATCH",
+        ),
+      )
+      .mockRejectedValueOnce(new FiscalDraftApiError("server", 500));
+    renderPanel();
+    const periodInput = await screen.findByLabelText(copy.settings.fiscalPeriodEnd);
+    fireEvent.change(periodInput, { target: { value: "2024-02-29" } });
+
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalPreparePreview }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      copy.settings.fiscalPreviewServerMismatch,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalPreparePreview }));
+    expect(await screen.findByText(copy.settings.fiscalPreviewError)).toBeVisible();
   });
 
   it("shows the frozen accountant report and lets an owner download or print it", async () => {

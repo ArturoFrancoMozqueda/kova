@@ -120,6 +120,29 @@ Feature: Borradores internos por periodo
     Then el cierre usa el último día real de febrero
     And no incluye una venta del primer día de marzo
 
+  @p0 @fiscal @configuration
+  Scenario: Los valores iniciales no simulan una preparación guardada
+    Given un tenant sin preparación fiscal persistida
+    When owner y manager abren Borradores por periodo
+    Then la API indica que la preparación no está configurada sin crear una fila
+    And el owner debe guardar la propuesta inicial antes de previsualizar
+    And el manager ve que sólo el propietario puede confirmarla
+
+  @p0 @fiscal @configuration @client-trust
+  Scenario: Cambiar la preparación invalida una vista previa anterior
+    Given una vista previa preparada con configuración persistida
+    When el owner cambia la periodicidad o el día de cierre sin guardar
+    Then la vista previa anterior desaparece
+    And previsualizar y cerrar quedan bloqueados hasta guardar
+
+  @p0 @fiscal @calendar @regression
+  Scenario: La fecha visible nunca cambia el contrato ISO
+    Given preparación mensual guardada para el día 31 y hoy es 16 de agosto de 2026
+    When el navegador usa es-MX o en-US
+    Then Kova propone el último cierre concluido 2026-07-31
+    And solicita la vista previa con period_end igual a 2026-07-31
+    And rechaza 2026-07-16 en línea sin solicitar una vista previa
+
   @p1 @fiscal @calendar
   Scenario Outline: Día semanal sigue numeración ISO
     Given preparación semanal configurada con el valor <numero>

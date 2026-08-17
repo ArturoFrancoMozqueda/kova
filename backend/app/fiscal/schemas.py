@@ -18,6 +18,7 @@ class FiscalGlobalDraftSettingsUpsert(BaseModel):
 class FiscalGlobalDraftSettingsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    configured: bool
     frequency: Frequency
     weekly_close_day: int
     monthly_close_day: int
