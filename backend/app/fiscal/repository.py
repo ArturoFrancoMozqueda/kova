@@ -308,6 +308,26 @@ def count_batches(db: Session, *, tenant_id: UUID) -> int:
     )
 
 
+def accountant_report_rows(
+    db: Session, *, tenant_id: UUID, batch_id: UUID
+) -> list[tuple[FiscalGlobalDraftOrder, OrderFiscalSnapshot]]:
+    """Return only immutable batch assignments and sale snapshots."""
+    return (
+        db.query(FiscalGlobalDraftOrder, OrderFiscalSnapshot)
+        .join(
+            OrderFiscalSnapshot,
+            (OrderFiscalSnapshot.tenant_id == FiscalGlobalDraftOrder.tenant_id)
+            & (OrderFiscalSnapshot.order_id == FiscalGlobalDraftOrder.order_id),
+        )
+        .filter(
+            FiscalGlobalDraftOrder.tenant_id == tenant_id,
+            FiscalGlobalDraftOrder.batch_id == batch_id,
+        )
+        .order_by(FiscalGlobalDraftOrder.order_id)
+        .all()
+    )
+
+
 def auto_close_candidates(db: Session, *, limit: int) -> list[FiscalGlobalDraftSettings]:
     from app.tenants.models import Tenant
 
@@ -317,7 +337,9 @@ def auto_close_candidates(db: Session, *, limit: int) -> list[FiscalGlobalDraftS
         .filter(
             FiscalGlobalDraftSettings.auto_close_enabled.is_(True),
             Tenant.is_active.is_(True),
-            Tenant.feature_overrides["fiscal_global_drafts"].as_boolean().is_(True),
+            # Default-on: absent/malformed values remain enabled. Only the
+            # exact JSON boolean false is a tenant-level opt-out.
+            ~Tenant.feature_overrides.contains({"fiscal_global_drafts": False}),
         )
         .order_by(
             func.coalesce(

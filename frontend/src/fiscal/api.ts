@@ -107,3 +107,46 @@ export function listFiscalDraftBatches(): Promise<FiscalDraftBatchList> {
 export function getFiscalDraftBatch(batchId: string): Promise<FiscalDraftBatch> {
   return requestJson<FiscalDraftBatch>(`${BASE_URL}/batches/${batchId}`);
 }
+
+const ACCOUNTANT_REPORT_FALLBACK_FILENAME = "reporte-control-interno-kova.csv";
+
+function safeCsvBasename(candidate: string | undefined): string {
+  const withoutLineBreaks = candidate?.replace(/[\r\n]/g, "");
+  const basename = withoutLineBreaks?.split(/[\\/]/).at(-1)?.trim();
+  return basename?.toLowerCase().endsWith(".csv")
+    ? basename
+    : ACCOUNTANT_REPORT_FALLBACK_FILENAME;
+}
+
+function filenameFromContentDisposition(disposition: string): string {
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) {
+    try {
+      return safeCsvBasename(decodeURIComponent(encoded.replace(/^"|"$/g, "")));
+    } catch {
+      // Fall through to the quoted filename or the safe product fallback.
+    }
+  }
+  return safeCsvBasename(disposition.match(/filename="([^"]+)"/i)?.[1]);
+}
+
+export async function downloadFiscalDraftAccountantReport(batchId: string): Promise<string> {
+  const response = await fetch(
+    `${BASE_URL}/batches/${encodeURIComponent(batchId)}/accountant-report.csv`,
+  );
+  if (!response.ok) {
+    throw new FiscalDraftApiError(await response.text(), response.status);
+  }
+
+  const blob = await response.blob();
+  const filename = filenameFromContentDisposition(
+    response.headers.get("Content-Disposition") ?? "",
+  );
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return filename;
+}

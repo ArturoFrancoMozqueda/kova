@@ -225,7 +225,7 @@ def test_me_returns_user_and_tenant(client):
     assert body["feature_flags"] == {
         "margin_reports": False,
         "customer_orders": True,
-        "fiscal_global_drafts": False,
+        "fiscal_global_drafts": True,
     }
 
 
@@ -256,7 +256,7 @@ def test_session_probe_returns_user_and_tenant_when_authenticated(client):
     assert body["feature_flags"] == {
         "margin_reports": False,
         "customer_orders": True,
-        "fiscal_global_drafts": False,
+        "fiscal_global_drafts": True,
     }
     assert body["tenant_name"] == "Acme Bakery"
 

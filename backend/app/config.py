@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     billing_trial_days: int = 7
     billing_grace_period_days: int = 7
     internal_api_key: str | None = None
+    # Emergency server-side stop for every fiscal global-draft surface. This
+    # wins over the globally-enabled default and tenant overrides.
+    fiscal_global_drafts_kill_switch: bool = False
     account_deletion_grace_days: int = 30
     resend_api_key: str | None = None
     # Rate limiting — when both are set, the limiter uses Upstash Redis; otherwise

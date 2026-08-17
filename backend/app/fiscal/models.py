@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Index,
     Integer,
     Numeric,
     String,
@@ -225,6 +226,11 @@ class FiscalGlobalDraftOrder(Base):
         ),
         UniqueConstraint(
             "tenant_id", "order_id", name="uq_fiscal_global_draft_orders_tenant_order"
+        ),
+        Index(
+            "ix_fiscal_global_draft_orders_tenant_batch",
+            "tenant_id",
+            "batch_id",
         ),
     )
 

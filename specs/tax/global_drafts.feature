@@ -82,7 +82,8 @@ Feature: Borradores internos por periodo
     When el owner consulta su detalle
     Then la vista lo identifica como borrador interno
     And aclara que las ventas conservan recibos operativos
-    And no afirma emisión fiscal ni ofrece archivos fiscales
+    And muestra el estado humano Borrador interno · No es CFDI
+    And sólo ofrece un CSV de control interno y la impresión del navegador
 
   @p0 @fiscal @scheduler @idempotency
   Scenario: El scheduler recupera un periodo omitido una sola vez
@@ -148,3 +149,60 @@ Feature: Borradores internos por periodo
     When el cliente agrega un estado individual al payload de venta
     Then el servidor no confirma ese estado
     And la venta conserva el contrato compatible de sincronización
+
+  @p0 @fiscal @accountant-export @tenant-isolation
+  Scenario: Otro tenant no puede descargar el reporte para contador
+    Given un borrador interno cerrado por el tenant A
+    When el owner del tenant B solicita su reporte CSV por id
+    Then recibe 404
+    And no recibe filas, importes ni metadatos del tenant A
+
+  @p0 @fiscal @accountant-export @rbac
+  Scenario Outline: Sólo roles de consulta fiscal descargan el reporte
+    Given un borrador interno cerrado y el rol <rol>
+    When solicita el reporte CSV para contador
+    Then el resultado es <resultado>
+
+    Examples:
+      | rol     | resultado |
+      | owner   | permitido |
+      | manager | permitido |
+      | cashier | 403       |
+      | staff   | 403       |
+
+  @p0 @fiscal @accountant-export @csv-security
+  Scenario: Valores con fórmulas se neutralizan en CSV
+    Given un nombre de negocio que inicia con igual, más, menos o arroba
+    When el owner descarga el reporte CSV
+    Then cada valor riesgoso se exporta como texto literal neutralizado
+    And ninguna celda ejecuta una fórmula al abrirse en una hoja de cálculo
+
+  @p0 @fiscal @accountant-export @privacy
+  Scenario: El reporte usa datos mínimos de control interno
+    Given un borrador con ventas que contienen datos de cliente
+    When un manager descarga el reporte CSV
+    Then el archivo no incluye nombre, correo, teléfono, domicilio ni dato fiscal del cliente
+    And sólo contiene identificadores operativos, periodos e importes congelados necesarios
+
+  @p1 @fiscal @accountant-export @format
+  Scenario: El CSV conserva formato interoperable y no se almacena en caché
+    Given un borrador con acentos, comas, comillas y saltos de línea
+    When el owner descarga el reporte CSV
+    Then la respuesta es UTF-8 con encabezados estables y escape RFC 4180
+    And Content-Disposition propone un nombre seguro terminado en csv
+    And Cache-Control es no-store
+
+  @p1 @fiscal @accountant-export @empty
+  Scenario: Un reporte sin filas elegibles conserva su encabezado
+    Given un borrador histórico válido sin ventas exportables
+    When el owner descarga el reporte CSV
+    Then el archivo contiene encabezados y cero filas de venta
+    And no inventa clientes, impuestos ni importes
+
+  @p0 @fiscal @accountant-export @copy
+  Scenario: El reporte para contador no se presenta como comprobante fiscal
+    Given un borrador interno cerrado sin integración fiscal externa
+    When owner o manager abre el reporte compacto
+    Then ve reporte de control interno, recibo operativo y no emitido
+    And ve Borrador interno · No es CFDI y que Kova no calcula impuestos hoy
+    And la opción PDF sólo invoca la impresión del navegador sin persistir un archivo

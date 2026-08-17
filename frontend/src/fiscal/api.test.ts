@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { closeFiscalDraft, previewFiscalDraft, saveFiscalDraftSettings } from "./api";
+import {
+  closeFiscalDraft,
+  downloadFiscalDraftAccountantReport,
+  previewFiscalDraft,
+  saveFiscalDraftSettings,
+} from "./api";
 
 describe("fiscal draft api", () => {
   beforeEach(() => {
@@ -57,5 +62,67 @@ describe("fiscal draft api", () => {
       "/api/v1/fiscal/global-drafts/settings",
       expect.objectContaining({ method: "PUT" }),
     );
+  });
+
+  it("downloads the accountant CSV using the server filename", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("estado_fiscal,aviso,periodo\nNO_EMITIDO,NO_ES_CFDI,2026-07", {
+        status: 200,
+        headers: {
+          "Content-Disposition": "attachment; filename*=UTF-8''reporte-control-interno-julio.csv",
+          "Content-Type": "text/csv; charset=utf-8",
+        },
+      }),
+    );
+    const createObjectUrl = vi.fn(() => "blob:kova-accountant-report");
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectUrl });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectUrl });
+    let downloadedFilename = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function click(
+      this: HTMLAnchorElement,
+    ) {
+      downloadedFilename = this.download;
+    });
+
+    const filename = await downloadFiscalDraftAccountantReport("batch/seguro");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/fiscal/global-drafts/batches/batch%2Fseguro/accountant-report.csv",
+    );
+    expect(filename).toBe("reporte-control-interno-julio.csv");
+    expect(downloadedFilename).toBe(filename);
+    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:kova-accountant-report");
+  });
+
+  it("falls back to a safe basename for a hostile Content-Disposition filename", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["estado_fiscal\nNO_EMITIDO\n"]),
+      headers: {
+        get: () => 'attachment; filename="../..\\reporte.exe\r\n"',
+      },
+    } as unknown as Response);
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:kova-hostile-filename"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    let downloadedFilename = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function click(
+      this: HTMLAnchorElement,
+    ) {
+      downloadedFilename = this.download;
+    });
+
+    const filename = await downloadFiscalDraftAccountantReport("batch-1");
+
+    expect(filename).toBe("reporte-control-interno-kova.csv");
+    expect(downloadedFilename).toBe("reporte-control-interno-kova.csv");
+    expect(downloadedFilename).not.toMatch(/[\\/\r\n]/);
   });
 });

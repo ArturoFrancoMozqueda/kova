@@ -573,7 +573,7 @@ export default function SettingsView() {
       )}
 
       {visibleActiveTab === "fiscal" && canViewFiscal && (
-        <FiscalGlobalDraftsPanel role={userRole} />
+        <FiscalGlobalDraftsPanel role={userRole} tenantName={tenantName} />
       )}
 
       {visibleActiveTab === "advanced" && (

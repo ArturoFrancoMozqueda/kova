@@ -520,6 +520,11 @@
 }
 
 @media print {
+  @page accountant-report {
+    margin: 12mm;
+    size: A4 portrait;
+  }
+
   @page receipt-80 {
     margin: 6mm;
     size: 80mm auto;
@@ -541,8 +546,21 @@
   .print-receipt-root,
   .print-receipt-root *,
   .print-corte-root,
-  .print-corte-root * {
+  .print-corte-root *,
+  .print-accountant-report-root,
+  .print-accountant-report-root * {
     visibility: visible;
+  }
+
+  .print-accountant-report-root {
+    page: accountant-report;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   .print-receipt-root,

@@ -1,3 +1,5 @@
+import csv
+import io
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -16,7 +18,7 @@ from app.fiscal.models import (
     OrderFiscalSnapshot,
     OrderItemFiscalSnapshot,
 )
-from app.fiscal.service import FISCAL_TIMEZONE, resolve_period
+from app.fiscal.service import FISCAL_TIMEZONE, _csv_safe, resolve_period
 from app.idempotency.models import IdempotencyKey
 from app.orders import service as order_service
 from app.orders.models import InventoryMovement, Order, Payment
@@ -128,8 +130,16 @@ def test_period_contract_uses_iso_weekdays_and_month_end_normalization() -> None
         )
 
 
-def test_feature_flag_defaults_closed(client, db: Session) -> None:
-    _signup_login(client, prefix="gate")
+def test_feature_flag_defaults_available_and_explicit_opt_out_closes_gate(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="gate")
+    response = client.get("/api/v1/fiscal/global-drafts/settings")
+    assert response.status_code == 200
+
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).one()
+    tenant.feature_overrides = {"fiscal_global_drafts": False}
+    db.commit()
     response = client.get("/api/v1/fiscal/global-drafts/settings")
     assert response.status_code == 403
     assert "borradores internos por periodo" in response.json()["detail"]
@@ -398,7 +408,6 @@ def test_auto_close_empty_period_advances_cursor_without_duplicate_batch(
     client, db: Session, monkeypatch
 ) -> None:
     tenant_id = _signup_login(client, prefix="auto-empty")
-    _enable(db, tenant_id)
     response = client.put(
         "/api/v1/fiscal/global-drafts/settings",
         json={
@@ -431,6 +440,42 @@ def test_auto_close_empty_period_advances_cursor_without_duplicate_batch(
         .count()
         == 0
     )
+
+
+def test_auto_close_excludes_explicit_tenant_opt_out(client, db: Session, monkeypatch) -> None:
+    tenant_id = _signup_login(client, prefix="auto-opt-out")
+    response = client.put(
+        "/api/v1/fiscal/global-drafts/settings",
+        json={
+            "frequency": "daily",
+            "weekly_close_day": 7,
+            "monthly_close_day": 31,
+            "auto_close_enabled": True,
+        },
+    )
+    assert response.status_code == 200
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).one()
+    tenant.feature_overrides = {"fiscal_global_drafts": False}
+    db.commit()
+
+    monkeypatch.setattr("app.config.settings.internal_api_key", "opt-out-secret")
+    result = client.post(
+        "/api/v1/fiscal/internal/global-drafts/auto-close",
+        headers={"X-Internal-Key": "opt-out-secret"},
+        json={},
+    )
+    assert result.status_code == 200
+    assert result.json()["tenants_examined"] == 0
+
+    tenant.feature_overrides = {"fiscal_global_drafts": "false"}
+    db.commit()
+    malformed = client.post(
+        "/api/v1/fiscal/internal/global-drafts/auto-close",
+        headers={"X-Internal-Key": "opt-out-secret"},
+        json={},
+    )
+    assert malformed.status_code == 200
+    assert malformed.json()["tenants_examined"] == 1
 
 
 def test_snapshot_failure_rolls_back_entire_sale(client, db: Session, monkeypatch) -> None:
@@ -480,3 +525,178 @@ def test_snapshot_failure_rolls_back_entire_sale(client, db: Session, monkeypatc
         "keys": db.query(IdempotencyKey).filter(IdempotencyKey.tenant_id == tenant_id).count(),
     }
     assert after == before
+
+
+def test_accountant_csv_is_frozen_safe_and_viewable_by_owner_manager_only(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="accountant-export")
+    _daily_settings(client)
+    product = _product(client)
+    sale = _sale(client, product["id"])
+    yesterday = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=1)
+    _set_sale_day(db, sale["id"], yesterday)
+    closed = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "accountant-export-close"},
+        json={"period_end": yesterday.isoformat()},
+    )
+    assert closed.status_code == 201, closed.text
+    batch = closed.json()
+
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).one()
+    tenant.name = ' \t=HYPERLINK("https://invalid.example")'
+    db.commit()
+
+    url = f"/api/v1/fiscal/global-drafts/batches/{batch['id']}/accountant-report.csv"
+    owner = client.get(url)
+    assert owner.status_code == 200, owner.text
+    assert owner.content.startswith(b"\xef\xbb\xbf")
+    assert owner.headers["content-type"].startswith("text/csv")
+    assert owner.headers["cache-control"] == "no-store"
+    assert owner.headers["x-content-type-options"] == "nosniff"
+    assert owner.headers["content-disposition"] == (
+        f'attachment; filename="kova-reporte-contador-{yesterday.isoformat()}_'
+        f'{yesterday.isoformat()}.csv"'
+    )
+
+    rows = list(csv.DictReader(io.StringIO(owner.content.decode("utf-8-sig"))))
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["folio_venta"] == UUID(sale["id"]).hex[-8:].upper()
+    assert row["id_venta"] == sale["id"]
+    assert row["nombre_negocio"].startswith("' \t=HYPERLINK")
+    assert row["id_negocio"] == str(tenant_id)
+    assert row["zona_horaria"] == "America/Mexico_City"
+    assert row["periodo_inicio"] == yesterday.isoformat()
+    assert row["periodo_fin"] == yesterday.isoformat()
+    assert row["cerrado_en"]
+    assert row["importe_bruto"] == batch["gross_amount"]
+    assert row["descuentos"] == batch["discount_total_amount"]
+    assert row["impuestos"] == batch["tax_total_amount"]
+    assert row["total"] == batch["total_amount"]
+    assert row["reembolsos"] == batch["refund_total_amount"]
+    assert row["neto"] == batch["net_total_amount"]
+    assert row["moneda"] == "MXN"
+    assert row["version_motor_precios"] == "baseline-v1"
+    assert row["tipo_documento"] == "BORRADOR_INTERNO"
+    assert row["origen_documento"] == "RECIBO_OPERATIVO"
+    assert row["estado_fiscal"] == "NO_EMITIDO"
+    assert row["estado_impuestos"] == "BASELINE_IMPUESTOS_NO_CALCULADOS"
+    assert row["aviso"] == "NO_ES_CFDI"
+    assert "no es CFDI" in row["nota"]
+    assert "está" in row["nota"]
+    assert "@example.com" not in owner.content.decode("utf-8-sig")
+    for column, batch_key in (
+        ("importe_bruto", "gross_amount"),
+        ("descuentos", "discount_total_amount"),
+        ("impuestos", "tax_total_amount"),
+        ("total", "total_amount"),
+        ("reembolsos", "refund_total_amount"),
+        ("neto", "net_total_amount"),
+    ):
+        assert sum((Decimal(item[column]) for item in rows), Decimal("0.00")) == Decimal(
+            batch[batch_key]
+        )
+    assert _csv_safe('=HYPERLINK("https://invalid.example")').startswith("'=")
+    assert _csv_safe('\r\n=HYPERLINK("https://invalid.example")').startswith("'\r\n=")
+
+    membership = db.query(Membership).filter(Membership.tenant_id == tenant_id).one()
+    membership.role = "manager"
+    db.commit()
+    assert client.get(url).status_code == 200
+    membership.role = "cashier"
+    db.commit()
+    assert client.get(url).status_code == 403
+    membership.role = "staff"
+    db.commit()
+    assert client.get(url).status_code == 403
+    membership.role = "owner"
+    db.commit()
+
+    other_client = TestClient(client.app)
+    _signup_login(other_client, prefix="accountant-export-other")
+    assert other_client.get(url).status_code == 404
+
+
+def test_accountant_csv_allows_empty_closed_batch_and_rejects_open_batch(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="accountant-empty")
+    yesterday = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=1)
+    empty = FiscalGlobalDraftBatch(
+        tenant_id=tenant_id,
+        frequency="daily",
+        period_start=yesterday,
+        period_end=yesterday,
+        timezone="America/Mexico_City",
+        status="closed",
+        document_kind="operational_draft",
+        fiscal_status="not_issued",
+        gross_amount=Decimal("0.00"),
+        discount_total_amount=Decimal("0.00"),
+        tax_total_amount=Decimal("0.00"),
+        total_amount=Decimal("0.00"),
+        refund_total_amount=Decimal("0.00"),
+        net_total_amount=Decimal("0.00"),
+        order_count=0,
+        excluded_individually_confirmed_count=0,
+    )
+    draft = FiscalGlobalDraftBatch(
+        tenant_id=tenant_id,
+        frequency="daily",
+        period_start=yesterday - timedelta(days=1),
+        period_end=yesterday - timedelta(days=1),
+        timezone="America/Mexico_City",
+        status="draft",
+        document_kind="operational_draft",
+        fiscal_status="not_issued",
+        gross_amount=Decimal("0.00"),
+        discount_total_amount=Decimal("0.00"),
+        tax_total_amount=Decimal("0.00"),
+        total_amount=Decimal("0.00"),
+        refund_total_amount=Decimal("0.00"),
+        net_total_amount=Decimal("0.00"),
+        order_count=0,
+        excluded_individually_confirmed_count=0,
+    )
+    db.add_all([empty, draft])
+    db.commit()
+
+    prefix = "/api/v1/fiscal/global-drafts/batches"
+    response = client.get(f"{prefix}/{empty.id}/accountant-report.csv")
+    assert response.status_code == 200
+    assert len(response.content.decode("utf-8-sig").splitlines()) == 1
+    assert client.get(f"{prefix}/{draft.id}/accountant-report.csv").status_code == 409
+
+
+def test_fiscal_kill_switch_hides_session_flag_and_blocks_routes_and_scheduler(
+    client, db: Session, monkeypatch
+) -> None:
+    tenant_id = _signup_login(client, prefix="kill-switch")
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).one()
+    tenant.feature_overrides = {"fiscal_global_drafts": True}
+    db.commit()
+
+    monkeypatch.setattr("app.config.settings.fiscal_global_drafts_kill_switch", True)
+    session = client.get("/api/v1/auth/session")
+    assert session.status_code == 200
+    assert session.json()["feature_flags"]["fiscal_global_drafts"] is False
+    assert client.get("/api/v1/fiscal/global-drafts/settings").status_code == 403
+
+    monkeypatch.setattr("app.config.settings.internal_api_key", "kill-switch-key")
+    response = client.post(
+        "/api/v1/fiscal/internal/global-drafts/auto-close",
+        headers={"X-Internal-Key": "kill-switch-key"},
+        json={},
+    )
+    assert response.status_code == 403
+
+
+def test_accountant_csv_requires_active_billing_access(client, monkeypatch) -> None:
+    _signup_login(client, prefix="accountant-billing")
+    monkeypatch.setattr("app.config.settings.billing_trial_days", -1)
+
+    response = client.get(f"/api/v1/fiscal/global-drafts/batches/{uuid4()}/accountant-report.csv")
+    assert response.status_code == 402
+    assert response.json()["detail"]["reason"] == "trial_expired"
