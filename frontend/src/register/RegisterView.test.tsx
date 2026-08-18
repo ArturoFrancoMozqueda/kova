@@ -24,6 +24,7 @@ const telemetry = vi.hoisted(() => ({
   trackFunnelEventOnce: vi.fn(),
   trackSaleValidationBlocked: vi.fn(),
 }));
+const inventoryApi = vi.hoisted(() => ({ listStock: vi.fn() }));
 
 vi.mock("@/shifts/api", () => ({ getOpenShift: () => getOpenShift() }));
 vi.mock("../offline/queue", () => ({
@@ -36,7 +37,7 @@ vi.mock("../offline/sync", () => ({
 vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn(), stopOfflineSync: vi.fn() }));
 vi.mock("../orders/api", () => ({ getReceipt: (...args: unknown[]) => getReceipt(...args) }));
 vi.mock("@/telemetry/funnel", () => telemetry);
-vi.mock("../inventory/api", () => ({ listStock: () => Promise.resolve([]) }));
+vi.mock("../inventory/api", () => ({ listStock: (...args: unknown[]) => inventoryApi.listStock(...args) }));
 vi.mock("../offline/catalogCache", () => ({
   readCatalogCache: (...args: unknown[]) => catalogCache.readCatalogCache(...args),
   saveCatalogCache: (...args: unknown[]) => catalogCache.saveCatalogCache(...args),
@@ -114,6 +115,7 @@ describe("RegisterView cash-without-shift guard", () => {
     catalogApi.listCategories.mockResolvedValue([]);
     catalogCache.readCatalogCache.mockResolvedValue(undefined);
     catalogCache.saveCatalogCache.mockResolvedValue(undefined);
+    inventoryApi.listStock.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -177,15 +179,15 @@ describe("RegisterView cash-without-shift guard", () => {
     );
   });
 
-  it("does not block cash when shift state is unknown (fail open)", async () => {
+  it("blocks cash when shift state is unknown so the sale cannot miss drawer reconciliation", async () => {
     getOpenShift.mockRejectedValue(new Error("offline"));
     renderRegister();
 
     await addProductToCart();
     const cashRadio = screen.getByRole("radio", { name: cashLabel });
-    // No banner, no disable: unknown state must keep the register usable offline.
-    expect(screen.queryByText(copy.register.noShiftWarning)).not.toBeInTheDocument();
-    expect(cashRadio).not.toHaveAttribute("aria-disabled", "true");
+    expect((await screen.findAllByText(copy.register.cashShiftUnknown)).length).toBeGreaterThan(0);
+    expect(cashRadio).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("radio", { name: copy.register.bankTransfer })).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("shows neutral cash guidance before interaction and keeps the financial guard", async () => {
@@ -384,6 +386,68 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(cart).toHaveTextContent("2");
   });
 
+  it("does not exceed known stock through SKU scans or the quantity control", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    inventoryApi.listStock.mockResolvedValue([{
+      product_id: product.id,
+      product_name: product.name,
+      sku: product.sku,
+      track_inventory: true,
+      stock_on_hand: 1,
+      reserved_quantity: 0,
+      available_quantity: 1,
+      low_stock_threshold: 0,
+      is_low_stock: false,
+    }]);
+    renderRegister();
+
+    const scanner = await screen.findByPlaceholderText(copy.register.skuSearchPlaceholder);
+    await waitFor(() => expect(screen.getByRole("button", { name: `${copy.register.add} ${product.name}` })).toBeVisible());
+    fireEvent.change(scanner, { target: { value: product.sku } });
+    fireEvent.keyDown(scanner, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: copy.register.increaseQuantity }));
+
+    const cart = screen.getByLabelText(copy.register.cart);
+    expect(cart).toHaveTextContent("1");
+    expect(await screen.findByText(copy.register.outOfStockBlocked(product.name))).toBeVisible();
+  });
+
+  it("respects a manual sheet collapse when another cart line is added", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    const secondProduct = { ...product, id: "product-2", name: "Bolillo", sku: "PAN-002" };
+    catalogApi.listProducts.mockResolvedValue([product, secondProduct]);
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.collapseCart }));
+    fireEvent.click(screen.getByRole("button", { name: `${copy.register.add} ${secondProduct.name}` }));
+
+    expect(screen.getByRole("button", { name: copy.register.expandCart })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("moves focus into the mobile sale summary and closes it with Escape", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+
+    const addButton = await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` });
+    addButton.focus();
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole("dialog", { name: copy.register.cartSheetTitle });
+    await waitFor(() => expect(dialog).toHaveFocus());
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: copy.register.cartSheetTitle })).not.toBeInTheDocument();
+    expect(addButton).toHaveFocus();
+  });
+
+  it("gives the SKU clear action an accessible name", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    const scanner = await screen.findByPlaceholderText(copy.register.skuSearchPlaceholder);
+    fireEvent.change(scanner, { target: { value: "PAN" } });
+    expect(screen.getByRole("button", { name: copy.register.clearSkuSearch })).toBeVisible();
+  });
+
   it("does not choose between duplicate exact SKUs and reports a no-match after lookup", async () => {
     getOpenShift.mockResolvedValue(openShift);
     const duplicate: Product = {
@@ -502,7 +566,7 @@ describe("RegisterView cash-without-shift guard", () => {
     renderRegister();
 
     await addProductToCart();
-    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("radio", { name: copy.register.bankTransfer }));
     fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
 
     expect(
@@ -528,6 +592,27 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(printSpy).toHaveBeenCalledTimes(1);
 
     vi.unstubAllGlobals();
+  });
+
+  it("restores the cart and reports a definitive sync rejection instead of a queued sale", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "failed-sale" });
+    syncOfflineSales.mockResolvedValue([{
+      client_uuid: "failed-sale",
+      status: "failed",
+      order_id: null,
+      order: null,
+      error: "OUT_OF_STOCK",
+    }]);
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    expect(await screen.findByText(copy.register.saleRejected)).toBeVisible();
+    expect(screen.getByRole("button", { name: copy.register.removeItem(product.name) })).toBeVisible();
+    expect(screen.queryByText(copy.register.offlineSaleSavedTitle)).not.toBeInTheDocument();
   });
 });
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { invalidateBillingSubscription } from "@/billing/api";
@@ -57,6 +57,8 @@ const authenticatedCashier = {
   tenant_id: "tenant-1",
   tenant_name: "Testing",
 };
+
+const openShift = { id: "shift-1", tenant_id: "tenant-1", status: "open" };
 
 const sellableProducts = [
   {
@@ -197,6 +199,7 @@ describe("App shell", () => {
       "/api/v1/catalog/products": [sellableProducts],
       "/api/v1/catalog/categories": [[]],
       "/api/v1/inventory/stock": [[]],
+      "/api/v1/shifts/current": [openShift],
       "/api/v1/sync/offline-sales": [syncResponse("order-1")],
     });
 
@@ -207,6 +210,9 @@ describe("App shell", () => {
     fireEvent.change(screen.getByLabelText(/efectivo recibido/i), {
       target: { value: "20.00" },
     });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^cobrar$/i })).toBeEnabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);
@@ -302,6 +308,7 @@ describe("App shell", () => {
       "/api/v1/catalog/products": [sellableProducts],
       "/api/v1/catalog/categories": [[]],
       "/api/v1/inventory/stock": [[]],
+      "/api/v1/shifts/current": [openShift],
       "/api/v1/sync/offline-sales": [syncResponse("order-split")],
     });
 
@@ -320,6 +327,9 @@ describe("App shell", () => {
     fireEvent.change(screen.getByLabelText(/^referencia$/i), {
       target: { value: "SPEI-001" },
     });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^cobrar$/i })).toBeEnabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /^cobrar$/i }));
 
     expect(await screen.findByRole("status")).toHaveTextContent(/venta completada/i);

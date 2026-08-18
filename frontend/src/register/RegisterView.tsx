@@ -34,6 +34,7 @@ import { usePresenceKeys } from "@/lib/usePresence";
 import { handleRadioGroupKeyDown } from "@/lib/radiogroup";
 import { trapTabKey } from "@/lib/focusTrap";
 import { formatTenantName } from "@/lib/formatTenantName";
+import { centsToMoney, moneyToCents } from "@/lib/money";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -153,16 +154,6 @@ function createPaymentDraft(method: PaymentMethod, amount = ""): PaymentDraft {
   };
 }
 
-function moneyToCents(value: string): number {
-  const normalized = value.trim() || "0";
-  const [whole = "0", fraction = ""] = normalized.split(".");
-  return Number.parseInt(whole, 10) * 100 + Number.parseInt(`${fraction}00`.slice(0, 2), 10);
-}
-
-function centsToMoney(cents: number): string {
-  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
-}
-
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName.toLowerCase();
@@ -195,10 +186,12 @@ function RegularRegisterView() {
   const [cashSubmitAttempted, setCashSubmitAttempted] = useState(false);
   const [reference, setReference] = useState("");
   const [splitPaymentsEnabled, setSplitPaymentsEnabled] = useState(false);
+  const [advancedOptionsOpen, setAdvancedOptionsOpen] = useState(false);
   const [splitPayments, setSplitPayments] = useState<PaymentDraft[]>([
     createPaymentDraft("cash"),
   ]);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [pendingReceipt, setPendingReceipt] = useState<{
     clientUuid: string;
@@ -221,14 +214,22 @@ function RegularRegisterView() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
   // undefined = state unknown (fetch pending/failed/offline), null = no open
-  // shift, Shift = open. We fail open on unknown so the register keeps working
-  // offline; cash is only blocked when we KNOW there's no shift.
+  // shift, Shift = open. Unknown blocks only cash so sales cannot be omitted
+  // from drawer reconciliation; non-cash methods remain available offline.
   const [openShift, setOpenShift] = useState<Shift | null | undefined>(undefined);
+  const [shiftCheckFailed, setShiftCheckFailed] = useState(false);
   const hasOpenShift: boolean | null =
     openShift === undefined ? null : openShift !== null;
   const [skuQuery, setSkuQuery] = useState("");
   const [skuSearchPending, setSkuSearchPending] = useState(false);
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  const [isCartSheetModal, setIsCartSheetModal] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth < 1280,
+  );
+  const previousCartLineCountRef = useRef(0);
+  const suppressNextCartAutoOpenRef = useRef(false);
+  const shiftRequestRef = useRef(0);
+  const stockRequestRef = useRef(0);
   const skuDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skuMatches, setSkuMatches] = useState<Product[]>([]);
   const saleResultVisible = completedOrder !== null || pendingReceipt !== null;
@@ -262,6 +263,35 @@ function RegularRegisterView() {
     };
   }, [tenantId]);
 
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 1279px)");
+    const update = () => setIsCartSheetModal(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!cartSheetOpen || !isCartSheetModal) return;
+    const sheet = paymentSectionRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    window.requestAnimationFrame(() => sheet?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setCartSheetOpen(false);
+        return;
+      }
+      if (sheet) trapTabKey(event, sheet);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
+    };
+  }, [cartSheetOpen, isCartSheetModal]);
+
   const resetSale = useCallback(() => {
     setCart({});
     setPaymentMethod("cash");
@@ -269,10 +299,12 @@ function RegularRegisterView() {
     resetCashInteraction();
     setReference("");
     setSplitPaymentsEnabled(false);
+    setAdvancedOptionsOpen(false);
     setSplitPayments([createPaymentDraft("cash")]);
     setCompletedOrder(null);
     setPendingReceipt(null);
     activeSaleClientUuidRef.current = null;
+    submittingRef.current = false;
   }, [resetCashInteraction]);
 
   const selectPaymentMethod = useCallback((next: PaymentMethod) => {
@@ -420,30 +452,52 @@ function RegularRegisterView() {
     };
   }, [paperWidthMm, pendingReceipt, saleReceipt]);
 
-  // Best-effort refresh of the open-shift state. Leaves state at `undefined`
-  // (unknown) on failure so we never block cash just because the check failed.
+  const refreshStock = useCallback(() => {
+    const requestId = ++stockRequestRef.current;
+    return listStock()
+      .then((items) => {
+        if (requestId === stockRequestRef.current) {
+          setStockMap(new Map(items.map((item) => [item.product_id, item])));
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  // Never let an older focus/visibility request overwrite a newer result. A
+  // failed refresh preserves a previously known shift; an initial unknown state
+  // blocks cash so a sale cannot silently fall outside the drawer reconciliation.
   const refreshShift = useCallback(() => {
+    const requestId = ++shiftRequestRef.current;
     getOpenShift()
-      .then((shift) => setOpenShift(shift ?? null))
-      .catch(() => setOpenShift(undefined));
+      .then((shift) => {
+        if (requestId !== shiftRequestRef.current) return;
+        setOpenShift(shift ?? null);
+        setShiftCheckFailed(false);
+      })
+      .catch(() => {
+        if (requestId === shiftRequestRef.current) setShiftCheckFailed(true);
+      });
   }, []);
 
   useEffect(() => {
     void load();
     if (tenantId) void triggerSync(tenantId);
-    // Best-effort: stock badges are informational; register still works if this fails
-    listStock()
-      .then((items) => setStockMap(new Map(items.map((i) => [i.product_id, i]))))
-      .catch(() => undefined);
+    void refreshStock();
     refreshShift();
-  }, [load, refreshShift, tenantId]);
+  }, [load, refreshShift, refreshStock, tenantId]);
 
   // Re-check the shift when the cashier returns to the tab: another device may
   // have opened or closed the drawer in the meantime.
   useEffect(() => {
-    const onFocus = () => refreshShift();
+    const onFocus = () => {
+      refreshShift();
+      void refreshStock();
+    };
     const onVisibility = () => {
-      if (document.visibilityState === "visible") refreshShift();
+      if (document.visibilityState === "visible") {
+        refreshShift();
+        void refreshStock();
+      }
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
@@ -451,7 +505,7 @@ function RegularRegisterView() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [refreshShift]);
+  }, [refreshShift, refreshStock]);
 
   // When we learn there's no open shift, move the single-payment selection off
   // cash so the cashier isn't stuck on a blocked method.
@@ -506,6 +560,7 @@ function RegularRegisterView() {
     }
     const matches = skuSearchMatches(loadState.products, value);
     if (addSingleMatch && matches.length === 1) {
+      suppressNextCartAutoOpenRef.current = true;
       addProduct(matches[0]);
       clearSkuSearch();
       // Keyboard-wedge scanners send the next code immediately. Keep the
@@ -536,14 +591,20 @@ function RegularRegisterView() {
   };
 
   const cartItems = useMemo(() => Object.values(cart), [cart]);
-  // Auto-open the mobile cart sheet on the first item added; closes when cart empties.
+  // Auto-open only on the transition from an empty cart to its first line.
+  // Subsequent line changes respect a cashier who deliberately collapsed it.
   useEffect(() => {
-    if (cartItems.length > 0) setCartSheetOpen(true);
-    else {
+    const previousCount = previousCartLineCountRef.current;
+    if (previousCount === 0 && cartItems.length > 0 && !suppressNextCartAutoOpenRef.current) {
+      setCartSheetOpen(true);
+    }
+    suppressNextCartAutoOpenRef.current = false;
+    if (cartItems.length === 0) {
       setCartSheetOpen(false);
       setCashTendered("");
       resetCashInteraction();
     }
+    previousCartLineCountRef.current = cartItems.length;
   }, [cartItems.length, resetCashInteraction]);
   const totalCents = useMemo(
     () =>
@@ -590,7 +651,7 @@ function RegularRegisterView() {
         (payment) => payment.method === "cash" && moneyToCents(payment.amount) > 0,
       )
     : paymentMethod === "cash";
-  const cashBlocked = hasOpenShift === false && saleIncludesCash;
+  const cashBlocked = hasOpenShift !== true && saleIncludesCash;
   const canSubmitSale =
     canCreateOrders &&
     cartItems.length > 0 &&
@@ -626,6 +687,7 @@ function RegularRegisterView() {
     if (!cashPaymentNeedsAmount) return;
     setCashSubmitAttempted(true);
     reportCashValidationBlocked();
+    window.requestAnimationFrame(() => cashTenderedRef.current?.focus());
   }, [cashPaymentNeedsAmount, reportCashValidationBlocked]);
 
   useEffect(() => {
@@ -663,7 +725,25 @@ function RegularRegisterView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [canSubmitSale, cashPaymentNeedsAmount, revealCashValidationAfterAttempt, saleResultVisible, selectPaymentMethod]);
 
+  const quantityInCart = (productId: string, currentCart = cart) =>
+    Object.values(currentCart)
+      .filter((item) => item.product.id === productId)
+      .reduce((sum, item) => sum + item.quantity, 0);
+
+  const canAddProductUnit = (product: Product, currentCart = cart) => {
+    const stock = stockMap.get(product.id);
+    return !stock?.track_inventory || quantityInCart(product.id, currentCart) < stock.available_quantity;
+  };
+
+  const reportStockBlocked = (product: Product) => {
+    toast(copy.register.outOfStockBlocked(product.name), "warning");
+  };
+
   const addProduct = (product: Product) => {
+    if (!canAddProductUnit(product)) {
+      reportStockBlocked(product);
+      return;
+    }
     if ((product.modifier_groups ?? []).length > 0) {
       setModifierTarget(product);
       return;
@@ -672,6 +752,10 @@ function RegularRegisterView() {
   };
 
   const commitAddProduct = (product: Product, selectedModifiers: SelectedModifier[]) => {
+    if (!canAddProductUnit(product)) {
+      reportStockBlocked(product);
+      return;
+    }
     const deltaSum = selectedModifiers.reduce((s, m) => s + moneyToCents(m.priceDelta), 0);
     const effectiveUnitPrice = centsToMoney(moneyToCents(product.price_amount) + deltaSum);
     const cartKey = cartKeyFor(product.id, selectedModifiers);
@@ -691,6 +775,15 @@ function RegularRegisterView() {
   };
 
   const updateQuantity = (cartKey: string, quantity: number) => {
+    const currentItem = cart[cartKey];
+    if (currentItem && quantity > currentItem.quantity) {
+      const stock = stockMap.get(currentItem.product.id);
+      const otherLinesQuantity = quantityInCart(currentItem.product.id) - currentItem.quantity;
+      if (stock?.track_inventory && otherLinesQuantity + quantity > stock.available_quantity) {
+        reportStockBlocked(currentItem.product);
+        return;
+      }
+    }
     setCart((current) => {
       if (quantity <= 0) {
         const next = { ...current };
@@ -728,6 +821,7 @@ function RegularRegisterView() {
     setCashTendered("");
     resetCashInteraction();
     setSplitPaymentsEnabled(enabled);
+    if (enabled) setAdvancedOptionsOpen(true);
     if (enabled) {
       setSplitPayments([
         {
@@ -761,8 +855,32 @@ function RegularRegisterView() {
     );
   };
 
+  const adjustKnownStockForCart = (cartSnapshot: Record<string, CartItem>, direction: -1 | 1) => {
+    const quantities = new Map<string, number>();
+    for (const item of Object.values(cartSnapshot)) {
+      quantities.set(item.product.id, (quantities.get(item.product.id) ?? 0) + item.quantity);
+    }
+    setStockMap((current) => {
+      const next = new Map(current);
+      for (const [productId, quantity] of quantities) {
+        const stock = next.get(productId);
+        if (!stock?.track_inventory) continue;
+        const available = stock.available_quantity + direction * quantity;
+        const onHand = stock.stock_on_hand + direction * quantity;
+        next.set(productId, {
+          ...stock,
+          available_quantity: available,
+          stock_on_hand: onHand,
+          is_low_stock: stock.low_stock_threshold !== null && available <= stock.low_stock_threshold,
+        });
+      }
+      return next;
+    });
+  };
+
   const submitSale = async (event: FormEvent) => {
     event.preventDefault();
+    if (submittingRef.current) return;
     if (!canSubmitSale) {
       if (submitting) return;
       if (!canCreateOrders) {
@@ -781,7 +899,9 @@ function RegularRegisterView() {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
+    const submittedCart = cart;
 
     const sale = {
       items: cartItems.map((item) => ({
@@ -857,6 +977,7 @@ function RegularRegisterView() {
       queueItem = await queueOfflineSale(tenantId, sale, openShift?.id, receiptSnapshot);
     } catch {
       toast(copy.register.saleError, "error");
+      submittingRef.current = false;
       setSubmitting(false);
       return;
     }
@@ -864,13 +985,16 @@ function RegularRegisterView() {
     activeSaleClientUuidRef.current = queueItem.client_uuid;
     setCompletedOrder(null);
     setPendingReceipt({ clientUuid: queueItem.client_uuid, snapshot: receiptSnapshot });
+    adjustKnownStockForCart(submittedCart, -1);
 
     setCart({});
     setCashTendered("");
     resetCashInteraction();
     setReference("");
     setSplitPaymentsEnabled(false);
+    setAdvancedOptionsOpen(false);
     setSplitPayments([createPaymentDraft("cash")]);
+    submittingRef.current = false;
     setSubmitting(false);
 
     void claimOfflineSale(tenantId!, queueItem.client_uuid, `register:${crypto.randomUUID()}`)
@@ -883,12 +1007,19 @@ function RegularRegisterView() {
           if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
           setPendingReceipt(null);
           setCompletedOrder(result.order as Order);
+          void refreshStock();
           // Toast is retained as the accessible status announcement
           // (aria-live region) for screen readers — visual de-duplication with
           // the success card is left for a future polish pass.
           toast(copy.register.saleComplete, "success");
-        } else if (activeSaleClientUuidRef.current === queueItem.client_uuid) {
-          toast(copy.register.saleQueued, "warning");
+        } else if (result.status === "failed" && activeSaleClientUuidRef.current === queueItem.client_uuid) {
+          activeSaleClientUuidRef.current = null;
+          setPendingReceipt(null);
+          setCompletedOrder(null);
+          setCart(submittedCart);
+          adjustKnownStockForCart(submittedCart, 1);
+          toast(copy.register.saleRejected, "error");
+          void refreshStock();
         }
       })
       .catch(() => {
@@ -943,7 +1074,7 @@ function RegularRegisterView() {
   }
 
   return (
-    <ViewLayout width="wide" className="pb-40 lg:pb-10 animate-fade-in">
+    <ViewLayout width="wide" className="pb-40 xl:pb-10 animate-fade-in">
       <div className="mb-6">
         <ViewHeader title={copy.register.title} />
       </div>
@@ -958,6 +1089,15 @@ function RegularRegisterView() {
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground sm:text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span className="min-w-0 flex-1">{copy.register.noShiftWarning}</span>
+          <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
+            {copy.register.openShift}
+          </Link>
+        </div>
+      )}
+      {hasOpenShift === null && shiftCheckFailed && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground sm:text-sm" role="alert">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">{copy.register.cashShiftUnknown}</span>
           <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
             {copy.register.openShift}
           </Link>
@@ -1019,6 +1159,7 @@ function RegularRegisterView() {
                 <button
                   type="button"
                   onClick={clearSkuSearch}
+                  aria-label={copy.register.clearSkuSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -1118,7 +1259,7 @@ function RegularRegisterView() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {filteredProducts.map((product) => {
                   const stock = stockMap.get(product.id);
-                  const isOut = stock?.track_inventory && stock.available_quantity === 0;
+                  const isOut = stock?.track_inventory && stock.available_quantity <= quantityInCart(product.id);
                   const isLow = stock?.is_low_stock && !isOut;
                   return (
                     <RegisterProductCard
@@ -1164,6 +1305,10 @@ function RegularRegisterView() {
         <div
           ref={paymentSectionRef}
           data-open={cartSheetOpen ? "true" : "false"}
+          role={isCartSheetModal && cartSheetOpen ? "dialog" : undefined}
+          aria-modal={isCartSheetModal && cartSheetOpen ? "true" : undefined}
+          aria-label={isCartSheetModal && cartSheetOpen ? copy.register.cartSheetTitle : undefined}
+          tabIndex={isCartSheetModal && cartSheetOpen ? -1 : undefined}
           className={cn(
             // Desktop: normal sidebar column. transform-none rather than
             // translate-y-0, which would still emit a transform and make this a
@@ -1356,7 +1501,7 @@ function RegularRegisterView() {
                             })
                           }
                         >
-                          <option value="cash" disabled={hasOpenShift === false}>
+                          <option value="cash" disabled={hasOpenShift !== true}>
                             {copy.register.cash}
                           </option>
                           <option value="bank_transfer">{copy.register.bankTransfer}</option>
@@ -1464,8 +1609,11 @@ function RegularRegisterView() {
                           value,
                           label,
                           icon,
-                          disabled: value === "cash" && hasOpenShift === false,
-                          onDisabledSelect: () => toast(copy.register.cashRequiresShift, "warning"),
+                          disabled: value === "cash" && hasOpenShift !== true,
+                          onDisabledSelect: () => toast(
+                            hasOpenShift === false ? copy.register.cashRequiresShift : copy.register.cashShiftUnknown,
+                            "warning",
+                          ),
                         }))}
                         onChange={selectPaymentMethod}
                         onKeyDown={(e) =>
@@ -1473,7 +1621,7 @@ function RegularRegisterView() {
                             e,
                             paymentMethodOptions.map(({ value }) => ({
                               value,
-                              disabled: value === "cash" && hasOpenShift === false,
+                              disabled: value === "cash" && hasOpenShift !== true,
                             })),
                             paymentMethod,
                             selectPaymentMethod,
@@ -1500,6 +1648,7 @@ function RegularRegisterView() {
                             if (cashPaymentNeedsAmount) reportCashValidationBlocked();
                           }}
                           aria-invalid={showCashValidationError || undefined}
+                          aria-errormessage={showCashValidationError ? "cashTendered-error" : undefined}
                           aria-describedby={
                             showCashValidationError
                               ? "cashTendered-error"
@@ -1516,7 +1665,7 @@ function RegularRegisterView() {
                               key={bill}
                               type="button"
                               onClick={() => updateCashTenderedFromInteraction(String(bill))}
-                              className="rounded-lg border bg-background px-3 py-1.5 text-sm font-medium tabular-nums hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                              className="min-h-11 rounded-lg border bg-background px-3 py-1.5 text-sm font-medium tabular-nums hover:border-primary/40 hover:bg-muted/30 transition-colors"
                             >
                               {formatMoney(bill)}
                             </button>
@@ -1524,7 +1673,7 @@ function RegularRegisterView() {
                           <button
                             type="button"
                             onClick={() => updateCashTenderedFromInteraction(totalAmount)}
-                            className="rounded-lg border bg-background px-3 py-1.5 text-sm font-medium hover:border-primary/40 hover:bg-muted/30 transition-colors"
+                            className="min-h-11 rounded-lg border bg-background px-3 py-1.5 text-sm font-medium hover:border-primary/40 hover:bg-muted/30 transition-colors"
                           >
                             {copy.register.exactCash}
                           </button>
@@ -1557,7 +1706,7 @@ function RegularRegisterView() {
                           );
                         })()}
                         {showCashValidationError && (
-                          <p id="cashTendered-error" className="flex items-center gap-1.5 text-xs text-destructive">
+                          <p id="cashTendered-error" role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
                             <AlertCircle className="h-3.5 w-3.5" />
                             {copy.register.cashTooLow}
                           </p>
@@ -1584,9 +1733,17 @@ function RegularRegisterView() {
                 {cartItems.length > 0 && (
                   <details
                     className="rounded-[var(--radius-md)] border border-[color:var(--kova-border)] px-3 py-2 text-sm [&[open]>summary]:mb-2"
-                    open={splitPaymentsEnabled}
+                    open={splitPaymentsEnabled || advancedOptionsOpen}
+                    onToggle={(event) => {
+                      if (!splitPaymentsEnabled) setAdvancedOptionsOpen(event.currentTarget.open);
+                    }}
                   >
-                    <summary className="cursor-pointer list-none text-sm font-medium text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)] [&::-webkit-details-marker]:hidden">
+                    <summary
+                      onClick={(event) => {
+                        if (splitPaymentsEnabled) event.preventDefault();
+                      }}
+                      className="cursor-pointer list-none text-sm font-medium text-[color:var(--kova-muted)] hover:text-[color:var(--kova-ink)] [&::-webkit-details-marker]:hidden"
+                    >
                       <span className="inline-flex items-center gap-2">
                         <SplitSquareHorizontal className="h-4 w-4" />
                         {copy.register.advancedOptions}
@@ -1613,7 +1770,9 @@ function RegularRegisterView() {
                 {cashBlocked && (
                   <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive sm:text-sm">
                     <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span className="min-w-0 flex-1">{copy.register.cashRequiresShift}</span>
+                    <span className="min-w-0 flex-1">
+                      {hasOpenShift === false ? copy.register.cashRequiresShift : copy.register.cashShiftUnknown}
+                    </span>
                     <Link to="/shifts" className="shrink-0 font-semibold text-primary hover:underline">
                       {copy.register.openShift}
                     </Link>
