@@ -48,11 +48,13 @@ def test_sentry_maps_fatal_issue_to_critical(monkeypatch):
     monkeypatch.setattr(settings, "sentry_org_slug", "acme")
     monkeypatch.setattr(settings, "sentry_project_slug", "backend")
 
-    payload = b'[{"id":"1","title":"boom","level":"fatal","count":"3","lastSeen":"x","permalink":"p"}]'
+    payload = b'[{"id":"1","title":"boom","level":"fatal","count":"3","lastSeen":"x","permalink":"javascript:alert(1)"}]'
     monkeypatch.setattr(base, "urlopen", lambda *a, **k: _FakeResponse(payload))
     result = sentry.fetch_unresolved_issues(timeout=1)
     assert result.status == "critical"
     assert result.data["unresolved_24h"] == 1
+    assert result.data["issues"][0]["permalink"] == "https://acme.sentry.io/issues/1/"
+    assert "javascript:" not in result.data["issues"][0]["permalink"]
 
 
 def test_connector_degrades_on_network_error(monkeypatch):

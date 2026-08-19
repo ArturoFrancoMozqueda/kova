@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import String, cast, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.audit.models import AuditLog
@@ -452,7 +452,22 @@ def list_tenants(
     query = db.query(Tenant)
     if search:
         like = f"%{search.lower()}%"
-        query = query.filter(func.lower(Tenant.name).like(like))
+        owner_matches = exists(
+            select(Membership.id)
+            .join(User, User.id == Membership.user_id)
+            .where(
+                Membership.tenant_id == Tenant.id,
+                Membership.role == "owner",
+                func.lower(User.email).like(like),
+            )
+        )
+        query = query.filter(
+            or_(
+                func.lower(Tenant.name).like(like),
+                cast(Tenant.id, String).like(like),
+                owner_matches,
+            )
+        )
     total = query.count()
     tenants = (
         query.order_by(Tenant.created_at.desc()).offset(offset).limit(limit).all()

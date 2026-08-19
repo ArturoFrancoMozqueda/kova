@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -68,17 +69,11 @@ function TenantCard({ tenant }: { tenant: TenantItem }) {
 }
 
 export default function TenantsPage() {
-  const [search, setSearch] = useState("");
-  const query = useTenants("");
-
-  const filtered = useMemo(() => {
-    const items = query.data?.items ?? [];
-    const term = search.trim().toLowerCase();
-    if (!term) return items;
-    return items.filter(
-      (t) => t.name.toLowerCase().includes(term) || (t.owner_email ?? "").toLowerCase().includes(term),
-    );
-  }, [query.data, search]);
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get("tenant_id") ?? "");
+  const deferredSearch = useDeferredValue(search.trim());
+  const query = useTenants(deferredSearch);
+  const items = query.data?.items ?? [];
 
   return (
     <>
@@ -97,11 +92,11 @@ export default function TenantsPage() {
         </div>
       ) : query.isError ? (
         <ErrorState message={resolveApiErrorMessage(query.error, opsCopy.common.loadError)} onRetry={query.refetch} />
-      ) : filtered.length === 0 ? (
+      ) : items.length === 0 ? (
         <SectionEmptyState label="Sin clientes que coincidan." />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {filtered.map((tenant) => (
+          {items.map((tenant) => (
             <TenantCard key={tenant.tenant_id} tenant={tenant} />
           ))}
         </div>

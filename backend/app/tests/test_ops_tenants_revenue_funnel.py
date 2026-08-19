@@ -109,6 +109,19 @@ def test_overview_operations_reflect_recent_orders(client, db, monkeypatch):
     assert body["money"]["currency"] == "MXN"
 
 
+def test_tenant_search_accepts_exact_tenant_id(client, db, monkeypatch):
+    _login_admin(client, monkeypatch)
+    target = _mk_tenant(db, "Trace Target")
+    _mk_tenant(db, "Another Tenant")
+
+    body = client.get(
+        "/api/v1/internal/ops/tenants", params={"search": str(target.id)}
+    ).json()
+
+    assert body["total"] == 1
+    assert body["items"][0]["tenant_id"] == str(target.id)
+
+
 def test_funnel_cohort_and_conversions(client, db, monkeypatch):
     _login_admin(client, monkeypatch)
     t = _mk_tenant(db, "Funnel Co")

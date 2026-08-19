@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -76,10 +78,12 @@ class Settings(BaseSettings):
     trusted_client_ip_header: str = "fly-client-ip"
     email_from: str = "onboarding@resend.dev"
 
-    # Internal ops dashboard (CEO). Emails allowed into /api/v1/internal/ops/*;
-    # empty allowlist means nobody gets in. Connector tokens are optional — a
-    # missing token surfaces that integration as "not_configured", never an error.
+    # Internal ops dashboard (founder only). Production requires one exact
+    # verified email plus its immutable user UUID. Leaving both empty disables
+    # access. Connector tokens are optional — a missing token surfaces that
+    # integration as "not_configured", never an error.
     internal_admin_emails: str = ""
+    internal_admin_user_id: UUID | None = None
     sentry_api_token: str | None = None
     sentry_org_slug: str | None = None
     sentry_project_slug: str | None = None

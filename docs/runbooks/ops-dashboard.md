@@ -2,8 +2,8 @@
 
 The internal ops dashboard lives at `/internal/ops` and is served by the same
 frontend/backend as the product. It is **read-only for production data**; the
-only writes are triage notes and incident triage state. Access is gated by an
-email allowlist, never by tenant roles.
+only writes are triage notes and incident triage state. Access is gated by one
+immutable founder identity, never by tenant roles.
 
 La portada reúne el tablero ejecutivo y la consola operativa. Sus cuatro
 verdades históricas —usuarios creados, usuarios verificados, negocios con una
@@ -13,18 +13,21 @@ un segundo cálculo que pueda divergir de Kova Ops.
 
 ## Access
 
-1. Add the CEO/founder emails to `INTERNAL_ADMIN_EMAILS` (comma-separated) as a
-   Fly secret on `pos-project-backend`:
+1. Configure exactly one verified founder email and its immutable Kova user UUID
+   as Fly secrets on `pos-project-backend`:
    ```
-   flyctl secrets set INTERNAL_ADMIN_EMAILS="ceo@kovasuite.com" -a pos-project-backend
+   flyctl secrets set INTERNAL_ADMIN_EMAILS="ceo@kovasuite.com" INTERNAL_ADMIN_USER_ID="<user-uuid>" -a pos-project-backend
    ```
-   Startup fails fast if any entry isn't email-shaped. An empty allowlist means
-   the dashboard is closed to everyone (every request → 403).
-2. The account must exist and be **email-verified** (a fresh signup with a
-   verified email is enough). Tenant role is irrelevant.
+   Outside local development, startup fails closed unless both values are present
+   and there is exactly one email. An empty configuration disables the dashboard.
+2. Copy the UUID from the existing `users.id` record for that email. Recreating
+   an account with the same email produces another UUID and therefore does not
+   inherit access. The account must stay active and **email-verified**. Tenant
+   role is irrelevant.
 3. Navigate to `https://kovasuite.com/internal/ops`. Non-allowlisted users
    (even tenant owners) get a 404-style page; the route is never surfaced in
-   normal navigation and carries `X-Robots-Tag: noindex`.
+   normal navigation and carries `X-Robots-Tag: noindex`. This is discoverability
+   hygiene only; backend authorization remains the security boundary.
 
 ## Connector tokens (all optional)
 
@@ -81,3 +84,8 @@ within ≤30s) so polling never hammers the external APIs.
   cross-tenant test (`test_ops_tenants_revenue_funnel.py`) guards this.
 - Access reads are logged as `app.ops.access` (JSON, with request_id) to Fly
   logs; note/triage writes are recorded in `audit_logs`.
+- Every Ops response is `private, no-store`; state changes require both the CSRF
+  token and a trusted Kova browser origin.
+- Email + UUID prevents privilege transfer through email reuse, but it cannot
+  protect a compromised founder device/session by itself. Enable MFA or an
+  identity-aware proxy before treating Ops as the sole production control plane.

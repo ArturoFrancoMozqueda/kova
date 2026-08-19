@@ -48,6 +48,13 @@ describe("RequireInternalAdmin", () => {
     expect(screen.queryByText("SECRET OPS")).not.toBeInTheDocument();
   });
 
+  it("shows a non-sensitive loading state while auth resolves", () => {
+    useAuth.mockReturnValue({ state: { status: "loading" } });
+    renderGuard();
+    expect(screen.getByLabelText("Validando acceso")).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText("SECRET OPS")).not.toBeInTheDocument();
+  });
+
   it("renders children for an allowlisted admin", async () => {
     useAuth.mockReturnValue({ state: { status: "authenticated" } });
     getOpsMe.mockResolvedValue({ email: "ceo@kova.mx", is_internal_admin: true });

@@ -49,6 +49,25 @@ def _is_stripe_live_key(value: str | None) -> bool:
     return bool(value and value.startswith(("sk_live_", "rk_live_")))
 
 
+def _validate_internal_ops_config() -> None:
+    emails = settings.internal_admin_email_set
+    for entry in emails:
+        if "@" not in entry:
+            raise RuntimeError(
+                "INTERNAL_ADMIN_EMAILS must contain valid email addresses; "
+                f"got invalid entry: {entry!r}"
+            )
+
+    # Disabled is a safe production state. Once either half is configured,
+    # require one exact principal: verified email + immutable user UUID.
+    if settings.app_env != "local" and (emails or settings.internal_admin_user_id):
+        if len(emails) != 1 or settings.internal_admin_user_id is None:
+            raise RuntimeError(
+                "Kova Ops access outside local development requires exactly one "
+                "INTERNAL_ADMIN_EMAILS entry and INTERNAL_ADMIN_USER_ID"
+            )
+
+
 def _validate_config() -> None:
     if settings.app_env != "local" and settings.secret_key == _DEFAULT_SECRET_KEY:
         raise RuntimeError(
@@ -90,14 +109,7 @@ def _validate_config() -> None:
                 "EMAIL_FROM must be configured with a verified domain in production "
                 "(default 'onboarding@resend.dev' is not allowed)"
             )
-    # A typo in the ops allowlist silently locks the CEO out (or worse, grants
-    # nobody-you-expect); refuse to boot on entries that can't be emails.
-    for entry in settings.internal_admin_email_set:
-        if "@" not in entry:
-            raise RuntimeError(
-                "INTERNAL_ADMIN_EMAILS must be a comma-separated list of email "
-                f"addresses; got invalid entry: {entry!r}"
-            )
+    _validate_internal_ops_config()
 
 
 def create_app() -> FastAPI:

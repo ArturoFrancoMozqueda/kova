@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
 from app.auth.models import User
-from app.db import get_db
+from app.db import get_privileged_db
 from app.middleware.rate_limit import rate_limit
 from app.ops import repository, service
 from app.ops.dependencies import InternalAdminContext, require_internal_admin
@@ -38,7 +38,13 @@ from app.shared.exceptions import bad_request, not_found
 router = APIRouter(
     prefix="/api/v1/internal/ops",
     tags=["internal-ops"],
-    dependencies=[Depends(rate_limit(60, key="internal-ops"))],
+    # Founder authorization is router-wide so a future privileged endpoint
+    # cannot accidentally omit the guard. Handler-level injection below reuses
+    # the same cached dependency result when the context is needed.
+    dependencies=[
+        Depends(rate_limit(60, key="internal-ops")),
+        Depends(require_internal_admin),
+    ],
 )
 
 # Extra bucket for the module's only writes (notes/triage) on top of the
@@ -73,7 +79,7 @@ def ops_me(
 @router.get("/overview", response_model=OverviewResponse)
 def ops_overview(
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> OverviewResponse:
     return service.build_overview(db)
 
@@ -81,7 +87,7 @@ def ops_overview(
 @router.get("/technical", response_model=TechnicalResponse)
 def ops_technical(
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> TechnicalResponse:
     return service.build_technical(db)
 
@@ -89,7 +95,7 @@ def ops_technical(
 @router.get("/revenue", response_model=RevenueResponse)
 def ops_revenue(
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> RevenueResponse:
     return service.build_revenue(db)
 
@@ -98,7 +104,7 @@ def ops_revenue(
 def ops_funnel(
     window: FunnelWindow = Query(default="30d"),
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> FunnelResponse:
     return service.build_funnel(db, window=window)
 
@@ -109,7 +115,7 @@ def ops_tenants(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> TenantListResponse:
     return service.build_tenants(db, search=search, offset=offset, limit=limit)
 
@@ -123,7 +129,7 @@ def ops_incidents(
     include_snoozed: bool = Query(default=False),
     limit: int = Query(default=100, ge=1, le=500),
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> IncidentListResponse:
     return service.build_incidents(
         db,
@@ -147,7 +153,7 @@ def _split_key(incident_key: str) -> tuple[str, str]:
 def ops_incident_detail(
     incident_key: str,
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> IncidentDetailResponse:
     _split_key(incident_key)
     detail = service.build_incident_detail(db, key=incident_key)
@@ -165,7 +171,7 @@ def ops_incident_triage(
     incident_key: str,
     body: TriageUpdate,
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> IncidentDetailResponse:
     source, external_id = _split_key(incident_key)
     state = repository.upsert_incident_state(
@@ -205,7 +211,7 @@ def ops_trace(
     to_ts: datetime | None = Query(default=None, alias="to"),
     limit: int = Query(default=100, ge=1, le=500),
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> TraceResponse:
     return service.build_trace(
         db,
@@ -230,7 +236,7 @@ def list_notes(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> OpsNoteListResponse:
     rows, total = repository.list_notes(
         db,
@@ -257,7 +263,7 @@ def list_notes(
 def create_note(
     body: OpsNoteCreate,
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> OpsNoteResponse:
     note = repository.create_note(
         db,
@@ -294,7 +300,7 @@ def update_note(
     note_id: UUID,
     body: OpsNoteUpdate,
     ctx: InternalAdminContext = Depends(require_internal_admin),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_privileged_db),
 ) -> OpsNoteResponse:
     note = repository.get_note(db, note_id)
     if note is None:

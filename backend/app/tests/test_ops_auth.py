@@ -6,11 +6,15 @@ never leave the RLS GUC (`app.tenant_id`) set because their queries are
 cross-tenant by design.
 """
 import pytest
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
+from app.auth.models import User
 from app.config import settings
-from app.main import _validate_config, app
+from app.db import get_db, get_privileged_db
+from app.main import _validate_config, _validate_internal_ops_config, app
+from app.ops.dependencies import require_internal_admin
 
 PASSWORD = "S3cur3pass!"
 
@@ -57,6 +61,19 @@ def test_allowlisted_admin_gets_access(client, monkeypatch):
     r = client.get("/api/v1/internal/ops/me")
     assert r.status_code == 200
     assert r.json() == {"email": "ceo@ops-test.com", "is_internal_admin": True}
+
+
+def test_admin_uuid_must_match_immutable_user(client, db, monkeypatch):
+    email = "uuid-ceo@ops-test.com"
+    monkeypatch.setattr(settings, "internal_admin_emails", email)
+    _signup_login(client, email, "UUID HQ")
+    actual_id = db.query(User.id).filter(User.email == email).scalar()
+
+    monkeypatch.setattr(settings, "internal_admin_user_id", actual_id)
+    assert client.get("/api/v1/internal/ops/me").status_code == 200
+
+    monkeypatch.setattr(settings, "internal_admin_user_id", actual_id.__class__(int=0))
+    assert client.get("/api/v1/internal/ops/me").status_code == 403
 
 
 def test_allowlist_is_case_insensitive(client, monkeypatch):
@@ -128,3 +145,41 @@ def test_validate_config_rejects_non_email_allowlist_entries(monkeypatch):
     monkeypatch.setattr(settings, "internal_admin_emails", "ceo@ops-test.com,not-an-email")
     with pytest.raises(RuntimeError, match="INTERNAL_ADMIN_EMAILS"):
         _validate_config()
+
+
+def test_nonlocal_ops_config_requires_one_email_and_uuid(monkeypatch):
+    monkeypatch.setattr(settings, "app_env", "staging")
+    monkeypatch.setattr(settings, "internal_admin_emails", "ceo@ops-test.com")
+    monkeypatch.setattr(settings, "internal_admin_user_id", None)
+    with pytest.raises(RuntimeError, match="requires exactly one"):
+        _validate_internal_ops_config()
+
+
+def test_ops_responses_are_never_cacheable(client, monkeypatch):
+    monkeypatch.setattr(settings, "internal_admin_emails", "cache-ceo@ops-test.com")
+    _signup_login(client, "cache-ceo@ops-test.com", "Cache HQ")
+
+    response = client.get("/api/v1/internal/ops/me")
+
+    assert response.headers["cache-control"] == "private, no-store, max-age=0"
+    assert response.headers["pragma"] == "no-cache"
+
+
+def test_every_ops_route_has_founder_guard_and_privileged_db():
+    def dependency_calls(dependant):
+        calls = {dependency.call for dependency in dependant.dependencies}
+        for dependency in dependant.dependencies:
+            calls.update(dependency_calls(dependency))
+        return calls
+
+    routes = [
+        route
+        for route in app.routes
+        if isinstance(route, APIRoute) and route.path.startswith("/api/v1/internal/ops")
+    ]
+    assert routes
+    for route in routes:
+        calls = dependency_calls(route.dependant)
+        assert require_internal_admin in calls, route.path
+        assert get_privileged_db in calls, route.path
+        assert get_db not in calls, route.path

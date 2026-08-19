@@ -53,8 +53,9 @@ def fetch_unresolved_issues(*, timeout: float, limit: int = 10) -> ConnectorResu
                 "level": item.get("level"),
                 "count_24h": count,
                 "last_seen": item.get("lastSeen"),
-                "permalink": item.get("permalink")
-                or deep_links.sentry_issue(item.get("id", "")),
+                # Never trust a navigation target returned by an upstream API.
+                # Build the known HTTPS Sentry URL from the opaque issue id.
+                "permalink": deep_links.sentry_issue(str(item.get("id") or "")),
             }
         )
     status = "ok"
@@ -85,7 +86,7 @@ def search_issues_by_request_id(request_id: str, *, timeout: float) -> Connector
             "title": item.get("title"),
             "level": item.get("level"),
             "last_seen": item.get("lastSeen"),
-            "permalink": item.get("permalink"),
+            "permalink": deep_links.sentry_issue(str(item.get("id") or "")),
         }
         for item in (raw if isinstance(raw, list) else [])
     ]

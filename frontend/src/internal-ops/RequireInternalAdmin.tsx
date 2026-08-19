@@ -16,9 +16,13 @@ export default function RequireInternalAdmin({ children }: { children: ReactNode
   const { state } = useAuth();
   const me = useOpsMe(state.status === "authenticated");
 
-  if (state.status === "loading") return null;
+  if (state.status === "loading") {
+    return <div className="min-h-screen bg-kova-cream" aria-busy="true" aria-label="Validando acceso" />;
+  }
   if (state.status === "unauthenticated") return <Navigate to="/login" replace />;
-  if (me.isPending) return null;
+  if (me.isPending) {
+    return <div className="min-h-screen bg-kova-cream" aria-busy="true" aria-label="Validando acceso" />;
+  }
   if (me.isError) {
     if (me.error instanceof ApiError && me.error.status === 401) {
       return <Navigate to="/login" replace />;

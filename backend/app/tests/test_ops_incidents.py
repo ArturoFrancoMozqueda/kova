@@ -142,6 +142,20 @@ def test_triage_persists_and_audits(client, db, monkeypatch):
     assert action == "ops_incident_triage"
 
 
+def test_triage_rejects_untrusted_origin(client, db, monkeypatch):
+    _login_admin(client, monkeypatch)
+    _mk_webhook(db, event_id="evt_bad_origin")
+
+    response = client.patch(
+        "/api/v1/internal/ops/incidents/stripe_webhook:evt_bad_origin/triage",
+        json={"triage_status": "investigating"},
+        headers={"origin": "https://evil.example"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Request origin is not allowed"
+
+
 def test_snoozed_incident_hidden_unless_requested(client, db, monkeypatch):
     _login_admin(client, monkeypatch)
     _mk_webhook(db, event_id="evt_snooze_1")
