@@ -1,4 +1,24 @@
 // Types mirroring the backend contracts at /api/v1/internal/ops/*.
+export interface OpsMfaStatus {
+  enrolled: boolean;
+  step_up_valid: boolean;
+  recovery_codes_remaining: number;
+}
+
+export interface OpsMfaSetup {
+  secret: string;
+  qr_png_data_url: string;
+}
+
+export interface OpsMfaConfirm {
+  recovery_codes: string[];
+  step_up_valid: true;
+}
+
+export interface OpsMfaVerify {
+  step_up_valid: true;
+  used_recovery_code: boolean;
+}
 
 export type OpsStatus = "ok" | "warning" | "critical" | "degraded" | "not_configured";
 export type IncidentSeverity = "critical" | "warning" | "info";

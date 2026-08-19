@@ -127,8 +127,8 @@ def test_post_without_csrf_is_rejected(db, monkeypatch):
 
     monkeypatch.setattr(settings, "internal_admin_emails", "notes-ceo8@ops-test.com")
     raw = TestClient(app, raise_server_exceptions=True)
-    raw._disable_auto_csrf = True
     _signup_login(raw, "notes-ceo8@ops-test.com", "Ops Notes HQ 8")
+    raw._disable_auto_csrf = True
     r = raw.post(
         "/api/v1/internal/ops/notes",
         json={"entity_type": "general", "body": "sin csrf"},

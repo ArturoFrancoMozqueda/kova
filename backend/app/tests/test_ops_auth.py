@@ -5,21 +5,31 @@ INTERNAL_ADMIN_EMAILS get in, regardless of tenant role, and ops requests must
 never leave the RLS GUC (`app.tenant_id`) set because their queries are
 cross-tenant by design.
 """
+from uuid import uuid4
+
+import pyotp
 import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import text
 
 from app.auth.models import User
 from app.config import settings
 from app.db import get_db, get_privileged_db
 from app.main import _validate_config, _validate_internal_ops_config, app
-from app.ops.dependencies import require_internal_admin
+from app.ops.dependencies import require_internal_admin, require_internal_founder
 
 PASSWORD = "S3cur3pass!"
 
 
-def _signup_login(client: TestClient, email: str, tenant: str) -> None:
+def _signup_login(
+    client: TestClient,
+    email: str,
+    tenant: str,
+    *,
+    enroll_mfa: bool = True,
+) -> None:
     r = client.post(
         "/api/v1/auth/signup",
         json={
@@ -34,6 +44,26 @@ def _signup_login(client: TestClient, email: str, tenant: str) -> None:
     client.post("/api/v1/auth/verify", json={"token": token})
     r = client.post("/api/v1/auth/login", json={"email": email, "password": PASSWORD})
     assert r.status_code == 200
+    if enroll_mfa and email.lower() in settings.internal_admin_email_set:
+        setup = client.post(
+            "/api/v1/internal/ops/mfa/setup",
+            json={
+                "password": PASSWORD,
+                "enrollment_key": settings.internal_ops_mfa_enrollment_key.get_secret_value(),
+            },
+        )
+        assert setup.status_code == 200
+        code = pyotp.TOTP(setup.json()["secret"]).now()
+        confirm = client.post(
+            "/api/v1/internal/ops/mfa/confirm",
+            json={
+                "password": PASSWORD,
+                "enrollment_key": settings.internal_ops_mfa_enrollment_key.get_secret_value(),
+                "code": code,
+            },
+        )
+        assert confirm.status_code == 200
+        assert len(confirm.json()["recovery_codes"]) == 10
 
 
 def test_unauthenticated_returns_401(db):
@@ -155,6 +185,44 @@ def test_nonlocal_ops_config_requires_one_email_and_uuid(monkeypatch):
         _validate_internal_ops_config()
 
 
+def test_nonlocal_ops_config_requires_separate_mfa_root(monkeypatch):
+    monkeypatch.setattr(settings, "app_env", "staging")
+    monkeypatch.setattr(settings, "internal_admin_emails", "ceo@ops-test.com")
+    monkeypatch.setattr(settings, "internal_admin_user_id", uuid4())
+    monkeypatch.setattr(settings, "internal_ops_mfa_root_key", None)
+    with pytest.raises(RuntimeError, match="INTERNAL_OPS_MFA_ROOT_KEY"):
+        _validate_internal_ops_config()
+
+    monkeypatch.setattr(
+        settings,
+        "internal_ops_mfa_root_key",
+        SecretStr("a-separate-production-mfa-root-key-with-enough-entropy"),
+    )
+    monkeypatch.setattr(
+        settings,
+        "internal_ops_mfa_enrollment_key",
+        SecretStr("a-separate-production-enrollment-key-with-enough-entropy"),
+    )
+    _validate_internal_ops_config()
+
+
+def test_nonlocal_ops_config_rejects_reused_security_keys(monkeypatch):
+    shared = "do-not-reuse-this-production-secret-value"
+    monkeypatch.setattr(settings, "app_env", "staging")
+    monkeypatch.setattr(settings, "internal_admin_emails", "ceo@ops-test.com")
+    monkeypatch.setattr(settings, "internal_admin_user_id", uuid4())
+    monkeypatch.setattr(settings, "secret_key", shared)
+    monkeypatch.setattr(settings, "internal_ops_mfa_root_key", SecretStr(shared))
+    monkeypatch.setattr(
+        settings,
+        "internal_ops_mfa_enrollment_key",
+        SecretStr("different-enrollment-key-with-enough-entropy"),
+    )
+
+    with pytest.raises(RuntimeError, match="must be different"):
+        _validate_internal_ops_config()
+
+
 def test_ops_responses_are_never_cacheable(client, monkeypatch):
     monkeypatch.setattr(settings, "internal_admin_emails", "cache-ceo@ops-test.com")
     _signup_login(client, "cache-ceo@ops-test.com", "Cache HQ")
@@ -180,6 +248,9 @@ def test_every_ops_route_has_founder_guard_and_privileged_db():
     assert routes
     for route in routes:
         calls = dependency_calls(route.dependant)
-        assert require_internal_admin in calls, route.path
+        if route.path.startswith("/api/v1/internal/ops/mfa"):
+            assert require_internal_founder in calls, route.path
+        else:
+            assert require_internal_admin in calls, route.path
         assert get_privileged_db in calls, route.path
         assert get_db not in calls, route.path

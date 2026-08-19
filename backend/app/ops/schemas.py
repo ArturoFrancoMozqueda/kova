@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.shared.validation import StrictModel
+
 # Shared status vocabulary for every ops signal:
 # ok/warning/critical describe observed state; degraded means the source
 # errored (unknown state); not_configured means the integration has no token.
@@ -13,6 +15,42 @@ OpsStatus = Literal["ok", "warning", "critical", "degraded", "not_configured"]
 class OpsMeResponse(BaseModel):
     email: str
     is_internal_admin: Literal[True] = True
+
+
+class OpsMfaPasswordRequest(StrictModel):
+    password: str = Field(min_length=1, max_length=128)
+    enrollment_key: str = Field(min_length=32, max_length=256)
+
+
+class OpsMfaConfirmRequest(StrictModel):
+    password: str = Field(min_length=1, max_length=128)
+    enrollment_key: str = Field(min_length=32, max_length=256)
+    code: str = Field(min_length=6, max_length=12)
+
+
+class OpsMfaVerifyRequest(StrictModel):
+    code: str = Field(min_length=6, max_length=64)
+
+
+class OpsMfaStatusResponse(BaseModel):
+    enrolled: bool
+    step_up_valid: bool
+    recovery_codes_remaining: int
+
+
+class OpsMfaSetupResponse(BaseModel):
+    secret: str
+    qr_png_data_url: str
+
+
+class OpsMfaConfirmResponse(BaseModel):
+    recovery_codes: list[str]
+    step_up_valid: Literal[True] = True
+
+
+class OpsMfaVerifyResponse(BaseModel):
+    step_up_valid: Literal[True] = True
+    used_recovery_code: bool = False
 
 
 class SourceHealth(BaseModel):

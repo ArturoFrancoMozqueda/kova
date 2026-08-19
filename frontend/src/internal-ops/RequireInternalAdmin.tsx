@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { ApiError } from "./api";
 import { useOpsMe } from "./hooks";
+import OpsMfaGate from "./OpsMfaGate";
 
 const NotFound = lazy(() => import("@/routes/NotFound"));
 
@@ -26,6 +27,9 @@ export default function RequireInternalAdmin({ children }: { children: ReactNode
   if (me.isError) {
     if (me.error instanceof ApiError && me.error.status === 401) {
       return <Navigate to="/login" replace />;
+    }
+    if (me.error instanceof ApiError && me.error.status === 428) {
+      return <OpsMfaGate onVerified={() => void me.refetch()} />;
     }
     return (
       <Suspense fallback={null}>

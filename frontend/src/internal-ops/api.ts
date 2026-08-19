@@ -8,6 +8,10 @@ import type {
   IncidentDetail,
   IncidentList,
   OpsMe,
+  OpsMfaConfirm,
+  OpsMfaSetup,
+  OpsMfaStatus,
+  OpsMfaVerify,
   OpsNote,
   Overview,
   Revenue,
@@ -46,6 +50,17 @@ function mutate<T>(url: string, method: "POST" | "PATCH", body: unknown): Promis
 }
 
 export const getOpsMe = () => requestJson<OpsMe>(`${BASE}/me`);
+export const getOpsMfaStatus = () => requestJson<OpsMfaStatus>(`${BASE}/mfa/status`);
+export const setupOpsMfa = (password: string, enrollmentKey: string) =>
+  mutate<OpsMfaSetup>(`${BASE}/mfa/setup`, "POST", { password, enrollment_key: enrollmentKey });
+export const confirmOpsMfa = (password: string, enrollmentKey: string, code: string) =>
+  mutate<OpsMfaConfirm>(`${BASE}/mfa/confirm`, "POST", {
+    password,
+    enrollment_key: enrollmentKey,
+    code,
+  });
+export const verifyOpsMfa = (code: string) =>
+  mutate<OpsMfaVerify>(`${BASE}/mfa/verify`, "POST", { code });
 export const getOverview = () => requestJson<Overview>(`${BASE}/overview`);
 export const getTechnical = () => requestJson<Technical>(`${BASE}/technical`);
 export const getRevenue = () => requestJson<Revenue>(`${BASE}/revenue`);

@@ -44,6 +44,10 @@ expectProperties("OverviewResponse", [
 ]);
 expectProperties("TenantListResponse", ["generated_at", "items", "total"]);
 expectProperties("TraceResponse", ["generated_at", "query", "timeline", "sources_queried"]);
+expectProperties("OpsMfaStatusResponse", [
+  "enrolled", "step_up_valid", "recovery_codes_remaining",
+]);
+expectProperties("OpsMfaSetupResponse", ["secret", "qr_png_data_url"]);
 
 expectStatus("/api/v1/auth/signup", "post", "200");
 expectStatus("/api/v1/auth/login", "post", "200");
@@ -57,6 +61,10 @@ expectStatus("/api/v1/internal/ops/overview", "get", "200");
 expectStatus("/api/v1/internal/ops/tenants", "get", "200");
 expectStatus("/api/v1/internal/ops/trace", "get", "200");
 expectStatus("/api/v1/internal/ops/notes", "post", "201");
+expectStatus("/api/v1/internal/ops/mfa/status", "get", "200");
+expectStatus("/api/v1/internal/ops/mfa/setup", "post", "200");
+expectStatus("/api/v1/internal/ops/mfa/confirm", "post", "200");
+expectStatus("/api/v1/internal/ops/mfa/verify", "post", "200");
 
 if (errors.length) {
   console.error(`Contrato frontend/backend incompatible:\n- ${errors.join("\n- ")}`);

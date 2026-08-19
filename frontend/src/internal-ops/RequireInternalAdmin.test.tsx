@@ -13,6 +13,7 @@ vi.mock("./api", async () => {
   return { ...actual, getOpsMe: () => getOpsMe() };
 });
 vi.mock("@/auth/useAuth", () => ({ useAuth: () => useAuth() }));
+vi.mock("./OpsMfaGate", () => ({ default: () => <div>MFA CHALLENGE</div> }));
 
 function renderGuard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -76,5 +77,13 @@ describe("RequireInternalAdmin", () => {
     getOpsMe.mockRejectedValue(new ApiError("unauth", 401));
     renderGuard();
     expect(await screen.findByText("LOGIN PAGE")).toBeInTheDocument();
+  });
+
+  it("renders the MFA challenge on 428 without exposing Ops", async () => {
+    useAuth.mockReturnValue({ state: { status: "authenticated" } });
+    getOpsMe.mockRejectedValue(new ApiError("mfa", 428));
+    renderGuard();
+    expect(await screen.findByText("MFA CHALLENGE")).toBeInTheDocument();
+    expect(screen.queryByText("SECRET OPS")).not.toBeInTheDocument();
   });
 });

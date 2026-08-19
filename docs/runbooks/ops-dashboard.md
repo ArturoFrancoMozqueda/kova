@@ -13,13 +13,17 @@ un segundo cálculo que pueda divergir de Kova Ops.
 
 ## Access
 
-1. Configure exactly one verified founder email and its immutable Kova user UUID
-   as Fly secrets on `pos-project-backend`:
+1. Generate two different MFA secrets and configure them together with the
+   single verified founder identity on `pos-project-backend`:
    ```
-   flyctl secrets set INTERNAL_ADMIN_EMAILS="ceo@kovasuite.com" INTERNAL_ADMIN_USER_ID="<user-uuid>" -a pos-project-backend
+   python -c "import secrets; print(secrets.token_urlsafe(48))"
+   # Run the command twice. Never reuse SECRET_KEY or either generated value.
+   flyctl secrets set INTERNAL_ADMIN_EMAILS="ceo@kovasuite.com" INTERNAL_ADMIN_USER_ID="<user-uuid>" INTERNAL_OPS_MFA_ROOT_KEY="<root-value>" INTERNAL_OPS_MFA_ENROLLMENT_KEY="<second-value>" -a pos-project-backend
    ```
    Outside local development, startup fails closed unless both values are present
-   and there is exactly one email. An empty configuration disables the dashboard.
+   and there is exactly one email; an enabled Ops module also requires an MFA root
+   and enrollment key of at least 32 characters. An empty identity configuration
+   disables the dashboard.
 2. Copy the UUID from the existing `users.id` record for that email. Recreating
    an account with the same email produces another UUID and therefore does not
    inherit access. The account must stay active and **email-verified**. Tenant
@@ -28,6 +32,26 @@ un segundo cálculo que pueda divergir de Kova Ops.
    (even tenant owners) get a 404-style page; the route is never surfaced in
    normal navigation and carries `X-Robots-Tag: noindex`. This is discoverability
    hygiene only; backend authorization remains the security boundary.
+4. On first access from a trusted device, enter the current password and the
+   out-of-band `INTERNAL_OPS_MFA_ENROLLMENT_KEY`, then scan the QR with a TOTP app
+   such as 1Password, Google Authenticator or Authy. Confirm one six-digit code,
+   then store the ten recovery codes outside Kova. They are shown only once and
+   each can be consumed only once.
+
+The MFA step-up lasts `INTERNAL_OPS_MFA_STEP_UP_TTL_SECONDS` (one hour by
+default). A normal Kova login or refresh does not bypass it. TOTP counters are
+recorded server-side to reject replay within the accepted clock-skew window.
+
+`INTERNAL_OPS_MFA_ROOT_KEY` is not the TOTP seed and is never returned to the
+browser. Kova derives the founder seed from this root, so a database-only breach
+cannot clone the factor. Do not rotate or lose it casually: rotating it changes
+the TOTP seed. If rotation is required, retain a recovery code, remove the old
+factor rows operationally, set the new root and enroll again.
+
+The separate enrollment key prevents a stolen founder session and password from
+claiming the first factor. Keep it outside Kova and the password manager/device
+used for normal login; it is also the break-glass credential for a controlled
+re-enrollment. Never send either server secret through chat, logs or source control.
 
 ## Connector tokens (all optional)
 
@@ -86,6 +110,6 @@ within ≤30s) so polling never hammers the external APIs.
   logs; note/triage writes are recorded in `audit_logs`.
 - Every Ops response is `private, no-store`; state changes require both the CSRF
   token and a trusted Kova browser origin.
-- Email + UUID prevents privilege transfer through email reuse, but it cannot
-  protect a compromised founder device/session by itself. Enable MFA or an
-  identity-aware proxy before treating Ops as the sole production control plane.
+- Email + UUID + TOTP protects against password-only and stale-session compromise.
+  A hardware-backed identity-aware proxy remains useful defense in depth for an
+  especially sensitive production control plane.

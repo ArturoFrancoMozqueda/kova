@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, createNote, getTrace, updateTriage } from "./api";
+import { ApiError, createNote, getTrace, setupOpsMfa, updateTriage, verifyOpsMfa } from "./api";
 
 function mockFetch(status: number, body: unknown) {
   return vi.fn(async () => ({
@@ -46,5 +46,33 @@ describe("internal-ops api", () => {
   it("throws ApiError with status on failure", async () => {
     vi.stubGlobal("fetch", mockFetch(403, { detail: "no" }));
     await expect(getTrace({ request_id: "x" })).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("sends MFA verification with CSRF and never stores the code", async () => {
+    document.cookie = "csrf_token=mfa-csrf";
+    const fetchMock = mockFetch(200, { step_up_valid: true, used_recovery_code: false });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await verifyOpsMfa("123456");
+
+    const [, init] = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0];
+    expect((init as RequestInit).method).toBe("POST");
+    expect((init as RequestInit).body).toBe(JSON.stringify({ code: "123456" }));
+    expect((init as RequestInit).headers).toMatchObject({ "X-CSRF-Token": "mfa-csrf" });
+  });
+
+  it("sends the enrollment key only in the protected setup body", async () => {
+    document.cookie = "csrf_token=mfa-csrf";
+    const fetchMock = mockFetch(200, { secret: "SEED", qr_png_data_url: "data:image/png;base64,AA" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await setupOpsMfa("current-password", "private-enrollment-key-with-32-characters");
+
+    const [url, init] = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0];
+    expect(url).not.toContain("private-enrollment-key");
+    expect((init as RequestInit).body).toBe(JSON.stringify({
+      password: "current-password",
+      enrollment_key: "private-enrollment-key-with-32-characters",
+    }));
   });
 });

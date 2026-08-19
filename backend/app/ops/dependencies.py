@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,7 @@ from app.auth.service import decode_access_token
 from app.config import settings
 from app.db import get_privileged_db
 from app.observability.logging import set_request_context
+from app.ops import mfa
 from app.shared.exceptions import forbidden, unauthorized
 
 _access_logger = logging.getLogger("app.ops.access")
@@ -31,13 +32,17 @@ _access_logger = logging.getLogger("app.ops.access")
 _FORBIDDEN_DETAIL = "Not an internal admin"
 
 
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 @dataclass(frozen=True)
 class InternalAdminContext:
     user: User
     session: UserSession
 
 
-def require_internal_admin(
+def require_internal_founder(
     request: Request,
     db: Session = Depends(get_privileged_db),
 ) -> InternalAdminContext:
@@ -63,7 +68,7 @@ def require_internal_admin(
     if (
         not session
         or session.revoked_at
-        or session.expires_at.replace(tzinfo=UTC) < datetime.now(UTC)
+        or _as_utc(session.expires_at) < datetime.now(UTC)
     ):
         raise unauthorized("Session revoked")
 
@@ -92,3 +97,15 @@ def require_internal_admin(
         extra={"method": request.method, "path": request.url.path},
     )
     return InternalAdminContext(user=user, session=session)
+
+
+def require_internal_admin(
+    ctx: InternalAdminContext = Depends(require_internal_founder),
+    db: Session = Depends(get_privileged_db),
+) -> InternalAdminContext:
+    """Require an enrolled factor and a recent server-side MFA step-up."""
+    if not mfa.factor_exists(db, user_id=ctx.user.id) or not mfa.step_up_is_valid(
+        ctx.session
+    ):
+        raise HTTPException(status_code=428, detail="MFA_REQUIRED")
+    return ctx

@@ -4845,6 +4845,155 @@
         "title": "OpsMeResponse",
         "type": "object"
       },
+      "OpsMfaConfirmRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 12,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          },
+          "enrollment_key": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Enrollment Key",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "enrollment_key",
+          "code"
+        ],
+        "title": "OpsMfaConfirmRequest",
+        "type": "object"
+      },
+      "OpsMfaConfirmResponse": {
+        "properties": {
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          },
+          "step_up_valid": {
+            "const": true,
+            "default": true,
+            "title": "Step Up Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recovery_codes"
+        ],
+        "title": "OpsMfaConfirmResponse",
+        "type": "object"
+      },
+      "OpsMfaPasswordRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "enrollment_key": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Enrollment Key",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "enrollment_key"
+        ],
+        "title": "OpsMfaPasswordRequest",
+        "type": "object"
+      },
+      "OpsMfaSetupResponse": {
+        "properties": {
+          "qr_png_data_url": {
+            "title": "Qr Png Data Url",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "qr_png_data_url"
+        ],
+        "title": "OpsMfaSetupResponse",
+        "type": "object"
+      },
+      "OpsMfaStatusResponse": {
+        "properties": {
+          "enrolled": {
+            "title": "Enrolled",
+            "type": "boolean"
+          },
+          "recovery_codes_remaining": {
+            "title": "Recovery Codes Remaining",
+            "type": "integer"
+          },
+          "step_up_valid": {
+            "title": "Step Up Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enrolled",
+          "step_up_valid",
+          "recovery_codes_remaining"
+        ],
+        "title": "OpsMfaStatusResponse",
+        "type": "object"
+      },
+      "OpsMfaVerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "OpsMfaVerifyRequest",
+        "type": "object"
+      },
+      "OpsMfaVerifyResponse": {
+        "properties": {
+          "step_up_valid": {
+            "const": true,
+            "default": true,
+            "title": "Step Up Valid",
+            "type": "boolean"
+          },
+          "used_recovery_code": {
+            "default": false,
+            "title": "Used Recovery Code",
+            "type": "boolean"
+          }
+        },
+        "title": "OpsMfaVerifyResponse",
+        "type": "object"
+      },
       "OpsNoteCreate": {
         "properties": {
           "body": {
@@ -12524,6 +12673,150 @@
         "summary": "Ops Me",
         "tags": [
           "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/confirm": {
+      "post": {
+        "operationId": "confirm_api_v1_internal_ops_mfa_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsMfaConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm",
+        "tags": [
+          "internal-ops-mfa"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/setup": {
+      "post": {
+        "operationId": "setup_api_v1_internal_ops_mfa_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsMfaPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Setup",
+        "tags": [
+          "internal-ops-mfa"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/status": {
+      "get": {
+        "operationId": "status_api_v1_internal_ops_mfa_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "internal-ops-mfa"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/verify": {
+      "post": {
+        "operationId": "verify_api_v1_internal_ops_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsMfaVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaVerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify",
+        "tags": [
+          "internal-ops-mfa"
         ]
       }
     },

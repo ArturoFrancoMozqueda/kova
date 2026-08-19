@@ -2,6 +2,11 @@ import os
 
 # Force dev mode before any app module is imported so Settings() picks it up.
 os.environ["APP_ENV"] = "local"
+os.environ["INTERNAL_ADMIN_EMAILS"] = ""
+os.environ["INTERNAL_OPS_MFA_ROOT_KEY"] = "test-only-kova-ops-mfa-root-key-32-bytes-minimum"
+os.environ["INTERNAL_OPS_MFA_ENROLLMENT_KEY"] = (
+    "test-only-kova-ops-enrollment-key-32-bytes-minimum"
+)
 
 import subprocess
 

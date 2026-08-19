@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -84,6 +84,11 @@ class Settings(BaseSettings):
     # integration as "not_configured", never an error.
     internal_admin_emails: str = ""
     internal_admin_user_id: UUID | None = None
+    # Server-only root used to derive the founder's TOTP seed. Keeping the root
+    # outside Postgres means a database-only compromise cannot clone the factor.
+    internal_ops_mfa_root_key: SecretStr | None = None
+    internal_ops_mfa_enrollment_key: SecretStr | None = None
+    internal_ops_mfa_step_up_ttl_seconds: int = Field(default=3600, ge=300, le=43200)
     sentry_api_token: str | None = None
     sentry_org_slug: str | None = None
     sentry_project_slug: str | None = None

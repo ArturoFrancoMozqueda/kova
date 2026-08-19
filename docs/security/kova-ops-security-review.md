@@ -19,6 +19,10 @@ que una cuenta recreada con el mismo email herede privilegios.
 - Autenticación cookie firmada, sesión existente, vigente y no revocada.
 - Integridad entre claims `sub`/`tid` y la sesión persistida.
 - Usuario activo, email verificado, email exacto y UUID exacto.
+- TOTP obligatorio con step-up por sesión, ventana configurable y rechazo de replay.
+- Enrolamiento protegido por contraseña actual y diez códigos de recuperación de un solo uso.
+- Bootstrap protegido por una clave de enrolamiento separada y entregada fuera de banda.
+- Semilla TOTP derivada de una raíz exclusiva de servidor; no se almacena en Postgres.
 - Configuración no-local fail-closed: exactamente un email + un UUID, o módulo deshabilitado.
 - Guard router-wide para impedir que una ruta futura olvide autorización.
 - Lecturas cross-tenant solo por `get_privileged_db`; ninguna ruta Ops usa `get_db`.
@@ -29,11 +33,17 @@ que una cuenta recreada con el mismo email herede privilegios.
 
 ## Riesgo residual y gate de producción
 
-No es posible garantizar literalmente “solo el dueño” si el correo, dispositivo o
-sesión del dueño es comprometido. Kova no cuenta hoy con step-up/MFA propio para
-este módulo. Antes de producción se recomienda exigir MFA en la identidad del
-fundador o colocar `/internal/ops` detrás de un identity-aware proxy; revocar las
-sesiones existentes al activar el módulo y usar una cuenta dedicada.
+MFA TOTP reduce el riesgo de contraseña o sesión antigua comprometida, pero no
+protege un dispositivo donde el atacante controle simultáneamente la sesión y la
+app autenticadora. Antes de producción se recomienda usar una cuenta dedicada,
+guardar los códigos de recuperación fuera de Kova y considerar un proxy de
+identidad con factor hardware como defensa adicional.
+
+`INTERNAL_OPS_MFA_ROOT_KEY` debe generarse aleatoriamente, guardarse como secreto
+de Fly y respaldarse. Su rotación cambia la semilla TOTP derivada y exige un
+procedimiento explícito de recuperación y nuevo enrolamiento.
+La raíz, la clave de enrolamiento y `SECRET_KEY` deben ser valores distintos;
+el arranque falla si se reutiliza alguno.
 
 La ruta y su bundle son descubribles aunque tengan `noindex`; esto no expone datos,
 porque el backend es la única frontera de autorización. Los tokens de conectores
