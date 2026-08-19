@@ -2031,6 +2031,24 @@
         "title": "CustomerOrderUpdate",
         "type": "object"
       },
+      "DeepLink": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "url"
+        ],
+        "title": "DeepLink",
+        "type": "object"
+      },
       "DeletionStatusResponse": {
         "properties": {
           "purge_after": {
@@ -2754,6 +2772,121 @@
         "title": "FiscalGlobalDraftSettingsUpsert",
         "type": "object"
       },
+      "FunnelConversion": {
+        "properties": {
+          "from": {
+            "title": "From",
+            "type": "string"
+          },
+          "rate": {
+            "title": "Rate",
+            "type": "number"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "rate"
+        ],
+        "title": "FunnelConversion",
+        "type": "object"
+      },
+      "FunnelResponse": {
+        "properties": {
+          "cohort_size": {
+            "title": "Cohort Size",
+            "type": "integer"
+          },
+          "conversions": {
+            "items": {
+              "$ref": "#/components/schemas/FunnelConversion"
+            },
+            "title": "Conversions",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/FunnelStep"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "window": {
+            "enum": [
+              "7d",
+              "30d",
+              "90d"
+            ],
+            "title": "Window",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generated_at",
+          "window",
+          "cohort_size",
+          "steps",
+          "conversions"
+        ],
+        "title": "FunnelResponse",
+        "type": "object"
+      },
+      "FunnelStep": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "count"
+        ],
+        "title": "FunnelStep",
+        "type": "object"
+      },
+      "GrowthTruths": {
+        "description": "Canonical lifetime growth counts shared with the protected snapshot.",
+        "properties": {
+          "paying_tenants": {
+            "title": "Paying Tenants",
+            "type": "integer"
+          },
+          "tenants_with_completed_sale": {
+            "title": "Tenants With Completed Sale",
+            "type": "integer"
+          },
+          "users_created": {
+            "title": "Users Created",
+            "type": "integer"
+          },
+          "users_verified": {
+            "title": "Users Verified",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "users_created",
+          "users_verified",
+          "tenants_with_completed_sale",
+          "paying_tenants"
+        ],
+        "title": "GrowthTruths",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2765,6 +2898,258 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IncidentCorrelation": {
+        "properties": {
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "stripe_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Event Id"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "title": "IncidentCorrelation",
+        "type": "object"
+      },
+      "IncidentDetailResponse": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "incident": {
+            "$ref": "#/components/schemas/IncidentItem"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/OpsNoteResponse"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEvent"
+            },
+            "title": "Timeline",
+            "type": "array"
+          }
+        },
+        "required": [
+          "incident",
+          "timeline",
+          "notes"
+        ],
+        "title": "IncidentDetailResponse",
+        "type": "object"
+      },
+      "IncidentItem": {
+        "properties": {
+          "correlation": {
+            "$ref": "#/components/schemas/IncidentCorrelation"
+          },
+          "deep_links": {
+            "items": {
+              "$ref": "#/components/schemas/DeepLink"
+            },
+            "title": "Deep Links",
+            "type": "array"
+          },
+          "detected_at": {
+            "format": "date-time",
+            "title": "Detected At",
+            "type": "string"
+          },
+          "external_id": {
+            "title": "External Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "warning",
+              "info"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "stripe_webhook",
+              "subscription",
+              "sentry",
+              "uptimerobot",
+              "fly",
+              "vercel",
+              "db"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "triage": {
+            "$ref": "#/components/schemas/IncidentTriage"
+          }
+        },
+        "required": [
+          "key",
+          "source",
+          "external_id",
+          "severity",
+          "title",
+          "detected_at",
+          "correlation",
+          "triage",
+          "deep_links"
+        ],
+        "title": "IncidentItem",
+        "type": "object"
+      },
+      "IncidentListResponse": {
+        "properties": {
+          "degraded_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degraded Sources",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "generated_at",
+          "items",
+          "total",
+          "degraded_sources"
+        ],
+        "title": "IncidentListResponse",
+        "type": "object"
+      },
+      "IncidentTriage": {
+        "properties": {
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "status": {
+            "enum": [
+              "new",
+              "acknowledged",
+              "investigating",
+              "resolved",
+              "ignored"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "IncidentTriage",
         "type": "object"
       },
       "InternalReconcileRequest": {
@@ -3989,6 +4374,49 @@
         "title": "ModifierOptionUpdate",
         "type": "object"
       },
+      "MoneySummary": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "integer"
+          },
+          "canceling": {
+            "title": "Canceling",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "mrr_minor_units": {
+            "title": "Mrr Minor Units",
+            "type": "integer"
+          },
+          "past_due": {
+            "title": "Past Due",
+            "type": "integer"
+          },
+          "trialing": {
+            "title": "Trialing",
+            "type": "integer"
+          },
+          "trialing_mrr_minor_units": {
+            "title": "Trialing Mrr Minor Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "currency",
+          "mrr_minor_units",
+          "trialing_mrr_minor_units",
+          "active",
+          "trialing",
+          "past_due",
+          "canceling"
+        ],
+        "title": "MoneySummary",
+        "type": "object"
+      },
       "MovementHistoryItem": {
         "properties": {
           "created_at": {
@@ -4375,6 +4803,434 @@
         "title": "OperatingExpenseReport",
         "type": "object"
       },
+      "OperationsSummary": {
+        "properties": {
+          "orders_24h": {
+            "title": "Orders 24H",
+            "type": "integer"
+          },
+          "sales_24h_amount": {
+            "title": "Sales 24H Amount",
+            "type": "string"
+          },
+          "signups_7d": {
+            "title": "Signups 7D",
+            "type": "integer"
+          },
+          "tenants_active_7d": {
+            "title": "Tenants Active 7D",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orders_24h",
+          "sales_24h_amount",
+          "signups_7d",
+          "tenants_active_7d"
+        ],
+        "title": "OperationsSummary",
+        "type": "object"
+      },
+      "OpsMeResponse": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "is_internal_admin": {
+            "const": true,
+            "default": true,
+            "title": "Is Internal Admin",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "OpsMeResponse",
+        "type": "object"
+      },
+      "OpsMfaConfirmRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 12,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          },
+          "enrollment_key": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Enrollment Key",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "enrollment_key",
+          "code"
+        ],
+        "title": "OpsMfaConfirmRequest",
+        "type": "object"
+      },
+      "OpsMfaConfirmResponse": {
+        "properties": {
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          },
+          "step_up_valid": {
+            "const": true,
+            "default": true,
+            "title": "Step Up Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recovery_codes"
+        ],
+        "title": "OpsMfaConfirmResponse",
+        "type": "object"
+      },
+      "OpsMfaPasswordRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "enrollment_key": {
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Enrollment Key",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "enrollment_key"
+        ],
+        "title": "OpsMfaPasswordRequest",
+        "type": "object"
+      },
+      "OpsMfaSetupResponse": {
+        "properties": {
+          "qr_png_data_url": {
+            "title": "Qr Png Data Url",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "qr_png_data_url"
+        ],
+        "title": "OpsMfaSetupResponse",
+        "type": "object"
+      },
+      "OpsMfaStatusResponse": {
+        "properties": {
+          "enrolled": {
+            "title": "Enrolled",
+            "type": "boolean"
+          },
+          "recovery_codes_remaining": {
+            "title": "Recovery Codes Remaining",
+            "type": "integer"
+          },
+          "step_up_valid": {
+            "title": "Step Up Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enrolled",
+          "step_up_valid",
+          "recovery_codes_remaining"
+        ],
+        "title": "OpsMfaStatusResponse",
+        "type": "object"
+      },
+      "OpsMfaVerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "OpsMfaVerifyRequest",
+        "type": "object"
+      },
+      "OpsMfaVerifyResponse": {
+        "properties": {
+          "step_up_valid": {
+            "const": true,
+            "default": true,
+            "title": "Step Up Valid",
+            "type": "boolean"
+          },
+          "used_recovery_code": {
+            "default": false,
+            "title": "Used Recovery Code",
+            "type": "boolean"
+          }
+        },
+        "title": "OpsMfaVerifyResponse",
+        "type": "object"
+      },
+      "OpsNoteCreate": {
+        "properties": {
+          "body": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "entity_external_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity External Id"
+          },
+          "entity_source": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Source"
+          },
+          "entity_type": {
+            "enum": [
+              "incident",
+              "tenant",
+              "general"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          }
+        },
+        "required": [
+          "entity_type",
+          "body"
+        ],
+        "title": "OpsNoteCreate",
+        "type": "object"
+      },
+      "OpsNoteListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OpsNoteResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "OpsNoteListResponse",
+        "type": "object"
+      },
+      "OpsNoteResponse": {
+        "properties": {
+          "author_email": {
+            "title": "Author Email",
+            "type": "string"
+          },
+          "author_user_id": {
+            "format": "uuid",
+            "title": "Author User Id",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "entity_external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity External Id"
+          },
+          "entity_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Source"
+          },
+          "entity_type": {
+            "enum": [
+              "incident",
+              "tenant",
+              "general"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "resolved",
+              "archived"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "author_user_id",
+          "author_email",
+          "entity_type",
+          "entity_source",
+          "entity_external_id",
+          "tenant_id",
+          "body",
+          "status",
+          "pinned",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OpsNoteResponse",
+        "type": "object"
+      },
+      "OpsNoteUpdate": {
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinned"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "resolved",
+                  "archived"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "OpsNoteUpdate",
+        "type": "object"
+      },
       "OrderCreate": {
         "properties": {
           "items": {
@@ -4626,6 +5482,77 @@
         "title": "OrderResponse",
         "type": "object"
       },
+      "OverviewHealth": {
+        "properties": {
+          "overall": {
+            "enum": [
+              "ok",
+              "warning",
+              "critical",
+              "degraded",
+              "not_configured"
+            ],
+            "title": "Overall",
+            "type": "string"
+          },
+          "sources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SourceHealth"
+            },
+            "title": "Sources",
+            "type": "object"
+          }
+        },
+        "required": [
+          "overall",
+          "sources"
+        ],
+        "title": "OverviewHealth",
+        "type": "object"
+      },
+      "OverviewResponse": {
+        "properties": {
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "growth": {
+            "$ref": "#/components/schemas/GrowthTruths"
+          },
+          "health": {
+            "$ref": "#/components/schemas/OverviewHealth"
+          },
+          "money": {
+            "$ref": "#/components/schemas/MoneySummary"
+          },
+          "operations": {
+            "$ref": "#/components/schemas/OperationsSummary"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/RiskSummary"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionInfo"
+          }
+        },
+        "required": [
+          "generated_at",
+          "environment",
+          "version",
+          "health",
+          "growth",
+          "money",
+          "risk",
+          "operations"
+        ],
+        "title": "OverviewResponse",
+        "type": "object"
+      },
       "PasswordResetConfirmBody": {
         "additionalProperties": false,
         "properties": {
@@ -4660,6 +5587,51 @@
           "email"
         ],
         "title": "PasswordResetRequestBody",
+        "type": "object"
+      },
+      "PastDueItem": {
+        "properties": {
+          "grace_period_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grace Period Ends At"
+          },
+          "past_due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Past Due At"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "tenant_name": {
+            "title": "Tenant Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "tenant_name",
+          "past_due_at",
+          "grace_period_ends_at"
+        ],
+        "title": "PastDueItem",
         "type": "object"
       },
       "PaymentBreakdownResponse": {
@@ -6126,6 +7098,96 @@
         "title": "RestockAlertRow",
         "type": "object"
       },
+      "RevenueResponse": {
+        "properties": {
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Status",
+            "type": "object"
+          },
+          "canceling_count": {
+            "title": "Canceling Count",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "mrr_minor_units": {
+            "title": "Mrr Minor Units",
+            "type": "integer"
+          },
+          "past_due": {
+            "items": {
+              "$ref": "#/components/schemas/PastDueItem"
+            },
+            "title": "Past Due",
+            "type": "array"
+          },
+          "trialing_mrr_minor_units": {
+            "title": "Trialing Mrr Minor Units",
+            "type": "integer"
+          },
+          "trials": {
+            "items": {
+              "$ref": "#/components/schemas/TrialItem"
+            },
+            "title": "Trials",
+            "type": "array"
+          },
+          "webhook_health": {
+            "$ref": "#/components/schemas/WebhookHealth"
+          }
+        },
+        "required": [
+          "generated_at",
+          "currency",
+          "mrr_minor_units",
+          "trialing_mrr_minor_units",
+          "by_status",
+          "canceling_count",
+          "trials",
+          "past_due",
+          "webhook_health"
+        ],
+        "title": "RevenueResponse",
+        "type": "object"
+      },
+      "RiskSummary": {
+        "properties": {
+          "failed_webhooks_24h": {
+            "title": "Failed Webhooks 24H",
+            "type": "integer"
+          },
+          "grace_period_expired": {
+            "title": "Grace Period Expired",
+            "type": "integer"
+          },
+          "past_due_tenants": {
+            "title": "Past Due Tenants",
+            "type": "integer"
+          },
+          "trials_expiring_7d": {
+            "title": "Trials Expiring 7D",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "failed_webhooks_24h",
+          "past_due_tenants",
+          "trials_expiring_7d",
+          "grace_period_expired"
+        ],
+        "title": "RiskSummary",
+        "type": "object"
+      },
       "SalesByEmployeeRow": {
         "properties": {
           "display_name": {
@@ -6478,6 +7540,60 @@
         "title": "SignupResponse",
         "type": "object"
       },
+      "SourceHealth": {
+        "properties": {
+          "checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "warning",
+              "critical",
+              "degraded",
+              "not_configured"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SourceHealth",
+        "type": "object"
+      },
       "StandardPlanResponse": {
         "properties": {
           "amount_minor_units": {
@@ -6674,6 +7790,95 @@
         "title": "SubscriptionResponse",
         "type": "object"
       },
+      "TechnicalResponse": {
+        "properties": {
+          "db": {
+            "$ref": "#/components/schemas/TechnicalSource"
+          },
+          "fly": {
+            "$ref": "#/components/schemas/TechnicalSource"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "sentry": {
+            "$ref": "#/components/schemas/TechnicalSource"
+          },
+          "uptimerobot": {
+            "$ref": "#/components/schemas/TechnicalSource"
+          },
+          "vercel": {
+            "$ref": "#/components/schemas/TechnicalSource"
+          }
+        },
+        "required": [
+          "generated_at",
+          "db",
+          "uptimerobot",
+          "sentry",
+          "fly",
+          "vercel"
+        ],
+        "title": "TechnicalResponse",
+        "type": "object"
+      },
+      "TechnicalSource": {
+        "properties": {
+          "checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "error_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Summary"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "warning",
+              "critical",
+              "degraded",
+              "not_configured"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TechnicalSource",
+        "type": "object"
+      },
       "TelemetryEventCreate": {
         "additionalProperties": false,
         "properties": {
@@ -6712,6 +7917,333 @@
           }
         },
         "title": "TelemetryEventResponse",
+        "type": "object"
+      },
+      "TenantActivation": {
+        "properties": {
+          "billing": {
+            "title": "Billing",
+            "type": "boolean"
+          },
+          "business_profile": {
+            "title": "Business Profile",
+            "type": "boolean"
+          },
+          "completed_count": {
+            "title": "Completed Count",
+            "type": "integer"
+          },
+          "first_product": {
+            "title": "First Product",
+            "type": "boolean"
+          },
+          "first_sale": {
+            "title": "First Sale",
+            "type": "boolean"
+          },
+          "shift_opened": {
+            "title": "Shift Opened",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "business_profile",
+          "first_product",
+          "shift_opened",
+          "first_sale",
+          "billing",
+          "completed_count"
+        ],
+        "title": "TenantActivation",
+        "type": "object"
+      },
+      "TenantBilling": {
+        "properties": {
+          "amount_minor_units": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Minor Units"
+          },
+          "cancel_at_period_end": {
+            "title": "Cancel At Period End",
+            "type": "boolean"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "grace_period_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grace Period Ends At"
+          },
+          "past_due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Past Due At"
+          },
+          "plan_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Name"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "stripe_customer_deep_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Customer Deep Link"
+          },
+          "stripe_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Customer Id"
+          },
+          "trial_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Ends At"
+          }
+        },
+        "required": [
+          "status",
+          "plan_name",
+          "amount_minor_units",
+          "currency",
+          "trial_ends_at",
+          "past_due_at",
+          "grace_period_ends_at",
+          "cancel_at_period_end",
+          "stripe_customer_id",
+          "stripe_customer_deep_link"
+        ],
+        "title": "TenantBilling",
+        "type": "object"
+      },
+      "TenantItem": {
+        "properties": {
+          "activation": {
+            "$ref": "#/components/schemas/TenantActivation"
+          },
+          "billing": {
+            "$ref": "#/components/schemas/TenantBilling"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Email"
+          },
+          "risk_flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Risk Flags",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/TenantUsage"
+          },
+          "users_count": {
+            "title": "Users Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "name",
+          "slug",
+          "is_active",
+          "created_at",
+          "owner_email",
+          "users_count",
+          "billing",
+          "activation",
+          "usage",
+          "risk_flags"
+        ],
+        "title": "TenantItem",
+        "type": "object"
+      },
+      "TenantListResponse": {
+        "properties": {
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TenantItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "generated_at",
+          "items",
+          "total"
+        ],
+        "title": "TenantListResponse",
+        "type": "object"
+      },
+      "TenantUsage": {
+        "properties": {
+          "last_order_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Order At"
+          },
+          "orders_30d": {
+            "title": "Orders 30D",
+            "type": "integer"
+          },
+          "orders_7d": {
+            "title": "Orders 7D",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orders_7d",
+          "orders_30d",
+          "last_order_at"
+        ],
+        "title": "TenantUsage",
+        "type": "object"
+      },
+      "TimelineEvent": {
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ts",
+          "kind",
+          "summary"
+        ],
+        "title": "TimelineEvent",
         "type": "object"
       },
       "TopProductRow": {
@@ -6770,6 +8302,254 @@
           "products"
         ],
         "title": "TopProductsResponse",
+        "type": "object"
+      },
+      "TraceEvent": {
+        "properties": {
+          "correlation": {
+            "$ref": "#/components/schemas/IncidentCorrelation"
+          },
+          "deep_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deep Link"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts"
+          }
+        },
+        "required": [
+          "ts",
+          "source",
+          "kind",
+          "summary",
+          "correlation"
+        ],
+        "title": "TraceEvent",
+        "type": "object"
+      },
+      "TraceQuery": {
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "sentry_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentry Event Id"
+          },
+          "stripe_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripe Event Id"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "title": "TraceQuery",
+        "type": "object"
+      },
+      "TraceResponse": {
+        "properties": {
+          "deep_links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Deep Links",
+            "type": "object"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "query": {
+            "$ref": "#/components/schemas/TraceQuery"
+          },
+          "sources_queried": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Sources Queried",
+            "type": "object"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TraceEvent"
+            },
+            "title": "Timeline",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generated_at",
+          "query",
+          "timeline",
+          "sources_queried",
+          "deep_links"
+        ],
+        "title": "TraceResponse",
+        "type": "object"
+      },
+      "TriageUpdate": {
+        "properties": {
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "triage_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "new",
+                  "acknowledged",
+                  "investigating",
+                  "resolved",
+                  "ignored"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triage Status"
+          }
+        },
+        "title": "TriageUpdate",
+        "type": "object"
+      },
+      "TrialItem": {
+        "properties": {
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "tenant_name": {
+            "title": "Tenant Name",
+            "type": "string"
+          },
+          "trial_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Ends At"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "tenant_name",
+          "trial_ends_at"
+        ],
+        "title": "TrialItem",
         "type": "object"
       },
       "UserResponse": {
@@ -6859,6 +8639,23 @@
           "token"
         ],
         "title": "VerifyEmailRequest",
+        "type": "object"
+      },
+      "VersionInfo": {
+        "properties": {
+          "git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Sha"
+          }
+        },
+        "title": "VersionInfo",
         "type": "object"
       },
       "VersionedAction": {
@@ -7018,6 +8815,123 @@
           "by_reason"
         ],
         "title": "WasteReport",
+        "type": "object"
+      },
+      "WebhookFailureItem": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deep_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deep Link"
+          },
+          "error_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Reason"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "process_attempts": {
+            "title": "Process Attempts",
+            "type": "integer"
+          },
+          "stripe_event_id": {
+            "title": "Stripe Event Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
+          }
+        },
+        "required": [
+          "stripe_event_id",
+          "event_type",
+          "process_attempts",
+          "error_reason",
+          "created_at",
+          "tenant_id",
+          "deep_link"
+        ],
+        "title": "WebhookFailureItem",
+        "type": "object"
+      },
+      "WebhookHealth": {
+        "properties": {
+          "failed_7d": {
+            "title": "Failed 7D",
+            "type": "integer"
+          },
+          "last_event_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event At"
+          },
+          "recent_failures": {
+            "items": {
+              "$ref": "#/components/schemas/WebhookFailureItem"
+            },
+            "title": "Recent Failures",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "warning",
+              "critical",
+              "degraded",
+              "not_configured"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "stuck_received_1h": {
+            "title": "Stuck Received 1H",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "failed_7d",
+          "stuck_received_1h",
+          "last_event_at",
+          "recent_failures"
+        ],
+        "title": "WebhookHealth",
         "type": "object"
       }
     }
@@ -10460,6 +12374,995 @@
         "summary": "Put Global Draft Settings",
         "tags": [
           "fiscal"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/funnel": {
+      "get": {
+        "operationId": "ops_funnel_api_v1_internal_ops_funnel_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "30d",
+              "enum": [
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunnelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ops Funnel",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/incidents": {
+      "get": {
+        "operationId": "ops_incidents_api_v1_internal_ops_incidents_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "critical",
+                    "warning",
+                    "info"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "stripe_webhook",
+                    "subscription",
+                    "sentry",
+                    "uptimerobot",
+                    "fly",
+                    "vercel",
+                    "db"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "triage_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "new",
+                    "acknowledged",
+                    "investigating",
+                    "resolved",
+                    "ignored"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Triage Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_snoozed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Snoozed",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ops Incidents",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/incidents/{incident_key}": {
+      "get": {
+        "operationId": "ops_incident_detail_api_v1_internal_ops_incidents__incident_key__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_key",
+            "required": true,
+            "schema": {
+              "title": "Incident Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ops Incident Detail",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/incidents/{incident_key}/triage": {
+      "patch": {
+        "operationId": "ops_incident_triage_api_v1_internal_ops_incidents__incident_key__triage_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_key",
+            "required": true,
+            "schema": {
+              "title": "Incident Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriageUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ops Incident Triage",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/me": {
+      "get": {
+        "operationId": "ops_me_api_v1_internal_ops_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ops Me",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/confirm": {
+      "post": {
+        "operationId": "confirm_api_v1_internal_ops_mfa_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsMfaConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaConfirmResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm",
+        "tags": [
+          "internal-ops-mfa"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/setup": {
+      "post": {
+        "operationId": "setup_api_v1_internal_ops_mfa_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsMfaPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Setup",
+        "tags": [
+          "internal-ops-mfa"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/status": {
+      "get": {
+        "operationId": "status_api_v1_internal_ops_mfa_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "internal-ops-mfa"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/mfa/verify": {
+      "post": {
+        "operationId": "verify_api_v1_internal_ops_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsMfaVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsMfaVerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify",
+        "tags": [
+          "internal-ops-mfa"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/notes": {
+      "get": {
+        "operationId": "list_notes_api_v1_internal_ops_notes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "incident",
+                    "tenant",
+                    "general"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_external_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity External Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "open",
+                    "resolved",
+                    "archived"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsNoteListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Notes",
+        "tags": [
+          "internal-ops"
+        ]
+      },
+      "post": {
+        "operationId": "create_note_api_v1_internal_ops_notes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsNoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsNoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Note",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/notes/{note_id}": {
+      "patch": {
+        "operationId": "update_note_api_v1_internal_ops_notes__note_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Note Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsNoteUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsNoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Note",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/overview": {
+      "get": {
+        "operationId": "ops_overview_api_v1_internal_ops_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ops Overview",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/revenue": {
+      "get": {
+        "operationId": "ops_revenue_api_v1_internal_ops_revenue_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ops Revenue",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/technical": {
+      "get": {
+        "operationId": "ops_technical_api_v1_internal_ops_technical_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TechnicalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ops Technical",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/tenants": {
+      "get": {
+        "operationId": "ops_tenants_api_v1_internal_ops_tenants_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ops Tenants",
+        "tags": [
+          "internal-ops"
+        ]
+      }
+    },
+    "/api/v1/internal/ops/trace": {
+      "get": {
+        "operationId": "ops_trace_api_v1_internal_ops_trace_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "request_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Request Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "stripe_event_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stripe Event Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sentry_event_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sentry Event Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ops Trace",
+        "tags": [
+          "internal-ops"
         ]
       }
     },

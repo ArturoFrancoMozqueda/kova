@@ -30,6 +30,8 @@ from app.modifiers.router import router as modifiers_router
 from app.observability.logging import configure_logging, request_context_middleware
 from app.observability.sentry import init_sentry
 from app.onboarding.router import router as onboarding_router
+from app.ops.mfa_router import router as ops_mfa_router
+from app.ops.router import router as ops_router
 from app.orders.router import router as orders_router
 from app.reports.router import router as reports_router
 from app.shifts.router import router as shifts_router
@@ -46,6 +48,47 @@ def _is_stripe_test_key(value: str | None) -> bool:
 
 def _is_stripe_live_key(value: str | None) -> bool:
     return bool(value and value.startswith(("sk_live_", "rk_live_")))
+
+
+def _validate_internal_ops_config() -> None:
+    emails = settings.internal_admin_email_set
+    for entry in emails:
+        if "@" not in entry:
+            raise RuntimeError(
+                "INTERNAL_ADMIN_EMAILS must contain valid email addresses; "
+                f"got invalid entry: {entry!r}"
+            )
+
+    # Disabled is a safe production state. Once either half is configured,
+    # require one exact principal: verified email + immutable user UUID.
+    if settings.app_env != "local" and (emails or settings.internal_admin_user_id):
+        if len(emails) != 1 or settings.internal_admin_user_id is None:
+            raise RuntimeError(
+                "Kova Ops access outside local development requires exactly one "
+                "INTERNAL_ADMIN_EMAILS entry and INTERNAL_ADMIN_USER_ID"
+            )
+        root_key = settings.internal_ops_mfa_root_key
+        if root_key is None or len(root_key.get_secret_value()) < 32:
+            raise RuntimeError(
+                "Kova Ops access requires INTERNAL_OPS_MFA_ROOT_KEY with at least 32 characters"
+            )
+        enrollment_key = settings.internal_ops_mfa_enrollment_key
+        if enrollment_key is None or not (
+            32 <= len(enrollment_key.get_secret_value()) <= 256
+        ):
+            raise RuntimeError(
+                "Kova Ops access requires INTERNAL_OPS_MFA_ENROLLMENT_KEY "
+                "with 32 to 256 characters"
+            )
+        protected_values = {
+            settings.secret_key,
+            root_key.get_secret_value(),
+            enrollment_key.get_secret_value(),
+        }
+        if len(protected_values) != 3:
+            raise RuntimeError(
+                "Kova Ops signing, MFA root, and enrollment keys must be different"
+            )
 
 
 def _validate_config() -> None:
@@ -89,6 +132,7 @@ def _validate_config() -> None:
                 "EMAIL_FROM must be configured with a verified domain in production "
                 "(default 'onboarding@resend.dev' is not allowed)"
             )
+    _validate_internal_ops_config()
 
 
 def create_app() -> FastAPI:
@@ -161,6 +205,8 @@ def create_app() -> FastAPI:
     app.include_router(inventory_router)
     app.include_router(imports_router)
     app.include_router(onboarding_router)
+    app.include_router(ops_router)
+    app.include_router(ops_mfa_router)
     app.include_router(orders_router)
     app.include_router(reports_router)
     app.include_router(shifts_router)

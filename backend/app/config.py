@@ -1,4 +1,6 @@
-from pydantic import Field
+from uuid import UUID
+
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -76,6 +78,31 @@ class Settings(BaseSettings):
     trusted_client_ip_header: str = "fly-client-ip"
     email_from: str = "onboarding@resend.dev"
 
+    # Internal ops dashboard (founder only). Production requires one exact
+    # verified email plus its immutable user UUID. Leaving both empty disables
+    # access. Connector tokens are optional — a missing token surfaces that
+    # integration as "not_configured", never an error.
+    internal_admin_emails: str = ""
+    internal_admin_user_id: UUID | None = None
+    # Server-only root used to derive the founder's TOTP seed. Keeping the root
+    # outside Postgres means a database-only compromise cannot clone the factor.
+    internal_ops_mfa_root_key: SecretStr | None = None
+    internal_ops_mfa_enrollment_key: SecretStr | None = None
+    internal_ops_mfa_step_up_ttl_seconds: int = Field(default=3600, ge=300, le=43200)
+    sentry_api_token: str | None = None
+    sentry_org_slug: str | None = None
+    sentry_project_slug: str | None = None
+    sentry_frontend_project_slug: str | None = None
+    fly_api_token: str | None = None
+    fly_app_name: str = "pos-project-backend"
+    vercel_api_token: str | None = None
+    vercel_team_id: str | None = None
+    vercel_project_id: str | None = None
+    uptimerobot_api_key: str | None = None
+    ops_cache_ttl_seconds: int = 60
+    ops_connector_timeout_seconds: int = 5
+    git_sha: str | None = None
+
     @property
     def cookie_secure(self) -> bool:
         return self.app_env != "local"
@@ -89,6 +116,14 @@ class Settings(BaseSettings):
     def effective_migration_database_url(self) -> str:
         """Owner connection for DDL/migrations, falling back to database_url."""
         return self.migration_database_url or self.database_url
+
+    @property
+    def internal_admin_email_set(self) -> frozenset[str]:
+        return frozenset(
+            entry.strip().lower()
+            for entry in self.internal_admin_emails.split(",")
+            if entry.strip()
+        )
 
 
 settings = Settings()

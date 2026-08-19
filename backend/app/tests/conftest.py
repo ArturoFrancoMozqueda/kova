@@ -2,6 +2,11 @@ import os
 
 # Force dev mode before any app module is imported so Settings() picks it up.
 os.environ["APP_ENV"] = "local"
+os.environ["INTERNAL_ADMIN_EMAILS"] = ""
+os.environ["INTERNAL_OPS_MFA_ROOT_KEY"] = "test-only-kova-ops-mfa-root-key-32-bytes-minimum"
+os.environ["INTERNAL_OPS_MFA_ENROLLMENT_KEY"] = (
+    "test-only-kova-ops-enrollment-key-32-bytes-minimum"
+)
 
 import subprocess
 
@@ -26,6 +31,7 @@ import app.idempotency.models  # noqa: F401
 import app.inventory  # noqa: F401
 import app.modifiers.models  # noqa: F401
 import app.onboarding.models  # noqa: F401
+import app.ops.models  # noqa: F401
 import app.orders.models  # noqa: F401
 import app.rbac.models  # noqa: F401
 import app.reports  # noqa: F401
@@ -149,6 +155,17 @@ def db(apply_migrations):  # noqa: ARG001
     session.close()
     transaction.rollback()
     connection.close()
+
+
+@pytest.fixture(autouse=True)
+def _clear_ops_cache():
+    """The ops connector cache is a process-wide singleton; clear it between
+    tests so a cached (e.g. not_configured) result can't leak across cases."""
+    from app.ops.cache import ops_cache
+
+    ops_cache.clear()
+    yield
+    ops_cache.clear()
 
 
 @pytest.fixture(autouse=True)

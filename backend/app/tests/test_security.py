@@ -55,6 +55,8 @@ def test_config_allows_explicit_production_stripe_test_mode(monkeypatch) -> None
     monkeypatch.setattr(settings, "email_from", "hola@kova.example")
     monkeypatch.setattr(settings, "app_database_url", "postgresql://kova_app@runtime/db")
     monkeypatch.setattr(settings, "migration_database_url", "postgresql://owner@migration/db")
+    monkeypatch.setattr(settings, "internal_admin_emails", "")
+    monkeypatch.setattr(settings, "internal_admin_user_id", None)
 
     _validate_config()
 

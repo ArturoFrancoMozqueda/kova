@@ -40,6 +40,7 @@ const KovaShowcaseVideo = lazy(() => import("./routes/KovaShowcaseVideo"));
 const LogoPreview = lazy(() => import("./routes/LogoPreview"));
 const ComponentsPreview = lazy(() => import("./routes/ComponentsPreview"));
 const IntroPreview = lazy(() => import("./routes/dev/IntroPreview"));
+const InternalOpsRoot = lazy(() => import("./internal-ops/InternalOpsRoot"));
 const NotFound = lazy(() => import("./routes/NotFound"));
 
 // Routes that scripts/prerender.mjs writes as static HTML. main.tsx hydrates
@@ -137,6 +138,12 @@ export function AppRoutes() {
               <Route path="/turnos" element={<Navigate to="/shifts" replace />} />
               <Route path="/panel" element={<Navigate to="/dashboard" replace />} />
             </Route>
+
+            {/* Private cross-tenant operations area. It intentionally lives
+                outside the tenant AppShell; the backend allowlist remains the
+                authoritative authorization gate. */}
+            <Route path="/internal/ops/*" element={<InternalOpsRoot />} />
+
             {/* Catch-all 404 (after all real routes) */}
             <Route path="*" element={<NotFound />} />
           </Routes>

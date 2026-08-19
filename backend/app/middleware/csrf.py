@@ -17,6 +17,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
 from app.config import settings
+from app.shared.origin import request_origin, trusted_origins
 
 CSRF_COOKIE_NAME = "csrf_token"
 CSRF_HEADER_NAME = "x-csrf-token"
@@ -127,5 +128,16 @@ async def csrf_middleware(
             status_code=403,
             content={"detail": "CSRF validation failed"},
         )
+
+    # Ops mutations expose cross-tenant operational state. In addition to the
+    # double-submit token, require a browser origin owned by Kova so a poisoned
+    # parent-domain cookie cannot be used from an untrusted site.
+    if request.url.path.startswith("/api/v1/internal/ops"):
+        allowed_origins = trusted_origins()
+        if not allowed_origins or request_origin(request) not in allowed_origins:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Request origin is not allowed"},
+            )
 
     return await call_next(request)

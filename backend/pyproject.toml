@@ -21,6 +21,8 @@ dependencies = [
     "upstash-ratelimit>=1.1",
     "openpyxl>=3.1.5,<4",
     "defusedxml>=0.7.1,<1",
+    "pyotp>=2.9,<3",
+    "qrcode[pil]>=8.2,<9",
 ]
 
 [dependency-groups]

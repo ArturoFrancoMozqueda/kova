@@ -20,6 +20,8 @@ Esta auditoria inventaria los servicios externos que Kova usa o tiene preparados
 | UptimeRobot | Activo documentado | Monitoreo externo de frontend, API y DB cada 5 minutos | Documentado como plan gratis |
 | Dominio/DNS | Activo por dominios | `kovasuite.com`, `www.kovasuite.com`, `api.kovasuite.com` | Costo de registrador/DNS pendiente; no visible en repo |
 
+> Nota: el dashboard interno de operaciones (`/internal/ops`, "Kova Ops") consume Sentry, Fly, Vercel y UptimeRobot en modo lectura vía tokens server-side opcionales. Sin token, cada integración aparece como `not_configured`. Guía de tokens, scopes mínimos y limitaciones en `docs/runbooks/ops-dashboard.md`.
+
 ## Inventario detallado
 
 ### Supabase

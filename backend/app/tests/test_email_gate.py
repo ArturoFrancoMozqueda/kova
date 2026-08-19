@@ -38,6 +38,8 @@ def test_production_passes_with_complete_email_config(monkeypatch) -> None:
     monkeypatch.setattr(settings, "email_from", "hola@kova.example")
     monkeypatch.setattr(settings, "app_database_url", "postgresql://kova_app@runtime/db")
     monkeypatch.setattr(settings, "migration_database_url", "postgresql://owner@migration/db")
+    monkeypatch.setattr(settings, "internal_admin_emails", "")
+    monkeypatch.setattr(settings, "internal_admin_user_id", None)
 
     _validate_config()
 

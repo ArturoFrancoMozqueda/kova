@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { getReceiptSettings } from "@/settings/api";
+import {
+  clearErrorReportingIdentity,
+  setErrorReportingIdentity,
+} from "@/observability/errorReporting";
 import { getSession, logout as apiLogout, refreshSession } from "./api";
 import { normalizeFeatureFlags, type FeatureFlags } from "./featureFlags";
 import { setActiveOfflineTenant } from "@/offline/activeTenant";
@@ -75,10 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!session || !session.authenticated) {
+      clearErrorReportingIdentity();
       const next: AuthState = { status: "unauthenticated" };
       setState(next);
       return next;
     }
+    setErrorReportingIdentity(session.user);
     const next: AuthState = {
       status: "authenticated",
       user: session.user,
@@ -175,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await import("../customerOrders/cache")
       .then(({ clearCustomerOrderCache }) => clearCustomerOrderCache())
       .catch(() => undefined);
+    clearErrorReportingIdentity();
     setState({ status: "unauthenticated" });
   }, []);
 

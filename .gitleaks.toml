@@ -2,3 +2,30 @@ title = "point_of_sale gitleaks config"
 
 [extend]
 useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Synthetic enrollment key used only to assert the MFA request shape"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^frontend/src/internal-ops/api\.test\.ts$''']
+regexes = ['''private-enrollment-key-with-32-characters''']
+
+[[rules]]
+id = "stripe-access-token"
+
+[[rules.allowlists]]
+description = "Synthetic Stripe key used only to assert Ops response redaction"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^backend/app/tests/test_ops_tenants_revenue_funnel\.py$''']
+regexes = ['''sk_test_supersecretkey123''']
+
+[[rules.allowlists]]
+description = "Synthetic Stripe sentinel used only to assert global Ops response redaction"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^backend/app/tests/test_ops_no_secrets\.py$''']
+regexes = ['''sk_test_SENTINELstripekey''']

@@ -28,6 +28,9 @@ async def security_headers_middleware(
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     if request.url.path not in _DOCS_PATHS:
         response.headers["Content-Security-Policy"] = _API_CSP
+    if request.url.path.startswith("/api/v1/internal/ops"):
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
     if settings.app_env == "production":
         response.headers["Strict-Transport-Security"] = (
             "max-age=63072000; includeSubDomains; preload"
