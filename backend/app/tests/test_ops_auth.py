@@ -99,6 +99,13 @@ def test_overview_reports_db_health_and_not_configured_sources(client, monkeypat
     # not_configured sources never elevate the overall status.
     assert body["health"]["overall"] == "ok"
     assert body["environment"] == "local"
+    assert set(body["growth"]) == {
+        "users_created",
+        "users_verified",
+        "tenants_with_completed_sale",
+        "paying_tenants",
+    }
+    assert all(isinstance(value, int) for value in body["growth"].values())
 
 
 def test_ops_request_clears_rls_guc(client, db, monkeypatch):

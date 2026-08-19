@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InteractiveBarChart, type ChartRow } from "@/reports/InteractiveCharts";
 import { resolveApiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { opsCopy } from "../copy";
@@ -30,15 +30,12 @@ export default function FunnelPage() {
     for (const c of query.data.conversions) conversionByTo.set(c.to, c.rate);
   }
 
-  const rows: ChartRow[] =
+  const rows =
     query.data?.steps.map((step) => ({
       id: step.name,
       label: STEP_LABELS[step.name] ?? step.name,
       value: step.count,
-      valueLabel: String(step.count),
-      meta: conversionByTo.has(step.name)
-        ? [{ label: "conversión del paso previo", value: formatPercent(conversionByTo.get(step.name) ?? 0) }]
-        : undefined,
+      conversion: conversionByTo.get(step.name),
     })) ?? [];
 
   return (
@@ -66,14 +63,47 @@ export default function FunnelPage() {
       ) : query.isError ? (
         <ErrorState message={resolveApiErrorMessage(query.error, opsCopy.common.loadError)} onRetry={query.refetch} />
       ) : (
-        <InteractiveBarChart
-          title={`Cohorte de ${query.data.cohort_size} clientes (${window})`}
-          rows={rows}
-          emptyLabel={opsCopy.common.empty}
-          ariaLabel="Embudo de activación por paso"
-          detailPlaceholder="Selecciona un paso para ver su conversión."
-          totalShareLabel={(pct) => `${pct}% del total`}
-        />
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold text-kova-ink">
+              Cohorte de {query.data.cohort_size} clientes ({window})
+            </h2>
+            {rows.length === 0 ? (
+              <p className="py-10 text-center text-sm text-kova-muted">{opsCopy.common.empty}</p>
+            ) : (
+              <ol className="mt-5 space-y-4" aria-label="Embudo de activación por paso">
+                {rows.map((row) => {
+                  const share = query.data.cohort_size
+                    ? Math.round((row.value / query.data.cohort_size) * 100)
+                    : 0;
+                  return (
+                    <li key={row.id}>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-4 text-sm">
+                        <span className="font-medium text-kova-ink">{row.label}</span>
+                        <span className="tabular-nums text-kova-muted">
+                          {row.value}
+                          {row.conversion !== undefined
+                            ? ` · ${formatPercent(row.conversion)} del paso previo`
+                            : ""}
+                        </span>
+                      </div>
+                      <div
+                        className="h-2 overflow-hidden rounded-full bg-kova-mist"
+                        role="img"
+                        aria-label={`${row.label}: ${row.value}, ${share}% de la cohorte`}
+                      >
+                        <div
+                          className="h-full rounded-full bg-[color:var(--kova-blue)]"
+                          style={{ width: `${share}%` }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
       )}
     </>
   );

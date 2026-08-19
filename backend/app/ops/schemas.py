@@ -55,11 +55,21 @@ class OperationsSummary(BaseModel):
     tenants_active_7d: int
 
 
+class GrowthTruths(BaseModel):
+    """Canonical lifetime growth counts shared with the protected snapshot."""
+
+    users_created: int
+    users_verified: int
+    tenants_with_completed_sale: int
+    paying_tenants: int
+
+
 class OverviewResponse(BaseModel):
     generated_at: datetime
     environment: str
     version: VersionInfo
     health: OverviewHealth
+    growth: GrowthTruths
     money: MoneySummary
     risk: RiskSummary
     operations: OperationsSummary

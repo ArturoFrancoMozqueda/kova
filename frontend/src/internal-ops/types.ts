@@ -48,11 +48,19 @@ export type OperationsSummary = {
   tenants_active_7d: number;
 };
 
+export type GrowthTruths = {
+  users_created: number;
+  users_verified: number;
+  tenants_with_completed_sale: number;
+  paying_tenants: number;
+};
+
 export type Overview = {
   generated_at: string;
   environment: string;
   version: { git_sha: string | null };
   health: { overall: OpsStatus; sources: Record<string, SourceHealth> };
+  growth: GrowthTruths;
   money: MoneySummary;
   risk: RiskSummary;
   operations: OperationsSummary;

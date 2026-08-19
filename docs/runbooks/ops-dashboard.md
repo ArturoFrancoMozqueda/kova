@@ -1,9 +1,15 @@
-# Runbook — Internal Ops Dashboard (Kova Ops)
+# Runbook — solución interna unificada Kova Ops
 
 The internal ops dashboard lives at `/internal/ops` and is served by the same
 frontend/backend as the product. It is **read-only for production data**; the
 only writes are triage notes and incident triage state. Access is gated by an
 email allowlist, never by tenant roles.
+
+La portada reúne el tablero ejecutivo y la consola operativa. Sus cuatro
+verdades históricas —usuarios creados, usuarios verificados, negocios con una
+venta completada y negocios pagando— reutilizan `build_growth_snapshot`. El
+endpoint protegido de snapshot se conserva por compatibilidad, pero no existe
+un segundo cálculo que pueda divergir de Kova Ops.
 
 ## Access
 

@@ -19,6 +19,8 @@ export function buildSentryOptions(
     sendDefaultPii: false,
     ...facebookInAppBrowserNoiseFilters,
   };
+}
+
 /**
  * Attach the signed-in identity to Sentry events so the ops trace view can
  * find frontend errors by tenant/user. IDs only — never extra PII, and

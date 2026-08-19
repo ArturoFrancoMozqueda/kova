@@ -21,6 +21,7 @@ from app.ops.schemas import (
     FunnelResponse,
     FunnelStep,
     FunnelWindow,
+    GrowthTruths,
     IncidentCorrelation,
     IncidentDetailResponse,
     IncidentItem,
@@ -52,6 +53,7 @@ from app.ops.schemas import (
     WebhookFailureItem,
     WebhookHealth,
 )
+from app.telemetry.export import build_growth_snapshot
 
 # Only observed states elevate the overall status; degraded/not_configured are
 # reported per-source but never page the CEO on their own.
@@ -203,11 +205,22 @@ def build_overview(db: Session) -> OverviewResponse:
         "vercel": _connector_to_source_health(connectors["vercel"]),
         "uptimerobot": _connector_to_source_health(connectors["uptimerobot"]),
     }
+    # One source of truth: the legacy protected snapshot and Kova Ops must
+    # never disagree about acquisition, activation or verified live payment.
+    growth_snapshot = build_growth_snapshot(db)
     return OverviewResponse(
         generated_at=now,
         environment=settings.app_env,
         version=VersionInfo(git_sha=settings.git_sha),
         health=OverviewHealth(overall=overall_status(sources), sources=sources),
+        growth=GrowthTruths(
+            users_created=growth_snapshot["users_created"],
+            users_verified=growth_snapshot["users_verified"],
+            tenants_with_completed_sale=growth_snapshot[
+                "tenants_with_completed_sale"
+            ],
+            paying_tenants=growth_snapshot["paying_tenants"],
+        ),
         money=build_money(db),
         risk=build_risk(db),
         operations=build_operations(db),

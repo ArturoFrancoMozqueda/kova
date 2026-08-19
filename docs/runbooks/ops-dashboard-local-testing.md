@@ -1,5 +1,10 @@
 # Plan de pruebas locales — Dashboard interno de operaciones (Kova Ops)
 
+> Continuidad: la implementación vigente fue portada sobre `main` y unificada
+> con el snapshot de crecimiento en `feature/unified-kova-ops`. Para operación,
+> configuración y despliegue usa `docs/runbooks/ops-dashboard.md`; este archivo
+> conserva el historial del ciclo de pruebas original.
+
 Documento de continuidad para retomar/delegar (ej. a Codex) las pruebas
 locales del dashboard interno implementado en la branch
 `feat/internal-ops-dashboard`. Contiene: qué ya se hizo, qué se arregló, qué

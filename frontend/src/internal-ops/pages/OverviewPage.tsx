@@ -36,13 +36,36 @@ export default function OverviewPage() {
     return <ErrorState message={resolveApiErrorMessage(query.error, opsCopy.common.loadError)} onRetry={query.refetch} />;
   }
 
-  const { health, money, risk, operations } = query.data;
+  const { growth, health, money, risk, operations } = query.data;
 
   return (
     <>
       <PageHeader title={opsCopy.nav.overview} updatedAt={query.data.generated_at}>
         <StatusBadge status={health.overall} />
       </PageHeader>
+
+      <section className="mb-6" aria-labelledby="growth-truths-title">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="growth-truths-title" className="text-sm font-medium text-kova-muted">
+            Las cuatro verdades
+          </h2>
+          <p className="text-xs text-kova-muted">Histórico real de Postgres, no telemetría</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard label="Usuarios creados" value={growth.users_created} hint="Cuentas registradas" />
+          <KpiCard label="Usuarios verificados" value={growth.users_verified} hint="Correo confirmado" />
+          <KpiCard
+            label="Negocios activados"
+            value={growth.tenants_with_completed_sale}
+            hint="Con al menos una venta completada"
+          />
+          <KpiCard
+            label="Negocios pagando"
+            value={growth.paying_tenants}
+            hint="Pago live procesado y suscripción activa"
+          />
+        </div>
+      </section>
 
       <section className="mb-6">
         <h2 className="mb-2 text-sm font-medium text-kova-muted">Estado general</h2>
@@ -64,7 +87,7 @@ export default function OverviewPage() {
         <h2 className="mb-2 text-sm font-medium text-kova-muted">Dinero</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="MRR (activos)" value={formatMinorUnits(money.mrr_minor_units, money.currency)} />
-          <KpiCard label="Clientes activos" value={money.active} />
+          <KpiCard label="Suscripciones activas" value={money.active} />
           <KpiCard label="En prueba" value={money.trialing} />
           <KpiCard label="Cancelando" value={money.canceling} />
         </div>
