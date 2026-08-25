@@ -321,11 +321,9 @@
     font-size: clamp(25px, 6vw, 34px);
   }
 
-  /* En un teléfono la captura completa se reduce a ~0.2× y nada se lee. Cada
-     paso muestra en su lugar el fragmento real que prueba lo que dice el copy
-     (el total, la tarjeta de stock, el efectivo esperado, las ventas netas),
-     ampliado hasta un tamaño legible. El recorte se declara por paso con el
-     origen del zoom; la imagen sigue siendo la pantalla real sin retocar. */
+  /* Cada paso usa una variante mobile recortada desde la captura real. Así el
+     dato central conserva contexto y legibilidad sin ampliar una pantalla de
+     escritorio dentro de un marco pequeño. */
   .mobileCapture {
     margin: 0 14px 14px;
     aspect-ratio: 16 / 10;
@@ -335,34 +333,14 @@
     background: #f8fafb;
   }
 
+  .mobileCapture picture,
   .mobileCapture img {
     width: 100%;
-    height: 100%;
     display: block;
-    object-fit: cover;
-    transform: scale(3.33);
-    transform-origin: var(--crop-x, 50%) var(--crop-y, 50%);
   }
 
-  /* Carrito: la última línea de la venta y el total de $186.00. */
-  .mobileCapture[data-step="sale"] img {
-    --crop-x: 98%;
-    --crop-y: 64%;
-  }
-  /* Tarjeta de existencias con su badge de estado. */
-  .mobileCapture[data-step="inventory"] img {
-    --crop-x: 26%;
-    --crop-y: 34%;
-  }
-  /* Tiles de movimientos y efectivo esperado del turno abierto. */
-  .mobileCapture[data-step="cash"] img {
-    --crop-x: 84%;
-    --crop-y: 22%;
-  }
-  /* Análisis del periodo: ventas netas y comparación diaria. */
-  .mobileCapture[data-step="reports"] img {
-    --crop-x: 29%;
-    --crop-y: 24%;
+  .mobileCapture img {
+    height: auto;
   }
 }
 

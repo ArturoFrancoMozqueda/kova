@@ -63,6 +63,25 @@ describe("SaleFlowStory", () => {
     expect(onStepView).toHaveBeenCalledWith("inventory", "control");
   });
 
+  it("provides art-directed mobile captures for every story step", () => {
+    const { container } = renderStory();
+
+    const mobileSources = Array.from(
+      container.querySelectorAll("picture source[media='(max-width: 900px)']"),
+    );
+
+    expect(mobileSources).toHaveLength(4);
+    expect(mobileSources.map((source) => source.getAttribute("srcset"))).toEqual([
+      "/showcase/sale-register-mobile.webp",
+      "/showcase/inventory-story-mobile.webp",
+      "/showcase/shifts-mobile.webp",
+      "/showcase/analysis-story-mobile.webp",
+    ]);
+    expect(
+      container.querySelectorAll("picture img[width='640'][height='400']"),
+    ).toHaveLength(4);
+  });
+
   it("supports arrow, Home and End keyboard navigation", () => {
     renderStory();
     const sale = screen.getByRole("tab", { name: "Venta" });
