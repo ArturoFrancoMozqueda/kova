@@ -25,6 +25,35 @@ type StoryStep = {
 
 const t = copy.landing.immersiveStory;
 const STORY_STEPS = t.steps as readonly StoryStep[];
+const STORY_CAPTURE_ASSETS: Record<
+  LandingStoryStepId,
+  {
+    width: number;
+    height: number;
+    mobileImage: string;
+  }
+> = {
+  sale: {
+    width: 3196,
+    height: 1795,
+    mobileImage: "/showcase/sale-register-mobile.webp",
+  },
+  inventory: {
+    width: 3196,
+    height: 1784,
+    mobileImage: "/showcase/inventory-story-mobile.webp",
+  },
+  cash: {
+    width: 1440,
+    height: 900,
+    mobileImage: "/showcase/shifts-mobile.webp",
+  },
+  reports: {
+    width: 3196,
+    height: 1811,
+    mobileImage: "/showcase/analysis-story-mobile.webp",
+  },
+};
 
 export default function SaleFlowStory({
   primaryTarget,
@@ -135,6 +164,7 @@ export default function SaleFlowStory({
 
           {STORY_STEPS.map((step) => {
             const active = activeStep === step.id;
+            const capture = STORY_CAPTURE_ASSETS[step.id];
             return (
               <div
                 key={step.id}
@@ -157,8 +187,8 @@ export default function SaleFlowStory({
                   <img
                     src={step.image}
                     alt={step.alt}
-                    width={1440}
-                    height={900}
+                    width={capture.width}
+                    height={capture.height}
                     loading="lazy"
                     decoding="async"
                   />
@@ -173,33 +203,41 @@ export default function SaleFlowStory({
           aria-label={t.progressLabel}
           data-lp-stagger-group
         >
-          {STORY_STEPS.map((step) => (
-            <li
-              key={step.id}
-              className={styles.mobileStep}
-              data-lp-stagger-item
-            >
-              <div className={styles.mobileCopy}>
-                <span className={styles.stepNumber}>
-                  {step.number} · {step.title}
-                </span>
-                <h3>{step.heading}</h3>
-                <p>{step.line}</p>
-              </div>
-              {/* data-step selecciona el recorte legible del paso (ver
-                  SaleFlowStory.module.css, bloque ≤900px). */}
-              <figure className={styles.mobileCapture} data-step={step.id}>
-                <img
-                  src={step.image}
-                  alt={step.alt}
-                  width={1440}
-                  height={900}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </figure>
-            </li>
-          ))}
+          {STORY_STEPS.map((step) => {
+            const capture = STORY_CAPTURE_ASSETS[step.id];
+            return (
+              <li
+                key={step.id}
+                className={styles.mobileStep}
+                data-lp-stagger-item
+              >
+                <div className={styles.mobileCopy}>
+                  <span className={styles.stepNumber}>
+                    {step.number} · {step.title}
+                  </span>
+                  <h3>{step.heading}</h3>
+                  <p>{step.line}</p>
+                </div>
+                <figure className={styles.mobileCapture} data-step={step.id}>
+                  <picture>
+                    <source
+                      media="(max-width: 900px)"
+                      srcSet={capture.mobileImage}
+                      type="image/webp"
+                    />
+                    <img
+                      src={step.image}
+                      alt={step.alt}
+                      width={640}
+                      height={400}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </picture>
+                </figure>
+              </li>
+            );
+          })}
         </ol>
 
         <Link to={primaryTarget} className={styles.cta} onClick={onCtaClick}>
