@@ -38,12 +38,18 @@ class FiscalGlobalDraftPreviewResponse(BaseModel):
     timezone: Literal["America/Mexico_City"] = "America/Mexico_City"
     document_kind: Literal["operational_draft"] = "operational_draft"
     fiscal_status: Literal["not_issued"] = "not_issued"
+    package_schema_version: str = "accountant-package-v2"
+    tax_calculation_status: Literal["not_calculated", "calculated"] = "not_calculated"
     gross_amount: Decimal
     discount_total_amount: Decimal
     tax_total_amount: Decimal
     total_amount: Decimal
     refund_total_amount: Decimal
     net_total_amount: Decimal
+    adjustment_total_amount: Decimal = Decimal("0.00")
+    adjusted_net_amount: Decimal
+    adjustment_count: int = 0
+    data_quality_warnings: list[str] = Field(default_factory=list)
     order_count: int
     excluded_individually_confirmed_count: int
 
@@ -53,6 +59,31 @@ class FiscalGlobalDraftBatchResponse(FiscalGlobalDraftPreviewResponse):
     status: Literal["draft", "closed"]
     order_ids: list[UUID]
     closed_at: datetime
+    business_name_snapshot: str | None = None
+
+
+class FiscalIndividualInvoiceUpdate(BaseModel):
+    status: Literal["confirmed", "reopened"]
+    external_reference: str | None = Field(default=None, min_length=1, max_length=100)
+    issued_at: datetime | None = None
+
+
+class FiscalIndividualInvoiceResponse(BaseModel):
+    id: UUID
+    order_id: UUID
+    status: Literal["confirmed", "reopened"]
+    external_reference: str | None
+    issued_at: datetime | None
+    created_at: datetime
+
+
+class FiscalIndividualInvoiceCurrentResponse(BaseModel):
+    id: UUID | None
+    order_id: UUID
+    status: Literal["none", "confirmed", "reopened"]
+    external_reference: str | None
+    issued_at: datetime | None
+    created_at: datetime | None
 
 
 class FiscalGlobalDraftBatchListResponse(BaseModel):

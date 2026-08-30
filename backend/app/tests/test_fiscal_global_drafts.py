@@ -1,5 +1,8 @@
 import csv
+import hashlib
 import io
+import json
+import zipfile
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -11,18 +14,20 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from app.audit.models import AuditLog
 from app.auth.models import Membership, User
 from app.fiscal import repository as fiscal_repo
 from app.fiscal.models import (
     FiscalGlobalDraftBatch,
     FiscalGlobalDraftSettings,
+    FiscalIndividualInvoiceEvent,
     OrderFiscalSnapshot,
     OrderItemFiscalSnapshot,
 )
 from app.fiscal.service import FISCAL_TIMEZONE, _csv_safe, resolve_period
 from app.idempotency.models import IdempotencyKey
 from app.orders import service as order_service
-from app.orders.models import InventoryMovement, Order, Payment
+from app.orders.models import InventoryMovement, Order, Payment, Refund
 from app.orders.schemas import OrderCreate
 from app.tenants.models import Tenant
 
@@ -399,6 +404,12 @@ def test_preview_and_close_freeze_refunds_and_are_idempotent(client, db: Session
         },
     )
     assert refund.status_code == 201, refund.text
+    refund_row = db.get(Refund, UUID(refund.json()["id"]))
+    assert refund_row is not None
+    refund_row.created_at = datetime.combine(
+        yesterday, datetime.min.time(), tzinfo=UTC
+    ) + timedelta(hours=18)
+    db.commit()
 
     preview = client.get(
         "/api/v1/fiscal/global-drafts/preview",
@@ -720,7 +731,7 @@ def test_accountant_csv_is_frozen_safe_and_viewable_by_owner_manager_only(
     row = rows[0]
     assert row["folio_venta"] == UUID(sale["id"]).hex[-8:].upper()
     assert row["id_venta"] == sale["id"]
-    assert row["nombre_negocio"].startswith("' \t=HYPERLINK")
+    assert row["nombre_negocio"] == "Fiscal accountant-export"
     assert row["id_negocio"] == str(tenant_id)
     assert row["zona_horaria"] == "America/Mexico_City"
     assert row["periodo_inicio"] == yesterday.isoformat()
@@ -728,7 +739,7 @@ def test_accountant_csv_is_frozen_safe_and_viewable_by_owner_manager_only(
     assert row["cerrado_en"]
     assert row["importe_bruto"] == batch["gross_amount"]
     assert row["descuentos"] == batch["discount_total_amount"]
-    assert row["impuestos"] == batch["tax_total_amount"]
+    assert row["impuestos"] == ""
     assert row["total"] == batch["total_amount"]
     assert row["reembolsos"] == batch["refund_total_amount"]
     assert row["neto"] == batch["net_total_amount"]
@@ -745,7 +756,6 @@ def test_accountant_csv_is_frozen_safe_and_viewable_by_owner_manager_only(
     for column, batch_key in (
         ("importe_bruto", "gross_amount"),
         ("descuentos", "discount_total_amount"),
-        ("impuestos", "tax_total_amount"),
         ("total", "total_amount"),
         ("reembolsos", "refund_total_amount"),
         ("neto", "net_total_amount"),
@@ -855,3 +865,311 @@ def test_accountant_csv_requires_active_billing_access(client, monkeypatch) -> N
     response = client.get(f"/api/v1/fiscal/global-drafts/batches/{uuid4()}/accountant-report.csv")
     assert response.status_code == 402
     assert response.json()["detail"]["reason"] == "trial_expired"
+
+
+def test_individual_invoice_ledger_is_idempotent_excludes_and_reopens(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="individual-ledger")
+    _daily_settings(client)
+    product = _product(client)
+    sale = _sale(client, product["id"])
+    yesterday = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=1)
+    _set_sale_day(db, sale["id"], yesterday)
+    url = f"/api/v1/fiscal/global-drafts/orders/{sale['id']}/individual-invoice"
+    payload = {
+        "status": "confirmed",
+        "external_reference": "CFDI-EXTERNO-001",
+        "issued_at": f"{yesterday.isoformat()}T18:00:00Z",
+    }
+
+    first = client.post(url, headers={"Idempotency-Key": "confirm-external-1"}, json=payload)
+    replay = client.post(url, headers={"Idempotency-Key": "confirm-external-1"}, json=payload)
+    assert first.status_code == replay.status_code == 201
+    assert first.json() == replay.json()
+    assert first.json()["status"] == "confirmed"
+    assert (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.tenant_id == tenant_id,
+            AuditLog.action == "fiscal.individual_invoice.confirmed",
+            AuditLog.resource_id == UUID(sale["id"]),
+        )
+        .count()
+        == 1
+    )
+    with pytest.raises(DBAPIError), db.begin_nested():
+        db.execute(
+            text(
+                "UPDATE fiscal_individual_invoice_events SET status = 'reopened' "
+                "WHERE id = :id"
+            ),
+            {"id": UUID(first.json()["id"])},
+        )
+
+    preview = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": yesterday.isoformat()},
+    )
+    assert preview.status_code == 200
+    assert preview.json()["order_count"] == 0
+    assert preview.json()["excluded_individually_confirmed_count"] == 1
+
+    membership = db.query(Membership).filter(Membership.tenant_id == tenant_id).one()
+    membership.role = "manager"
+    db.commit()
+    current = client.get(url)
+    assert current.status_code == 200
+    assert current.json()["status"] == "confirmed"
+    assert current.json()["external_reference"] == "CFDI-EXTERNO-001"
+    denied = client.post(
+        url,
+        headers={"Idempotency-Key": "manager-cannot-reopen"},
+        json={"status": "reopened"},
+    )
+    assert denied.status_code == 403
+    membership.role = "owner"
+    db.commit()
+
+    reopened = client.post(
+        url,
+        headers={"Idempotency-Key": "reopen-external-1"},
+        json={"status": "reopened"},
+    )
+    assert reopened.status_code == 201
+    assert reopened.json()["status"] == "reopened"
+    assert client.post(
+        url,
+        headers={"Idempotency-Key": "duplicate-reopen"},
+        json={"status": "reopened"},
+    ).status_code == 409
+
+    other_client = TestClient(client.app)
+    _signup_login(other_client, prefix="individual-ledger-other")
+    assert other_client.post(
+        url,
+        headers={"Idempotency-Key": "cross-tenant-confirm"},
+        json=payload,
+    ).status_code == 404
+
+
+def test_accountant_package_is_deterministic_reconciled_and_tax_unknown(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="package")
+    _daily_settings(client)
+    product = _product(client)
+    sale = _sale(client, product["id"])
+    yesterday = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=1)
+    _set_sale_day(db, sale["id"], yesterday)
+    closed = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "package-close"},
+        json={"period_end": yesterday.isoformat()},
+    )
+    assert closed.status_code == 201, closed.text
+    batch = closed.json()
+    assert batch["package_schema_version"] == "accountant-package-v2"
+    assert batch["business_name_snapshot"] == "Fiscal package"
+    assert batch["tax_calculation_status"] == "not_calculated"
+
+    url = (
+        f"/api/v1/fiscal/global-drafts/batches/{batch['id']}"
+        "/accountant-package.zip"
+    )
+    first = client.get(url)
+    second = client.get(url)
+    assert first.status_code == second.status_code == 200
+    assert first.content == second.content
+    assert first.headers["content-type"] == "application/zip"
+    assert first.headers["cache-control"] == "no-store"
+    assert first.headers["x-content-type-options"] == "nosniff"
+
+    with zipfile.ZipFile(io.BytesIO(first.content)) as archive:
+        assert set(archive.namelist()) == {
+            "resumen.pdf",
+            "operaciones.csv",
+            "partidas.csv",
+            "ajustes.csv",
+            "manifest.json",
+        }
+        files = {name: archive.read(name) for name in archive.namelist()}
+    assert files["resumen.pdf"].startswith(b"%PDF")
+    manifest = json.loads(files["manifest.json"])
+    assert manifest["batch_id"] == batch["id"]
+    assert manifest["schema_version"] == "accountant-package-v2"
+    assert manifest["tax_calculation_status"] == "not_calculated"
+    for filename, metadata in manifest["files"].items():
+        assert metadata["bytes"] == len(files[filename])
+        assert metadata["sha256"] == hashlib.sha256(files[filename]).hexdigest()
+
+    operations = list(
+        csv.DictReader(io.StringIO(files["operaciones.csv"].decode("utf-8-sig")))
+    )
+    items = list(csv.DictReader(io.StringIO(files["partidas.csv"].decode("utf-8-sig"))))
+    assert len(operations) == len(items) == 1
+    assert operations[0]["id_venta"] == sale["id"]
+    assert operations[0]["impuestos"] == ""
+    assert operations[0]["estado_calculo_impuestos"] == "NOT_CALCULATED"
+    assert operations[0]["estado_factura_individual"] == "NO_CONFIRMADA_AL_CIERRE"
+    assert items[0]["impuestos"] == ""
+    assert Decimal(operations[0]["total"]) == Decimal(batch["total_amount"])
+
+    membership = db.query(Membership).filter(Membership.tenant_id == tenant_id).one()
+    membership.role = "manager"
+    db.commit()
+    assert client.get(url).status_code == 200
+    membership.role = "cashier"
+    db.commit()
+    assert client.get(url).status_code == 403
+
+
+def test_late_refund_creates_adjustment_only_close_without_rewriting_origin(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="late-refund")
+    _daily_settings(client)
+    product = _product(client)
+    sale = _sale(client, product["id"])
+    original_day = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=3)
+    adjustment_day = original_day + timedelta(days=1)
+    _set_sale_day(db, sale["id"], original_day)
+
+    original = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "late-refund-origin"},
+        json={"period_end": original_day.isoformat()},
+    )
+    assert original.status_code == 201, original.text
+    assert original.json()["net_total_amount"] == "100.00"
+
+    refunded = client.post(
+        f"/api/v1/orders/{sale['id']}/refunds",
+        headers={"Idempotency-Key": "late-refund-created"},
+        json={
+            "items": [{"order_item_id": sale["items"][0]["id"], "quantity": 1}],
+            "reason": "customer_return",
+            "refund_payment_method": "bank_transfer",
+        },
+    )
+    assert refunded.status_code == 201, refunded.text
+    refund_row = db.get(Refund, UUID(refunded.json()["id"]))
+    assert refund_row is not None
+    refund_row.created_at = datetime.combine(
+        adjustment_day, datetime.min.time(), tzinfo=UTC
+    ) + timedelta(hours=18)
+    db.commit()
+
+    preview = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": adjustment_day.isoformat()},
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["order_count"] == 0
+    assert preview.json()["adjustment_count"] == 1
+    assert preview.json()["adjustment_total_amount"] == "-100.00"
+    assert preview.json()["adjusted_net_amount"] == "-100.00"
+
+    adjusted = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "late-refund-adjustment"},
+        json={"period_end": adjustment_day.isoformat()},
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    assert adjusted.json()["order_ids"] == []
+    assert adjusted.json()["adjustment_count"] == 1
+    with pytest.raises(DBAPIError), db.begin_nested():
+        db.execute(
+            text(
+                "DELETE FROM fiscal_global_draft_adjustments "
+                "WHERE tenant_id = :tenant_id AND batch_id = :batch_id"
+            ),
+            {
+                "tenant_id": tenant_id,
+                "batch_id": UUID(adjusted.json()["id"]),
+            },
+        )
+    original_row = db.get(FiscalGlobalDraftBatch, UUID(original.json()["id"]))
+    assert original_row is not None
+    db.refresh(original_row)
+    assert original_row.net_total_amount == Decimal("100.00")
+
+    package = client.get(
+        f"/api/v1/fiscal/global-drafts/batches/{adjusted.json()['id']}"
+        "/accountant-package.zip"
+    )
+    assert package.status_code == 200, package.text
+    with zipfile.ZipFile(io.BytesIO(package.content)) as archive:
+        rows = list(
+            csv.DictReader(
+                io.StringIO(archive.read("ajustes.csv").decode("utf-8-sig"))
+            )
+        )
+    assert len(rows) == 1
+    assert rows[0]["tipo_ajuste"] == "LATE_REFUND"
+    assert rows[0]["importe_ajuste"] == "-100.00"
+    assert rows[0]["id_cierre_original"] == original.json()["id"]
+
+
+def test_invoice_corrections_reverse_in_later_adjustment_only_closes(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="invoice-corrections")
+    _daily_settings(client)
+    product = _product(client)
+    sale = _sale(client, product["id"])
+    original_day = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=4)
+    excluded_day = original_day + timedelta(days=1)
+    included_day = original_day + timedelta(days=2)
+    _set_sale_day(db, sale["id"], original_day)
+    original = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "correction-origin"},
+        json={"period_end": original_day.isoformat()},
+    )
+    assert original.status_code == 201, original.text
+    membership = db.query(Membership).filter(Membership.tenant_id == tenant_id).one()
+
+    db.add(
+        FiscalIndividualInvoiceEvent(
+            tenant_id=tenant_id,
+            order_id=UUID(sale["id"]),
+            status="confirmed",
+            external_reference="CFDI-EXTERNO-CORRECCION",
+            issued_at=datetime.combine(excluded_day, datetime.min.time(), tzinfo=UTC),
+            created_by_user_id=membership.user_id,
+            created_at=datetime.combine(excluded_day, datetime.min.time(), tzinfo=UTC)
+            + timedelta(hours=18),
+        )
+    )
+    db.commit()
+    excluded = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "correction-exclude"},
+        json={"period_end": excluded_day.isoformat()},
+    )
+    assert excluded.status_code == 201, excluded.text
+    assert excluded.json()["order_count"] == 0
+    assert excluded.json()["adjustment_total_amount"] == "-100.00"
+
+    db.add(
+        FiscalIndividualInvoiceEvent(
+            tenant_id=tenant_id,
+            order_id=UUID(sale["id"]),
+            status="reopened",
+            external_reference=None,
+            issued_at=None,
+            created_by_user_id=membership.user_id,
+            created_at=datetime.combine(included_day, datetime.min.time(), tzinfo=UTC)
+            + timedelta(hours=18),
+        )
+    )
+    db.commit()
+    included = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "correction-include"},
+        json={"period_end": included_day.isoformat()},
+    )
+    assert included.status_code == 201, included.text
+    assert included.json()["order_count"] == 0
+    assert included.json()["adjustment_total_amount"] == "100.00"

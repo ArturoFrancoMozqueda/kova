@@ -29,12 +29,18 @@ export type FiscalDraftPreview = {
   timezone: "America/Mexico_City";
   document_kind: "operational_draft";
   fiscal_status: "not_issued";
+  package_schema_version: string;
+  tax_calculation_status: "not_calculated" | "calculated";
   gross_amount: string;
   discount_total_amount: string;
   tax_total_amount: string;
   total_amount: string;
   refund_total_amount: string;
   net_total_amount: string;
+  adjustment_total_amount: string;
+  adjusted_net_amount: string;
+  adjustment_count: number;
+  data_quality_warnings: string[];
   order_count: number;
   excluded_individually_confirmed_count: number;
 };
@@ -44,6 +50,7 @@ export type FiscalDraftBatch = FiscalDraftPreview & {
   status: "draft" | "closed";
   order_ids: string[];
   closed_at: string;
+  business_name_snapshot: string | null;
 };
 
 export type FiscalDraftBatchList = {
@@ -135,44 +142,76 @@ export function getFiscalDraftBatch(batchId: string): Promise<FiscalDraftBatch> 
 }
 
 const ACCOUNTANT_REPORT_FALLBACK_FILENAME = "reporte-control-interno-kova.csv";
+const ACCOUNTANT_PACKAGE_FALLBACK_FILENAME = "cierre-para-contador-kova.zip";
 
-function safeCsvBasename(candidate: string | undefined): string {
+function safeDownloadBasename(
+  candidate: string | undefined,
+  extension: ".csv" | ".zip",
+  fallback: string,
+): string {
   const withoutLineBreaks = candidate?.replace(/[\r\n]/g, "");
   const basename = withoutLineBreaks?.split(/[\\/]/).at(-1)?.trim();
-  return basename?.toLowerCase().endsWith(".csv")
-    ? basename
-    : ACCOUNTANT_REPORT_FALLBACK_FILENAME;
+  return basename?.toLowerCase().endsWith(extension) ? basename : fallback;
 }
 
-function filenameFromContentDisposition(disposition: string): string {
+function filenameFromContentDisposition(
+  disposition: string,
+  extension: ".csv" | ".zip",
+  fallback: string,
+): string {
   const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
   if (encoded) {
     try {
-      return safeCsvBasename(decodeURIComponent(encoded.replace(/^"|"$/g, "")));
+      return safeDownloadBasename(
+        decodeURIComponent(encoded.replace(/^"|"$/g, "")),
+        extension,
+        fallback,
+      );
     } catch {
       // Fall through to the quoted filename or the safe product fallback.
     }
   }
-  return safeCsvBasename(disposition.match(/filename="([^"]+)"/i)?.[1]);
+  return safeDownloadBasename(
+    disposition.match(/filename="([^"]+)"/i)?.[1],
+    extension,
+    fallback,
+  );
 }
 
-export async function downloadFiscalDraftAccountantReport(batchId: string): Promise<string> {
-  const response = await fetch(
-    `${BASE_URL}/batches/${encodeURIComponent(batchId)}/accountant-report.csv`,
-  );
-  if (!response.ok) {
-    throw await responseError(response);
-  }
-
+async function downloadFiscalFile(
+  url: string,
+  extension: ".csv" | ".zip",
+  fallback: string,
+): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) throw await responseError(response);
   const blob = await response.blob();
   const filename = filenameFromContentDisposition(
     response.headers.get("Content-Disposition") ?? "",
+    extension,
+    fallback,
   );
-  const url = URL.createObjectURL(blob);
+  const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
-  anchor.href = url;
+  anchor.href = objectUrl;
   anchor.download = filename;
   anchor.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(objectUrl);
   return filename;
+}
+
+export async function downloadFiscalDraftAccountantReport(batchId: string): Promise<string> {
+  return downloadFiscalFile(
+    `${BASE_URL}/batches/${encodeURIComponent(batchId)}/accountant-report.csv`,
+    ".csv",
+    ACCOUNTANT_REPORT_FALLBACK_FILENAME,
+  );
+}
+
+export async function downloadFiscalDraftAccountantPackage(batchId: string): Promise<string> {
+  return downloadFiscalFile(
+    `${BASE_URL}/batches/${encodeURIComponent(batchId)}/accountant-package.zip`,
+    ".zip",
+    ACCOUNTANT_PACKAGE_FALLBACK_FILENAME,
+  );
 }

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   closeFiscalDraft,
+  downloadFiscalDraftAccountantPackage,
   downloadFiscalDraftAccountantReport,
   FiscalDraftApiError,
   previewFiscalDraft,
@@ -154,5 +155,38 @@ describe("fiscal draft api", () => {
     expect(filename).toBe("reporte-control-interno-kova.csv");
     expect(downloadedFilename).toBe("reporte-control-interno-kova.csv");
     expect(downloadedFilename).not.toMatch(/[\\/\r\n]/);
+  });
+
+  it("downloads the versioned ZIP with a safe server filename", async () => {
+    const archive = new Blob(["PK\u0003\u0004"], { type: "application/zip" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      blob: async () => archive,
+      headers: {
+        get: () => 'attachment; filename="kova-cierre-contador-2026-07.zip"',
+      },
+    } as unknown as Response);
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:kova-accountant-package"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    let downloadedFilename = "";
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function click(
+      this: HTMLAnchorElement,
+    ) {
+      downloadedFilename = this.download;
+    });
+
+    const filename = await downloadFiscalDraftAccountantPackage("batch/seguro");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/fiscal/global-drafts/batches/batch%2Fseguro/accountant-package.zip",
+    );
+    expect(filename).toBe("kova-cierre-contador-2026-07.zip");
+    expect(downloadedFilename).toBe(filename);
   });
 });

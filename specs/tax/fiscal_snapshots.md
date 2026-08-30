@@ -2,8 +2,9 @@
 
 ## Estado
 
-Especificado, no implementado. Es infraestructura para impuestos y CFDI futuro; por sí sola no emite,
-timbra ni cancela CFDI.
+La captura inmutable de importes operativos y los cierres para contador están implementados. La
+clasificación y el cálculo fiscal siguen fuera de alcance; esta infraestructura no emite, timbra ni
+cancela CFDI.
 
 ## Invariantes
 
@@ -17,6 +18,7 @@ timbra ni cancela CFDI.
 Campos de `orders`:
 
 - `gross_amount`, `discount_total_amount`, `tax_total_amount`, `total_amount` `NUMERIC(14,2)`.
+- `tax_calculation_status` diferencia `not_calculated` de un impuesto cero calculado.
 - `pricing_engine_version`, `tax_catalog_version`, `currency`, `occurred_at`.
 
 Campos de `order_items`:
@@ -44,8 +46,10 @@ Constraints compuestos aseguran que item/orden pertenecen al mismo tenant. Las f
 
 ## Lecturas
 
-Recibo y reportes reciben breakdown desde snapshots. Export para contador etiqueta el documento como
-venta/recibo operativo mientras no exista UUID fiscal confirmado.
+Recibo y reportes reciben breakdown desde snapshots. Los cierres `accountant-package-v2` dejan vacío
+el importe de impuestos cuando `tax_calculation_status=not_calculated` y lo etiquetan explícitamente.
+El ledger de factura individual conserva confirmaciones y reaperturas externas sin afirmar que Kova
+emitió el documento.
 
 ## Offline
 
@@ -56,7 +60,8 @@ puede resolverse. Nunca descarta ni duplica la venta.
 ## Aceptación
 
 - Cambiar producto, variante o tasa no altera receipt/reporte histórico.
-- Refund parcial revierte base/impuesto proporcional desde snapshots originales.
+- Una devolución anterior al límite del periodo reduce ese cierre; una posterior crea un ajuste
+  negativo en el siguiente sin reescribir el original.
 - Tenant B no puede consultar snapshots de A por ruta ni SQL con `kova_app`.
 - Una excepción a mitad de persistencia hace rollback de orden, snapshots, pago e inventario.
-- Export sin CFDI no usa palabras `timbrado`, `emitido` o `factura`.
+- El paquete se identifica como `NO_EMITIDO` y explica que no es CFDI ni constancia de timbrado.

@@ -17,12 +17,18 @@ const preview = {
   timezone: "America/Mexico_City",
   document_kind: "operational_draft",
   fiscal_status: "not_issued",
+  package_schema_version: "accountant-package-v2",
+  tax_calculation_status: "not_calculated",
   gross_amount: "232.00",
   discount_total_amount: "0.00",
   tax_total_amount: "32.00",
   total_amount: "232.00",
   refund_total_amount: "18.00",
   net_total_amount: "214.00",
+  adjustment_total_amount: "-18.00",
+  adjusted_net_amount: "196.00",
+  adjustment_count: 1,
+  data_quality_warnings: ["TAXES_NOT_CALCULATED"],
   order_count: 2,
   excluded_individually_confirmed_count: 1,
 };
@@ -33,6 +39,7 @@ const closedBatch = {
   status: "closed",
   order_ids: ["order-1", "order-2"],
   closed_at: "2024-03-01T06:00:00Z",
+  business_name_snapshot: "Kova Test al cierre",
 };
 
 async function mockSettingsShell(
@@ -108,7 +115,7 @@ async function mockFiscalReadRoutes(
   );
 }
 
-test("owner configures, previews and closes an internal period draft", async ({ page }) => {
+test("owner configures, previews and freezes an accountant close", async ({ page }) => {
   await mockSettingsShell(page);
   await mockFiscalReadRoutes(page);
 
@@ -124,29 +131,31 @@ test("owner configures, previews and closes an internal period draft", async ({ 
         status: "closed",
         order_ids: ["order-1", "order-2"],
         closed_at: "2024-03-01T06:00:00Z",
+        business_name_snapshot: "Kova Test al cierre",
       },
     });
   });
 
   await page.goto("/settings/fiscal");
-  await expect(page.getByRole("heading", { name: "Preparación por periodo" })).toBeVisible();
-  await page.getByRole("checkbox", { name: /preparar automáticamente/i }).check();
-  await page.getByRole("button", { name: "Guardar preparación" }).click();
-  await expect(page.getByText("Preparación por periodo guardada.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cierres para contador" })).toBeVisible();
+  await page.getByRole("checkbox", { name: /cerrar automáticamente/i }).check();
+  await page.getByRole("button", { name: "Guardar configuración" }).click();
+  await expect(page.getByText("Configuración de cierres guardada.")).toBeVisible();
 
   await page.getByLabel("Fecha de cierre").fill("2024-02-29");
   await page.getByRole("button", { name: "Preparar vista previa" }).click();
   await expect(page.getByText("Vista previa lista")).toBeVisible();
   await expect(page.getByText(/2 ventas incluidas.*1 excluida/i)).toBeVisible();
   await page.getByRole("button", { name: "Cerrar periodo" }).click();
-  await page.getByRole("button", { name: "Guardar borrador interno" }).click();
-  await expect(page.getByText("Borrador interno guardado.")).toBeVisible();
+  await page.getByRole("button", { name: "Congelar cierre" }).click();
+  await expect(page.getByText("Cierre para contador guardado.")).toBeVisible();
   expect(closeKey).not.toBe("");
 
   const body = await page.locator("body").innerText();
-  expect(body).toMatch(/borrador interno/i);
-  expect(body).toMatch(/recibo operativo/i);
-  expect(body).not.toMatch(/CFDI|XML|PDF|PAC|timbrad|factura emitida/i);
+  expect(body).toMatch(/cierre para contador/i);
+  expect(body).toMatch(/recibos? operativos?/i);
+  expect(body).toMatch(/ni emite CFDI/i);
+  expect(body).not.toMatch(/XML|PAC|timbrad|factura emitida/i);
 });
 
 test("manager can preview but cannot mutate or close", async ({ page }) => {
@@ -156,7 +165,7 @@ test("manager can preview but cannot mutate or close", async ({ page }) => {
   await page.goto("/settings/fiscal");
   await expect(page.getByText("Consulta de solo lectura")).toBeVisible();
   await expect(page.getByLabel("Periodicidad")).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Guardar preparación" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Guardar configuración" })).toHaveCount(0);
   await page.getByLabel("Fecha de cierre").fill("2024-02-29");
   await page.getByRole("button", { name: "Preparar vista previa" }).click();
   await expect(page.getByText("Vista previa lista")).toBeVisible();
@@ -172,7 +181,7 @@ test("the resolved kill flag hides the route and mounts no fiscal client", async
 
   await page.goto("/settings/fiscal");
   await expect(page.getByRole("heading", { name: "Perfil del negocio" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Borradores por periodo" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Cierres para contador" })).toHaveCount(0);
   expect(fiscalRequests).toBe(0);
 });
 
@@ -180,69 +189,69 @@ test("offline mode disables period mutations while Caja remains available", asyn
   await mockSettingsShell(page);
   await mockFiscalReadRoutes(page, [closedBatch]);
   await page.goto("/settings/fiscal");
-  await expect(page.getByRole("heading", { name: "Preparación por periodo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cierres para contador" })).toBeVisible();
 
   await context.setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
   await expect(page.getByText("Necesitas conexión para hacer cambios")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Guardar preparación" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Guardar configuración" })).toBeDisabled();
   await expect(page.getByLabel("Fecha de cierre")).toBeDisabled();
   await expect(page.getByText(/seguir vendiendo desde Caja/i)).toBeVisible();
 
   await page.getByRole("button", { name: "Ver reporte para contador" }).click();
-  await expect(page.getByRole("button", { name: "Descargar CSV" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Descargar paquete ZIP" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Imprimir o guardar como PDF" })).toBeEnabled();
-  await expect(page.getByText(/Conéctate para descargar el CSV/i)).toBeVisible();
+  await expect(page.getByText(/Conéctate para descargar el paquete/i)).toBeVisible();
 });
 
 test("manager downloads and prints the read-only accountant report", async ({ page }) => {
   await mockSettingsShell(page, { role: "manager" });
   await mockFiscalReadRoutes(page, [closedBatch]);
-  await page.route("**/api/v1/fiscal/global-drafts/batches/batch-1/accountant-report.csv", (route) =>
+  await page.route("**/api/v1/fiscal/global-drafts/batches/batch-1/accountant-package.zip", (route) =>
     route.fulfill({
-      body: "estado_fiscal,aviso,periodo,total_neto\nNO_EMITIDO,NO_ES_CFDI,2024-02,214.00\n",
+      body: "PK accountant package",
       headers: {
         "Cache-Control": "no-store",
-        "Content-Disposition": 'attachment; filename="reporte-control-interno-2024-02.csv"',
-        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="kova-cierre-contador-2024-02.zip"',
+        "Content-Type": "application/zip",
       },
     }),
   );
 
   await page.goto("/settings/fiscal");
   await page.getByRole("button", { name: "Ver reporte para contador" }).click();
-  await expect(page.getByRole("heading", { name: "Reporte de control interno" })).toBeVisible();
-  await expect(page.getByText("Kova Test", { exact: true }).last()).toBeVisible();
-  await expect(page.getByText("Borrador interno · No es CFDI")).toBeVisible();
-  await expect(page.getByText(/Kova no calcula impuestos hoy/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Resumen del cierre" })).toBeVisible();
+  await expect(page.getByText("Kova Test al cierre", { exact: true })).toBeVisible();
+  await expect(page.getByText("No emitido · No es CFDI")).toBeVisible();
+  await expect(page.getByText(/Kova no calcula IVA ni IEPS/i)).toBeVisible();
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Descargar CSV" }).click(),
+    page.getByRole("button", { name: "Descargar paquete ZIP" }).click(),
   ]);
-  expect(download.suggestedFilename()).toBe("reporte-control-interno-2024-02.csv");
+  expect(download.suggestedFilename()).toBe("kova-cierre-contador-2024-02.zip");
 
   await page.evaluate(() => {
     window.print = () => document.body.setAttribute("data-accountant-report-printed", "true");
   });
   await page.getByRole("button", { name: "Imprimir o guardar como PDF" }).click();
   await expect(page.locator("body")).toHaveAttribute("data-accountant-report-printed", "true");
-  await expect(page.getByRole("button", { name: "Guardar preparación" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Guardar configuración" })).toHaveCount(0);
 });
 
-test("accountant CSV failure is recoverable and does not show a false success", async ({ page }) => {
+test("accountant package failure is recoverable and does not show a false success", async ({ page }) => {
   await mockSettingsShell(page);
   await mockFiscalReadRoutes(page, [closedBatch]);
-  await page.route("**/api/v1/fiscal/global-drafts/batches/batch-1/accountant-report.csv", (route) =>
+  await page.route("**/api/v1/fiscal/global-drafts/batches/batch-1/accountant-package.zip", (route) =>
     route.fulfill({ status: 500, body: "internal" }),
   );
 
   await page.goto("/settings/fiscal");
   await page.getByRole("button", { name: "Ver reporte para contador" }).click();
-  await page.getByRole("button", { name: "Descargar CSV" }).click();
+  await page.getByRole("button", { name: "Descargar paquete ZIP" }).click();
 
-  await expect(page.getByText(/No pudimos descargar el CSV\./i)).toBeVisible();
+  await expect(page.getByText(/No pudimos descargar el paquete\./i)).toBeVisible();
   await expect(page.getByText(/Descarga iniciada:/i)).toHaveCount(0);
 });
 
@@ -264,7 +273,7 @@ test("owner persists defaults before the incident date flow can preview", async 
   await expect(page.getByRole("button", { name: "Preparar vista previa" })).toBeDisabled();
   expect(previewUrl).toBe("");
 
-  await page.getByRole("button", { name: "Guardar preparación" }).click();
+  await page.getByRole("button", { name: "Guardar configuración" }).click();
   await expect(page.getByLabel("Fecha de cierre")).toBeEnabled();
   await expect(page.getByLabel("Fecha de cierre")).toHaveValue("2026-07-31");
   await page.getByRole("button", { name: "Preparar vista previa" }).click();
@@ -327,7 +336,7 @@ test("manager sees who must configure synthetic defaults", async ({ page }) => {
 
   await expect(page.getByText("El propietario aún no guarda esta preparación")).toBeVisible();
   await expect(page.getByLabel("Fecha de cierre")).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Guardar preparación" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Guardar configuración" })).toHaveCount(0);
 });
 
 for (const locale of ["es-MX", "en-US"] as const) {

@@ -25,6 +25,7 @@ import { useIsOnline } from "@/offline/useSyncQueue";
 
 import {
   closeFiscalDraft,
+  downloadFiscalDraftAccountantPackage,
   downloadFiscalDraftAccountantReport,
   getFiscalDraftSettings,
   listFiscalDraftBatches,
@@ -254,15 +255,17 @@ export function FiscalGlobalDraftsPanel({
     }
   }
 
-  async function downloadAccountantReport(batchId: string) {
+  async function downloadAccountantReport(batch: FiscalDraftBatch) {
     if (!isOnline) return;
-    setDownloadBusyBatchId(batchId);
+    setDownloadBusyBatchId(batch.id);
     setDownloadErrorBatchId(null);
     try {
-      const filename = await downloadFiscalDraftAccountantReport(batchId);
+      const filename = batch.package_schema_version === "accountant-package-v2"
+        ? await downloadFiscalDraftAccountantPackage(batch.id)
+        : await downloadFiscalDraftAccountantReport(batch.id);
       toast(copy.settings.fiscalAccountantDownloadSuccess(filename), "success");
     } catch {
-      setDownloadErrorBatchId(batchId);
+      setDownloadErrorBatchId(batch.id);
     } finally {
       setDownloadBusyBatchId(null);
     }
@@ -525,7 +528,7 @@ export function FiscalGlobalDraftsPanel({
                 disabled={
                   !isOnline ||
                   closeBusy ||
-                  preview.order_count === 0 ||
+                  (preview.order_count === 0 && preview.adjustment_count === 0) ||
                   settingsNeedSave ||
                   !periodValidation.valid
                 }
@@ -566,7 +569,11 @@ export function FiscalGlobalDraftsPanel({
                         {copy.settings.fiscalOrdersCount(batch.order_count)} · {formatMoney(batch.total_amount)}
                       </p>
                     </div>
-                    <Badge variant="secondary">{copy.settings.fiscalInternalDraftBadge}</Badge>
+                    <Badge variant="secondary">
+                      {batch.package_schema_version === "accountant-package-v2"
+                        ? copy.settings.fiscalInternalDraftBadge
+                        : copy.settings.fiscalLegacyBadge}
+                    </Badge>
                   </div>
 
                   <Disclosure
@@ -588,7 +595,7 @@ export function FiscalGlobalDraftsPanel({
                       downloadBusy={downloadBusyBatchId === batch.id}
                       downloadError={downloadErrorBatchId === batch.id}
                       printable={expandedBatchId === batch.id}
-                      onDownload={() => void downloadAccountantReport(batch.id)}
+                      onDownload={() => void downloadAccountantReport(batch)}
                     />
                   </Disclosure>
                 </div>
@@ -645,7 +652,7 @@ function AccountantReport({
             </h3>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {tenantName}
+            {batch.business_name_snapshot || tenantName}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {formatDate(batch.period_start)} – {formatDate(batch.period_end)}
@@ -667,10 +674,17 @@ function AccountantReport({
       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
         <Metric label={copy.settings.fiscalGross} value={formatMoney(batch.gross_amount)} />
         <Metric label={copy.settings.fiscalDiscounts} value={formatMoney(batch.discount_total_amount)} />
-        <Metric label={copy.settings.fiscalTaxes} value={formatMoney(batch.tax_total_amount)} />
+        <Metric
+          label={copy.settings.fiscalTaxes}
+          value={batch.tax_calculation_status === "not_calculated"
+            ? copy.settings.fiscalTaxesNotCalculated
+            : formatMoney(batch.tax_total_amount)}
+        />
         <Metric label={copy.settings.fiscalTotal} value={formatMoney(batch.total_amount)} />
         <Metric label={copy.settings.fiscalRefunds} value={formatMoney(batch.refund_total_amount)} />
         <Metric label={copy.settings.fiscalNetTotal} value={formatMoney(batch.net_total_amount)} strong />
+        <Metric label={copy.settings.fiscalAdjustments} value={formatMoney(batch.adjustment_total_amount)} />
+        <Metric label={copy.settings.fiscalAdjustedNet} value={formatMoney(batch.adjusted_net_amount)} strong />
       </dl>
 
       <div className="mt-5 border-t border-kova-border pt-4 text-xs leading-5 text-muted-foreground">
@@ -678,6 +692,7 @@ function AccountantReport({
           batch.order_count,
           batch.excluded_individually_confirmed_count,
         )}</p>
+        <p className="mt-1">{copy.settings.fiscalAdjustmentsCount(batch.adjustment_count)}</p>
         <p className="mt-1">{copy.settings.fiscalAccountantReportClosedAt(
           dateTime.format(new Date(batch.closed_at)),
         )}</p>
@@ -693,7 +708,9 @@ function AccountantReport({
           <Download className="h-4 w-4" aria-hidden />
           {downloadBusy
             ? copy.settings.fiscalAccountantDownloading
-            : copy.settings.fiscalAccountantDownload}
+            : batch.package_schema_version === "accountant-package-v2"
+              ? copy.settings.fiscalAccountantDownload
+              : copy.settings.fiscalAccountantLegacyDownload}
         </Button>
         <Button type="button" variant="outline" onClick={() => window.print()}>
           <Printer className="h-4 w-4" aria-hidden />
@@ -730,16 +747,26 @@ function PreviewSummary({ preview }: { preview: FiscalDraftPreview }) {
       <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Metric label={copy.settings.fiscalGross} value={formatMoney(preview.gross_amount)} />
         <Metric label={copy.settings.fiscalDiscounts} value={formatMoney(preview.discount_total_amount)} />
-        <Metric label={copy.settings.fiscalTaxes} value={formatMoney(preview.tax_total_amount)} />
+        <Metric
+          label={copy.settings.fiscalTaxes}
+          value={preview.tax_calculation_status === "not_calculated"
+            ? copy.settings.fiscalTaxesNotCalculated
+            : formatMoney(preview.tax_total_amount)}
+        />
         <Metric label={copy.settings.fiscalTotal} value={formatMoney(preview.total_amount)} />
         <Metric label={copy.settings.fiscalRefunds} value={formatMoney(preview.refund_total_amount)} />
         <Metric label={copy.settings.fiscalNetTotal} value={formatMoney(preview.net_total_amount)} strong />
+        <Metric label={copy.settings.fiscalAdjustments} value={formatMoney(preview.adjustment_total_amount)} />
+        <Metric label={copy.settings.fiscalAdjustedNet} value={formatMoney(preview.adjusted_net_amount)} strong />
       </dl>
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
         {copy.settings.fiscalPreviewCounts(
           preview.order_count,
           preview.excluded_individually_confirmed_count,
         )}
+      </p>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        {copy.settings.fiscalAdjustmentsCount(preview.adjustment_count)}
       </p>
       <p className="mt-2 text-xs leading-5 text-muted-foreground">
         {copy.settings.fiscalOperationalNote}

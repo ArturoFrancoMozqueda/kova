@@ -2,17 +2,19 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, text
-from sqlalchemy.orm import Session
+from sqlalchemy import Date, cast, func, text
+from sqlalchemy.orm import Session, aliased
 
 from app.fiscal.models import (
+    FiscalGlobalDraftAdjustment,
     FiscalGlobalDraftBatch,
     FiscalGlobalDraftOrder,
     FiscalGlobalDraftSettings,
+    FiscalIndividualInvoiceEvent,
     OrderFiscalSnapshot,
     OrderItemFiscalSnapshot,
 )
-from app.orders.models import Order, OrderItem, Refund
+from app.orders.models import Order, OrderItem, Payment, Refund
 
 
 def capture_baseline_snapshot(
@@ -36,6 +38,7 @@ def capture_baseline_snapshot(
         total_amount=order.total_amount,
         pricing_engine_version=pricing_engine_version,
         tax_catalog_version=None,
+        tax_calculation_status="not_calculated",
         currency="MXN",
         individual_fiscal_status="none",
     )
@@ -69,6 +72,7 @@ def capture_baseline_snapshot(
                 tax_object_code_snapshot=None,
                 product_service_code_snapshot=None,
                 unit_code_snapshot=None,
+                tax_calculation_status="not_calculated",
             )
         )
     db.flush()
@@ -76,16 +80,18 @@ def capture_baseline_snapshot(
 
 
 def get_order_snapshot(
-    db: Session, *, tenant_id: UUID, order_id: UUID
+    db: Session, *, tenant_id: UUID, order_id: UUID, lock: bool = False
 ) -> OrderFiscalSnapshot | None:
-    return (
+    query = (
         db.query(OrderFiscalSnapshot)
         .filter(
             OrderFiscalSnapshot.tenant_id == tenant_id,
             OrderFiscalSnapshot.order_id == order_id,
         )
-        .first()
     )
+    if lock:
+        query = query.with_for_update()
+    return query.first()
 
 
 def get_settings(db: Session, *, tenant_id: UUID) -> FiscalGlobalDraftSettings | None:
@@ -161,6 +167,19 @@ def eligible_order_snapshots(
         )
         .exists()
     )
+    latest_status = (
+        db.query(FiscalIndividualInvoiceEvent.status)
+        .filter(
+            FiscalIndividualInvoiceEvent.tenant_id == tenant_id,
+            FiscalIndividualInvoiceEvent.order_id == Order.id,
+        )
+        .order_by(
+            FiscalIndividualInvoiceEvent.created_at.desc(),
+            FiscalIndividualInvoiceEvent.id.desc(),
+        )
+        .limit(1)
+        .scalar_subquery()
+    )
     query = (
         db.query(OrderFiscalSnapshot)
         .join(
@@ -170,7 +189,8 @@ def eligible_order_snapshots(
         )
         .filter(
             OrderFiscalSnapshot.tenant_id == tenant_id,
-            OrderFiscalSnapshot.individual_fiscal_status == "none",
+            func.coalesce(latest_status, OrderFiscalSnapshot.individual_fiscal_status)
+            != "confirmed",
             Order.status == "completed",
             sale_time >= start_utc,
             sale_time < end_utc,
@@ -191,6 +211,19 @@ def individually_confirmed_count(
     end_utc: datetime,
 ) -> int:
     sale_time = func.coalesce(Order.occurred_at, Order.created_at)
+    latest_status = (
+        db.query(FiscalIndividualInvoiceEvent.status)
+        .filter(
+            FiscalIndividualInvoiceEvent.tenant_id == tenant_id,
+            FiscalIndividualInvoiceEvent.order_id == Order.id,
+        )
+        .order_by(
+            FiscalIndividualInvoiceEvent.created_at.desc(),
+            FiscalIndividualInvoiceEvent.id.desc(),
+        )
+        .limit(1)
+        .scalar_subquery()
+    )
     return (
         db.query(func.count(OrderFiscalSnapshot.id))
         .join(
@@ -200,7 +233,8 @@ def individually_confirmed_count(
         )
         .filter(
             OrderFiscalSnapshot.tenant_id == tenant_id,
-            OrderFiscalSnapshot.individual_fiscal_status == "confirmed",
+            func.coalesce(latest_status, OrderFiscalSnapshot.individual_fiscal_status)
+            == "confirmed",
             Order.status == "completed",
             sale_time >= start_utc,
             sale_time < end_utc,
@@ -221,9 +255,21 @@ def create_batch(
     snapshots: list[OrderFiscalSnapshot],
     refund_totals: dict[UUID, Decimal],
     excluded_individually_confirmed_count: int,
+    business_name: str,
+    adjustments: list[dict],
 ) -> FiscalGlobalDraftBatch:
     total_amount = sum((row.total_amount for row in snapshots), Decimal("0.00"))
     refund_total_amount = sum(refund_totals.values(), Decimal("0.00"))
+    adjustment_total = sum(
+        (
+            -row["amount"]
+            if row["adjustment_type"] in {"late_refund", "late_exclusion"}
+            else row["amount"]
+            for row in adjustments
+        ),
+        Decimal("0.00"),
+    )
+    net_total = total_amount - refund_total_amount
     batch = FiscalGlobalDraftBatch(
         tenant_id=tenant_id,
         frequency=frequency,
@@ -233,6 +279,9 @@ def create_batch(
         status="closed",
         document_kind="operational_draft",
         fiscal_status="not_issued",
+        business_name_snapshot=business_name,
+        package_schema_version="accountant-package-v2",
+        tax_calculation_status="not_calculated",
         gross_amount=sum((row.gross_amount for row in snapshots), Decimal("0.00")),
         discount_total_amount=sum(
             (row.discount_total_amount for row in snapshots), Decimal("0.00")
@@ -240,7 +289,11 @@ def create_batch(
         tax_total_amount=sum((row.tax_total_amount for row in snapshots), Decimal("0.00")),
         total_amount=total_amount,
         refund_total_amount=refund_total_amount,
-        net_total_amount=total_amount - refund_total_amount,
+        net_total_amount=net_total,
+        adjustment_total_amount=adjustment_total,
+        adjusted_net_amount=net_total + adjustment_total,
+        adjustment_count=len(adjustments),
+        data_quality_warnings=["TAXES_NOT_CALCULATED"],
         order_count=len(snapshots),
         excluded_individually_confirmed_count=excluded_individually_confirmed_count,
         created_by_user_id=user_id,
@@ -257,6 +310,20 @@ def create_batch(
                 net_total_amount=(
                     snapshot.total_amount - refund_totals.get(snapshot.order_id, Decimal("0.00"))
                 ),
+            )
+        )
+    for row in adjustments:
+        db.add(
+            FiscalGlobalDraftAdjustment(
+                tenant_id=tenant_id,
+                batch_id=batch.id,
+                original_batch_id=row["original_batch_id"],
+                order_id=row["order_id"],
+                source_refund_id=row.get("source_refund_id"),
+                source_event_id=row.get("source_event_id"),
+                adjustment_type=row["adjustment_type"],
+                amount=row["amount"],
+                occurred_at=row["occurred_at"],
             )
         )
     db.flush()
@@ -328,6 +395,79 @@ def accountant_report_rows(
     )
 
 
+def accountant_operation_rows(db: Session, *, tenant_id: UUID, batch_id: UUID):
+    return (
+        db.query(FiscalGlobalDraftOrder, OrderFiscalSnapshot, Order)
+        .join(
+            OrderFiscalSnapshot,
+            (OrderFiscalSnapshot.tenant_id == FiscalGlobalDraftOrder.tenant_id)
+            & (OrderFiscalSnapshot.order_id == FiscalGlobalDraftOrder.order_id),
+        )
+        .join(
+            Order,
+            (Order.tenant_id == FiscalGlobalDraftOrder.tenant_id)
+            & (Order.id == FiscalGlobalDraftOrder.order_id),
+        )
+        .filter(
+            FiscalGlobalDraftOrder.tenant_id == tenant_id,
+            FiscalGlobalDraftOrder.batch_id == batch_id,
+        )
+        .order_by(func.coalesce(Order.occurred_at, Order.created_at), Order.id)
+        .all()
+    )
+
+
+def accountant_item_rows(db: Session, *, tenant_id: UUID, batch_id: UUID):
+    return (
+        db.query(OrderItemFiscalSnapshot)
+        .join(
+            FiscalGlobalDraftOrder,
+            (FiscalGlobalDraftOrder.tenant_id == OrderItemFiscalSnapshot.tenant_id)
+            & (FiscalGlobalDraftOrder.order_id == OrderItemFiscalSnapshot.order_id),
+        )
+        .filter(
+            FiscalGlobalDraftOrder.tenant_id == tenant_id,
+            FiscalGlobalDraftOrder.batch_id == batch_id,
+        )
+        .order_by(OrderItemFiscalSnapshot.order_id, OrderItemFiscalSnapshot.order_item_id)
+        .all()
+    )
+
+
+def accountant_adjustment_rows(
+    db: Session, *, tenant_id: UUID, batch_id: UUID
+) -> list[FiscalGlobalDraftAdjustment]:
+    return (
+        db.query(FiscalGlobalDraftAdjustment)
+        .filter(
+            FiscalGlobalDraftAdjustment.tenant_id == tenant_id,
+            FiscalGlobalDraftAdjustment.batch_id == batch_id,
+        )
+        .order_by(
+            FiscalGlobalDraftAdjustment.occurred_at,
+            FiscalGlobalDraftAdjustment.id,
+        )
+        .all()
+    )
+
+
+def payment_methods_by_order(
+    db: Session, *, tenant_id: UUID, order_ids: list[UUID]
+) -> dict[UUID, list[str]]:
+    if not order_ids:
+        return {}
+    rows = (
+        db.query(Payment.order_id, Payment.method)
+        .filter(Payment.tenant_id == tenant_id, Payment.order_id.in_(order_ids))
+        .order_by(Payment.order_id, Payment.method)
+        .all()
+    )
+    result: dict[UUID, list[str]] = {}
+    for order_id, method in rows:
+        result.setdefault(order_id, []).append(method)
+    return result
+
+
 def auto_close_candidates(db: Session, *, limit: int) -> list[FiscalGlobalDraftSettings]:
     from app.tenants.models import Tenant
 
@@ -362,17 +502,230 @@ def latest_batch_end(db: Session, *, tenant_id: UUID) -> date | None:
 
 
 def refund_totals_by_order(
-    db: Session, *, tenant_id: UUID, order_ids: list[UUID]
+    db: Session, *, tenant_id: UUID, order_ids: list[UUID], before: datetime
 ) -> dict[UUID, Decimal]:
     if not order_ids:
         return {}
     rows = (
         db.query(Refund.order_id, func.sum(Refund.refunded_amount))
-        .filter(Refund.tenant_id == tenant_id, Refund.order_id.in_(order_ids))
+        .filter(
+            Refund.tenant_id == tenant_id,
+            Refund.order_id.in_(order_ids),
+            Refund.created_at < before,
+        )
         .group_by(Refund.order_id)
         .all()
     )
     return {order_id: Decimal(amount or 0) for order_id, amount in rows}
+
+
+def latest_individual_invoice_event(
+    db: Session, *, tenant_id: UUID, order_id: UUID
+) -> FiscalIndividualInvoiceEvent | None:
+    return (
+        db.query(FiscalIndividualInvoiceEvent)
+        .filter(
+            FiscalIndividualInvoiceEvent.tenant_id == tenant_id,
+            FiscalIndividualInvoiceEvent.order_id == order_id,
+        )
+        .order_by(
+            FiscalIndividualInvoiceEvent.created_at.desc(),
+            FiscalIndividualInvoiceEvent.id.desc(),
+        )
+        .first()
+    )
+
+
+def create_individual_invoice_event(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    order_id: UUID,
+    user_id: UUID,
+    status: str,
+    external_reference: str | None,
+    issued_at: datetime | None,
+) -> FiscalIndividualInvoiceEvent:
+    event = FiscalIndividualInvoiceEvent(
+        tenant_id=tenant_id,
+        order_id=order_id,
+        status=status,
+        external_reference=external_reference,
+        issued_at=issued_at,
+        created_by_user_id=user_id,
+    )
+    db.add(event)
+    db.flush()
+    return event
+
+
+def due_adjustments(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    start_utc: datetime,
+    end_utc: datetime,
+) -> list[dict]:
+    already_refund_adjusted = (
+        db.query(FiscalGlobalDraftAdjustment.id)
+        .filter(
+            FiscalGlobalDraftAdjustment.tenant_id == tenant_id,
+            FiscalGlobalDraftAdjustment.source_refund_id == Refund.id,
+        )
+        .exists()
+    )
+    late_refunds = (
+        db.query(Refund, FiscalGlobalDraftOrder.batch_id)
+        .join(
+            FiscalGlobalDraftOrder,
+            (FiscalGlobalDraftOrder.tenant_id == Refund.tenant_id)
+            & (FiscalGlobalDraftOrder.order_id == Refund.order_id),
+        )
+        .filter(
+            Refund.tenant_id == tenant_id,
+            Refund.created_at >= start_utc,
+            Refund.created_at < end_utc,
+            ~already_refund_adjusted,
+        )
+        .order_by(Refund.created_at, Refund.id)
+        .all()
+    )
+
+    already_event_adjusted = (
+        db.query(FiscalGlobalDraftAdjustment.id)
+        .filter(
+            FiscalGlobalDraftAdjustment.tenant_id == tenant_id,
+            FiscalGlobalDraftAdjustment.source_event_id == FiscalIndividualInvoiceEvent.id,
+        )
+        .exists()
+    )
+    sale_time = func.coalesce(Order.occurred_at, Order.created_at)
+    sale_local_date = cast(func.timezone("America/Mexico_City", sale_time), Date)
+    newer_event = aliased(FiscalIndividualInvoiceEvent)
+    has_newer_event = (
+        db.query(newer_event.id)
+        .filter(
+            newer_event.tenant_id == FiscalIndividualInvoiceEvent.tenant_id,
+            newer_event.order_id == FiscalIndividualInvoiceEvent.order_id,
+            newer_event.created_at < end_utc,
+            (
+                newer_event.created_at > FiscalIndividualInvoiceEvent.created_at
+            )
+            | (
+                (newer_event.created_at == FiscalIndividualInvoiceEvent.created_at)
+                & (newer_event.id > FiscalIndividualInvoiceEvent.id)
+            ),
+        )
+        .exists()
+    )
+    corrected_events = (
+        db.query(
+            FiscalIndividualInvoiceEvent,
+            OrderFiscalSnapshot,
+            FiscalGlobalDraftBatch.id,
+        )
+        .join(
+            OrderFiscalSnapshot,
+            (OrderFiscalSnapshot.tenant_id == FiscalIndividualInvoiceEvent.tenant_id)
+            & (OrderFiscalSnapshot.order_id == FiscalIndividualInvoiceEvent.order_id),
+        )
+        .join(
+            Order,
+            (Order.tenant_id == FiscalIndividualInvoiceEvent.tenant_id)
+            & (Order.id == FiscalIndividualInvoiceEvent.order_id),
+        )
+        .join(
+            FiscalGlobalDraftBatch,
+            (FiscalGlobalDraftBatch.tenant_id == FiscalIndividualInvoiceEvent.tenant_id)
+            & (FiscalGlobalDraftBatch.period_start <= sale_local_date)
+            & (FiscalGlobalDraftBatch.period_end >= sale_local_date),
+        )
+        .filter(
+            FiscalIndividualInvoiceEvent.tenant_id == tenant_id,
+            FiscalIndividualInvoiceEvent.created_at >= start_utc,
+            FiscalIndividualInvoiceEvent.created_at < end_utc,
+            sale_time < start_utc,
+            ~already_event_adjusted,
+            ~has_newer_event,
+        )
+        .order_by(FiscalIndividualInvoiceEvent.created_at, FiscalIndividualInvoiceEvent.id)
+        .all()
+    )
+    result = [
+        {
+            "adjustment_type": "late_refund",
+            "order_id": refund.order_id,
+            "original_batch_id": original_batch_id,
+            "source_refund_id": refund.id,
+            "amount": Decimal(refund.refunded_amount),
+            "occurred_at": refund.created_at,
+        }
+        for refund, original_batch_id in late_refunds
+    ]
+    corrected_order_ids = {event.order_id for event, _, _ in corrected_events}
+    originally_included = {
+        order_id
+        for (order_id,) in (
+            db.query(FiscalGlobalDraftOrder.order_id)
+            .filter(
+                FiscalGlobalDraftOrder.tenant_id == tenant_id,
+                FiscalGlobalDraftOrder.order_id.in_(corrected_order_ids),
+            )
+            .all()
+            if corrected_order_ids
+            else []
+        )
+    }
+    prior_corrections: dict[UUID, list[FiscalGlobalDraftAdjustment]] = {}
+    if corrected_order_ids:
+        rows = (
+            db.query(FiscalGlobalDraftAdjustment)
+            .filter(
+                FiscalGlobalDraftAdjustment.tenant_id == tenant_id,
+                FiscalGlobalDraftAdjustment.order_id.in_(corrected_order_ids),
+                FiscalGlobalDraftAdjustment.adjustment_type.in_(
+                    ("late_inclusion", "late_exclusion")
+                ),
+            )
+            .order_by(
+                FiscalGlobalDraftAdjustment.order_id,
+                FiscalGlobalDraftAdjustment.occurred_at.desc(),
+                FiscalGlobalDraftAdjustment.id.desc(),
+            )
+            .all()
+        )
+        for row in rows:
+            prior_corrections.setdefault(row.order_id, []).append(row)
+
+    for event, snapshot, original_batch_id in corrected_events:
+        was_included = event.order_id in originally_included
+        previous = next(
+            (
+                row
+                for row in prior_corrections.get(event.order_id, [])
+                if row.occurred_at < event.created_at
+            ),
+            None,
+        )
+        if previous:
+            was_included = previous.adjustment_type == "late_inclusion"
+        adjustment_type = None
+        if event.status == "confirmed" and was_included:
+            adjustment_type = "late_exclusion"
+        elif event.status == "reopened" and not was_included:
+            adjustment_type = "late_inclusion"
+        if adjustment_type:
+            result.append(
+                {
+                    "adjustment_type": adjustment_type,
+                    "order_id": event.order_id,
+                    "original_batch_id": original_batch_id,
+                    "source_event_id": event.id,
+                    "amount": Decimal(snapshot.total_amount),
+                    "occurred_at": event.created_at,
+                }
+            )
+    return result
 
 
 def mark_auto_processed(
