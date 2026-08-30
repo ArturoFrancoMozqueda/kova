@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Date,
@@ -50,6 +51,9 @@ class OrderFiscalSnapshot(Base):
     total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     pricing_engine_version: Mapped[str] = mapped_column(String(40), nullable=False)
     tax_catalog_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    tax_calculation_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="not_calculated"
+    )
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="MXN")
     # Reserved for a future PAC integration. No route in this slice can set it.
     individual_fiscal_status: Mapped[str] = mapped_column(
@@ -101,6 +105,9 @@ class OrderItemFiscalSnapshot(Base):
     tax_object_code_snapshot: Mapped[str | None] = mapped_column(String(8), nullable=True)
     product_service_code_snapshot: Mapped[str | None] = mapped_column(String(16), nullable=True)
     unit_code_snapshot: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    tax_calculation_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="not_calculated"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now
     )
@@ -200,12 +207,27 @@ class FiscalGlobalDraftBatch(Base):
         String(32), nullable=False, default="operational_draft"
     )
     fiscal_status: Mapped[str] = mapped_column(String(16), nullable=False, default="not_issued")
+    business_name_snapshot: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    package_schema_version: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="legacy-v1"
+    )
+    tax_calculation_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="not_calculated"
+    )
     gross_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     discount_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     tax_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     refund_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     net_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    adjustment_total_amount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), nullable=False, default=Decimal("0.00")
+    )
+    adjusted_net_amount: Mapped[Decimal] = mapped_column(
+        Numeric(14, 2), nullable=False, default=Decimal("0.00")
+    )
+    adjustment_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    data_quality_warnings: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     order_count: Mapped[int] = mapped_column(Integer, nullable=False)
     excluded_individually_confirmed_count: Mapped[int] = mapped_column(Integer, nullable=False)
     created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
@@ -240,6 +262,70 @@ class FiscalGlobalDraftOrder(Base):
     order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     refund_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     net_total_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+
+
+class FiscalIndividualInvoiceEvent(Base):
+    __tablename__ = "fiscal_individual_invoice_events"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('confirmed', 'reopened')",
+            name="ck_fiscal_individual_invoice_event_status",
+        ),
+        Index(
+            "ix_fiscal_individual_events_tenant_order_created",
+            "tenant_id",
+            "order_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False)
+    order_id: Mapped[UUID] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    external_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_now
+    )
+
+
+class FiscalGlobalDraftAdjustment(Base):
+    __tablename__ = "fiscal_global_draft_adjustments"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_fiscal_adjustment_amount"),
+        CheckConstraint(
+            "adjustment_type IN ('late_refund', 'late_inclusion', 'late_exclusion')",
+            name="ck_fiscal_adjustment_type",
+        ),
+        UniqueConstraint(
+            "tenant_id", "source_refund_id", name="uq_fiscal_adjustment_tenant_refund"
+        ),
+        UniqueConstraint(
+            "tenant_id", "source_event_id", name="uq_fiscal_adjustment_tenant_event"
+        ),
+        Index("ix_fiscal_adjustments_tenant_batch", "tenant_id", "batch_id"),
+        Index(
+            "ix_fiscal_adjustments_tenant_original_batch",
+            "tenant_id",
+            "original_batch_id",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False)
+    batch_id: Mapped[UUID] = mapped_column(nullable=False)
+    original_batch_id: Mapped[UUID] = mapped_column(nullable=False)
+    order_id: Mapped[UUID] = mapped_column(nullable=False)
+    source_refund_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    source_event_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    adjustment_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_now
     )

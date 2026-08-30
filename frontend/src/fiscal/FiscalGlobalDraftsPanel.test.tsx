@@ -7,6 +7,7 @@ import { copy } from "@/i18n/messages";
 import { FiscalGlobalDraftsPanel } from "./FiscalGlobalDraftsPanel";
 import {
   closeFiscalDraft,
+  downloadFiscalDraftAccountantPackage,
   downloadFiscalDraftAccountantReport,
   FiscalDraftApiError,
   getFiscalDraftSettings,
@@ -26,6 +27,7 @@ vi.mock("./api", async (importOriginal) => {
   return {
     ...original,
     closeFiscalDraft: vi.fn(),
+    downloadFiscalDraftAccountantPackage: vi.fn(),
     downloadFiscalDraftAccountantReport: vi.fn(),
     getFiscalDraftSettings: vi.fn(),
     listFiscalDraftBatches: vi.fn(),
@@ -53,12 +55,18 @@ const preview = {
   timezone: "America/Mexico_City" as const,
   document_kind: "operational_draft" as const,
   fiscal_status: "not_issued" as const,
+  package_schema_version: "accountant-package-v2",
+  tax_calculation_status: "not_calculated" as const,
   gross_amount: "116.00",
   discount_total_amount: "0.00",
   tax_total_amount: "16.00",
   total_amount: "116.00",
   refund_total_amount: "18.00",
   net_total_amount: "98.00",
+  adjustment_total_amount: "-5.00",
+  adjusted_net_amount: "93.00",
+  adjustment_count: 1,
+  data_quality_warnings: ["TAXES_NOT_CALCULATED"],
   order_count: 2,
   excluded_individually_confirmed_count: 1,
 };
@@ -69,6 +77,7 @@ const batch = {
   status: "closed" as const,
   order_ids: ["order-1", "order-2"],
   closed_at: "2024-03-01T06:00:00Z",
+  business_name_snapshot: "Café Kova al cierre",
 };
 
 function renderPanel(role = "owner") {
@@ -91,12 +100,15 @@ describe("FiscalGlobalDraftsPanel", () => {
     vi.mocked(downloadFiscalDraftAccountantReport).mockResolvedValue(
       "reporte-control-interno-2024-02.csv",
     );
+    vi.mocked(downloadFiscalDraftAccountantPackage).mockResolvedValue(
+      "cierre-para-contador-2024-02.zip",
+    );
   });
 
   it("lets an owner configure, preview and confirm a close with honest copy", async () => {
     renderPanel();
 
-    const auto = await screen.findByRole("checkbox", { name: /preparar automáticamente/i });
+    const auto = await screen.findByRole("checkbox", { name: /cerrar automáticamente/i });
     fireEvent.click(auto);
     fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalSaveSettings }));
     await waitFor(() => expect(saveFiscalDraftSettings).toHaveBeenCalledWith(
@@ -118,9 +130,10 @@ describe("FiscalGlobalDraftsPanel", () => {
     ));
 
     const visibleCopy = document.body.textContent ?? "";
-    expect(visibleCopy).toMatch(/borrador interno/i);
-    expect(visibleCopy).toMatch(/recibo operativo/i);
-    expect(visibleCopy).not.toMatch(/CFDI|XML|PDF|PAC|timbrad|factura emitida/i);
+    expect(visibleCopy).toMatch(/cierre para contador/i);
+    expect(visibleCopy).toMatch(/recibos? operativos?/i);
+    expect(visibleCopy).toMatch(/ni emite CFDI/i);
+    expect(visibleCopy).not.toMatch(/XML|PAC|timbrad|factura emitida/i);
   });
 
   it("keeps a manager in read-only mode while allowing preview", async () => {
@@ -262,15 +275,15 @@ describe("FiscalGlobalDraftsPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: copy.settings.fiscalAccountantReportShow }));
 
     expect(screen.getByRole("heading", { name: copy.settings.fiscalAccountantReportTitle })).toBeVisible();
-    expect(screen.getByText("Café Kova")).toBeVisible();
+    expect(screen.getByText("Café Kova al cierre")).toBeVisible();
     expect(screen.getByText(copy.settings.fiscalAccountantReportState)).toBeVisible();
     expect(screen.getAllByText(/no es CFDI/i)).toHaveLength(2);
-    expect(screen.getByText(/Kova no calcula impuestos hoy/i)).toBeVisible();
+    expect(screen.getByText(/Kova no calcula IVA ni IEPS/i)).toBeVisible();
     expect(screen.getByText(copy.settings.fiscalOperationalReceiptBadge)).toBeVisible();
     expect(screen.getByText(copy.settings.fiscalNotIssuedBadge)).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantDownload }));
-    await waitFor(() => expect(downloadFiscalDraftAccountantReport).toHaveBeenCalledWith(batch.id));
+    await waitFor(() => expect(downloadFiscalDraftAccountantPackage).toHaveBeenCalledWith(batch.id));
 
     fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantPrint }));
     expect(print).toHaveBeenCalledOnce();
@@ -283,8 +296,28 @@ describe("FiscalGlobalDraftsPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: copy.settings.fiscalAccountantReportShow }));
     fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantDownload }));
 
-    await waitFor(() => expect(downloadFiscalDraftAccountantReport).toHaveBeenCalledWith(batch.id));
+    await waitFor(() => expect(downloadFiscalDraftAccountantPackage).toHaveBeenCalledWith(batch.id));
     expect(screen.queryByRole("button", { name: copy.settings.fiscalSaveSettings })).not.toBeInTheDocument();
+  });
+
+  it("keeps historical closes available through the legacy CSV", async () => {
+    const legacy = {
+      ...batch,
+      package_schema_version: "legacy-v1",
+      business_name_snapshot: null,
+      adjustment_total_amount: "0.00",
+      adjusted_net_amount: batch.net_total_amount,
+      adjustment_count: 0,
+    };
+    vi.mocked(listFiscalDraftBatches).mockResolvedValue({ items: [legacy], total: 1 });
+    renderPanel();
+
+    expect(await screen.findByText(copy.settings.fiscalLegacyBadge)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantReportShow }));
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.fiscalAccountantLegacyDownload }));
+
+    await waitFor(() => expect(downloadFiscalDraftAccountantReport).toHaveBeenCalledWith(legacy.id));
+    expect(downloadFiscalDraftAccountantPackage).not.toHaveBeenCalled();
   });
 
   it("keeps printing available offline but disables the network download", async () => {
@@ -297,12 +330,12 @@ describe("FiscalGlobalDraftsPanel", () => {
     expect(screen.getByRole("button", { name: copy.settings.fiscalAccountantDownload })).toBeDisabled();
     expect(screen.getByRole("button", { name: copy.settings.fiscalAccountantPrint })).toBeEnabled();
     expect(screen.getByText(copy.settings.fiscalAccountantOffline)).toBeVisible();
-    expect(downloadFiscalDraftAccountantReport).not.toHaveBeenCalled();
+    expect(downloadFiscalDraftAccountantPackage).not.toHaveBeenCalled();
   });
 
   it("shows an actionable error when the CSV download fails", async () => {
     vi.mocked(listFiscalDraftBatches).mockResolvedValue({ items: [batch], total: 1 });
-    vi.mocked(downloadFiscalDraftAccountantReport).mockRejectedValueOnce(new Error("network"));
+    vi.mocked(downloadFiscalDraftAccountantPackage).mockRejectedValueOnce(new Error("network"));
     renderPanel();
 
     fireEvent.click(await screen.findByRole("button", { name: copy.settings.fiscalAccountantReportShow }));

@@ -19,6 +19,9 @@ from app.fiscal.schemas import (
     FiscalGlobalDraftPreviewResponse,
     FiscalGlobalDraftSettingsResponse,
     FiscalGlobalDraftSettingsUpsert,
+    FiscalIndividualInvoiceCurrentResponse,
+    FiscalIndividualInvoiceResponse,
+    FiscalIndividualInvoiceUpdate,
 )
 from app.rbac.permissions import Permission
 from app.shared.exceptions import bad_request, forbidden
@@ -186,6 +189,83 @@ def download_accountant_report(
             "Cache-Control": "no-store",
             "X-Content-Type-Options": "nosniff",
         },
+    )
+
+
+@router.get(
+    "/global-drafts/batches/{batch_id}/accountant-package.zip",
+    response_class=Response,
+    responses={
+        200: {
+            "description": "Paquete ZIP de evidencia para contador; no es CFDI.",
+            "content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+def download_accountant_package(
+    batch_id: UUID,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_fiscal_global_drafts(Permission.FISCAL_VIEW)
+    ),
+):
+    _, membership, _ = ctx
+    content, filename = service.accountant_package_zip(
+        db, tenant_id=membership.tenant_id, batch_id=batch_id
+    )
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.post(
+    "/global-drafts/orders/{order_id}/individual-invoice",
+    response_model=FiscalIndividualInvoiceResponse,
+    status_code=201,
+)
+def update_individual_invoice_status(
+    order_id: UUID,
+    body: FiscalIndividualInvoiceUpdate,
+    response: Response,
+    db: Session = Depends(get_db),
+    idempotency_key: str = Depends(_idempotency_key),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_fiscal_global_drafts(Permission.FISCAL_MANAGE)
+    ),
+):
+    user, membership, _ = ctx
+    status_code, result = service.record_individual_invoice_status(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        order_id=order_id,
+        body=body,
+        idempotency_key=idempotency_key,
+    )
+    response.status_code = status_code
+    return result
+
+
+@router.get(
+    "/global-drafts/orders/{order_id}/individual-invoice",
+    response_model=FiscalIndividualInvoiceCurrentResponse,
+)
+def get_individual_invoice_status(
+    order_id: UUID,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_fiscal_global_drafts(Permission.FISCAL_VIEW)
+    ),
+):
+    _, membership, _ = ctx
+    return service.get_individual_invoice_status(
+        db, tenant_id=membership.tenant_id, order_id=order_id
     )
 
 
