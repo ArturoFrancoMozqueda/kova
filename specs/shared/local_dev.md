@@ -8,8 +8,8 @@
 | Docker Compose | v2 (bundled with Docker Desktop) | Service orchestration |
 | Python | 3.12+ | Required if running backend outside Docker |
 | `uv` | latest ([astral.sh/uv](https://astral.sh/uv)) | Python dependency manager |
-| Node.js | 20 LTS | Required if running frontend outside Docker |
-| npm | bundled with Node 20 | Frontend deps |
+| Node.js | 24 LTS | Required if running frontend outside Docker |
+| npm | bundled with Node 24 | Frontend deps |
 | Git | any recent | VCS |
 
 ## Database Choices for Local Development
