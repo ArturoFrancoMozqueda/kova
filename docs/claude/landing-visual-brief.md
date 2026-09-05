@@ -1,5 +1,12 @@
 # Brief visual y UX — Landing "Una venta lo mueve todo"
 
+> **Actualización 5 de septiembre de 2026 (película de producto):** el recorrido
+> interactivo de cuatro pasos fue sustituido por el video narrado de Kova. La
+> landing sirve una edición 16:9 en escritorio y una edición 9:16 en móvil; el
+> video comienza silenciado al entrar al viewport, incluye subtítulos en español,
+> controles explícitos de reproducción/sonido y se pausa al salir de pantalla.
+> `prefers-reduced-motion` conserva el póster y requiere reproducción manual.
+
 > **Actualización 6 de agosto de 2026 (dirección de color unificada):** toda la
 > landing pública —navbar, secciones y footer— vive sobre un solo lienzo tinta
 > Kova. La jerarquía se construye con bordes, tipografía, capturas del producto y

@@ -87,6 +87,10 @@
     {
       "decision": "Reuse the catalog framing editor for tenant logos with a square output and render the saved mark edge-to-edge in the app shell.",
       "reason": "Business owners get one familiar crop, zoom and preview interaction while the navigation avoids the undersized logo inside a heavy white tile."
+    },
+    {
+      "decision": "Replace the landing sale-flow tabs with the narrated Kova product film, art-directed as 16:9 on desktop and 9:16 on mobile.",
+      "reason": "The owner selected the finished product film as the primary proof when visitors reach the product section; viewport playback stays muted by default with captions and explicit sound controls to respect browser autoplay policy."
     }
   ],
   "evidence": [

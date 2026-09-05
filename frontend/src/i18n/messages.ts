@@ -87,6 +87,13 @@ export const copy = {
       body: "Sigue una venta real de $186 y descubre cómo el mismo cobro actualiza inventario, caja y reportes sin capturar información dos veces.",
       problem: "Selecciona cada paso para seguir cómo cambia toda la operación.",
       progressLabel: "Recorrido de una venta en Kova",
+      videoTitle: "Descubre Kova en 30 segundos",
+      videoLabel: "Demostración de Kova: venta, inventario, caja y análisis",
+      controlsLabel: "Controles del video",
+      playVideo: "Reproducir",
+      pauseVideo: "Pausar",
+      enableSound: "Activar sonido",
+      disableSound: "Silenciar",
       steps: [
         {
           id: "sale",
