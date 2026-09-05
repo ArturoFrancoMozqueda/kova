@@ -260,6 +260,7 @@ Thumbs.db
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+.playwright-cli/
 
 # Playwright test artifacts
 frontend/test-results/

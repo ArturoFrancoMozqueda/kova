@@ -1,274 +1,107 @@
 .section {
-  /* Riel compartido con .lp-section (landingTheme.tsx). */
   padding: var(--lp-section-block) var(--lp-gutter);
   scroll-margin-top: 88px;
+  text-align: center;
 }
 
-.inner {
-  width: min(100%, var(--lp-measure));
-  margin: 0 auto;
-}
-
-.heading {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.75fr);
-  gap: clamp(32px, 7vw, 96px);
-  align-items: end;
-}
-
-.eyebrow,
-.stepNumber {
-  display: block;
-  color: var(--lp-blue-tertiary);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-/* Mismo kicker que .lp-section-label y que LandingSections. */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.eyebrow::before {
-  content: "";
-  width: 22px;
+.srOnly {
+  position: absolute;
+  width: 1px;
   height: 1px;
-  flex-shrink: 0;
-  background: currentColor;
-  opacity: 0.55;
-}
-
-.title {
-  max-width: 650px;
-  margin: 16px 0 0;
-  color: var(--lp-blue-display);
-  font-family: var(--lp-font-display);
-  font-size: clamp(36px, 4.7vw, 60px);
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.lead {
-  margin: 0;
-  color: var(--lp-blue-fg);
-  font-size: 18px;
-  line-height: 1.6;
-}
-
-.hint {
-  margin: 12px 0 0;
-  color: var(--lp-blue-muted);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.desktopStory {
-  margin-top: 50px;
-}
-
-.tablist {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
-  border: 1px solid var(--lp-blue-border-strong);
-  border-bottom: 0;
-  border-radius: 14px 14px 0 0;
-  background: color-mix(in srgb, var(--surface) 58%, transparent);
-}
-
-.tab {
-  position: relative;
-  min-width: 0;
-  min-height: 78px;
-  padding: 14px 16px;
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
   border: 0;
-  border-right: 1px solid var(--lp-blue-border);
-  border-radius: 0;
-  background: transparent;
-  color: var(--lp-blue-muted);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition:
-    color 180ms var(--kova-ease-entrance),
-    background-color 180ms var(--kova-ease-entrance),
-    transform 180ms var(--kova-ease-entrance),
-    box-shadow 180ms var(--kova-ease-entrance);
 }
 
-.tab:last-child {
-  border-right: 0;
-}
-
-.tabMarker {
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.frame {
+  position: relative;
+  width: min(100%, var(--lp-measure));
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  overflow: hidden;
   border: 1px solid var(--lp-blue-border-strong);
-  border-radius: 999px;
-  color: var(--lp-blue-tertiary);
-  font-size: 10px;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-  transition:
-    color 180ms var(--kova-ease-entrance),
-    border-color 180ms var(--kova-ease-entrance),
-    background-color 180ms var(--kova-ease-entrance);
+  border-radius: 18px;
+  background: var(--kova-ink);
+  box-shadow: var(--kova-shadow-hero);
 }
 
-.tabCopy {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-
-.tab strong {
-  overflow: hidden;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tabMeta {
-  overflow: hidden;
-  color: var(--lp-blue-tertiary);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tab[aria-selected="true"] {
-  background: var(--surface);
-  color: var(--page-fg);
-  box-shadow: inset 0 -3px 0 var(--accent);
-}
-
-.tab[aria-selected="true"] .tabMarker {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--kova-ink);
-}
-
-.tab[aria-selected="true"] .tabMeta {
-  color: var(--accent);
-}
-
-.panel {
-  min-height: 520px;
-  display: grid;
-  grid-template-columns: minmax(260px, 0.36fr) minmax(0, 1fr);
-  align-items: stretch;
-  overflow: hidden;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 0 0 14px 14px;
-  background: var(--surface);
-  box-shadow: 0 32px 74px -56px rgba(15, 17, 23, 0.62);
-  animation: storyPanelIn 420ms var(--kova-ease-entrance) both;
-}
-
-.panel[hidden] {
-  display: none;
-}
-
-@keyframes storyPanelIn {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 12px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-.copy {
-  padding: clamp(30px, 4vw, 50px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  border-right: 1px solid var(--hairline-color);
-}
-
-.copy .stepNumber,
-.mobileCopy .stepNumber {
-  color: var(--accent);
-}
-
-.copy h3,
-.mobileCopy h3 {
-  margin: 18px 0 0;
-  color: var(--page-fg);
-  font-family: var(--lp-font-display);
-  font-size: clamp(27px, 3vw, 40px);
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 1.06;
-}
-
-.copy p,
-.mobileCopy p {
-  margin: 16px 0 0;
-  color: var(--text-muted);
-  font-size: 16px;
-  line-height: 1.65;
-}
-
-.receipt {
-  width: fit-content;
-  margin-top: 28px;
-  padding: 8px 0 6px;
-  border-bottom: 1px solid var(--accent);
-  color: var(--page-fg);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.capture {
-  min-width: 0;
-  margin: 24px;
-  overflow: hidden;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 12px;
-  background: #f8fafb;
-  box-shadow: 0 28px 60px -44px rgba(15, 17, 23, 0.42);
-}
-
-/* La captura entra al área de contenido: se descarta la barra lateral (que no
-   cuenta la historia) para que el texto real del producto se lea a un tamaño
-   utilizable en vez de quedar en 8 px. */
-.capture img {
+.video,
+.poster,
+.poster img {
   width: 100%;
   height: 100%;
-  min-height: 454px;
   display: block;
+}
+
+.video,
+.poster img {
   object-fit: cover;
-  object-position: top left;
-  transform: scale(var(--capture-zoom, 1.22));
-  transform-origin: 100% 0;
-  transition: transform 520ms var(--kova-ease-entrance);
 }
 
-/* La captura nueva de Inventario empieza más cerca del borde del contenido;
-   este origen conserva completo su encabezado al descartar la barra lateral. */
-.capture[data-step="inventory"] img {
-  transform-origin: 90% 0;
+.poster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
-.mobileStory {
+.poster[hidden] {
   display: none;
+}
+
+.video::cue {
+  color: var(--kova-on-ink);
+  background: color-mix(in srgb, var(--kova-ink) 86%, transparent);
+  font-family: var(--lp-font-body);
+  font-size: 18px;
+}
+
+.controls {
+  position: absolute;
+  z-index: 2;
+  right: 18px;
+  bottom: 18px;
+  left: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.control {
+  min-height: 44px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--kova-on-ink) 26%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--kova-ink) 82%, transparent);
+  color: var(--kova-on-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  pointer-events: auto;
+  backdrop-filter: blur(12px);
+  transition:
+    background-color 180ms var(--kova-ease-entrance),
+    border-color 180ms var(--kova-ease-entrance),
+    transform 180ms var(--kova-ease-entrance);
+}
+
+.control:hover {
+  border-color: color-mix(in srgb, var(--kova-on-ink) 48%, transparent);
+  background: color-mix(in srgb, var(--kova-ink) 94%, transparent);
+  transform: translateY(-1px);
+}
+
+.control svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
 }
 
 .cta {
@@ -280,99 +113,53 @@
   justify-content: center;
   border-radius: 10px;
   background: var(--cta-blue, var(--kova-blue));
-  color: #fff;
+  color: var(--kova-on-ink);
   font-size: 14px;
   font-weight: 650;
   text-decoration: none;
 }
 
-@media (max-width: 900px) {
-  .heading {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  .desktopStory {
-    display: none;
+@media (max-width: 700px) {
+  .section {
+    padding-inline: max(18px, env(safe-area-inset-left));
   }
 
-  .mobileStory {
-    margin: 42px 0 0;
-    padding: 0;
-    display: grid;
-    gap: 18px;
-    list-style: none;
+  .frame {
+    width: min(100%, 430px);
+    aspect-ratio: 9 / 16;
+    border-radius: 16px;
   }
 
-  .mobileStep {
+  .controls {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+  }
+
+  .control {
+    padding: 10px 12px;
+  }
+
+  .control span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     overflow: hidden;
-    border: 1px solid var(--hairline-strong);
-    border-radius: 14px;
-    background: var(--surface);
-    transition:
-      transform 240ms var(--kova-ease-entrance),
-      border-color 240ms var(--kova-ease-entrance),
-      box-shadow 240ms var(--kova-ease-entrance);
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 
-  .mobileCopy {
-    padding: 26px 24px 24px;
-  }
-  .mobileCopy h3 {
-    font-size: clamp(25px, 6vw, 34px);
-  }
-
-  /* Cada paso usa una variante mobile recortada desde la captura real. Así el
-     dato central conserva contexto y legibilidad sin ampliar una pantalla de
-     escritorio dentro de un marco pequeño. */
-  .mobileCapture {
-    margin: 0 14px 14px;
-    aspect-ratio: 16 / 10;
-    overflow: hidden;
-    border: 1px solid var(--hairline-color);
-    border-radius: 10px;
-    background: #f8fafb;
-  }
-
-  .mobileCapture picture,
-  .mobileCapture img {
-    width: 100%;
-    display: block;
-  }
-
-  .mobileCapture img {
-    height: auto;
-  }
-}
-
-@media (max-width: 480px) {
-  .mobileCopy {
-    padding: 24px 20px 22px;
-  }
-  .cta {
-    width: 100%;
+  .video::cue {
+    font-size: 14px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tab,
-  .panel,
-  .capture img,
-  .mobileStep {
-    animation: none;
+  .control {
     transition: none;
   }
-}
 
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .tab:hover {
-    transform: translateY(-2px);
-  }
-  .capture:hover img {
-    --capture-zoom: 1.242;
-  }
-  .mobileStep:hover {
-    transform: translateY(-3px);
-    border-color: var(--accent);
-    box-shadow: 0 24px 54px -40px rgba(0, 0, 0, 0.72);
+  .control:hover {
+    transform: none;
   }
 }

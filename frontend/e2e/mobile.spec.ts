@@ -352,7 +352,7 @@ test("public landing uses one continuous Kova ink canvas", async ({ page }) => {
   expect(backgrounds.navigation).not.toBe("rgb(255, 255, 255)");
 });
 
-test("mobile landing keeps the complete sale story readable without overflow", async ({ page }) => {
+test("mobile landing uses the vertical product film without overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
@@ -361,17 +361,18 @@ test("mobile landing keeps the complete sale story readable without overflow", a
 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const steps = story.getByRole("listitem");
-  await expect(steps).toHaveCount(4);
-  await expect(steps.first()).toContainText("Cobras en segundos");
-  await expect(steps.nth(1)).toContainText("El stock baja automáticamente");
-  await expect(
-    story.getByRole("img", { name: /Inventario de Kova/i }),
-  ).toBeVisible();
+  const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+  await expect(video).toBeVisible();
+  await expect(video.locator('source[media="(max-width: 700px)"]')).toHaveAttribute(
+    "src",
+    "/film/kova-demo-vertical.mp4",
+  );
+  await expect(story.getByRole("button", { name: "Reproducir" })).toBeVisible();
+  await expect(story.getByRole("button", { name: "Activar sonido" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 
-test("desktop sale story controls stay navigable without horizontal overlap", async ({ page }) => {
+test("desktop product film controls stay navigable without horizontal overlap", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: { authenticated: false } }));
@@ -380,12 +381,15 @@ test("desktop sale story controls stay navigable without horizontal overlap", as
 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const controls = story.getByRole("tab");
-  await expect(controls).toHaveCount(4);
+  const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+  await expect(video.locator('source:not([media])')).toHaveAttribute(
+    "src",
+    "/film/kova-demo-horizontal.mp4",
+  );
+  const controls = story.getByRole("group", { name: "Controles del video" }).getByRole("button");
+  await expect(controls).toHaveCount(2);
   await controls.nth(1).focus();
   await expect(controls.nth(1)).toBeFocused();
-  await controls.nth(1).click();
-  await expect(controls.nth(1)).toHaveAttribute("aria-selected", "true");
   await expectNoHorizontalOverflow(page);
 });
 
@@ -424,7 +428,7 @@ test("mobile product and pricing CTAs remain reachable without horizontal overfl
   await expectNoHorizontalOverflow(page);
 });
 
-test("landing film degrades to a complete static hero under reduced motion", async ({ page }) => {
+test("landing product film waits for manual playback under reduced motion", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/v1/auth/session", (route) =>
@@ -433,15 +437,16 @@ test("landing film degrades to a complete static hero under reduced motion", asy
   await page.goto("/");
   await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
 
-  // Sin data-pf-live no hay track de 400vh ni scrub: el hero es una página
-  // clásica con el póster real y las cuatro leyendas apiladas y visibles.
+  // El hero y la demostración conservan sus pósteres y no arrancan movimiento
+  // hasta que la persona lo solicita explícitamente.
   await expect(page.locator(".lp-hero-frame")).toBeVisible();
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
-  const steps = story.getByRole("listitem");
-  await expect(steps).toHaveCount(4);
-  await expect(steps.nth(3)).toContainText("La venta aparece en tus resultados");
-  await expect(story.getByRole("img", { name: /Análisis de Kova/i })).toBeVisible();
+  const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+  await expect(video).toBeVisible();
+  await expect(story.locator("picture img")).toBeVisible();
+  await expect(story.getByRole("button", { name: "Reproducir" })).toBeVisible();
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
 });
 
 test("orders render as cards at 390px without horizontal overflow", async ({ page }) => {
