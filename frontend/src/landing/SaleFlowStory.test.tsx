@@ -87,6 +87,16 @@ describe("SaleFlowStory", () => {
     ).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
   });
 
+  it("falls back to the viewport width when matchMedia is unavailable", () => {
+    vi.stubGlobal("matchMedia", undefined);
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    renderStory();
+
+    expect(
+      screen.getByLabelText("Demostración de Kova: venta, inventario, caja y análisis"),
+    ).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
+  });
+
   it("starts muted when the video enters the viewport", () => {
     renderStory();
 

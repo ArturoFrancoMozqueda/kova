@@ -30,15 +30,23 @@ export default function SaleFlowStory({
   const [videoSrc, setVideoSrc] = useState<string>();
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia(mobileVideoQuery);
+    const mediaQuery =
+      typeof window.matchMedia === "function" ? window.matchMedia(mobileVideoQuery) : undefined;
     const selectVideo = () => {
       setHasStarted(false);
-      setVideoSrc(mediaQuery.matches ? verticalVideoSrc : horizontalVideoSrc);
+      setVideoSrc(
+        (mediaQuery?.matches ?? window.innerWidth <= 700) ? verticalVideoSrc : horizontalVideoSrc,
+      );
     };
 
     selectVideo();
-    mediaQuery.addEventListener?.("change", selectVideo);
-    return () => mediaQuery.removeEventListener?.("change", selectVideo);
+    mediaQuery?.addEventListener?.("change", selectVideo);
+    if (!mediaQuery) window.addEventListener("resize", selectVideo);
+
+    return () => {
+      mediaQuery?.removeEventListener?.("change", selectVideo);
+      if (!mediaQuery) window.removeEventListener("resize", selectVideo);
+    };
   }, []);
 
   const playVideo = useCallback(() => {
