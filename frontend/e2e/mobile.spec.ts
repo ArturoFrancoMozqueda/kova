@@ -363,13 +363,37 @@ test("mobile landing uses the vertical product film without overflow", async ({ 
   await story.scrollIntoViewIfNeeded();
   const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
   await expect(video).toBeVisible();
-  await expect(video.locator('source[media="(max-width: 700px)"]')).toHaveAttribute(
-    "src",
-    "/film/kova-demo-vertical.mp4",
-  );
+  await expect(video).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
+  await expect
+    .poll(() => video.evaluate((element: HTMLVideoElement) => new URL(element.currentSrc).pathname))
+    .toBe("/film/kova-demo-vertical.mp4");
+  await expect
+    .poll(() => video.evaluate((element: HTMLVideoElement) => element.videoHeight > element.videoWidth))
+    .toBe(true);
   await expect(story.getByRole("button", { name: "Reproducir" })).toBeVisible();
   await expect(story.getByRole("button", { name: "Activar sonido" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test("landing switches the active film when the viewport becomes mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/auth/session", (route) =>
+    route.fulfill({ json: { authenticated: false } }),
+  );
+  await page.goto("/");
+
+  const video = page
+    .locator("#producto")
+    .getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
+  await expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await expect(video).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
+  await expect
+    .poll(() => video.evaluate((element: HTMLVideoElement) => new URL(element.currentSrc).pathname))
+    .toBe("/film/kova-demo-vertical.mp4");
 });
 
 test("desktop product film controls stay navigable without horizontal overlap", async ({ page }) => {
@@ -382,10 +406,13 @@ test("desktop product film controls stay navigable without horizontal overlap", 
   const story = page.locator("#producto");
   await story.scrollIntoViewIfNeeded();
   const video = story.getByLabel("Demostración de Kova: venta, inventario, caja y análisis");
-  await expect(video.locator('source:not([media])')).toHaveAttribute(
-    "src",
-    "/film/kova-demo-horizontal.mp4",
-  );
+  await expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
+  await expect
+    .poll(() => video.evaluate((element: HTMLVideoElement) => new URL(element.currentSrc).pathname))
+    .toBe("/film/kova-demo-horizontal.mp4");
+  await expect
+    .poll(() => video.evaluate((element: HTMLVideoElement) => element.videoWidth > element.videoHeight))
+    .toBe(true);
   const controls = story.getByRole("group", { name: "Controles del video" }).getByRole("button");
   await expect(controls).toHaveCount(2);
   await controls.nth(1).focus();
