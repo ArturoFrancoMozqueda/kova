@@ -8,6 +8,9 @@ export type LandingStoryStepId = "sale" | "inventory" | "cash" | "reports";
 export type LandingStoryTrigger = "scroll" | "control";
 
 const t = copy.landing.immersiveStory;
+const mobileVideoQuery = "(max-width: 700px)";
+const horizontalVideoSrc = "/film/kova-demo-horizontal.mp4";
+const verticalVideoSrc = "/film/kova-demo-vertical.mp4";
 
 export default function SaleFlowStory({
   primaryTarget,
@@ -24,6 +27,27 @@ export default function SaleFlowStory({
   const [isPaused, setIsPaused] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+  const [videoSrc, setVideoSrc] = useState<string>();
+
+  useEffect(() => {
+    const mediaQuery =
+      typeof window.matchMedia === "function" ? window.matchMedia(mobileVideoQuery) : undefined;
+    const selectVideo = () => {
+      setHasStarted(false);
+      setVideoSrc(
+        (mediaQuery?.matches ?? window.innerWidth <= 700) ? verticalVideoSrc : horizontalVideoSrc,
+      );
+    };
+
+    selectVideo();
+    mediaQuery?.addEventListener?.("change", selectVideo);
+    if (!mediaQuery) window.addEventListener("resize", selectVideo);
+
+    return () => {
+      mediaQuery?.removeEventListener?.("change", selectVideo);
+      if (!mediaQuery) window.removeEventListener("resize", selectVideo);
+    };
+  }, []);
 
   const playVideo = useCallback(() => {
     const video = videoRef.current;
@@ -40,7 +64,7 @@ export default function SaleFlowStory({
   useEffect(() => {
     const frame = frameRef.current;
     const video = videoRef.current;
-    if (!frame || !video) return;
+    if (!frame || !video || !videoSrc) return;
 
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     if (!("IntersectionObserver" in window)) {
@@ -67,7 +91,7 @@ export default function SaleFlowStory({
 
     observer.observe(frame);
     return () => observer.disconnect();
-  }, [onStepView, playVideo]);
+  }, [onStepView, playVideo, videoSrc]);
 
   const togglePlayback = () => {
     const video = videoRef.current;
@@ -105,6 +129,7 @@ export default function SaleFlowStory({
         <video
           ref={videoRef}
           className={styles.video}
+          src={videoSrc}
           muted
           playsInline
           preload="metadata"
@@ -116,12 +141,6 @@ export default function SaleFlowStory({
           onPause={() => setIsPaused(true)}
           onEnded={() => setIsPaused(true)}
         >
-          <source
-            media="(max-width: 700px)"
-            src="/film/kova-demo-vertical.mp4"
-            type="video/mp4"
-          />
-          <source src="/film/kova-demo-horizontal.mp4" type="video/mp4" />
           <track
             kind="captions"
             src="/film/kova-demo-es.vtt"

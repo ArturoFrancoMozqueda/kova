@@ -62,17 +62,13 @@ describe("SaleFlowStory", () => {
     );
   }
 
-  it("uses horizontal video on desktop and vertical video on mobile", () => {
+  it("selects the horizontal video on desktop", () => {
     const { container } = renderStory();
     const video = screen.getByLabelText(
       "Demostración de Kova: venta, inventario, caja y análisis",
     );
-    const sources = Array.from(video.querySelectorAll("source"));
 
-    expect(sources).toHaveLength(2);
-    expect(sources[0]).toHaveAttribute("media", "(max-width: 700px)");
-    expect(sources[0]).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
-    expect(sources[1]).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
+    expect(video).toHaveAttribute("src", "/film/kova-demo-horizontal.mp4");
     expect(video.querySelector("track[kind='captions']")).toHaveAttribute(
       "src",
       "/film/kova-demo-es.vtt",
@@ -80,6 +76,25 @@ describe("SaleFlowStory", () => {
     expect(
       container.querySelector("picture source[media='(max-width: 700px)']"),
     ).toHaveAttribute("srcset", "/film/kova-demo-vertical.webp");
+  });
+
+  it("selects the vertical video on mobile", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    renderStory();
+
+    expect(
+      screen.getByLabelText("Demostración de Kova: venta, inventario, caja y análisis"),
+    ).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
+  });
+
+  it("falls back to the viewport width when matchMedia is unavailable", () => {
+    vi.stubGlobal("matchMedia", undefined);
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    renderStory();
+
+    expect(
+      screen.getByLabelText("Demostración de Kova: venta, inventario, caja y análisis"),
+    ).toHaveAttribute("src", "/film/kova-demo-vertical.mp4");
   });
 
   it("starts muted when the video enters the viewport", () => {
