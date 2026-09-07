@@ -11,6 +11,7 @@ import uuid
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.business_settings import service as business_settings_service
@@ -426,20 +427,18 @@ def test_expenses_are_visible_only_to_the_current_tenant(
     assert amounts == {100}
 
 
-def test_telemetry_events_are_visible_only_to_the_current_tenant(
+def test_telemetry_event_reads_are_reserved_for_privileged_analytics(
     kova_app_engine,
     rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
-        ids = {
-            row[0]
-            for row in conn.execute(
+        with pytest.raises(DBAPIError) as exc:
+            conn.execute(
                 text("SELECT id FROM telemetry_events WHERE id IN (:ea, :eb)"),
                 {"ea": TELEMETRY_A, "eb": TELEMETRY_B},
             )
-        }
-    assert ids == {TELEMETRY_A}
+        assert exc.value.orig.sqlstate == "42501"
 
 
 def test_account_deletion_requests_are_tenant_isolated(
@@ -646,11 +645,12 @@ def test_cross_tenant_update_is_rejected(kova_app_engine, rls_seed):  # noqa: AR
         assert "row-level security" in str(exc.value).lower()
 
 
-def test_cross_tenant_delete_cannot_target_another_tenant(
+def test_product_delete_is_reserved_for_privileged_purge(
     kova_app_engine,
     rls_seed,  # noqa: ARG001
 ):
     with kova_app_engine.begin() as conn:
         _set_tenant(conn, TENANT_A)
-        result = conn.execute(text("DELETE FROM products WHERE id = :pb"), {"pb": PRODUCT_B})
-        assert result.rowcount == 0
+        with pytest.raises(DBAPIError) as exc:
+            conn.execute(text("DELETE FROM products WHERE id = :pb"), {"pb": PRODUCT_B})
+        assert exc.value.orig.sqlstate == "42501"

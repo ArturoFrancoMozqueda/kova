@@ -53,12 +53,29 @@ role receives only the verbs used by ordinary tenant requests. Fiscal history
 remains append-only, with column-level `UPDATE (id)` solely for the two rows
 locked by `SELECT ... FOR UPDATE`.
 
+Migration `0067_runtime_grant_matrix` narrows that allowlist after tracing the
+HTTP routes through their repositories. Physical `DELETE` remains only for
+expenses, stored product/logo image rows, customer-order item rows and their
+modifier rows, and product/modifier assignments. Product, category, modifier,
+invitation, onboarding, receipt, business-profile, reservation, and account
+deletion flows use `UPDATE` for deactivation, revocation, status transitions,
+or upsert. Account purge still uses the explicitly privileged engine.
+Membership and session creation stays in privileged authentication flows;
+ordinary runtime can only read/update those rows. Audit and authenticated
+telemetry tables are runtime insert-only because their readers are internal or
+privileged.
+
 The PostgreSQL migration harness checks `SELECT`, `INSERT`, `UPDATE`, and
 `DELETE` for every public table and for `kova_app`, `anon`, and
-`authenticated`. Ledger, audit, refund, void, telemetry, and fiscal history
-tables are intentionally append-only at the grant layer. Internal and reference
-tables plus `webhook_events` have no runtime grant. Mutable domain tables keep
-only their required verbs.
+`authenticated`. It also builds valid rows for tenants A and B in every
+tenant-scoped table, inserts the complete tenant-A graph through `kova_app`,
+executes every table/verb pair, and proves tenant-B reads/updates/deletes are
+filtered while tenant-B inserts fail policy checks. Allowed deletes execute
+against tenant A inside rolled-back transactions, so policy and trigger
+behavior are tested without erasing the fixture graph. Ledger, audit, refund,
+void, telemetry, and fiscal history tables are intentionally append-only at
+the grant layer. Internal and reference tables plus `webhook_events` have no
+runtime grant. Mutable domain tables keep only their required verbs.
 
 The following tables are privileged-engine only and receive no `kova_app`,
 `anon`, or `authenticated` table privileges: `alembic_version`, `roles`,
