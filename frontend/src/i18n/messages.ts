@@ -982,6 +982,7 @@ export const copy = {
     offlineAccessExpired: "El acceso local de esta caja venció. Conéctate a internet para volver a verificar tu cuenta.",
     offlineAccessNotPrepared: "Aún no hay un catálogo guardado para operar sin conexión. Abre la caja con internet antes de usarla offline.",
     offlineAccessBanner: "Modo local seguro: puedes cobrar con el catálogo guardado. Kova no enviará cambios hasta verificar nuevamente la sesión.",
+    offlineLogoutStorageError: "No pudimos borrar de forma segura los datos locales de esta sesión. No compartas el dispositivo todavía; libera almacenamiento y vuelve a intentarlo.",
     retrySession: "Volver a verificar",
     signupEmailInUseTitle: "Este correo ya tiene una cuenta en Kova.",
     signupEmailInUseBody: "Inicia sesión para continuar o usa otro correo para crear una cuenta nueva.",

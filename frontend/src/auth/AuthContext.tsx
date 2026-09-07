@@ -42,7 +42,11 @@ export type AuthState =
   | { status: "unauthenticated" }
   | {
       status: "unavailable";
-      reason: "network" | "offline_access_expired" | "offline_not_prepared";
+      reason:
+        | "network"
+        | "offline_access_expired"
+        | "offline_not_prepared"
+        | "offline_logout_storage";
     }
   | {
       status: "authenticated";
@@ -62,6 +66,22 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+async function clearLocalIdentityData(): Promise<void> {
+  const [{ clearCatalogCache }, { clearCustomerOrderCache }, { clearOfflineAccess }] =
+    await Promise.all([
+      import("../offline/catalogCache"),
+      import("../customerOrders/cache"),
+      import("../offline/offlineAccess"),
+    ]);
+  // Start every erasure before awaiting the aggregate so a failure in one
+  // store does not prevent best-effort cleanup of the others.
+  await Promise.all([
+    clearCatalogCache(),
+    clearCustomerOrderCache(),
+    clearOfflineAccess(),
+  ]);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -99,13 +119,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return next;
     };
     if (hasLogoutPending()) {
+      let serverSessionCleared = false;
       try {
         await apiLogout();
-        clearLogoutPending();
+        serverSessionCleared = true;
       } catch {
         // Keep local access closed. The marker retries revocation after the
         // next successful login/network opportunity.
       }
+      try {
+        await clearLocalIdentityData();
+      } catch {
+        // The durable logout marker remains set. Do not read the cached
+        // identity again until its stores can be erased successfully.
+        clearErrorReportingIdentity();
+        return commit({ status: "unavailable", reason: "offline_logout_storage" });
+      }
+      if (serverSessionCleared) clearLogoutPending();
       clearErrorReportingIdentity();
       return commit({ status: "unauthenticated" });
     }
@@ -355,6 +385,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     identityChangePending.current = true;
     markLogoutPending();
     try {
+      await clearLocalIdentityData();
+    } catch (error) {
+      // Never claim logout on a shared device while a verified identity can
+      // still be reopened from durable storage. The current tab stays in its
+      // existing state and the operator gets an explicit retry message.
+      identityChangePending.current = false;
+      throw error;
+    }
+    try {
       await apiLogout();
       clearLogoutPending();
     } catch {
@@ -363,20 +402,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // and retries server revocation when the network is available.
     }
     clearLatestRequestId();
-    // Wipe the cached catalog so a different tenant on this device can never
-    // read the previous tenant's products from IndexedDB. Best-effort:
-    // logout must still complete if the cache clear fails. Imported on demand
-    // so dexie (the vendor-offline chunk) stays out of the eager bundle that
-    // every landing visitor downloads.
-    await import("../offline/catalogCache")
-      .then(({ clearCatalogCache }) => clearCatalogCache())
-      .catch(() => undefined);
-    await import("../customerOrders/cache")
-      .then(({ clearCustomerOrderCache }) => clearCustomerOrderCache())
-      .catch(() => undefined);
-    await import("../offline/offlineAccess")
-      .then(({ clearOfflineAccess }) => clearOfflineAccess())
-      .catch(() => undefined);
     clearErrorReportingIdentity();
     queryClient.clear();
     identityChangePending.current = false;

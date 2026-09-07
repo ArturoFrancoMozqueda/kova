@@ -43,6 +43,7 @@ import { FirstUseTour } from "@/onboarding/FirstUseTour";
 import { flushFunnelEvents } from "@/telemetry/funnel";
 import { ShellRouteFallback } from "@/components/ui/route-fallback";
 import { SupportDialog } from "@/support/SupportDialog";
+import { useToast } from "@/components/ui/toast";
 
 type NavItem = {
   to: string;
@@ -101,6 +102,15 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
   const [supportOpen, setSupportOpen] = useState(false);
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      toast(copy.auth.offlineLogoutStorageError, "error");
+    }
+  };
 
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((prev) => {
@@ -333,7 +343,7 @@ export default function AppShell() {
           </div>
         </div>
         <button
-          onClick={() => void logout()}
+          onClick={() => void handleLogout()}
           title={sidebarCollapsed ? copy.register.logout : undefined}
           className={cn(
             "relative flex w-full items-center justify-start rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
