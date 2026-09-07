@@ -53,9 +53,14 @@ export function closeShift(shiftId: string, payload: ShiftClosePayload): Promise
   });
 }
 
-export function recordCashMovement(shiftId: string, payload: CashMovementPayload): Promise<CashMovement> {
+export function recordCashMovement(
+  shiftId: string,
+  payload: CashMovementPayload,
+  idempotencyKey: string,
+): Promise<CashMovement> {
   return requestJson<CashMovement>(`/api/v1/shifts/${shiftId}/cash-movements`, {
     method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(payload),
   });
 }

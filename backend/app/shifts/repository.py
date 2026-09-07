@@ -8,15 +8,31 @@ from app.shifts.models import CashMovement, Shift
 
 
 def get_open_shift(db: Session, *, tenant_id: UUID) -> Shift | None:
+    return db.query(Shift).filter(Shift.tenant_id == tenant_id, Shift.status == "open").first()
+
+
+def get_open_shift_for_update(db: Session, *, tenant_id: UUID) -> Shift | None:
+    """Lock the open drawer while a realtime cash operation is persisted."""
     return (
         db.query(Shift)
         .filter(Shift.tenant_id == tenant_id, Shift.status == "open")
+        .with_for_update()
         .first()
     )
 
 
 def get_shift(db: Session, *, tenant_id: UUID, shift_id: UUID) -> Shift | None:
     return db.query(Shift).filter(Shift.tenant_id == tenant_id, Shift.id == shift_id).first()
+
+
+def get_shift_for_update(db: Session, *, tenant_id: UUID, shift_id: UUID) -> Shift | None:
+    """Lock a drawer so its close snapshot cannot race a cash write."""
+    return (
+        db.query(Shift)
+        .filter(Shift.tenant_id == tenant_id, Shift.id == shift_id)
+        .with_for_update()
+        .first()
+    )
 
 
 def create_shift(
@@ -103,9 +119,7 @@ def list_closed_shifts(db: Session, *, tenant_id: UUID, limit: int = 50) -> list
     )
 
 
-def get_cash_movement_sum(
-    db: Session, *, shift_id: UUID, type: str
-) -> Decimal:
+def get_cash_movement_sum(db: Session, *, shift_id: UUID, type: str) -> Decimal:
     result = (
         db.query(func.sum(CashMovement.amount))
         .filter(CashMovement.shift_id == shift_id, CashMovement.type == type)

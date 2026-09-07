@@ -17,6 +17,7 @@ import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 
 interface CashMovementModalProps {
   pending: boolean;
+  fieldsLocked?: boolean;
   initialType?: "cash_in" | "cash_out";
   onSubmit: (payload: CashMovementPayload) => void;
   onCancel: () => void;
@@ -24,6 +25,7 @@ interface CashMovementModalProps {
 
 export function CashMovementModal({
   pending,
+  fieldsLocked = false,
   initialType = "cash_out",
   onSubmit,
   onCancel,
@@ -79,7 +81,7 @@ export function CashMovementModal({
               onChange={(e) =>
                 setType(e.target.value as "cash_in" | "cash_out")
               }
-              disabled={pending}
+              disabled={pending || fieldsLocked}
             >
               <option value="cash_in">{copy.cashMovementModal.cashIn}</option>
               <option value="cash_out">{copy.cashMovementModal.cashOut}</option>
@@ -97,7 +99,7 @@ export function CashMovementModal({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              disabled={pending}
+              disabled={pending || fieldsLocked}
               required
               aria-invalid={submitAttempted && amountError ? true : undefined}
               aria-describedby={submitAttempted && amountError ? "movement-amount-error" : undefined}
@@ -117,7 +119,7 @@ export function CashMovementModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder={copy.cashMovementModal.reasonPlaceholder}
-              disabled={pending}
+              disabled={pending || fieldsLocked}
               required
               aria-invalid={submitAttempted && reasonError ? true : undefined}
               aria-describedby={submitAttempted && reasonError ? "movement-reason-error" : undefined}

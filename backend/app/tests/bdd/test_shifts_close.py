@@ -81,6 +81,7 @@ def _open_shift_with_sales(client, tenant_id: UUID) -> dict:
     shift = response.json()
     client.post(
         f"/api/v1/shifts/{shift['id']}/cash-movements",
+        headers={"Idempotency-Key": f"cash-sale-{uuid4().hex}"},
         json={"type": "cash_in", "amount": "50.00", "reason": "sale"},
     )
     return shift

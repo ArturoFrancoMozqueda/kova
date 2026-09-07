@@ -209,7 +209,7 @@ def close_shift(
     if stored:
         return stored
 
-    shift = repo.get_shift(db, tenant_id=tenant_id, shift_id=shift_id)
+    shift = repo.get_shift_for_update(db, tenant_id=tenant_id, shift_id=shift_id)
     if not shift:
         raise not_found("Shift not found")
 
@@ -261,8 +261,17 @@ def record_cash_movement(
     user_id: UUID,
     shift_id: UUID,
     body: CashMovementCreate,
+    idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
-    shift = repo.get_shift(db, tenant_id=tenant_id, shift_id=shift_id)
+    payload = body.model_dump(mode="json")
+    payload["shift_id"] = str(shift_id)
+    stored = _stored_response(
+        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+    )
+    if stored:
+        return stored
+
+    shift = repo.get_shift_for_update(db, tenant_id=tenant_id, shift_id=shift_id)
     if not shift:
         raise not_found("Shift not found")
 
@@ -297,6 +306,14 @@ def record_cash_movement(
         resource_type="cash_movement",
         resource_id=movement.id,
         changes=response_body,
+    )
+    _store_response(
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        status_code=201,
+        response_body=response_body,
     )
     db.commit()
     return 201, response_body

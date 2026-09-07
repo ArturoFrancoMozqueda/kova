@@ -203,8 +203,13 @@ def persist_completed_order(
     validated_payments = _validate_payments(payments, total)
 
     if link_to_open_shift:
-        open_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
-        if any(payment.method == "cash" for payment in payments) and not open_shift:
+        has_cash_payment = any(payment.method == "cash" for payment in payments)
+        open_shift = (
+            shifts_repo.get_open_shift_for_update(db, tenant_id=tenant_id)
+            if has_cash_payment
+            else shifts_repo.get_open_shift(db, tenant_id=tenant_id)
+        )
+        if has_cash_payment and not open_shift:
             raise bad_request("Open a shift before accepting cash payments")
         shift_id = open_shift.id if open_shift else None
 
@@ -369,8 +374,13 @@ def create_order(
     # fields) would otherwise be rejected as "Idempotency key reused with
     # different request body".
     if link_to_open_shift:
-        open_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
-        if any(p.method == "cash" for p in body.payments) and not open_shift:
+        has_cash_payment = any(payment.method == "cash" for payment in body.payments)
+        open_shift = (
+            shifts_repo.get_open_shift_for_update(db, tenant_id=tenant_id)
+            if has_cash_payment
+            else shifts_repo.get_open_shift(db, tenant_id=tenant_id)
+        )
+        if has_cash_payment and not open_shift:
             # Product decision: cash must land in an open drawer so the
             # shift's expected cash always reconciles. Mirrors the cash
             # refund rule below.
@@ -641,7 +651,7 @@ def create_refund(
 
     cash_refund_shift = None
     if body.refund_payment_method == "cash":
-        cash_refund_shift = shifts_repo.get_open_shift(db, tenant_id=tenant_id)
+        cash_refund_shift = shifts_repo.get_open_shift_for_update(db, tenant_id=tenant_id)
         if not cash_refund_shift:
             raise bad_request("Open a shift before refunding cash from the drawer")
 
