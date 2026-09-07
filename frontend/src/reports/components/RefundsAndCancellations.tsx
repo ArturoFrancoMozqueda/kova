@@ -88,6 +88,7 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
         <p className="rounded-kova-md border border-kova-growth/30 bg-kova-growth/5 p-4 text-sm tabular-nums text-kova-ink">
           {copy.reportsView.refundsCleanState}
         </p>
+        <p className="mt-2 text-xs text-kova-muted">{copy.reportsView.refundPeriodBasis}</p>
       </BentoPanel>
     );
   }
@@ -130,6 +131,7 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
             copy.reportsView.cancelCountValue(cancelCount),
           )}
         </p>
+        <p className="mt-2 text-xs text-kova-muted">{copy.reportsView.refundPeriodBasis}</p>
         <div className="mt-3">
           <Button variant="ghost" size="sm" onClick={() => setDetailOpen(true)}>
             {copy.reportsView.refundsShowDetail}
@@ -199,6 +201,7 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
       {reasons.length === 1 ? (
         <p className="mt-2 text-xs text-muted-foreground">{copy.reportsView.refundReasonHint}</p>
       ) : null}
+      <p className="mt-2 text-xs text-kova-muted">{copy.reportsView.refundPeriodBasis}</p>
       {calm ? (
         <div className="mt-3">
           <Button variant="ghost" size="sm" onClick={() => setDetailOpen(false)}>

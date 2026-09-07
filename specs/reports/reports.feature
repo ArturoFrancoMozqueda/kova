@@ -30,6 +30,11 @@ Feature: Sales reports
     When the manager requests the refund reason report
     Then refunds are grouped by reason
 
+  Scenario: Refund after sale stays attributed to sale cohort
+    Given an authenticated manager with a sale and its refund on consecutive local dates
+    When the manager compares sale-day and refund-day report windows
+    Then refund totals and reasons reconcile to the original sale date
+
   Scenario: Manager views the business story report
     Given an authenticated manager with sales across days, dayparts, products, payments, and corrections
     When the manager requests the business story report

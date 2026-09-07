@@ -11,6 +11,7 @@ describe("RefundsAndCancellations", () => {
     });
     render(<RefundsAndCancellations story={story} />);
     expect(screen.getByText(/Buena señal operativa/i)).toBeInTheDocument();
+    expect(screen.getByText(/fecha de la venta original/i)).toBeInTheDocument();
   });
 
   it("collapses a calm operation to a status line with detail one tap away", () => {
@@ -26,6 +27,7 @@ describe("RefundsAndCancellations", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /ver detalle/i }));
     expect(screen.getByText(/no es un patrón/i)).toBeInTheDocument();
+    expect(screen.getByText(/fecha de la venta original/i)).toBeInTheDocument();
   });
 
   it("renders the per-reason breakdown with formatted amounts", () => {
