@@ -242,7 +242,7 @@ def _validate_catalog_rows(
     rows = []
     for row_number, raw in raw_rows:
         values = {
-            str(key or "").strip().lower(): str(value or "").strip()
+            str(key or "").strip().lower(): ("" if value is None else str(value).strip())
             for key, value in raw.items()
         }
         if not any(values.values()):

@@ -335,6 +335,40 @@ def test_xlsx_preview_and_idempotent_commit_use_the_existing_catalog_pipeline(cl
     assert audit.changes["file_format"] == "xlsx"
 
 
+def test_xlsx_and_csv_preserve_equivalent_numeric_zero_values(client):
+    _login(client, f"import-zero-{uuid4().hex}@example.com")
+    headers = list(import_service.TEMPLATE_COLUMNS)
+    xlsx_content = _xlsx_bytes([
+        headers,
+        ["Servicio", "ZERO-XLSX", 0, 0, "Servicios", 0, 0, 0],
+    ])
+    csv_content = (
+        ",".join(headers)
+        + "\nServicio,ZERO-CSV,0,0,Servicios,0,0,0\n"
+    ).encode()
+
+    xlsx_preview = client.post(
+        "/api/v1/catalog/import?dry_run=true&format=xlsx",
+        content=xlsx_content,
+        headers={"Content-Type": XLSX_MEDIA_TYPE},
+    )
+    csv_preview = client.post(
+        "/api/v1/catalog/import?dry_run=true&format=csv",
+        content=csv_content,
+        headers={"Content-Type": "text/csv"},
+    )
+
+    assert xlsx_preview.status_code == 200, xlsx_preview.text
+    assert csv_preview.status_code == 200, csv_preview.text
+    xlsx_row = xlsx_preview.json()["rows"][0]["normalized"]
+    csv_row = csv_preview.json()["rows"][0]["normalized"]
+    assert xlsx_row == {**csv_row, "sku": "ZERO-XLSX"}
+    assert xlsx_row["price_amount"] == "0.00"
+    assert xlsx_row["cost_price"] == "0.00"
+    assert xlsx_row["initial_stock"] == 0
+    assert xlsx_row["low_stock_threshold"] == 0
+
+
 @pytest.mark.parametrize(
     ("content", "expected_error"),
     [
