@@ -162,6 +162,12 @@ export async function getPendingOfflineSales(tenantId: string) {
     .toArray() as Promise<OfflineSaleQueueItem[]>;
 }
 
+/** Permanently remove only legacy rows whose tenant ownership cannot be
+ * proven. Normal pending/failed/synced sales are never part of this query. */
+export function discardQuarantinedSales(): Promise<number> {
+  return offlineDb.offline_sales.where("status").equals("quarantined").delete();
+}
+
 /** Reclaims only expired leases belonging to this tenant. */
 export async function recoverExpiredLeases(tenantId: string, nowMs = Date.now()) {
   const syncing = await offlineDb.offline_sales

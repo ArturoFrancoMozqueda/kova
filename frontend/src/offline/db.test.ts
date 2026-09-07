@@ -1,9 +1,10 @@
 import "fake-indexeddb/auto";
 import Dexie from "dexie";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { OfflineSaleDraft } from "./types";
 
 const DB_NAME = "pos_offline";
-const sale = {
+const sale: OfflineSaleDraft = {
   items: [{ product_id: "product-1", quantity: 1 }],
   payments: [{ method: "cash", amount: "18.50" }],
 };
@@ -87,4 +88,37 @@ describe("offline database migration", () => {
   // migration crosses Dexie's 1,000-row paging boundary and needs headroom
   // when lint/typecheck run beside Vitest in CI.
   }, 15_000);
+
+  it("deletes only quarantined legacy rows after explicit reconciliation", async () => {
+    await Dexie.delete(DB_NAME);
+    vi.resetModules();
+    const { offlineDb } = await import("./db");
+    await offlineDb.offline_sales.bulkAdd([
+      {
+        client_uuid: "legacy-1",
+        status: "quarantined",
+        sale,
+        attempt_count: 0,
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
+      {
+        client_uuid: "owned-1",
+        tenant_id: "tenant-1",
+        status: "pending",
+        sale,
+        attempt_count: 0,
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      },
+    ]);
+    const { discardQuarantinedSales } = await import("./queue");
+
+    await expect(discardQuarantinedSales()).resolves.toBe(1);
+    expect(await offlineDb.offline_sales.get("legacy-1")).toBeUndefined();
+    expect(await offlineDb.offline_sales.get("owned-1")).toMatchObject({
+      tenant_id: "tenant-1",
+      status: "pending",
+    });
+  });
 });

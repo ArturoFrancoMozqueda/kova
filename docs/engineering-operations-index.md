@@ -79,6 +79,8 @@ se deben interpretar como aprobadas si se omitieron.
 - [`runbooks/uptime-monitoring.md`](runbooks/uptime-monitoring.md): monitores, alertas y respuesta.
 - [`runbooks/ops-dashboard.md`](runbooks/ops-dashboard.md): diagnóstico operativo de sólo lectura.
 - [`offline-qa-checklist.md`](offline-qa-checklist.md): prueba por dispositivo del POS offline.
+- [`runbooks/offline-legacy-quarantine.md`](runbooks/offline-legacy-quarantine.md): conciliación y
+  eliminación segura de filas legacy sin ownership demostrable.
 - [`email-deliverability.md`](email-deliverability.md): verificación de entrega del proveedor.
 - [`claude/release-ga-checklist.md`](claude/release-ga-checklist.md): checklist resumido de release.
 

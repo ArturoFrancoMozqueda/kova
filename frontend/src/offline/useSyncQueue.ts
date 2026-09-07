@@ -2,7 +2,7 @@ import { liveQuery } from "dexie";
 import { useEffect, useState } from "react";
 
 import { offlineDb } from "./db";
-import { retryDeadLetter } from "./queue";
+import { discardQuarantinedSales, retryDeadLetter } from "./queue";
 import { triggerSync } from "./syncWorker";
 import type { OfflineSaleQueueItem } from "./types";
 import { useAuth } from "@/auth/useAuth";
@@ -63,6 +63,7 @@ export function useSyncQueue(shiftId?: string) {
     retryDeadLetter: (clientUuid: string) => tenantId
       ? retryDeadLetter(tenantId, clientUuid)
       : Promise.resolve(false),
+    discardQuarantined: discardQuarantinedSales,
   };
 }
 

@@ -14,13 +14,37 @@ import { CloudUpload, RefreshCw, AlertCircle, Inbox, Wifi, WifiOff, ShieldAlert,
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { supportMailto } from "@/lib/support";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function SyncQueueView() {
   useDocumentTitle(copy.documentTitles.syncQueue);
   const isOnline = useIsOnline();
-  const { pendingCount, failedEntries, quarantinedCount, syncNow, retryDeadLetter } = useSyncQueue();
+  const {
+    pendingCount,
+    failedEntries,
+    quarantinedCount,
+    syncNow,
+    retryDeadLetter,
+    discardQuarantined,
+  } = useSyncQueue();
   const { state } = useAuth();
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [discardBusy, setDiscardBusy] = useState(false);
+  const [discardError, setDiscardError] = useState(false);
+
+  const confirmDiscard = async () => {
+    setDiscardBusy(true);
+    setDiscardError(false);
+    try {
+      await discardQuarantined();
+      setDiscardOpen(false);
+    } catch {
+      setDiscardError(true);
+    } finally {
+      setDiscardBusy(false);
+    }
+  };
 
   // Nombres reales del catalogo offline (solo lectura) para que las lineas de
   // ventas fallidas digan "Concha" en vez de un id truncado. No toca la cola
@@ -94,9 +118,27 @@ export default function SyncQueueView() {
               <Mail className="h-4 w-4" />
               {copy.syncQueue.quarantineSupport}
             </a>
+            <Button variant="ghost" size="sm" onClick={() => setDiscardOpen(true)}>
+              {copy.syncQueue.quarantineDiscard}
+            </Button>
+            {discardError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {copy.syncQueue.quarantineDiscardError}
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={discardOpen}
+        busy={discardBusy}
+        title={copy.syncQueue.quarantineDiscardTitle}
+        description={copy.syncQueue.quarantineDiscardBody(quarantinedCount)}
+        confirmLabel={copy.syncQueue.quarantineDiscardConfirm}
+        onConfirm={() => void confirmDiscard()}
+        onCancel={() => setDiscardOpen(false)}
+      />
 
       {pendingCount > 0 && (
         <div className="mb-4 max-w-xs">
