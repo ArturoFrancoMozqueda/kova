@@ -47,8 +47,25 @@ export function safelyUpdateServiceWorker(update: () => Promise<unknown>) {
 // must survive an uncertain response. On those routes we defer activation and
 // let the next safe navigation pick up the new bundle.
 export function isReloadSafePath(pathname: string): boolean {
-  if (pathname.startsWith("/register")) return false;
-  if (/^\/orders\/[^/]+(?:\/|$)/.test(pathname)) return false;
+  const path = pathname.split(/[?#]/, 1)[0].replace(/\/$/, "") || "/";
+  const unsafePrefix = [
+    "/register",
+    "/catalog",
+    "/inventory",
+    "/expenses",
+    "/pedidos",
+    "/shifts",
+    "/settings",
+    "/internal/ops",
+    "/login",
+    "/signup",
+    "/verify-email",
+    "/accept-invite",
+    "/forgot-password",
+    "/reset-password",
+  ].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  if (unsafePrefix) return false;
+  if (/^\/orders\/[^/]+(?:\/|$)/.test(path)) return false;
   return true;
 }
 
@@ -58,8 +75,8 @@ export function announcePwaUpdateAvailable() {
 
 /**
  * Single entry point for actions that activate a new bundle or reload the
- * current one. Register and order detail are deliberately unsafe because they
- * can hold replay identities in memory until a sale/refund is reconciled.
+ * current one. Data-entry and authentication routes are deliberately unsafe
+ * because they can hold unsaved fields or replay identities in memory.
  */
 export function runPwaUpdateAtSafePoint(
   action: () => Promise<unknown> | unknown,
