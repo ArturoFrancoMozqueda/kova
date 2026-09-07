@@ -2455,10 +2455,44 @@
       },
       "FiscalGlobalDraftBatchResponse": {
         "properties": {
+          "adjusted_net_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Adjusted Net Amount",
+            "type": "string"
+          },
+          "adjustment_count": {
+            "default": 0,
+            "title": "Adjustment Count",
+            "type": "integer"
+          },
+          "adjustment_total_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Adjustment Total Amount",
+            "type": "string"
+          },
+          "business_name_snapshot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Name Snapshot"
+          },
           "closed_at": {
             "format": "date-time",
             "title": "Closed At",
             "type": "string"
+          },
+          "data_quality_warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Quality Warnings",
+            "type": "array"
           },
           "discount_total_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -2517,6 +2551,11 @@
             "title": "Order Ids",
             "type": "array"
           },
+          "package_schema_version": {
+            "default": "accountant-package-v2",
+            "title": "Package Schema Version",
+            "type": "string"
+          },
           "period_end": {
             "format": "date",
             "title": "Period End",
@@ -2538,6 +2577,15 @@
               "closed"
             ],
             "title": "Status",
+            "type": "string"
+          },
+          "tax_calculation_status": {
+            "default": "not_calculated",
+            "enum": [
+              "not_calculated",
+              "calculated"
+            ],
+            "title": "Tax Calculation Status",
             "type": "string"
           },
           "tax_total_amount": {
@@ -2567,6 +2615,7 @@
           "total_amount",
           "refund_total_amount",
           "net_total_amount",
+          "adjusted_net_amount",
           "order_count",
           "excluded_individually_confirmed_count",
           "id",
@@ -2593,6 +2642,29 @@
       },
       "FiscalGlobalDraftPreviewResponse": {
         "properties": {
+          "adjusted_net_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Adjusted Net Amount",
+            "type": "string"
+          },
+          "adjustment_count": {
+            "default": 0,
+            "title": "Adjustment Count",
+            "type": "integer"
+          },
+          "adjustment_total_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Adjustment Total Amount",
+            "type": "string"
+          },
+          "data_quality_warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Quality Warnings",
+            "type": "array"
+          },
           "discount_total_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Discount Total Amount",
@@ -2637,6 +2709,11 @@
             "title": "Order Count",
             "type": "integer"
           },
+          "package_schema_version": {
+            "default": "accountant-package-v2",
+            "title": "Package Schema Version",
+            "type": "string"
+          },
           "period_end": {
             "format": "date",
             "title": "Period End",
@@ -2650,6 +2727,15 @@
           "refund_total_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Refund Total Amount",
+            "type": "string"
+          },
+          "tax_calculation_status": {
+            "default": "not_calculated",
+            "enum": [
+              "not_calculated",
+              "calculated"
+            ],
+            "title": "Tax Calculation Status",
             "type": "string"
           },
           "tax_total_amount": {
@@ -2679,6 +2765,7 @@
           "total_amount",
           "refund_total_amount",
           "net_total_amount",
+          "adjusted_net_amount",
           "order_count",
           "excluded_individually_confirmed_count"
         ],
@@ -2770,6 +2857,183 @@
           "frequency"
         ],
         "title": "FiscalGlobalDraftSettingsUpsert",
+        "type": "object"
+      },
+      "FiscalIndividualInvoiceCurrentResponse": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "issued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued At"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "none",
+              "confirmed",
+              "reopened"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "order_id",
+          "status",
+          "external_reference",
+          "issued_at",
+          "created_at"
+        ],
+        "title": "FiscalIndividualInvoiceCurrentResponse",
+        "type": "object"
+      },
+      "FiscalIndividualInvoiceResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued At"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "confirmed",
+              "reopened"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "order_id",
+          "status",
+          "external_reference",
+          "issued_at",
+          "created_at"
+        ],
+        "title": "FiscalIndividualInvoiceResponse",
+        "type": "object"
+      },
+      "FiscalIndividualInvoiceUpdate": {
+        "properties": {
+          "external_reference": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Reference"
+          },
+          "issued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued At"
+          },
+          "status": {
+            "enum": [
+              "confirmed",
+              "reopened"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "FiscalIndividualInvoiceUpdate",
         "type": "object"
       },
       "FunnelConversion": {
@@ -12171,6 +12435,50 @@
         ]
       }
     },
+    "/api/v1/fiscal/global-drafts/batches/{batch_id}/accountant-package.zip": {
+      "get": {
+        "operationId": "download_accountant_package_api_v1_fiscal_global_drafts_batches__batch_id__accountant_package_zip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Paquete ZIP de evidencia para contador; no es CFDI."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Accountant Package",
+        "tags": [
+          "fiscal"
+        ]
+      }
+    },
     "/api/v1/fiscal/global-drafts/batches/{batch_id}/accountant-report.csv": {
       "get": {
         "operationId": "download_accountant_report_api_v1_fiscal_global_drafts_batches__batch_id__accountant_report_csv_get",
@@ -12269,6 +12577,116 @@
           }
         },
         "summary": "Close Global Draft",
+        "tags": [
+          "fiscal"
+        ]
+      }
+    },
+    "/api/v1/fiscal/global-drafts/orders/{order_id}/individual-invoice": {
+      "get": {
+        "operationId": "get_individual_invoice_status_api_v1_fiscal_global_drafts_orders__order_id__individual_invoice_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalIndividualInvoiceCurrentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Individual Invoice Status",
+        "tags": [
+          "fiscal"
+        ]
+      },
+      "post": {
+        "operationId": "update_individual_invoice_status_api_v1_fiscal_global_drafts_orders__order_id__individual_invoice_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiscalIndividualInvoiceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiscalIndividualInvoiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Individual Invoice Status",
         "tags": [
           "fiscal"
         ]
