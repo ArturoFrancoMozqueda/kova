@@ -170,7 +170,7 @@ jobs:
           previous_image="$(flyctl status --json | jq -er '.Machines[0].config.image // .machines[0].config.image')"
           cd ../frontend
           jq -n --arg hash "${previous_sha:0:12}" '{hash: $hash}' >version.json
-          previous_deployment="$(npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prod --skip-domain --token="$VERCEL_TOKEN")"
+          previous_deployment="$(npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prod --skip-domain --yes --token="$VERCEL_TOKEN")"
           npx --yes "vercel@$VERCEL_CLI_VERSION" promote "$previous_deployment" --yes --token="$VERCEL_TOKEN"
           frontend_url="https://$STAGING_NAME.vercel.app"
           backend_url="https://$STAGING_NAME.fly.dev"
@@ -184,7 +184,7 @@ jobs:
             '{releaseSha: $releaseSha, flyImage: $flyImage, vercelDeployment: $vercelDeployment, frontendUrl: $frontendUrl, backendUrl: $backendUrl}' \
             >../rollback.json
           jq -n --arg hash "${candidate_sha:0:12}" '{hash: $hash}' >version.json
-          candidate_deployment="$(npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prod --skip-domain --token="$VERCEL_TOKEN")"
+          candidate_deployment="$(npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prod --skip-domain --yes --token="$VERCEL_TOKEN")"
           echo "CANDIDATE_SHA=$candidate_sha" >>"$GITHUB_ENV"
           echo "CANDIDATE_DEPLOYMENT=$candidate_deployment" >>"$GITHUB_ENV"
 
