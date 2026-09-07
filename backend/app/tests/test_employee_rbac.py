@@ -11,18 +11,22 @@ through the permission gate (the forbidden branches are defense-in-depth):
    is reachable today via the API by an owner acting on themselves.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.auth import repository as auth_repo
 from app.auth import service as auth_service
-from app.auth.models import Membership
+from app.auth.models import Membership, User
 from app.employees import service
 from app.employees.models import MembershipInvitation
-from app.employees.schemas import EmployeeRoleUpdate, InvitationCreate
+from app.employees.schemas import EmployeeRoleUpdate, InvitationAccept, InvitationCreate
+from app.tenants.models import Tenant
 
 
 def _signup(client: TestClient, email: str, tenant: str) -> dict:
@@ -174,6 +178,71 @@ def test_second_owner_can_be_demoted(client, db):
     assert updated.role == "manager"
 
 
+def test_concurrent_cross_deactivation_preserves_one_active_owner(owner_engine):
+    seed = Session(owner_engine)
+    tenant = Tenant(name="Concurrent Owners", slug=f"owners-{uuid4().hex}")
+    seed.add(tenant)
+    seed.flush()
+    owner_a = _add_member(seed, tenant_id=tenant.id, role="owner")
+    owner_b = _add_member(seed, tenant_id=tenant.id, role="owner")
+    tenant_id = tenant.id
+    owner_ids = (owner_a.id, owner_b.id)
+    user_ids = (owner_a.user_id, owner_b.user_id)
+    seed.close()
+    barrier = Barrier(2)
+
+    def deactivate(*, actor_user_id: UUID, target_membership_id: UUID) -> int:
+        session = Session(owner_engine)
+        try:
+            barrier.wait(timeout=5)
+            service.deactivate_employee(
+                session,
+                tenant_id=tenant_id,
+                user_id=actor_user_id,
+                actor_role="owner",
+                membership_id=target_membership_id,
+            )
+            return 200
+        except HTTPException as exc:
+            session.rollback()
+            return exc.status_code
+        finally:
+            session.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(
+            deactivate,
+            actor_user_id=user_ids[0],
+            target_membership_id=owner_ids[1],
+        )
+        second = pool.submit(
+            deactivate,
+            actor_user_id=user_ids[1],
+            target_membership_id=owner_ids[0],
+        )
+        results = sorted((first.result(timeout=10), second.result(timeout=10)))
+
+    verify = Session(owner_engine)
+    try:
+        active_owners = (
+            verify.query(Membership)
+            .filter(
+                Membership.tenant_id == tenant_id,
+                Membership.role == "owner",
+                Membership.is_active.is_(True),
+            )
+            .count()
+        )
+        assert results == [200, 400]
+        assert active_owners == 1
+    finally:
+        verify.query(Membership).filter(Membership.tenant_id == tenant_id).delete()
+        verify.query(User).filter(User.id.in_(user_ids)).delete(synchronize_session=False)
+        verify.query(Tenant).filter(Tenant.id == tenant_id).delete()
+        verify.commit()
+        verify.close()
+
+
 # ── Invitation revoke ───────────────────────────────────────────────────────
 
 
@@ -185,6 +254,36 @@ def _invite(db, signup: dict) -> MembershipInvitation:
         actor_role="owner",
         body=InvitationCreate(email=f"invitee-{uuid4().hex}@example.com", role="cashier"),
     )
+
+
+def test_reinvite_reactivates_existing_membership_without_duplicate(client, db, monkeypatch):
+    signup = _signup(client, f"owner-{uuid4().hex}@example.com", "RBAC Reactivate")
+    tenant_id = UUID(signup["tenant_id"])
+    employee = _add_member(db, tenant_id=tenant_id, role="cashier")
+    employee.is_active = False
+    employee_email = auth_repo.get_user_by_id(db, employee.user_id).email
+    db.commit()
+    token = "synthetic-reactivation-token"
+    monkeypatch.setattr(service, "_generate_token", lambda: token)
+
+    invitation = service.invite_employee(
+        db,
+        tenant_id=tenant_id,
+        user_id=UUID(signup["user_id"]),
+        actor_role="owner",
+        body=InvitationCreate(email=employee_email, role="manager"),
+    )
+    service.accept_invitation(db, body=InvitationAccept(token=token, password=None))
+
+    memberships = (
+        db.query(Membership)
+        .filter(Membership.tenant_id == tenant_id, Membership.user_id == employee.user_id)
+        .all()
+    )
+    assert invitation.status == "accepted"
+    assert len(memberships) == 1
+    assert memberships[0].is_active is True
+    assert memberships[0].role == "manager"
 
 
 def test_revoke_pending_invitation(client, db):
