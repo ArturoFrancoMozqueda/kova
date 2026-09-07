@@ -281,7 +281,12 @@ _EXPORT_TABLES = (
         ),
     ),
 )
-_EXPORTABLE_TENANT_TABLES = frozenset(spec.name for spec in _EXPORT_TABLES) | {"memberships"}
+_EXPORTABLE_TENANT_TABLES = frozenset(spec.name for spec in _EXPORT_TABLES) | {
+    "memberships",
+    # Exported through the explicit refunds join below; tenant_id is now stored
+    # as a database ownership invariant but does not change the CSV contract.
+    "refund_items",
+}
 _NON_EXPORTABLE_TENANT_TABLES = frozenset(
     {
         "account_deletion_requests",
@@ -340,7 +345,10 @@ _TENANT_DELETE_ORDER = (
     "webhook_events",
     "ops_notes",
 )
-_PURGE_TENANT_TABLES = frozenset(_TENANT_DELETE_ORDER) | {"account_deletion_requests"}
+_PURGE_TENANT_TABLES = frozenset(_TENANT_DELETE_ORDER) | {
+    "account_deletion_requests",
+    "refund_items",
+}
 
 
 def _csv_value(value: object) -> object:

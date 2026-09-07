@@ -80,6 +80,7 @@ def create_movement(
     reason: str,
     reason_code: str | None = None,
 ) -> InventoryMovement:
+    stock_after = stock_on_hand(db, tenant_id=tenant_id, product_id=product_id) + quantity_delta
     movement = InventoryMovement(
         tenant_id=tenant_id,
         product_id=product_id,
@@ -89,13 +90,9 @@ def create_movement(
         reason=reason,
         reason_code=reason_code,
         created_by_user_id=user_id,
+        stock_on_hand_after=stock_after,
     )
     db.add(movement)
-    db.flush()
-    # Compute and store stock_on_hand_after so movement history is accurate
-    movement.stock_on_hand_after = stock_on_hand(
-        db, tenant_id=tenant_id, product_id=product_id
-    )
     db.flush()
     return movement
 

@@ -56,6 +56,83 @@ TENANT_SCOPED_TABLES = (
     "webhook_events",
 )
 
+EXPECTED_TENANT_POLICY_NAMES = {
+    table: (
+        "telemetry_events_tenant_isolation" if table == "telemetry_events" else "tenant_isolation"
+    )
+    for table in TENANT_SCOPED_TABLES
+}
+_EXPECTED_TENANT_POLICY_EXPRESSION = "tenant_id::text=current_setting'app.tenant_id'::text,true"
+_EXPECTED_TENANT_VISIBILITY_EXPRESSION = "id::text=current_setting'app.tenant_id'::text,true"
+_EXPECTED_USER_VISIBILITY_EXPRESSION = (
+    "EXISTSSELECT1FROMmembershipsWHEREmemberships.user_id=users.idAND"
+    "memberships.is_activeISTRUEANDmemberships.tenant_id::text="
+    "current_setting'app.tenant_id'::text,true"
+)
+_EXPECTED_ANONYMOUS_TELEMETRY_EXPRESSION = (
+    "event_name::text=ANYARRAY['landing_viewed'::charactervarying,"
+    "'landing_section_viewed'::charactervarying,"
+    "'landing_story_step_viewed'::charactervarying,"
+    "'landing_cta_clicked'::charactervarying,'signup_started'::charactervarying,"
+    "'signup_validation_failed'::charactervarying,"
+    "'experiment_exposed'::charactervarying,"
+    "'product_demo_viewed'::charactervarying,"
+    "'product_demo_step_changed'::charactervarying,"
+    "'pricing_viewed'::charactervarying,'whatsapp_clicked'::charactervarying,"
+    "'login_clicked'::charactervarying,'faq_opened'::charactervarying]::text[]ANDNOT"
+    "properties::jsonb?|ARRAY['tenant_id'::text,'user_id'::text,'email'::text,"
+    "'name'::text,'phone'::text,'password'::text,'amount'::text,"
+    "'total_amount'::text,'amount_minor_units'::text,'query'::text,"
+    "'query_string'::text,'full_url'::text]"
+)
+RLS_PROTECTED_TABLES = (
+    *TENANT_SCOPED_TABLES,
+    "tenants",
+    "users",
+    "anonymous_telemetry_events",
+)
+# name, FORCE expected, command, USING expected, WITH CHECK expected,
+# exact normalized expression (direct tenant policies only)
+EXPECTED_RLS_POLICY_SPECS = {
+    table: (
+        EXPECTED_TENANT_POLICY_NAMES[table],
+        True,
+        "*",
+        True,
+        True,
+        _EXPECTED_TENANT_POLICY_EXPRESSION,
+    )
+    for table in TENANT_SCOPED_TABLES
+}
+EXPECTED_RLS_POLICY_SPECS.update(
+    {
+        "tenants": (
+            "current_tenant_visibility",
+            False,
+            "r",
+            True,
+            False,
+            _EXPECTED_TENANT_VISIBILITY_EXPRESSION,
+        ),
+        "users": (
+            "tenant_membership_visibility",
+            False,
+            "r",
+            True,
+            False,
+            _EXPECTED_USER_VISIBILITY_EXPRESSION,
+        ),
+        "anonymous_telemetry_events": (
+            "anonymous_telemetry_events_insert",
+            True,
+            "a",
+            False,
+            True,
+            _EXPECTED_ANONYMOUS_TELEMETRY_EXPRESSION,
+        ),
+    }
+)
+
 
 class Base(DeclarativeBase):
     pass
@@ -149,6 +226,11 @@ def _rls_posture_errors(
     role_bypasses_rls: bool,
     owned_tables: set[str],
     table_posture: dict[str, tuple[bool, bool, bool, bool]],
+    policy_catalog: dict[
+        str,
+        list[tuple[str, bool, str, tuple[int, ...], bool, bool, str | None, str | None]],
+    ]
+    | None = None,
 ) -> list[str]:
     errors: list[str] = []
     if role_is_super:
@@ -157,15 +239,82 @@ def _rls_posture_errors(
         errors.append("runtime role has BYPASSRLS")
     if owned_tables:
         errors.append("runtime role owns tenant tables: " + ", ".join(sorted(owned_tables)))
-    for table in TENANT_SCOPED_TABLES:
+    for table in RLS_PROTECTED_TABLES:
+        (
+            expected_name,
+            force_expected,
+            expected_command,
+            using_expected,
+            check_expected,
+            expected_expression,
+        ) = EXPECTED_RLS_POLICY_SPECS[table]
         posture = table_posture.get(table)
         if posture is None:
             errors.append(f"{table}: table missing")
             continue
-        labels = ("RLS", "FORCE RLS", "policy USING", "policy WITH CHECK")
-        missing = [label for label, present in zip(labels, posture, strict=True) if not present]
+        rls_enabled, force_enabled, has_any_using, has_any_check = posture
+        missing = []
+        if not rls_enabled:
+            missing.append("RLS")
+        if force_expected and not force_enabled:
+            missing.append("FORCE RLS")
+        if using_expected and not has_any_using:
+            missing.append("policy USING")
+        if check_expected and not has_any_check:
+            missing.append("policy WITH CHECK")
         if missing:
             errors.append(f"{table}: missing " + ", ".join(missing))
+        if policy_catalog is None:
+            continue
+        policies = policy_catalog.get(table, [])
+        expected = [policy for policy in policies if policy[0] == expected_name]
+        unexpected_permissive = sorted(
+            policy[0] for policy in policies if policy[1] and policy[0] != expected_name
+        )
+        if unexpected_permissive:
+            errors.append(
+                f"{table}: unexpected permissive policies " + ", ".join(unexpected_permissive)
+            )
+        if len(expected) != 1:
+            errors.append(f"{table}: expected exactly one {expected_name} policy")
+            continue
+        (
+            _,
+            permissive,
+            command,
+            roles,
+            has_using,
+            has_check,
+            using_expression,
+            check_expression,
+        ) = expected[0]
+        if (
+            not permissive
+            or command != expected_command
+            or roles != (0,)
+            or has_using != using_expected
+            or has_check != check_expected
+        ):
+            errors.append(f"{table}: canonical policy has unsafe scope")
+            continue
+        normalized_expressions = [
+            "".join(
+                character
+                for character in (expression or "")
+                if not character.isspace() and character not in "()"
+            )
+            for expression, required in (
+                (using_expression, using_expected),
+                (check_expression, check_expected),
+            )
+            if required
+        ]
+        if any(expression.lower() in {"true", "1=1"} for expression in normalized_expressions):
+            errors.append(f"{table}: canonical policy has unsafe expression")
+        elif expected_expression is not None and set(normalized_expressions) != {
+            expected_expression
+        }:
+            errors.append(f"{table}: canonical policy has unsafe expression")
     return errors
 
 
@@ -185,7 +334,7 @@ def assert_rls_active() -> None:
                         "AND c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user) "
                         "AND c.relname = ANY(:tables)"
                     ),
-                    {"tables": list(TENANT_SCOPED_TABLES)},
+                    {"tables": list(RLS_PROTECTED_TABLES)},
                 ).scalars()
             )
             rows = conn.execute(
@@ -199,7 +348,19 @@ def assert_rls_active() -> None:
                     "AND c.relname = ANY(:tables) "
                     "GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity"
                 ),
-                {"tables": list(TENANT_SCOPED_TABLES)},
+                {"tables": list(RLS_PROTECTED_TABLES)},
+            ).all()
+            policy_rows = conn.execute(
+                text(
+                    "SELECT c.relname, p.polname, p.polpermissive, p.polcmd, "
+                    "p.polroles, p.polqual IS NOT NULL, p.polwithcheck IS NOT NULL, "
+                    "pg_get_expr(p.polqual, p.polrelid), "
+                    "pg_get_expr(p.polwithcheck, p.polrelid) "
+                    "FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid "
+                    "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                    "WHERE n.nspname = 'public' AND c.relname = ANY(:tables)"
+                ),
+                {"tables": list(RLS_PROTECTED_TABLES)},
             ).all()
     except Exception as exc:
         if settings.app_env == "production":
@@ -212,6 +373,33 @@ def assert_rls_active() -> None:
         role_bypasses_rls=bool(role_row[1]),
         owned_tables=owned_tables,
         table_posture={row[0]: tuple(bool(value) for value in row[1:]) for row in rows},
+        policy_catalog={
+            table: [
+                (
+                    policy_name,
+                    bool(permissive),
+                    command,
+                    tuple(roles),
+                    bool(has_using),
+                    bool(has_check),
+                    using_expression,
+                    check_expression,
+                )
+                for (
+                    row_table,
+                    policy_name,
+                    permissive,
+                    command,
+                    roles,
+                    has_using,
+                    has_check,
+                    using_expression,
+                    check_expression,
+                ) in policy_rows
+                if row_table == table
+            ]
+            for table in RLS_PROTECTED_TABLES
+        },
     )
     if errors:
         message = "Incomplete RLS posture: " + "; ".join(errors)
@@ -219,4 +407,4 @@ def assert_rls_active() -> None:
             raise RuntimeError(message)
         logger.warning(message)
         return
-    logger.info("RLS posture verified for %d tenant tables", len(TENANT_SCOPED_TABLES))
+    logger.info("RLS posture verified for %d runtime tables", len(RLS_PROTECTED_TABLES))
