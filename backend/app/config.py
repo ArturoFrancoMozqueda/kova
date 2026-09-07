@@ -43,13 +43,17 @@ class Settings(BaseSettings):
 
     # Auth
     secret_key: str = "change-me-in-production-use-a-long-random-string"
-    access_token_ttl_seconds: int = 900        # 15 minutes
+    access_token_ttl_seconds: int = 900  # 15 minutes
     refresh_token_ttl_seconds: int = 2_592_000  # 30 days
     # Absolute ceiling on a session's lifetime measured from its creation. Refresh
     # rotation extends the sliding window but can never push a session past this cap,
     # so a continuously-refreshed (e.g. stolen) refresh token still forces re-login.
     refresh_token_absolute_ttl_seconds: int = 7_776_000  # 90 days
-    token_ttl_seconds: int = 86_400             # 24 h for verify/reset tokens
+    token_ttl_seconds: int = 86_400  # 24 h for verify/reset tokens
+    # Kept separate from authentication token expiry. Idempotency keys remain
+    # reserved for the tenant lifetime; this value only marks the minimum
+    # period for which the stored response must stay readily replayable.
+    idempotency_response_ttl_seconds: int = Field(default=86_400, gt=0)
     # Short-lived, non-authenticating proof issued to the public landing before
     # it can write anonymous funnel events. It is bound to the pseudonymous
     # client id and carries no user, tenant, or permission claims.

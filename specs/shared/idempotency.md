@@ -48,9 +48,20 @@ idempotency_service.store(
 ## Behavior Rules
 
 - Key must be a valid UUID string; invalid format → 422.
-- If the same key is submitted with a different `request_hash` → 422
+- If the same key is submitted with a different `request_hash` → 400
   ("Idempotency key reuse with different request").
-- Keys expire after 24 hours; expired keys behave as if not present.
+- The response-retention marker is 24 hours by default, configured independently
+  from authentication token TTLs. It never makes a key reusable.
+- The current database column keeps its legacy `expires_at` name for rolling
+  deployment compatibility; application code treats it only as that marker.
+- A `(tenant_id, key)` reservation is retained for the tenant lifetime. The same
+  request hash replays the winning response even after the marker; another hash
+  remains a conflict and cannot execute a second effect.
+- Automated age-based deletion of completed keys is forbidden. Keys may be
+  removed only with the complete tenant ownership graph, after the associated
+  orders, refunds, cash movements and other effects are deleted. Future payload
+  compaction must retain the unique key, request hash and immutable winning
+  operation identity.
 - Concurrent requests with the same new key: first writer wins; second sees the
   stored response (handled at DB level via UNIQUE constraint + retry logic).
 - Idempotency is **optional** for all endpoints in Sprint 0B — clients may omit
