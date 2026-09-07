@@ -1,10 +1,11 @@
 # Current Sprint
 
-Last updated: 2026-07-20
+Last updated: 2026-09-07
 
 ## Source Of Truth
 
-This file is the active execution board only.
+The dated section at the top is the active execution board. Older sections below are retained as
+historical evidence and are labelled with their period.
 
 - Current execution target and release gates live here.
 - Historical sprint notes, completed audit findings, and future roadmap live in
@@ -14,10 +15,22 @@ This file is the active execution board only.
 - Risks live in `docs/risk-register.md`.
 - Do not duplicate detailed acceptance criteria here; link to the owning spec, runbook, or planning
   section instead.
+- Setup, test commands, architecture and operational entry points live in
+  [`engineering-operations-index.md`](engineering-operations-index.md).
 
-## Active Sprint (2026-07): Premium redesign app-wide + remaining hardening
+## Active Sprint (2026-09): Comprehensive audit remediation
 
-The active backlog is `PLAN-DESIGN.md` (repo root): extend the `feature/reports-redesign` design
+The active execution target is the 36 findings in
+[`audits/KOVA_IMPROVEMENT_BACKLOG.md`](audits/KOVA_IMPROVEMENT_BACKLOG.md). Each local remediation
+lands through a focused `feature/` branch with relevant tests. Provider and production-dependent
+gates remain open until their runbook contains dated evidence from the real environment.
+
+The July premium redesign and CRO sections below are retained as historical execution context. Their
+dates and checkboxes must not be interpreted as the current release decision.
+
+## Historical Sprint (2026-07): Premium redesign app-wide + remaining hardening
+
+The active backlog was `PLAN-DESIGN.md` (repo root): extend the `feature/reports-redesign` design
 system to every tab so the product feels premium end-to-end, and consolidate everything left over
 (PLAN-05 backend, PLAN-UX-04/05, B5 resume, quick wins, operational gates).
 
@@ -42,7 +55,7 @@ The approved execution backlog is
 Execute one epic per feature branch, merge only after its required checks and evidence are complete,
 and keep provider/production-dependent items open until their external gate is reproducible.
 
-## Active CRO execution
+## Historical CRO execution (2026-07)
 
 The active conversion backlog is [`docs/plans/PLAN-CRO-FUNNEL.md`](plans/PLAN-CRO-FUNNEL.md).
 Execute one epic per PR, merge only after required checks are green, then continue in order.
