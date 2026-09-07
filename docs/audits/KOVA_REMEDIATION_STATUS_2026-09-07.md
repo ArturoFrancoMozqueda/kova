@@ -16,13 +16,12 @@ estado actual. La remediación local no sustituye evidencia de proveedores o pro
 
 La reauditoría independiente no encontró bloqueadores locales adicionales: los 36 hallazgos tienen
 implementación, prueba o procedimiento local. Kova todavía no debe declararse listo para GA ni para
-un despliegue productivo sin supervisión porque tres hallazgos conservan gates externos:
+un despliegue productivo sin supervisión porque dos hallazgos conservan gates externos:
 
 1. KOV-005: lifecycle real en Stripe test mode, incluyendo eventos cruzados y fuera de orden.
-2. KOV-030: recuperación por fase de Fly y Vercel en un staging desechable.
-3. KOV-031: restore real autorizado con RPO/RTO, roles, RLS, conteos, binarios y smoke. Es P1.
+2. KOV-031: restore real autorizado con RPO/RTO, roles, RLS, conteos, binarios y smoke. Es P1.
 
-Hasta completar esos tres controles, la decisión correcta es **código local remediado; salida a
+Hasta completar esos dos controles, la decisión correcta es **código local remediado; salida a
 producción bloqueada por evidencia externa**.
 
 ## Matriz de los 36 hallazgos
@@ -62,7 +61,7 @@ el proveedor o entorno real.
 | KOV-027 | Cerrado local | `3850a28`, `54e4d0f`: 42 tablas por cuatro verbos, A/B, policies especiales, contextos y detección de policies permisivas. |
 | KOV-028 | Cerrado local | `17a3297`: semántica cohorte/evento, cruce de medianoche y timezone conciliables. |
 | KOV-029 | Cerrado local | `f9fe3c3`: cero numérico preservado en XLSX y CSV. |
-| KOV-030 | Gate externo | `8e0f27f` cierra máquina de estados y simulación; falta ensayo Fly/Vercel en staging desechable. |
+| KOV-030 | Cerrado proveedor | Drill real `34161542321`: baseline y recuperación candidate/promotion/acceptance en Fly/Vercel desechables, con artifact y cleanup verificados; evidencia en `evidence/KOV-030-PROVIDER-RECOVERY-DRILL-2026-09-07.md`. |
 | KOV-031 | Gate externo P1 | El runbook es ejecutable; falta restore real fechado, smoke, RPO/RTO y evidencia del backup autorizado. |
 | KOV-032 | Cerrado local | `5f747c1`: aviso sin payload, sin reasignación/sync, conciliación guiada y borrado explícito. |
 | KOV-033 | Cerrado local | `4ca614a`: OpenAPI generado y contrato frontend sincronizado. |
@@ -104,8 +103,6 @@ correspondiente:
 
 - Stripe test mode: checkout, renovación, `past_due`, cancelación y eventos entre familias fuera de
   orden; comprobar entitlements y watermark final.
-- Fly/Vercel staging: inyectar fallos en cada fase de release, comprobar recuperación y ejecutar los
-  smoke/read-only checks antes de promoción.
 - Restore: descargar un backup autorizado, verificar SHA-256, restaurar en destino desechable,
   aplicar roles/RLS, comparar conteos y binarios, ejecutar smoke y anotar RPO/RTO.
 - Antes de ampliar clientes: completar entrega real de correo, SPF/DKIM/DMARC, QA en dispositivos,
