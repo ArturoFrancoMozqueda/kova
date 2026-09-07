@@ -17,6 +17,8 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
       ? copy.auth.offlineAccessExpired
       : state.reason === "offline_not_prepared"
         ? copy.auth.offlineAccessNotPrepared
+        : state.reason === "offline_logout_storage"
+          ? copy.auth.offlineLogoutStorageError
         : copy.auth.offlineAccessUnavailable;
     return (
       <main className="grid min-h-screen place-items-center bg-kova-mist p-6">

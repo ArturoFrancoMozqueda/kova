@@ -2,11 +2,18 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const coordination = vi.hoisted(() => ({ listener: null as null | (() => void) }));
+const coordination = vi.hoisted(() => ({
+  listener: null as null | (() => void),
+  logoutPending: false,
+}));
 const offlineAccess = vi.hoisted(() => ({
   cache: vi.fn(),
   clear: vi.fn(),
   read: vi.fn(),
+}));
+const localCaches = vi.hoisted(() => ({
+  clearCatalog: vi.fn(),
+  clearCustomerOrders: vi.fn(),
 }));
 
 vi.mock("./api", () => ({
@@ -18,7 +25,7 @@ vi.mock("./api", () => ({
 vi.mock("./sessionCoordination", () => ({
   announceSessionChange: vi.fn(),
   clearLogoutPending: vi.fn(),
-  hasLogoutPending: vi.fn(() => false),
+  hasLogoutPending: vi.fn(() => coordination.logoutPending),
   markLogoutPending: vi.fn(),
   onSessionChange: (listener: () => void) => {
     coordination.listener = listener;
@@ -30,11 +37,17 @@ vi.mock("@/offline/offlineAccess", () => ({
   clearOfflineAccess: offlineAccess.clear,
   readPreparedOfflineAccess: offlineAccess.read,
 }));
+vi.mock("@/offline/catalogCache", () => ({
+  clearCatalogCache: localCaches.clearCatalog,
+}));
+vi.mock("@/customerOrders/cache", () => ({
+  clearCustomerOrderCache: localCaches.clearCustomerOrders,
+}));
 vi.mock("@/settings/api", () => ({
   getReceiptSettings: vi.fn().mockResolvedValue({ logo_url: null }),
 }));
 
-import { getSession, refreshSession } from "./api";
+import { getSession, logout as apiLogout, refreshSession } from "./api";
 import { AuthProvider, useAuthContext } from "./AuthContext";
 
 const session = (tenantId: string, userId: string, role = "owner") => ({
@@ -51,12 +64,15 @@ const session = (tenantId: string, userId: string, role = "owner") => ({
 });
 
 function Probe() {
-  const { state } = useAuthContext();
+  const { state, logout } = useAuthContext();
   return (
     <div>
       {state.status === "authenticated"
         ? `${state.tenantId}:${state.user.id}:${state.sessionMode}`
         : state.status}
+      <button type="button" onClick={() => void logout().catch(() => undefined)}>
+        logout-probe
+      </button>
     </div>
   );
 }
@@ -65,11 +81,15 @@ describe("AuthProvider identity continuity", () => {
   beforeEach(() => {
     window.localStorage.clear();
     coordination.listener = null;
+    coordination.logoutPending = false;
     offlineAccess.cache.mockReset().mockResolvedValue(undefined);
     offlineAccess.clear.mockReset().mockResolvedValue(undefined);
     offlineAccess.read.mockReset();
+    localCaches.clearCatalog.mockReset().mockResolvedValue(undefined);
+    localCaches.clearCustomerOrders.mockReset().mockResolvedValue(undefined);
     vi.mocked(getSession).mockReset();
     vi.mocked(refreshSession).mockReset();
+    vi.mocked(apiLogout).mockReset().mockResolvedValue(undefined);
   });
 
   it("suspends a stale tab and adopts only the freshly probed cookie identity", async () => {
@@ -136,6 +156,39 @@ describe("AuthProvider identity continuity", () => {
     );
 
     await waitFor(() => expect(screen.getByText("unavailable")).toBeVisible());
+  });
+
+  it("does not claim logout when durable local identity erasure fails", async () => {
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    offlineAccess.clear.mockRejectedValueOnce(new Error("IndexedDB unavailable"));
+    render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <AuthProvider><Probe /></AuthProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("tenant-a:user-a:online")).toBeVisible();
+
+    screen.getByRole("button", { name: "logout-probe" }).click();
+
+    await waitFor(() => expect(offlineAccess.clear).toHaveBeenCalledOnce());
+    expect(screen.getByText("tenant-a:user-a:online")).toBeVisible();
+    expect(apiLogout).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pending logout fail-closed until local identity erasure succeeds", async () => {
+    coordination.logoutPending = true;
+    offlineAccess.clear.mockRejectedValueOnce(new Error("IndexedDB unavailable"));
+
+    render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <AuthProvider><Probe /></AuthProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText("unavailable")).toBeVisible());
+    expect(apiLogout).toHaveBeenCalledOnce();
+    expect(getSession).not.toHaveBeenCalled();
+    expect(offlineAccess.read).not.toHaveBeenCalled();
   });
 
   it("binds every authenticated mutation to the identity visible in the tab", async () => {
