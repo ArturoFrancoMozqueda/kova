@@ -87,6 +87,35 @@ class WorkflowContractTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        target.joinpath("release-recovery-drill.yml").write_text(
+            textwrap.dedent(
+                """\
+                on:
+                  workflow_dispatch:
+                permissions: {}
+                env:
+                  STAGING_NAME: kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}
+                  PRODUCTION_FLY_APP: pos-project-backend
+                  PRODUCTION_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+                jobs:
+                  drill:
+                    steps:
+                      - run: |
+                          confirm RUN_KOV030_STAGING_DRILL
+                          test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"
+                          node release-recovery.mjs --phase candidate
+                          node release-recovery.mjs --phase promotion
+                          node release-recovery.mjs --phase acceptance
+                      - if: ${{ always() }}
+                        run: |
+                          flyctl apps destroy "$STAGING_NAME" --yes
+                          curl --request DELETE
+                      - name: Verify disposable resources are gone
+                        run: verify
+                """
+            ),
+            encoding="utf-8",
+        )
         return target
 
     def test_accepts_pinned_actions_and_scheduler_contract(self) -> None:
@@ -162,6 +191,26 @@ class WorkflowContractTests(unittest.TestCase):
         )
         self.assertIn(
             "contrato de release recuperable faltante: --skip-domain",
+            errors,
+        )
+
+    def test_rejects_provider_drill_without_cleanup_or_with_automatic_trigger(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workflows = self._workflows(directory)
+            drill = workflows.joinpath("release-recovery-drill.yml")
+            drill.write_text(
+                drill.read_text(encoding="utf-8")
+                .replace("  workflow_dispatch:", "  schedule:")
+                .replace('flyctl apps destroy "$STAGING_NAME" --yes', "cleanup removed"),
+                encoding="utf-8",
+            )
+            errors = OPS.workflow_contract_errors(workflows)
+        self.assertIn(
+            "KOV-030 no puede ejecutarse automáticamente: schedule:",
+            errors,
+        )
+        self.assertIn(
+            'contrato KOV-030 faltante: flyctl apps destroy "$STAGING_NAME" --yes',
             errors,
         )
 

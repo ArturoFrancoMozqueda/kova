@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
-import { recoverRelease } from "./release-recovery.mjs";
+import {
+  recoverRelease,
+  resolveNpxCommand,
+  runProviderCommand,
+} from "./release-recovery.mjs";
 
 const artifact = {
   releaseSha: "0123456789abcdef0123456789abcdef01234567",
@@ -90,3 +95,46 @@ test("a Vercel recovery failure stops before changing Fly and opens a blocking i
   );
   assert.deepEqual(fake.calls, [["vercel", artifact.vercelDeployment]]);
 });
+
+test("Windows invokes the npx JavaScript entry point without a command shell", () => {
+  const execPath = "C:\\Program Files\\nodejs\\node.exe";
+  const expectedCli = path.resolve(
+    path.dirname(execPath),
+    "node_modules",
+    "npm",
+    "bin",
+    "npx-cli.js",
+  );
+  const command = resolveNpxCommand({
+    platform: "win32",
+    execPath,
+    fileExists: (candidate) => candidate === expectedCli,
+  });
+
+  assert.deepEqual(command, { command: execPath, prefixArgs: [expectedCli] });
+  assert.notEqual(command.command, "npx.cmd");
+});
+
+test("Windows fails closed when npm's JavaScript entry point cannot be resolved", () => {
+  assert.throws(
+    () =>
+      resolveNpxCommand({
+        platform: "win32",
+        execPath: "C:\\missing\\node.exe",
+        fileExists: () => false,
+      }),
+    /npx CLI was not found next to Node/,
+  );
+});
+
+test(
+  "the resolved Windows npx launcher starts without spawn EINVAL",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const command = resolveNpxCommand();
+    await runProviderCommand(command.command, [...command.prefixArgs, "--version"], {
+      label: "npx regression probe",
+      stdio: "ignore",
+    });
+  },
+);

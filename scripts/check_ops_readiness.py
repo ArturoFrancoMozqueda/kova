@@ -67,6 +67,37 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         if marker not in ci:
             errors.append(f"contrato de release recuperable faltante: {marker}")
 
+    drill_path = workflows / "release-recovery-drill.yml"
+    if not drill_path.is_file():
+        errors.append("contrato KOV-030 faltante: release-recovery-drill.yml")
+    else:
+        drill = drill_path.read_text(encoding="utf-8")
+        drill_markers = (
+            "workflow_dispatch:",
+            "RUN_KOV030_STAGING_DRILL",
+            "kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}",
+            "PRODUCTION_FLY_APP: pos-project-backend",
+            "PRODUCTION_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}",
+            'test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"',
+            "release-recovery.mjs --phase candidate",
+            "release-recovery.mjs --phase promotion",
+            "release-recovery.mjs --phase acceptance",
+            "if: ${{ always() }}",
+            'flyctl apps destroy "$STAGING_NAME" --yes',
+            "--request DELETE",
+            "Verify disposable resources are gone",
+        )
+        for marker in drill_markers:
+            if marker not in drill:
+                errors.append(f"contrato KOV-030 faltante: {marker}")
+        for forbidden_trigger in ("push:", "pull_request:", "schedule:"):
+            if re.search(rf"(?m)^  {forbidden_trigger}$", drill):
+                errors.append(
+                    f"KOV-030 no puede ejecutarse automáticamente: {forbidden_trigger}"
+                )
+        if "kovasuite.com" in drill:
+            errors.append("KOV-030 no puede referenciar dominios de producción")
+
     fiscal = (workflows / "fiscal-global-drafts.yml").read_text(encoding="utf-8")
     fiscal_markers = (
         'cron: "23 */6 * * *"',
