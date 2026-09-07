@@ -15,6 +15,9 @@ from sqlalchemy.orm import Session
 
 from app.business_settings import service as business_settings_service
 from app.business_settings.schemas import ReceiptSettingsUpsert
+from app.db import set_tenant_context
+from app.sync.schemas import OfflineSaleSyncItem
+from app.sync.service import sync_offline_sales
 
 TENANT_A = uuid.UUID("11111111-1111-1111-1111-1111111111a1")
 TENANT_B = uuid.UUID("22222222-2222-2222-2222-2222222222b2")
@@ -215,6 +218,102 @@ def test_cross_tenant_read_is_blocked(kova_app_engine, rls_seed):  # noqa: ARG00
             )
         }
     assert names == {"Prod A"}, f"tenant A must only see its own product, saw {names}"
+
+
+def test_session_tenant_context_survives_commit_and_rollback(
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
+):
+    with Session(kova_app_engine) as db:
+        set_tenant_context(db, TENANT_A)
+        for boundary in (db.commit, db.rollback, db.commit):
+            ids = set(
+                db.execute(
+                    text("SELECT id FROM products WHERE id IN (:pa, :pb)"),
+                    {"pa": PRODUCT_A, "pb": PRODUCT_B},
+                ).scalars()
+            )
+            assert ids == {PRODUCT_A}
+            assert db.execute(
+                text("SELECT current_setting('app.tenant_id', true)")
+            ).scalar() == str(TENANT_A)
+            boundary()
+
+
+def test_runtime_offline_batch_keeps_rls_context_between_commits(
+    kova_app_engine,
+    owner_engine,
+    rls_seed,  # noqa: ARG001
+):
+    client_uuids = (uuid.uuid4(), uuid.uuid4())
+    sales = [
+        OfflineSaleSyncItem.model_validate({
+            "client_uuid": client_uuid,
+            "order": {
+                "items": [{"product_id": PRODUCT_A, "quantity": 1}],
+                "payments": [
+                    {"method": "cash", "amount": "10.00", "amount_tendered": "10.00"}
+                ],
+            },
+        })
+        for client_uuid in client_uuids
+    ]
+    order_ids: list[uuid.UUID] = []
+    try:
+        with Session(kova_app_engine) as db:
+            set_tenant_context(db, TENANT_A)
+            results = sync_offline_sales(
+                db,
+                tenant_id=TENANT_A,
+                user_id=USER_A,
+                sales=sales,
+            )
+            assert [result.status for result in results] == ["synced", "synced"], results
+            order_ids = [result.order_id for result in results if result.order_id is not None]
+            assert len(order_ids) == 2
+    finally:
+        if order_ids:
+            params = {"first": order_ids[0], "second": order_ids[1]}
+            with owner_engine.begin() as conn:
+                immutable_tables = (
+                    "order_item_tax_snapshots",
+                    "order_item_fiscal_snapshots",
+                    "order_fiscal_snapshots",
+                )
+                for table in immutable_tables:
+                    conn.execute(text(f"ALTER TABLE {table} DISABLE TRIGGER trg_{table}_immutable"))
+                for table in (
+                    *immutable_tables,
+                    "payments",
+                ):
+                    conn.execute(
+                        text(f"DELETE FROM {table} WHERE order_id IN (:first, :second)"),
+                        params,
+                    )
+                conn.execute(
+                    text(
+                        "DELETE FROM order_item_modifiers WHERE order_item_id IN "
+                        "(SELECT id FROM order_items WHERE order_id IN (:first, :second))"
+                    ),
+                    params,
+                )
+                conn.execute(
+                    text("DELETE FROM order_items WHERE order_id IN (:first, :second)"),
+                    params,
+                )
+                conn.execute(
+                    text("DELETE FROM orders WHERE id IN (:first, :second)"),
+                    params,
+                )
+                conn.execute(
+                    text("DELETE FROM idempotency_keys WHERE key IN (:first_key, :second_key)"),
+                    {
+                        "first_key": str(client_uuids[0]),
+                        "second_key": str(client_uuids[1]),
+                    },
+                )
+                for table in immutable_tables:
+                    conn.execute(text(f"ALTER TABLE {table} ENABLE TRIGGER trg_{table}_immutable"))
 
 
 def test_customer_orders_are_visible_only_to_current_tenant(

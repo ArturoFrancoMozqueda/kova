@@ -369,10 +369,13 @@ def commit_catalog_import(
     file_format: CatalogImportFormat,
 ) -> tuple[int, dict[str, Any]]:
     request_hash = _catalog_import_request_hash(content, file_format=file_format)
-    existing = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
+    existing = idempotency_service.claim(
+        db,
+        tenant_id=tenant_id,
+        key=idempotency_key,
+        request_hash=request_hash,
+    )
     if existing:
-        if existing.request_hash != request_hash:
-            raise bad_request("Idempotency key reused with different request body")
         return existing.response_status or 200, existing.response_body or {}
     result = validate_catalog_import(
         db,

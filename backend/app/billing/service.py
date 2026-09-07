@@ -288,10 +288,13 @@ def create_checkout_session(
         "price_id": price_id,
     }
     request_hash = _hash_payload(payload)
-    existing = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
+    existing = idempotency_service.claim(
+        db,
+        tenant_id=tenant_id,
+        key=idempotency_key,
+        request_hash=request_hash,
+    )
     if existing:
-        if existing.request_hash != request_hash:
-            raise bad_request("Idempotency key reused with different request body")
         return existing.response_status or 200, existing.response_body or {}
 
     _validate_standard_price_configuration(secret_key=secret_key, price_id=price_id)
