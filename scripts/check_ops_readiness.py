@@ -60,6 +60,8 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         "release-rollback-",
         "recover-release:",
         "frontend/scripts/release-recovery.mjs",
+        ".autoAssignCustomDomains",
+        "--skip-domain",
     )
     for marker in release_markers:
         if marker not in ci:

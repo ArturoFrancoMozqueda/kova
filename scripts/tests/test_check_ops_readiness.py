@@ -39,7 +39,10 @@ class WorkflowContractTests(unittest.TestCase):
                 e2e-mocked-preview:
                   run: npm run test:e2e-preview
                 capture-release-state:
+                  project_setting: .autoAssignCustomDomains
                   artifact: release-rollback-
+                deploy-vercel-preview:
+                  run: vercel deploy --prebuilt --prod --skip-domain
                 recover-release:
                   run: node frontend/scripts/release-recovery.mjs
                 """
@@ -139,6 +142,26 @@ class WorkflowContractTests(unittest.TestCase):
             errors = OPS.workflow_contract_errors(workflows)
         self.assertIn(
             "contrato de release recuperable faltante: recover-release:",
+            errors,
+        )
+
+    def test_rejects_release_that_can_implicitly_move_vercel_domains(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workflows = self._workflows(directory)
+            ci = workflows.joinpath("ci.yml")
+            ci.write_text(
+                ci.read_text(encoding="utf-8")
+                .replace(".autoAssignCustomDomains", ".framework")
+                .replace("--skip-domain", "--with-domain"),
+                encoding="utf-8",
+            )
+            errors = OPS.workflow_contract_errors(workflows)
+        self.assertIn(
+            "contrato de release recuperable faltante: .autoAssignCustomDomains",
+            errors,
+        )
+        self.assertIn(
+            "contrato de release recuperable faltante: --skip-domain",
             errors,
         )
 
