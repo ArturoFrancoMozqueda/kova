@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import App from "../App";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import App, { PRERENDERED_ROUTES } from "../App";
 import { invalidateBillingSubscription } from "@/billing/api";
 
 const offlineRows = vi.hoisted(() => new Map<string, Record<string, unknown>>());
@@ -153,6 +153,18 @@ afterEach(() => {
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
+
+beforeAll(async () => {
+  // These tests exercise auth, routing, and checkout behavior. Preload the
+  // routes they render so whole-suite transform pressure cannot turn a lazy
+  // boundary into the assertion clock; browser E2E covers real chunk loading.
+  await Promise.all([
+    PRERENDERED_ROUTES["/"](),
+    import("../auth/AuthView"),
+    import("../layout/AppShell"),
+    import("../register/RegisterView"),
+  ]);
+});
 
 describe("App shell", () => {
   it("renders the public landing page for unauthenticated users", async () => {

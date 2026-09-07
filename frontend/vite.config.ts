@@ -32,6 +32,48 @@ function versionFilePlugin(): Plugin {
   };
 }
 
+// `vite preview` normally falls every client-side route back to dist/index.html.
+// Kova deliberately prerenders that file as the public landing, while Vercel
+// routes authenticated paths to the separate, empty app shell. Reproduce that
+// routing locally so preview E2E exercises the artifact that production serves
+// instead of hydrating landing markup at /dashboard, /orders, etc.
+function productionPreviewRoutesPlugin(): Plugin {
+  const prerenderedRoutes = new Map([
+    ["/", "/index.html"],
+    ["/privacy", "/privacy/index.html"],
+    ["/terms", "/terms/index.html"],
+    ["/seguridad", "/seguridad/index.html"],
+    ["/cookies", "/cookies/index.html"],
+  ]);
+
+  return {
+    name: "kova-production-preview-routes",
+    configurePreviewServer(server) {
+      server.middlewares.use((request, _response, next) => {
+        if (request.method !== "GET" && request.method !== "HEAD") return next();
+        const current = new URL(request.url ?? "/", "http://kova.local");
+        const pathname = current.pathname.length > 1
+          ? current.pathname.replace(/\/$/, "")
+          : current.pathname;
+        const prerendered = prerenderedRoutes.get(pathname);
+        if (prerendered) {
+          request.url = `${prerendered}${current.search}`;
+          return next();
+        }
+        if (
+          pathname.startsWith("/api/") ||
+          pathname.startsWith("/_vercel/") ||
+          path.posix.extname(pathname)
+        ) {
+          return next();
+        }
+        request.url = `/app-shell.html${current.search}`;
+        return next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   define: {
     __BUILD_HASH__: JSON.stringify(BUILD_HASH),
@@ -44,6 +86,7 @@ export default defineConfig({
   plugins: [
     react(),
     versionFilePlugin(),
+    productionPreviewRoutesPlugin(),
     VitePWA({
       registerType: "prompt",
       devOptions: { enabled: false },
@@ -126,6 +169,14 @@ export default defineConfig({
         // overrides this to the "backend" service name for container-to-
         // container networking (localhost inside the frontend container is
         // the container itself, not the backend service).
+        target: process.env.VITE_API_BASE_URL || "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    proxy: {
+      "/api": {
         target: process.env.VITE_API_BASE_URL || "http://localhost:8000",
         changeOrigin: true,
       },

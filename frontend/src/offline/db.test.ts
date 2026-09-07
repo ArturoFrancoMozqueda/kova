@@ -83,5 +83,8 @@ describe("offline database migration", () => {
 
     expect(await offlineDb.offline_sales.count()).toBe(1_001);
     expect(await offlineDb.offline_sales.where("[tenant_id+status]").equals(["tenant-1", "pending"]).count()).toBe(1_001);
-  });
+  // fake-indexeddb writes every row in memory; this deliberately large
+  // migration crosses Dexie's 1,000-row paging boundary and needs headroom
+  // when lint/typecheck run beside Vitest in CI.
+  }, 15_000);
 });

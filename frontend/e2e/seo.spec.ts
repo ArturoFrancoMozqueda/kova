@@ -2,14 +2,14 @@ import { expect, test } from "./fixtures";
 import { STANDARD_PLAN } from "../src/billing/standardPlan";
 
 // These assertions only hold against a prerendered build (Vercel or
-// `vite preview` over `dist`). The default Playwright webServer is the dev
-// server, which doesn't prerender, so gate them on an explicit base URL —
-// same pattern as production-smoke.spec.ts.
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL
-  ?? (process.env.PLAYWRIGHT_USE_PREVIEW === "1" ? "http://127.0.0.1:5174" : undefined);
+// `vite preview` over `dist`). The dev suite intentionally skips them, so gate
+// them on the explicit suite target instead of inferring behavior from a URL.
+const PRERENDERED_TARGET = ["preview", "production-smoke"].includes(
+  process.env.PLAYWRIGHT_TARGET ?? process.env.PLAYWRIGHT_SUITE ?? "",
+);
 
 test.describe("technical SEO (prerendered build only)", () => {
-  test.skip(!BASE_URL, "Set PLAYWRIGHT_BASE_URL to run against a prerendered build.");
+  test.skip(!PRERENDERED_TARGET, "Run the explicit preview or production suite.");
 
   test("landing HTML contains hero content and a canonical link", async ({ request }) => {
     const res = await request.get("/");
@@ -46,8 +46,10 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).toMatch(
       /<link rel="preload" as="image" href="\/showcase\/register\.png" fetchpriority="high">/,
     );
-    // Los frames del film ya no se renderizan: no deben competir por prioridad.
-    expect(html).not.toContain("/film/");
+    // El video narrativo vive debajo del fold, por lo que sus assets pueden
+    // estar en el HTML pero ninguno debe competir como preload de alta prioridad.
+    expect(html).toContain("/film/kova-demo-horizontal.webp");
+    expect(html).not.toMatch(/<link[^>]+rel="preload"[^>]+href="\/film\//);
   });
 
   test("social preview image is public and matches its declared contract", async ({ request }) => {
@@ -62,14 +64,16 @@ test.describe("technical SEO (prerendered build only)", () => {
   });
 
   test("landing bootstrap hydrates the prerendered HTML", async ({ page }) => {
+    await page.route("**/api/v1/auth/session", (route) =>
+      route.fulfill({ json: { authenticated: false } }),
+    );
     await page.goto("/");
     await expect(page.locator(".lp-root")).toHaveClass(/lp-motion-ready/);
     await expect(page.locator(".lp-hero-copy")).toBeVisible();
   });
 
   test("legal pages are prerendered with their own title", async ({ request }) => {
-    const privacyPath = process.env.PLAYWRIGHT_BASE_URL ? "/privacy" : "/privacy/index.html";
-    const res = await request.get(privacyPath);
+    const res = await request.get("/privacy");
     expect(res.status()).toBe(200);
     const html = await res.text();
     expect(html).toContain("Aviso de privacidad");
@@ -99,10 +103,7 @@ test.describe("technical SEO (prerendered build only)", () => {
   });
 
   test("app routes serve the empty shell, not landing content", async ({ request }) => {
-    // Vite preview does not apply vercel.json rewrites, so inspect the emitted
-    // shell directly there. A deployed run still verifies the real rewrite.
-    const appPath = process.env.PLAYWRIGHT_BASE_URL ? "/dashboard" : "/app-shell.html";
-    const res = await request.get(appPath);
+    const res = await request.get("/dashboard");
     const html = await res.text();
     expect(html).not.toContain("Vende. Kova mantiene el resto bajo control.");
     expect(html).toContain('<script type="module"');

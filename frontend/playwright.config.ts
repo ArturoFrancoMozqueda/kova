@@ -3,9 +3,6 @@ import { defineConfig, devices } from "@playwright/test";
 const deployedUrl = process.env.PLAYWRIGHT_BASE_URL;
 const localUrl = "http://127.0.0.1:5174";
 const baseURL = deployedUrl ?? localUrl;
-const localServerCommand = process.env.PLAYWRIGHT_USE_PREVIEW === "1"
-  ? "npm run preview -- --host 127.0.0.1 --port 5174 --strictPort"
-  : "npm run dev -- --host 127.0.0.1 --port 5174 --strictPort";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -35,13 +32,7 @@ export default defineConfig({
       testMatch: /mobile\.spec\.ts/,
     },
   ],
-  // Only spin up the dev server when running against localhost
-  webServer: deployedUrl
-    ? undefined
-    : {
-        command: localServerCommand,
-        url: localUrl,
-        reuseExistingServer: false,
-        timeout: 120_000,
-      },
+  // Each local suite declares its own server. This common config is also used
+  // by integration/production runs that provide PLAYWRIGHT_BASE_URL.
+  webServer: undefined,
 });
