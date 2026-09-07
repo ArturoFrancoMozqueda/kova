@@ -25,6 +25,12 @@ The active execution target is the 36 findings in
 lands through a focused `feature/` branch with relevant tests. Provider and production-dependent
 gates remain open until their runbook contains dated evidence from the real environment.
 
+Local remediation and independent reauditing are complete as of 2026-09-07. The disposition and
+validation for every finding are recorded in
+[`audits/KOVA_REMEDIATION_STATUS_2026-09-07.md`](audits/KOVA_REMEDIATION_STATUS_2026-09-07.md).
+Production remains blocked by the external Stripe, Supabase, Fly/Vercel and restore gates listed in
+that report; KOV-031 restore evidence remains P1.
+
 The July premium redesign and CRO sections below are retained as historical execution context. Their
 dates and checkboxes must not be interpreted as the current release decision.
 
