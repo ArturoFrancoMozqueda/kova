@@ -13,7 +13,41 @@ from app.middleware.rate_limit import _get_client_ip
 
 
 def _complete_posture():
-    return {table: (True, True, True, True) for table in db.TENANT_SCOPED_TABLES}
+    return {
+        table: (True, spec[1], spec[3], spec[4])
+        for table, spec in db.EXPECTED_RLS_POLICY_SPECS.items()
+    }
+
+
+def _complete_policy_catalog():
+    catalog = {}
+    for table, (
+        name,
+        _force,
+        command,
+        has_using,
+        has_check,
+        expected_expression,
+    ) in db.EXPECTED_RLS_POLICY_SPECS.items():
+        using_expression = None
+        check_expression = None
+        if has_using:
+            using_expression = expected_expression
+        if has_check:
+            check_expression = expected_expression
+        catalog[table] = [
+            (
+                name,
+                True,
+                command,
+                (0,),
+                has_using,
+                has_check,
+                using_expression,
+                check_expression,
+            )
+        ]
+    return catalog
 
 
 def test_rls_posture_accepts_non_owner_non_bypass_role():
@@ -77,6 +111,67 @@ def test_rls_posture_rejects_missing_canonical_table():
         table_posture=tables,
     )
     assert "products: table missing" in errors
+
+
+def test_rls_posture_rejects_an_additional_permissive_policy():
+    policies = _complete_policy_catalog()
+    policies["products"].append(("allow_everything", True, "*", (0,), True, True, "true", "true"))
+    errors = db._rls_posture_errors(
+        role_is_super=False,
+        role_bypasses_rls=False,
+        owned_tables=set(),
+        table_posture=_complete_posture(),
+        policy_catalog=policies,
+    )
+    assert "products: unexpected permissive policies allow_everything" in errors
+
+
+@pytest.mark.parametrize("table", ["tenants", "users", "anonymous_telemetry_events"])
+def test_rls_posture_rejects_additional_permissive_policy_on_special_runtime_table(table):
+    policies = _complete_policy_catalog()
+    policies[table].append(("allow_everything", True, "*", (0,), True, True, "true", "true"))
+    errors = db._rls_posture_errors(
+        role_is_super=False,
+        role_bypasses_rls=False,
+        owned_tables=set(),
+        table_posture=_complete_posture(),
+        policy_catalog=policies,
+    )
+    assert f"{table}: unexpected permissive policies allow_everything" in errors
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        ("tenant_isolation", False, "*", (0,), True, True, "true", "true"),
+        ("tenant_isolation", True, "r", (0,), True, True, "true", "true"),
+        ("tenant_isolation", True, "*", (123,), True, True, "true", "true"),
+    ],
+)
+def test_rls_posture_rejects_an_unsafe_canonical_policy(policy):
+    policies = _complete_policy_catalog()
+    policies["products"] = [policy]
+    errors = db._rls_posture_errors(
+        role_is_super=False,
+        role_bypasses_rls=False,
+        owned_tables=set(),
+        table_posture=_complete_posture(),
+        policy_catalog=policies,
+    )
+    assert "products: canonical policy has unsafe scope" in errors
+
+
+def test_rls_posture_rejects_an_unscoped_canonical_expression():
+    policies = _complete_policy_catalog()
+    policies["products"] = [("tenant_isolation", True, "*", (0,), True, True, "true", "true")]
+    errors = db._rls_posture_errors(
+        role_is_super=False,
+        role_bypasses_rls=False,
+        owned_tables=set(),
+        table_posture=_complete_posture(),
+        policy_catalog=policies,
+    )
+    assert "products: canonical policy has unsafe expression" in errors
 
 
 def test_rls_check_fails_closed_on_database_error_in_production(monkeypatch):

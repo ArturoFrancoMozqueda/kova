@@ -668,6 +668,7 @@ def create_refund(
     for order_item, quantity, line_total in refund_lines:
         repo.create_refund_item(
             db,
+            tenant_id=tenant_id,
             refund_id=refund.id,
             order_item_id=order_item.id,
             quantity=quantity,

@@ -42,58 +42,108 @@ ALTER ROLE kova_app WITH PASSWORD :'kova_app_password';
 GRANT CONNECT ON DATABASE :"DBNAME" TO kova_app;
 GRANT USAGE ON SCHEMA public TO kova_app;
 
--- 4. CRUD on every existing domain table + sequence. RLS still constrains rows;
---    these grants only permit the *operation*, not cross-tenant visibility.
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO kova_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kova_app;
+-- 4. Start from no table/sequence privileges. New tables require an explicit
+-- decision in this inventory, so reprovisioning cannot reopen internal tables.
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM kova_app;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM kova_app;
+REVOKE CREATE ON SCHEMA public FROM kova_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM kova_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM kova_app;
 
--- 5. Future tables/sequences (created by later migrations, run as the owner)
---    are granted automatically so a new migration never silently breaks the app.
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kova_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT USAGE, SELECT ON SEQUENCES TO kova_app;
+-- Supabase Data API roles have no direct-table contract in Kova.
+DO
+$$
+DECLARE role_name text;
+BEGIN
+    FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+            EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', role_name);
+            EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
+            EXECUTE format('REVOKE CREATE ON SCHEMA public FROM %I', role_name);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', role_name);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', role_name);
+        END IF;
+    END LOOP;
+END
+$$;
 
--- 6. Fiscal history is append-only. Reconcile every fiscal table that exists
---    at the current migration revision so re-running this script cannot reopen
---    UPDATE/DELETE. The existence check keeps provisioning compatible with a
---    database that is intentionally stopped at an older revision.
---
---    PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE; granting
---    only the immutable id column permits row locks while mutation remains
---    blocked by the fiscal immutability triggers.
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+
+-- 5. Explicit runtime matrix. Missing tables are skipped for compatibility
+-- with databases intentionally stopped at an older migration revision.
 DO
 $$
 DECLARE
     table_name text;
+    privilege_list text;
 BEGIN
-    FOREACH table_name IN ARRAY ARRAY[
-        'order_fiscal_snapshots',
-        'order_item_fiscal_snapshots',
-        'order_item_tax_snapshots',
-        'fiscal_global_draft_settings',
-        'fiscal_global_draft_batches',
-        'fiscal_global_draft_orders',
-        'fiscal_individual_invoice_events',
-        'fiscal_global_draft_adjustments'
-    ]
+    FOR table_name, privilege_list IN
+        SELECT * FROM (VALUES
+            ('account_deletion_requests', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('categories', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('customer_order_item_modifiers', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('customer_order_items', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('customer_orders', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('expenses', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('inventory_reservations', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('membership_invitations', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('modifier_groups', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('modifier_options', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('product_image_files', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('product_modifier_groups', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('products', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('tenant_business_profiles', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('tenant_logo_files', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('tenant_onboarding_state', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('tenant_receipt_settings', 'SELECT, INSERT, UPDATE, DELETE'),
+            ('idempotency_keys', 'SELECT, INSERT, UPDATE'),
+            ('memberships', 'SELECT, INSERT, UPDATE'),
+            ('orders', 'SELECT, INSERT, UPDATE'),
+            ('sessions', 'SELECT, INSERT, UPDATE'),
+            ('shifts', 'SELECT, INSERT, UPDATE'),
+            ('subscriptions', 'SELECT, INSERT, UPDATE'),
+            ('audit_logs', 'SELECT, INSERT'),
+            ('cash_movements', 'SELECT, INSERT'),
+            ('inventory_movements', 'SELECT, INSERT'),
+            ('order_item_modifiers', 'SELECT, INSERT'),
+            ('order_items', 'SELECT, INSERT'),
+            ('payments', 'SELECT, INSERT'),
+            ('refund_items', 'SELECT, INSERT'),
+            ('refunds', 'SELECT, INSERT'),
+            ('telemetry_events', 'SELECT, INSERT'),
+            ('voids', 'SELECT, INSERT'),
+            ('order_fiscal_snapshots', 'SELECT, INSERT'),
+            ('order_item_fiscal_snapshots', 'SELECT, INSERT'),
+            ('order_item_tax_snapshots', 'SELECT, INSERT'),
+            ('fiscal_global_draft_batches', 'SELECT, INSERT'),
+            ('fiscal_global_draft_orders', 'SELECT, INSERT'),
+            ('fiscal_individual_invoice_events', 'SELECT, INSERT'),
+            ('fiscal_global_draft_adjustments', 'SELECT, INSERT'),
+            ('fiscal_global_draft_settings', 'SELECT, INSERT, UPDATE'),
+            ('anonymous_telemetry_events', 'INSERT'),
+            ('tenants', 'SELECT'),
+            ('users', 'SELECT')
+        ) AS grants(table_name, privilege_list)
     LOOP
         IF to_regclass(format('public.%I', table_name)) IS NOT NULL THEN
-            EXECUTE format('REVOKE ALL ON TABLE %I FROM kova_app', table_name);
-            IF table_name = 'fiscal_global_draft_settings' THEN
-                EXECUTE format(
-                    'GRANT SELECT, INSERT, UPDATE ON TABLE %I TO kova_app', table_name
-                );
-            ELSE
-                EXECUTE format(
-                    'GRANT SELECT, INSERT ON TABLE %I TO kova_app', table_name
-                );
-            END IF;
-            IF table_name IN ('order_fiscal_snapshots', 'fiscal_global_draft_batches') THEN
-                EXECUTE format(
-                    'GRANT UPDATE (id) ON TABLE %I TO kova_app', table_name
-                );
-            END IF;
+            EXECUTE format('GRANT %s ON TABLE %I TO kova_app', privilege_list, table_name);
+        END IF;
+    END LOOP;
+END
+$$;
+
+-- PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE. Limiting it
+-- to immutable id columns permits row locks while triggers reject mutation.
+DO
+$$
+DECLARE table_name text;
+BEGIN
+    FOREACH table_name IN ARRAY ARRAY[
+        'order_fiscal_snapshots', 'fiscal_global_draft_batches'
+    ] LOOP
+        IF to_regclass(format('public.%I', table_name)) IS NOT NULL THEN
+            EXECUTE format('GRANT UPDATE (id) ON TABLE %I TO kova_app', table_name);
         END IF;
     END LOOP;
 END

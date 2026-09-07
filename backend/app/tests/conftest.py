@@ -101,39 +101,43 @@ def _provision_kova_app() -> None:
         conn.execute(text(f"ALTER ROLE kova_app WITH PASSWORD '{_KOVA_APP_PASSWORD}'"))
         conn.execute(text(f'GRANT CONNECT ON DATABASE "{db_name}" TO kova_app'))
         conn.execute(text("GRANT USAGE ON SCHEMA public TO kova_app"))
-        conn.execute(
-            text(
-                "GRANT SELECT, INSERT, UPDATE, DELETE "
-                "ON ALL TABLES IN SCHEMA public TO kova_app"
+        conn.execute(text("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM kova_app"))
+        conn.execute(text("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM kova_app"))
+        grants = {
+            "SELECT, INSERT, UPDATE, DELETE": (
+                "account_deletion_requests categories customer_order_item_modifiers "
+                "customer_order_items customer_orders expenses inventory_reservations "
+                "membership_invitations modifier_groups modifier_options "
+                "product_image_files product_modifier_groups products "
+                "tenant_business_profiles tenant_logo_files tenant_onboarding_state "
+                "tenant_receipt_settings"
+            ),
+            "SELECT, INSERT, UPDATE": (
+                "idempotency_keys memberships orders sessions shifts subscriptions"
+            ),
+            "SELECT, INSERT": (
+                "audit_logs cash_movements inventory_movements order_item_modifiers "
+                "order_items payments "
+                "refund_items refunds telemetry_events voids order_fiscal_snapshots "
+                "order_item_fiscal_snapshots order_item_tax_snapshots "
+                "fiscal_global_draft_batches fiscal_global_draft_orders "
+                "fiscal_individual_invoice_events fiscal_global_draft_adjustments"
+            ),
+        }
+        for privileges, table_names in grants.items():
+            conn.execute(
+                text(
+                    f"GRANT {privileges} ON TABLE "
+                    + ", ".join(table_names.split())
+                    + " TO kova_app"
+                )
             )
-        )
         conn.execute(
-            text("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kova_app")
+            text("GRANT SELECT, INSERT, UPDATE ON fiscal_global_draft_settings TO kova_app")
         )
-        conn.execute(
-            text(
-                "REVOKE ALL ON TABLE order_fiscal_snapshots, "
-                "order_item_fiscal_snapshots, order_item_tax_snapshots, "
-                "fiscal_global_draft_settings, fiscal_global_draft_batches, "
-                "fiscal_global_draft_orders, fiscal_individual_invoice_events, "
-                "fiscal_global_draft_adjustments FROM kova_app"
-            )
-        )
-        conn.execute(
-            text(
-                "GRANT SELECT, INSERT ON TABLE order_fiscal_snapshots, "
-                "order_item_fiscal_snapshots, order_item_tax_snapshots, "
-                "fiscal_global_draft_batches, fiscal_global_draft_orders, "
-                "fiscal_individual_invoice_events, fiscal_global_draft_adjustments "
-                "TO kova_app"
-            )
-        )
-        conn.execute(
-            text(
-                "GRANT SELECT, INSERT, UPDATE ON TABLE "
-                "fiscal_global_draft_settings TO kova_app"
-            )
-        )
+        conn.execute(text("GRANT INSERT ON anonymous_telemetry_events TO kova_app"))
+        conn.execute(text("GRANT SELECT ON tenants TO kova_app"))
+        conn.execute(text("GRANT SELECT ON users TO kova_app"))
         conn.execute(text("GRANT UPDATE (id) ON TABLE order_fiscal_snapshots TO kova_app"))
         conn.execute(
             text("GRANT UPDATE (id) ON TABLE fiscal_global_draft_batches TO kova_app")

@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     LargeBinary,
     Numeric,
@@ -38,7 +39,10 @@ class Category(Base):
         DateTime(timezone=True), default=_now, onupdate=_now
     )
 
-    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_categories_tenant_name"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_categories_tenant_name"),
+        UniqueConstraint("tenant_id", "id", name="uq_categories_tenant_id_id"),
+    )
 
 
 class Product(Base):
@@ -66,6 +70,12 @@ class Product(Base):
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "sku", name="uq_products_tenant_sku"),
+        UniqueConstraint("tenant_id", "id", name="uq_products_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "category_id"],
+            ["categories.tenant_id", "categories.id"],
+            name="fk_products_tenant_category",
+        ),
         CheckConstraint(
             "cost_price IS NULL OR cost_price >= 0",
             name="ck_products_cost_price_nonnegative",
@@ -108,4 +118,9 @@ class ProductImageFile(Base):
 
     __table_args__ = (
         UniqueConstraint("product_id", name="uq_product_image_files_product_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "product_id"],
+            ["products.tenant_id", "products.id"],
+            name="fk_product_images_tenant_product",
+        ),
     )

@@ -2,7 +2,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Index, Numeric, String, text
+from sqlalchemy import (
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -23,6 +31,7 @@ class Shift(Base):
             unique=True,
             postgresql_where=text("status = 'open'"),
         ),
+        UniqueConstraint("tenant_id", "id", name="uq_shifts_tenant_id_id"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -51,6 +60,13 @@ class Shift(Base):
 
 class CashMovement(Base):
     __tablename__ = "cash_movements"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "shift_id"],
+            ["shifts.tenant_id", "shifts.id"],
+            name="fk_cash_movements_tenant_shift",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     shift_id: Mapped[UUID] = mapped_column(nullable=False, index=True)

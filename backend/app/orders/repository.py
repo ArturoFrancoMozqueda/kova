@@ -384,6 +384,7 @@ def refunded_by_method(
 def create_refund_item(
     db: Session,
     *,
+    tenant_id: UUID,
     refund_id: UUID,
     order_item_id: UUID,
     quantity: int,
@@ -391,6 +392,7 @@ def create_refund_item(
     line_total_amount: Decimal,
 ) -> RefundItem:
     item = RefundItem(
+        tenant_id=tenant_id,
         refund_id=refund_id,
         order_item_id=order_item_id,
         quantity=quantity,

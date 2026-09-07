@@ -2,7 +2,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -19,6 +27,11 @@ class Order(Base):
         # writing an unknown status that would silently drop out of reports.
         CheckConstraint("status IN ('completed', 'voided')", name="ck_orders_status"),
         UniqueConstraint("tenant_id", "id", name="uq_orders_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "shift_id"],
+            ["shifts.tenant_id", "shifts.id"],
+            name="fk_orders_tenant_shift",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -51,6 +64,16 @@ class OrderItem(Base):
             "unit_cost IS NULL OR unit_cost >= 0",
             name="ck_order_items_unit_cost_nonnegative",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "order_id"],
+            ["orders.tenant_id", "orders.id"],
+            name="fk_order_items_tenant_order",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "product_id"],
+            ["products.tenant_id", "products.id"],
+            name="fk_order_items_tenant_product",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -66,6 +89,13 @@ class OrderItem(Base):
 
 class Payment(Base):
     __tablename__ = "payments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "order_id"],
+            ["orders.tenant_id", "orders.id"],
+            name="fk_payments_tenant_order",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -86,6 +116,16 @@ class InventoryMovement(Base):
             "('merma', 'caducidad', 'robo', 'daño', 'autoconsumo', 'otro')",
             name="ck_inventory_movements_reason_code",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "product_id"],
+            ["products.tenant_id", "products.id"],
+            name="fk_inventory_movements_tenant_product",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "order_id"],
+            ["orders.tenant_id", "orders.id"],
+            name="fk_inventory_movements_tenant_order",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -103,6 +143,14 @@ class InventoryMovement(Base):
 
 class Refund(Base):
     __tablename__ = "refunds"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_refunds_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "order_id"],
+            ["orders.tenant_id", "orders.id"],
+            name="fk_refunds_tenant_order",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -119,8 +167,21 @@ class Refund(Base):
 
 class RefundItem(Base):
     __tablename__ = "refund_items"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "refund_id"],
+            ["refunds.tenant_id", "refunds.id"],
+            name="fk_refund_items_tenant_refund",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "order_item_id"],
+            ["order_items.tenant_id", "order_items.id"],
+            name="fk_refund_items_tenant_order_item",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     refund_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     order_item_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -130,6 +191,13 @@ class RefundItem(Base):
 
 class Void(Base):
     __tablename__ = "voids"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "order_id"],
+            ["orders.tenant_id", "orders.id"],
+            name="fk_voids_tenant_order",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)

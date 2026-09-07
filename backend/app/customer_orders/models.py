@@ -2,7 +2,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -29,6 +37,12 @@ class CustomerOrder(Base):
         ),
         UniqueConstraint("tenant_id", "folio", name="uq_customer_orders_tenant_folio"),
         UniqueConstraint("sale_order_id", name="uq_customer_orders_sale_order_id"),
+        UniqueConstraint("tenant_id", "id", name="uq_customer_orders_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "sale_order_id"],
+            ["orders.tenant_id", "orders.id"],
+            name="fk_customer_orders_tenant_sale",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -64,6 +78,19 @@ class CustomerOrder(Base):
 
 class CustomerOrderItem(Base):
     __tablename__ = "customer_order_items"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_customer_order_items_tenant_id_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "customer_order_id"],
+            ["customer_orders.tenant_id", "customer_orders.id"],
+            name="fk_customer_order_items_tenant_order",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "product_id"],
+            ["products.tenant_id", "products.id"],
+            name="fk_customer_order_items_tenant_product",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -78,6 +105,23 @@ class CustomerOrderItem(Base):
 
 class CustomerOrderItemModifier(Base):
     __tablename__ = "customer_order_item_modifiers"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "customer_order_item_id"],
+            ["customer_order_items.tenant_id", "customer_order_items.id"],
+            name="fk_customer_order_item_modifiers_tenant_item",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "modifier_group_id"],
+            ["modifier_groups.tenant_id", "modifier_groups.id"],
+            name="fk_customer_order_item_modifiers_tenant_group",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "modifier_option_id"],
+            ["modifier_options.tenant_id", "modifier_options.id"],
+            name="fk_customer_order_item_modifiers_tenant_option",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
@@ -98,6 +142,16 @@ class InventoryReservation(Base):
         ),
         UniqueConstraint(
             "customer_order_id", "product_id", name="uq_inventory_reservations_order_product"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "customer_order_id"],
+            ["customer_orders.tenant_id", "customer_orders.id"],
+            name="fk_inventory_reservations_tenant_order",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "product_id"],
+            ["products.tenant_id", "products.id"],
+            name="fk_inventory_reservations_tenant_product",
         ),
     )
 

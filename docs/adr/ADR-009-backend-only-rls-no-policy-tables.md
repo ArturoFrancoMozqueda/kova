@@ -43,7 +43,49 @@ The original decision left tenant policies **authored but inert**: the backend c
 - The pre-tenant-context paths this ADR flagged (signup, login, verify, password reset) plus the Stripe webhook, internal endpoints, and public asset reads are the **only** sanctioned RLS-bypass paths, and they run explicitly on the privileged (owner) engine. `membership_invitations` regained a standard tenant policy for its authenticated operations; its unauthenticated preview/accept run on the privileged engine.
 - `app/tests/test_rls_enforcement.py` connects as `kova_app` and proves cross-tenant reads and mismatched writes are blocked at the SQL layer.
 
-The backend-only no-policy tables listed above are unchanged — they intentionally keep RLS enabled with no tenant policy and are never exposed to client-side Supabase access.
+At that stage, the backend-only no-policy tables listed above intentionally kept RLS enabled with no tenant policy and remained unavailable to client-side Supabase access.
+
+## Update (2026-09-07): explicit runtime grants and policy semantics
+
+Migration `0065_tenant_relations_grants` and `provision_app_role.sql` now use the
+same allowlist instead of granting CRUD to every table in `public`. The runtime
+role receives only the verbs used by ordinary tenant requests. Fiscal history
+remains append-only, with column-level `UPDATE (id)` solely for the two rows
+locked by `SELECT ... FOR UPDATE`.
+
+The PostgreSQL migration harness checks `SELECT`, `INSERT`, `UPDATE`, and
+`DELETE` for every public table and for `kova_app`, `anon`, and
+`authenticated`. Ledger, audit, refund, void, telemetry, and fiscal history
+tables are intentionally append-only at the grant layer. Internal and reference
+tables plus `webhook_events` have no runtime grant. Mutable domain tables keep
+only their required verbs.
+
+The following tables are privileged-engine only and receive no `kova_app`,
+`anon`, or `authenticated` table privileges: `alembic_version`, `roles`,
+`permissions`, `role_permissions`, `verification_tokens`, `ops_notes`,
+`ops_incident_states`, `ops_mfa_factors`, `ops_mfa_recovery_codes`, and
+`webhook_events`. The first nine also enable RLS with no policy as defense in
+depth; leaving it unforced preserves access for the deliberately privileged
+table owner even when that owner is not a superuser or `BYPASSRLS`. Stripe
+webhook persistence remains on the explicitly privileged route and retains its
+tenant policy for posture validation.
+
+`tenants` and `users` are no longer no-policy tables: migrations 0037/0038
+added narrow SELECT visibility through the active tenant/membership. Ordinary
+runtime gets `SELECT` on `tenants` and `users`; pre-session
+identity mutations still use the privileged engine.
+
+All 42 canonical direct-tenant policies now compare `tenant_id::text` with the
+transaction-local setting, so missing or empty context denies without a UUID
+cast error. Startup also rejects additional permissive policies, unexpected
+commands/roles, and a canonical policy without both `USING` and `WITH CHECK`.
+It also compares the deparsed `USING` and `WITH CHECK` expressions with the
+canonical tenant-context predicate, rejecting an allow-all expression even if
+it uses the expected policy name. The same catalog covers the special runtime
+policies on `tenants`, `users`, and `anonymous_telemetry_events`; the first two
+are scoped read-only and the last is allowlisted insert-only.
+The PostgreSQL integration harness verifies this catalog plus actual two-tenant
+reads/writes and context restoration across commit and rollback.
 
 ## Consequences
 
