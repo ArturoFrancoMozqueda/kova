@@ -136,6 +136,12 @@ export async function retryDeadLetter(tenantId: string, clientUuid: string) {
       ...existing,
       status: "pending",
       last_error: undefined,
+      // A deliberate retry starts a fresh bounded retry budget while keeping
+      // the original UUID, tenant ownership and sale payload intact.
+      attempt_count: 0,
+      sync_owner: undefined,
+      lease_id: undefined,
+      sync_started_at: undefined,
       updated_at: nowIso(),
     });
     return true;

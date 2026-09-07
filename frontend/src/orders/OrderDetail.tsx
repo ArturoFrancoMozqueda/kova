@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   ORDER_REFUND_PERMISSION,
@@ -32,12 +32,19 @@ type LoadState =
   | { status: "not-found" }
   | { status: "loaded"; order: Order; receipt: Receipt };
 
+type RefundIntent = {
+  payload: RefundPayload;
+  idempotencyKey: string;
+};
+
 export default function OrderDetail() {
   useDocumentTitle(copy.documentTitles.orderDetail);
   const { orderId } = useParams();
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<"refund" | "void" | null>(null);
   const [operationPending, setOperationPending] = useState(false);
+  const [refundIntentLocked, setRefundIntentLocked] = useState(false);
+  const refundIntentRef = useRef<RefundIntent | null>(null);
   const canRefund = usePermission(ORDER_REFUND_PERMISSION);
   const canVoid = usePermission(ORDER_VOID_PERMISSION);
   const { toast } = useToast();
@@ -70,19 +77,41 @@ export default function OrderDetail() {
 
   const submitRefund = async (payload: RefundPayload) => {
     if (!orderId) return;
+    const intent = refundIntentRef.current ?? {
+      payload,
+      idempotencyKey: crypto.randomUUID(),
+    };
+    refundIntentRef.current = intent;
     setOperationPending(true);
     try {
-      await createRefund(orderId, payload);
+      await createRefund(orderId, intent.payload, intent.idempotencyKey);
+      refundIntentRef.current = null;
+      setRefundIntentLocked(false);
       setActiveModal(null);
       toast(copy.orderDetail.refundSuccess, "success");
       await load();
     } catch (err) {
-      if (handleBillingBlocked(err)) return;
+      if (handleBillingBlocked(err)) {
+        refundIntentRef.current = null;
+        setRefundIntentLocked(false);
+        return;
+      }
       const detail = apiErrorDetail(err);
       const mapped =
         detail?.code === "REFUND_QTY_EXCEEDS_AVAILABLE"
           ? copy.orderDetail.refundQtyExceeds(Number(detail.available) || 0)
           : null;
+      const status = apiErrorStatus(err);
+      if (status !== null && status < 500) {
+        // The server definitively rejected this payload, so the operator may
+        // correct it and start a new intent.
+        refundIntentRef.current = null;
+        setRefundIntentLocked(false);
+      } else {
+        // A timeout/network/5xx response may have followed a commit. Freeze
+        // the payload so retrying can only replay the same backend identity.
+        setRefundIntentLocked(true);
+      }
       toast(mapped ?? resolveApiErrorMessage(err, copy.orderDetail.operationError), "error");
     } finally {
       setOperationPending(false);
@@ -275,7 +304,14 @@ export default function OrderDetail() {
               {canShowCorrectionActions ? (
                 <>
                   {canRefund && (
-                    <Button variant="outline" onClick={() => setActiveModal("refund")}>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        refundIntentRef.current = null;
+                        setRefundIntentLocked(false);
+                        setActiveModal("refund");
+                      }}
+                    >
                       <RotateCcw className="h-4 w-4" />
                       {copy.orderDetail.refund}
                     </Button>
@@ -304,8 +340,13 @@ export default function OrderDetail() {
       {activeModal === "refund" && (
         <RefundModal
           disabled={operationPending}
+          fieldsLocked={refundIntentLocked}
           items={order.items}
-          onCancel={() => setActiveModal(null)}
+          onCancel={() => {
+            refundIntentRef.current = null;
+            setRefundIntentLocked(false);
+            setActiveModal(null);
+          }}
           onSubmit={submitRefund}
         />
       )}

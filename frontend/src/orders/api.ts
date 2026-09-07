@@ -66,10 +66,14 @@ export function createOrder(payload: OrderCreatePayload): Promise<Order> {
   });
 }
 
-export function createRefund(orderId: string, payload: RefundPayload): Promise<ReceiptRefund> {
+export function createRefund(
+  orderId: string,
+  payload: RefundPayload,
+  idempotencyKey: string,
+): Promise<ReceiptRefund> {
   return requestJson<ReceiptRefund>(`/api/v1/orders/${orderId}/refunds`, {
     method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID() },
+    headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(payload),
   });
 }

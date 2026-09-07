@@ -5,7 +5,13 @@ import { injectSpeedInsights } from "@vercel/speed-insights";
 import { registerSW } from "virtual:pwa-register";
 import App, { PRERENDERED_ROUTES } from "./App";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { forceReload, isReloadSafePath, safelyUpdateServiceWorker } from "./pwaUpdate";
+import {
+  announcePwaUpdateAvailable,
+  forceReload,
+  requestPwaReload,
+  runPwaUpdateAtSafePoint,
+  safelyUpdateServiceWorker,
+} from "./pwaUpdate";
 // Self-hosted Inter (variable). Bundled by Vite and precached by the PWA
 // (workbox globPatterns includes woff2), so the brand font works offline too.
 import "@fontsource-variable/inter";
@@ -30,12 +36,13 @@ async function checkVersionAndReloadIfStale() {
     if (!res.ok) return;
     const data = (await res.json()) as { hash?: string };
     if (!data?.hash || data.hash === __BUILD_HASH__) return;
-    if (!isReloadSafePath(window.location.pathname)) return;
-    if ("serviceWorker" in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-    void forceReload();
+    runPwaUpdateAtSafePoint(async () => {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      await forceReload();
+    });
   } catch {
     // network errors are non-fatal — we'll just check again next boot
   }
@@ -79,6 +86,7 @@ function startServiceWorker() {
 
   const updateSW = registerSW({
     immediate: true,
+    onNeedRefresh: announcePwaUpdateAvailable,
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
       const checkForUpdate = () => {
@@ -86,22 +94,11 @@ function startServiceWorker() {
       };
       checkForUpdate();
       window.setInterval(checkForUpdate, 60 * 60 * 1000);
-      // Force reload as soon as a new SW finishes installing, instead of waiting
-      // for the user to navigate.
-      registration.addEventListener("updatefound", () => {
-        const installing = registration.installing;
-        if (!installing) return;
-        installing.addEventListener("statechange", () => {
-          if (installing.state === "installed" && navigator.serviceWorker.controller) {
-            void forceReload();
-          }
-        });
-      });
     },
   });
 
   window.addEventListener("pos:pwa-apply-update", () => {
-    safelyUpdateServiceWorker(() => updateSW(true));
+    runPwaUpdateAtSafePoint(() => updateSW(true));
   });
 }
 
@@ -140,7 +137,7 @@ if ("serviceWorker" in navigator) {
   const hadInitialController = navigator.serviceWorker.controller !== null;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!hadInitialController) return;
-    void forceReload();
+    requestPwaReload();
   });
 }
 

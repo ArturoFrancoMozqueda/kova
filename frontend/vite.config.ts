@@ -45,7 +45,7 @@ export default defineConfig({
     react(),
     versionFilePlugin(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       devOptions: { enabled: false },
       manifest: {
         name: "Kova",
@@ -101,7 +101,7 @@ export default defineConfig({
         ],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         runtimeCaching: [
           {
             urlPattern: /^\/api\//,

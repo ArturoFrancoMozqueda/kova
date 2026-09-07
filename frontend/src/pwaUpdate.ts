@@ -50,6 +50,35 @@ export function isReloadSafePath(pathname: string): boolean {
   return true;
 }
 
+export function announcePwaUpdateAvailable() {
+  window.dispatchEvent(new CustomEvent("pos:pwa-update-available"));
+}
+
+/**
+ * Single entry point for actions that activate a new bundle or reload the
+ * current one. Register is deliberately unsafe because its cart and tender
+ * fields live in memory until the sale is queued.
+ */
+export function runPwaUpdateAtSafePoint(
+  action: () => Promise<unknown> | unknown,
+  pathname: string = window.location.pathname,
+): boolean {
+  if (!isReloadSafePath(pathname)) {
+    announcePwaUpdateAvailable();
+    return false;
+  }
+  try {
+    void Promise.resolve(action()).catch(reportUnexpectedPwaError);
+  } catch (error) {
+    reportUnexpectedPwaError(error);
+  }
+  return true;
+}
+
+export function requestPwaReload(pathname: string = window.location.pathname): boolean {
+  return runPwaUpdateAtSafePoint(forceReload, pathname);
+}
+
 export async function forceReload() {
   if (reloading) return;
   reloading = true;

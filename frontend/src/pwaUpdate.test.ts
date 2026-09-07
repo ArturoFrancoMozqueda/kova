@@ -4,6 +4,7 @@ import {
   isReloadSafePath,
   isStaleAssetError,
   reportUnexpectedPwaError,
+  runPwaUpdateAtSafePoint,
   safelyUpdateServiceWorker,
 } from "./pwaUpdate";
 
@@ -75,5 +76,21 @@ describe("PWA update helpers", () => {
     expect(isReloadSafePath("/register")).toBe(false);
     expect(isReloadSafePath("/register?draft=1")).toBe(false);
     expect(isReloadSafePath("/signup")).toBe(true);
+  });
+
+  it("uses the same safe-point guard before every PWA update action", async () => {
+    const action = vi.fn().mockResolvedValue(undefined);
+    const available = vi.fn();
+    window.addEventListener("pos:pwa-update-available", available);
+
+    expect(runPwaUpdateAtSafePoint(action, "/register")).toBe(false);
+    expect(action).not.toHaveBeenCalled();
+    expect(available).toHaveBeenCalledOnce();
+
+    expect(runPwaUpdateAtSafePoint(action, "/dashboard")).toBe(true);
+    await Promise.resolve();
+    expect(action).toHaveBeenCalledOnce();
+
+    window.removeEventListener("pos:pwa-update-available", available);
   });
 });

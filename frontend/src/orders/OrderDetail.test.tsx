@@ -113,6 +113,7 @@ function setupFetchMock(routes: Record<string, unknown[]>) {
         if (next === undefined) {
           throw new Error(`Exhausted fetch mocks for ${pattern} (called ${url})`);
         }
+        if (next instanceof Error) throw next;
         return jsonResponse(next);
       }
     }
@@ -223,6 +224,48 @@ describe("OrderDetail", () => {
       "/api/v1/orders/order-1/refunds",
       expect.objectContaining({ method: "POST" }),
     ));
+    expect(await screen.findByText(/devoluci[oó]n registrada/i)).toBeInTheDocument();
+  });
+
+  it("reuses the refund idempotency key after a lost response", async () => {
+    const refundResponse = {
+      id: "refund-1",
+      order_id: "order-1",
+      reason: "customer_return",
+      refunded_amount: "25.00",
+      items: [],
+      created_at: "2026-05-08T01:00:00Z",
+    };
+    const fetchMock = setupFetchMock({
+      "/api/v1/auth/session": [meResponse("owner")],
+      "/api/v1/billing/subscription": [billingAllowedResponse, billingAllowedResponse],
+      "/api/v1/orders/order-1/refunds": [new TypeError("Response lost"), refundResponse],
+      "/api/v1/orders/order-1/receipt": [receipt, { ...receipt, refunds: [refundResponse] }],
+      "/api/v1/orders/order-1": [order, order],
+    });
+    window.history.pushState(null, "", "/orders/order-1");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Devolver" }));
+    fireEvent.change(screen.getByLabelText("Concha Cantidad"), { target: { value: "1" } });
+    const submit = screen.getByRole("button", { name: /registrar devoluci[oó]n/i });
+    fireEvent.click(submit);
+    expect(await screen.findByText(/parece que no hay conexi[oó]n/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Concha Cantidad")).toBeDisabled();
+    fireEvent.click(submit);
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.filter(([input]) =>
+        (typeof input === "string" ? input : input.toString()).includes("/refunds"),
+      );
+      expect(calls).toHaveLength(2);
+      const firstHeaders = (calls[0][1] as RequestInit).headers as Record<string, string>;
+      const secondHeaders = (calls[1][1] as RequestInit).headers as Record<string, string>;
+      expect(firstHeaders["Idempotency-Key"]).toBeTruthy();
+      expect(secondHeaders["Idempotency-Key"]).toBe(firstHeaders["Idempotency-Key"]);
+      expect(calls[1][1]?.body).toBe(calls[0][1]?.body);
+    });
     expect(await screen.findByText(/devoluci[oó]n registrada/i)).toBeInTheDocument();
   });
 

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 const captureException = vi.fn();
-const forceReload = vi.fn();
+const requestPwaReload = vi.fn();
 let reloadSafe = true;
 
 vi.mock("@sentry/react", () => ({
@@ -12,8 +12,7 @@ vi.mock("@sentry/react", () => ({
 }));
 
 vi.mock("./pwaUpdate", () => ({
-  forceReload: () => forceReload(),
-  isReloadSafePath: () => reloadSafe,
+  requestPwaReload: () => requestPwaReload() ?? reloadSafe,
   isStaleAssetError: (error: unknown) =>
     error instanceof Error && /unable to preload css|failed to fetch dynamically imported module/i.test(error.message),
 }));
@@ -25,7 +24,8 @@ function ThrowingChild({ error }: { error: Error }): ReactElement {
 describe("ErrorBoundary", () => {
   afterEach(() => {
     captureException.mockClear();
-    forceReload.mockClear();
+    requestPwaReload.mockReset();
+    requestPwaReload.mockImplementation(() => reloadSafe);
     reloadSafe = true;
   });
 
@@ -38,7 +38,7 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(forceReload).toHaveBeenCalledTimes(1);
+    expect(requestPwaReload).toHaveBeenCalledTimes(1);
     expect(captureException).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
@@ -59,7 +59,7 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(forceReload).not.toHaveBeenCalled();
+    expect(requestPwaReload).toHaveBeenCalledTimes(1);
     // Reporting is deferred: reportError loads Sentry on demand and flushes
     // its queue once the module resolves, so the capture lands a tick later.
     await waitFor(() => expect(captureException).toHaveBeenCalledTimes(1));
