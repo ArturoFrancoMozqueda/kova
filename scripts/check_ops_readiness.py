@@ -74,6 +74,7 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         drill = drill_path.read_text(encoding="utf-8")
         drill_markers = (
             "workflow_dispatch:",
+            "contents: read",
             "RUN_KOV030_STAGING_DRILL",
             "kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}",
             "PRODUCTION_FLY_APP: pos-project-backend",
