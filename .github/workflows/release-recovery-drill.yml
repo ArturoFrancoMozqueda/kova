@@ -150,6 +150,7 @@ jobs:
           mkdir -p "$root/frontend/.vercel"
           jq -n --arg orgId "$VERCEL_ORG_ID" --arg projectId "$project_id" \
             '{orgId: $orgId, projectId: $projectId}' >"$root/frontend/.vercel/project.json"
+          echo "VERCEL_PROJECT_ID=$project_id" >>"$GITHUB_ENV"
           domains="$(curl --silent --show-error --fail \
             --header "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v9/projects/$project_id/domains?teamId=$VERCEL_ORG_ID")"

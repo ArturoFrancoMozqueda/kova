@@ -105,6 +105,7 @@ class WorkflowContractTests(unittest.TestCase):
                       - run: |
                           confirm RUN_KOV030_STAGING_DRILL
                           test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"
+                          echo "VERCEL_PROJECT_ID=$project_id" >>"$GITHUB_ENV"
                           node release-recovery.mjs --phase candidate
                           node release-recovery.mjs --phase promotion
                           node release-recovery.mjs --phase acceptance

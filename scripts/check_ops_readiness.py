@@ -81,6 +81,7 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
             "PRODUCTION_FLY_APP: pos-project-backend",
             "PRODUCTION_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}",
             'test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"',
+            'echo "VERCEL_PROJECT_ID=$project_id" >>"$GITHUB_ENV"',
             "release-recovery.mjs --phase candidate",
             "release-recovery.mjs --phase promotion",
             "release-recovery.mjs --phase acceptance",
