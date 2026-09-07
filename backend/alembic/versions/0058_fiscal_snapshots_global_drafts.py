@@ -65,6 +65,11 @@ def _explicit_grants() -> None:
               order_item_fiscal_snapshots, order_item_tax_snapshots,
               fiscal_global_draft_batches, fiscal_global_draft_orders TO kova_app;
             GRANT SELECT, INSERT, UPDATE ON fiscal_global_draft_settings TO kova_app;
+            -- PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE.
+            -- The application only needs to lock these immutable rows, so grant
+            -- one inert key column rather than table-wide UPDATE.
+            GRANT UPDATE (id) ON order_fiscal_snapshots TO kova_app;
+            GRANT UPDATE (id) ON fiscal_global_draft_batches TO kova_app;
           END IF;
         END $$;
         """

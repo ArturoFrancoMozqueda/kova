@@ -21,6 +21,15 @@ _NEW_TABLES = (
     "fiscal_individual_invoice_events",
     "fiscal_global_draft_adjustments",
 )
+_FISCAL_RUNTIME_TABLES = (
+    "order_fiscal_snapshots",
+    "order_item_fiscal_snapshots",
+    "order_item_tax_snapshots",
+    "fiscal_global_draft_settings",
+    "fiscal_global_draft_batches",
+    "fiscal_global_draft_orders",
+    *_NEW_TABLES,
+)
 
 
 def _enable_rls(table: str) -> None:
@@ -29,6 +38,33 @@ def _enable_rls(table: str) -> None:
     op.execute(
         f"CREATE POLICY tenant_isolation ON {table} "
         f"USING ({_TENANT_QUAL}) WITH CHECK ({_TENANT_QUAL})"
+    )
+
+
+def _reconcile_runtime_grants() -> None:
+    tables = ", ".join(_FISCAL_RUNTIME_TABLES)
+    immutable_insert_tables = ", ".join(
+        table for table in _FISCAL_RUNTIME_TABLES if table != "fiscal_global_draft_settings"
+    )
+    op.execute(
+        f"""
+        DO $$
+        DECLARE role_name text;
+        BEGIN
+          FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+              EXECUTE format('REVOKE ALL ON TABLE {tables} FROM %I', role_name);
+            END IF;
+          END LOOP;
+          IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'kova_app') THEN
+            REVOKE ALL ON TABLE {tables} FROM kova_app;
+            GRANT SELECT, INSERT ON {immutable_insert_tables} TO kova_app;
+            GRANT SELECT, INSERT, UPDATE ON fiscal_global_draft_settings TO kova_app;
+            GRANT UPDATE (id) ON order_fiscal_snapshots TO kova_app;
+            GRANT UPDATE (id) ON fiscal_global_draft_batches TO kova_app;
+          END IF;
+        END $$;
+        """
     )
 
 
@@ -110,9 +146,23 @@ def upgrade() -> None:
         "fiscal_global_draft_batches",
         sa.Column("data_quality_warnings", sa.JSON(), nullable=False, server_default="[]"),
     )
+    # 0058 made batches immutable before this historical value existed. Hold an
+    # exclusive table lock while the privileged migration suspends only that
+    # trigger, backfills the new column, and immediately restores the guard.
+    # PostgreSQL DDL is transactional: any failure rolls the trigger state and
+    # all preceding schema changes back to the 0061 state.
+    op.execute("LOCK TABLE fiscal_global_draft_batches IN ACCESS EXCLUSIVE MODE")
+    op.execute(
+        "ALTER TABLE fiscal_global_draft_batches "
+        "DISABLE TRIGGER trg_fiscal_global_draft_batches_immutable"
+    )
     op.execute(
         "UPDATE fiscal_global_draft_batches "
         "SET adjusted_net_amount = net_total_amount"
+    )
+    op.execute(
+        "ALTER TABLE fiscal_global_draft_batches "
+        "ENABLE TRIGGER trg_fiscal_global_draft_batches_immutable"
     )
     op.create_check_constraint(
         "ck_fiscal_global_batch_tax_status",
@@ -230,26 +280,7 @@ def upgrade() -> None:
             "FOR EACH ROW EXECUTE FUNCTION reject_fiscal_history_mutation()"
         )
 
-    op.execute(
-        """
-        DO $$
-        DECLARE role_name text;
-        BEGIN
-          FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
-            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
-              EXECUTE format(
-                'REVOKE ALL ON TABLE fiscal_individual_invoice_events, '
-                'fiscal_global_draft_adjustments FROM %I', role_name
-              );
-            END IF;
-          END LOOP;
-          IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'kova_app') THEN
-            GRANT SELECT, INSERT ON fiscal_individual_invoice_events,
-              fiscal_global_draft_adjustments TO kova_app;
-          END IF;
-        END $$;
-        """
-    )
+    _reconcile_runtime_grants()
 
 
 def downgrade() -> None:
