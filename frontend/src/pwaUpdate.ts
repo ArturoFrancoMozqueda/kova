@@ -42,11 +42,13 @@ export function safelyUpdateServiceWorker(update: () => Promise<unknown>) {
   void update().catch(reportUnexpectedPwaError);
 }
 
-// Routes where a forced reload would destroy in-flight work (e.g. an open
-// cart in the register). On those, we skip the reload and let the next safe
-// navigation pick up the new bundle.
+// Routes where a forced reload would destroy in-flight work. The register owns
+// an unsaved cart; an order detail can own a refund intent whose idempotency key
+// must survive an uncertain response. On those routes we defer activation and
+// let the next safe navigation pick up the new bundle.
 export function isReloadSafePath(pathname: string): boolean {
   if (pathname.startsWith("/register")) return false;
+  if (/^\/orders\/[^/]+(?:\/|$)/.test(pathname)) return false;
   return true;
 }
 
@@ -56,8 +58,8 @@ export function announcePwaUpdateAvailable() {
 
 /**
  * Single entry point for actions that activate a new bundle or reload the
- * current one. Register is deliberately unsafe because its cart and tender
- * fields live in memory until the sale is queued.
+ * current one. Register and order detail are deliberately unsafe because they
+ * can hold replay identities in memory until a sale/refund is reconciled.
  */
 export function runPwaUpdateAtSafePoint(
   action: () => Promise<unknown> | unknown,
