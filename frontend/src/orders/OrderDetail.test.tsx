@@ -113,6 +113,7 @@ function setupFetchMock(routes: Record<string, unknown[]>) {
         if (next === undefined) {
           throw new Error(`Exhausted fetch mocks for ${pattern} (called ${url})`);
         }
+        if (next instanceof Response) return next;
         if (next instanceof Error) throw next;
         return jsonResponse(next);
       }
@@ -263,6 +264,51 @@ describe("OrderDetail", () => {
       const firstHeaders = new Headers((calls[0][1] as RequestInit).headers);
       const secondHeaders = new Headers((calls[1][1] as RequestInit).headers);
       expect(firstHeaders.get("Idempotency-Key")).toBeTruthy();
+      expect(secondHeaders.get("Idempotency-Key")).toBe(firstHeaders.get("Idempotency-Key"));
+      expect(calls[1][1]?.body).toBe(calls[0][1]?.body);
+    });
+    expect(await screen.findByText(/devoluci[oó]n registrada/i)).toBeInTheDocument();
+  });
+
+  it("keeps the refund intent recoverable when session refresh is temporarily unavailable", async () => {
+    const refundResponse = {
+      id: "refund-1",
+      order_id: "order-1",
+      reason: "customer_return",
+      refunded_amount: "25.00",
+      items: [],
+      created_at: "2026-05-08T01:00:00Z",
+    };
+    const fetchMock = setupFetchMock({
+      "/api/v1/auth/session": [meResponse("owner")],
+      "/api/v1/auth/refresh": [new Response("temporarily unavailable", { status: 503 })],
+      "/api/v1/billing/subscription": [billingAllowedResponse, billingAllowedResponse],
+      "/api/v1/orders/order-1/refunds": [
+        new Response("unauthorized", { status: 401 }),
+        refundResponse,
+      ],
+      "/api/v1/orders/order-1/receipt": [receipt, { ...receipt, refunds: [refundResponse] }],
+      "/api/v1/orders/order-1": [order, order],
+    });
+    window.history.pushState(null, "", "/orders/order-1");
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Devolver" }));
+    fireEvent.change(screen.getByLabelText("Concha Cantidad"), { target: { value: "1" } });
+    const submit = screen.getByRole("button", { name: /registrar devoluci[oó]n/i });
+    fireEvent.click(submit);
+    expect(await screen.findByText(/problema de nuestro lado/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Concha Cantidad")).toBeDisabled();
+    fireEvent.click(submit);
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.filter(([input]) =>
+        (typeof input === "string" ? input : input.toString()).includes("/refunds"),
+      );
+      expect(calls).toHaveLength(2);
+      const firstHeaders = new Headers((calls[0][1] as RequestInit).headers);
+      const secondHeaders = new Headers((calls[1][1] as RequestInit).headers);
       expect(secondHeaders.get("Idempotency-Key")).toBe(firstHeaders.get("Idempotency-Key"));
       expect(calls[1][1]?.body).toBe(calls[0][1]?.body);
     });

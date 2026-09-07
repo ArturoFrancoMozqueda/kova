@@ -338,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           refreshPromise = null;
         });
       }
-      const ok = await refreshPromise.catch(() => false);
+      const ok = await refreshPromise;
       if (!ok) return response;
       // Retry the original request once with refreshed cookies.
       const retriedResponse = await originalFetch(input, requestInit);

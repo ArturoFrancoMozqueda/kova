@@ -8,7 +8,7 @@ vi.mock("./queue", () => ({
   rollbackOfflineSaleAttempt: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { rollbackOfflineSaleAttempt } from "./queue";
+import { markOfflineSaleFailed, markOfflineSaleStatus, rollbackOfflineSaleAttempt } from "./queue";
 import { parseRetryAfterMs, RateLimitError, syncOfflineSales } from "./sync";
 import type { OfflineSaleQueueItem } from "./types";
 import { setActiveOfflineTenant } from "./activeTenant";
@@ -125,6 +125,21 @@ describe("syncOfflineSales", () => {
       "lease-1",
       expect.any(String),
     );
+  });
+
+  it("keeps sales pending when session recovery is temporarily unavailable", async () => {
+    const refreshOutage = Object.assign(new Error("Refresh temporarily unavailable"), { status: 503 });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(refreshOutage));
+
+    await expect(syncOfflineSales("tenant-1", [queueItem()])).rejects.toBe(refreshOutage);
+    expect(markOfflineSaleStatus).toHaveBeenCalledWith(
+      "tenant-1",
+      "00000000-0000-4000-8000-000000000001",
+      "lease-1",
+      "pending",
+      "Refresh temporarily unavailable",
+    );
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
   });
 
   it("exposes the Retry-After delay on the thrown error", async () => {
