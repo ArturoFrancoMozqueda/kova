@@ -123,31 +123,46 @@ def _item_modifier_body(modifier: CustomerOrderItemModifier) -> dict[str, Any]:
     }
 
 
-def _stock_conflict(db: Session, *, order: CustomerOrder) -> bool:
-    if order.status not in _ACTIVE_STATUSES or order.sale_order_id:
-        return False
-    reservations = [
-        reservation
-        for reservation in repo.list_reservations(db, tenant_id=order.tenant_id, order_id=order.id)
-        if reservation.status == "active"
+def _stock_conflicts_for_orders(
+    db: Session, *, tenant_id: UUID, orders: list[CustomerOrder]
+) -> set[UUID]:
+    eligible = [
+        order
+        for order in orders
+        if order.status in _ACTIVE_STATUSES and not order.sale_order_id
     ]
-    for reservation in reservations:
-        on_hand = inventory_repo.stock_on_hand(
-            db, tenant_id=order.tenant_id, product_id=reservation.product_id
-        )
-        total_reserved = repo.active_reserved_quantity(
-            db, tenant_id=order.tenant_id, product_id=reservation.product_id
-        )
-        if total_reserved > on_hand:
-            return True
-    return False
+    reservations = repo.active_reservations_for_orders(
+        db, tenant_id=tenant_id, order_ids=[order.id for order in eligible]
+    )
+    product_ids = sorted({row.product_id for row in reservations}, key=lambda value: value.int)
+    stock = inventory_repo.stock_on_hand_for_products(
+        db, tenant_id=tenant_id, product_ids=product_ids
+    )
+    reserved = repo.active_reserved_for_products(
+        db, tenant_id=tenant_id, product_ids=product_ids
+    )
+    return {
+        row.customer_order_id
+        for row in reservations
+        if reserved.get(row.product_id, 0) > stock.get(row.product_id, 0)
+    }
+
+
+def _stock_conflict(db: Session, *, order: CustomerOrder) -> bool:
+    """Single-order compatibility wrapper used by checkout race guards."""
+    return order.id in _stock_conflicts_for_orders(
+        db, tenant_id=order.tenant_id, orders=[order]
+    )
 
 
 def serialize_customer_order(db: Session, *, order: CustomerOrder) -> dict[str, Any]:
     items = repo.list_items(db, tenant_id=order.tenant_id, order_id=order.id)
+    modifiers_by_item = repo.item_modifiers_for_items(
+        db, tenant_id=order.tenant_id, item_ids=[item.id for item in items]
+    )
     item_bodies = []
     for item in items:
-        modifiers = repo.list_item_modifiers(db, tenant_id=order.tenant_id, item_id=item.id)
+        modifiers = modifiers_by_item[item.id]
         item_bodies.append(
             {
                 "id": str(item.id),
@@ -195,13 +210,11 @@ def serialize_customer_order(db: Session, *, order: CustomerOrder) -> dict[str, 
 def _existing_snapshots(
     db: Session, *, tenant_id: UUID, order_id: UUID
 ) -> dict[UUID, tuple[CustomerOrderItem, list[CustomerOrderItemModifier]]]:
-    return {
-        item.id: (
-            item,
-            repo.list_item_modifiers(db, tenant_id=tenant_id, item_id=item.id),
-        )
-        for item in repo.list_items(db, tenant_id=tenant_id, order_id=order_id)
-    }
+    items = repo.list_items(db, tenant_id=tenant_id, order_id=order_id)
+    modifiers = repo.item_modifiers_for_items(
+        db, tenant_id=tenant_id, item_ids=[item.id for item in items]
+    )
+    return {item.id: (item, modifiers[item.id]) for item in items}
 
 
 def _lock_products_for_update(
@@ -355,14 +368,19 @@ def _reserve_inventory(db: Session, *, order: CustomerOrder) -> None:
             db, tenant_id=order.tenant_id, order_id=order.id
         )
     }
+    product_ids = sorted(desired, key=lambda value: value.int)
+    stock_by_product = inventory_repo.stock_on_hand_for_products(
+        db, tenant_id=order.tenant_id, product_ids=product_ids
+    )
+    reserved_elsewhere_by_product = repo.active_reserved_for_products(
+        db,
+        tenant_id=order.tenant_id,
+        product_ids=product_ids,
+        excluding_order_id=order.id,
+    )
     for product_id, quantity in desired.items():
-        on_hand = inventory_repo.stock_on_hand(db, tenant_id=order.tenant_id, product_id=product_id)
-        reserved_elsewhere = repo.active_reserved_quantity(
-            db,
-            tenant_id=order.tenant_id,
-            product_id=product_id,
-            excluding_order_id=order.id,
-        )
+        on_hand = stock_by_product.get(product_id, 0)
+        reserved_elsewhere = reserved_elsewhere_by_product.get(product_id, 0)
         available = max(0, on_hand - reserved_elsewhere)
         if quantity > available:
             _observe(
@@ -454,6 +472,9 @@ def list_customer_orders(
         promised_from=promised_from,
         promised_to=promised_to,
     )
+    stock_conflicts = _stock_conflicts_for_orders(
+        db, tenant_id=tenant_id, orders=[order for order, _ in rows]
+    )
     items = [
         {
             "id": str(order.id),
@@ -465,7 +486,7 @@ def list_customer_orders(
             "customer_phone": order.customer_phone,
             "promised_at": order.promised_at.isoformat() if order.promised_at else None,
             "total_amount": str(order.total_amount),
-            "stock_conflict": _stock_conflict(db, order=order),
+            "stock_conflict": order.id in stock_conflicts,
             "created_at": order.created_at.isoformat(),
             "updated_at": order.updated_at.isoformat(),
         }
@@ -844,10 +865,13 @@ def checkout_customer_order(
         )
         if reservation.status == "active"
     }
+    modifiers_by_item = repo.item_modifiers_for_items(
+        db, tenant_id=tenant_id, item_ids=[item.id for item in items]
+    )
 
     for item in items:
         product = products[item.product_id]
-        modifiers = repo.list_item_modifiers(db, tenant_id=tenant_id, item_id=item.id)
+        modifiers = modifiers_by_item[item.id]
         snapshots = [
             {
                 "modifier_group_id": modifier.modifier_group_id,
@@ -870,6 +894,13 @@ def checkout_customer_order(
         )
         if product.track_inventory:
             quantity_by_product[product.id] = quantity_by_product.get(product.id, 0) + item.quantity
+    inventory_product_ids = sorted(quantity_by_product, key=lambda value: value.int)
+    stock_by_product = inventory_repo.stock_on_hand_for_products(
+        db, tenant_id=tenant_id, product_ids=inventory_product_ids
+    )
+    reserved_by_product = repo.active_reserved_for_products(
+        db, tenant_id=tenant_id, product_ids=inventory_product_ids
+    )
     for product_id in sorted(quantity_by_product, key=lambda value: value.int):
         quantity = quantity_by_product[product_id]
         reservation = reservations.get(product_id)
@@ -880,12 +911,8 @@ def checkout_customer_order(
                 "La reserva del pedido ya no es válida.",
                 product_id=str(product_id),
             )
-        on_hand = inventory_repo.stock_on_hand(
-            db, tenant_id=tenant_id, product_id=product_id
-        )
-        total_reserved = repo.active_reserved_quantity(
-            db, tenant_id=tenant_id, product_id=product_id
-        )
+        on_hand = stock_by_product.get(product_id, 0)
+        total_reserved = reserved_by_product.get(product_id, 0)
         if total_reserved > on_hand:
             _observe(
                 "checkout_stock_conflict",

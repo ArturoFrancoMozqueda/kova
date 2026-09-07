@@ -102,17 +102,7 @@ def _payment_body(payment: Payment) -> dict[str, Any]:
     }
 
 
-def _item_modifiers(db: Session, *, tenant_id: UUID, order_item_id: UUID) -> list[dict]:
-    from app.modifiers.models import OrderItemModifier
-
-    mods = (
-        db.query(OrderItemModifier)
-        .filter(
-            OrderItemModifier.tenant_id == tenant_id,
-            OrderItemModifier.order_item_id == order_item_id,
-        )
-        .all()
-    )
+def _modifier_bodies(mods: list[OrderItemModifier]) -> list[dict]:
     return [
         {
             "modifier_group_name": m.modifier_group_name,
@@ -126,6 +116,9 @@ def _item_modifiers(db: Session, *, tenant_id: UUID, order_item_id: UUID) -> lis
 def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]:
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order.id)
     payments = repo.list_payments(db, tenant_id=tenant_id, order_id=order.id)
+    modifiers = repo.order_item_modifiers_for_items(
+        db, tenant_id=tenant_id, item_ids=[item.id for item in items]
+    )
     return {
         "id": str(order.id),
         "tenant_id": str(order.tenant_id),
@@ -140,7 +133,7 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
                 "quantity": item.quantity,
                 "unit_price_amount": str(item.unit_price_amount),
                 "line_total_amount": str(item.line_total_amount),
-                "modifiers": _item_modifiers(db, tenant_id=tenant_id, order_item_id=item.id),
+                "modifiers": _modifier_bodies(modifiers[item.id]),
             }
             for item in items
         ],
@@ -480,15 +473,17 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
     void = repo.get_void(db, tenant_id=tenant_id, order_id=order_id)
     tenant = tenant_repo.get_by_id(db, tenant_id)
     receipt_settings = business_settings_repo.get_receipt_settings(db, tenant_id=tenant_id)
+    modifiers = repo.order_item_modifiers_for_items(
+        db, tenant_id=tenant_id, item_ids=[item.id for item in items]
+    )
+    refund_items = repo.refund_items_for_refunds(
+        db, tenant_id=tenant_id, refund_ids=[refund.id for refund in refunds]
+    )
 
     total_tendered = calculator.money(
         sum(p.amount_tendered_amount for p in payments if p.amount_tendered_amount is not None)
     )
     total_change = calculator.money(sum(p.change_due_amount for p in payments))
-
-    refund_items = []
-    for refund in refunds:
-        refund_items.extend(repo.list_refund_items(db, refund_id=refund.id))
 
     return {
         "order_id": str(order.id),
@@ -505,11 +500,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
                 "quantity": item.quantity,
                 "unit_price_amount": str(item.unit_price_amount),
                 "line_total_amount": str(item.line_total_amount),
-                "modifiers": _item_modifiers(
-                    db,
-                    tenant_id=tenant_id,
-                    order_item_id=item.id,
-                ),
+                "modifiers": _modifier_bodies(modifiers[item.id]),
             }
             for item in items
         ],
@@ -531,7 +522,7 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
                         "unit_price_amount": str(ri.unit_price_amount),
                         "line_total_amount": str(ri.line_total_amount),
                     }
-                    for ri in repo.list_refund_items(db, refund_id=r.id)
+                    for ri in refund_items[r.id]
                 ],
             }
             for r in refunds
