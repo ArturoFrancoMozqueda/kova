@@ -308,6 +308,17 @@ jobs:
             echo "Current backend did not expose a complete release SHA." >&2
             exit 1
           }
+          vercel_auto_assign="$(
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              --get --data-urlencode "teamId=$VERCEL_ORG_ID" \
+              "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" |
+              jq -r '.autoAssignCustomDomains'
+          )"
+          [[ "$vercel_auto_assign" == "false" ]] || {
+            echo "Vercel autoAssignCustomDomains must remain disabled for CI-controlled promotion." >&2
+            exit 1
+          }
           production_host="$(node -e 'console.log(new URL(process.env.VERCEL_PRODUCTION_URL).hostname)')"
           vercel_deployment="$(
             curl --fail --silent --show-error \
@@ -335,6 +346,7 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_PRODUCTION_URL: ${{ secrets.VERCEL_URL }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - name: Persist exact rollback artifact

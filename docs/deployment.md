@@ -140,7 +140,10 @@ credentials are never stored in GitHub Actions and CI does not create tenants, s
 `VERCEL_TOKEN` must be renewed no later than **2027-08-14**; never record its value in this document.
 
 `frontend/vercel.json` sets `git.deploymentEnabled` to `false`, so connected Git cannot race the
-tested candidate or its CI-controlled promotion. Keep credentials only in the protected environment.
+tested candidate or its CI-controlled promotion. The Vercel project also keeps
+`autoAssignCustomDomains` disabled; the capture gate verifies that setting before every release, and
+candidate deployment uses `--skip-domain` until the explicit promotion step. Keep credentials only
+in the protected environment.
 Before any deployment, CI persists `release-rollback-<sha>` with the exact prior Fly image, immutable
 Vercel deployment URL and coherent release SHA. Empty or inconsistent capture fails before a
 candidate is created.
