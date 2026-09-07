@@ -6,7 +6,16 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.catalog.models import Product
-from app.orders.models import InventoryMovement, Order, OrderItem, Payment, Refund, RefundItem, Void
+from app.modifiers.models import OrderItemModifier
+from app.orders.models import (
+    InventoryMovement,
+    Order,
+    OrderItem,
+    Payment,
+    Refund,
+    RefundItem,
+    Void,
+)
 from app.shared.timezone import tenant_timezone
 
 # Sale time for filtering/sorting: the client ring-time when present, else the
@@ -317,6 +326,26 @@ def list_payments(db: Session, *, tenant_id: UUID, order_id: UUID) -> list[Payme
     )
 
 
+def order_item_modifiers_for_items(
+    db: Session, *, tenant_id: UUID, item_ids: list[UUID]
+) -> dict[UUID, list[OrderItemModifier]]:
+    result: dict[UUID, list[OrderItemModifier]] = {item_id: [] for item_id in item_ids}
+    if not item_ids:
+        return result
+    rows = (
+        db.query(OrderItemModifier)
+        .filter(
+            OrderItemModifier.tenant_id == tenant_id,
+            OrderItemModifier.order_item_id.in_(item_ids),
+        )
+        .order_by(OrderItemModifier.order_item_id, OrderItemModifier.id)
+        .all()
+    )
+    for row in rows:
+        result[row.order_item_id].append(row)
+    return result
+
+
 def create_refund(
     db: Session,
     *,
@@ -422,6 +451,29 @@ def list_refund_items(db: Session, *, refund_id: UUID) -> list[RefundItem]:
         .order_by(RefundItem.id)
         .all()
     )
+
+
+def refund_items_for_refunds(
+    db: Session, *, tenant_id: UUID, refund_ids: list[UUID]
+) -> dict[UUID, list[RefundItem]]:
+    result: dict[UUID, list[RefundItem]] = {
+        refund_id: [] for refund_id in refund_ids
+    }
+    if not refund_ids:
+        return result
+    rows = (
+        db.query(RefundItem)
+        .join(
+            Refund,
+            (Refund.tenant_id == tenant_id) & (Refund.id == RefundItem.refund_id),
+        )
+        .filter(RefundItem.refund_id.in_(refund_ids))
+        .order_by(RefundItem.refund_id, RefundItem.id)
+        .all()
+    )
+    for row in rows:
+        result[row.refund_id].append(row)
+    return result
 
 
 def get_void(db: Session, *, tenant_id: UUID, order_id: UUID) -> Void | None:

@@ -61,15 +61,21 @@ def _store_response(
 
 
 def _stock_body(
-    db: Session, *, tenant_id: UUID, product: Product, stock: int | None = None
+    db: Session,
+    *,
+    tenant_id: UUID,
+    product: Product,
+    stock: int | None = None,
+    reserved: int | None = None,
 ) -> dict[str, Any]:
     if stock is None:
         stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
     from app.customer_orders import repository as customer_order_repo
 
-    reserved = customer_order_repo.active_reserved_quantity(
-        db, tenant_id=tenant_id, product_id=product.id
-    )
+    if reserved is None:
+        reserved = customer_order_repo.active_reserved_quantity(
+            db, tenant_id=tenant_id, product_id=product.id
+        )
     available = max(0, stock - reserved)
     threshold = product.low_stock_threshold
     return {
@@ -105,8 +111,19 @@ def list_stock(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
     stock_map = repo.stock_on_hand_for_products(
         db, tenant_id=tenant_id, product_ids=[p.id for p in products]
     )
+    from app.customer_orders import repository as customer_order_repo
+
+    reserved_map = customer_order_repo.active_reserved_for_products(
+        db, tenant_id=tenant_id, product_ids=[p.id for p in products]
+    )
     return [
-        _stock_body(db, tenant_id=tenant_id, product=product, stock=stock_map.get(product.id, 0))
+        _stock_body(
+            db,
+            tenant_id=tenant_id,
+            product=product,
+            stock=stock_map.get(product.id, 0),
+            reserved=reserved_map.get(product.id, 0),
+        )
         for product in products
     ]
 

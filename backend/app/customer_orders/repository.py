@@ -177,6 +177,31 @@ def list_item_modifiers(
     )
 
 
+def item_modifiers_for_items(
+    db: Session, *, tenant_id: UUID, item_ids: list[UUID]
+) -> dict[UUID, list[CustomerOrderItemModifier]]:
+    result: dict[UUID, list[CustomerOrderItemModifier]] = {
+        item_id: [] for item_id in item_ids
+    }
+    if not item_ids:
+        return result
+    rows = (
+        db.query(CustomerOrderItemModifier)
+        .filter(
+            CustomerOrderItemModifier.tenant_id == tenant_id,
+            CustomerOrderItemModifier.customer_order_item_id.in_(item_ids),
+        )
+        .order_by(
+            CustomerOrderItemModifier.customer_order_item_id,
+            CustomerOrderItemModifier.id,
+        )
+        .all()
+    )
+    for row in rows:
+        result[row.customer_order_item_id].append(row)
+    return result
+
+
 def delete_items(db: Session, *, tenant_id: UUID, order_id: UUID) -> None:
     item_ids = [item.id for item in list_items(db, tenant_id=tenant_id, order_id=order_id)]
     if item_ids:
@@ -204,20 +229,26 @@ def active_reserved_quantity(
 
 
 def active_reserved_for_products(
-    db: Session, *, tenant_id: UUID, product_ids: list[UUID]
+    db: Session,
+    *,
+    tenant_id: UUID,
+    product_ids: list[UUID],
+    excluding_order_id: UUID | None = None,
 ) -> dict[UUID, int]:
     if not product_ids:
         return {}
-    rows = (
-        db.query(InventoryReservation.product_id, func.sum(InventoryReservation.quantity))
-        .filter(
-            InventoryReservation.tenant_id == tenant_id,
-            InventoryReservation.product_id.in_(product_ids),
-            InventoryReservation.status == "active",
-        )
-        .group_by(InventoryReservation.product_id)
-        .all()
+    query = db.query(
+        InventoryReservation.product_id, func.sum(InventoryReservation.quantity)
+    ).filter(
+        InventoryReservation.tenant_id == tenant_id,
+        InventoryReservation.product_id.in_(product_ids),
+        InventoryReservation.status == "active",
     )
+    if excluding_order_id:
+        query = query.filter(
+            InventoryReservation.customer_order_id != excluding_order_id
+        )
+    rows = query.group_by(InventoryReservation.product_id).all()
     return {product_id: int(quantity or 0) for product_id, quantity in rows}
 
 
@@ -231,6 +262,26 @@ def list_reservations(
             InventoryReservation.customer_order_id == order_id,
         )
         .order_by(InventoryReservation.product_id)
+        .all()
+    )
+
+
+def active_reservations_for_orders(
+    db: Session, *, tenant_id: UUID, order_ids: list[UUID]
+) -> list[InventoryReservation]:
+    if not order_ids:
+        return []
+    return (
+        db.query(InventoryReservation)
+        .filter(
+            InventoryReservation.tenant_id == tenant_id,
+            InventoryReservation.customer_order_id.in_(order_ids),
+            InventoryReservation.status == "active",
+        )
+        .order_by(
+            InventoryReservation.customer_order_id,
+            InventoryReservation.product_id,
+        )
         .all()
     )
 
