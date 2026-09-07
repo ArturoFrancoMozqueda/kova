@@ -70,6 +70,16 @@ def get_membership(db: Session, *, user_id: UUID, tenant_id: UUID) -> Membership
     )
 
 
+def get_membership_including_inactive(
+    db: Session, *, user_id: UUID, tenant_id: UUID
+) -> Membership | None:
+    return (
+        db.query(Membership)
+        .filter(Membership.user_id == user_id, Membership.tenant_id == tenant_id)
+        .first()
+    )
+
+
 def get_membership_by_user(db: Session, user_id: UUID) -> Membership | None:
     return (
         db.query(Membership)

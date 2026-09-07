@@ -104,11 +104,10 @@ def invite_employee(
         .filter(
             Membership.tenant_id == tenant_id,
             User.email == email_norm,
-            Membership.is_active.is_(True),
         )
         .first()
     )
-    if existing_membership:
+    if existing_membership and existing_membership.is_active:
         raise bad_request("Employee already has access")
 
     # Revoke any prior pending invitation for the same email so the unique
@@ -248,7 +247,7 @@ def accept_invitation(
         # Invitee accepted via the email link → email is verified.
         auth_repo.set_email_verified(db, user)
 
-    existing_membership = auth_repo.get_membership(
+    existing_membership = auth_repo.get_membership_including_inactive(
         db, user_id=user.id, tenant_id=invitation.tenant_id
     )
     if existing_membership is None:
@@ -258,6 +257,9 @@ def accept_invitation(
             user_id=user.id,
             role=invitation.role,
         )
+    elif not existing_membership.is_active:
+        existing_membership.is_active = True
+        existing_membership.role = invitation.role
 
     invitation.status = "accepted"
     invitation.accepted_at = datetime.now(UTC)
@@ -285,6 +287,7 @@ def update_employee_role(
     membership_id: UUID,
     body: EmployeeRoleUpdate,
 ) -> Membership:
+    tenant_repo.lock_by_id(db, tenant_id)
     membership = (
         db.query(Membership)
         .filter(Membership.tenant_id == tenant_id, Membership.id == membership_id)
@@ -323,6 +326,7 @@ def update_employee_role(
 def deactivate_employee(
     db: Session, *, tenant_id: UUID, user_id: UUID, actor_role: str, membership_id: UUID
 ) -> Membership:
+    tenant_repo.lock_by_id(db, tenant_id)
     membership = (
         db.query(Membership)
         .filter(Membership.tenant_id == tenant_id, Membership.id == membership_id)
