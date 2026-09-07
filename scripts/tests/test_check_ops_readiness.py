@@ -95,6 +95,7 @@ class WorkflowContractTests(unittest.TestCase):
                 permissions:
                   contents: read
                 env:
+                  FLY_API_TOKEN: ${{ secrets.KOV030_FLY_API_TOKEN }}
                   STAGING_NAME: kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}
                   PRODUCTION_FLY_APP: pos-project-backend
                   PRODUCTION_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
