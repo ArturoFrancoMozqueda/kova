@@ -17,6 +17,7 @@ _SENSITIVE_EVENT_KEYS = {
     "secret",
     "subject",
     "token",
+    "vars",
 }
 
 
@@ -61,5 +62,8 @@ def init_sentry() -> None:
         release=settings.git_sha or None,
         traces_sample_rate=settings.sentry_traces_sample_rate,
         send_default_pii=False,
+        # Python locals can contain customer names, query params or complete
+        # request payloads whose keys are not predictable enough to redact.
+        include_local_variables=False,
         before_send=sanitize_sentry_event,
     )
