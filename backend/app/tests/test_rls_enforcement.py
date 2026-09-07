@@ -240,6 +240,43 @@ def test_session_tenant_context_survives_commit_and_rollback(
             boundary()
 
 
+def test_session_recovers_from_invalid_context_without_leaking_between_tenants(
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
+):
+    """A reused runtime session must fail closed and recover after a bad batch item."""
+    with Session(kova_app_engine) as db:
+        set_tenant_context(db, TENANT_A)
+        assert set(
+            db.execute(
+                text("SELECT id FROM products WHERE id IN (:pa, :pb)"),
+                {"pa": PRODUCT_A, "pb": PRODUCT_B},
+            ).scalars()
+        ) == {PRODUCT_A}
+        db.commit()
+
+        set_tenant_context(db, "not-a-tenant-uuid")
+        assert (
+            db.execute(
+                text("SELECT count(*) FROM products WHERE id IN (:pa, :pb)"),
+                {"pa": PRODUCT_A, "pb": PRODUCT_B},
+            ).scalar()
+            == 0
+        )
+        db.commit()
+
+        set_tenant_context(db, TENANT_B)
+        assert set(
+            db.execute(
+                text("SELECT id FROM products WHERE id IN (:pa, :pb)"),
+                {"pa": PRODUCT_A, "pb": PRODUCT_B},
+            ).scalars()
+        ) == {PRODUCT_B}
+        assert db.execute(text("SELECT current_setting('app.tenant_id', true)")).scalar() == str(
+            TENANT_B
+        )
+
+
 def test_runtime_offline_batch_keeps_rls_context_between_commits(
     kova_app_engine,
     owner_engine,
