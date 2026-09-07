@@ -1,13 +1,12 @@
 from uuid import UUID
 
 from fastapi import Depends, Request
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth import repository as auth_repo
 from app.auth.models import Membership, User, UserSession
 from app.auth.service import decode_access_token
-from app.db import get_db
+from app.db import get_db, set_tenant_context
 from app.observability.logging import set_request_context
 from app.rbac.permissions import Permission, has_permission
 from app.shared.exceptions import forbidden, unauthorized
@@ -36,10 +35,7 @@ def get_current_session(
     # from the token also means a session/membership belonging to a different
     # tenant is invisible here — an extra integrity check, not just a convenience.
     # `set_config(..., true)` is transaction-local (pgBouncer-safe).
-    db.execute(
-        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
-        {"tenant_id": tenant_id},
-    )
+    set_tenant_context(db, tenant_id)
 
     session = auth_repo.get_session_by_id(db, UUID(session_id))
     if not session or session.revoked_at:

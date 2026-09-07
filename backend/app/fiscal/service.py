@@ -284,10 +284,13 @@ def close_period(
 ) -> tuple[int, dict[str, Any]]:
     payload = {"period_end": period_end.isoformat(), "operation": "fiscal_global_draft_close"}
     request_hash = _request_hash(payload)
-    stored = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
+    stored = idempotency_service.claim(
+        db,
+        tenant_id=tenant_id,
+        key=idempotency_key,
+        request_hash=request_hash,
+    )
     if stored:
-        if stored.request_hash != request_hash:
-            raise bad_request("Idempotency key reused with different request body")
         return stored.response_status or 200, stored.response_body or {}
 
     settings = repo.get_settings(db, tenant_id=tenant_id)
@@ -432,10 +435,13 @@ def record_individual_invoice_status(
         "issued_at": body.issued_at,
     }
     request_hash = _request_hash(payload)
-    stored = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
+    stored = idempotency_service.claim(
+        db,
+        tenant_id=tenant_id,
+        key=idempotency_key,
+        request_hash=request_hash,
+    )
     if stored:
-        if stored.request_hash != request_hash:
-            raise bad_request("Idempotency key reused with different request body")
         return stored.response_status or 200, stored.response_body or {}
 
     snapshot = repo.get_order_snapshot(

@@ -1,7 +1,8 @@
 import logging
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings, sqlalchemy_database_url
@@ -60,6 +61,34 @@ class Base(DeclarativeBase):
     pass
 
 
+_TENANT_CONTEXT_INFO_KEY = "kova_tenant_id"
+
+
+@event.listens_for(Session, "after_begin")
+def _restore_transaction_tenant_context(
+    session: Session, _transaction: object, connection: Connection
+) -> None:
+    """Reapply transaction-local RLS context after every commit or rollback."""
+    tenant_id = session.info.get(_TENANT_CONTEXT_INFO_KEY)
+    if tenant_id is not None:
+        connection.execute(
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": tenant_id},
+        )
+
+
+def set_tenant_context(db: Session, tenant_id: object) -> None:
+    """Bind a validated request tenant to this Session and all its transactions."""
+    normalized = str(tenant_id)
+    already_in_transaction = db.in_transaction()
+    db.info[_TENANT_CONTEXT_INFO_KEY] = normalized
+    if already_in_transaction:
+        db.execute(
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": normalized},
+        )
+
+
 # Runtime application engine. Connects as the least-privilege `kova_app` role
 # (when app_database_url is configured) so RLS tenant_isolation policies are
 # enforced for every ordinary request.
@@ -100,6 +129,7 @@ def get_db() -> Generator[Session, None, None]:
     try:
         yield db
     finally:
+        db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
         db.close()
 
 
@@ -109,6 +139,7 @@ def get_privileged_db() -> Generator[Session, None, None]:
     try:
         yield db
     finally:
+        db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
         db.close()
 
 

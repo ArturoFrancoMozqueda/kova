@@ -57,11 +57,14 @@ def _hash_payload(payload: dict[str, Any]) -> str:
 def _stored_response(
     db: Session, *, tenant_id: UUID, idempotency_key: str, payload: dict[str, Any]
 ) -> tuple[int, dict[str, Any]] | None:
-    existing = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
+    existing = idempotency_service.claim(
+        db,
+        tenant_id=tenant_id,
+        key=idempotency_key,
+        request_hash=_hash_payload(payload),
+    )
     if not existing:
         return None
-    if existing.request_hash != _hash_payload(payload):
-        raise bad_request("Idempotency key reused with different request body")
     return existing.response_status or 200, existing.response_body or {}
 
 

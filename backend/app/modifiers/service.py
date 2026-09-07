@@ -38,13 +38,18 @@ def create_modifier_group(
     body: ModifierGroupCreate,
     idempotency_key: str,
 ) -> tuple[int, ModifierGroupResponse]:
-    existing = idempotency_service.get(db, tenant_id=tenant_id, key=idempotency_key)
+    existing = idempotency_service.claim(
+        db,
+        tenant_id=tenant_id,
+        key=idempotency_key,
+        # Preserve the legacy request identity for unexpired keys. Modifier
+        # payload hashing can be versioned separately without breaking retries.
+        request_hash=idempotency_key,
+    )
     if existing:
-        group = db.query(ModifierGroup).filter(
-            ModifierGroup.tenant_id == tenant_id,
-            ModifierGroup.name == body.name,
-        ).first()
-        return 200, _group_response(db, group) if group else (200, existing.response_body)
+        return existing.response_status or 200, ModifierGroupResponse.model_validate(
+            existing.response_body or {}
+        )
 
     group = ModifierGroup(
         id=uuid4(),
@@ -65,8 +70,7 @@ def create_modifier_group(
         resource_id=group.id,
         changes={"name": body.name},
     )
-    db.commit()
-    db.refresh(group)
+    db.flush()
     response = _group_response(db, group)
     idempotency_service.store(
         db,
@@ -76,6 +80,7 @@ def create_modifier_group(
         response_status=201,
         response_body=response.model_dump(mode="json"),
     )
+    db.commit()
     return 201, response
 
 
