@@ -43,13 +43,28 @@ def sale_lock_pair(owner_engine):
             text(
                 "INSERT INTO products "
                 "(id, tenant_id, name, price_amount, track_inventory) VALUES "
-                "(:first, :tenant_id, 'Primero', 10.00, false), "
-                "(:second, :tenant_id, 'Segundo', 10.00, false)"
+                "(:first, :tenant_id, 'Primero', 10.00, true), "
+                "(:second, :tenant_id, 'Segundo', 10.00, true)"
             ),
             {
                 "first": ids["products"][0],
                 "second": ids["products"][1],
                 "tenant_id": ids["tenant"],
+            },
+        )
+        conn.execute(
+            text(
+                "INSERT INTO inventory_movements "
+                "(tenant_id, product_id, movement_type, quantity_delta, "
+                "stock_on_hand_after, created_by_user_id) VALUES "
+                "(:tenant_id, :first, 'adjustment', 10, 10, :user_id), "
+                "(:tenant_id, :second, 'adjustment', 10, 10, :user_id)"
+            ),
+            {
+                "tenant_id": ids["tenant"],
+                "first": ids["products"][0],
+                "second": ids["products"][1],
+                "user_id": ids["user"],
             },
         )
     try:
@@ -161,3 +176,13 @@ def test_reversed_carts_complete_without_product_lock_deadlock(
             )
             == 4
         )
+        stock = dict(
+            conn.execute(
+                text(
+                    "SELECT product_id, sum(quantity_delta) FROM inventory_movements "
+                    "WHERE tenant_id = :tenant_id GROUP BY product_id"
+                ),
+                {"tenant_id": tenant_id},
+            ).all()
+        )
+        assert stock == {products[0]: 8, products[1]: 8}
