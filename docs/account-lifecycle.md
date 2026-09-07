@@ -10,7 +10,12 @@ KV-113 añade portabilidad de datos y una purga diferida para cuentas de negocio
 - `DELETE /api/v1/account/deletion` cancela una solicitud durante el plazo de espera.
 - `POST /api/v1/account/internal/deletions/purge` ejecuta purgas vencidas y sólo acepta `X-Internal-Key`.
 
-La exportación y el ciclo de eliminación son funciones sólo en línea. Los CSV neutralizan valores que una hoja de cálculo pudiera interpretar como fórmulas y omiten el contenido binario; sus metadatos permanecen exportados.
+La exportación y el ciclo de eliminación son funciones sólo en línea. El formato `Kova account
+export v2` usa una lista explícita de tablas y columnas de negocio; incluye las líneas de devolución
+mediante un join tenant-safe. Excluye sesiones, tokens, idempotencia, telemetría, auditoría,
+webhooks, identificadores internos de Stripe y toda la información Ops, incluidas notas ligadas al
+propio tenant. Los CSV neutralizan valores que una hoja de cálculo pudiera interpretar como fórmulas
+y omiten el contenido binario; sus metadatos permanecen exportados.
 
 ## Retención y billing
 
@@ -20,9 +25,18 @@ La purga borra todas las filas relacionales con `tenant_id`, el tenant y los usu
 
 ## Operación
 
-`.github/workflows/account-purge.yml` invoca la purga diariamente. El secreto `INTERNAL_API_KEY` debe contener el mismo valor en GitHub Actions y Fly. El endpoint usa una conexión privilegiada únicamente porque procesa varios tenants; la selección de vencidos se bloquea con `FOR UPDATE SKIP LOCKED`, por lo que los reintentos y ejecuciones concurrentes son seguros.
+`.github/workflows/account-purge.yml` invoca la purga diariamente. El secreto `INTERNAL_API_KEY`
+debe contener el mismo valor en GitHub Actions y Fly. El endpoint usa una conexión privilegiada
+únicamente porque procesa varios tenants; la selección de cada vencido se bloquea con `FOR UPDATE
+SKIP LOCKED`. Cada cuenta se procesa y confirma en su propia transacción. Si una falla, se revierte
+íntegra, las siguientes continúan y el endpoint finalmente falla para mantener rojo el scheduler; el
+diagnóstico registra sólo el ID de la solicitud y la clase del error. Un reintento vuelve a tomar la
+constancia pendiente.
 
-Ante una falla, GitHub Actions queda rojo y puede reintentarse con `workflow_dispatch`. Una cuenta no se purga antes de `purge_after`; repetir una ejecución no vuelve a procesar constancias completadas o canceladas.
+Ante una falla, GitHub Actions queda rojo y puede reintentarse con `workflow_dispatch`. Una cuenta
+no se purga antes de `purge_after`; repetir una ejecución no vuelve a procesar constancias completadas
+o canceladas. El grafo de propiedad está declarado explícitamente, incluidos hijos indirectos como
+`refund_items`; una tabla nueva con `tenant_id` detiene la purga hasta clasificarla.
 
 ## Gate operativo con tenant desechable
 
