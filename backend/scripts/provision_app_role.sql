@@ -133,6 +133,10 @@ BEGIN
 END
 $$;
 
+-- Business profile updates mirror public_name onto the owning tenant. Keep the
+-- grant column-scoped so runtime cannot alter slug, lifecycle or feature flags.
+GRANT UPDATE (name, updated_at) ON TABLE tenants TO kova_app;
+
 -- PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE. Limiting it
 -- to immutable id columns permits row locks while triggers reject mutation.
 DO

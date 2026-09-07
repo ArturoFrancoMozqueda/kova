@@ -14,7 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.business_settings import service as business_settings_service
-from app.business_settings.schemas import ReceiptSettingsUpsert
+from app.business_settings.schemas import BusinessProfileUpsert, ReceiptSettingsUpsert
 from app.db import set_tenant_context
 from app.sync.schemas import OfflineSaleSyncItem
 from app.sync.service import sync_offline_sales
@@ -188,6 +188,10 @@ def rls_seed(owner_engine):
             )
             conn.execute(
                 text("DELETE FROM fiscal_global_draft_settings WHERE tenant_id IN (:a, :b)"),
+                {"a": TENANT_A, "b": TENANT_B},
+            )
+            conn.execute(
+                text("DELETE FROM tenant_business_profiles WHERE tenant_id IN (:a, :b)"),
                 {"a": TENANT_A, "b": TENANT_B},
             )
             conn.execute(
@@ -582,6 +586,35 @@ def test_receipt_upsert_restores_rls_context_before_post_commit_refresh(
 
         assert settings.tenant_id == TENANT_A
         assert settings.receipt_business_name == "Receipt A updated"
+
+
+def test_business_profile_can_only_update_the_current_tenant_public_name(
+    kova_app_engine,
+    rls_seed,  # noqa: ARG001
+):
+    with Session(kova_app_engine) as db:
+        set_tenant_context(db, TENANT_A)
+        profile = business_settings_service.upsert_business_profile(
+            db,
+            tenant_id=TENANT_A,
+            user_id=USER_A,
+            body=BusinessProfileUpsert(public_name="RLS A actualizado"),
+        )
+        assert profile.public_name == "RLS A actualizado"
+        assert db.scalar(text("SELECT name FROM tenants WHERE id = :id"), {"id": TENANT_A}) == (
+            "RLS A actualizado"
+        )
+
+    from sqlalchemy.exc import DBAPIError
+
+    with kova_app_engine.begin() as conn:
+        _set_tenant(conn, TENANT_A)
+        with pytest.raises(DBAPIError) as exc:
+            conn.execute(
+                text("UPDATE tenants SET is_active = false WHERE id = :id"),
+                {"id": TENANT_A},
+            )
+        assert "permission denied" in str(exc.value).lower()
 
 
 def test_cross_tenant_insert_is_rejected(kova_app_engine, rls_seed):  # noqa: ARG001

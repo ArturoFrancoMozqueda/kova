@@ -132,6 +132,17 @@ EXPECTED_RLS_POLICY_SPECS.update(
         ),
     }
 )
+EXPECTED_ADDITIONAL_RLS_POLICY_SPECS = {
+    "tenants": (
+        "current_tenant_name_update",
+        True,
+        "w",
+        (0,),
+        True,
+        True,
+        _EXPECTED_TENANT_VISIBILITY_EXPRESSION,
+    )
+}
 
 
 class Base(DeclarativeBase):
@@ -268,8 +279,12 @@ def _rls_posture_errors(
             continue
         policies = policy_catalog.get(table, [])
         expected = [policy for policy in policies if policy[0] == expected_name]
+        additional_spec = EXPECTED_ADDITIONAL_RLS_POLICY_SPECS.get(table)
+        expected_names = {expected_name}
+        if additional_spec is not None:
+            expected_names.add(additional_spec[0])
         unexpected_permissive = sorted(
-            policy[0] for policy in policies if policy[1] and policy[0] != expected_name
+            policy[0] for policy in policies if policy[1] and policy[0] not in expected_names
         )
         if unexpected_permissive:
             errors.append(
@@ -315,6 +330,39 @@ def _rls_posture_errors(
             expected_expression
         }:
             errors.append(f"{table}: canonical policy has unsafe expression")
+        if additional_spec is not None:
+            (
+                additional_name,
+                additional_permissive,
+                additional_command,
+                additional_roles,
+                additional_using,
+                additional_check,
+                additional_expression,
+            ) = additional_spec
+            additional = [policy for policy in policies if policy[0] == additional_name]
+            if len(additional) != 1:
+                errors.append(f"{table}: expected exactly one {additional_name} policy")
+                continue
+            candidate = additional[0]
+            normalized_additional = {
+                "".join(
+                    character
+                    for character in (expression or "")
+                    if not character.isspace() and character not in "()"
+                )
+                for expression in (candidate[6], candidate[7])
+                if expression is not None
+            }
+            if (
+                candidate[1] != additional_permissive
+                or candidate[2] != additional_command
+                or candidate[3] != additional_roles
+                or candidate[4] != additional_using
+                or candidate[5] != additional_check
+                or normalized_additional != {additional_expression}
+            ):
+                errors.append(f"{table}: {additional_name} policy has unsafe scope")
     return errors
 
 

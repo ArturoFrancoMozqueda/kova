@@ -47,6 +47,19 @@ def _complete_policy_catalog():
                 check_expression,
             )
         ]
+    for table, spec in db.EXPECTED_ADDITIONAL_RLS_POLICY_SPECS.items():
+        catalog[table].append(
+            (
+                spec[0],
+                spec[1],
+                spec[2],
+                spec[3],
+                spec[4],
+                spec[5],
+                spec[6] if spec[4] else None,
+                spec[6] if spec[5] else None,
+            )
+        )
     return catalog
 
 
@@ -172,6 +185,28 @@ def test_rls_posture_rejects_an_unscoped_canonical_expression():
         policy_catalog=policies,
     )
     assert "products: canonical policy has unsafe expression" in errors
+
+
+def test_rls_posture_rejects_an_unsafe_tenant_name_update_policy():
+    policies = _complete_policy_catalog()
+    policies["tenants"][-1] = (
+        "current_tenant_name_update",
+        True,
+        "w",
+        (0,),
+        True,
+        True,
+        "true",
+        "true",
+    )
+    errors = db._rls_posture_errors(
+        role_is_super=False,
+        role_bypasses_rls=False,
+        owned_tables=set(),
+        table_posture=_complete_posture(),
+        policy_catalog=policies,
+    )
+    assert "tenants: current_tenant_name_update policy has unsafe scope" in errors
 
 
 def test_rls_check_fails_closed_on_database_error_in_production(monkeypatch):
