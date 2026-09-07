@@ -16,14 +16,13 @@ estado actual. La remediación local no sustituye evidencia de proveedores o pro
 
 La reauditoría independiente no encontró bloqueadores locales adicionales: los 36 hallazgos tienen
 implementación, prueba o procedimiento local. Kova todavía no debe declararse listo para GA ni para
-un despliegue productivo sin supervisión porque cuatro hallazgos conservan gates externos:
+un despliegue productivo sin supervisión porque tres hallazgos conservan gates externos:
 
 1. KOV-005: lifecycle real en Stripe test mode, incluyendo eventos cruzados y fuera de orden.
-2. KOV-026: permisos, herencia, policies y Data API efectivos en el proyecto real de Supabase.
-3. KOV-030: recuperación por fase de Fly y Vercel en un staging desechable.
-4. KOV-031: restore real autorizado con RPO/RTO, roles, RLS, conteos, binarios y smoke. Es P1.
+2. KOV-030: recuperación por fase de Fly y Vercel en un staging desechable.
+3. KOV-031: restore real autorizado con RPO/RTO, roles, RLS, conteos, binarios y smoke. Es P1.
 
-Hasta completar esos cuatro controles, la decisión correcta es **código local remediado; salida a
+Hasta completar esos tres controles, la decisión correcta es **código local remediado; salida a
 producción bloqueada por evidencia externa**.
 
 ## Matriz de los 36 hallazgos
@@ -59,7 +58,7 @@ el proveedor o entorno real.
 | KOV-023 | Cerrado local | `9ce1581`, `9ad93e6`: reactivación única e invitaciones viejas, usadas, vencidas y concurrentes. |
 | KOV-024 | Cerrado local | `9ce1581`: lock común de tenant conserva al menos un owner. |
 | KOV-025 | Cerrado local | `3850a28`: 21 FKs compuestas, preflight poblado, backfill y rechazo cross tenant. |
-| KOV-026 | Gate externo | `3850a28`, `b6eee2d`, `54e4d0f` minimizan grants locales; falta verificar el estado efectivo de Supabase/Data API. |
+| KOV-026 | Cerrado proveedor | Matriz real 1,296/1,296, A/B con dos tenants, roles Data API sin grants ni funciones y Data API deshabilitada; evidencia en `evidence/KOV-026-SUPABASE-EFFECTIVE-GRANTS-2026-09-07.md`. |
 | KOV-027 | Cerrado local | `3850a28`, `54e4d0f`: 42 tablas por cuatro verbos, A/B, policies especiales, contextos y detección de policies permisivas. |
 | KOV-028 | Cerrado local | `17a3297`: semántica cohorte/evento, cruce de medianoche y timezone conciliables. |
 | KOV-029 | Cerrado local | `f9fe3c3`: cero numérico preservado en XLSX y CSV. |
@@ -105,8 +104,6 @@ correspondiente:
 
 - Stripe test mode: checkout, renovación, `past_due`, cancelación y eventos entre familias fuera de
   orden; comprobar entitlements y watermark final.
-- Supabase: ejecutar provisioning idempotente, consultar grants/herencia/policies efectivos y
-  demostrar A/B con el rol de la API y con Data API sin acceso directo no autorizado.
 - Fly/Vercel staging: inyectar fallos en cada fase de release, comprobar recuperación y ejecutar los
   smoke/read-only checks antes de promoción.
 - Restore: descargar un backup autorizado, verificar SHA-256, restaurar en destino desechable,
