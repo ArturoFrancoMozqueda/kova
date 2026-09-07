@@ -34,7 +34,7 @@ vi.mock("@/settings/api", () => ({
   getReceiptSettings: vi.fn().mockResolvedValue({ logo_url: null }),
 }));
 
-import { getSession } from "./api";
+import { getSession, refreshSession } from "./api";
 import { AuthProvider, useAuthContext } from "./AuthContext";
 
 const session = (tenantId: string, userId: string, role = "owner") => ({
@@ -69,6 +69,7 @@ describe("AuthProvider identity continuity", () => {
     offlineAccess.clear.mockReset().mockResolvedValue(undefined);
     offlineAccess.read.mockReset();
     vi.mocked(getSession).mockReset();
+    vi.mocked(refreshSession).mockReset();
   });
 
   it("suspends a stale tab and adopts only the freshly probed cookie identity", async () => {
@@ -158,6 +159,28 @@ describe("AuthProvider identity continuity", () => {
     expect(headers.get("X-Kova-Expected-Tenant")).toBe("tenant-a");
     expect(headers.get("X-Kova-Expected-User")).toBe("user-a");
     expect(headers.get("Idempotency-Key")).toBe("category-1");
+    view.unmount();
+  });
+
+  it.each([
+    ["offline sync", "/api/v1/sync/offline-sales"],
+    ["refund", "/api/v1/orders/order-1/refunds"],
+  ])("propagates a temporary refresh failure to %s", async (_flow, url) => {
+    const networkFetch = vi.fn().mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const refreshOutage = Object.assign(new Error("Refresh temporarily unavailable"), { status: 503 });
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a"));
+    vi.mocked(refreshSession).mockRejectedValueOnce(refreshOutage);
+    const view = render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <AuthProvider><Probe /></AuthProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("tenant-a:user-a:online")).toBeVisible();
+
+    await expect(window.fetch(url, { method: "POST" })).rejects.toBe(refreshOutage);
+    expect(refreshSession).toHaveBeenCalledOnce();
+    expect(networkFetch).toHaveBeenCalledOnce();
     view.unmount();
   });
 
