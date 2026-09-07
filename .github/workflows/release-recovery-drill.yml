@@ -1,0 +1,309 @@
+name: Disposable provider recovery drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RUN_KOV030_STAGING_DRILL to create and delete isolated Fly/Vercel resources
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: kov-030-provider-recovery-drill
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    if: ${{ inputs.confirmation == 'RUN_KOV030_STAGING_DRILL' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      PRODUCTION_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      PRODUCTION_FLY_APP: pos-project-backend
+      STAGING_NAME: kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}
+      VERCEL_CLI_VERSION: 59.0.0
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v4
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v4
+        with:
+          node-version: 24
+
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
+
+      - name: Guard disposable targets and required credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_NAME" =~ ^kova-kov030-[0-9]+-[0-9]+$ ]]
+          test "$STAGING_NAME" != "$PRODUCTION_FLY_APP"
+          for name in FLY_API_TOKEN VERCEL_TOKEN VERCEL_ORG_ID PRODUCTION_VERCEL_PROJECT_ID VERCEL_AUTOMATION_BYPASS_SECRET; do
+            if [ -z "${!name:-}" ]; then
+              echo "Required GitHub secret is unavailable: $name" >&2
+              exit 1
+            fi
+          done
+          if flyctl status --app "$STAGING_NAME" >/dev/null 2>&1; then
+            echo "Refusing to reuse an existing Fly app: $STAGING_NAME" >&2
+            exit 1
+          fi
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$STAGING_NAME?teamId=$VERCEL_ORG_ID")"
+          if [ "$status" != "404" ]; then
+            echo "Refusing to reuse a Vercel project (HTTP $status): $STAGING_NAME" >&2
+            exit 1
+          fi
+
+      - name: Build isolated provider fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/kov030"
+          mkdir -p "$root/backend" "$root/frontend/scripts"
+          cp frontend/scripts/release-recovery.mjs frontend/scripts/verify-deployment.mjs "$root/frontend/scripts/"
+          cat >"$root/backend/server.py" <<'PY'
+          import json
+          import os
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  if self.path == "/health":
+                      body = {"status": "ok", "release_sha": os.environ["KOVA_RELEASE_SHA"]}
+                  elif self.path == "/health/db":
+                      body = {"status": "ok", "db": "reachable"}
+                  else:
+                      self.send_error(404)
+                      return
+                  payload = json.dumps(body).encode()
+                  self.send_response(200)
+                  self.send_header("Content-Type", "application/json")
+                  self.send_header("Content-Length", str(len(payload)))
+                  self.end_headers()
+                  self.wfile.write(payload)
+
+          HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+          PY
+          cat >"$root/backend/Dockerfile" <<'DOCKER'
+          FROM python:3.12-alpine
+          ARG KOVA_RELEASE_SHA
+          ENV KOVA_RELEASE_SHA=$KOVA_RELEASE_SHA
+          COPY server.py /server.py
+          CMD ["python", "/server.py"]
+          DOCKER
+          cat >"$root/backend/fly.toml" <<EOF
+          app = "$STAGING_NAME"
+          primary_region = "dfw"
+
+          [http_service]
+            internal_port = 8080
+            force_https = true
+            auto_stop_machines = "stop"
+            auto_start_machines = true
+            min_machines_running = 0
+            processes = ["app"]
+          EOF
+          cat >"$root/frontend/index.html" <<'HTML'
+          <!doctype html><html><body><main>Kova provider recovery drill</main></body></html>
+          HTML
+          jq -n --arg backend "https://$STAGING_NAME.fly.dev" '{rewrites: [
+            {source: "/api/health/db", destination: ($backend + "/health/db")},
+            {source: "/api/health", destination: ($backend + "/health")}
+          ]}' >"$root/frontend/vercel.json"
+
+      - name: Create disposable Fly app
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_NAME" =~ ^kova-kov030-[0-9]+-[0-9]+$ ]]
+          flyctl apps create "$STAGING_NAME" --org personal
+          flyctl ips allocate-v4 --shared --app "$STAGING_NAME" --yes
+          flyctl ips allocate-v6 --app "$STAGING_NAME"
+
+      - name: Create disposable Vercel project
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_NAME" =~ ^kova-kov030-[0-9]+-[0-9]+$ ]]
+          root="$RUNNER_TEMP/kov030"
+          response="$(curl --silent --show-error --fail \
+            --request POST \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "$(jq -cn --arg name "$STAGING_NAME" '{name: $name}')" \
+            "https://api.vercel.com/v10/projects?teamId=$VERCEL_ORG_ID")"
+          project_id="$(jq -er '.id' <<<"$response")"
+          project_name="$(jq -er '.name' <<<"$response")"
+          test "$project_name" = "$STAGING_NAME"
+          test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"
+          mkdir -p "$root/frontend/.vercel"
+          jq -n --arg orgId "$VERCEL_ORG_ID" --arg projectId "$project_id" \
+            '{orgId: $orgId, projectId: $projectId}' >"$root/frontend/.vercel/project.json"
+          domains="$(curl --silent --show-error --fail \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$project_id/domains?teamId=$VERCEL_ORG_ID")"
+          jq -e --arg expected "$STAGING_NAME.vercel.app" \
+            'all((.domains // [])[]?; .name == $expected)' <<<"$domains" >/dev/null
+
+      - name: Deploy and capture previous release
+        shell: bash
+        working-directory: ${{ runner.temp }}/kov030
+        run: |
+          set -euo pipefail
+          previous_sha="1111111111111111111111111111111111111111"
+          candidate_sha="2222222222222222222222222222222222222222"
+          cd backend
+          flyctl deploy --remote-only --build-arg "KOVA_RELEASE_SHA=$previous_sha" \
+            --env "KOVA_RELEASE_SHA=$previous_sha" --strategy rolling --wait-timeout 5m
+          previous_image="$(flyctl status --json | jq -er '.Machines[0].config.image // .machines[0].config.image')"
+          cd ../frontend
+          jq -n --arg hash "${previous_sha:0:12}" '{hash: $hash}' >version.json
+          previous_deployment="$(npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prod --skip-domain --token="$VERCEL_TOKEN")"
+          npx --yes "vercel@$VERCEL_CLI_VERSION" promote "$previous_deployment" --yes --token="$VERCEL_TOKEN"
+          frontend_url="https://$STAGING_NAME.vercel.app"
+          backend_url="https://$STAGING_NAME.fly.dev"
+          node scripts/verify-deployment.mjs --frontend "$frontend_url" --backend "$backend_url" --sha "$previous_sha"
+          jq -n \
+            --arg releaseSha "$previous_sha" \
+            --arg flyImage "$previous_image" \
+            --arg vercelDeployment "$previous_deployment" \
+            --arg frontendUrl "$frontend_url" \
+            --arg backendUrl "$backend_url" \
+            '{releaseSha: $releaseSha, flyImage: $flyImage, vercelDeployment: $vercelDeployment, frontendUrl: $frontendUrl, backendUrl: $backendUrl}' \
+            >../rollback.json
+          jq -n --arg hash "${candidate_sha:0:12}" '{hash: $hash}' >version.json
+          candidate_deployment="$(npx --yes "vercel@$VERCEL_CLI_VERSION" deploy --prod --skip-domain --token="$VERCEL_TOKEN")"
+          echo "CANDIDATE_SHA=$candidate_sha" >>"$GITHUB_ENV"
+          echo "CANDIDATE_DEPLOYMENT=$candidate_deployment" >>"$GITHUB_ENV"
+
+      - name: Transfer immutable rollback artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kov030-rollback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/kov030/rollback.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: kov030-rollback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/kov030/downloaded
+
+      - name: Recover a controlled candidate-phase failure
+        shell: bash
+        working-directory: ${{ runner.temp }}/kov030/frontend
+        run: |
+          set -euo pipefail
+          cd ../backend
+          flyctl deploy --remote-only --build-arg "KOVA_RELEASE_SHA=$CANDIDATE_SHA" \
+            --env "KOVA_RELEASE_SHA=$CANDIDATE_SHA" --strategy rolling --wait-timeout 5m
+          candidate_image="$(flyctl status --json | jq -er '.Machines[0].config.image // .machines[0].config.image')"
+          echo "CANDIDATE_IMAGE=$candidate_image" >>"$GITHUB_ENV"
+          cd ../frontend
+          node scripts/release-recovery.mjs --phase candidate --artifact ../downloaded/rollback.json
+
+      - name: Recover a controlled promotion-phase failure
+        shell: bash
+        working-directory: ${{ runner.temp }}/kov030/frontend
+        run: |
+          set -euo pipefail
+          cd ../backend
+          flyctl deploy --image "$CANDIDATE_IMAGE" --skip-release-command --strategy rolling --wait-timeout 5m
+          cd ../frontend
+          npx --yes "vercel@$VERCEL_CLI_VERSION" promote "$CANDIDATE_DEPLOYMENT" --yes --token="$VERCEL_TOKEN"
+          node scripts/release-recovery.mjs --phase promotion --artifact ../downloaded/rollback.json
+
+      - name: Recover a controlled acceptance-phase failure
+        shell: bash
+        working-directory: ${{ runner.temp }}/kov030/frontend
+        run: |
+          set -euo pipefail
+          cd ../backend
+          flyctl deploy --image "$CANDIDATE_IMAGE" --skip-release-command --strategy rolling --wait-timeout 5m
+          cd ../frontend
+          npx --yes "vercel@$VERCEL_CLI_VERSION" promote "$CANDIDATE_DEPLOYMENT" --yes --token="$VERCEL_TOKEN"
+          node scripts/verify-deployment.mjs \
+            --frontend "https://$STAGING_NAME.vercel.app" \
+            --backend "https://$STAGING_NAME.fly.dev" \
+            --sha "$CANDIDATE_SHA"
+          node scripts/release-recovery.mjs --phase acceptance --artifact ../downloaded/rollback.json
+
+      - name: Write redacted drill evidence
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/kov030"
+          jq -n \
+            --arg stagingName "$STAGING_NAME" \
+            --arg runId "$GITHUB_RUN_ID" \
+            --arg commit "$GITHUB_SHA" \
+            --arg conclusion "${{ job.status }}" \
+            '{stagingName: $stagingName, runId: $runId, workflowCommit: $commit, conclusionBeforeCleanup: $conclusion, phases: ["candidate", "promotion", "acceptance"]}' \
+            >"$RUNNER_TEMP/kov030/evidence.json"
+
+      - name: Upload redacted drill evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kov030-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/kov030/evidence.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Delete disposable Vercel project
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_NAME" =~ ^kova-kov030-[0-9]+-[0-9]+$ ]]
+          response="$RUNNER_TEMP/kov030-vercel-project.json"
+          status="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$STAGING_NAME?teamId=$VERCEL_ORG_ID")"
+          if [ "$status" = "404" ]; then
+            exit 0
+          fi
+          test "$status" = "200"
+          project_id="$(jq -er '.id' "$response")"
+          project_name="$(jq -er '.name' "$response")"
+          test "$project_name" = "$STAGING_NAME"
+          test "$project_id" != "$PRODUCTION_VERCEL_PROJECT_ID"
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --request DELETE \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$project_id?teamId=$VERCEL_ORG_ID")"
+          test "$status" = "200" -o "$status" = "204" -o "$status" = "404"
+
+      - name: Delete disposable Fly app
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_NAME" =~ ^kova-kov030-[0-9]+-[0-9]+$ ]]
+          test "$STAGING_NAME" != "$PRODUCTION_FLY_APP"
+          if flyctl status --app "$STAGING_NAME" >/dev/null 2>&1; then
+            flyctl apps destroy "$STAGING_NAME" --yes
+          fi
+
+      - name: Verify disposable resources are gone
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_NAME" =~ ^kova-kov030-[0-9]+-[0-9]+$ ]]
+          if flyctl status --app "$STAGING_NAME" >/dev/null 2>&1; then
+            echo "Disposable Fly app still exists: $STAGING_NAME" >&2
+            exit 1
+          fi
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$STAGING_NAME?teamId=$VERCEL_ORG_ID")"
+          test "$status" = "404"

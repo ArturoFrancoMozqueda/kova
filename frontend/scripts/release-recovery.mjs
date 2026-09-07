@@ -79,11 +79,30 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
   }
 }
 
-function runProviderCommand(command, args, options = {}) {
+export function resolveNpxCommand({
+  platform = process.platform,
+  execPath = process.execPath,
+  fileExists = fs.existsSync,
+} = {}) {
+  if (platform !== "win32") return { command: "npx", prefixArgs: [] };
+
+  // Windows cannot spawn the npx.cmd shim with shell:false on current Node
+  // releases (EINVAL). Invoke npm's JavaScript entry point with Node instead,
+  // preserving argument boundaries without passing provider tokens to a shell.
+  const cliPath = path.resolve(path.dirname(execPath), "node_modules", "npm", "bin", "npx-cli.js");
+  if (!fileExists(cliPath)) {
+    throw new Error(`npx CLI was not found next to Node: ${cliPath}`);
+  }
+  return { command: execPath, prefixArgs: [cliPath] };
+}
+
+export function runProviderCommand(command, args, options = {}) {
   const { label = command, ...spawnOptions } = options;
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: "inherit", shell: false, ...spawnOptions });
-    child.once("error", () => reject(new Error(`${label} could not start`)));
+    child.once("error", (error) =>
+      reject(new Error(`${label} could not start: ${error.code ?? error.message}`)),
+    );
     child.once("exit", (code) => {
       if (code === 0) resolve();
       else reject(new Error(`${label} exited with code ${code ?? "unknown"}`));
@@ -94,14 +113,23 @@ function runProviderCommand(command, args, options = {}) {
 function cliProvider() {
   if (!process.env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
   if (!process.env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
-  const npx = process.platform === "win32" ? "npx.cmd" : "npx";
+  const npx = resolveNpxCommand();
   const flyctl = process.platform === "win32" ? "flyctl.exe" : "flyctl";
   const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../backend");
   return {
     restoreVercel(deployment) {
       return runProviderCommand(
-        npx,
-        ["--yes", "vercel@59.0.0", "promote", deployment, "--yes", "--token", process.env.VERCEL_TOKEN ?? ""],
+        npx.command,
+        [
+          ...npx.prefixArgs,
+          "--yes",
+          "vercel@59.0.0",
+          "promote",
+          deployment,
+          "--yes",
+          "--token",
+          process.env.VERCEL_TOKEN ?? "",
+        ],
         { label: "Vercel restore" },
       );
     },
