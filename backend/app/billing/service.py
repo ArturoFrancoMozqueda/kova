@@ -542,6 +542,7 @@ def _upsert_subscription_from_stripe_object(
     *,
     tenant_id: UUID,
     stripe_object: dict[str, Any],
+    apply_status: bool = True,
 ) -> Subscription:
     stripe_subscription_id = stripe_object.get("subscription") or stripe_object.get("id")
     if not stripe_subscription_id:
@@ -558,10 +559,11 @@ def _upsert_subscription_from_stripe_object(
         if stripe_object.get("object") == "checkout.session"
         else subscription.latest_checkout_session_id
     )
-    if stripe_object.get("object") == "checkout.session":
-        subscription.status = "active"
-    else:
-        subscription.status = _subscription_status(stripe_object.get("status"))
+    if apply_status:
+        if stripe_object.get("object") == "checkout.session":
+            subscription.status = "active"
+        else:
+            subscription.status = _subscription_status(stripe_object.get("status"))
     period_start, period_end = _extract_period(stripe_object)
     if period_start is None or period_end is None:
         # The object lacks the period (e.g. checkout.session, or invoices on
@@ -580,10 +582,11 @@ def _upsert_subscription_from_stripe_object(
     subscription.trial_ends_at = _timestamp(stripe_object.get("trial_end"))
     subscription.cancel_at_period_end = bool(stripe_object.get("cancel_at_period_end", False))
     subscription.canceled_at = _timestamp(stripe_object.get("canceled_at"))
-    if subscription.status == "past_due":
-        _mark_subscription_past_due(subscription)
-    if subscription.status in {"active", "trialing"}:
-        _clear_subscription_past_due(subscription)
+    if apply_status:
+        if subscription.status == "past_due":
+            _mark_subscription_past_due(subscription)
+        if subscription.status in {"active", "trialing"}:
+            _clear_subscription_past_due(subscription)
     items = stripe_object.get("items", {}).get("data", [])
     if items:
         price = items[0].get("price", {})
@@ -801,6 +804,53 @@ def _temporal_decision(
     return "reconcile"
 
 
+def _status_temporal_decision(
+    subscription: Subscription,
+    *,
+    family: str,
+    event_created_at: datetime | None,
+    event_id: str,
+    event_type: str,
+) -> str:
+    """Order writes to shared subscription status across both event streams."""
+    watermarks: list[tuple[datetime, str, str | None, str | None]] = []
+    for candidate_family in (EVENT_FAMILY_LIFECYCLE, EVENT_FAMILY_PAYMENT):
+        watermark_at, watermark_id, watermark_type = _watermark(
+            subscription, family=candidate_family
+        )
+        if watermark_at is None:
+            continue
+        normalized_at = (
+            watermark_at if watermark_at.tzinfo else watermark_at.replace(tzinfo=UTC)
+        )
+        watermarks.append(
+            (normalized_at, candidate_family, watermark_id, watermark_type)
+        )
+    if not watermarks:
+        return "accept"
+    if event_created_at is None:
+        return "reconcile"
+
+    latest_at = max(item[0] for item in watermarks)
+    if event_created_at > latest_at:
+        return "accept"
+    if event_created_at < latest_at:
+        return "stale"
+
+    latest = [item for item in watermarks if item[0] == latest_at]
+    if any(event_id == item[2] for item in latest):
+        return "stale"
+    if len(latest) == 1 and latest[0][1] == family:
+        incoming_rank = EVENT_PRECEDENCE[event_type]
+        stored_rank = EVENT_PRECEDENCE.get(latest[0][3] or "", -1)
+        if incoming_rank > stored_rank:
+            return "accept"
+        if incoming_rank < stored_rank:
+            return "stale"
+    # Equal timestamps from different streams have no safe local ordering.
+    return "reconcile"
+
+
 def _stripe_subscription_id(*, event_type: str, stripe_object: dict[str, Any]) -> str | None:
     if event_type.startswith("customer.subscription."):
         value = stripe_object.get("id")
@@ -939,7 +989,35 @@ def _process_temporal_event(
             event_created_at=event_created_at,
         )
 
-    reconciled = decision == "reconcile"
+    status_decision = (
+        _status_temporal_decision(
+            subscription,
+            family=family,
+            event_created_at=event_created_at,
+            event_id=event_id,
+            event_type=event_type,
+        )
+        if subscription is not None
+        else "accept"
+    )
+    # An invoice confirms a payment attempt, not that a terminal subscription
+    # became active again. Consult the subscription source of truth before a
+    # newer payment changes a locally canceled entitlement.
+    payment_might_restore_canceled = (
+        family == EVENT_FAMILY_PAYMENT
+        and subscription is not None
+        and subscription.status == "canceled"
+        and status_decision == "accept"
+    )
+    cancellation_conflicts_with_newer_payment = (
+        event_type == "customer.subscription.deleted"
+        and status_decision == "stale"
+    )
+    if payment_might_restore_canceled or cancellation_conflicts_with_newer_payment:
+        status_decision = "reconcile"
+
+    reconciled = decision == "reconcile" or status_decision == "reconcile"
+    status_applied = status_decision != "stale"
     if reconciled:
         assert subscription is not None
         subscription = _reconcile_ambiguous_event(
@@ -957,7 +1035,10 @@ def _process_temporal_event(
         if event_type == "customer.subscription.deleted":
             object_to_apply["status"] = "canceled"
         subscription = _upsert_subscription_from_stripe_object(
-            db, tenant_id=tenant_id, stripe_object=object_to_apply
+            db,
+            tenant_id=tenant_id,
+            stripe_object=object_to_apply,
+            apply_status=status_applied,
         )
         _set_watermark(
             subscription,
@@ -971,7 +1052,7 @@ def _process_temporal_event(
     if family == EVENT_FAMILY_LIFECYCLE:
         if event_type == "checkout.session.completed":
             action = "billing.subscription_activated"
-            if not reconciled and subscription.status == "active":
+            if not reconciled and status_applied and subscription.status == "active":
                 _send_welcome_email_for_tenant(db, tenant_id=tenant_id)
         elif event_type == "customer.subscription.deleted":
             action = "billing.subscription_canceled"
@@ -979,11 +1060,12 @@ def _process_temporal_event(
             action = "billing.subscription_status_updated"
     else:
         payment_succeeded = event_type in {"invoice.paid", "invoice.payment_succeeded"}
-        if not reconciled and event_type == "invoice.payment_failed":
+        if not reconciled and status_applied and event_type == "invoice.payment_failed":
             _mark_subscription_past_due(subscription)
-        elif not reconciled and payment_succeeded:
+        elif not reconciled and status_applied and payment_succeeded:
             subscription.status = "active"
             _clear_subscription_past_due(subscription)
+        if not reconciled and payment_succeeded:
             period_start, period_end = _retrieve_live_period(
                 subscription.stripe_subscription_id
             )

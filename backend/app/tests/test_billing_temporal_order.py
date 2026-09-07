@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.audit.models import AuditLog
 from app.billing import service
+from app.billing.access import get_billing_access_status
 from app.billing.models import Subscription, WebhookEvent
 from app.billing.stripe_client import StripeSubscriptionError
 from app.config import settings
@@ -119,6 +120,77 @@ def test_older_payment_failure_cannot_override_newer_success(
 
 
 @pytest.mark.parametrize("reverse", [False, True])
+def test_newer_cancellation_wins_payment_success_in_any_arrival_order(
+    db: Session, temporal_subscription: Subscription, monkeypatch, reverse: bool
+) -> None:
+    receipts: list[str] = []
+    monkeypatch.setattr(
+        service,
+        "_send_payment_receipt_for_tenant",
+        lambda *_args, **_kwargs: receipts.append("sent"),
+    )
+    subscription_id = temporal_subscription.stripe_subscription_id or ""
+    payment = _event(
+        f"evt_paid_before_cancel_{reverse}",
+        "invoice.payment_succeeded",
+        100,
+        {"id": "in_paid", "subscription": subscription_id, "metadata": {}},
+    )
+    cancellation = _event(
+        f"evt_cancel_after_paid_{reverse}",
+        "customer.subscription.deleted",
+        200,
+        _subscription_object(subscription_id, "canceled"),
+    )
+    payloads = [cancellation, payment] if reverse else [payment, cancellation]
+
+    for payload in payloads:
+        assert _process(db, payload) == {"status": "processed"}
+    assert _process(db, payment) == {"status": "processed"}
+
+    db.refresh(temporal_subscription)
+    access = get_billing_access_status(db, tenant_id=temporal_subscription.tenant_id)
+    assert temporal_subscription.status == "canceled"
+    assert temporal_subscription.stripe_payment_watermark_at == datetime.fromtimestamp(100, tz=UTC)
+    assert temporal_subscription.stripe_lifecycle_watermark_at == datetime.fromtimestamp(
+        200, tz=UTC
+    )
+    assert access.allowed is False
+    assert access.reason == "canceled"
+    assert receipts == ["sent"]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_newer_payment_failure_wins_active_lifecycle_in_any_arrival_order(
+    db: Session, temporal_subscription: Subscription, reverse: bool
+) -> None:
+    subscription_id = temporal_subscription.stripe_subscription_id or ""
+    active = _event(
+        f"evt_active_before_failure_{reverse}",
+        "customer.subscription.updated",
+        100,
+        _subscription_object(subscription_id, "active"),
+    )
+    failed = _event(
+        f"evt_failed_after_active_{reverse}",
+        "invoice.payment_failed",
+        200,
+        {"id": "in_failed", "subscription": subscription_id, "metadata": {}},
+    )
+    payloads = [failed, active] if reverse else [active, failed]
+
+    for payload in payloads:
+        assert _process(db, payload) == {"status": "processed"}
+
+    db.refresh(temporal_subscription)
+    access = get_billing_access_status(db, tenant_id=temporal_subscription.tenant_id)
+    assert temporal_subscription.status == "past_due"
+    assert temporal_subscription.past_due_at is not None
+    assert access.allowed is True
+    assert access.reason == "past_due_grace"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
 def test_deleted_wins_created_when_timestamps_tie(
     db: Session, temporal_subscription: Subscription, reverse: bool
 ) -> None:
@@ -170,6 +242,136 @@ def test_ambiguous_equal_rank_reconciles_to_authoritative_stripe_state(
     assert _process(db, second) == {"status": "processed"}
     db.refresh(temporal_subscription)
     assert temporal_subscription.status == "active"
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_equal_cross_family_events_converge_to_authoritative_state(
+    db: Session, temporal_subscription: Subscription, monkeypatch, reverse: bool
+) -> None:
+    subscription_id = temporal_subscription.stripe_subscription_id or ""
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_temporal")
+    monkeypatch.setattr(
+        service.subscription_client,
+        "retrieve",
+        lambda **_kwargs: _subscription_object(subscription_id, "active"),
+    )
+    active = _event(
+        f"evt_equal_active_{reverse}",
+        "customer.subscription.updated",
+        450,
+        _subscription_object(subscription_id, "active"),
+    )
+    failed = _event(
+        f"evt_equal_failed_{reverse}",
+        "invoice.payment_failed",
+        450,
+        {"id": "in_equal_failed", "subscription": subscription_id, "metadata": {}},
+    )
+    payloads = [failed, active] if reverse else [active, failed]
+
+    for payload in payloads:
+        assert _process(db, payload) == {"status": "processed"}
+
+    db.refresh(temporal_subscription)
+    access = get_billing_access_status(db, tenant_id=temporal_subscription.tenant_id)
+    assert temporal_subscription.status == "active"
+    assert temporal_subscription.past_due_at is None
+    assert access.allowed is True
+
+
+def test_payment_without_timestamp_reconciles_to_authoritative_state(
+    db: Session, temporal_subscription: Subscription, monkeypatch
+) -> None:
+    subscription_id = temporal_subscription.stripe_subscription_id or ""
+    active = _event(
+        "evt_active_before_missing_created",
+        "customer.subscription.updated",
+        460,
+        _subscription_object(subscription_id, "active"),
+    )
+    missing_created = _event(
+        "evt_failure_without_created",
+        "invoice.payment_failed",
+        None,
+        {"id": "in_missing_created", "subscription": subscription_id, "metadata": {}},
+    )
+    assert _process(db, active) == {"status": "processed"}
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_temporal")
+    monkeypatch.setattr(
+        service.subscription_client,
+        "retrieve",
+        lambda **_kwargs: _subscription_object(subscription_id, "active"),
+    )
+
+    assert _process(db, missing_created) == {"status": "processed"}
+    db.refresh(temporal_subscription)
+    assert temporal_subscription.status == "active"
+    assert temporal_subscription.past_due_at is None
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_newer_payment_after_cancellation_reconciles_in_any_arrival_order(
+    db: Session, temporal_subscription: Subscription, monkeypatch, reverse: bool
+) -> None:
+    subscription_id = temporal_subscription.stripe_subscription_id or ""
+    cancellation = _event(
+        f"evt_terminal_cancel_{reverse}",
+        "customer.subscription.deleted",
+        470,
+        _subscription_object(subscription_id, "canceled"),
+    )
+    payment = _event(
+        f"evt_payment_after_terminal_cancel_{reverse}",
+        "invoice.payment_succeeded",
+        480,
+        {"id": "in_after_cancel", "subscription": subscription_id, "metadata": {}},
+    )
+    calls: list[str] = []
+    monkeypatch.setattr(settings, "stripe_secret_key", "sk_test_temporal")
+    monkeypatch.setattr(service, "_retrieve_live_period", lambda _subscription_id: (None, None))
+
+    def retrieve(**_kwargs) -> dict:
+        calls.append("retrieve")
+        return _subscription_object(subscription_id, "canceled")
+
+    monkeypatch.setattr(service.subscription_client, "retrieve", retrieve)
+
+    payloads = [payment, cancellation] if reverse else [cancellation, payment]
+    for payload in payloads:
+        assert _process(db, payload) == {"status": "processed"}
+    assert _process(db, payment) == {"status": "processed"}
+    db.refresh(temporal_subscription)
+    access = get_billing_access_status(db, tenant_id=temporal_subscription.tenant_id)
+    assert temporal_subscription.status == "canceled"
+    assert access.allowed is False
+    assert calls == ["retrieve"]
+
+
+def test_older_payment_preserves_scheduled_cancellation(
+    db: Session, temporal_subscription: Subscription, monkeypatch
+) -> None:
+    monkeypatch.setattr(service, "_send_payment_receipt_for_tenant", lambda *_a, **_kw: None)
+    subscription_id = temporal_subscription.stripe_subscription_id or ""
+    lifecycle_object = _subscription_object(subscription_id, "active")
+    lifecycle_object["cancel_at_period_end"] = True
+    lifecycle = _event(
+        "evt_scheduled_cancel",
+        "customer.subscription.updated",
+        500,
+        lifecycle_object,
+    )
+    old_payment = _event(
+        "evt_before_scheduled_cancel",
+        "invoice.payment_succeeded",
+        490,
+        {"id": "in_before_cancel", "subscription": subscription_id, "metadata": {}},
+    )
+
+    assert _process(db, lifecycle) == {"status": "processed"}
+    assert _process(db, old_payment) == {"status": "processed"}
+    db.refresh(temporal_subscription)
+    assert temporal_subscription.status == "active"
+    assert temporal_subscription.cancel_at_period_end is True
 
 
 def test_failed_ambiguous_reconciliation_is_retryable(
