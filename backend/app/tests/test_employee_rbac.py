@@ -12,14 +12,17 @@ through the permission gate (the forbidden branches are defense-in-depth):
 """
 
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from datetime import UTC, datetime, timedelta
+from threading import Barrier, BrokenBarrierError
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.audit.models import AuditLog
 from app.auth import repository as auth_repo
 from app.auth import service as auth_service
 from app.auth.models import Membership, User
@@ -284,6 +287,227 @@ def test_reinvite_reactivates_existing_membership_without_duplicate(client, db, 
     assert len(memberships) == 1
     assert memberships[0].is_active is True
     assert memberships[0].role == "manager"
+
+
+def test_reinvite_revokes_old_token_without_reactivating_membership(client, db, monkeypatch):
+    signup = _signup(client, f"owner-{uuid4().hex}@example.com", "RBAC Old Invitation")
+    tenant_id = UUID(signup["tenant_id"])
+    employee = _add_member(db, tenant_id=tenant_id, role="cashier")
+    employee.is_active = False
+    employee_email = auth_repo.get_user_by_id(db, employee.user_id).email
+    db.commit()
+    tokens = iter(("old-invitation-token", "replacement-invitation-token"))
+    monkeypatch.setattr(service, "_generate_token", lambda: next(tokens))
+    monkeypatch.setattr(service.email_service, "send_invitation_email", lambda **_: None)
+
+    old_invitation = service.invite_employee(
+        db,
+        tenant_id=tenant_id,
+        user_id=UUID(signup["user_id"]),
+        actor_role="owner",
+        body=InvitationCreate(email=employee_email, role="cashier"),
+    )
+    replacement = service.invite_employee(
+        db,
+        tenant_id=tenant_id,
+        user_id=UUID(signup["user_id"]),
+        actor_role="owner",
+        body=InvitationCreate(email=employee_email, role="manager"),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        service.accept_invitation(
+            db,
+            body=InvitationAccept(token="old-invitation-token", password=None),
+        )
+
+    db.refresh(old_invitation)
+    db.refresh(replacement)
+    db.refresh(employee)
+    assert exc.value.status_code == 400
+    assert old_invitation.status == "revoked"
+    assert replacement.status == "pending"
+    assert employee.is_active is False
+    assert employee.role == "cashier"
+
+
+def test_accepted_invitation_cannot_be_reused(client, db, monkeypatch):
+    signup = _signup(client, f"owner-{uuid4().hex}@example.com", "RBAC Reused Invitation")
+    tenant_id = UUID(signup["tenant_id"])
+    employee = _add_member(db, tenant_id=tenant_id, role="cashier")
+    employee.is_active = False
+    employee_email = auth_repo.get_user_by_id(db, employee.user_id).email
+    db.commit()
+    token = "single-use-invitation-token"
+    monkeypatch.setattr(service, "_generate_token", lambda: token)
+    monkeypatch.setattr(service.email_service, "send_invitation_email", lambda **_: None)
+    invitation = service.invite_employee(
+        db,
+        tenant_id=tenant_id,
+        user_id=UUID(signup["user_id"]),
+        actor_role="owner",
+        body=InvitationCreate(email=employee_email, role="manager"),
+    )
+
+    service.accept_invitation(db, body=InvitationAccept(token=token, password=None))
+    with pytest.raises(HTTPException) as exc:
+        service.accept_invitation(db, body=InvitationAccept(token=token, password=None))
+
+    memberships = (
+        db.query(Membership)
+        .filter(Membership.tenant_id == tenant_id, Membership.user_id == employee.user_id)
+        .all()
+    )
+    accepted_events = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.resource_id == invitation.id,
+            AuditLog.action == "employee.invitation_accepted",
+        )
+        .count()
+    )
+    assert exc.value.status_code == 400
+    assert len(memberships) == 1
+    assert memberships[0].is_active is True
+    assert memberships[0].role == "manager"
+    assert accepted_events == 1
+
+
+def test_expired_invitation_does_not_reactivate_membership(client, db, monkeypatch):
+    signup = _signup(client, f"owner-{uuid4().hex}@example.com", "RBAC Expired Invitation")
+    tenant_id = UUID(signup["tenant_id"])
+    employee = _add_member(db, tenant_id=tenant_id, role="cashier")
+    employee.is_active = False
+    employee_email = auth_repo.get_user_by_id(db, employee.user_id).email
+    db.commit()
+    token = "expired-invitation-token"
+    monkeypatch.setattr(service, "_generate_token", lambda: token)
+    monkeypatch.setattr(service.email_service, "send_invitation_email", lambda **_: None)
+    invitation = service.invite_employee(
+        db,
+        tenant_id=tenant_id,
+        user_id=UUID(signup["user_id"]),
+        actor_role="owner",
+        body=InvitationCreate(email=employee_email, role="manager"),
+    )
+    invitation.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        service.accept_invitation(db, body=InvitationAccept(token=token, password=None))
+
+    db.refresh(employee)
+    assert exc.value.status_code == 400
+    assert invitation.status == "pending"
+    assert employee.is_active is False
+    assert employee.role == "cashier"
+
+
+def test_concurrent_invitation_acceptance_reactivates_membership_once(
+    owner_engine, monkeypatch
+):
+    seed = Session(owner_engine)
+    token = f"concurrent-invitation-{uuid4().hex}"
+    tenant = Tenant(name="Concurrent Invitation", slug=f"invitation-{uuid4().hex}")
+    seed.add(tenant)
+    seed.flush()
+    owner = _add_member(seed, tenant_id=tenant.id, role="owner")
+    employee = _add_member(seed, tenant_id=tenant.id, role="cashier")
+    employee.is_active = False
+    employee_email = auth_repo.get_user_by_id(seed, employee.user_id).email
+    invitation = MembershipInvitation(
+        tenant_id=tenant.id,
+        email=employee_email,
+        role="manager",
+        status="pending",
+        invited_by_user_id=owner.user_id,
+        token_hash=service._hash_token(token),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
+    )
+    seed.add(invitation)
+    seed.commit()
+    tenant_id = tenant.id
+    invitation_id = invitation.id
+    membership_id = employee.id
+    user_ids = (owner.user_id, employee.user_id)
+    seed.close()
+    start_barrier = Barrier(2)
+    lookup_barrier = Barrier(2)
+    original_get_user_by_email = service.auth_repo.get_user_by_email
+
+    def synchronized_get_user_by_email(db, email):
+        # Without the invitation row lock both transactions reach this point
+        # while the token is still pending, making the duplicate consumption
+        # deterministic. With the lock, the winner times out and commits; the
+        # waiter then sees the final invitation status before reaching here.
+        try:
+            lookup_barrier.wait(timeout=1)
+        except BrokenBarrierError:
+            pass
+        return original_get_user_by_email(db, email)
+
+    monkeypatch.setattr(
+        service.auth_repo,
+        "get_user_by_email",
+        synchronized_get_user_by_email,
+    )
+
+    def accept() -> tuple[int, int]:
+        session = Session(owner_engine)
+        try:
+            connection_id = session.execute(text("SELECT pg_backend_pid()")).scalar_one()
+            start_barrier.wait(timeout=5)
+            service.accept_invitation(
+                session,
+                body=InvitationAccept(token=token, password=None),
+            )
+            return 200, connection_id
+        except HTTPException as exc:
+            session.rollback()
+            return exc.status_code, connection_id
+        finally:
+            session.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(accept)
+        second = pool.submit(accept)
+        outcomes = (first.result(timeout=10), second.result(timeout=10))
+        results = sorted(status for status, _ in outcomes)
+        connection_ids = {connection_id for _, connection_id in outcomes}
+
+    verify = Session(owner_engine)
+    try:
+        memberships = (
+            verify.query(Membership)
+            .filter(Membership.tenant_id == tenant_id, Membership.id == membership_id)
+            .all()
+        )
+        accepted_events = (
+            verify.query(AuditLog)
+            .filter(
+                AuditLog.resource_id == invitation_id,
+                AuditLog.action == "employee.invitation_accepted",
+            )
+            .count()
+        )
+        accepted_invitation = verify.get(MembershipInvitation, invitation_id)
+        assert results == [200, 400]
+        assert len(connection_ids) == 2
+        assert len(memberships) == 1
+        assert memberships[0].is_active is True
+        assert memberships[0].role == "manager"
+        assert accepted_invitation.status == "accepted"
+        assert accepted_events == 1
+    finally:
+        verify.query(AuditLog).filter(AuditLog.tenant_id == tenant_id).delete()
+        verify.query(MembershipInvitation).filter(
+            MembershipInvitation.tenant_id == tenant_id
+        ).delete()
+        verify.query(Membership).filter(Membership.tenant_id == tenant_id).delete()
+        verify.query(User).filter(User.id.in_(user_ids)).delete(synchronize_session=False)
+        verify.query(Tenant).filter(Tenant.id == tenant_id).delete()
+        verify.commit()
+        verify.close()
 
 
 def test_revoke_pending_invitation(client, db):
