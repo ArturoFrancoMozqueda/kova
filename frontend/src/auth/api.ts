@@ -8,6 +8,7 @@ import type {
   SignupRequest,
   SignupResponse,
 } from "./types";
+import { announceSessionChange, clearLogoutPending } from "./sessionCoordination";
 
 export class ApiError extends Error {
   constructor(
@@ -60,11 +61,22 @@ export function verifyEmail(token: string): Promise<MessageResponse> {
   });
 }
 
-export function login(body: LoginRequest): Promise<MessageResponse> {
-  return requestJson<MessageResponse>("/api/v1/auth/login", {
+export async function login(body: LoginRequest): Promise<MessageResponse> {
+  const response = await requestJson<MessageResponse>("/api/v1/auth/login", {
     method: "POST",
     body: JSON.stringify(body),
   });
+  // The shared cookie may now represent another user or tenant. Discard the
+  // previously verified local identity before probing it; a dropped session
+  // response must never reopen the old tenant as an offline fallback.
+  await import("@/offline/offlineAccess")
+    .then(({ clearOfflineAccess }) => clearOfflineAccess())
+    .catch(() => undefined);
+  clearLogoutPending();
+  // Cookies are shared across tabs. Tell every already-open Kova surface to
+  // suspend its old identity and probe the server before it can mutate again.
+  announceSessionChange();
+  return response;
 }
 
 export async function logout(): Promise<void> {
@@ -90,7 +102,9 @@ export async function refreshSession(): Promise<boolean> {
     method: "POST",
     headers: { "content-type": "application/json", ...csrfHeaders("POST") },
   });
-  return response.ok;
+  if (response.ok) return true;
+  if (response.status === 401) return false;
+  throw new ApiError(await response.text(), response.status);
 }
 
 export function requestPasswordReset(email: string): Promise<MessageResponse & { dev_reset_token?: string | null }> {

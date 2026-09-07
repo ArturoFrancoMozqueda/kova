@@ -8,24 +8,28 @@ const sale = {
   payments: [{ method: "cash", amount: "18.50" }],
 };
 
-async function createV3(rows: Array<Record<string, unknown>>) {
+async function createLegacyDb(version: 1 | 2 | 3, rows: Array<Record<string, unknown>>) {
   const old = new Dexie(DB_NAME);
   old.version(1).stores({ offline_sales: "client_uuid,status,updated_at" });
-  old.version(2).stores({
-    offline_sales: "client_uuid,status,updated_at",
-    catalog_cache: "tenant_id",
-  });
-  old.version(3).stores({
-    offline_sales: "client_uuid,status,updated_at",
-    catalog_cache: "tenant_id",
-    customer_orders_cache: "tenant_id,cached_at",
-  });
+  if (version >= 2) {
+    old.version(2).stores({
+      offline_sales: "client_uuid,status,updated_at",
+      catalog_cache: "tenant_id",
+    });
+  }
+  if (version >= 3) {
+    old.version(3).stores({
+      offline_sales: "client_uuid,status,updated_at",
+      catalog_cache: "tenant_id",
+      customer_orders_cache: "tenant_id,cached_at",
+    });
+  }
   await old.open();
   await old.table("offline_sales").bulkAdd(rows);
   old.close();
 }
 
-describe("offline database v4 migration", () => {
+describe("offline database migration", () => {
   afterEach(async () => {
     const { offlineDb } = await import("./db");
     offlineDb.close();
@@ -33,9 +37,9 @@ describe("offline database v4 migration", () => {
     vi.resetModules();
   });
 
-  it("preserves and quarantines legacy rows without inventing a tenant", async () => {
+  it.each([1, 2, 3] as const)("preserves and quarantines v%s rows without inventing a tenant", async (version) => {
     await Dexie.delete(DB_NAME);
-    await createV3([
+    await createLegacyDb(version, [
       {
         client_uuid: "legacy-1",
         status: "syncing",
@@ -65,7 +69,7 @@ describe("offline database v4 migration", () => {
 
   it("keeps already-owned rows syncable and upgrades a large queue", async () => {
     await Dexie.delete(DB_NAME);
-    await createV3(Array.from({ length: 1_001 }, (_, index) => ({
+    await createLegacyDb(3, Array.from({ length: 1_001 }, (_, index) => ({
       client_uuid: `sale-${index}`,
       tenant_id: "tenant-1",
       status: "pending",

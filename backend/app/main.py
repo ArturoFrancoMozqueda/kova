@@ -160,7 +160,10 @@ def create_app() -> FastAPI:
             "X-CSRF-Token",
             "X-Kova-Client-Id",
             "X-Kova-Anonymous-Token",
+            "X-Kova-Expected-Tenant",
+            "X-Kova-Expected-User",
         ],
+        expose_headers=["X-Kova-Identity-Mismatch"],
     )
     # Report payloads (business-story) are large JSON; compress anything over
     # 1 KB when the client negotiates it. Registered before the http

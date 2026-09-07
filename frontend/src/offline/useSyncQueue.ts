@@ -12,11 +12,13 @@ export function useSyncQueue(shiftId?: string) {
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
   const [pendingCount, setPendingCount] = useState(0);
   const [failedEntries, setFailedEntries] = useState<OfflineSaleQueueItem[]>([]);
+  const [quarantinedCount, setQuarantinedCount] = useState(0);
 
   useEffect(() => {
     if (!tenantId) {
       setPendingCount(0);
       setFailedEntries([]);
+      setQuarantinedCount(0);
       return;
     }
     const pendingSub = liveQuery(async () => {
@@ -35,12 +37,20 @@ export function useSyncQueue(shiftId?: string) {
       return shiftId ? entries.filter((entry) => entry.shift_id === shiftId) : entries;
     }).subscribe((entries) => setFailedEntries(entries));
 
+    // Legacy rows have no trustworthy tenant ownership. Show only their count
+    // so the current login can ask for guided recovery without seeing payloads
+    // or gaining a path that could sync/reassign them.
+    const quarantinedSub = liveQuery(() =>
+      offlineDb.offline_sales.where("status").equals("quarantined").count()
+    ).subscribe((count) => setQuarantinedCount(count));
+
     const onOnline = () => void triggerSync(tenantId);
     window.addEventListener("online", onOnline);
 
     return () => {
       pendingSub.unsubscribe();
       failedSub.unsubscribe();
+      quarantinedSub.unsubscribe();
       window.removeEventListener("online", onOnline);
     };
   }, [shiftId, tenantId]);
@@ -48,6 +58,7 @@ export function useSyncQueue(shiftId?: string) {
   return {
     pendingCount,
     failedEntries,
+    quarantinedCount,
     syncNow: () => tenantId ? triggerSync(tenantId) : Promise.resolve(),
     retryDeadLetter: (clientUuid: string) => tenantId
       ? retryDeadLetter(tenantId, clientUuid)

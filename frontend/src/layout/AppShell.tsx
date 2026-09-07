@@ -119,6 +119,7 @@ export default function AppShell() {
   const tenantLogoUrl = state.status === "authenticated" ? state.tenantLogoUrl : null;
   const userEmail = state.status === "authenticated" ? state.user.email : "";
   const userRole = state.status === "authenticated" ? state.user.role : "";
+  const isOfflineSession = state.status === "authenticated" && state.sessionMode === "offline";
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
   const canManageExpenses = usePermission(EXPENSES_MANAGE_PERMISSION);
@@ -139,9 +140,15 @@ export default function AppShell() {
     return copy.app.dashboard;
   })();
 
-  const navItems = isAdminRole(userRole) ? adminNavItems : cashierNavItems;
+  const navItems = isOfflineSession
+    ? adminNavItems.filter((item) => item.to === "/register")
+    : isAdminRole(userRole)
+      ? adminNavItems
+      : cashierNavItems;
 
-  const bottomNavItems: NavItem[] = isAdminRole(userRole)
+  const bottomNavItems: NavItem[] = isOfflineSession
+    ? [{ to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" }]
+    : isAdminRole(userRole)
     ? [
         { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-5 w-5" />, group: "operation" },
         customerOrdersEnabled
@@ -442,8 +449,13 @@ export default function AppShell() {
           tabIndex={-1}
           className="relative flex-1 overflow-y-auto overscroll-contain pb-16 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-kova-blue xl:pb-0"
         >
-          <EmailVerificationBanner />
-          <BillingBanner />
+          {isOfflineSession ? (
+            <div className="border-b border-warning/30 bg-warning/10 px-4 py-2 text-center text-xs font-medium text-warning-strong" role="status">
+              {copy.auth.offlineAccessBanner}
+            </div>
+          ) : null}
+          {!isOfflineSession ? <EmailVerificationBanner /> : null}
+          {!isOfflineSession ? <BillingBanner /> : null}
           <Suspense
             fallback={(
               <ShellRouteFallback
@@ -460,7 +472,10 @@ export default function AppShell() {
 
         {/* Bottom navigation — mobile only */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-kova-border bg-white/95 backdrop-blur xl:hidden"
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-30 grid border-t border-kova-border bg-white/95 backdrop-blur xl:hidden",
+            isOfflineSession ? "grid-cols-1" : "grid-cols-4",
+          )}
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           aria-label={copy.auth.accountNavigation}
         >

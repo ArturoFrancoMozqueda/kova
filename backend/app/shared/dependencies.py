@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth import repository as auth_repo
@@ -27,6 +27,22 @@ def get_current_session(
 
     if not session_id or not user_id or not tenant_id:
         raise unauthorized()
+
+    # Browser cookies are shared between tabs, while a React tree can still be
+    # showing the identity it loaded earlier. These headers are a fail-closed
+    # precondition only: the signed cookie remains the sole authority. A stale
+    # tab therefore cannot write under the newer cookie's tenant or user.
+    expected_tenant = request.headers.get("X-Kova-Expected-Tenant")
+    expected_user = request.headers.get("X-Kova-Expected-User")
+    if (
+        (expected_tenant and expected_tenant != tenant_id)
+        or (expected_user and expected_user != user_id)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="La sesión cambió. Verifica el negocio activo e inténtalo de nuevo.",
+            headers={"X-Kova-Identity-Mismatch": "true"},
+        )
 
     # Establish the RLS tenant context BEFORE any tenant-scoped read. The tenant
     # id comes from the signed access token, so it is trusted. The runtime app

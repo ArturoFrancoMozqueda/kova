@@ -1,5 +1,7 @@
 """Auth flow integration tests (Sprint 0B)."""
 
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 
 from app.catalog.models import Product
@@ -259,6 +261,53 @@ def test_session_probe_returns_user_and_tenant_when_authenticated(client):
         "fiscal_global_drafts": True,
     }
     assert body["tenant_name"] == "Acme Bakery"
+
+
+def test_stale_tab_identity_precondition_blocks_mutation(client):
+    signup_and_login(client, email="identity-precondition@example.com")
+    session = client.get("/api/v1/auth/session").json()
+
+    response = client.post(
+        "/api/v1/catalog/categories",
+        headers={
+            "Idempotency-Key": "stale-tab-category",
+            "X-Kova-Expected-Tenant": str(uuid4()),
+            "X-Kova-Expected-User": session["user"]["id"],
+        },
+        json={"name": "No debe crearse"},
+    )
+
+    assert response.status_code == 409
+    assert response.headers["X-Kova-Identity-Mismatch"] == "true"
+    assert "X-Kova-Identity-Mismatch" in response.headers["Access-Control-Expose-Headers"]
+
+    stale_user = client.post(
+        "/api/v1/catalog/categories",
+        headers={
+            "Idempotency-Key": "stale-user-category",
+            "X-Kova-Expected-Tenant": session["tenant_id"],
+            "X-Kova-Expected-User": str(uuid4()),
+        },
+        json={"name": "Tampoco debe crearse"},
+    )
+    assert stale_user.status_code == 409
+    assert stale_user.headers["X-Kova-Identity-Mismatch"] == "true"
+    assert client.get("/api/v1/catalog/categories").json() == []
+
+    preflight = client.options(
+        "/api/v1/catalog/categories",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": (
+                "x-kova-expected-tenant,x-kova-expected-user,idempotency-key"
+            ),
+        },
+    )
+    assert preflight.status_code == 200
+    allowed_headers = preflight.headers["Access-Control-Allow-Headers"].lower()
+    assert "x-kova-expected-tenant" in allowed_headers
+    assert "x-kova-expected-user" in allowed_headers
 
 
 # ── Refresh ───────────────────────────────────────────────────────────────────
