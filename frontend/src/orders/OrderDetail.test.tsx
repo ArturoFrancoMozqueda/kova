@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { invalidateBillingSubscription } from "@/billing/api";
 
@@ -136,6 +136,16 @@ afterEach(() => {
   vi.restoreAllMocks();
   window.localStorage.clear();
   window.history.pushState(null, "", "/");
+});
+
+beforeAll(async () => {
+  // This suite renders through App to exercise the real auth/permission route.
+  // Warm only the lazy modules it owns so whole-suite transform pressure does
+  // not consume the assertion timeout before the route itself starts loading.
+  await Promise.all([
+    import("../layout/AppShell"),
+    import("./OrderDetail"),
+  ]);
 });
 
 describe("OrderDetail", () => {
