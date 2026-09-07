@@ -137,6 +137,7 @@ def _provision_kova_app() -> None:
         )
         conn.execute(text("GRANT INSERT ON anonymous_telemetry_events TO kova_app"))
         conn.execute(text("GRANT SELECT ON tenants TO kova_app"))
+        conn.execute(text("GRANT UPDATE (name, updated_at) ON tenants TO kova_app"))
         conn.execute(text("GRANT SELECT ON users TO kova_app"))
         conn.execute(text("GRANT UPDATE (id) ON TABLE order_fiscal_snapshots TO kova_app"))
         conn.execute(
