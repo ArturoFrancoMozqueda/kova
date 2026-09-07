@@ -92,7 +92,8 @@ class WorkflowContractTests(unittest.TestCase):
                 """\
                 on:
                   workflow_dispatch:
-                permissions: {}
+                permissions:
+                  contents: read
                 env:
                   STAGING_NAME: kova-kov030-${{ github.run_id }}-${{ github.run_attempt }}
                   PRODUCTION_FLY_APP: pos-project-backend
