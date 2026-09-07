@@ -18,6 +18,7 @@ from app.audit.models import AuditLog
 from app.auth.models import Membership, User
 from app.fiscal import repository as fiscal_repo
 from app.fiscal.models import (
+    FiscalGlobalDraftAdjustment,
     FiscalGlobalDraftBatch,
     FiscalGlobalDraftSettings,
     FiscalIndividualInvoiceEvent,
@@ -27,7 +28,7 @@ from app.fiscal.models import (
 from app.fiscal.service import FISCAL_TIMEZONE, _csv_safe, resolve_period
 from app.idempotency.models import IdempotencyKey
 from app.orders import service as order_service
-from app.orders.models import InventoryMovement, Order, Payment, Refund
+from app.orders.models import InventoryMovement, Order, Payment, Refund, Void
 from app.orders.schemas import OrderCreate
 from app.tenants.models import Tenant
 
@@ -1173,3 +1174,247 @@ def test_invoice_corrections_reverse_in_later_adjustment_only_closes(
     assert included.status_code == 201, included.text
     assert included.json()["order_count"] == 0
     assert included.json()["adjustment_total_amount"] == "100.00"
+
+
+def test_late_sale_is_included_once_in_the_next_closed_period(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="late-sale")
+    _daily_settings(client)
+    product = _product(client)
+    original_day = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=4)
+    adjustment_day = original_day + timedelta(days=1)
+
+    on_time_sale = _sale(client, product["id"])
+    _set_sale_day(db, on_time_sale["id"], original_day)
+    original = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "late-sale-origin"},
+        json={"period_end": original_day.isoformat()},
+    )
+    assert original.status_code == 201, original.text
+
+    late_sale = _sale(client, product["id"])
+    late_order = db.get(Order, UUID(late_sale["id"]))
+    assert late_order is not None
+    late_order.occurred_at = datetime.combine(
+        original_day, datetime.min.time(), tzinfo=UTC
+    ) + timedelta(hours=12)
+    late_order.created_at = datetime.combine(
+        adjustment_day, datetime.min.time(), tzinfo=UTC
+    ) + timedelta(hours=18)
+    db.commit()
+
+    preview = client.get(
+        "/api/v1/fiscal/global-drafts/preview",
+        params={"period_end": adjustment_day.isoformat()},
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["order_count"] == 0
+    assert preview.json()["adjustment_count"] == 1
+    assert preview.json()["adjustment_total_amount"] == "100.00"
+
+    adjusted = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "late-sale-adjustment"},
+        json={"period_end": adjustment_day.isoformat()},
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    assert adjusted.json()["adjusted_net_amount"] == "100.00"
+    rows = (
+        db.query(FiscalGlobalDraftAdjustment)
+        .filter(
+            FiscalGlobalDraftAdjustment.tenant_id == tenant_id,
+            FiscalGlobalDraftAdjustment.order_id == UUID(late_sale["id"]),
+        )
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].adjustment_type == "late_inclusion"
+    assert rows[0].source_refund_id is None
+    assert rows[0].source_event_id is None
+    assert rows[0].original_batch_id == UUID(original.json()["id"])
+
+
+def test_exclusion_refund_and_reopening_move_only_the_remaining_balance(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="fiscal-balance")
+    _daily_settings(client)
+    product_70 = _product(client, price="70.00")
+    product_30 = _product(client, price="30.00")
+    sale_response = client.post(
+        "/api/v1/orders",
+        headers={"Idempotency-Key": "fiscal-balance-sale"},
+        json={
+            "items": [
+                {"product_id": product_70["id"], "quantity": 1},
+                {"product_id": product_30["id"], "quantity": 1},
+            ],
+            "payments": [{"method": "bank_transfer", "amount": "100.00"}],
+        },
+    )
+    assert sale_response.status_code == 201, sale_response.text
+    sale = sale_response.json()
+    original_day = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=6)
+    excluded_day = original_day + timedelta(days=1)
+    refunded_day = original_day + timedelta(days=2)
+    reopened_day = original_day + timedelta(days=3)
+    _set_sale_day(db, sale["id"], original_day)
+    original = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "fiscal-balance-origin"},
+        json={"period_end": original_day.isoformat()},
+    )
+    assert original.status_code == 201, original.text
+    assert original.json()["adjusted_net_amount"] == "100.00"
+
+    membership = db.query(Membership).filter(Membership.tenant_id == tenant_id).one()
+    db.add(
+        FiscalIndividualInvoiceEvent(
+            tenant_id=tenant_id,
+            order_id=UUID(sale["id"]),
+            status="confirmed",
+            external_reference="CFDI-SALDO",
+            issued_at=datetime.combine(excluded_day, datetime.min.time(), tzinfo=UTC),
+            created_by_user_id=membership.user_id,
+            created_at=datetime.combine(excluded_day, datetime.min.time(), tzinfo=UTC)
+            + timedelta(hours=18),
+        )
+    )
+    db.commit()
+    excluded = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "fiscal-balance-exclude"},
+        json={"period_end": excluded_day.isoformat()},
+    )
+    assert excluded.status_code == 201, excluded.text
+    assert excluded.json()["adjustment_total_amount"] == "-100.00"
+
+    item_30 = next(
+        item for item in sale["items"] if Decimal(item["unit_price_amount"]) == Decimal("30.00")
+    )
+    refunded = client.post(
+        f"/api/v1/orders/{sale['id']}/refunds",
+        headers={"Idempotency-Key": "fiscal-balance-refund"},
+        json={
+            "items": [{"order_item_id": item_30["id"], "quantity": 1}],
+            "reason": "customer_return",
+            "refund_payment_method": "bank_transfer",
+        },
+    )
+    assert refunded.status_code == 201, refunded.text
+    refund_row = db.get(Refund, UUID(refunded.json()["id"]))
+    assert refund_row is not None
+    refund_row.created_at = datetime.combine(
+        refunded_day, datetime.min.time(), tzinfo=UTC
+    ) + timedelta(hours=18)
+    db.commit()
+    refund_close = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "fiscal-balance-refund-close"},
+        json={"period_end": refunded_day.isoformat()},
+    )
+    assert refund_close.status_code == 201, refund_close.text
+    assert refund_close.json()["adjustment_count"] == 1
+    assert refund_close.json()["adjustment_total_amount"] == "0.00"
+
+    db.add(
+        FiscalIndividualInvoiceEvent(
+            tenant_id=tenant_id,
+            order_id=UUID(sale["id"]),
+            status="reopened",
+            external_reference=None,
+            issued_at=None,
+            created_by_user_id=membership.user_id,
+            created_at=datetime.combine(reopened_day, datetime.min.time(), tzinfo=UTC)
+            + timedelta(hours=18),
+        )
+    )
+    db.commit()
+    reopened = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "fiscal-balance-reopen"},
+        json={"period_end": reopened_day.isoformat()},
+    )
+    assert reopened.status_code == 201, reopened.text
+    assert reopened.json()["adjustment_total_amount"] == "70.00"
+    contributions = (
+        db.query(FiscalGlobalDraftAdjustment)
+        .filter(
+            FiscalGlobalDraftAdjustment.tenant_id == tenant_id,
+            FiscalGlobalDraftAdjustment.order_id == UUID(sale["id"]),
+        )
+        .order_by(FiscalGlobalDraftAdjustment.occurred_at)
+        .all()
+    )
+    assert [(row.adjustment_type, row.amount) for row in contributions] == [
+        ("late_exclusion", Decimal("100.00")),
+        ("late_refund", Decimal("0.00")),
+        ("late_inclusion", Decimal("70.00")),
+    ]
+
+
+def test_void_after_close_reverses_the_remaining_contribution_once(
+    client, db: Session
+) -> None:
+    tenant_id = _signup_login(client, prefix="late-void")
+    _daily_settings(client)
+    product = _product(client)
+    sale = _sale(client, product["id"])
+    original_day = datetime.now(FISCAL_TIMEZONE).date() - timedelta(days=4)
+    void_day = original_day + timedelta(days=1)
+    _set_sale_day(db, sale["id"], original_day)
+    original = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "late-void-origin"},
+        json={"period_end": original_day.isoformat()},
+    )
+    assert original.status_code == 201, original.text
+
+    response = client.post(
+        f"/api/v1/orders/{sale['id']}/void",
+        headers={"Idempotency-Key": "late-void-created"},
+        json={"reason": "operator_error"},
+    )
+    assert response.status_code == 201, response.text
+    void = db.get(Void, UUID(response.json()["id"]))
+    assert void is not None
+    void.created_at = datetime.combine(void_day, datetime.min.time(), tzinfo=UTC) + timedelta(
+        hours=18
+    )
+    db.commit()
+
+    adjusted = client.post(
+        "/api/v1/fiscal/global-drafts/close",
+        headers={"Idempotency-Key": "late-void-adjustment"},
+        json={"period_end": void_day.isoformat()},
+    )
+    assert adjusted.status_code == 201, adjusted.text
+    assert adjusted.json()["adjustment_count"] == 1
+    assert adjusted.json()["adjustment_total_amount"] == "-100.00"
+    row = (
+        db.query(FiscalGlobalDraftAdjustment)
+        .filter(
+            FiscalGlobalDraftAdjustment.tenant_id == tenant_id,
+            FiscalGlobalDraftAdjustment.order_id == UUID(sale["id"]),
+        )
+        .one()
+    )
+    assert row.adjustment_type == "late_void"
+    assert row.amount == Decimal("100.00")
+    assert row.original_batch_id == UUID(original.json()["id"])
+    package = client.get(
+        f"/api/v1/fiscal/global-drafts/batches/{adjusted.json()['id']}"
+        "/accountant-package.zip"
+    )
+    assert package.status_code == 200, package.text
+    with zipfile.ZipFile(io.BytesIO(package.content)) as archive:
+        adjustments = list(
+            csv.DictReader(
+                io.StringIO(archive.read("ajustes.csv").decode("utf-8-sig"))
+            )
+        )
+    assert len(adjustments) == 1
+    assert adjustments[0]["tipo_ajuste"] == "LATE_VOID"
+    assert adjustments[0]["importe_ajuste"] == "-100.00"

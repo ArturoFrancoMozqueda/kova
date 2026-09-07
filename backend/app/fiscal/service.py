@@ -155,7 +155,8 @@ def _signed_adjustment_total(adjustments: list[dict]) -> Decimal:
         sum(
             (
                 -row["amount"]
-                if row["adjustment_type"] in {"late_refund", "late_exclusion"}
+                if row["adjustment_type"]
+                in {"late_refund", "late_exclusion", "late_void"}
                 else row["amount"]
                 for row in adjustments
             ),
@@ -774,7 +775,8 @@ def accountant_package_zip(
         sum(
             (
                 -row.amount
-                if row.adjustment_type in {"late_refund", "late_exclusion"}
+                if row.adjustment_type
+                in {"late_refund", "late_exclusion", "late_void"}
                 else row.amount
                 for row in adjustments
             ),
@@ -892,7 +894,8 @@ def accountant_package_zip(
                 row.original_batch_id,
                 (
                     -row.amount
-                    if row.adjustment_type in {"late_refund", "late_exclusion"}
+                    if row.adjustment_type
+                    in {"late_refund", "late_exclusion", "late_void"}
                     else row.amount
                 ),
                 occurred_at.astimezone(FISCAL_TIMEZONE).isoformat(),
