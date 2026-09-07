@@ -121,6 +121,16 @@ def test_inventory_stock_query_count_is_constant_with_product_volume(
     )
 
     assert len(rows) == len(products)
+    assert {row["product_name"] for row in rows} == {
+        f"Producto {index:02d}" for index in range(20)
+    }
+    assert all(
+        row["stock_on_hand"] == 20
+        and row["reserved_quantity"] == 0
+        and row["available_quantity"] == 20
+        and row["is_low_stock"] is False
+        for row in rows
+    )
     assert _queries_from(statements, "products") == 1
     assert _queries_from(statements, "inventory_movements") == 1
     assert _queries_from(statements, "inventory_reservations") == 1
@@ -142,6 +152,13 @@ def test_customer_order_list_batches_stock_conflicts_across_many_orders(
     )
 
     assert len(result["items"]) == len(orders)
+    assert {row["id"] for row in result["items"]} == {order["id"] for order in orders}
+    assert all(
+        row["status"] == "confirmed"
+        and row["total_amount"] == "10.00"
+        and row["stock_conflict"] is False
+        for row in result["items"]
+    )
     assert _queries_from(statements, "inventory_movements") == 1
     assert _queries_from(statements, "inventory_reservations") == 2
 
@@ -173,6 +190,19 @@ def test_sale_and_customer_order_serialization_batch_item_modifiers(
         lambda: order_service.serialize_order(db, tenant_id=tenant_id, order=sale),
     )
     assert len(sale_body["items"]) == len(products)
+    assert sale_body["status"] == "completed"
+    assert sale_body["subtotal_amount"] == "80.00"
+    assert sale_body["total_amount"] == "80.00"
+    assert {item["product_id"] for item in sale_body["items"]} == set(product_ids)
+    assert all(
+        item["quantity"] == 1
+        and item["unit_price_amount"] == "10.00"
+        and item["line_total_amount"] == "10.00"
+        and item["modifiers"] == []
+        for item in sale_body["items"]
+    )
+    assert [payment["method"] for payment in sale_body["payments"]] == ["bank_transfer"]
+    assert sale_body["payments"][0]["amount_amount"] == "80.00"
     assert _queries_from(sale_statements, "order_items") == 1
     assert _queries_from(sale_statements, "payments") == 1
     assert _queries_from(sale_statements, "order_item_modifiers") == 1
@@ -185,6 +215,17 @@ def test_sale_and_customer_order_serialization_batch_item_modifiers(
         ),
     )
     assert len(customer_body["items"]) == len(products)
+    assert customer_body["status"] == "new"
+    assert customer_body["subtotal_amount"] == "80.00"
+    assert customer_body["total_amount"] == "80.00"
+    assert {item["product_id"] for item in customer_body["items"]} == set(product_ids)
+    assert all(
+        item["quantity"] == 1
+        and item["unit_price_amount"] == "10.00"
+        and item["line_total_amount"] == "10.00"
+        and item["modifiers"] == []
+        for item in customer_body["items"]
+    )
     assert _queries_from(customer_statements, "customer_order_items") == 1
     assert _queries_from(customer_statements, "customer_order_item_modifiers") == 1
 
@@ -195,5 +236,8 @@ def test_sale_and_customer_order_serialization_batch_item_modifiers(
     _, reservation_statements = _selects_during(
         db, lambda: customer_order_service._reserve_inventory(db, order=customer_model)
     )
+    assert customer_order_service.repo.active_reserved_for_products(
+        db, tenant_id=tenant_id, product_ids=[UUID(product_id) for product_id in product_ids]
+    ) == {UUID(product_id): 1 for product_id in product_ids}
     assert _queries_from(reservation_statements, "inventory_movements") == 1
     assert _queries_from(reservation_statements, "inventory_reservations") == 2
