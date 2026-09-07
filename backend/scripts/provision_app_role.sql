@@ -49,19 +49,24 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM kova_app;
 REVOKE CREATE ON SCHEMA public FROM kova_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM kova_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM kova_app;
+-- PostgreSQL's built-in PUBLIC function grant is global. A schema-scoped
+-- REVOKE cannot override it, so this statement intentionally omits IN SCHEMA.
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 -- Supabase Data API roles have no direct-table contract in Kova.
 DO
 $$
 DECLARE role_name text;
 BEGIN
-    FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
             EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', role_name);
             EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
+            EXECUTE format('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM %I', role_name);
             EXECUTE format('REVOKE CREATE ON SCHEMA public FROM %I', role_name);
             EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', role_name);
             EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', role_name);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM %I', role_name);
         END IF;
     END LOOP;
 END
@@ -69,6 +74,41 @@ $$;
 
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;
+
+-- Supabase owns provider-created objects as `supabase_admin`. Its managed
+-- defaults historically granted Data API roles access to every new object,
+-- independently from the defaults of the `postgres` migration owner above.
+-- Kova has no direct Data API contract, so close that future-object path too.
+DO
+$$
+DECLARE role_name text;
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin')
+       AND pg_has_role(current_user, 'supabase_admin', 'USAGE') THEN
+        FOREACH role_name IN ARRAY ARRAY['anon', 'authenticated', 'service_role'] LOOP
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON TABLES FROM %I',
+                    role_name
+                );
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I',
+                    role_name
+                );
+                EXECUTE format(
+                    'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM %I',
+                    role_name
+                );
+            END IF;
+        END LOOP;
+        ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin
+            REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+    ELSIF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN
+        RAISE NOTICE 'supabase_admin defaults require the Data API exposure setting to be disabled in the Supabase dashboard';
+    END IF;
+END
+$$;
 
 -- 5. Explicit runtime matrix. Missing tables are skipped for compatibility
 -- with databases intentionally stopped at an older migration revision.

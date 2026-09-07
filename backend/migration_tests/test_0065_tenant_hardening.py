@@ -430,6 +430,7 @@ def _temporary_database():
     admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
     engine = None
     role_created = False
+    managed_owner_role_created = False
     data_api_roles_created: list[str] = []
     try:
         with admin_engine.connect() as conn:
@@ -443,15 +444,46 @@ def _temporary_database():
                         "NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE"
                     )
                 )
-            for role_name in ("anon", "authenticated"):
+            for role_name in ("anon", "authenticated", "service_role"):
                 if not conn.scalar(
                     text("SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :role)"),
                     {"role": role_name},
                 ):
                     conn.execute(text(f"CREATE ROLE {role_name} NOLOGIN"))
                     data_api_roles_created.append(role_name)
+            managed_owner_role_created = not conn.scalar(
+                text("SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin')")
+            )
+            if managed_owner_role_created:
+                conn.execute(text("CREATE ROLE supabase_admin NOLOGIN"))
             conn.execute(text(f'CREATE DATABASE "{database_name}"'))
         engine = create_engine(test_url)
+        with engine.begin() as conn:
+            conn.execute(text("GRANT CREATE, USAGE ON SCHEMA public TO supabase_admin"))
+            conn.execute(
+                text(
+                    "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public "
+                    "GRANT ALL ON TABLES TO anon, authenticated, service_role"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public "
+                    "GRANT ALL ON SEQUENCES TO anon, authenticated, service_role"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin "
+                    "GRANT EXECUTE ON FUNCTIONS TO PUBLIC"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public "
+                    "GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role"
+                )
+            )
         yield test_url, engine
     finally:
         if engine is not None:
@@ -469,6 +501,8 @@ def _temporary_database():
                 conn.execute(text("DROP ROLE IF EXISTS kova_app"))
             for role_name in reversed(data_api_roles_created):
                 conn.execute(text(f"DROP ROLE IF EXISTS {role_name}"))
+            if managed_owner_role_created:
+                conn.execute(text("DROP ROLE IF EXISTS supabase_admin"))
         admin_engine.dispose()
 
 
@@ -726,6 +760,33 @@ def test_fresh_upgrade_and_reprovision_keep_internal_tables_private() -> None:
             assert not conn.scalar(
                 text("SELECT has_table_privilege('kova_app', 'future_sensitive', 'SELECT')")
             )
+
+            # Supabase owns provider-created objects as supabase_admin. Re-running
+            # provisioning must neutralize its managed Data API defaults too.
+            conn.execute(text("SET ROLE supabase_admin"))
+            conn.execute(text("CREATE TABLE future_supabase_sensitive (id integer)"))
+            conn.execute(
+                text(
+                    "CREATE FUNCTION future_supabase_sensitive_fn() RETURNS integer "
+                    "LANGUAGE sql AS 'SELECT 1'"
+                )
+            )
+            conn.execute(text("RESET ROLE"))
+            for role_name in ("anon", "authenticated", "service_role"):
+                assert not conn.scalar(
+                    text(
+                        "SELECT has_table_privilege("
+                        ":role, 'future_supabase_sensitive', 'SELECT')"
+                    ),
+                    {"role": role_name},
+                )
+                assert not conn.scalar(
+                    text(
+                        "SELECT has_function_privilege("
+                        ":role, 'future_supabase_sensitive_fn()', 'EXECUTE')"
+                    ),
+                    {"role": role_name},
+                )
 
         runtime = _app_engine(url)
         try:
