@@ -1,0 +1,140 @@
+name: KOV-005 Stripe sandbox drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledgement:
+        description: Type KOV-005-STRIPE-SANDBOX-ONLY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kov-005-stripe-sandbox-drill
+  cancel-in-progress: false
+
+jobs:
+  stripe-sandbox:
+    name: Checkout and temporal convergence
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: stripe-sandbox
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pos
+          POSTGRES_DB: pos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pos -d pos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      APP_ENV: local
+      DATABASE_URL: postgresql+psycopg://pos:pos@127.0.0.1:5432/pos
+      APP_DATABASE_URL: postgresql+psycopg://pos:pos@127.0.0.1:5432/pos
+      MIGRATION_DATABASE_URL: postgresql+psycopg://pos:pos@127.0.0.1:5432/pos
+      FRONTEND_URL: http://127.0.0.1:5173
+      KOV005_APP_BASE_URL: http://127.0.0.1:8000
+      KOV005_EXECUTION_ENVIRONMENT: stripe-sandbox
+      KOV005_CONFIRM: ${{ inputs.acknowledgement }}
+      KOV005_STRIPE_SECRET_KEY: ${{ secrets.KOV005_STRIPE_SECRET_KEY }}
+      KOV005_STRIPE_STANDARD_PRICE_ID: ${{ secrets.KOV005_STRIPE_STANDARD_PRICE_ID }}
+      KOV005_STRIPE_ACCOUNT_ID: ${{ vars.KOV005_STRIPE_ACCOUNT_ID }}
+      KOV005_EVIDENCE_PATH: ${{ runner.temp }}/kov-005-stripe-sandbox-evidence.md
+      KOV005_CLEANUP_PATH: ${{ runner.temp }}/kov-005-stripe-sandbox-cleanup.json
+      STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION: "false"
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: astral-sh/setup-uv@b75a909f75acd358c2196fb9a5f1299a9a8868a4 # v7
+        with:
+          version: "0.9.7"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Validate isolated execution request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$KOV005_CONFIRM" != "KOV-005-STRIPE-SANDBOX-ONLY" ]]; then
+            echo "::error::The acknowledgement must exactly match KOV-005-STRIPE-SANDBOX-ONLY."
+            exit 1
+          fi
+          case "$KOV005_STRIPE_SECRET_KEY" in
+            sk_test_*|rk_test_*) ;;
+            *) echo "::error::KOV005_STRIPE_SECRET_KEY is not a Stripe test-mode key."; exit 1 ;;
+          esac
+          test -n "$KOV005_STRIPE_STANDARD_PRICE_ID"
+          test -n "$KOV005_STRIPE_ACCOUNT_ID"
+          uv run --project backend python backend/scripts/stripe_sandbox_drill.py --validate-only
+
+      - name: Install locked application dependencies
+        run: |
+          uv sync --project backend --frozen
+          npm ci --prefix frontend
+          npx --prefix frontend playwright install --with-deps chromium
+
+      - name: Install pinned Stripe CLI
+        shell: bash
+        env:
+          STRIPE_CLI_VERSION: "1.50.10"
+        run: |
+          set -euo pipefail
+          base="https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_CLI_VERSION}"
+          archive="stripe_${STRIPE_CLI_VERSION}_linux_x86_64.tar.gz"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive" "$base/$archive"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/checksums.txt" "$base/stripe-linux-checksums.txt"
+          expected="$(awk -v file="$archive" '$2 == file {print $1}' "$RUNNER_TEMP/checksums.txt")"
+          actual="$(sha256sum "$RUNNER_TEMP/$archive" | cut -d' ' -f1)"
+          test -n "$expected"
+          test "$actual" = "$expected"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" stripe
+          mkdir -p "$RUNNER_TEMP/bin"
+          install "$RUNNER_TEMP/stripe" "$RUNNER_TEMP/bin/stripe"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Apply migrations to ephemeral PostgreSQL
+        run: uv run alembic upgrade head
+        working-directory: backend
+
+      - name: Run Stripe Sandbox drill
+        env:
+          STRIPE_API_KEY: ${{ secrets.KOV005_STRIPE_SECRET_KEY }}
+        run: uv run --project backend python backend/scripts/stripe_sandbox_drill.py
+
+      - name: Upload redacted evidence
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kov-005-stripe-sandbox-${{ github.sha }}
+          path: ${{ runner.temp }}/kov-005-stripe-sandbox-evidence.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Retry Stripe Sandbox cleanup
+        if: always()
+        run: uv run --project backend python backend/scripts/stripe_sandbox_drill.py --cleanup-only
+
+      - name: Remove transient Stripe material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP"/stripe "$RUNNER_TEMP"/bin/stripe
+          rm -f "$RUNNER_TEMP"/stripe_*.tar.gz "$RUNNER_TEMP"/checksums.txt
+          rm -f "$RUNNER_TEMP"/kov005-checkout-*.json
+          rm -f "$KOV005_CLEANUP_PATH"
