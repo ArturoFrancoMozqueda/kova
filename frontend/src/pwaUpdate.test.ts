@@ -78,7 +78,31 @@ describe("PWA update helpers", () => {
     expect(isReloadSafePath("/orders/order-1")).toBe(false);
     expect(isReloadSafePath("/orders/order-1/")).toBe(false);
     expect(isReloadSafePath("/orders")).toBe(true);
-    expect(isReloadSafePath("/signup")).toBe(true);
+    expect(isReloadSafePath("/dashboard")).toBe(true);
+  });
+
+  it("defers reloads on every route that owns a form or mutation intent", () => {
+    for (const path of [
+      "/catalog",
+      "/inventory",
+      "/expenses",
+      "/pedidos",
+      "/pedidos/nuevo",
+      "/pedidos/order-1/editar",
+      "/shifts",
+      "/settings/business-profile",
+      "/internal/ops/incidents",
+      "/login",
+      "/signup",
+      "/verify-email?token=secret",
+      "/accept-invite",
+      "/forgot-password",
+      "/reset-password",
+    ]) {
+      expect(isReloadSafePath(path), path).toBe(false);
+    }
+    expect(isReloadSafePath("/dashboard")).toBe(true);
+    expect(isReloadSafePath("/orders")).toBe(true);
   });
 
   it("uses the same safe-point guard before every PWA update action", async () => {
