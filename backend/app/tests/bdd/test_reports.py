@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from pytest_bdd import given, scenario, then, when
 
 from app.auth.models import Membership, User
-from app.orders.models import Order
+from app.orders.models import Order, Refund
 
 
 @scenario("../../../../specs/reports/reports.feature", "Manager views a sales range summary")
@@ -36,6 +36,14 @@ def test_manager_views_employee_sales_performance():
 
 @scenario("../../../../specs/reports/reports.feature", "Manager views refund reasons")
 def test_manager_views_refund_reasons():
+    pass
+
+
+@scenario(
+    "../../../../specs/reports/reports.feature",
+    "Refund after sale stays attributed to sale cohort",
+)
+def test_refund_after_sale_stays_attributed_to_sale_cohort():
     pass
 
 
@@ -343,6 +351,53 @@ def manager_with_refund_reasons(client):
 
 
 @given(
+    "an authenticated manager with a sale and its refund on consecutive local dates",
+    target_fixture="reports_context",
+)
+def manager_with_cross_period_refund(client, db):
+    suffix = uuid4().hex
+    _signup_verify_login(
+        client, f"reports-cohort-{suffix}@example.com", "Reports Cohort Tenant"
+    )
+    _open_shift(client)
+    product = _create_product(client, name="Venta de cohorte", price="100.00")
+    order = _create_order(
+        client,
+        product=product,
+        quantity=1,
+        payments=[_cash_payment("100.00")],
+    )
+    tz = ZoneInfo("America/Mexico_City")
+    sale_day = datetime.now(tz).date() - timedelta(days=3)
+    refund_day = sale_day + timedelta(days=1)
+    sale_at = datetime.combine(sale_day, datetime.min.time(), tzinfo=tz) + timedelta(
+        hours=23, minutes=50
+    )
+    _set_order_created_at(db, order["id"], sale_at.astimezone(UTC))
+    response = client.post(
+        f"/api/v1/orders/{order['id']}/refunds",
+        headers={"Idempotency-Key": f"reports-cohort-refund-{suffix}"},
+        json={
+            "items": [{"order_item_id": order["items"][0]["id"], "quantity": 1}],
+            "reason": "customer_return",
+            "refund_payment_method": "cash",
+        },
+    )
+    assert response.status_code == 201, response.text
+    refund = db.get(Refund, UUID(response.json()["id"]))
+    assert refund is not None
+    refund.created_at = datetime.combine(
+        refund_day, datetime.min.time(), tzinfo=tz
+    ).astimezone(UTC) + timedelta(minutes=10)
+    db.commit()
+    return {
+        "client": client,
+        "sale_day": sale_day.isoformat(),
+        "refund_day": refund_day.isoformat(),
+    }
+
+
+@given(
     "an authenticated manager with sales across days, dayparts, products, payments, and corrections",
     target_fixture="reports_context",
 )
@@ -481,6 +536,27 @@ def manager_requests_refund_reasons(reports_context):
     reports_context["refunds_by_reason"] = response.json() if response.status_code == 200 else None
 
 
+@when("the manager compares sale-day and refund-day report windows")
+def manager_compares_cross_period_refund(reports_context):
+    client = reports_context["client"]
+    sale_day = reports_context["sale_day"]
+    refund_day = reports_context["refund_day"]
+
+    def get(path: str, day: str):
+        response = client.get(f"{path}?start_date={day}&end_date={day}")
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    reports_context["sale_summary"] = get("/api/v1/reports/sales-summary", sale_day)
+    reports_context["sale_reasons"] = get("/api/v1/reports/refunds-by-reason", sale_day)
+    reports_context["refund_summary"] = get(
+        "/api/v1/reports/sales-summary", refund_day
+    )
+    reports_context["refund_reasons"] = get(
+        "/api/v1/reports/refunds-by-reason", refund_day
+    )
+
+
 @when("the manager requests the business story report")
 def manager_requests_business_story(reports_context):
     query = ""
@@ -563,6 +639,29 @@ def refunds_grouped_by_reason(reports_context):
     assert Decimal(rows["customer_return"]["refunded_amount"]) == Decimal("25.00")
     assert rows["defective"]["refund_count"] == 1
     assert Decimal(rows["defective"]["refunded_amount"]) == Decimal("10.00")
+
+
+@then("refund totals and reasons reconcile to the original sale date")
+def cross_period_refund_reconciles(reports_context):
+    sale_summary = reports_context["sale_summary"]
+    assert Decimal(sale_summary["gross_sales"]) == Decimal("100.00")
+    assert Decimal(sale_summary["refund_total"]) == Decimal("100.00")
+    assert Decimal(sale_summary["net_sales"]) == Decimal("0.00")
+    assert sale_summary["refund_count"] == 1
+    assert reports_context["sale_reasons"] == [
+        {
+            "reason": "customer_return",
+            "refund_count": 1,
+            "refunded_amount": "100.00",
+        }
+    ]
+    assert Decimal(reports_context["refund_summary"]["gross_sales"]) == Decimal(
+        "0.00"
+    )
+    assert Decimal(reports_context["refund_summary"]["refund_total"]) == Decimal(
+        "0.00"
+    )
+    assert reports_context["refund_reasons"] == []
 
 
 @then(

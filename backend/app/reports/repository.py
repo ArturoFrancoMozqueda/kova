@@ -145,7 +145,12 @@ def refund_items_for_orders(
 def refunds_in_window(
     db: Session, *, tenant_id: UUID, start: datetime, end: datetime
 ) -> list:
-    """Aggregated refund rows grouped by reason."""
+    """Aggregate refunds by the sale cohort selected by the report window.
+
+    Report KPIs attribute every refund to the original sale, including a
+    refund recorded later. Reasons use the same basis so their count and amount
+    reconcile with the summary instead of silently switching to event time.
+    """
     return (
         db.query(
             Refund.reason.label("reason"),
@@ -154,10 +159,15 @@ def refunds_in_window(
                 "refunded_amount"
             ),
         )
+        .join(
+            Order,
+            (Order.tenant_id == Refund.tenant_id) & (Order.id == Refund.order_id),
+        )
         .filter(
             Refund.tenant_id == tenant_id,
-            Refund.created_at >= start,
-            Refund.created_at <= end,
+            Order.status == "completed",
+            _SALE_TIME >= start,
+            _SALE_TIME <= end,
         )
         .group_by(Refund.reason)
         .order_by(func.sum(Refund.refunded_amount).desc())

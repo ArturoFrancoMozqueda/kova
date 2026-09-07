@@ -1961,6 +1961,8 @@ export const copy = {
     refundsHideDetail: "Ocultar detalle",
     refundReasonHint:
       "Tip: registra el motivo específico al devolver en Caja para ver patrones aquí.",
+    refundPeriodBasis:
+      "Ventas y devoluciones se agrupan por la fecha de la venta original, aunque la devolución ocurra después. Las cancelaciones se cuentan cuando se registran.",
 
     // --- Team (employees) ---
     teamChartSubtitle: "Ventas netas cobradas por cada persona en la caja.",
