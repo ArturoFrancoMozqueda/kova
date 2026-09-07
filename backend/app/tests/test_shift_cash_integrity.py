@@ -5,6 +5,7 @@ from decimal import Decimal
 from threading import Event
 from uuid import UUID, uuid4
 
+from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -540,4 +541,93 @@ def test_close_waits_for_inflight_cash_refund_and_freezes_committed_total(
             assert payouts[0].amount == Decimal("25.00")
     finally:
         allow_refund_to_finish.set()
+        _cleanup_concurrent_drawer(owner_engine, tenant_id=tenant_id, user_id=user_id)
+
+
+def test_concurrent_distinct_shift_closes_persist_exactly_one_close(
+    owner_engine, monkeypatch
+) -> None:
+    context = _seed_concurrent_drawer(owner_engine)
+    tenant_id = context["tenant_id"]
+    shift_id = context["shift_id"]
+    user_id = context["user_id"]
+    first_close_holds_shift = Event()
+    allow_first_close_to_finish = Event()
+    second_attempted_shift_lock = Event()
+    original_close_shift = shift_repo.close_shift
+    original_lock_shift = shift_repo.get_shift_for_update
+
+    def pause_first_close_while_holding_shift(*args, **kwargs):
+        if not first_close_holds_shift.is_set():
+            first_close_holds_shift.set()
+            assert allow_first_close_to_finish.wait(timeout=5)
+        return original_close_shift(*args, **kwargs)
+
+    monkeypatch.setattr(shift_repo, "close_shift", pause_first_close_while_holding_shift)
+
+    def observe_second_lock_attempt(*args, **kwargs):
+        second_attempted_shift_lock.set()
+        return original_lock_shift(*args, **kwargs)
+
+    def close_drawer(idempotency_key: str) -> tuple[int, int, dict]:
+        with Session(owner_engine) as worker_db:
+            connection_id = worker_db.execute(text("SELECT pg_backend_pid()")).scalar_one()
+            try:
+                status, body = shift_service.close_shift(
+                    worker_db,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    shift_id=shift_id,
+                    body=ShiftCloseCreate(actual_cash_amount=Decimal("100.00")),
+                    idempotency_key=idempotency_key,
+                )
+                return connection_id, status, body
+            except HTTPException as exc:
+                worker_db.rollback()
+                return connection_id, exc.status_code, {"detail": exc.detail}
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first_future = pool.submit(close_drawer, f"first-close-{uuid4().hex}")
+            assert first_close_holds_shift.wait(timeout=5)
+            monkeypatch.setattr(
+                shift_repo,
+                "get_shift_for_update",
+                observe_second_lock_attempt,
+            )
+            second_future = pool.submit(close_drawer, f"second-close-{uuid4().hex}")
+            assert second_attempted_shift_lock.wait(timeout=5)
+            _assert_still_waiting(second_future, operation="first shift close")
+
+            allow_first_close_to_finish.set()
+            outcomes = (
+                first_future.result(timeout=5),
+                second_future.result(timeout=5),
+            )
+
+        connection_ids = {connection_id for connection_id, _, _ in outcomes}
+        statuses = sorted(status for _, status, _ in outcomes)
+        rejected = next(body for _, status, body in outcomes if status == 400)
+        assert len(connection_ids) == 2
+        assert statuses == [201, 400]
+        assert rejected == {"detail": "Shift is already closed"}
+
+        with Session(owner_engine) as check:
+            persisted = check.get(Shift, shift_id)
+            close_audits = (
+                check.query(AuditLog)
+                .filter_by(tenant_id=tenant_id, action="shifts.close")
+                .all()
+            )
+            close_keys = check.query(IdempotencyKey).filter_by(tenant_id=tenant_id).all()
+            assert persisted is not None
+            assert persisted.status == "closed"
+            assert persisted.expected_cash_amount == Decimal("100.00")
+            assert persisted.actual_cash_amount == Decimal("100.00")
+            assert persisted.variance_amount == Decimal("0.00")
+            assert len(close_audits) == 1
+            assert len(close_keys) == 1
+            assert close_keys[0].response_status == 201
+    finally:
+        allow_first_close_to_finish.set()
         _cleanup_concurrent_drawer(owner_engine, tenant_id=tenant_id, user_id=user_id)
