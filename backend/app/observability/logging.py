@@ -1,7 +1,9 @@
 import contextvars
 import json
 import logging
+import re
 import time
+import traceback
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -19,6 +21,45 @@ tenant_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 )
 user_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("user_id", default=None)
 
+_EMAIL_PATTERN = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+_CREDENTIAL_URL_PATTERN = re.compile(
+    r"(?P<scheme>\b[a-z][a-z0-9+.-]*://)[^\s/@:]+:[^\s/@]+@",
+    re.IGNORECASE,
+)
+_SECRET_ASSIGNMENT_PATTERN = re.compile(
+    r"(?P<key>\b(?:token|password|secret|api[_-]?key|authorization|cookie)\b)"
+    r"(?P<separator>\s*[:=]\s*)[^\s,;&]+",
+    re.IGNORECASE,
+)
+
+
+def redact_sensitive_text(value: str) -> str:
+    """Best-effort redaction for ordinary log messages.
+
+    Exception messages are excluded entirely below because database drivers may
+    place complete row values in DETAIL fields that cannot be safely parsed.
+    """
+    redacted = _EMAIL_PATTERN.sub("[redacted-email]", value)
+    redacted = _CREDENTIAL_URL_PATTERN.sub(r"\g<scheme>[redacted]@", redacted)
+    return _SECRET_ASSIGNMENT_PATTERN.sub(
+        lambda match: f"{match.group('key')}{match.group('separator')}[redacted]",
+        redacted,
+    )
+
+
+def _safe_exception(record: logging.LogRecord) -> dict[str, Any]:
+    exc_type, _exc_value, exc_traceback = record.exc_info or (None, None, None)
+    frames = []
+    if exc_traceback is not None:
+        frames = [
+            {"file": frame.filename, "line": frame.lineno, "function": frame.name}
+            for frame in traceback.extract_tb(exc_traceback)
+        ]
+    return {
+        "type": exc_type.__name__ if exc_type is not None else "Exception",
+        "frames": frames,
+    }
+
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -26,7 +67,7 @@ class JsonFormatter(logging.Formatter):
             "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": redact_sensitive_text(record.getMessage()),
             "request_id": request_id_var.get(),
             "tenant_id": tenant_id_var.get(),
             "user_id": user_id_var.get(),
@@ -36,7 +77,7 @@ class JsonFormatter(logging.Formatter):
             if value is not None:
                 payload[key] = value
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
+            payload["exception"] = _safe_exception(record)
         return json.dumps(payload, default=str, separators=(",", ":"))
 
 

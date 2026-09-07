@@ -106,6 +106,7 @@ def test_sentry_enrichment_sets_release_and_tags(monkeypatch):
     sentry_mod.init_sentry()
     assert captured["release"] == "deadbeef"
     assert captured["send_default_pii"] is False
+    assert captured["before_send"] is sentry_mod.sanitize_sentry_event
 
     tags = {}
     monkeypatch.setattr(

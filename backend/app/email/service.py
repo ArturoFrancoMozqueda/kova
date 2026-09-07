@@ -14,7 +14,7 @@ def _enabled() -> bool:
 
 def _send(*, to: str, subject: str, html: str, kind: str) -> bool:
     if not _enabled():
-        logger.info("email.skip reason=no_api_key to=%s type=%s", to, kind)
+        logger.info("email.skip reason=no_api_key type=%s", kind)
         return False
     resend.api_key = settings.resend_api_key
     try:
@@ -24,10 +24,10 @@ def _send(*, to: str, subject: str, html: str, kind: str) -> bool:
             "subject": subject,
             "html": html,
         })
-        logger.info("email.sent to=%s type=%s", to, kind)
+        logger.info("email.sent type=%s", kind)
         return True
     except Exception:
-        logger.exception("email.error to=%s type=%s", to, kind)
+        logger.exception("email.error type=%s", kind)
         return False
 
 
