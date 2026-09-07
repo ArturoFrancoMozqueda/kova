@@ -103,7 +103,9 @@ describe("CustomerOrderCheckoutRegister", () => {
 
     const cash = await screen.findByLabelText("Efectivo recibido");
     fireEvent.change(cash, { target: { value: "50.00" } });
-    fireEvent.click(screen.getByRole("button", { name: /cobrar \$50\.00/i }));
+    const charge = screen.getByRole("button", { name: /cobrar \$50\.00/i });
+    await waitFor(() => expect(charge).toBeEnabled());
+    fireEvent.click(charge);
 
     expect(await screen.findByRole("heading", { name: "Pedido cobrado" })).toBeVisible();
     expect(screen.getByText(/el cobro se completó, pero el recibo no pudo cargarse/i)).toBeVisible();
@@ -122,6 +124,7 @@ describe("CustomerOrderCheckoutRegister", () => {
 
     fireEvent.change(await screen.findByLabelText("Efectivo recibido"), { target: { value: "50.00" } });
     const charge = screen.getByRole("button", { name: /cobrar \$50\.00/i });
+    await waitFor(() => expect(charge).toBeEnabled());
     fireEvent.click(charge);
     await screen.findByText("No se pudo cobrar el pedido.");
     await waitFor(() => expect(api.checkoutCustomerOrder).toHaveBeenCalledTimes(1));

@@ -52,6 +52,19 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         if marker not in ci:
             errors.append(f"contrato de concurrencia CI faltante: {marker}")
 
+    release_markers = (
+        "e2e-mocked-dev:",
+        "e2e-mocked-preview:",
+        "npm run test:e2e-preview",
+        "capture-release-state:",
+        "release-rollback-",
+        "recover-release:",
+        "frontend/scripts/release-recovery.mjs",
+    )
+    for marker in release_markers:
+        if marker not in ci:
+            errors.append(f"contrato de release recuperable faltante: {marker}")
+
     fiscal = (workflows / "fiscal-global-drafts.yml").read_text(encoding="utf-8")
     fiscal_markers = (
         'cron: "23 */6 * * *"',

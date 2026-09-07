@@ -16,21 +16,39 @@ async function getJson(url, extraHeaders = {}) {
   return { body: await response.json(), headers: response.headers };
 }
 
+async function getText(url, extraHeaders = {}) {
+  const response = await globalThis.fetch(url, {
+    headers: { "cache-control": "no-cache", ...extraHeaders },
+    redirect: "follow",
+  });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText} from ${url}`);
+  return { body: await response.text(), headers: response.headers };
+}
+
 export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendBypassSecret }) {
   const normalizedFrontend = frontendUrl.replace(/\/$/, "");
   const normalizedBackend = backendUrl.replace(/\/$/, "");
   const expectedFrontendHash = sha.slice(0, 12);
+  const frontendHeaders = frontendBypassSecret
+    ? { "x-vercel-protection-bypass": frontendBypassSecret }
+    : {};
 
-  const [frontend, backend, database] = await Promise.all([
-    getJson(
-      `${normalizedFrontend}/version.json`,
-      frontendBypassSecret
-        ? { "x-vercel-protection-bypass": frontendBypassSecret }
-        : {},
-    ),
+  const [site, frontend, backend, database, proxyBackend, proxyDatabase] = await Promise.all([
+    getText(`${normalizedFrontend}/`, frontendHeaders),
+    getJson(`${normalizedFrontend}/version.json`, frontendHeaders),
     getJson(`${normalizedBackend}/health`),
     getJson(`${normalizedBackend}/health/db`),
+    getJson(`${normalizedFrontend}/api/health`, frontendHeaders),
+    getJson(`${normalizedFrontend}/api/health/db`, frontendHeaders),
   ]);
+
+  if (
+    !site.headers.get("content-type")?.includes("text/html") ||
+    !/<html[\s>]/i.test(site.body) ||
+    !site.body.includes("Kova")
+  ) {
+    throw new Error("Frontend site contract failed");
+  }
 
   if (frontend.body.hash !== expectedFrontendHash) {
     throw new Error(
@@ -45,11 +63,21 @@ export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendB
   if (backend.body.status !== "ok" || database.body.status !== "ok" || database.body.db !== "reachable") {
     throw new Error("Backend health contract failed");
   }
+  if (
+    proxyBackend.body.release_sha !== sha ||
+    proxyBackend.body.status !== "ok" ||
+    proxyDatabase.body.status !== "ok" ||
+    proxyDatabase.body.db !== "reachable"
+  ) {
+    throw new Error("Frontend API proxy health contract failed");
+  }
 
   return {
     commit: sha,
     frontend: normalizedFrontend,
     backend: normalizedBackend,
+    site: "reachable",
+    proxy: "reachable",
     database: "reachable",
   };
 }

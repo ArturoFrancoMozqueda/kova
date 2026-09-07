@@ -121,11 +121,14 @@ steps below are recovery/reference steps only; do not run them in parallel with 
 
 ### Automated release gate
 
-The release graph is: named checks (`integration`, `e2e-mocked`, dependency/secret checks) â†’
-migration reversibility â†’ Fly deploy plus an unpromoted Vercel production candidate â†’ exact-commit
-health/read-only verification â†’ promotion of the already-tested Vercel artifact â†’ final alias
-verification. Fly receives `KOVA_RELEASE_SHA` at image build time and
-`/health` exposes it; Vercel's `version.json` exposes the first 12 characters of the same SHA.
+The release graph is: named checks (`integration`, mocked E2E against both Vite dev and the built
+preview, dependency/secret checks) → migration reversibility → capture and verify the currently
+serving Fly image, Vercel deployment and release SHA → Fly deploy plus an unpromoted Vercel
+production candidate → candidate verification → promotion of the already-tested Vercel artifact →
+acceptance on the production alias. Fly receives `KOVA_RELEASE_SHA` at image build time and
+`/health` exposes it; Vercel's `version.json` exposes the first 12 characters of the same SHA. Both
+candidate and acceptance verification also fetch the public HTML and the frontend's `/api/health`
+and `/api/health/db` proxy paths.
 
 Configure a protected GitHub `production` environment with required reviewers and these secrets:
 
@@ -137,10 +140,24 @@ credentials are never stored in GitHub Actions and CI does not create tenants, s
 `VERCEL_TOKEN` must be renewed no later than **2027-08-14**; never record its value in this document.
 
 `frontend/vercel.json` sets `git.deploymentEnabled` to `false`, so connected Git cannot race the
-tested candidate or its CI-controlled promotion. Keep credentials only in the protected environment. A failed
-post-deploy gate prevents Vercel promotion and restores Fly's exact pre-deploy image when it was
-captured successfully. If image capture is empty, stop and use `fly releases` plus
-`fly deploy --image <previous-image>`; never guess an image or roll back a destructive migration.
+tested candidate or its CI-controlled promotion. Keep credentials only in the protected environment.
+Before any deployment, CI persists `release-rollback-<sha>` with the exact prior Fly image, immutable
+Vercel deployment URL and coherent release SHA. Empty or inconsistent capture fails before a
+candidate is created.
+
+Recovery is selected by the last phase reached:
+
+- **candidate:** production Vercel was not promoted, so restore only the exact prior Fly image;
+- **promotion:** the alias change may have partially completed, so restore the captured Vercel
+  deployment first and then Fly;
+- **acceptance:** both new artifacts were serving, so restore both in the same order.
+
+`frontend/scripts/release-recovery.mjs` validates the complete artifact before the first provider
+command and verifies the restored site, direct backend, database and frontend API proxy against the
+prior SHA. `RECOVERY_BLOCKED` is an explicit incident: stop the release, keep the serialized release
+queue blocked and inspect the provider state. Never guess an image/deployment or automatically
+downgrade the database; production migrations must remain backward compatible with the captured
+application artifacts.
 
 If a manual sale is explicitly authorized, use a unique traceable reference. Do not delete or void
 the ledger entry automatically because that would create misleading accounting history.
@@ -156,9 +173,17 @@ the ledger entry automatically because that would create misleading accounting h
 
 ## Rollback
 
-- **Backend:** `fly releases` → `fly deploy --image <previous-tag>`.
+- **Coordinated release:** use the `release-rollback-<sha>` artifact from the failed workflow and the
+  phase-aware recovery job. A missing artifact is a blocking incident, not permission to infer a
+  target from “latest”.
+- **Backend:** `fly releases` → `fly deploy --image <previous-tag> --skip-release-command` only for a
+  separately reviewed manual incident recovery.
 - **Database (Supabase):** every migration in `backend/alembic/versions/` must implement `downgrade()`. CI's `migrations` job verifies up→down→up reversibility on every PR. To roll a migration back in staging: `alembic downgrade -1` against the staging `DATABASE_URL`. Do **not** roll back destructive migrations in production without a tested data-preservation plan. Supabase also provides point-in-time recovery on paid plans — confirm the plan/retention before relying on it.
-- **Frontend:** Vercel "Promote previous deployment" button.
+- **Frontend:** promote the exact captured deployment URL; do not select an unverified build by age.
+
+The repository tests exercise recovery with fake providers. A supervised staging release must still
+prove the real Fly/Vercel credentials, artifact retention/download and provider commands before this
+operational gate can be considered closed.
 
 ## Backups
 

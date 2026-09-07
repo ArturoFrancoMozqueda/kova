@@ -6,7 +6,11 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 
 export default [
-  { ignores: ["dist", "dist-server", "node_modules", "coverage"] },
+  {
+    // Playwright owns and recreates these generated directories while suites
+    // run. ESLint must not traverse an output tree that may disappear mid-scan.
+    ignores: ["dist", "dist-server", "node_modules", "coverage", "test-results", "playwright-report"],
+  },
   js.configs.recommended,
   // Node globals for config files (vite.config.ts, tailwind.config.js, postcss.config.js)
   // and build scripts (scripts/*.mjs, e.g. the prerender postbuild step).

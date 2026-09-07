@@ -35,6 +35,13 @@ class WorkflowContractTests(unittest.TestCase):
                 concurrency:
                   group: {ci_group}
                   cancel-in-progress: ${{{{ github.event_name == 'pull_request' }}}}
+                e2e-mocked-dev:
+                e2e-mocked-preview:
+                  run: npm run test:e2e-preview
+                capture-release-state:
+                  artifact: release-rollback-
+                recover-release:
+                  run: node frontend/scripts/release-recovery.mjs
                 """
             ),
             encoding="utf-8",
@@ -118,6 +125,22 @@ class WorkflowContractTests(unittest.TestCase):
             )
             errors = OPS.workflow_contract_errors(workflows)
         self.assertIn("scheduler fiscal intenta imprimir INTERNAL_API_KEY", errors)
+
+    def test_rejects_release_without_phase_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workflows = self._workflows(directory)
+            ci = workflows.joinpath("ci.yml")
+            ci.write_text(
+                ci.read_text(encoding="utf-8").replace(
+                    "recover-release:", "recovery-removed:"
+                ),
+                encoding="utf-8",
+            )
+            errors = OPS.workflow_contract_errors(workflows)
+        self.assertIn(
+            "contrato de release recuperable faltante: recover-release:",
+            errors,
+        )
 
 
 class RestorePreflightTests(unittest.TestCase):
