@@ -204,6 +204,24 @@ def _existing_snapshots(
     }
 
 
+def _lock_products_for_update(
+    db: Session, *, tenant_id: UUID, product_ids: set[UUID]
+) -> dict[UUID, Product]:
+    """Lock every referenced product once in a deterministic order."""
+    products: dict[UUID, Product] = {}
+    for product_id in sorted(product_ids, key=lambda value: value.int):
+        product = (
+            db.query(Product)
+            .filter(Product.tenant_id == tenant_id, Product.id == product_id)
+            .with_for_update()
+            .first()
+        )
+        if not product:
+            raise not_found("Producto no encontrado")
+        products[product.id] = product
+    return products
+
+
 def _replace_items(
     db: Session,
     *,
@@ -214,6 +232,11 @@ def _replace_items(
 ) -> None:
     existing = (
         _existing_snapshots(db, tenant_id=tenant_id, order_id=order.id) if preserve_existing else {}
+    )
+    products = _lock_products_for_update(
+        db,
+        tenant_id=tenant_id,
+        product_ids={requested.product_id for requested in requested_items},
     )
     seen_existing: set[UUID] = set()
     prepared: list[tuple[Product, str, int, Decimal, str | None, list[dict[str, Any]]]] = []
@@ -228,14 +251,7 @@ def _replace_items(
         if existing_id:
             seen_existing.add(existing_id)
 
-        product = (
-            db.query(Product)
-            .filter(Product.tenant_id == tenant_id, Product.id == requested.product_id)
-            .with_for_update()
-            .first()
-        )
-        if not product:
-            raise not_found("Producto no encontrado")
+        product = products[requested.product_id]
 
         requested_options = set(requested.modifier_option_ids)
         can_preserve = False
@@ -320,18 +336,12 @@ def _reserve_inventory(db: Session, *, order: CustomerOrder) -> None:
     for item in items:
         desired[item.product_id] = desired.get(item.product_id, 0) + item.quantity
 
-    tracked: set[UUID] = set()
-    for product_id in sorted(desired, key=str):
-        product = (
-            db.query(Product)
-            .filter(Product.tenant_id == order.tenant_id, Product.id == product_id)
-            .with_for_update()
-            .first()
-        )
-        if not product:
-            raise not_found("Producto no encontrado")
-        if product.track_inventory:
-            tracked.add(product.id)
+    products = _lock_products_for_update(
+        db,
+        tenant_id=order.tenant_id,
+        product_ids=set(desired),
+    )
+    tracked = {product.id for product in products.values() if product.track_inventory}
 
     desired = {
         product_id: quantity
@@ -819,6 +829,14 @@ def checkout_customer_order(
             422, "OUT_OF_STOCK", "El inventario reservado ya no alcanza para cobrar este pedido."
         )
 
+    priced_lines: list[order_service.PricedOrderLine] = []
+    quantity_by_product: dict[UUID, int] = {}
+    items = repo.list_items(db, tenant_id=tenant_id, order_id=order.id)
+    products = _lock_products_for_update(
+        db,
+        tenant_id=tenant_id,
+        product_ids={item.product_id for item in items},
+    )
     reservations = {
         reservation.product_id: reservation
         for reservation in repo.list_reservations_for_update(
@@ -826,20 +844,6 @@ def checkout_customer_order(
         )
         if reservation.status == "active"
     }
-    priced_lines: list[order_service.PricedOrderLine] = []
-    quantity_by_product: dict[UUID, int] = {}
-    items = repo.list_items(db, tenant_id=tenant_id, order_id=order.id)
-    products: dict[UUID, Product] = {}
-    for product_id in sorted({item.product_id for item in items}, key=str):
-        product = (
-            db.query(Product)
-            .filter(Product.tenant_id == tenant_id, Product.id == product_id)
-            .with_for_update()
-            .first()
-        )
-        if not product:
-            raise not_found("Producto no encontrado")
-        products[product.id] = product
 
     for item in items:
         product = products[item.product_id]
@@ -866,7 +870,8 @@ def checkout_customer_order(
         )
         if product.track_inventory:
             quantity_by_product[product.id] = quantity_by_product.get(product.id, 0) + item.quantity
-    for product_id, quantity in quantity_by_product.items():
+    for product_id in sorted(quantity_by_product, key=lambda value: value.int):
+        quantity = quantity_by_product[product_id]
         reservation = reservations.get(product_id)
         if not reservation or reservation.quantity != quantity:
             raise _error(
@@ -874,6 +879,29 @@ def checkout_customer_order(
                 "OUT_OF_STOCK",
                 "La reserva del pedido ya no es válida.",
                 product_id=str(product_id),
+            )
+        on_hand = inventory_repo.stock_on_hand(
+            db, tenant_id=tenant_id, product_id=product_id
+        )
+        total_reserved = repo.active_reserved_quantity(
+            db, tenant_id=tenant_id, product_id=product_id
+        )
+        if total_reserved > on_hand:
+            _observe(
+                "checkout_stock_conflict",
+                order=order,
+                available=max(0, on_hand - (total_reserved - quantity)),
+                reserved=total_reserved,
+                requested=quantity,
+            )
+            raise _error(
+                422,
+                "OUT_OF_STOCK",
+                "El inventario reservado ya no alcanza para cobrar este pedido.",
+                product_id=str(product_id),
+                available=max(0, on_hand - (total_reserved - quantity)),
+                reserved=total_reserved,
+                requested=quantity,
             )
 
     sale = order_service.persist_completed_order(
