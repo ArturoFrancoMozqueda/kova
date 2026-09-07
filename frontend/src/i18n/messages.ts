@@ -2153,6 +2153,11 @@ export const copy = {
     quarantineBody: (n: number) => `Hay ${n} venta${n === 1 ? "" : "s"} de una versión anterior que necesita${n === 1 ? "" : "n"} recuperación guiada.`,
     quarantineSafety: "Kova conserva estos registros sin mostrar su contenido y nunca los asignará al negocio que acaba de iniciar sesión. Contacta a soporte para verificar la propiedad y conciliarlos.",
     quarantineSupport: "Solicitar recuperación",
+    quarantineDiscard: "Eliminar después de conciliar",
+    quarantineDiscardTitle: "¿Eliminar las ventas antiguas protegidas?",
+    quarantineDiscardBody: (n: number) => `Se borrarán ${n} registro${n === 1 ? "" : "s"} sólo de este dispositivo. Hazlo únicamente después de conciliar cobros, recibos e inventario con soporte. Esta acción no se puede deshacer.`,
+    quarantineDiscardConfirm: "Eliminar registros protegidos",
+    quarantineDiscardError: "No pudimos borrar los registros locales. No compartas el dispositivo y vuelve a intentarlo.",
     quarantineIndicator: (n: number) => `${n} venta${n === 1 ? "" : "s"} protegida${n === 1 ? "" : "s"}`,
     statusAnnouncement: (pending: number, failed: number) =>
       `${pending} venta${pending === 1 ? "" : "s"} pendiente${pending === 1 ? "" : "s"}, ` +
