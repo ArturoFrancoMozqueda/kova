@@ -220,9 +220,14 @@ def preview_invitation(db: Session, *, token: str) -> dict:
 def accept_invitation(
     db: Session, *, body: InvitationAccept, ip_address: str | None = None
 ) -> MembershipInvitation:
+    # Invitation acceptance creates or reactivates tenant access. Lock the
+    # invitation before checking its state so only one transaction can consume
+    # a token. A concurrent request waits here and then observes the committed
+    # `accepted` status instead of repeating the membership side effect.
     invitation = (
         db.query(MembershipInvitation)
         .filter(MembershipInvitation.token_hash == _hash_token(body.token))
+        .with_for_update()
         .first()
     )
     if invitation is None:
