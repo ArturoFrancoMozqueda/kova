@@ -7,7 +7,7 @@ recuperarlo automáticamente sin arriesgar datos cruzados entre tenants.
 
 ## Decisión segura
 
-El operador debe contactar soporte desde **Sincronización → Ventas antiguas protegidas** y mantener
+El operador debe contactar soporte desde **Sincronización → Registros antiguos** y mantener
 el dispositivo sin compartir. Soporte registra fuera de Git cualquier dato personal y verifica:
 
 1. identidad y rol del propietario del negocio actualmente autenticado;
