@@ -75,7 +75,16 @@ def test_sentry_event_redacts_exception_request_and_customer_canaries():
             "values": [{
                 "type": "IntegrityError",
                 "value": " ".join(canaries.values()),
-                "stacktrace": {"frames": [{"filename": "service.py", "lineno": 10}]},
+                "stacktrace": {
+                    "frames": [{
+                        "filename": "service.py",
+                        "lineno": 10,
+                        "vars": {
+                            "customer_name": "PRIVATE CUSTOMER NAME CANARY",
+                            "params": ["PRIVATE PARAM CANARY"],
+                        },
+                    }]
+                },
             }]
         },
         "request": {
@@ -88,4 +97,6 @@ def test_sentry_event_redacts_exception_request_and_customer_canaries():
     rendered = json.dumps(sanitized)
     assert all(value not in rendered for value in canaries.values())
     assert sanitized["exception"]["values"][0]["type"] == "IntegrityError"
-    assert sanitized["exception"]["values"][0]["stacktrace"]["frames"]
+    frame = sanitized["exception"]["values"][0]["stacktrace"]["frames"][0]
+    assert frame["vars"] == "[redacted]"
+    assert "PRIVATE" not in rendered
