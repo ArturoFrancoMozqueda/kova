@@ -100,6 +100,7 @@ def record_movement(
     shift_id: UUID,
     body: CashMovementCreate,
     db: Session = Depends(get_db),
+    idempotency_key: str = Depends(_idempotency_key),
     ctx: tuple[User, Membership, UserSession] = Depends(
         require_commercial_access(Permission.SHIFTS_OPEN)
     ),
@@ -111,6 +112,7 @@ def record_movement(
         user_id=user.id,
         shift_id=shift_id,
         body=body,
+        idempotency_key=idempotency_key,
     )
     return response_body
 

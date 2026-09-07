@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SHIFT_CLOSE_PERMISSION,
   SHIFT_OPEN_PERMISSION,
@@ -10,7 +10,7 @@ import { formatMoney } from "../orders/format";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { cn } from "@/lib/utils";
 import { CorteTemplate } from "./CorteTemplate";
-import { resolveApiErrorMessage } from "@/lib/apiError";
+import { apiErrorStatus, resolveApiErrorMessage } from "@/lib/apiError";
 import { useBillingBlocked } from "@/billing/useBillingBlocked";
 import { trackFunnelEvent } from "@/telemetry/funnel";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -83,11 +83,18 @@ type LoadState =
 
 type ActiveModal = null | "open" | "close" | "movement";
 
+type CashMovementIntent = {
+  idempotencyKey: string;
+  payload: CashMovementPayload;
+};
+
 export default function ShiftView() {
   useDocumentTitle(copy.documentTitles.shifts);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [operationPending, setOperationPending] = useState(false);
+  const [cashMovementFieldsLocked, setCashMovementFieldsLocked] = useState(false);
+  const cashMovementIntentRef = useRef<CashMovementIntent | null>(null);
   // The shift selected for printing a corte de caja. Mounted in a print-only
   // node; the effect below fires the print dialog once it's committed, then
   // clears so a later print targets the right shift.
@@ -190,13 +197,31 @@ export default function ShiftView() {
     if (loadState.status !== "loaded" || !loadState.openShift) {
       return;
     }
+    const intent = cashMovementIntentRef.current ?? {
+      idempotencyKey: crypto.randomUUID(),
+      payload,
+    };
+    cashMovementIntentRef.current = intent;
     setOperationPending(true);
     try {
-      await recordCashMovement(loadState.openShift.id, payload);
+      await recordCashMovement(
+        loadState.openShift.id,
+        intent.payload,
+        intent.idempotencyKey,
+      );
+      cashMovementIntentRef.current = null;
+      setCashMovementFieldsLocked(false);
       setActiveModal(null);
       toast(copy.shiftView.movementSuccess, "success");
       await load();
     } catch (err) {
+      const status = apiErrorStatus(err);
+      if (status == null || status >= 500) {
+        setCashMovementFieldsLocked(true);
+      } else {
+        cashMovementIntentRef.current = null;
+        setCashMovementFieldsLocked(false);
+      }
       if (handleBillingBlocked(err)) return;
       toast(resolveApiErrorMessage(err, copy.shiftView.operationError), "error");
     } finally {
@@ -382,7 +407,11 @@ export default function ShiftView() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setActiveModal("movement")}
+                  onClick={() => {
+                    cashMovementIntentRef.current = null;
+                    setCashMovementFieldsLocked(false);
+                    setActiveModal("movement");
+                  }}
                 >
                   <Banknote className="mr-2 h-4 w-4" />
                   {copy.shiftView.recordMovement}
@@ -626,8 +655,13 @@ export default function ShiftView() {
       {activeModal === "movement" && (
         <CashMovementModal
           pending={operationPending}
+          fieldsLocked={cashMovementFieldsLocked}
           onSubmit={submitCashMovement}
-          onCancel={() => setActiveModal(null)}
+          onCancel={() => {
+            cashMovementIntentRef.current = null;
+            setCashMovementFieldsLocked(false);
+            setActiveModal(null);
+          }}
         />
       )}
     </ViewLayout>

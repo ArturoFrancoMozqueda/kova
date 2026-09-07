@@ -132,6 +132,7 @@ def two_tenants_with_open_shifts_movement(client):
 def manager_records_cash_removal(movement_context, amount, reason):
     response = movement_context["client"].post(
         f"/api/v1/shifts/{movement_context['shift']['id']}/cash-movements",
+        headers={"Idempotency-Key": f"cash-removal-{uuid4().hex}"},
         json={"type": "cash_out", "amount": amount, "reason": reason},
     )
     assert response.status_code == 201, response.text
@@ -142,6 +143,7 @@ def manager_records_cash_removal(movement_context, amount, reason):
 def manager_records_cash_deposit(movement_context, amount, reason):
     response = movement_context["client"].post(
         f"/api/v1/shifts/{movement_context['shift']['id']}/cash-movements",
+        headers={"Idempotency-Key": f"cash-deposit-{uuid4().hex}"},
         json={"type": "cash_in", "amount": amount, "reason": reason},
     )
     assert response.status_code == 201, response.text
@@ -152,6 +154,7 @@ def manager_records_cash_deposit(movement_context, amount, reason):
 def manager_records_cash_removal_no_reason(movement_context, amount):
     response = movement_context["client"].post(
         f"/api/v1/shifts/{movement_context['shift']['id']}/cash-movements",
+        headers={"Idempotency-Key": f"cash-removal-{uuid4().hex}"},
         json={"type": "cash_out", "amount": amount, "reason": "cash_removal"},
     )
     assert response.status_code == 201, response.text
@@ -180,6 +183,7 @@ def close_shift_with_matching_cash(movement_context):
 def manager_attempts_negative_movement(movement_context, amount):
     response = movement_context["client"].post(
         f"/api/v1/shifts/{movement_context['shift']['id']}/cash-movements",
+        headers={"Idempotency-Key": f"cash-invalid-{uuid4().hex}"},
         json={"type": "cash_out", "amount": amount, "reason": "negative_test"},
     )
     movement_context["response"] = response
@@ -189,6 +193,7 @@ def manager_attempts_negative_movement(movement_context, amount):
 def manager_attempts_movement_no_shift(movement_context):
     response = movement_context["client"].post(
         "/api/v1/shifts/fake-id/cash-movements",
+        headers={"Idempotency-Key": f"cash-no-shift-{uuid4().hex}"},
         json={"type": "cash_out", "amount": "100.00", "reason": "test"},
     )
     movement_context["response"] = response
@@ -198,6 +203,7 @@ def manager_attempts_movement_no_shift(movement_context):
 def cashier_attempts_movement_no_permission(movement_context):
     response = movement_context["client"].post(
         f"/api/v1/shifts/{movement_context['shift']['id']}/cash-movements",
+        headers={"Idempotency-Key": f"cash-no-permission-{uuid4().hex}"},
         json={"type": "cash_out", "amount": "100.00", "reason": "test"},
     )
     movement_context["response"] = response
@@ -207,6 +213,7 @@ def cashier_attempts_movement_no_permission(movement_context):
 def tenant_b_attempts_movement_in_tenant_a_shift(movement_context):
     response = movement_context["client"].post(
         f"/api/v1/shifts/{movement_context['shift_a']['id']}/cash-movements",
+        headers={"Idempotency-Key": f"cash-cross-tenant-{uuid4().hex}"},
         json={"type": "cash_out", "amount": "50.00", "reason": "test"},
     )
     movement_context["response"] = response
