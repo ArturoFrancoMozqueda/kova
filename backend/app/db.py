@@ -70,6 +70,7 @@ engine = create_engine(
     max_overflow=settings.database_max_overflow,
     pool_timeout=settings.database_pool_timeout,
     pool_recycle=settings.database_pool_recycle_seconds,
+    hide_parameters=True,
     future=True,
 )
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -88,6 +89,7 @@ privileged_engine = create_engine(
     max_overflow=2,
     pool_timeout=settings.database_pool_timeout,
     pool_recycle=settings.database_pool_recycle_seconds,
+    hide_parameters=True,
     future=True,
 )
 PrivilegedSessionLocal = sessionmaker(bind=privileged_engine, autoflush=False, autocommit=False)
