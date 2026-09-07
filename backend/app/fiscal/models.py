@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -297,16 +298,46 @@ class FiscalIndividualInvoiceEvent(Base):
 class FiscalGlobalDraftAdjustment(Base):
     __tablename__ = "fiscal_global_draft_adjustments"
     __table_args__ = (
-        CheckConstraint("amount > 0", name="ck_fiscal_adjustment_amount"),
+        CheckConstraint("amount >= 0", name="ck_fiscal_adjustment_amount"),
         CheckConstraint(
-            "adjustment_type IN ('late_refund', 'late_inclusion', 'late_exclusion')",
+            "adjustment_type IN "
+            "('late_refund', 'late_inclusion', 'late_exclusion', 'late_void')",
             name="ck_fiscal_adjustment_type",
+        ),
+        CheckConstraint(
+            "(adjustment_type = 'late_refund' AND source_refund_id IS NOT NULL "
+            "AND source_event_id IS NULL) OR "
+            "(adjustment_type IN ('late_inclusion', 'late_exclusion') "
+            "AND source_refund_id IS NULL AND source_event_id IS NOT NULL) OR "
+            "(adjustment_type IN ('late_inclusion', 'late_void') "
+            "AND source_refund_id IS NULL AND source_event_id IS NULL)",
+            name="ck_fiscal_adjustment_source",
         ),
         UniqueConstraint(
             "tenant_id", "source_refund_id", name="uq_fiscal_adjustment_tenant_refund"
         ),
         UniqueConstraint(
             "tenant_id", "source_event_id", name="uq_fiscal_adjustment_tenant_event"
+        ),
+        Index(
+            "uq_fiscal_adjustment_tenant_late_order",
+            "tenant_id",
+            "order_id",
+            unique=True,
+            postgresql_where=text(
+                "adjustment_type = 'late_inclusion' "
+                "AND source_refund_id IS NULL AND source_event_id IS NULL"
+            ),
+        ),
+        Index(
+            "uq_fiscal_adjustment_tenant_void",
+            "tenant_id",
+            "order_id",
+            unique=True,
+            postgresql_where=text(
+                "adjustment_type = 'late_void' "
+                "AND source_refund_id IS NULL AND source_event_id IS NULL"
+            ),
         ),
         Index("ix_fiscal_adjustments_tenant_batch", "tenant_id", "batch_id"),
         Index(
