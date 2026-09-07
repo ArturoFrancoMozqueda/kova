@@ -281,23 +281,24 @@ def test_session_recovers_from_invalid_context_without_leaking_between_tenants(
         )
 
 
-def test_runtime_offline_batch_keeps_rls_context_between_commits(
+def test_runtime_offline_batch_restores_rls_context_after_item_rollback(
     kova_app_engine,
     owner_engine,
     rls_seed,  # noqa: ARG001
 ):
-    client_uuids = (uuid.uuid4(), uuid.uuid4())
+    client_uuids = (uuid.uuid4(), uuid.uuid4(), uuid.uuid4())
+    product_ids = (PRODUCT_A, PRODUCT_B, PRODUCT_A)
     sales = [
         OfflineSaleSyncItem.model_validate({
             "client_uuid": client_uuid,
             "order": {
-                "items": [{"product_id": PRODUCT_A, "quantity": 1}],
+                "items": [{"product_id": product_id, "quantity": 1}],
                 "payments": [
                     {"method": "cash", "amount": "10.00", "amount_tendered": "10.00"}
                 ],
             },
         })
-        for client_uuid in client_uuids
+        for client_uuid, product_id in zip(client_uuids, product_ids, strict=True)
     ]
     order_ids: list[uuid.UUID] = []
     try:
@@ -309,7 +310,8 @@ def test_runtime_offline_batch_keeps_rls_context_between_commits(
                 user_id=USER_A,
                 sales=sales,
             )
-            assert [result.status for result in results] == ["synced", "synced"], results
+            assert [result.status for result in results] == ["synced", "failed", "synced"], results
+            assert "Product not found" in (results[1].error or "")
             order_ids = [result.order_id for result in results if result.order_id is not None]
             assert len(order_ids) == 2
     finally:
@@ -350,7 +352,7 @@ def test_runtime_offline_batch_keeps_rls_context_between_commits(
                     text("DELETE FROM idempotency_keys WHERE key IN (:first_key, :second_key)"),
                     {
                         "first_key": str(client_uuids[0]),
-                        "second_key": str(client_uuids[1]),
+                        "second_key": str(client_uuids[2]),
                     },
                 )
                 for table in immutable_tables:
