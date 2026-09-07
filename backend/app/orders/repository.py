@@ -158,6 +158,33 @@ def create_inventory_movement(
     return movement
 
 
+def restorable_inventory_quantity(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    order_id: UUID,
+    product_id: UUID,
+) -> int:
+    """Return sale inventory still eligible to be restored for one product.
+
+    Order-linked ``sale`` movements are the historical source of truth: a
+    negative delta records inventory consumed at checkout and positive deltas
+    record later refund/void reversals. This remains correct if the product's
+    current ``track_inventory`` flag differs from its value at sale time.
+    """
+    net_sale_delta = (
+        db.query(func.coalesce(func.sum(InventoryMovement.quantity_delta), 0))
+        .filter(
+            InventoryMovement.tenant_id == tenant_id,
+            InventoryMovement.order_id == order_id,
+            InventoryMovement.product_id == product_id,
+            InventoryMovement.movement_type == "sale",
+        )
+        .scalar()
+    )
+    return max(0, -int(net_sale_delta or 0))
+
+
 def _resolve_bounds(
     db: Session,
     *,

@@ -286,17 +286,26 @@ def create_order(
         if existing:
             return 200, _order_body(db, tenant_id=tenant_id, order=existing)
 
+    # Acquire every product lock in one deterministic order before pricing.
+    # Two checkouts containing A/B and B/A therefore cannot deadlock while
+    # waiting on the same product rows, while receipt line order still follows
+    # the client's cart below.
+    locked_products: dict[UUID, Product] = {}
+    for product_id in sorted({item.product_id for item in body.items}, key=lambda value: value.int):
+        product = repo.get_active_product_for_update(
+            db, tenant_id=tenant_id, product_id=product_id
+        )
+        if not product:
+            raise not_found("Product not found")
+        locked_products[product_id] = product
+
     priced_items: list[PricedOrderLine] = []
     # Aggregate requested quantities per product so multiple cart lines
     # for the same product (e.g. with different modifiers) collectively
     # validate against current on-hand.
     quantity_by_product: dict[UUID, int] = {}
     for item in body.items:
-        product = repo.get_active_product_for_update(
-            db, tenant_id=tenant_id, product_id=item.product_id
-        )
-        if not product:
-            raise not_found("Product not found")
+        product = locked_products[item.product_id]
         price_delta, modifier_snapshots = modifier_service.validate_and_price_modifiers(
             db,
             tenant_id=tenant_id,
@@ -558,35 +567,45 @@ def create_refund(
     refund_lines = []
     total_refunded = Decimal("0.00")
 
+    # Normalize repeated lines before checking the per-order-item ceiling. A
+    # client may send the same line more than once, but the combined quantity
+    # must never exceed what remains refundable.
+    requested_by_item: dict[UUID, int] = {}
     for refund_item in body.items:
-        order_item = items_by_id.get(refund_item.order_item_id)
-        if not order_item:
-            raise bad_request(f"Order item {refund_item.order_item_id} not found")
-
-        existing_refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
-        refunded_qty = sum(
-            ri.quantity
-            for r in existing_refunds
-            for ri in repo.list_refund_items(db, refund_id=r.id)
-            if ri.order_item_id == refund_item.order_item_id
+        requested_by_item[refund_item.order_item_id] = (
+            requested_by_item.get(refund_item.order_item_id, 0) + refund_item.quantity
         )
 
-        if refunded_qty + refund_item.quantity > order_item.quantity:
+    existing_refunds = repo.list_refunds(db, tenant_id=tenant_id, order_id=order_id)
+    refunded_by_item: dict[UUID, int] = {}
+    for existing_refund in existing_refunds:
+        for existing_item in repo.list_refund_items(db, refund_id=existing_refund.id):
+            refunded_by_item[existing_item.order_item_id] = (
+                refunded_by_item.get(existing_item.order_item_id, 0) + existing_item.quantity
+            )
+
+    for order_item_id, requested_quantity in requested_by_item.items():
+        order_item = items_by_id.get(order_item_id)
+        if not order_item:
+            raise bad_request(f"Order item {order_item_id} not found")
+
+        refunded_qty = refunded_by_item.get(order_item_id, 0)
+        if refunded_qty + requested_quantity > order_item.quantity:
             available = order_item.quantity - refunded_qty
             raise HTTPException(
                 status_code=422,
                 detail={
                     "code": "REFUND_QTY_EXCEEDS_AVAILABLE",
                     "available": available,
-                    "requested": refund_item.quantity,
+                    "requested": requested_quantity,
                     "message": (
                         f"La cantidad excede lo disponible para devolución (máx. {available})."
                     ),
                 },
             )
 
-        line_total = calculator.line_total(order_item.unit_price_amount, refund_item.quantity)
-        refund_lines.append((order_item, refund_item.quantity, line_total))
+        line_total = calculator.line_total(order_item.unit_price_amount, requested_quantity)
+        refund_lines.append((order_item, requested_quantity, line_total))
         total_refunded = calculator.money(total_refunded + line_total)
 
     # Money integrity: a refund can only be paid back through a method that
@@ -643,13 +662,20 @@ def create_refund(
             line_total_amount=line_total,
         )
 
-        if order_item.product_id:
+        restorable_quantity = repo.restorable_inventory_quantity(
+            db,
+            tenant_id=tenant_id,
+            order_id=order_id,
+            product_id=order_item.product_id,
+        )
+        quantity_to_restore = min(quantity, restorable_quantity)
+        if quantity_to_restore:
             repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
                 product_id=order_item.product_id,
                 order_id=order_id,
-                quantity_delta=quantity,
+                quantity_delta=quantity_to_restore,
             )
 
     refund_items = repo.list_refund_items(db, refund_id=refund.id)
@@ -814,13 +840,20 @@ def create_void(
 
     items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
     for item in items:
-        if item.product_id:
+        restorable_quantity = repo.restorable_inventory_quantity(
+            db,
+            tenant_id=tenant_id,
+            order_id=order_id,
+            product_id=item.product_id,
+        )
+        quantity_to_restore = min(item.quantity, restorable_quantity)
+        if quantity_to_restore:
             repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
                 product_id=item.product_id,
                 order_id=order_id,
-                quantity_delta=item.quantity,
+                quantity_delta=quantity_to_restore,
             )
 
     response_body = {
