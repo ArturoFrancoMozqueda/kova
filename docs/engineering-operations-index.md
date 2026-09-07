@@ -67,6 +67,8 @@ se deben interpretar como aprobadas si se omitieron.
   fechado; sus puntuaciones describen el commit auditado.
 - [`audits/KOVA_IMPROVEMENT_BACKLOG.md`](audits/KOVA_IMPROVEMENT_BACKLOG.md): criterios originales de
   los hallazgos; su encabezado histórico no representa el estado posterior a remediaciones.
+- [`audits/KOVA_REMEDIATION_STATUS_2026-09-07.md`](audits/KOVA_REMEDIATION_STATUS_2026-09-07.md):
+  disposición de los 36 hallazgos, validación local final y gates externos que bloquean producción.
 - [`risk-register.md`](risk-register.md): riesgos operativos conocidos.
 - [`claude/manual-qa-checklist.md`](claude/manual-qa-checklist.md): revisión manual para cambios de
   producto significativos.
