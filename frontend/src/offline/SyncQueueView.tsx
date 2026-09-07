@@ -5,18 +5,20 @@ import { useIsOnline, useSyncQueue } from "./useSyncQueue";
 import { readCatalogCache } from "./catalogCache";
 import { useAuth } from "@/auth/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewEmpty } from "@/components/ui/view-states";
 import { StatTile } from "@/components/ui/stat-tile";
-import { CloudUpload, RefreshCw, AlertCircle, Inbox, Wifi, WifiOff } from "lucide-react";
+import { CloudUpload, RefreshCw, AlertCircle, Inbox, Wifi, WifiOff, ShieldAlert, Mail } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { supportMailto } from "@/lib/support";
+import { cn } from "@/lib/utils";
 
 export default function SyncQueueView() {
   useDocumentTitle(copy.documentTitles.syncQueue);
   const isOnline = useIsOnline();
-  const { pendingCount, failedEntries, syncNow, retryDeadLetter } = useSyncQueue();
+  const { pendingCount, failedEntries, quarantinedCount, syncNow, retryDeadLetter } = useSyncQueue();
   const { state } = useAuth();
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
 
@@ -66,12 +68,34 @@ export default function SyncQueueView() {
         {copy.syncQueue.statusAnnouncement(pendingCount, failedEntries.length)}
       </div>
 
-      {pendingCount === 0 && failedEntries.length === 0 && (
+      {pendingCount === 0 && failedEntries.length === 0 && quarantinedCount === 0 && (
         <ViewEmpty
           icon={<Inbox className="h-6 w-6" />}
           title={copy.syncQueue.empty}
           body={copy.syncQueue.emptyBody}
         />
+      )}
+
+      {quarantinedCount > 0 && (
+        <Card className="mb-4 border-warning/40 bg-warning/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm text-warning-strong">
+              <ShieldAlert className="h-4 w-4" />
+              {copy.syncQueue.quarantineTitle}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>{copy.syncQueue.quarantineBody(quarantinedCount)}</p>
+            <p>{copy.syncQueue.quarantineSafety}</p>
+            <a
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              href={supportMailto(null)}
+            >
+              <Mail className="h-4 w-4" />
+              {copy.syncQueue.quarantineSupport}
+            </a>
+          </CardContent>
+        </Card>
       )}
 
       {pendingCount > 0 && (

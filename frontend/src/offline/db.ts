@@ -1,12 +1,13 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { CachedCatalog } from "./catalogCache";
 import type { CachedCustomerOrders } from "@/customerOrders/cache";
-import type { StoredOfflineSaleQueueItem } from "./types";
+import type { OfflineAccessSnapshot, StoredOfflineSaleQueueItem } from "./types";
 
 export const offlineDb = new Dexie("pos_offline") as Dexie & {
   offline_sales: EntityTable<StoredOfflineSaleQueueItem, "client_uuid">;
   catalog_cache: EntityTable<CachedCatalog, "tenant_id">;
   customer_orders_cache: EntityTable<CachedCustomerOrders, "tenant_id">;
+  offline_access: EntityTable<OfflineAccessSnapshot, "id">;
 };
 
 offlineDb.version(1).stores({
@@ -46,4 +47,15 @@ offlineDb.version(4).stores({
       delete row.sync_started_at;
     }
   });
+});
+
+// v5 stores only a short-lived, non-credential identity snapshot. It lets a
+// prepared register reopen its local catalog when the session endpoint is
+// unreachable, while every server mutation remains blocked until revalidated.
+offlineDb.version(5).stores({
+  offline_sales:
+    "client_uuid,tenant_id,status,updated_at,[tenant_id+status],[tenant_id+updated_at],lease_id",
+  catalog_cache: "tenant_id",
+  customer_orders_cache: "tenant_id,cached_at",
+  offline_access: "id,tenant_id,expires_at",
 });

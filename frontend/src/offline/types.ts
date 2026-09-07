@@ -82,3 +82,22 @@ export type LegacyOfflineSaleQueueItem = Omit<OfflineSaleQueueItem, "tenant_id" 
 };
 
 export type StoredOfflineSaleQueueItem = OfflineSaleQueueItem | LegacyOfflineSaleQueueItem;
+
+/**
+ * Last identity verified by the server for limited cold-offline continuity.
+ * It contains no cookie or bearer credential and never authorizes an API call.
+ */
+export type OfflineAccessSnapshot = {
+  id: "active";
+  tenant_id: string;
+  tenant_name: string;
+  user: {
+    id: string;
+    tenant_id: string;
+    role: string;
+    email_verified?: boolean;
+  };
+  feature_flags: Record<string, boolean>;
+  verified_at: string;
+  expires_at: string;
+};

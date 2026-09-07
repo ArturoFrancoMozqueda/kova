@@ -260,10 +260,10 @@ describe("OrderDetail", () => {
         (typeof input === "string" ? input : input.toString()).includes("/refunds"),
       );
       expect(calls).toHaveLength(2);
-      const firstHeaders = (calls[0][1] as RequestInit).headers as Record<string, string>;
-      const secondHeaders = (calls[1][1] as RequestInit).headers as Record<string, string>;
-      expect(firstHeaders["Idempotency-Key"]).toBeTruthy();
-      expect(secondHeaders["Idempotency-Key"]).toBe(firstHeaders["Idempotency-Key"]);
+      const firstHeaders = new Headers((calls[0][1] as RequestInit).headers);
+      const secondHeaders = new Headers((calls[1][1] as RequestInit).headers);
+      expect(firstHeaders.get("Idempotency-Key")).toBeTruthy();
+      expect(secondHeaders.get("Idempotency-Key")).toBe(firstHeaders.get("Idempotency-Key"));
       expect(calls[1][1]?.body).toBe(calls[0][1]?.body);
     });
     expect(await screen.findByText(/devoluci[oó]n registrada/i)).toBeInTheDocument();

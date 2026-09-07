@@ -119,6 +119,71 @@ test("shared browser never exposes or sends tenant A queue after tenant B signs 
   await expect(page.getByRole("heading", { name: /^pendientes$/i })).toBeVisible();
 });
 
+test("a login in another tab suspends the stale tenant UI until it is revalidated", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  let pageAProbeCount = 0;
+  let releasePageAProbe!: () => void;
+  const pageAProbeGate = new Promise<void>((resolve) => { releasePageAProbe = resolve; });
+
+  await page.route("**/api/v1/auth/session", async (route) => {
+    pageAProbeCount += 1;
+    if (pageAProbeCount === 1) return route.fulfill({ json: CASHIER_SESSION });
+    await pageAProbeGate;
+    return route.fulfill({
+      json: {
+        ...CASHIER_SESSION,
+        user: {
+          ...CASHIER_SESSION.user,
+          id: "user-2",
+          email: "cashier-b@bakery.com",
+          tenant_id: "tenant-2",
+        },
+        tenant_id: "tenant-2",
+        tenant_name: "Bakery B",
+      },
+    });
+  });
+  await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: CATALOG }));
+  await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+  await mockOpenShift(page);
+
+  await page.goto("/register");
+  await page.getByRole("button", { name: "Agregar Concha" }).click();
+  await expect(page.getByText("Concha", { exact: true }).last()).toBeVisible();
+
+  const otherTab = await page.context().newPage();
+  await otherTab.route("**/api/v1/auth/login", (route) => route.fulfill({ json: { message: "ok" } }));
+  await otherTab.route("**/api/v1/auth/session", (route) => route.fulfill({
+    json: {
+      ...CASHIER_SESSION,
+      user: {
+        ...CASHIER_SESSION.user,
+        id: "user-2",
+        email: "cashier-b@bakery.com",
+        tenant_id: "tenant-2",
+      },
+      tenant_id: "tenant-2",
+      tenant_name: "Bakery B",
+    },
+  }));
+  await otherTab.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: CATALOG }));
+  await otherTab.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+  await mockOpenShift(otherTab);
+
+  await otherTab.goto("/login");
+  await otherTab.getByLabel("Correo").fill("cashier-b@bakery.com");
+  await otherTab.getByLabel("Contraseña").fill("S3cur3pass!");
+  await otherTab.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
+
+  await expect.poll(() => pageAProbeCount).toBe(2);
+  await expect(page.getByRole("button", { name: "Agregar Concha" })).not.toBeVisible();
+  releasePageAProbe();
+
+  await expect(page.getByText("Bakery B", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Concha", { exact: true })).toHaveCount(1);
+  await otherTab.close();
+});
+
 test("network-error sale remains recoverable and clears on retry", async ({
   page,
 }) => {
@@ -241,13 +306,13 @@ test("cold offline: register renders catalog from IndexedDB cache and queues a s
   page,
 }) => {
   await markFirstUseToursSeen(page);
+  let online = true;
   await page.route("**/api/v1/auth/session", (route) =>
-    route.fulfill({ json: CASHIER_SESSION }),
+    online ? route.fulfill({ json: CASHIER_SESSION }) : route.abort("internetdisconnected"),
   );
 
-  // Single mutable flag flips the catalog/categories/sync from online to a
-  // hard network failure, simulating going fully offline between two loads.
-  let online = true;
+  // Single mutable flag flips auth/catalog/categories/sync to a hard network
+  // failure, including the cold-start session probe.
   await page.route("**/api/v1/catalog/products", (route) =>
     online ? route.fulfill({ json: CATALOG }) : route.abort(),
   );
@@ -264,11 +329,24 @@ test("cold offline: register renders catalog from IndexedDB cache and queues a s
   await page.goto("/register");
   await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
 
+  // Preview mode exercises the generated service worker too: wait until it
+  // controls this page, then remove all browser networking before reloading.
+  // Dev mode has SW disabled, so it still verifies the auth probe itself fails.
+  if (process.env.PLAYWRIGHT_USE_PREVIEW === "1") {
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    if (!await page.evaluate(() => Boolean(navigator.serviceWorker.controller))) {
+      await page.reload();
+      await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
+    }
+    await page.context().setOffline(true);
+  }
+
   // Phase 2 — go fully offline and reload from a cold start.
   online = false;
   await page.reload();
 
   // The register must render from the cache, not the error card.
+  await expect(page.getByText(/modo local seguro/i)).toBeVisible();
   await expect(page.getByText(/modo sin conexi[óo]n/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeVisible();
 

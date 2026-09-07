@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { Wifi, WifiOff, CloudUpload } from "lucide-react";
+import { Wifi, WifiOff, CloudUpload, ShieldAlert } from "lucide-react";
 import { copy } from "../i18n/messages";
 import { useIsOnline, useSyncQueue } from "./useSyncQueue";
+import { useAuth } from "@/auth/useAuth";
 
 export function OfflineIndicator({
   compact = false,
@@ -10,8 +11,10 @@ export function OfflineIndicator({
   compact?: boolean;
   showOnlineLabel?: boolean;
 } = {}) {
-  const isOnline = useIsOnline();
-  const { pendingCount } = useSyncQueue();
+  const networkOnline = useIsOnline();
+  const { state } = useAuth();
+  const isOnline = networkOnline && !(state.status === "authenticated" && state.sessionMode === "offline");
+  const { pendingCount, quarantinedCount } = useSyncQueue();
 
   // Compact variant for the mobile top bar (light surface): connection state is
   // always visible so offline/queue status persists during POS, where the
@@ -41,6 +44,16 @@ export function OfflineIndicator({
             <span className="tabular-nums">{pendingCount}</span>
           </Link>
         )}
+        {quarantinedCount > 0 && (
+          <Link
+            to="/sync-queue"
+            aria-label={copy.syncQueue.quarantineIndicator(quarantinedCount)}
+            className="flex items-center gap-1 rounded-md bg-warning/10 px-1.5 py-0.5 font-medium text-warning-foreground"
+          >
+            <ShieldAlert className="h-3.5 w-3.5" />
+            <span className="tabular-nums">{quarantinedCount}</span>
+          </Link>
+        )}
       </div>
     );
   }
@@ -65,6 +78,15 @@ export function OfflineIndicator({
         >
           <CloudUpload className="h-3 w-3" />
           {copy.register.pendingSales(pendingCount)}
+        </Link>
+      )}
+      {quarantinedCount > 0 && (
+        <Link
+          to="/sync-queue"
+          className="flex items-center gap-1.5 rounded-md bg-warning/10 px-2 py-1 text-warning hover:text-sidebar-foreground transition-colors"
+        >
+          <ShieldAlert className="h-3 w-3" />
+          {copy.syncQueue.quarantineIndicator(quarantinedCount)}
         </Link>
       )}
     </div>
