@@ -19,25 +19,28 @@ número de filas. Los filtros de tenant permanecen en cada consulta agrupada.
 ## Latencia observada en el mismo volumen
 
 También se midió el tiempo de cada operación interna, sin incluir la preparación
-de usuarios, productos y pedidos. Se hicieron cinco ejecuciones por versión sobre
+de usuarios, productos y pedidos. Se hicieron 30 ejecuciones por versión sobre
 bases PostgreSQL 17 aisladas en la misma máquina. La versión anterior corresponde
 al commit `78d4bfc`; la versión posterior incluye el cambio de consultas del commit
-`3805849`. La tabla muestra mediana, rango observado y variación de la mediana.
+`3805849`. p50 es la mediana y p95 usa nearest-rank: valor 29 de 30 tras ordenar
+las muestras.
 
-| Operación | Volumen | Antes (ms) | Después (ms) | Variación |
+| Operación | Volumen | Antes p50 / p95 (ms) | Después p50 / p95 (ms) | Variación p50 / p95 |
 |---|---:|---:|---:|---:|
-| Inventario disponible | 20 productos | 16.775 (16.372–16.836) | 10.548 (8.256–12.765) | -37.1% |
-| Lista de pedidos confirmados | 12 pedidos | 31.341 (30.412–33.816) | 21.135 (18.787–32.172) | -32.6% |
-| Serializar venta | 8 partidas | 4.574 (4.368–4.643) | 1.933 (1.901–2.487) | -57.7% |
-| Serializar pedido | 8 partidas | 6.069 (5.749–6.333) | 3.561 (3.272–4.671) | -41.3% |
-| Validar reserva | 8 productos | 17.148 (16.868–19.542) | 8.807 (8.670–10.994) | -48.6% |
+| Inventario disponible | 20 productos | 18.810 / 23.156 | 9.366 / 11.894 | -50.2% / -48.6% |
+| Lista de pedidos confirmados | 12 pedidos | 35.319 / 43.954 | 20.593 / 24.290 | -41.7% / -44.7% |
+| Serializar venta | 8 partidas | 5.033 / 6.091 | 2.178 / 2.655 | -56.7% / -56.4% |
+| Serializar pedido | 8 partidas | 7.314 / 8.704 | 4.049 / 4.871 | -44.6% / -44.0% |
+| Validar reserva | 8 productos | 20.543 / 28.043 | 9.402 / 12.083 | -54.2% / -56.9% |
 
 Para hacer comparable el código anterior, se ejecutó el archivo actual de pruebas
 contra ambos commits y se desactivaron únicamente sus límites de conteo en la copia
-temporal anterior. Los datos, operaciones y puntos de cronometraje fueron iguales;
-las copias instrumentadas y sus bases se eliminaron después de capturar los
-resultados.
+temporal anterior. Los datos, operaciones y puntos de cronometraje fueron iguales.
+Las aserciones comparan nombres, IDs, cantidades, importes, stock, reservas,
+conflictos y modificadores contra los mismos valores esperados en ambas versiones.
+Las regresiones de refunds, venta offline, zona horaria y costo congelado siguen
+cubiertas por sus suites de dominio; no se cambió su implementación en este corte.
 
-La siguiente medición de capacidad debe usar un volumen acordado y capturar p95,
-espera del pool y planes `EXPLAIN` en un entorno similar a producción. Este cambio
+La siguiente medición de capacidad debe usar un volumen acordado y capturar espera
+del pool y planes `EXPLAIN` en un entorno similar a producción. Este cambio
 no justifica cache compartido, materializaciones ni infraestructura adicional.
