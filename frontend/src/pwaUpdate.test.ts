@@ -72,9 +72,12 @@ describe("PWA update helpers", () => {
     ).toBe(true);
   });
 
-  it("does not force reloads on register routes", () => {
+  it("does not force reloads while a sale or refund intent may live in memory", () => {
     expect(isReloadSafePath("/register")).toBe(false);
     expect(isReloadSafePath("/register?draft=1")).toBe(false);
+    expect(isReloadSafePath("/orders/order-1")).toBe(false);
+    expect(isReloadSafePath("/orders/order-1/")).toBe(false);
+    expect(isReloadSafePath("/orders")).toBe(true);
     expect(isReloadSafePath("/signup")).toBe(true);
   });
 
@@ -86,6 +89,10 @@ describe("PWA update helpers", () => {
     expect(runPwaUpdateAtSafePoint(action, "/register")).toBe(false);
     expect(action).not.toHaveBeenCalled();
     expect(available).toHaveBeenCalledOnce();
+
+    expect(runPwaUpdateAtSafePoint(action, "/orders/order-1")).toBe(false);
+    expect(action).not.toHaveBeenCalled();
+    expect(available).toHaveBeenCalledTimes(2);
 
     expect(runPwaUpdateAtSafePoint(action, "/dashboard")).toBe(true);
     await Promise.resolve();
