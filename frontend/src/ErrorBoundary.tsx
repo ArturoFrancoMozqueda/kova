@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { reportError } from "./observability/errorReporting";
-import { forceReload, isReloadSafePath, isStaleAssetError } from "./pwaUpdate";
+import { isStaleAssetError, requestPwaReload } from "./pwaUpdate";
 
 type Props = { children: ReactNode };
 type State = { hasError: boolean };
@@ -38,9 +38,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    if (isStaleAssetError(error) && isReloadSafePath(window.location.pathname)) {
-      void forceReload();
-      return;
+    if (isStaleAssetError(error)) {
+      if (requestPwaReload()) return;
     }
 
     // Report render crashes to Sentry (no-op when DSN is unset) with the

@@ -54,6 +54,34 @@ describe("tenant-scoped offline queue leases", () => {
     expect(first[0].sync_owner).toBe("tab-1");
   });
 
+  it("restores the retry budget without changing sale identity or ownership", async () => {
+    const failed = makeQueuedSale("tenant-a", draft, "uuid-a");
+    failed.status = "failed";
+    failed.attempt_count = 5;
+    failed.last_error = "Max sync attempts exceeded";
+    await offlineDb.offline_sales.add(failed);
+
+    expect(await retryDeadLetter("tenant-a", "uuid-a")).toBe(true);
+    expect(await offlineDb.offline_sales.get("uuid-a")).toMatchObject({
+      client_uuid: "uuid-a",
+      tenant_id: "tenant-a",
+      sale: draft,
+      status: "pending",
+      attempt_count: 0,
+    });
+
+    const [claimed] = await claimPendingOfflineSales("tenant-a", "retry-worker", 1);
+    expect(claimed).toMatchObject({
+      client_uuid: "uuid-a",
+      tenant_id: "tenant-a",
+      sale: draft,
+      status: "syncing",
+      attempt_count: 1,
+      sync_owner: "retry-worker",
+    });
+    expect(claimed.lease_id).toBeTruthy();
+  });
+
   it("recovers an expired crash lease and rejects a late response from its old owner", async () => {
     const row = makeQueuedSale("tenant-a", draft, "uuid-a");
     row.status = "syncing";

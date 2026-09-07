@@ -11,6 +11,7 @@ import { RotateCcw } from "lucide-react";
 type RefundModalProps = {
   items: OrderItem[];
   disabled: boolean;
+  fieldsLocked?: boolean;
   onCancel: () => void;
   onSubmit: (payload: RefundPayload) => Promise<void>;
 };
@@ -18,7 +19,7 @@ type RefundModalProps = {
 const refundReasons = ["customer_return", "defective", "wrong_item", "other"];
 const refundPaymentMethods = ["cash", "bank_transfer", "manual_card"] as const;
 
-export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModalProps) {
+export function RefundModal({ items, disabled, fieldsLocked = false, onCancel, onSubmit }: RefundModalProps) {
   const [reason, setReason] = useState(refundReasons[0]);
   const [refundPaymentMethod, setRefundPaymentMethod] = useState<(typeof refundPaymentMethods)[number]>("cash");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -50,7 +51,12 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor={reasonId}>{copy.refundModal.reason}</Label>
-          <Select id={reasonId} value={reason} onChange={(event) => setReason(event.target.value)}>
+          <Select
+            id={reasonId}
+            value={reason}
+            disabled={disabled || fieldsLocked}
+            onChange={(event) => setReason(event.target.value)}
+          >
             {refundReasons.map((option) => (
               <option key={option} value={option}>
                 {copy.refundModal.reasons[option as keyof typeof copy.refundModal.reasons]}
@@ -64,6 +70,7 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
           <Select
             id={paymentMethodId}
             value={refundPaymentMethod}
+            disabled={disabled || fieldsLocked}
             onChange={(event) =>
               setRefundPaymentMethod(event.target.value as (typeof refundPaymentMethods)[number])
             }
@@ -90,6 +97,7 @@ export function RefundModal({ items, disabled, onCancel, onSubmit }: RefundModal
                   max={item.quantity}
                   type="number"
                   inputMode="numeric"
+                  disabled={disabled || fieldsLocked}
                   value={quantities[item.id] ?? 0}
                   onChange={(event) => {
                     const raw = Number(event.target.value);
