@@ -110,6 +110,34 @@ def _provision_kova_app() -> None:
         conn.execute(
             text("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kova_app")
         )
+        conn.execute(
+            text(
+                "REVOKE ALL ON TABLE order_fiscal_snapshots, "
+                "order_item_fiscal_snapshots, order_item_tax_snapshots, "
+                "fiscal_global_draft_settings, fiscal_global_draft_batches, "
+                "fiscal_global_draft_orders, fiscal_individual_invoice_events, "
+                "fiscal_global_draft_adjustments FROM kova_app"
+            )
+        )
+        conn.execute(
+            text(
+                "GRANT SELECT, INSERT ON TABLE order_fiscal_snapshots, "
+                "order_item_fiscal_snapshots, order_item_tax_snapshots, "
+                "fiscal_global_draft_batches, fiscal_global_draft_orders, "
+                "fiscal_individual_invoice_events, fiscal_global_draft_adjustments "
+                "TO kova_app"
+            )
+        )
+        conn.execute(
+            text(
+                "GRANT SELECT, INSERT, UPDATE ON TABLE "
+                "fiscal_global_draft_settings TO kova_app"
+            )
+        )
+        conn.execute(text("GRANT UPDATE (id) ON TABLE order_fiscal_snapshots TO kova_app"))
+        conn.execute(
+            text("GRANT UPDATE (id) ON TABLE fiscal_global_draft_batches TO kova_app")
+        )
 
 
 @pytest.fixture(scope="session")

@@ -264,6 +264,8 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run alembic downgrade base
       - run: uv run alembic upgrade head
+      - name: Test populated fiscal upgrade and runtime grants
+        run: uv run pytest -q migration_tests/test_0062_accountant_packages.py
 
   deploy-fly:
     name: deploy Fly (exact commit)

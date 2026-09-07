@@ -53,3 +53,48 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kova_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT USAGE, SELECT ON SEQUENCES TO kova_app;
+
+-- 6. Fiscal history is append-only. Reconcile every fiscal table that exists
+--    at the current migration revision so re-running this script cannot reopen
+--    UPDATE/DELETE. The existence check keeps provisioning compatible with a
+--    database that is intentionally stopped at an older revision.
+--
+--    PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE; granting
+--    only the immutable id column permits row locks while mutation remains
+--    blocked by the fiscal immutability triggers.
+DO
+$$
+DECLARE
+    table_name text;
+BEGIN
+    FOREACH table_name IN ARRAY ARRAY[
+        'order_fiscal_snapshots',
+        'order_item_fiscal_snapshots',
+        'order_item_tax_snapshots',
+        'fiscal_global_draft_settings',
+        'fiscal_global_draft_batches',
+        'fiscal_global_draft_orders',
+        'fiscal_individual_invoice_events',
+        'fiscal_global_draft_adjustments'
+    ]
+    LOOP
+        IF to_regclass(format('public.%I', table_name)) IS NOT NULL THEN
+            EXECUTE format('REVOKE ALL ON TABLE %I FROM kova_app', table_name);
+            IF table_name = 'fiscal_global_draft_settings' THEN
+                EXECUTE format(
+                    'GRANT SELECT, INSERT, UPDATE ON TABLE %I TO kova_app', table_name
+                );
+            ELSE
+                EXECUTE format(
+                    'GRANT SELECT, INSERT ON TABLE %I TO kova_app', table_name
+                );
+            END IF;
+            IF table_name IN ('order_fiscal_snapshots', 'fiscal_global_draft_batches') THEN
+                EXECUTE format(
+                    'GRANT UPDATE (id) ON TABLE %I TO kova_app', table_name
+                );
+            END IF;
+        END IF;
+    END LOOP;
+END
+$$;
