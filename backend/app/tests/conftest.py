@@ -105,24 +105,29 @@ def _provision_kova_app() -> None:
         conn.execute(text("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM kova_app"))
         grants = {
             "SELECT, INSERT, UPDATE, DELETE": (
-                "account_deletion_requests categories customer_order_item_modifiers "
-                "customer_order_items customer_orders expenses inventory_reservations "
-                "membership_invitations modifier_groups modifier_options "
-                "product_image_files product_modifier_groups products "
-                "tenant_business_profiles tenant_logo_files tenant_onboarding_state "
-                "tenant_receipt_settings"
+                "expenses product_image_files tenant_logo_files"
+            ),
+            "SELECT, INSERT, DELETE": (
+                "customer_order_item_modifiers customer_order_items "
+                "product_modifier_groups"
             ),
             "SELECT, INSERT, UPDATE": (
-                "idempotency_keys memberships orders sessions shifts subscriptions"
+                "account_deletion_requests categories customer_orders idempotency_keys "
+                "inventory_reservations membership_invitations modifier_groups "
+                "modifier_options orders products shifts subscriptions "
+                "tenant_business_profiles tenant_onboarding_state tenant_receipt_settings"
+            ),
+            "SELECT, UPDATE": (
+                "memberships sessions"
             ),
             "SELECT, INSERT": (
-                "audit_logs cash_movements inventory_movements order_item_modifiers "
-                "order_items payments "
-                "refund_items refunds telemetry_events voids order_fiscal_snapshots "
+                "cash_movements inventory_movements order_item_modifiers order_items payments "
+                "refund_items refunds voids order_fiscal_snapshots "
                 "order_item_fiscal_snapshots order_item_tax_snapshots "
                 "fiscal_global_draft_batches fiscal_global_draft_orders "
                 "fiscal_individual_invoice_events fiscal_global_draft_adjustments"
             ),
+            "INSERT": ("audit_logs telemetry_events"),
         }
         for privileges, table_names in grants.items():
             conn.execute(

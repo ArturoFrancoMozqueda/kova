@@ -6,10 +6,12 @@ import subprocess
 import sys
 import uuid
 from contextlib import contextmanager
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import JSON, LargeBinary, MetaData, create_engine, text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -35,40 +37,44 @@ _RUNTIME_TABLE_PRIVILEGES = {
     **{
         table: {"SELECT", "INSERT", "UPDATE", "DELETE"}
         for table in (
-            "account_deletion_requests",
-            "categories",
+            "expenses",
+            "product_image_files",
+            "tenant_logo_files",
+        )
+    },
+    **{
+        table: {"SELECT", "INSERT", "DELETE"}
+        for table in (
             "customer_order_item_modifiers",
             "customer_order_items",
-            "customer_orders",
-            "expenses",
-            "inventory_reservations",
-            "membership_invitations",
-            "modifier_groups",
-            "modifier_options",
-            "product_image_files",
             "product_modifier_groups",
-            "products",
-            "tenant_business_profiles",
-            "tenant_logo_files",
-            "tenant_onboarding_state",
-            "tenant_receipt_settings",
         )
     },
     **{
         table: {"SELECT", "INSERT", "UPDATE"}
         for table in (
+            "account_deletion_requests",
+            "categories",
+            "customer_orders",
             "idempotency_keys",
-            "memberships",
+            "inventory_reservations",
+            "membership_invitations",
+            "modifier_groups",
+            "modifier_options",
             "orders",
-            "sessions",
+            "products",
             "shifts",
             "subscriptions",
+            "tenant_business_profiles",
+            "tenant_onboarding_state",
+            "tenant_receipt_settings",
         )
     },
+    "memberships": {"SELECT", "UPDATE"},
+    "sessions": {"SELECT", "UPDATE"},
     **{
         table: {"SELECT", "INSERT"}
         for table in (
-            "audit_logs",
             "cash_movements",
             "inventory_movements",
             "order_item_modifiers",
@@ -76,7 +82,6 @@ _RUNTIME_TABLE_PRIVILEGES = {
             "payments",
             "refund_items",
             "refunds",
-            "telemetry_events",
             "voids",
             "order_fiscal_snapshots",
             "order_item_fiscal_snapshots",
@@ -87,6 +92,8 @@ _RUNTIME_TABLE_PRIVILEGES = {
             "fiscal_global_draft_adjustments",
         )
     },
+    "audit_logs": {"INSERT"},
+    "telemetry_events": {"INSERT"},
     "fiscal_global_draft_settings": {"SELECT", "INSERT", "UPDATE"},
     "anonymous_telemetry_events": {"INSERT"},
     "tenants": {"SELECT"},
@@ -147,6 +154,233 @@ _TENANT_RELATIONS = {
         "products",
     ),
 }
+
+_SPECIAL_RUNTIME_TABLES = {"anonymous_telemetry_events", "tenants", "users"}
+_SEMANTIC_INSERT_ORDER = (
+    "account_deletion_requests",
+    "audit_logs",
+    "categories",
+    "expenses",
+    "fiscal_global_draft_settings",
+    "idempotency_keys",
+    "membership_invitations",
+    "memberships",
+    "modifier_groups",
+    "sessions",
+    "shifts",
+    "subscriptions",
+    "telemetry_events",
+    "tenant_business_profiles",
+    "tenant_logo_files",
+    "tenant_onboarding_state",
+    "tenant_receipt_settings",
+    "webhook_events",
+    "orders",
+    "products",
+    "modifier_options",
+    "cash_movements",
+    "customer_orders",
+    "inventory_movements",
+    "order_items",
+    "payments",
+    "product_image_files",
+    "product_modifier_groups",
+    "refunds",
+    "voids",
+    "customer_order_items",
+    "inventory_reservations",
+    "order_fiscal_snapshots",
+    "fiscal_global_draft_batches",
+    "fiscal_global_draft_orders",
+    "fiscal_individual_invoice_events",
+    "order_item_fiscal_snapshots",
+    "order_item_modifiers",
+    "order_item_tax_snapshots",
+    "refund_items",
+    "fiscal_global_draft_adjustments",
+    "customer_order_item_modifiers",
+)
+
+
+def _semantic_uuid(table: str, tenant: uuid.UUID, variant: int = 0) -> uuid.UUID:
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"kova-0067:{table}:{tenant}:{variant}")
+
+
+def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
+    name = column.name
+    tenant_token = str(tenant).split("-")[0]
+    token = f"{tenant_token}-{variant}-{table.name}"
+    if name == "tenant_id":
+        return tenant
+    if name == "id":
+        return ids[(table.name, tenant, variant)]
+
+    for foreign_key in column.foreign_keys:
+        parent = foreign_key.column.table.name
+        parent_column = foreign_key.column.name
+        if parent == "users" and parent_column == "id":
+            return USER_A if tenant == TENANT_A else USER_B
+        if parent == "tenants" and parent_column == "id":
+            return tenant
+        if parent_column == "id" and (parent, tenant, variant) in ids:
+            return ids[(parent, tenant, variant)]
+
+    named_values = {
+        "action": "semantic_test",
+        "adjustment_type": "late_inclusion",
+        "category": "renta",
+        "client_id": f"client-{token}",
+        "currency": "MXN",
+        "direction": "transfer",
+        "document_kind": "operational_draft",
+        "event_name": "landing_viewed",
+        "factor_type": "rate",
+        "fiscal_status": "not_issued",
+        "frequency": "monthly",
+        "fulfillment_type": "pickup",
+        "ingest_source": "client",
+        "individual_fiscal_status": "none",
+        "method": "cash",
+        "movement_type": "adjustment",
+        "processing_status": "received",
+        "refund_payment_method": "cash",
+        "role": "owner",
+        "source_channel": "counter",
+        "status": {
+            "account_deletion_requests": "pending",
+            "customer_orders": "new",
+            "fiscal_global_draft_batches": "closed",
+            "fiscal_individual_invoice_events": "reopened",
+            "inventory_reservations": "active",
+            "membership_invitations": "pending",
+            "orders": "completed",
+            "shifts": "open",
+            "subscriptions": "incomplete",
+        }.get(table.name, "active"),
+        "tax_code": "002",
+        "tax_calculation_status": "not_calculated",
+        "timezone": "America/Mexico_City",
+    }
+    if name in named_values:
+        return named_values[name]
+    if name in {"user_id", "created_by_user_id", "invited_by_user_id"}:
+        return USER_A if tenant == TENANT_A else USER_B
+    if name in {"batch_id", "original_batch_id"}:
+        return ids[("fiscal_global_draft_batches", tenant, variant)]
+    if name == "order_id":
+        return ids[("orders", tenant, variant)]
+    if name == "order_item_id":
+        return ids[("order_items", tenant, variant)]
+    if name == "product_id":
+        return ids[("products", tenant, variant)]
+    if name == "customer_order_id":
+        return ids[("customer_orders", tenant, variant)]
+    if name == "customer_order_item_id":
+        return ids[("customer_order_items", tenant, variant)]
+    if name == "modifier_group_id":
+        return ids[("modifier_groups", tenant, variant)]
+    if name == "modifier_option_id":
+        return ids[("modifier_options", tenant, variant)]
+    if name == "refund_id":
+        return ids[("refunds", tenant, variant)]
+    if name == "purge_after":
+        return datetime.now(UTC) + timedelta(days=30)
+    if name in {"period_start", "period_end", "expense_date"}:
+        return date(2026, 1, min(variant + 1, 28))
+    if name == "folio":
+        return f"S{tenant_token[:4]}{variant:02d}"
+    if name == "email":
+        return f"semantic-{token}@example.com"
+    if name in {"client_event_id", "stripe_event_id", "key", "token_hash"}:
+        return f"semantic-{name}-{token}"
+
+    python_type = column.type.python_type
+    if python_type is str:
+        maximum = getattr(column.type, "length", None) or 120
+        return f"semantic-{name}-{token}"[:maximum]
+    if python_type is bool:
+        return name in {"is_active", "is_trusted"}
+    if python_type is int:
+        if name == "paper_width_mm":
+            return 80
+        if name == "weekly_close_day":
+            return 7
+        if name == "monthly_close_day":
+            return 28
+        if name in {"image_position_x", "image_position_y"}:
+            return 50
+        if name in {
+            "process_attempts",
+            "adjustment_count",
+            "excluded_individually_confirmed_count",
+        }:
+            return 0
+        return 1
+    if python_type is float:
+        return 1.0
+    if python_type is Decimal:
+        if name in {
+            "discount_total_amount",
+            "line_discount_amount",
+            "order_discount_allocated_amount",
+            "refund_total_amount",
+            "tax_total_amount",
+            "adjustment_total_amount",
+        }:
+            return Decimal("0")
+        return Decimal("1")
+    if python_type is datetime:
+        return datetime.now(UTC)
+    if python_type is date:
+        return date(2026, 1, min(variant + 1, 28))
+    if python_type is bytes or isinstance(column.type, LargeBinary):
+        return b"x"
+    if python_type in {dict, list} or isinstance(column.type, JSON):
+        return [] if name == "data_quality_warnings" else {}
+    if python_type is uuid.UUID:
+        return _semantic_uuid(f"{table.name}.{name}", tenant, variant)
+    raise AssertionError(f"no semantic fixture value for {table.name}.{name}: {column.type}")
+
+
+def _semantic_payloads(engine):
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    protected = set(app_db.TENANT_SCOPED_TABLES)
+    ids = {
+        (table_name, tenant, variant): _semantic_uuid(table_name, tenant, variant)
+        for table_name in protected
+        for tenant in (TENANT_A, TENANT_B)
+        for variant in (0, 1)
+        if "id" in metadata.tables[table_name].c
+    }
+    payloads = {}
+    for table in metadata.sorted_tables:
+        if table.name not in protected:
+            continue
+        for tenant in (TENANT_A, TENANT_B):
+            for variant in (0, 1):
+                values = {}
+                for column in table.columns:
+                    if column.name == "tenant_id" or column.primary_key or (
+                        not column.nullable
+                        and column.server_default is None
+                        and not (column.autoincrement is True and column.primary_key)
+                    ):
+                        values[column.name] = _semantic_value(
+                            table, column, tenant, variant, ids
+                        )
+                if "tenant_id" in table.c:
+                    values["tenant_id"] = tenant
+                payloads[(table.name, tenant, variant)] = values
+    return metadata, payloads
+
+
+def _insert_semantic_graph(connection, tables, payloads, tenant: uuid.UUID) -> None:
+    by_name = {table.name: table for table in tables}
+    for table_name in _SEMANTIC_INSERT_ORDER:
+        if table_name in by_name:
+            table = by_name[table_name]
+            connection.execute(table.insert().values(payloads[(table.name, tenant, 0)]))
 
 
 def _database_url() -> URL:
@@ -595,13 +829,6 @@ def test_populated_upgrade_rejects_mismatch_then_enforces_fks_and_rls() -> None:
                     ).rowcount
                     == 0
                 )
-                assert (
-                    conn.execute(
-                        text("DELETE FROM products WHERE id = :id"), {"id": PRODUCT_B}
-                    ).rowcount
-                    == 0
-                )
-
             with runtime.connect() as conn:
                 transaction = conn.begin()
                 conn.execute(
@@ -614,9 +841,9 @@ def test_populated_upgrade_rejects_mismatch_then_enforces_fks_and_rls() -> None:
                             "INSERT INTO products (tenant_id, name, price_amount) "
                             "VALUES (:tenant, 'cross tenant', 10)"
                         ),
-                        {"tenant": TENANT_B},
-                    )
-                assert exc.value.orig.sqlstate == "42501"
+                            {"tenant": TENANT_B},
+                        )
+                    assert exc.value.orig.sqlstate == "42501"
                 transaction.rollback()
 
             with runtime.connect() as conn:
@@ -633,17 +860,18 @@ def test_populated_upgrade_rejects_mismatch_then_enforces_fks_and_rls() -> None:
                 assert exc.value.orig.sqlstate == "42501"
                 transaction.rollback()
 
-            with runtime.begin() as conn:
+            with runtime.connect() as conn:
+                transaction = conn.begin()
                 conn.execute(
                     text("SELECT set_config('app.tenant_id', :tenant, true)"),
                     {"tenant": str(TENANT_A)},
                 )
-                assert (
+                with pytest.raises(DBAPIError) as exc:
                     conn.execute(
                         text("DELETE FROM products WHERE id = :id"), {"id": product_new_id}
-                    ).rowcount
-                    == 1
-                )
+                    )
+                assert exc.value.orig.sqlstate == "42501"
+                transaction.rollback()
 
             for table in ("tenants", "users"):
                 with runtime.connect() as conn:
@@ -735,7 +963,7 @@ def test_populated_upgrade_rejects_mismatch_then_enforces_fks_and_rls() -> None:
                         text("UPDATE customer_order_items SET product_id = :pb WHERE id = :item"),
                         {"pb": PRODUCT_B, "item": item_id},
                     )
-                assert exc.value.orig.sqlstate == "23503"
+                assert exc.value.orig.sqlstate == "42501"
                 transaction.rollback()
 
             # Missing and explicit-empty context deny cleanly for every tenant table.
@@ -743,9 +971,11 @@ def test_populated_upgrade_rejects_mismatch_then_enforces_fks_and_rls() -> None:
                 with runtime.connect() as conn:
                     if empty:
                         conn.execute(text("SELECT set_config('app.tenant_id', '', false)"))
-                    readable_rls_tables = (
-                        set(app_db.TENANT_SCOPED_TABLES) - {"webhook_events"}
-                    ) | {"tenants", "users"}
+                    readable_rls_tables = {
+                        table
+                        for table in app_db.TENANT_SCOPED_TABLES
+                        if "SELECT" in _RUNTIME_TABLE_PRIVILEGES.get(table, set())
+                    } | {"tenants", "users"}
                     for table in readable_rls_tables:
                         assert conn.scalar(text(f"SELECT count(*) FROM {table}")) == 0
                 with runtime.connect() as conn:
@@ -756,10 +986,225 @@ def test_populated_upgrade_rejects_mismatch_then_enforces_fks_and_rls() -> None:
             # Session context survives real transaction boundaries and rollback.
             with Session(runtime) as session:
                 app_db.set_tenant_context(session, TENANT_A)
-                assert session.scalar(text("SELECT count(*) FROM products")) == 1
+                assert session.scalar(text("SELECT count(*) FROM products")) == 2
                 session.commit()
-                assert session.scalar(text("SELECT count(*) FROM products")) == 1
+                assert session.scalar(text("SELECT count(*) FROM products")) == 2
                 session.rollback()
-                assert session.scalar(text("SELECT count(*) FROM products")) == 1
+                assert session.scalar(text("SELECT count(*) FROM products")) == 2
+        finally:
+            runtime.dispose()
+
+
+def _assert_permission_denied(connection, statement, parameters=None) -> None:
+    with pytest.raises(DBAPIError) as exc:
+        connection.execute(statement, parameters or {})
+    assert exc.value.orig.sqlstate == "42501"
+
+
+def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
+    """Exercise SQL, not only grants metadata, for every protected table and verb."""
+    with _temporary_database() as (url, engine):
+        _run_alembic(url, "head")
+        _run_provision(url)
+        metadata, payloads = _semantic_payloads(engine)
+        protected = set(app_db.TENANT_SCOPED_TABLES)
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO tenants (id, name, slug) VALUES "
+                    "(:a, 'Semantic A', :sa), (:b, 'Semantic B', :sb)"
+                ),
+                {
+                    "a": TENANT_A,
+                    "b": TENANT_B,
+                    "sa": f"semantic-{TENANT_A}",
+                    "sb": f"semantic-{TENANT_B}",
+                },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, email, hashed_password, is_email_verified) VALUES "
+                    "(:a, 'semantic-a@example.com', 'hash-a', true), "
+                    "(:b, 'semantic-b@example.com', 'hash-b', true)"
+                ),
+                {"a": USER_A, "b": USER_B},
+            )
+            protected_tables = [
+                table for table in metadata.sorted_tables if table.name in protected
+            ]
+            _insert_semantic_graph(conn, protected_tables, payloads, TENANT_B)
+            _insert_semantic_graph(
+                conn,
+                [
+                    table
+                    for table in protected_tables
+                    if "INSERT" not in _RUNTIME_TABLE_PRIVILEGES.get(table.name, set())
+                ],
+                payloads,
+                TENANT_A,
+            )
+
+        runtime = _app_engine(url)
+        try:
+            # Insert a valid tenant-A graph through the real runtime role in FK order.
+            with runtime.begin() as conn:
+                conn.execute(
+                    text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                    {"tenant": str(TENANT_A)},
+                )
+                _insert_semantic_graph(
+                    conn,
+                    [
+                        table
+                        for table in metadata.sorted_tables
+                        if table.name in protected
+                        and "INSERT" in _RUNTIME_TABLE_PRIVILEGES.get(table.name, set())
+                    ],
+                    payloads,
+                    TENANT_A,
+                )
+
+            # Every tenant table now has real A/B data. Verify this with the owner.
+            with engine.begin() as conn:
+                for table_name in protected:
+                    assert conn.scalar(
+                        text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :tenant"),
+                        {"tenant": TENANT_A},
+                    ) == 1
+                    assert conn.scalar(
+                        text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :tenant"),
+                        {"tenant": TENANT_B},
+                    ) == 1
+
+            for table_name in sorted(protected):
+                expected = _RUNTIME_TABLE_PRIVILEGES.get(table_name, set())
+
+                with runtime.connect() as conn:
+                    transaction = conn.begin()
+                    conn.execute(
+                        text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                        {"tenant": str(TENANT_A)},
+                    )
+                    if "SELECT" in expected:
+                        assert conn.scalar(
+                            text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :a"),
+                            {"a": TENANT_A},
+                        ) == 1
+                        assert conn.scalar(
+                            text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :b"),
+                            {"b": TENANT_B},
+                        ) == 0
+                    else:
+                        _assert_permission_denied(
+                            conn, text(f"SELECT count(*) FROM {table_name}")
+                        )
+                    transaction.rollback()
+
+                with runtime.connect() as conn:
+                    transaction = conn.begin()
+                    conn.execute(
+                        text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                        {"tenant": str(TENANT_A)},
+                    )
+                    if "INSERT" in expected:
+                        with pytest.raises(DBAPIError) as exc:
+                            conn.execute(
+                                metadata.tables[table_name]
+                                .insert()
+                                .values(payloads[(table_name, TENANT_B, 1)])
+                            )
+                        assert exc.value.orig.sqlstate == "42501"
+                    else:
+                        _assert_permission_denied(
+                            conn, text(f"INSERT INTO {table_name} DEFAULT VALUES")
+                        )
+                    transaction.rollback()
+
+                with runtime.connect() as conn:
+                    transaction = conn.begin()
+                    conn.execute(
+                        text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                        {"tenant": str(TENANT_A)},
+                    )
+                    statement = text(
+                        f"UPDATE {table_name} SET tenant_id = tenant_id WHERE tenant_id = :tenant"
+                    )
+                    if "UPDATE" in expected:
+                        assert conn.execute(statement, {"tenant": TENANT_A}).rowcount == 1
+                        assert conn.execute(statement, {"tenant": TENANT_B}).rowcount == 0
+                    else:
+                        _assert_permission_denied(conn, statement, {"tenant": TENANT_A})
+                    transaction.rollback()
+
+                with runtime.connect() as conn:
+                    transaction = conn.begin()
+                    conn.execute(
+                        text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                        {"tenant": str(TENANT_A)},
+                    )
+                    statement = text(f"DELETE FROM {table_name} WHERE tenant_id = :tenant")
+                    if "DELETE" in expected:
+                        assert conn.execute(statement, {"tenant": TENANT_B}).rowcount == 0
+                        assert conn.execute(statement, {"tenant": TENANT_A}).rowcount == 1
+                    else:
+                        _assert_permission_denied(conn, statement, {"tenant": TENANT_A})
+                    transaction.rollback()
+
+            # Special-policy tables and every privileged-only table also execute all verbs.
+            with runtime.begin() as conn:
+                conn.execute(
+                    text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                    {"tenant": str(TENANT_A)},
+                )
+                assert conn.scalars(text("SELECT id FROM tenants ORDER BY id")).all() == [TENANT_A]
+                assert conn.scalars(text("SELECT id FROM users ORDER BY id")).all() == [USER_A]
+                conn.execute(
+                    text(
+                        "INSERT INTO anonymous_telemetry_events "
+                        "(id, event_name, client_id, client_event_id, properties, created_at) "
+                        "VALUES (:id, 'landing_viewed', 'semantic-client', :event, '{}', now())"
+                    ),
+                    {"id": uuid.uuid4(), "event": f"semantic-{uuid.uuid4()}"},
+                )
+
+            public_tables = set(metadata.tables)
+            runtime_tables = set(_RUNTIME_TABLE_PRIVILEGES)
+            privileged_only = public_tables - runtime_tables
+            for table_name in sorted(privileged_only):
+                first_column = metadata.tables[table_name].columns[0].name
+                for statement in (
+                    text(f"SELECT * FROM {table_name} WHERE false"),
+                    text(f"INSERT INTO {table_name} DEFAULT VALUES"),
+                    text(
+                        f"UPDATE {table_name} SET {first_column} = {first_column} WHERE false"
+                    ),
+                    text(f"DELETE FROM {table_name} WHERE false"),
+                ):
+                    with runtime.connect() as conn:
+                        transaction = conn.begin()
+                        _assert_permission_denied(conn, statement)
+                        transaction.rollback()
+
+            for table_name in _SPECIAL_RUNTIME_TABLES:
+                expected = _RUNTIME_TABLE_PRIVILEGES[table_name]
+                first_column = metadata.tables[table_name].columns[0].name
+                for verb, statement in (
+                    ("SELECT", text(f"SELECT * FROM {table_name} WHERE false")),
+                    ("INSERT", text(f"INSERT INTO {table_name} DEFAULT VALUES")),
+                    (
+                        "UPDATE",
+                        text(
+                            f"UPDATE {table_name} SET {first_column} = {first_column} WHERE false"
+                        ),
+                    ),
+                    ("DELETE", text(f"DELETE FROM {table_name} WHERE false")),
+                ):
+                    if verb in expected:
+                        continue
+                    with runtime.connect() as conn:
+                        transaction = conn.begin()
+                        _assert_permission_denied(conn, statement)
+                        transaction.rollback()
         finally:
             runtime.dispose()
