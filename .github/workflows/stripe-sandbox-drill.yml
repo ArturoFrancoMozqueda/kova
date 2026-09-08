@@ -48,8 +48,8 @@ jobs:
       KOV005_STRIPE_SECRET_KEY: ${{ secrets.KOV005_STRIPE_SECRET_KEY }}
       KOV005_STRIPE_STANDARD_PRICE_ID: ${{ secrets.KOV005_STRIPE_STANDARD_PRICE_ID }}
       KOV005_STRIPE_ACCOUNT_ID: ${{ vars.KOV005_STRIPE_ACCOUNT_ID }}
-      KOV005_EVIDENCE_PATH: ${{ runner.temp }}/kov-005-stripe-sandbox-evidence.md
-      KOV005_CLEANUP_PATH: ${{ runner.temp }}/kov-005-stripe-sandbox-cleanup.json
+      KOV005_EVIDENCE_PATH: /tmp/kov-005-stripe-sandbox-evidence-${{ github.run_id }}.md
+      KOV005_CLEANUP_PATH: /tmp/kov-005-stripe-sandbox-cleanup-${{ github.run_id }}.json
       STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION: "false"
 
     steps:
