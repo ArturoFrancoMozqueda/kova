@@ -20,14 +20,18 @@ try {
   await page.goto(checkoutUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
   const fillFirstVisible = async (selectors, value, required = true) => {
-    for (const selector of selectors) {
-      for (const frame of page.frames()) {
-        const field = frame.locator(selector).first();
-        if ((await field.count()) && (await field.isVisible())) {
-          await field.fill(value);
-          return true;
+    const deadline = Date.now() + (required ? 30_000 : 3_000);
+    while (Date.now() < deadline) {
+      for (const selector of selectors) {
+        for (const frame of page.frames()) {
+          const field = frame.locator(selector).first();
+          if ((await field.count()) && (await field.isVisible())) {
+            await field.fill(value);
+            return true;
+          }
         }
       }
+      await page.waitForTimeout(250);
     }
     if (required) throw new Error(`Stripe Checkout field not found: ${selectors.join(", ")}`);
     return false;
