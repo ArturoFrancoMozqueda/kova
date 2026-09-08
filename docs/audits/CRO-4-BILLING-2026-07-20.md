@@ -1,6 +1,7 @@
 # Evidencia CRO-4 — Billing y checkout confiables
 
-Estado: **CRO-4.1–4.5 aprobados; CRO-4.6 pendiente de un entorno Stripe test mode separado**.
+Estado: **CRO-4.1–4.5 aprobados; porción de proveedor/lifecycle de CRO-4.6 aprobada**. La UX de
+retorno/cancelación y live mode conservan gates operativos independientes.
 
 ## Precio y contrato de periodo
 
@@ -64,15 +65,17 @@ en un flujo diseñado y auditado; si no debe conservar acceso, revocarlo mediant
 administrativa aprobada. Nunca completar IDs o fechas manualmente ni reconciliar una sesión de otro
 tenant.
 
-## Gate operativo pendiente: CRO-4.6
+## Evidencia posterior: proveedor y lifecycle de CRO-4.6
 
-Playwright usa respuestas controladas y **no** sustituye el Checkout alojado. El único entorno
-conectado disponible usa Stripe live y rechaza test mode por configuración, por lo que no se cambió
-producción ni se inició un cargo para forzar esta prueba. Se necesita un backend staging/local con
-una clave, Price, webhook y URLs de retorno exclusivamente test. Allí queda por revisar manualmente:
-resumen `Standard Plan`, `$299 MXN`, cadencia mensual, campos y errores, cancelación, ruta de
-regreso, estado pendiente y posterior confirmación backend. Usar solo un método de prueba de Stripe;
-no introducir tarjeta real ni completar un cargo live.
+El run de GitHub Actions `34179307328`, sobre el commit `6933ac2`, usó Stripe test mode con backend
+y PostgreSQL desechables. Completó el Checkout alojado de `$299 MXN` mensual y verificó renovación,
+fallo con `past_due` y gracia, recuperación, cancelación al fin del periodo, ambos órdenes de eventos
+entre familias y replay duplicado. El job eliminó tres Test Clocks y el Customer independiente que
+creó. La evidencia revisada y redactada está en
+[`KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md`](evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md).
+Esta aceptación cubre el proveedor y lifecycle en test mode. No recorrió la página real de retorno
+de Kova, la ruta de cancelación de Checkout, los mensajes de error al usuario ni correo; tampoco
+valida producción live. Esos puntos continúan como release gates separados.
 
 ## Seguridad y rollback
 

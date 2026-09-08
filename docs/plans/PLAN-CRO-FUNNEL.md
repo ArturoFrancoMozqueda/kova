@@ -45,8 +45,9 @@ Este documento organiza las mejoras de conversión de Kova como un backlog CRO i
   ayuda neutral, conserva las guardas de cobro, reinicia la interacción entre ventas y registra
   bloqueos únicamente después de interacción; evidencia en
   [`docs/audits/CRO-3-POS-CASH-2026-07-20.md`](../audits/CRO-3-POS-CASH-2026-07-20.md).
-- [ ] **Epic CRO-4 — Billing y checkout confiables**. CRO-4.1–4.5 completados; CRO-4.6 requiere
-  un entorno Stripe test mode separado y permanece como gate operativo. Evidencia en
+- [ ] **Epic CRO-4 — Billing y checkout confiables**. CRO-4.1–4.5 completados; la porción de
+  proveedor y lifecycle de CRO-4.6 pasó en Stripe test mode en el run `34179307328`. La UX de
+  retorno/cancelación y el Checkout live permanecen como gates separados. Evidencia en
   [`docs/audits/CRO-4-BILLING-2026-07-20.md`](../audits/CRO-4-BILLING-2026-07-20.md).
 - [ ] **Epic CRO-5 — Rollout y aprendizaje**. CRO-5.1/5.2 completados; checkpoint preliminar de
   CRO-5.3 ejecutado a las 3.81 horas e inconcluso por muestra. Los cortes reales de 7 y 30 días

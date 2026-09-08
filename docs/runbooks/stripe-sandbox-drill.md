@@ -6,9 +6,7 @@ deploys Kova, contacts the production API, or mutates the production database.
 
 ## GitHub environment
 
-Create a protected GitHub environment named exactly `stripe-sandbox`. Restrict deployment branches
-to `main` and require a reviewer who can confirm that the supplied Stripe account is a disposable
-Sandbox. Add only these values:
+Create a GitHub environment named exactly `stripe-sandbox` and add only these values:
 
 | Kind | Name | Requirement |
 |---|---|---|
@@ -21,17 +19,26 @@ email, Fly or Vercel secret is required. The workflow creates ephemeral PostgreS
 webhook signing secrets and deletes the test clocks and standalone Checkout customer before it can
 pass.
 
+The workflow itself accepts only `main`, requires the exact acknowledgement, rejects live keys,
+checks the exact Sandbox account and Price, and keeps the application and database on runner
+loopback. If the repository plan supports environment protection rules, also restrict the
+environment to `main` and require a reviewer. The current private-repository plan returned HTTP 422
+when those protection rules were configured, so they are an optional defense and must not be
+described as active unless GitHub shows them on the environment.
+
 ## Run
 
 1. Merge the runner into `main` and select **Actions → KOV-005 Stripe sandbox drill**.
 2. Choose `main` and enter the acknowledgement exactly as
    `KOV-005-STRIPE-SANDBOX-ONLY`.
-3. Approve the protected `stripe-sandbox` environment after checking the key and account belong to
-   the dedicated Sandbox.
+3. Before dispatch, check that the key and account belong to the dedicated Sandbox. If environment
+   reviewers are configured, approve the deployment after that check.
 4. Download `kov-005-stripe-sandbox-<sha>` only after the workflow succeeds.
 5. Review the Markdown artifact. Commit it under
    `docs/audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-YYYY-MM-DD.md` without adding screenshots,
    raw exports or secrets.
+6. After the evidence is committed, delete `KOV005_STRIPE_SECRET_KEY` from the GitHub environment.
+   Repeating the drill requires an explicit new installation of a sandbox key.
 
 The drill proves hosted Checkout, renewal, payment failure and grace, payment recovery, scheduled
 cancellation, period-end cancellation, both cross-family arrival orders and duplicate delivery. The

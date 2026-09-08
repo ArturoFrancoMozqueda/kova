@@ -4,6 +4,8 @@
 
 **Base de implementación revisada:** `e994136`
 
+**Evidencia de proveedor más reciente:** `6933ac2585de038f3b697e80cda6f35f078b9a00`
+
 **Auditoría de origen:** [`KOVA_COMPREHENSIVE_AUDIT.md`](KOVA_COMPREHENSIVE_AUDIT.md)
 
 **Backlog de aceptación:** [`KOVA_IMPROVEMENT_BACKLOG.md`](KOVA_IMPROVEMENT_BACKLOG.md)
@@ -15,14 +17,14 @@ estado actual. La remediación local no sustituye evidencia de proveedores o pro
 ## Decisión de salida
 
 La reauditoría independiente no encontró bloqueadores locales adicionales: los 36 hallazgos tienen
-implementación, prueba o procedimiento local. Kova todavía no debe declararse listo para GA ni para
-un despliegue productivo sin supervisión porque dos hallazgos conservan gates externos:
+implementación, prueba o procedimiento local. KOV-005 quedó cerrado con un recorrido real y
+desechable en Stripe test mode. El único hallazgo de la auditoría que conserva un gate externo es
+KOV-031: restore real autorizado con RPO/RTO, roles, RLS, conteos, binarios y smoke. El owner excluyó
+expresamente esa restauración real del alcance de esta remediación.
 
-1. KOV-005: lifecycle real en Stripe test mode, incluyendo eventos cruzados y fuera de orden.
-2. KOV-031: restore real autorizado con RPO/RTO, roles, RLS, conteos, binarios y smoke. Es P1.
-
-Hasta completar esos dos controles, la decisión correcta es **código local remediado; salida a
-producción bloqueada por evidencia externa**.
+Dentro del alcance autorizado, la remediación está completa. Kova todavía no debe declararse listo
+para GA ni para un despliegue productivo sin supervisión mientras KOV-031 siga sin evidencia real;
+los controles comerciales y operativos para ampliar clientes se mantienen separados más abajo.
 
 ## Matriz de los 36 hallazgos
 
@@ -36,7 +38,7 @@ el proveedor o entorno real.
 | KOV-002 | Cerrado local | `9f6262c`: cantidades duplicadas de refund agregadas y límite por línea. |
 | KOV-003 | Cerrado local | `9f9cdf9`, `40cca91`, `cb02c14`: cierre serializado contra movimientos, venta, refund y doble cierre. |
 | KOV-004 | Cerrado local | `5590be3`: identidad financiera permanente, replay tras TTL, rechazo de hash distinto y concurrencia. |
-| KOV-005 | Gate externo | `cf55471` converge familias localmente; falta ejecutar las secuencias temporales en Stripe test mode. |
+| KOV-005 | Cerrado proveedor | Drill real `34179307328` sobre `6933ac2`: Checkout alojado, renovación, `past_due` y gracia, recuperación, cancelación al fin del periodo, órdenes cruzados, replay idempotente y cleanup; evidencia en `evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md`. No habilita por sí solo cobros live. |
 | KOV-006 | Cerrado local | `de42036`: upgrade fiscal poblado, rollback inyectado, reconciliación y grants. |
 | KOV-007 | Cerrado local | `250af40`: allowlist de export excluye notas Ops e información interna. |
 | KOV-008 | Cerrado local | `250af40`: grafo de purga ordenado, aislado y fail closed. |
@@ -96,15 +98,18 @@ certificación backend se creó una base vacía, se migró desde baseline hasta
 Los warnings observados corresponden a la deprecación TestClient/httpx y a una clave JWT sintética
 de tests. No se usaron secretos, proveedores ni bases del producto durante la validación local.
 
-## Gates externos antes de producción
+## Gates y controles externos antes de producción
 
 Registrar cada ejecución con fecha, commit, entorno, responsable y evidencia en el runbook
 correspondiente:
 
-- Stripe test mode: checkout, renovación, `past_due`, cancelación y eventos entre familias fuera de
-  orden; comprobar entitlements y watermark final.
+- Stripe test mode: **completado** en el run `34179307328`; Checkout, renovación, `past_due`,
+  recuperación, cancelación, eventos entre familias fuera de orden, idempotencia, watermarks y
+  cleanup quedaron registrados en
+  [`KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md`](evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md).
 - Restore: descargar un backup autorizado, verificar SHA-256, restaurar en destino desechable,
-  aplicar roles/RLS, comparar conteos y binarios, ejecutar smoke y anotar RPO/RTO.
+  aplicar roles/RLS, comparar conteos y binarios, ejecutar smoke y anotar RPO/RTO. Sigue pendiente
+  por exclusión expresa del owner.
 - Antes de ampliar clientes: completar entrega real de correo, SPF/DKIM/DMARC, QA en dispositivos,
   piloto controlado, soporte y revisión legal/comercial vigente.
 

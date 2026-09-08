@@ -78,6 +78,9 @@ se deben interpretar como aprobadas si se omitieron.
 - [`runbooks/ops-beta-gate.md`](runbooks/ops-beta-gate.md): evidencia requerida antes del beta pago.
 - [`runbooks/restore-supabase-backup.md`](runbooks/restore-supabase-backup.md): restore en destino
   desechable y registro de RPO/RTO.
+- [`runbooks/stripe-sandbox-drill.md`](runbooks/stripe-sandbox-drill.md): drill desechable de Checkout
+  y lifecycle en Stripe test mode; evidencia fechada en
+  [`audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md`](audits/evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md).
 - [`runbooks/uptime-monitoring.md`](runbooks/uptime-monitoring.md): monitores, alertas y respuesta.
 - [`runbooks/ops-dashboard.md`](runbooks/ops-dashboard.md): diagnóstico operativo de sólo lectura.
 - [`offline-qa-checklist.md`](offline-qa-checklist.md): prueba por dispositivo del POS offline.

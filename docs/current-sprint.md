@@ -28,9 +28,9 @@ gates remain open until their runbook contains dated evidence from the real envi
 Local remediation and independent reauditing are complete as of 2026-09-07. The disposition and
 validation for every finding are recorded in
 [`audits/KOVA_REMEDIATION_STATUS_2026-09-07.md`](audits/KOVA_REMEDIATION_STATUS_2026-09-07.md).
-Production remains blocked by the external Stripe and restore gates listed in that report. The
-effective Supabase grants/Data API gate and the disposable Fly/Vercel recovery drill are closed;
-KOV-031 restore evidence remains P1.
+The effective Supabase grants/Data API gate, the disposable Fly/Vercel recovery drill, and the real
+Stripe test-mode lifecycle drill are closed. KOV-031 restore evidence remains the only open audit
+gate and was expressly excluded from the authorized remediation scope.
 
 The July premium redesign and CRO sections below are retained as historical execution context. Their
 dates and checkboxes must not be interpreted as the current release decision.
@@ -82,9 +82,9 @@ Requirement-by-requirement execution and proof now live in
   interaction-gated validation and telemetry, preserved financial guards, and mobile coverage at
   320×844 and 390×844; evidence in
   [`docs/audits/CRO-3-POS-CASH-2026-07-20.md`](audits/CRO-3-POS-CASH-2026-07-20.md).
-- [ ] Epic CRO-4 — trustworthy billing and checkout: CRO-4.1–4.5 completed, including the
-  production Stripe tenant/log diagnosis; hosted Checkout validation remains open because it
-  requires a separate Stripe test-mode environment for CRO-4.6. Evidence in
+- [ ] Epic CRO-4 — trustworthy billing and checkout: CRO-4.1–4.5 completed. The provider and
+  lifecycle portion of CRO-4.6 passed in a disposable Stripe test-mode drill; return/cancel UX and
+  live checkout remain release gates. Evidence in
   [`docs/audits/CRO-4-BILLING-2026-07-20.md`](audits/CRO-4-BILLING-2026-07-20.md).
 - [ ] Epic CRO-5 — rollout and learning loop: small-batch rollout and experiment isolation are
   complete; the 3.81-hour preliminary checkpoint was inconclusive as required, and reproducible
@@ -108,7 +108,7 @@ in [`specs/reports/analysis_activation.md`](../specs/reports/analysis_activation
       the observable sale → close → analysis journey.
 - [ ] Recruit and observe the planned multi-vertical pilot cohort; this is commercial research, not
       a code-complete gate.
-- [ ] Close the existing Stripe, inbox-delivery and backup-restore production gates before broad
+- [ ] Close the existing live Stripe, inbox-delivery and backup-restore production gates before broad
       rollout.
 
 ## Current Focus: Paid Beta Readiness
@@ -244,7 +244,8 @@ controlled tenants.
 
 - [ ] Stripe live checkout full-flow verified:
       checkout, webhook, active subscription, retry/past_due, grace period, cancel, and resume
-      behavior if supported.
+      behavior if supported. The equivalent test-mode lifecycle passed in GitHub Actions run
+      `34179307328`; this checkbox specifically requires live-mode evidence.
 - [ ] Post-checkout, welcome, and trial-ending emails verified against real inbox providers
       (Gmail, Outlook/Hotmail at minimum).
 - [ ] Restore drill completed from a real R2 backup into a fresh Supabase project and documented in
