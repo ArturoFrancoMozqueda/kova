@@ -34,7 +34,10 @@ try {
   };
 
   stage = "fill_email";
-  await fillFirstVisible(["input[name=email]", "input[type=email]"], "kov005-checkout@example.com", false);
+  await fillFirstVisible(
+    ["input[name=email]", "input[autocomplete=email]", "input[type=email]"],
+    "kov005-checkout@example.com",
+  );
   stage = "fill_card_number";
   await fillFirstVisible(["input[name=cardNumber]", "input[autocomplete=cc-number]"], "4242424242424242");
   stage = "fill_expiry";
@@ -43,7 +46,21 @@ try {
   await fillFirstVisible(["input[name=cardCvc]", "input[autocomplete=cc-csc]"], "123");
   stage = "fill_optional_billing";
   await fillFirstVisible(["input[name=billingName]", "input[autocomplete=cc-name]"], "Kova Sandbox", false);
-  await fillFirstVisible(["input[name=postalCode]", "input[autocomplete=postal-code]"], "01000", false);
+  await fillFirstVisible(
+    [
+      "input[name=postalCode]",
+      "input[name=postal_code]",
+      "input[autocomplete=postal-code]",
+      'input[placeholder="ZIP"]',
+    ],
+    "10001",
+  );
+
+  stage = "disable_link_save";
+  const linkSave = page.locator('input[name="enableStripePass"], input[type="checkbox"]').first();
+  if ((await linkSave.count()) && (await linkSave.isVisible()) && (await linkSave.isChecked())) {
+    await linkSave.uncheck();
+  }
 
   stage = "submit_checkout";
   const submit = page.locator("button[type=submit]").last();
