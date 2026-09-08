@@ -5,8 +5,11 @@
 - **BILL-1:** política temporal definida e implementada.
 - **BILL-2:** watermarks, bloqueo, deduplicación y observabilidad implementados.
 - **BILL-3:** reconciliación acotada y job interno protegido implementados.
-- **BILL-4:** **pendiente externo**. No existe en este cambio evidencia de un recorrido completo en
-  Stripe test mode; por lo tanto no se considera cerrado ni habilita live mode.
+- **BILL-4:** **cerrado con evidencia de proveedor**. El run `34179307328` completó Checkout
+  alojado, renovación, fallo y recuperación de pago, cancelación, eventos fuera de orden y replay
+  idempotente en Stripe test mode. La evidencia está en
+  [`KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md`](evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md).
+  Este resultado no habilita por sí solo live mode.
 
 ## Política temporal
 

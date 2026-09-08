@@ -12,7 +12,7 @@ This document tracks the highest-risk areas of the POS SaaS project.
 | Data loss during offline sync | Critical | Medium | Dexie queue, retry policy, recoverable failed state, E2E offline tests | Engineering |
 | Weak authorization | High | Medium | centralized RBAC, permission constants, endpoint tests | Engineering |
 | Billing webhook bugs | High | Medium | webhook idempotency, event log, state from webhook only | Engineering |
-| Production billing must move from Stripe sandbox before launch | Critical | Medium | keep sandbox explicitly enabled during build-out, live Stripe env verification only when web app is complete | Engineering/Product |
+| Live billing flow lacks a current full production lifecycle verification | Critical | Medium | retain strict live/test guards and require a dated live Checkout, webhook and subscription-state acceptance before public selling | Engineering/Product |
 | Stale PWA app shell after deployment | High | Medium | Workbox outdated cache cleanup, early service worker update checks, production smoke for returning browsers | Engineering |
 | Scope creep | High | High | current-sprint.md, deferred-scope.md, strict beta scope | Product/Engineering |
 | Over-engineering | High | Medium | modular monolith, no microservices, avoid Kafka/GraphQL/custom auth | Engineering |
@@ -109,27 +109,28 @@ Mitigation:
 Release gate:
 Offline E2E scenarios must pass.
 
-### Production Billing Must Move From Stripe Sandbox Before Launch
+### Live Billing Requires Full Production Lifecycle Verification
 
 Severity: Critical
 
 Why it matters:
-A buyer can reach Checkout and believe payment is available, but test-mode sessions cannot create a
-real paid subscription. This is acceptable during product build-out and pre-launch validation, but
-blocks public selling once the web app is otherwise complete.
+A buyer can reach Checkout while a configuration, webhook or state-convergence defect still prevents
+a reliable paid subscription. Test-mode evidence reduces technical risk but cannot certify the live
+account, live endpoint or the complete production customer journey.
 
 Current evidence:
-Production smoke on 2026-05-17 reached `checkout.stripe.com` and received a `cs_test` session id.
-The team intentionally wants to keep Stripe in sandbox until the web app is completely done.
+The 2026-07-21 read-only production diagnosis recorded a live key, Price and webhook configuration
+and reconciled the Stripe-backed subscriptions it could identify. The 2026-09-07 disposable drill
+completed Checkout and the subscription lifecycle in Stripe test mode. Neither record is a dated
+full live-mode purchase/lifecycle acceptance for the current release.
 
 Mitigation:
 
-- Keep `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION=true` while the product is pre-launch.
-- Configure production `STRIPE_SECRET_KEY`, Standard Plan price, and webhook endpoint with live-mode
-  Stripe values only after the web app is complete.
+- Keep `STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION` disabled for live selling.
+- Verify the production `STRIPE_SECRET_KEY`, Standard Plan Price and webhook endpoint remain in the
+  same live account before release.
 - Keep backend startup validation that rejects test Stripe keys unless sandbox mode is explicitly enabled.
 - Keep checkout runtime validation that rejects test Checkout Session ids unless sandbox mode is explicitly enabled.
-- Run `npm run test:production-smoke` with `PRODUCTION_SMOKE_STRIPE_MODE=test` during pre-launch.
 - Run `npm run test:production-smoke` with `PRODUCTION_SMOKE_STRIPE_MODE=live` before public selling.
 
 Release gate:
