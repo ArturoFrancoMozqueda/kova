@@ -456,7 +456,10 @@ export const copy = {
   pwaUpdate: {
     title: "Nueva versión disponible",
     description: "Actualiza cuando la caja esté libre para cargar las mejoras más recientes.",
+    deferredDescription:
+      "La actualización está en pausa para proteger esta operación. Guarda o termina lo que estás haciendo y, al salir de esta pantalla, Kova se actualizará automáticamente.",
     update: "Actualizar ahora",
+    waiting: "Esperando para actualizar",
     later: "Más tarde",
     dismiss: "Cerrar aviso de actualización",
   },
