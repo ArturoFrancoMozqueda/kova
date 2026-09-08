@@ -50,6 +50,7 @@ jobs:
       KOV005_STRIPE_ACCOUNT_ID: ${{ vars.KOV005_STRIPE_ACCOUNT_ID }}
       KOV005_EVIDENCE_PATH: /tmp/kov-005-stripe-sandbox-evidence-${{ github.run_id }}.md
       KOV005_CLEANUP_PATH: /tmp/kov-005-stripe-sandbox-cleanup-${{ github.run_id }}.json
+      KOV005_CHECKOUT_DIAGNOSTIC_PATH: /tmp/kov-005-checkout-failure-${{ github.run_id }}.png
       STRIPE_ALLOW_TEST_MODE_IN_PRODUCTION: "false"
 
     steps:
@@ -122,9 +123,18 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kov-005-stripe-sandbox-${{ github.sha }}
-          path: ${{ runner.temp }}/kov-005-stripe-sandbox-evidence.md
+          path: ${{ env.KOV005_EVIDENCE_PATH }}
           if-no-files-found: error
           retention-days: 30
+
+      - name: Upload Checkout failure diagnostic
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kov-005-checkout-failure-${{ github.sha }}
+          path: ${{ env.KOV005_CHECKOUT_DIAGNOSTIC_PATH }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Retry Stripe Sandbox cleanup
         if: always()
@@ -137,4 +147,5 @@ jobs:
           rm -f "$RUNNER_TEMP"/stripe "$RUNNER_TEMP"/bin/stripe
           rm -f "$RUNNER_TEMP"/stripe_*.tar.gz "$RUNNER_TEMP"/checksums.txt
           rm -f "$RUNNER_TEMP"/kov005-checkout-*.json
+          rm -f "$KOV005_CHECKOUT_DIAGNOSTIC_PATH"
           rm -f "$KOV005_CLEANUP_PATH"
