@@ -1,14 +1,12 @@
 User-agent: *
 Allow: /
 
+# Public auth screens serve noindex in their initial HTML. Crawlers must be
+# allowed to fetch them to remove previously indexed URLs; Disallow would hide
+# that directive. These screens remain outside sitemap.xml.
+
 # Authenticated app routes (client-side only — they serve the empty shell and
 # have no indexable content). Keep crawlers off them to avoid wasted budget.
-Disallow: /login
-Disallow: /signup
-Disallow: /forgot-password
-Disallow: /reset-password
-Disallow: /verify-email
-Disallow: /accept-invite
 Disallow: /dashboard
 Disallow: /register
 Disallow: /catalog

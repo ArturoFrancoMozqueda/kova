@@ -87,10 +87,26 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(res.headers()["content-type"]).toContain("text/plain");
     const body = await res.text();
     expect(body).toContain("Sitemap: https://kovasuite.com/sitemap.xml");
-    for (const route of ["/login", "/signup", "/expenses", "/pedidos", "/kova-showcase-video"]) {
+    for (const route of ["/dashboard", "/expenses", "/pedidos", "/api/", "/kova-showcase-video"]) {
       expect(body).toContain(`Disallow: ${route}`);
     }
     expect(body).not.toContain("<!doctype html>");
+
+    // A crawler cannot honor noindex on an already indexed URL if robots.txt
+    // blocks fetching its HTML. Verify the complete public-auth exclusion path.
+    const sitemap = await request.get("/sitemap.xml");
+    expect(sitemap.status()).toBe(200);
+    const sitemapBody = await sitemap.text();
+    const disallowed = body.split("\n")
+      .filter((line) => line.startsWith("Disallow:"))
+      .map((line) => line.slice("Disallow:".length).trim());
+    for (const route of ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invite"]) {
+      expect(disallowed.some((prefix) => prefix && route.startsWith(prefix))).toBe(false);
+      const authPage = await request.get(route);
+      expect(authPage.status()).toBe(200);
+      expect(await authPage.text()).toContain('<meta name="robots" content="noindex"');
+      expect(sitemapBody).not.toContain(`https://kovasuite.com${route}</loc>`);
+    }
   });
 
   test("sitemap.xml lists the public marketing and legal URLs", async ({ request }) => {
