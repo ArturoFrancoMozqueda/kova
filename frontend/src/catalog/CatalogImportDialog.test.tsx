@@ -316,4 +316,65 @@ describe("CatalogImportDialog", () => {
     expect(screen.queryByText("Concha")).not.toBeInTheDocument();
     digest.mockRestore();
   });
+
+  it("recovers a committed import without a duplicate-SKU preview blocking its replay", async () => {
+    const processed = new Set<string>();
+    previewCatalogImport.mockImplementation(async () => processed.size === 0 ? validPreview : {
+      ...validPreview,
+      valid_rows: 0,
+      error_rows: 1,
+      rows: [{ ...validPreview.rows[0], status: "error", errors: ["El SKU CON-1 ya existe"] }],
+    });
+    commitCatalogImport.mockImplementation(async (_file, key: string) => {
+      if (!processed.has(key)) {
+        processed.add(key);
+        throw new TypeError("Response lost after product and stock committed");
+      }
+      return { ...validPreview, dry_run: false, created_products: 1, initial_stock_movements: 1 };
+    });
+    const props = { onClose: vi.fn(), onImported: vi.fn() };
+    const { rerender } = render(<CatalogImportDialog open {...props} />);
+    const selectFile = () => fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), {
+      target: { files: [new File(["nombre,sku,precio,stock_inicial\nConcha,CON-1,18,20"], "catalogo.csv")] },
+    });
+    selectFile();
+    await screen.findByText("Concha");
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await screen.findByRole("alert");
+    rerender(<CatalogImportDialog open={false} {...props} />);
+    rerender(<CatalogImportDialog open {...props} />);
+    selectFile();
+    await screen.findByText("Concha");
+    expect(screen.getByRole("button", { name: "Importar productos" })).toBeEnabled();
+    expect(previewCatalogImport).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Este archivo tiene una importación sin confirmar/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await waitFor(() => expect(props.onImported).toHaveBeenCalledWith(expect.objectContaining({ created_products: 1, initial_stock_movements: 1 })));
+    expect(processed.size).toBe(1);
+    expect(commitCatalogImport.mock.calls[1][1]).toBe(commitCatalogImport.mock.calls[0][1]);
+  });
+
+  it("still previews and blocks another file with row errors after an ambiguous import", async () => {
+    previewCatalogImport.mockResolvedValueOnce(validPreview).mockResolvedValueOnce({
+      ...validPreview,
+      valid_rows: 0,
+      error_rows: 1,
+      rows: [{ ...validPreview.rows[0], status: "error", errors: ["El SKU CON-1 ya existe"] }],
+    });
+    commitCatalogImport.mockRejectedValue(new TypeError("Response lost"));
+    const props = { onClose: vi.fn(), onImported: vi.fn() };
+    const { rerender } = render(<CatalogImportDialog open {...props} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["original"], "catalogo.csv")] } });
+    await screen.findByText("Concha");
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await screen.findByRole("alert");
+    rerender(<CatalogImportDialog open={false} {...props} />);
+    rerender(<CatalogImportDialog open {...props} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["edited"], "catalogo.csv")] } });
+    await screen.findByText(/El SKU CON-1 ya existe/);
+    expect(previewCatalogImport).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
+    expect(screen.queryByText(/Este archivo tiene una importación sin confirmar/)).not.toBeInTheDocument();
+    expect(commitCatalogImport).toHaveBeenCalledTimes(1);
+  });
 });

@@ -24,13 +24,14 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   // Keep an ambiguous import through dialog closes and identical reselections.
   // This is scoped to this authenticated view's lifetime, never persisted.
-  const writeAttempt = useRef<{ identity: string; fingerprint: string; key: string } | null>(null);
+  const writeAttempt = useRef<{ identity: string; fingerprint: string; key: string; preview: CatalogImportResponse } | null>(null);
   const requestVersion = useRef(0);
   const requestPending = useRef(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CatalogImportResponse | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryingImport, setRetryingImport] = useState(false);
 
   useEffect(() => {
     writeAttempt.current = null;
@@ -40,6 +41,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     setPreview(null);
     setPending(false);
     setError(null);
+    setRetryingImport(false);
   }, [identity]);
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
       setPreview(null);
       setPending(false);
       setError(null);
+      setRetryingImport(false);
     }
     // Results from a closed dialog must not populate a later import session.
     return () => { requestVersion.current += 1; };
@@ -59,6 +62,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     setFile(selected);
     setPreview(null);
     setError(null);
+    setRetryingImport(false);
     if (!/\.(csv|xlsx)$/i.test(selected.name)) {
       setError(copy.catalog.importUnsupportedFile);
       return;
@@ -71,6 +75,18 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     requestPending.current = true;
     setPending(true);
     try {
+      const previousAttempt = writeAttempt.current;
+      if (previousAttempt?.identity === identity) {
+        const fingerprint = await catalogImportFingerprint(selected);
+        if (version !== requestVersion.current) return;
+        if (fingerprint === previousAttempt.fingerprint) {
+          // The first write may already have created these SKUs. Previewing
+          // again would report duplicates and prevent replaying its saved key.
+          setPreview(previousAttempt.preview);
+          setRetryingImport(true);
+          return;
+        }
+      }
       const result = await previewCatalogImport(selected);
       if (version !== requestVersion.current) return;
       setPreview(result);
@@ -103,7 +119,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
       if (version !== requestVersion.current) return;
       const idempotencyKey = writeAttempt.current?.identity === identity && writeAttempt.current.fingerprint === fingerprint
         ? writeAttempt.current.key : crypto.randomUUID();
-      if (identity) writeAttempt.current = { identity, fingerprint, key: idempotencyKey };
+      if (identity) writeAttempt.current = { identity, fingerprint, key: idempotencyKey, preview };
       const result = await commitCatalogImport(file, idempotencyKey);
       committed = true;
       if (writeAttempt.current?.key === idempotencyKey) writeAttempt.current = null;
@@ -111,6 +127,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
       // The write succeeded even if refreshing the catalog fails afterwards.
       setFile(null);
       setPreview(null);
+      setRetryingImport(false);
       await onImported(result);
     } catch (cause) {
       if (version !== requestVersion.current) return;
@@ -196,6 +213,11 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
 
         {preview && (
           <div className="space-y-3" aria-live="polite">
+            {retryingImport ? (
+              <p role="status" className="rounded-kova-lg border border-kova-blue/20 bg-kova-blue/5 p-3 text-sm text-kova-ink">
+                Este archivo tiene una importación sin confirmar. Reintenta para comprobar el resultado; Kova usará el mismo intento para evitar duplicados.
+              </p>
+            ) : null}
             <div className="grid grid-cols-3 gap-2">
               <ImportCount label={copy.catalog.importTotal} value={preview.total_rows} />
               <ImportCount label={copy.catalog.importValid} value={preview.valid_rows} tone="success" />
