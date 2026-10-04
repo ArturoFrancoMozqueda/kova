@@ -201,12 +201,42 @@ test("network-error sale remains recoverable and clears on retry", async ({
 
   let syncCallCount = 0;
   let capturedClientUuid: string | null = null;
+  const sentSales: Array<Record<string, unknown> & { client_uuid: string }> = [];
+  const readStoredSale = () => page.evaluate((clientUuid) => new Promise<{
+    status: string;
+    lease_id?: string;
+    sync_owner?: string;
+    attempt_count: number;
+    last_error?: string;
+    synced_order_id?: string;
+  } | undefined>((resolve, reject) => {
+    const opening = indexedDB.open("pos_offline");
+    opening.onerror = () => reject(opening.error);
+    opening.onsuccess = () => {
+      const db = opening.result;
+      const request = db.transaction("offline_sales", "readonly").objectStore("offline_sales").get(clientUuid);
+      request.onerror = () => { db.close(); reject(request.error); };
+      request.onsuccess = () => {
+        const row = request.result;
+        db.close();
+        resolve(row ? {
+          status: row.status,
+          lease_id: row.lease_id,
+          sync_owner: row.sync_owner,
+          attempt_count: row.attempt_count,
+          last_error: row.last_error,
+          synced_order_id: row.synced_order_id,
+        } : undefined);
+      };
+    };
+  }), sentSales[0].client_uuid);
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     syncCallCount += 1;
     const body = route.request().postDataJSON() as {
-      sales: Array<{ client_uuid: string }>;
+      sales: Array<Record<string, unknown> & { client_uuid: string }>;
     };
+    sentSales.push(body.sales[0]);
     capturedClientUuid = body.sales[0].client_uuid;
 
     if (syncCallCount === 1) {
@@ -227,6 +257,16 @@ test("network-error sale remains recoverable and clears on retry", async ({
   await expect(page.getByText(/pendiente de sincronizar/i).first()).toBeVisible();
   await expect.poll(() => syncCallCount).toBeGreaterThanOrEqual(1);
 
+  // The receipt appears before the rejected fetch has released its lease.
+  // A full navigation at that point interrupts the rollback and leaves a
+  // valid crash lease. Wait for the durable recovery state before reloading.
+  await expect.poll(async () => {
+    const row = await readStoredSale();
+    if (!row || row.lease_id != null || row.sync_owner != null) return false;
+    return (row.status === "pending" && row.attempt_count >= 1 && Boolean(row.last_error))
+      || (row.status === "synced" && syncCallCount >= 2);
+  }).toBe(true);
+
   // Open the queue while the worker is eligible to retry in the background.
   await page.goto("/sync-queue");
   await expect(page.getByRole("heading", { name: /cola de sincronizaci[óo]n/i })).toBeVisible();
@@ -244,6 +284,13 @@ test("network-error sale remains recoverable and clears on retry", async ({
   }, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
 
   // Either recovery path must reuse the queued sale and clear it.
+  expect(sentSales[1]).toEqual(sentSales[0]);
+  await expect.poll(readStoredSale).toMatchObject({
+    status: "synced",
+    lease_id: undefined,
+    sync_owner: undefined,
+    synced_order_id: "10000000-0000-4000-8000-000000000007",
+  });
   await expect(pendingHeading).not.toBeVisible({
     timeout: 5000,
   });

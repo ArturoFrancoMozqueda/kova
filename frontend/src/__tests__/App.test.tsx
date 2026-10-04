@@ -200,7 +200,8 @@ describe("App shell", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /iniciar sesi[oó]n/i }));
 
-    expect(await screen.findByRole("heading", { name: /caja/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: /^Caja$/ })).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/register");
   });
 
   it("creates a cash sale from the register", async () => {
