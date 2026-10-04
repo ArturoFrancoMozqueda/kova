@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
@@ -52,6 +52,7 @@ export default function InventoryView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);
   const [pending, setPending] = useState(false);
+  const submissionPending = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const focusedProductId = searchParams.get("product");
   const [stockSearch, setStockSearch] = useState("");
@@ -98,9 +99,9 @@ export default function InventoryView() {
         : true;
       const matchesFilter =
         stockFilter === "low"
-          ? item.is_low_stock
+          ? item.is_low_stock || item.stock_on_hand <= 0
           : stockFilter === "healthy"
-            ? !item.is_low_stock
+            ? !item.is_low_stock && item.stock_on_hand > 0
             : true;
       return matchesSearch && matchesFilter;
     });
@@ -117,7 +118,8 @@ export default function InventoryView() {
   }, [loadState, stockFilter, stockSearch, stockSort, focusedProductId]);
 
   const submitModal = async (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null }) => {
-    if (!modal) return;
+    if (!modal || submissionPending.current) return;
+    submissionPending.current = true;
     setPending(true);
     try {
       if (modal.type === "adjust") {
@@ -138,6 +140,7 @@ export default function InventoryView() {
       if (handleBillingBlocked(err)) return;
       toast(resolveApiErrorMessage(err, copy.inventoryView.operationError), "error");
     } finally {
+      submissionPending.current = false;
       setPending(false);
     }
   };
@@ -253,6 +256,7 @@ export default function InventoryView() {
               {[
                 ...attentionStock.map((item) => ({
                   id: `low-${item.product_id}`,
+                  productId: item.product_id,
                   title: item.product_name,
                   detail: copy.inventoryView.lowStockDetail(item.stock_on_hand, item.low_stock_threshold),
                   tone: item.stock_on_hand <= 0 ? "destructive" as const : "warning" as const,
@@ -262,6 +266,7 @@ export default function InventoryView() {
                   .filter(isActionableInventoryVelocity)
                   .map((item) => ({
                     id: `velocity-${item.product_id}`,
+                    productId: item.product_id,
                     title: item.product_name,
                     detail: item.stock_on_hand <= 0
                       ? copy.inventoryView.alreadyOut
@@ -275,7 +280,7 @@ export default function InventoryView() {
                     stockItem: loadState.stock.find((stock) => stock.product_id === item.product_id),
                   })),
               ]
-                .filter((item, index, items) => items.findIndex((candidate) => candidate.title === item.title) === index)
+                .filter((item, index, items) => items.findIndex((candidate) => candidate.productId === item.productId) === index)
                 .slice(0, 3)
                 .map((item) => (
                   <div key={item.id} className="rounded-kova-md border border-kova-border bg-kova-mist/60 p-3">
@@ -407,7 +412,9 @@ export default function InventoryView() {
       )}
 
       {modal && (
-        <InventoryModal modal={modal} pending={pending} onCancel={() => setModal(null)} onSubmit={submitModal} />
+        <InventoryModal modal={modal} pending={pending} onCancel={() => {
+          if (!submissionPending.current) setModal(null);
+        }} onSubmit={submitModal} />
       )}
     </ViewLayout>
   );
@@ -625,32 +632,38 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   // an empty/NaN amount, a stock-take/threshold that went negative, or an
   // adjustment that would drive stock below zero.
   const numeric = Number(amount);
-  const amountMissing = amount.trim() === "" || Number.isNaN(numeric);
+  const amountMissing = amount.trim() === "" || !Number.isFinite(numeric);
   let validationError: string | null = null;
   if (amountMissing) {
     validationError = copy.inventoryModal.amountRequired;
+  } else if (!Number.isSafeInteger(numeric)) {
+    validationError = "Ingresa una cantidad entera válida.";
   } else if (modal.type === "adjust") {
     const resulting = modal.item.stock_on_hand + numeric;
-    if (resulting < 0) validationError = copy.inventoryModal.wouldLeaveNegative(resulting);
+    if (numeric === 0) validationError = "Ingresa una cantidad distinta de 0 para ajustar el stock.";
+    else if (resulting < 0) validationError = copy.inventoryModal.wouldLeaveNegative(resulting);
     else if (numeric < 0 && !reasonCode) validationError = copy.inventoryModal.reasonCodeRequired;
   } else if (modal.type === "stockTake" && numeric < 0) {
     validationError = copy.inventoryModal.negativeCount;
   } else if (modal.type === "threshold" && numeric < 0) {
     validationError = copy.inventoryModal.negativeThreshold;
   }
+  const reasonError = modal.type !== "threshold" && !reason.trim()
+    ? "Escribe el motivo del movimiento."
+    : null;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (validationError) return;
+    if (pending || validationError || reasonError) return;
     void onSubmit({
       amount: numeric,
-      reason: reason || "threshold_update",
-      reasonCode: reasonCode || null,
+      reason: modal.type === "threshold" ? "threshold_update" : reason.trim(),
+      reasonCode: modal.type === "adjust" && numeric < 0 ? reasonCode || null : null,
     });
   };
 
   return (
-    <Dialog open onClose={onCancel}>
+    <Dialog open onClose={pending ? () => undefined : onCancel}>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <p className="text-sm text-muted-foreground">{modal.item.product_name}</p>
@@ -661,7 +674,10 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
           <Input
             id="inv-amount"
             type="number"
-            inputMode="decimal"
+            inputMode="numeric"
+            step={1}
+            min={modal.type === "adjust" ? undefined : 0}
+            disabled={pending}
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
             aria-invalid={validationError ? true : undefined}
@@ -689,6 +705,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
                   value={reasonCode}
                   onChange={(event) => setReasonCode(event.target.value as InventoryReasonCode | "")}
                   required
+                  disabled={pending}
                 >
                   <option value="">{copy.inventoryModal.reasonCodePlaceholder}</option>
                   {Object.entries(copy.inventoryModal.reasonCodes).map(([value, label]) => (
@@ -705,13 +722,22 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
                 placeholder={copy.inventoryModal.reasonPlaceholder}
                 onChange={(event) => setReason(event.target.value)}
                 required
+                maxLength={255}
+                disabled={pending}
+                aria-invalid={reason.trim() === "" && reason !== "" ? true : undefined}
+                aria-describedby={reason.trim() === "" && reason !== "" ? "inv-reason-error" : undefined}
               />
+              {reason.trim() === "" && reason !== "" ? (
+                <p id="inv-reason-error" role="alert" className="text-xs font-medium text-destructive">
+                  {reasonError}
+                </p>
+              ) : null}
             </div>
           </>
         )}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>{copy.inventoryModal.cancel}</Button>
-          <Button type="submit" disabled={pending || validationError !== null}>{copy.inventoryModal.submit}</Button>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={pending}>{copy.inventoryModal.cancel}</Button>
+          <Button type="submit" disabled={pending || validationError !== null || reasonError !== null}>{copy.inventoryModal.submit}</Button>
         </DialogFooter>
       </form>
     </Dialog>

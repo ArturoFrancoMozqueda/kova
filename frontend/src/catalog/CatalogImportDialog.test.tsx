@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CatalogImportDialog } from "./CatalogImportDialog";
 import type { CatalogImportResponse } from "./types";
@@ -145,5 +145,96 @@ describe("CatalogImportDialog", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/problema de nuestro lado/i);
     expect(screen.queryByText(/internal stack/i)).not.toBeInTheDocument();
+  });
+
+  it("resets the file input so the same corrected file can be selected again", async () => {
+    previewCatalogImport.mockRejectedValueOnce(new Error("network failed"));
+    previewCatalogImport.mockResolvedValueOnce(validPreview);
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+    const input = screen.getByLabelText("Elegir archivo CSV o Excel") as HTMLInputElement;
+    const file = new File(["nombre,precio\nConcha,18\n"], "catalogo.csv", { type: "text/csv" });
+    // Browsers fire change for the same filename only after the input resets.
+    Object.defineProperty(input, "value", { configurable: true, writable: true, value: "C:\\fakepath\\catalogo.csv" });
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByRole("alert");
+    expect(input.value).toBe("");
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByText("Concha");
+    expect(previewCatalogImport).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["resolve", "reject"])("ignores a stale preview that %ss after closing and reopening", async (outcome) => {
+    let resolveOld!: (value: CatalogImportResponse) => void;
+    let rejectOld!: (cause: Error) => void;
+    let resolveCurrent!: (value: CatalogImportResponse) => void;
+    previewCatalogImport.mockImplementationOnce(() => new Promise((resolve, reject) => {
+      resolveOld = resolve;
+      rejectOld = reject;
+    }));
+    previewCatalogImport.mockImplementationOnce(() => new Promise((resolve) => { resolveCurrent = resolve; }));
+    const props = { onClose: vi.fn(), onImported: vi.fn() };
+    const { rerender } = render(<CatalogImportDialog open {...props} />);
+    const oldFile = new File(["old"], "anterior.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [oldFile] } });
+    rerender(<CatalogImportDialog open={false} {...props} />);
+    rerender(<CatalogImportDialog open {...props} />);
+    const currentFile = new File(["current"], "actual.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [currentFile] } });
+
+    await act(async () => {
+      if (outcome === "resolve") resolveOld(validPreview);
+      else rejectOld(new Error("stale failure"));
+    });
+    expect(screen.queryByText("Concha")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Elegir archivo CSV o Excel")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
+    await act(async () => { resolveCurrent(validPreview); });
+    expect(screen.getByText("Concha")).toBeInTheDocument();
+    commitCatalogImport.mockResolvedValue({ ...validPreview, dry_run: false });
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await waitFor(() => expect(commitCatalogImport).toHaveBeenCalledWith(currentFile));
+  });
+
+  it("rejects an empty preview instead of confirming a zero-product import", async () => {
+    previewCatalogImport.mockResolvedValue({ ...validPreview, total_rows: 0, valid_rows: 0, rows: [] });
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["nombre,precio"], "vacio.csv")] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("no contiene productos");
+    expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
+    expect(commitCatalogImport).not.toHaveBeenCalled();
+  });
+
+  it("commits once when confirmation is clicked twice before the next render", async () => {
+    previewCatalogImport.mockResolvedValue(validPreview);
+    let finish!: (value: CatalogImportResponse) => void;
+    commitCatalogImport.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const onImported = vi.fn();
+    const onClose = vi.fn();
+    render(<CatalogImportDialog open onClose={onClose} onImported={onImported} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["data"], "catalogo.csv")] } });
+    await screen.findByText("Concha");
+    const button = screen.getByRole("button", { name: "Importar productos" });
+    act(() => { fireEvent.click(button); fireEvent.click(button); });
+    expect(commitCatalogImport).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => { finish({ ...validPreview, dry_run: false }); });
+    expect(onImported).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+  });
+
+  it("does not recommit a successful import when the catalog refresh fails", async () => {
+    previewCatalogImport.mockResolvedValue(validPreview);
+    commitCatalogImport.mockResolvedValue({ ...validPreview, dry_run: false });
+    render(<CatalogImportDialog open onClose={vi.fn()} onImported={vi.fn(async () => { throw new Error("refresh failed"); })} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["data"], "catalogo.csv")] } });
+    await screen.findByText("Concha");
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await screen.findByRole("alert");
+    expect(screen.getByRole("alert")).toHaveTextContent("Los productos se importaron");
+    expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
+    expect(commitCatalogImport).toHaveBeenCalledTimes(1);
   });
 });
