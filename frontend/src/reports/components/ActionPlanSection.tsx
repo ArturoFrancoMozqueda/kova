@@ -57,6 +57,7 @@ function ChecklistRow({
         {item.linkTo && !(checkable && done) ? (
           <GoLink
             to={item.linkTo}
+            label={item.templateId === "R5" ? copy.reportsView.restockPlan.activate : undefined}
             onClick={() => {
               if (!item.priority) return;
               void trackAnalysisActionStarted({

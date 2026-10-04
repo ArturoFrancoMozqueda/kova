@@ -4,6 +4,7 @@ import type { BusinessStoryReport } from "../types";
 import { MIN_COUNT_BASE, calculateSafeGrowth, opsAreNormal } from "./calculations";
 import type { Recommendation } from "./recommendations";
 import type { AnalysisDecisionArea } from "@/telemetry/funnel";
+import { inventoryProductLink } from "@/inventory/restockPlan";
 
 export type ActionPlanTone = "action" | "watch" | "ok";
 
@@ -41,10 +42,15 @@ export function recommendationDecisionArea(templateId: string): AnalysisDecision
   return DECISION_AREA_BY_TEMPLATE[templateId] ?? "crecimiento";
 }
 
-/** Route where a recommendation template can be acted on, if any. Inventory
- * templates (stockout, restock, link inventory, overstock) go to /inventory. */
-export function recommendationLink(templateId: string): string | null {
-  if (["R2", "R4", "R5", "R12"].includes(templateId)) return "/inventory";
+/** Known stock goes to the exact inventory item; untracked products go to
+ * the existing catalog rather than a product-creation form. */
+export function recommendationLink(templateId: string, productId?: string, productName?: string): string | null {
+  if (["R2", "R4", "R12"].includes(templateId)) {
+    return productId ? inventoryProductLink(productId) : "/inventory";
+  }
+  if (templateId === "R5") {
+    return productName ? `/catalog?${new URLSearchParams({ search: productName })}` : "/catalog";
+  }
   return null;
 }
 
@@ -86,7 +92,7 @@ export function buildActionPlan({
     priority: rec.priority,
     action: rec.action,
     evidence: `${rec.finding}. ${rec.evidence}`,
-    linkTo: recommendationLink(rec.id) ?? undefined,
+    linkTo: recommendationLink(rec.id, rec.subjectId, rec.subjectName) ?? undefined,
   }));
 
   const signals: ActionPlanItem[] = [];

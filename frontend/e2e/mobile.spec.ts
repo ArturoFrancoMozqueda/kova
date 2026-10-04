@@ -608,7 +608,9 @@ test("reports filters fit mobile and keep the primary CTA visible", async ({ pag
 
   // On phones the manual range hides behind "Personalizar" so the first
   // screen leads with data; presets stay one tap away.
-  await expect(page.getByRole("button", { name: /7 días/i })).toBeVisible();
+  // Restock coverage has its own day selector; target the report period explicitly.
+  await expect(page.getByRole("group", { name: "Periodo de análisis" })
+    .getByRole("button", { name: /7 días/i })).toBeVisible();
   await expect(page.getByLabel(/^desde$/i)).toBeHidden();
   await page.getByRole("button", { name: /personalizar/i }).click();
   await expect(page.getByRole("button", { name: /aplicar/i })).toBeVisible();

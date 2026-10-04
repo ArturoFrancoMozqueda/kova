@@ -39,6 +39,18 @@ describe("ProductTableSection", () => {
     const { container } = render(<ProductTableSection story={story} stock={[]} velocity={[]} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("preserves sales while avoiding stock and untracked claims after an inventory failure", () => {
+    const story = makeStory({ product_drivers: [{
+      product_id: "p1", product_name: "Latte mediano", quantity_sold: 40,
+      gross_sales: "4000", sales_share_pct: 40,
+    }] });
+    render(<ProductTableSection story={story} stock={[]} velocity={[]} inventoryAvailable={false} />);
+    expect(screen.getByRole("table")).toHaveTextContent("$4,000.00");
+    expect(screen.getByRole("table")).toHaveTextContent("Inventario no disponible");
+    expect(screen.queryByText("Sin vincular")).not.toBeInTheDocument();
+    expect(screen.queryByText("Reabastecer")).not.toBeInTheDocument();
+  });
 });
 
 describe("ProductsPanel", () => {

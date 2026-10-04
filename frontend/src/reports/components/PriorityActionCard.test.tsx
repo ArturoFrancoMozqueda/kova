@@ -59,11 +59,11 @@ describe("PriorityActionCard", () => {
     ).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("links inventory templates to /inventory and hides the link once done", () => {
+  it("links inventory templates to the exact product", () => {
     renderCard(baseRec);
     expect(
       screen.getByRole("link", { name: new RegExp(copy.reportsView.actionGoInventory) }),
-    ).toHaveAttribute("href", "/inventory");
+    ).toHaveAttribute("href", "/inventory?product=p1");
   });
 
   it("reports the done toggle to the owner state", () => {

@@ -63,6 +63,15 @@ describe("buildRecommendations", () => {
     expect(ids(emptyInput(story, previous))).not.toContain("R1");
   });
 
+  it("does not claim products are untracked when the inventory request failed", () => {
+    const story = makeStory({ product_drivers: [{
+      product_id: "p1", product_name: "Leche", quantity_sold: 42,
+      gross_sales: "1260", sales_share_pct: 30,
+    }] });
+    const input = { ...emptyInput(story, null), inventoryAvailable: false };
+    expect(ids(input)).not.toContain("R5");
+  });
+
   it("fires R2 for a top driver about to run out and skips R4 for it", () => {
     const story = makeStory({
       product_drivers: [

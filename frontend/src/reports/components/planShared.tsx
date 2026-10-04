@@ -6,14 +6,14 @@ import { cn } from "@/lib/utils";
 import type { AnalysisHelpfulness } from "@/telemetry/funnel";
 import type { RecommendationPriority } from "../utils/recommendations";
 
-export function GoLink({ to, onClick }: { to: string; onClick?: () => void }) {
+export function GoLink({ to, label, onClick }: { to: string; label?: string; onClick?: () => void }) {
   return (
     <Link
       to={to}
       onClick={onClick}
       className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-kova-blue hover:underline"
     >
-      {copy.reportsView.actionGoInventory}
+      {label ?? copy.reportsView.actionGoInventory}
       <ArrowRight className="h-3 w-3" aria-hidden />
     </Link>
   );

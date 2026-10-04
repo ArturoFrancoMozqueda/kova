@@ -179,6 +179,41 @@ describe("ReportsView", () => {
     expect(await screen.findByText(copy.reportsView.hourlyUnavailable)).toBeInTheDocument();
   });
 
+  it("keeps inventory failure distinct from untracked products and recovers on refresh", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    (listStock as Mock).mockRejectedValue(new Error("stock unavailable"));
+    renderView();
+    expect(await screen.findByText(copy.reportsView.restockPlan.unavailable)).toBeInTheDocument();
+    expect(screen.queryByText(/no tiene inventario vinculado/)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.reportsView.inventoryUnlinked)).not.toBeInTheDocument();
+    (listStock as Mock).mockResolvedValue([]);
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.restockPlan.retry }));
+    expect(await screen.findByText(copy.reportsView.restockPlan.noInventory)).toBeInTheDocument();
+  });
+
+  it("keeps current inventory planning available when the selected report has no sales", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(
+      makeStory({ summary: { ...makeStory().summary, completed_orders: 0 } }),
+    );
+    (listStock as Mock).mockResolvedValue([{
+      product_id: "p1", product_name: "Leche", sku: null, track_inventory: true,
+      stock_on_hand: 10, reserved_quantity: 4, available_quantity: 6,
+      low_stock_threshold: 3, is_low_stock: false,
+    }]);
+    (listVelocity as Mock).mockResolvedValue([{
+      product_id: "p1", product_name: "Leche", stock_on_hand: 10,
+      units_per_day_7d: "2.00", days_until_out: "5.0",
+    }]);
+    renderView();
+    expect(await screen.findByText(copy.reportsView.restockPlan.suggested(8))).toBeInTheDocument();
+    expect(screen.getByText(copy.reportsView.emptyStoryTitle)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "14 días" }));
+    expect(screen.getByText(copy.reportsView.restockPlan.suggested(22))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.restockPlan.retry }));
+    expect(await screen.findByText(copy.reportsView.restockPlan.suggested(22))).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "14 días" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("shows the empty business state when there are no completed orders", async () => {
     (getBusinessStory as Mock).mockResolvedValue(
       makeStory({ summary: { ...makeStory().summary, completed_orders: 0 } }),
