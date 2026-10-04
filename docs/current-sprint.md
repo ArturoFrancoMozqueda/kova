@@ -51,6 +51,9 @@ calculation rules live in [`specs/reports/restock_decisions.md`](../specs/report
       lost sales, or subscription ROI.
 - [x] Keep the quantity and next step visible, with calculation details available on demand;
       verify keyboard access, 44 px controls and 320/390 px mobile layouts.
+- [x] Update the backend lockfile to patched AnyIO 4.14.2, PyJWT 2.15.1 and urllib3 2.8.0
+      after the release dependency audit identified vulnerabilities in the previous versions.
+      The existing audit, authentication, integration and migration gates must pass before release.
 
 Commercial value and retention still require real business observation. This local product slice
 does not close KOV-031, pilot recruitment, production deliverability or live billing gates.
