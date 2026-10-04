@@ -347,9 +347,9 @@ test("product cost flows through a completed sale into exact margin", async ({ p
         results: [{
           client_uuid: body.sales[0].client_uuid,
           status: "synced",
-          order_id: "order-1",
+          order_id: "10000000-0000-4000-8000-000000000006",
           order: {
-            id: "order-1",
+            id: "10000000-0000-4000-8000-000000000006",
             tenant_id: "tenant-1",
             status: "completed",
             subtotal_amount: "18.50",
@@ -377,7 +377,7 @@ test("product cost flows through a completed sale into exact margin", async ({ p
       },
     });
   });
-  await page.route("**/api/v1/orders/order-1/receipt", (route) =>
+  await page.route("**/api/v1/orders/10000000-0000-4000-8000-000000000006/receipt", (route) =>
     route.fulfill({ status: 404, json: { detail: "Receipt not needed by this flow" } }),
   );
 

@@ -90,7 +90,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
       payments: [{ method: "cash", amount: "18.50", amount_tendered: "20.00" }],
     });
     await route.fulfill({
-      json: makeSyncResponse(body.sales[0].client_uuid, "order-1", "18.50"),
+      json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000001", "18.50"),
     });
   });
 
@@ -110,7 +110,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
   await expect(page.getByRole("link", { name: /abrir orden/i })).toHaveAttribute(
     "href",
-    "/orders/order-1",
+    "/orders/10000000-0000-4000-8000-000000000001",
   );
 });
 
@@ -143,7 +143,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
       ],
     });
     await route.fulfill({
-      json: makeSyncResponse(body.sales[0].client_uuid, "order-split", "18.50"),
+      json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000002", "18.50"),
     });
   });
 
@@ -163,7 +163,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
   await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
   await expect(page.getByRole("link", { name: /abrir orden/i })).toHaveAttribute(
     "href",
-    "/orders/order-split",
+    "/orders/10000000-0000-4000-8000-000000000002",
   );
 });
 
@@ -228,7 +228,7 @@ test("cash is blocked without an open shift but a transfer sale completes", asyn
     expect(body.sales[0].order.payments[0].method).toBe("bank_transfer");
     expect(body.sales[0].shift_id).toBeUndefined();
     await route.fulfill({
-      json: makeSyncResponse(body.sales[0].client_uuid, "order-transfer", "18.50"),
+      json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000003", "18.50"),
     });
   });
 
