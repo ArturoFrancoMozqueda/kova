@@ -17,21 +17,27 @@ type Props = {
 
 export function CatalogImportDialog({ open, onClose, onImported }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestVersion = useRef(0);
+  const requestPending = useRef(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CatalogImportResponse | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) return;
-    setFile(null);
-    setPreview(null);
-    setPending(false);
-    setError(null);
+    if (!open) {
+      requestPending.current = false;
+      setFile(null);
+      setPreview(null);
+      setPending(false);
+      setError(null);
+    }
+    // Results from a closed dialog must not populate a later import session.
+    return () => { requestVersion.current += 1; };
   }, [open]);
 
   const chooseFile = async (selected: File | undefined) => {
-    if (!selected) return;
+    if (!selected || !open || requestPending.current) return;
     setFile(selected);
     setPreview(null);
     setError(null);
@@ -43,32 +49,60 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
       setError(copy.catalog.importFileTooLarge);
       return;
     }
+    const version = ++requestVersion.current;
+    requestPending.current = true;
     setPending(true);
     try {
-      setPreview(await previewCatalogImport(selected));
+      const result = await previewCatalogImport(selected);
+      if (version !== requestVersion.current) return;
+      setPreview(result);
+      if (result.valid_rows === 0 && result.error_rows === 0) {
+        setError("El archivo no contiene productos para importar. Agrega al menos una fila y vuelve a revisarlo.");
+      }
     } catch (cause) {
+      if (version !== requestVersion.current) return;
       const detail = apiErrorStatus(cause) !== null && apiErrorStatus(cause)! < 500
         ? apiErrorDetailText(cause)
         : null;
       setError(detail ?? resolveApiErrorMessage(cause, copy.catalog.importPreviewError));
     } finally {
-      setPending(false);
+      if (version === requestVersion.current) {
+        requestPending.current = false;
+        setPending(false);
+      }
     }
   };
 
   const confirm = async () => {
-    if (!file || !preview || preview.error_rows > 0) return;
+    if (!open || requestPending.current || !file || !preview || preview.error_rows > 0 || preview.valid_rows === 0) return;
+    const version = ++requestVersion.current;
+    requestPending.current = true;
     setPending(true);
     setError(null);
+    let committed = false;
     try {
-      await onImported(await commitCatalogImport(file));
+      const result = await commitCatalogImport(file);
+      committed = true;
+      if (version !== requestVersion.current) return;
+      // The write succeeded even if refreshing the catalog fails afterwards.
+      setFile(null);
+      setPreview(null);
+      await onImported(result);
     } catch (cause) {
+      if (version !== requestVersion.current) return;
+      if (committed) {
+        setError("Los productos se importaron, pero no pudimos actualizar el catálogo. Cierra esta ventana y vuelve a cargarlo.");
+        return;
+      }
       const detail = apiErrorStatus(cause) !== null && apiErrorStatus(cause)! < 500
         ? apiErrorDetailText(cause)
         : null;
       setError(detail ?? resolveApiErrorMessage(cause, copy.catalog.importCommitError));
     } finally {
-      setPending(false);
+      if (version === requestVersion.current) {
+        requestPending.current = false;
+        setPending(false);
+      }
     }
   };
 
@@ -109,7 +143,12 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
           type="file"
           accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           aria-label={copy.catalog.importChooseFile}
-          onChange={(event) => void chooseFile(event.target.files?.[0])}
+          disabled={pending}
+          onChange={(event) => {
+            const selected = event.target.files?.[0];
+            event.target.value = "";
+            void chooseFile(selected);
+          }}
         />
         <button
           type="button"
@@ -160,7 +199,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
                 </div>
               ))}
             </div>
-            {preview.error_rows === 0 && (
+            {preview.error_rows === 0 && preview.valid_rows > 0 && (
               <div className="flex gap-2 rounded-kova-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{copy.catalog.importReadyBody(preview.valid_rows)}</span>
@@ -172,7 +211,7 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose} disabled={pending}>{copy.catalog.cancel}</Button>
-        <Button type="button" onClick={() => void confirm()} disabled={pending || !preview || preview.error_rows > 0}>
+        <Button type="button" onClick={() => void confirm()} disabled={pending || !preview || preview.error_rows > 0 || preview.valid_rows === 0}>
           {pending && preview ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {copy.catalog.importConfirm}
         </Button>
