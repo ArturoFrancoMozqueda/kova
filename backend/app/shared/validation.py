@@ -33,6 +33,32 @@ MAX_OFFLINE_SALES_BATCH = 100
 MAX_MODIFIER_GROUP_ASSIGNMENTS = 50
 
 
+def reject_null(value: object) -> object:
+    """Reject explicit null for PATCH fields backed by NOT NULL columns.
+
+    Use as a field validator on optional update fields. Omitted fields keep
+    their default, so partial updates still leave existing values unchanged.
+    """
+    if value is None:
+        raise ValueError("El campo no puede ser nulo")
+    return value
+
+
+def non_nullable_patch_schema(schema: dict[str, object]) -> None:
+    """Document reject_null without changing runtime union/error semantics."""
+    branches = schema.get("anyOf")
+    if isinstance(branches, list):
+        non_null = [branch for branch in branches if branch != {"type": "null"}]
+        if len(non_null) == 1:
+            schema.pop("anyOf")
+            schema.update(non_null[0])
+        else:
+            schema["anyOf"] = non_null
+    # Omitted PATCH fields preserve stored values rather than assigning null.
+    if schema.get("default") is None:
+        schema.pop("default", None)
+
+
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 

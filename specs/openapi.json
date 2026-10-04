@@ -1006,39 +1006,18 @@
             "title": "Description"
           },
           "is_active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Active"
+            "title": "Is Active",
+            "type": "boolean"
           },
           "name": {
-            "anyOf": [
-              {
-                "maxLength": 120,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
           },
           "sort_order": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sort Order"
+            "title": "Sort Order",
+            "type": "integer"
           }
         },
         "title": "CategoryUpdate",
@@ -2375,46 +2354,29 @@
               {
                 "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
                 "type": "string"
-              },
-              {
-                "type": "null"
               }
             ],
             "title": "Amount"
           },
           "category": {
-            "anyOf": [
-              {
-                "enum": [
-                  "renta",
-                  "nomina",
-                  "servicios",
-                  "transporte",
-                  "mantenimiento",
-                  "marketing",
-                  "comisiones",
-                  "impuestos",
-                  "otro"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "enum": [
+              "renta",
+              "nomina",
+              "servicios",
+              "transporte",
+              "mantenimiento",
+              "marketing",
+              "comisiones",
+              "impuestos",
+              "otro"
             ],
-            "title": "Category"
+            "title": "Category",
+            "type": "string"
           },
           "expense_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expense Date"
+            "format": "date",
+            "title": "Expense Date",
+            "type": "string"
           },
           "note": {
             "anyOf": [
@@ -6566,54 +6528,26 @@
             "title": "Description"
           },
           "image_position_x": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image Position X"
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Image Position X",
+            "type": "integer"
           },
           "image_position_y": {
-            "anyOf": [
-              {
-                "maximum": 100.0,
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image Position Y"
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Image Position Y",
+            "type": "integer"
           },
           "image_zoom": {
-            "anyOf": [
-              {
-                "maximum": 3.0,
-                "minimum": 0.5,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image Zoom"
+            "maximum": 3.0,
+            "minimum": 0.5,
+            "title": "Image Zoom",
+            "type": "number"
           },
           "is_active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Active"
+            "title": "Is Active",
+            "type": "boolean"
           },
           "low_stock_threshold": {
             "anyOf": [
@@ -6628,17 +6562,10 @@
             "title": "Low Stock Threshold"
           },
           "name": {
-            "anyOf": [
-              {
-                "maxLength": 160,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
           },
           "price_amount": {
             "anyOf": [
@@ -6649,9 +6576,6 @@
               {
                 "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
                 "type": "string"
-              },
-              {
-                "type": "null"
               }
             ],
             "title": "Price Amount"
@@ -6669,15 +6593,8 @@
             "title": "Sku"
           },
           "track_inventory": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Track Inventory"
+            "title": "Track Inventory",
+            "type": "boolean"
           }
         },
         "title": "ProductUpdate",

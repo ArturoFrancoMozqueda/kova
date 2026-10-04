@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.shared.validation import StrictModel, reject_html
+from app.shared.validation import StrictModel, non_nullable_patch_schema, reject_html, reject_null
 
 
 class CategoryCreate(StrictModel):
@@ -18,10 +18,16 @@ class CategoryCreate(StrictModel):
 
 
 class CategoryUpdate(StrictModel):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
+    name: str | None = Field(
+        default=None, min_length=1, max_length=120, json_schema_extra=non_nullable_patch_schema
+    )
     description: str | None = Field(default=None, max_length=500)
-    sort_order: int | None = None
-    is_active: bool | None = None
+    sort_order: int | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
+    is_active: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
+
+    _required_fields = field_validator("name", "sort_order", "is_active", mode="before")(
+        reject_null
+    )
 
     @field_validator("name")
     @classmethod
@@ -60,18 +66,43 @@ class ProductCreate(StrictModel):
 
 
 class ProductUpdate(StrictModel):
-    name: str | None = Field(default=None, min_length=1, max_length=160)
+    name: str | None = Field(
+        default=None, min_length=1, max_length=160, json_schema_extra=non_nullable_patch_schema
+    )
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
-    price_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    price_amount: Decimal | None = Field(
+        default=None,
+        ge=0,
+        max_digits=12,
+        decimal_places=2,
+        json_schema_extra=non_nullable_patch_schema,
+    )
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
-    track_inventory: bool | None = None
+    track_inventory: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
     low_stock_threshold: int | None = Field(default=None, ge=0)
-    image_position_x: int | None = Field(default=None, ge=0, le=100)
-    image_position_y: int | None = Field(default=None, ge=0, le=100)
-    image_zoom: float | None = Field(default=None, ge=0.5, le=3.0)
-    is_active: bool | None = None
+    image_position_x: int | None = Field(
+        default=None, ge=0, le=100, json_schema_extra=non_nullable_patch_schema
+    )
+    image_position_y: int | None = Field(
+        default=None, ge=0, le=100, json_schema_extra=non_nullable_patch_schema
+    )
+    image_zoom: float | None = Field(
+        default=None, ge=0.5, le=3.0, json_schema_extra=non_nullable_patch_schema
+    )
+    is_active: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
+
+    _required_fields = field_validator(
+        "name",
+        "price_amount",
+        "track_inventory",
+        "image_position_x",
+        "image_position_y",
+        "image_zoom",
+        "is_active",
+        mode="before",
+    )(reject_null)
 
     @field_validator("name")
     @classmethod

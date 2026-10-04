@@ -66,6 +66,92 @@ def test_owner_creates_category_and_product_with_audit_logs(client, db):
     assert "catalog.product.create" in actions
 
 
+def test_category_update_rejects_null_required_fields_and_allows_description_clear(client, db):
+    signup = _signup_verify_login(client, "category-null@example.com", "Category Null Test")
+    created = client.post(
+        "/api/v1/catalog/categories",
+        headers={"Idempotency-Key": "category-null-create"},
+        json={"name": "Pan", "description": "Pan dulce", "sort_order": 3},
+    )
+    assert created.status_code == 201, created.text
+    category = created.json()
+    url = f"/api/v1/catalog/categories/{category['id']}"
+
+    for field in ("name", "sort_order", "is_active"):
+        rejected = client.patch(
+            url,
+            headers={"Idempotency-Key": "category-null-update"},
+            json={field: None, "description": None},
+        )
+        assert rejected.status_code == 422, (field, rejected.text)
+        assert any(error["loc"] == ["body", field] for error in rejected.json()["detail"])
+
+    assert client.get("/api/v1/catalog/categories").json() == [category]
+    assert db.query(AuditLog).filter(
+        AuditLog.tenant_id == UUID(signup["tenant_id"]),
+        AuditLog.action == "catalog.category.update",
+    ).count() == 0
+
+    # Validation must not consume the idempotency key; the corrected request
+    # can clear a nullable field while omitted required fields retain values.
+    cleared = client.patch(
+        url,
+        headers={"Idempotency-Key": "category-null-update"},
+        json={"description": None},
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json() == {**category, "description": None}
+
+
+def test_product_update_rejects_null_required_fields_and_allows_nullable_clears(client, db):
+    signup = _signup_verify_login(client, "product-null@example.com", "Product Null Test")
+    created = client.post(
+        "/api/v1/catalog/products",
+        headers={"Idempotency-Key": "product-null-create"},
+        json={
+            "name": "Concha",
+            "description": "Vainilla",
+            "price_amount": "18.50",
+            "cost_price": "7.25",
+            "track_inventory": True,
+            "low_stock_threshold": 5,
+        },
+    )
+    assert created.status_code == 201, created.text
+    product = created.json()
+    url = f"/api/v1/catalog/products/{product['id']}"
+
+    for field in (
+        "name", "price_amount", "track_inventory", "image_position_x",
+        "image_position_y", "image_zoom", "is_active",
+    ):
+        rejected = client.patch(
+            url,
+            headers={"Idempotency-Key": "product-null-update"},
+            json={field: None, "description": None},
+        )
+        assert rejected.status_code == 422, (field, rejected.text)
+        assert any(error["loc"] == ["body", field] for error in rejected.json()["detail"])
+
+    assert client.get("/api/v1/catalog/products").json() == [product]
+    assert db.query(AuditLog).filter(
+        AuditLog.tenant_id == UUID(signup["tenant_id"]),
+        AuditLog.action == "catalog.product.update",
+    ).count() == 0
+
+    clears = {
+        "description": None, "cost_price": None,
+        "low_stock_threshold": None, "category_id": None,
+    }
+    cleared = client.patch(
+        url,
+        headers={"Idempotency-Key": "product-null-update"},
+        json=clears,
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json() == {**product, **clears}
+
+
 def test_catalog_create_requires_idempotency_key(client):
     _signup_verify_login(client, "catalog-no-key@example.com", "No Key Bakery")
 
