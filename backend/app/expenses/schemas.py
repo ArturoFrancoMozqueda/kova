@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
-from app.shared.validation import StrictModel, reject_html
+from app.shared.validation import StrictModel, reject_html, reject_null
 
 ExpenseCategory = Literal[
     "renta",
@@ -40,6 +40,10 @@ class ExpenseUpdate(StrictModel):
     amount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
     expense_date: date | None = None
     note: str | None = Field(default=None, max_length=500)
+
+    _required_fields = field_validator("category", "amount", "expense_date", mode="before")(
+        reject_null
+    )
 
     @field_validator("note")
     @classmethod

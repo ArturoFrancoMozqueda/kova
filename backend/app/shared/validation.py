@@ -33,6 +33,17 @@ MAX_OFFLINE_SALES_BATCH = 100
 MAX_MODIFIER_GROUP_ASSIGNMENTS = 50
 
 
+def reject_null(value: object) -> object:
+    """Reject explicit null for PATCH fields backed by NOT NULL columns.
+
+    Use as a field validator on optional update fields. Omitted fields keep
+    their default, so partial updates still leave existing values unchanged.
+    """
+    if value is None:
+        raise ValueError("El campo no puede ser nulo")
+    return value
+
+
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 

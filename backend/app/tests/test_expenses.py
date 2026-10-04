@@ -118,3 +118,46 @@ def test_expense_validation_and_permissions(client, db):
         json={"email": email, "password": "S3cur3pass!"},
     )
     assert client.get("/api/v1/expenses").status_code == 403
+
+
+def test_expense_update_rejects_null_required_fields_and_allows_note_clear(client, db):
+    signup = _signup_verify_login(client, "expense-null@example.com")
+    created = client.post(
+        "/api/v1/expenses",
+        headers={"Idempotency-Key": "expense-null-create"},
+        json={
+            "category": "servicios",
+            "amount": "425.50",
+            "expense_date": "2026-07-10",
+            "note": "Recibo de luz",
+        },
+    )
+    assert created.status_code == 201, created.text
+    expense = created.json()
+    url = f"/api/v1/expenses/{expense['id']}"
+
+    for field in ("category", "amount", "expense_date"):
+        rejected = client.patch(
+            url,
+            headers={"Idempotency-Key": "expense-null-update"},
+            json={field: None, "note": None},
+        )
+        assert rejected.status_code == 422, (field, rejected.text)
+        assert any(error["loc"] == ["body", field] for error in rejected.json()["detail"])
+
+    assert client.get("/api/v1/expenses").json() == [expense]
+    assert db.query(AuditLog).filter(
+        AuditLog.tenant_id == UUID(signup["tenant_id"]),
+        AuditLog.action == "expense.update",
+    ).count() == 0
+
+    cleared = client.patch(
+        url,
+        headers={"Idempotency-Key": "expense-null-update"},
+        json={"note": None},
+    )
+    assert cleared.status_code == 200, cleared.text
+    updated = cleared.json()
+    assert updated["note"] is None
+    for field in ("category", "amount", "expense_date"):
+        assert updated[field] == expense[field]

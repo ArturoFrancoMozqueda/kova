@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.shared.validation import StrictModel, reject_html
+from app.shared.validation import StrictModel, reject_html, reject_null
 
 
 class CategoryCreate(StrictModel):
@@ -22,6 +22,10 @@ class CategoryUpdate(StrictModel):
     description: str | None = Field(default=None, max_length=500)
     sort_order: int | None = None
     is_active: bool | None = None
+
+    _required_fields = field_validator("name", "sort_order", "is_active", mode="before")(
+        reject_null
+    )
 
     @field_validator("name")
     @classmethod
@@ -72,6 +76,17 @@ class ProductUpdate(StrictModel):
     image_position_y: int | None = Field(default=None, ge=0, le=100)
     image_zoom: float | None = Field(default=None, ge=0.5, le=3.0)
     is_active: bool | None = None
+
+    _required_fields = field_validator(
+        "name",
+        "price_amount",
+        "track_inventory",
+        "image_position_x",
+        "image_position_y",
+        "image_zoom",
+        "is_active",
+        mode="before",
+    )(reject_null)
 
     @field_validator("name")
     @classmethod
