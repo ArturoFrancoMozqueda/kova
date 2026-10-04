@@ -44,6 +44,12 @@ def reject_null(value: object) -> object:
     return value
 
 
+def omit_null_default(schema: dict[str, object]) -> None:
+    """Omitted PATCH fields preserve stored values, rather than defaulting to null."""
+    if schema.get("default") is None:
+        schema.pop("default", None)
+
+
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 

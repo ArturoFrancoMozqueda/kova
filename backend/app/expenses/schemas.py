@@ -1,11 +1,12 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
-from app.shared.validation import StrictModel, reject_html, reject_null
+from app.shared.validation import StrictModel, omit_null_default, reject_html, reject_null
 
 ExpenseCategory = Literal[
     "renta",
@@ -36,9 +37,15 @@ class ExpenseCreate(StrictModel):
 
 
 class ExpenseUpdate(StrictModel):
-    category: ExpenseCategory | None = None
-    amount: Decimal | None = Field(default=None, gt=0, max_digits=12, decimal_places=2)
-    expense_date: date | None = None
+    category: ExpenseCategory | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
+    amount: (
+        Annotated[Decimal, Field(gt=0, max_digits=12, decimal_places=2)] | SkipJsonSchema[None]
+    ) = Field(default=None, json_schema_extra=omit_null_default)
+    expense_date: date | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
     note: str | None = Field(default=None, max_length=500)
 
     _required_fields = field_validator("category", "amount", "expense_date", mode="before")(

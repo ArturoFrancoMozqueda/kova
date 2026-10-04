@@ -1,9 +1,11 @@
 from decimal import Decimal
+from typing import Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic.json_schema import SkipJsonSchema
 
-from app.shared.validation import StrictModel, reject_html, reject_null
+from app.shared.validation import StrictModel, omit_null_default, reject_html, reject_null
 
 
 class CategoryCreate(StrictModel):
@@ -18,10 +20,16 @@ class CategoryCreate(StrictModel):
 
 
 class CategoryUpdate(StrictModel):
-    name: str | None = Field(default=None, min_length=1, max_length=120)
+    name: Annotated[str, Field(min_length=1, max_length=120)] | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
     description: str | None = Field(default=None, max_length=500)
-    sort_order: int | None = None
-    is_active: bool | None = None
+    sort_order: int | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
+    is_active: bool | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
 
     _required_fields = field_validator("name", "sort_order", "is_active", mode="before")(
         reject_null
@@ -64,18 +72,32 @@ class ProductCreate(StrictModel):
 
 
 class ProductUpdate(StrictModel):
-    name: str | None = Field(default=None, min_length=1, max_length=160)
+    name: Annotated[str, Field(min_length=1, max_length=160)] | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
-    price_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    price_amount: (
+        Annotated[Decimal, Field(ge=0, max_digits=12, decimal_places=2)] | SkipJsonSchema[None]
+    ) = Field(default=None, json_schema_extra=omit_null_default)
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
-    track_inventory: bool | None = None
+    track_inventory: bool | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
     low_stock_threshold: int | None = Field(default=None, ge=0)
-    image_position_x: int | None = Field(default=None, ge=0, le=100)
-    image_position_y: int | None = Field(default=None, ge=0, le=100)
-    image_zoom: float | None = Field(default=None, ge=0.5, le=3.0)
-    is_active: bool | None = None
+    image_position_x: Annotated[int, Field(ge=0, le=100)] | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
+    image_position_y: Annotated[int, Field(ge=0, le=100)] | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
+    image_zoom: Annotated[float, Field(ge=0.5, le=3.0)] | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
+    is_active: bool | SkipJsonSchema[None] = Field(
+        default=None, json_schema_extra=omit_null_default
+    )
 
     _required_fields = field_validator(
         "name",
