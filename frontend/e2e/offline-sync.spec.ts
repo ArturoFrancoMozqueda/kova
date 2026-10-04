@@ -212,7 +212,7 @@ test("network-error sale remains recoverable and clears on retry", async ({
     if (syncCallCount === 1) {
       await route.abort(); // simulate network down
     } else {
-      await route.fulfill({ json: syncSuccess(capturedClientUuid, "order-retry") });
+      await route.fulfill({ json: syncSuccess(capturedClientUuid, "10000000-0000-4000-8000-000000000007") });
     }
   });
 
@@ -278,7 +278,7 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
         json: syncFailure(capturedClientUuid, "Product not found"),
       });
     } else {
-      await route.fulfill({ json: syncSuccess(capturedClientUuid, "order-recovered") });
+      await route.fulfill({ json: syncSuccess(capturedClientUuid, "10000000-0000-4000-8000-000000000008") });
     }
   });
 
@@ -321,7 +321,7 @@ test("cold offline: register renders catalog from IndexedDB cache and queues a s
   );
   await page.route("**/api/v1/sync/offline-sales", (route) =>
     online
-      ? route.fulfill({ json: syncSuccess("ignored", "order-online") })
+      ? route.fulfill({ json: syncSuccess("ignored", "10000000-0000-4000-8000-000000000009") })
       : route.abort(),
   );
 
@@ -421,7 +421,7 @@ test("duplicate sync of same client_uuid returns same order (idempotency)", asyn
     route.fulfill({ json: [] }),
   );
 
-  const syncedOrderId = "order-idem-1";
+  const syncedOrderId = "10000000-0000-4000-8000-000000000010";
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     const body = route.request().postDataJSON() as {
