@@ -15,6 +15,8 @@ const localCaches = vi.hoisted(() => ({
   clearCatalog: vi.fn(),
   clearCustomerOrders: vi.fn(),
 }));
+const reportIdentity = vi.hoisted(() => vi.fn());
+vi.mock("@/reports/api", () => ({ setReportsCacheIdentity: reportIdentity }));
 
 vi.mock("./api", () => ({
   ApiError: class ApiError extends Error {},
@@ -90,6 +92,7 @@ describe("AuthProvider identity continuity", () => {
     vi.mocked(getSession).mockReset();
     vi.mocked(refreshSession).mockReset();
     vi.mocked(apiLogout).mockReset().mockResolvedValue(undefined);
+    reportIdentity.mockReset();
   });
 
   it("suspends a stale tab and adopts only the freshly probed cookie identity", async () => {
@@ -102,6 +105,7 @@ describe("AuthProvider identity continuity", () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText("tenant-a:user-a:online")).toBeVisible();
+    expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "owner" });
 
     let resolveProbe!: (value: ReturnType<typeof session>) => void;
     vi.mocked(getSession).mockImplementationOnce(() => new Promise((resolve) => {
@@ -109,6 +113,7 @@ describe("AuthProvider identity continuity", () => {
     }));
     act(() => coordination.listener?.());
     expect(screen.getByText("loading")).toBeVisible();
+    expect(reportIdentity).toHaveBeenLastCalledWith(null);
     await expect(window.fetch("/api/v1/orders", { method: "POST" })).rejects.toThrow(
       /verificando el negocio activo/i,
     );
@@ -116,6 +121,7 @@ describe("AuthProvider identity continuity", () => {
 
     resolveProbe(session("tenant-b", "user-b", "cashier"));
     expect(await screen.findByText("tenant-b:user-b:online")).toBeVisible();
+    expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-b", userId: "user-b", role: "cashier" });
   });
 
   it("opens only the prepared tenant in local mode when the session endpoint is offline", async () => {
@@ -142,6 +148,7 @@ describe("AuthProvider identity continuity", () => {
     );
 
     expect(await screen.findByText("tenant-a:user-a:offline")).toBeVisible();
+    expect(reportIdentity).toHaveBeenLastCalledWith(null);
     expect(offlineAccess.cache).not.toHaveBeenCalled();
   });
 
@@ -252,5 +259,6 @@ describe("AuthProvider identity continuity", () => {
 
     await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledTimes(2));
     expect(offlineAccess.cache.mock.calls[1][0].user.role).toBe("cashier");
+    expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "cashier" });
   });
 });
