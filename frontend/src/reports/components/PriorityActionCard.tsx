@@ -59,7 +59,7 @@ export function PriorityActionCard({
     );
   }
 
-  const link = recommendationLink(recommendation.id);
+  const link = recommendationLink(recommendation.id, recommendation.subjectId, recommendation.subjectName);
   const telemetryContext = {
     template_id: recommendation.id,
     decision_area: recommendationDecisionArea(recommendation.id),
@@ -124,6 +124,7 @@ export function PriorityActionCard({
         <div>
           <GoLink
             to={link}
+            label={recommendation.id === "R5" ? copy.reportsView.restockPlan.activate : undefined}
             onClick={() => void trackAnalysisActionStarted(telemetryContext)}
           />
         </div>

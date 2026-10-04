@@ -272,10 +272,12 @@ export function ProductTableSection({
   story,
   stock,
   velocity,
+  inventoryAvailable = true,
 }: {
   story: BusinessStoryReport;
   stock: StockItem[];
   velocity: InventoryVelocityItem[];
+  inventoryAvailable?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const rows = buildRows(story, stock, velocity);
@@ -293,16 +295,17 @@ export function ProductTableSection({
         {/* Mobile: stacked cards */}
         <div className="space-y-3 sm:hidden">
           {visible.map((row) => {
-            const inventory = inventoryLabel(row);
-            const detail = statusDetail(row.status);
+            const inventory = inventoryAvailable ? inventoryLabel(row)
+              : { value: copy.reportsView.inventoryUnavailable, muted: true };
+            const detail = inventoryAvailable ? statusDetail(row.status) : null;
             return (
               <div key={row.productId} className="space-y-2 rounded-kova-md border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <p className="line-clamp-2 flex-1 text-sm font-medium leading-snug" title={row.productName}>
                     {row.productName}
                   </p>
-                  <Badge variant={statusBadgeVariant(row.status.kind)} className="shrink-0">
-                    {copy.reportsView.inventoryStatusLabel(row.status.kind)}
+                  <Badge variant={inventoryAvailable ? statusBadgeVariant(row.status.kind) : "outline"} className="shrink-0">
+                    {inventoryAvailable ? copy.reportsView.inventoryStatusLabel(row.status.kind) : copy.reportsView.inventoryUnavailable}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -349,8 +352,9 @@ export function ProductTableSection({
             </thead>
             <tbody className="divide-y">
               {visible.map((row) => {
-                const inventory = inventoryLabel(row);
-                const detail = statusDetail(row.status);
+                const inventory = inventoryAvailable ? inventoryLabel(row)
+                  : { value: copy.reportsView.inventoryUnavailable, muted: true };
+                const detail = inventoryAvailable ? statusDetail(row.status) : null;
                 return (
                   <tr key={row.productId} className="align-top">
                     <td className="max-w-[220px] px-4 py-3 font-medium">
@@ -371,13 +375,15 @@ export function ProductTableSection({
                     <td className={cn("px-4 py-3 tabular-nums", inventory.muted && "text-muted-foreground")}>
                       {inventory.value}
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">{daysLabel(row)}</td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                      {inventoryAvailable ? daysLabel(row) : copy.reportsView.factEmpty}
+                    </td>
                     <td className="hidden px-4 py-3 lg:table-cell">
                       <TrendChip trend={row.trend} />
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={statusBadgeVariant(row.status.kind)}>
-                        {copy.reportsView.inventoryStatusLabel(row.status.kind)}
+                      <Badge variant={inventoryAvailable ? statusBadgeVariant(row.status.kind) : "outline"}>
+                        {inventoryAvailable ? copy.reportsView.inventoryStatusLabel(row.status.kind) : copy.reportsView.inventoryUnavailable}
                       </Badge>
                       {detail ? (
                         <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">{detail}</p>
@@ -401,4 +407,3 @@ export function ProductTableSection({
     </div>
   );
 }
-

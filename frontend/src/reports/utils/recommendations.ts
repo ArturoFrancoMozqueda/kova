@@ -27,6 +27,7 @@ export type RecommendationTone =
 export type Recommendation = {
   id: string;
   subjectId: string;
+  subjectName?: string;
   priority: RecommendationPriority;
   tone: RecommendationTone;
   finding: string;
@@ -43,6 +44,8 @@ export type RecommendationInput = {
   stockByProduct: Map<string, StockItem>;
   velocityByProduct: Map<string, InventoryVelocityItem>;
   rangeDays: number;
+  /** A failed stock request must not be interpreted as untracked products. */
+  inventoryAvailable?: boolean;
 };
 
 const PRIORITY_RANK: Record<RecommendationPriority, number> = { alta: 0, media: 1, baja: 2 };
@@ -185,6 +188,7 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
     out.push({
       id: "R5",
       subjectId: driver.product_id,
+      subjectName: driver.product_name,
       priority: "media",
       tone: "operational_improvement",
       finding: rec.unlinkedFinding(driver.product_name),
@@ -351,7 +355,9 @@ export function buildRecommendations(input: RecommendationInput): Recommendation
     });
   }
 
-  return sortRecommendations(dedupe(out));
+  const reliable = input.inventoryAvailable === false
+    ? out.filter((item) => !["R2", "R4", "R5", "R12"].includes(item.id)) : out;
+  return sortRecommendations(dedupe(reliable));
 }
 
 function dedupe(items: Recommendation[]): Recommendation[] {

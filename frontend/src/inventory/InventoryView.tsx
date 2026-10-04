@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -52,7 +52,8 @@ export default function InventoryView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);
   const [pending, setPending] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusedProductId = searchParams.get("product");
   const [stockSearch, setStockSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>(() => {
     const initial = searchParams.get("filter");
@@ -91,6 +92,7 @@ export default function InventoryView() {
     if (loadState.status !== "loaded") return [];
     const query = stockSearch.trim().toLowerCase();
     const filtered = loadState.stock.filter((item) => {
+      if (focusedProductId) return item.product_id === focusedProductId;
       const matchesSearch = query
         ? [item.product_name, item.sku ?? ""].some((value) => value.toLowerCase().includes(query))
         : true;
@@ -112,7 +114,7 @@ export default function InventoryView() {
       }
       return a.product_name.localeCompare(b.product_name, "es-MX");
     });
-  }, [loadState, stockFilter, stockSearch, stockSort]);
+  }, [loadState, stockFilter, stockSearch, stockSort, focusedProductId]);
 
   const submitModal = async (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null }) => {
     if (!modal) return;
@@ -168,6 +170,12 @@ export default function InventoryView() {
   const outOfStockCount = loadState.stock.filter((item) => item.stock_on_hand <= 0).length;
   const lowStockCount = loadState.stock.filter((item) => item.is_low_stock && item.stock_on_hand > 0).length;
   const healthyStockCount = loadState.stock.length - outOfStockCount - lowStockCount;
+  const focusedProduct = focusedProductId
+    ? loadState.stock.find((item) => item.product_id === focusedProductId) : null;
+  const attentionStock = focusedProductId
+    ? loadState.lowStock.filter((item) => item.product_id === focusedProductId) : loadState.lowStock;
+  const attentionVelocity = focusedProductId
+    ? loadState.velocity.filter((item) => item.product_id === focusedProductId) : loadState.velocity;
 
   return (
     <ViewLayout width="wide" className="animate-fade-in">
@@ -193,6 +201,29 @@ export default function InventoryView() {
         </div>
       )}
 
+      {focusedProductId ? (
+        <div role="status" className="mb-6 space-y-2 rounded-kova-lg border border-kova-blue/20 bg-kova-blue/5 p-4">
+          <p className="text-sm font-semibold text-kova-ink">
+            {focusedProduct ? copy.inventoryView.focusedProduct(focusedProduct.product_name)
+              : copy.inventoryView.focusedMissing}
+          </p>
+          {focusedProduct ? <p className="text-sm text-kova-muted">{copy.inventoryView.focusedProductBody}</p> : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("product");
+              next.delete("filter");
+              setSearchParams(next, { replace: true });
+              setStockSearch("");
+              setStockFilter("all");
+            }}>{copy.inventoryView.clearFocus}</Button>
+            <Link className="inline-flex min-h-11 items-center rounded-kova-md text-sm font-medium text-kova-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue" to="/reports">
+              {copy.inventoryView.backToAnalysis}
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mb-6 grid overflow-hidden rounded-kova-lg border border-kova-border bg-white shadow-kova-card sm:grid-cols-3">
         <div className="border-b border-kova-border px-5 py-4 sm:border-b-0 sm:border-r">
           <p className="text-sm text-muted-foreground">En existencia</p>
@@ -208,7 +239,7 @@ export default function InventoryView() {
         </div>
       </div>
 
-      {(loadState.lowStock.length > 0 || loadState.velocity.some(isActionableInventoryVelocity)) && (
+      {(attentionStock.length > 0 || attentionVelocity.some(isActionableInventoryVelocity)) && (
         <Card className="border-warning/30 bg-warning/5 mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -220,14 +251,14 @@ export default function InventoryView() {
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                ...loadState.lowStock.map((item) => ({
+                ...attentionStock.map((item) => ({
                   id: `low-${item.product_id}`,
                   title: item.product_name,
                   detail: copy.inventoryView.lowStockDetail(item.stock_on_hand, item.low_stock_threshold),
                   tone: item.stock_on_hand <= 0 ? "destructive" as const : "warning" as const,
                   stockItem: item,
                 })),
-                ...loadState.velocity
+                ...attentionVelocity
                   .filter(isActionableInventoryVelocity)
                   .map((item) => ({
                     id: `velocity-${item.product_id}`,
@@ -305,6 +336,7 @@ export default function InventoryView() {
               </Label>
               <Input
                 id="inventory-search"
+                disabled={Boolean(focusedProductId)}
                 value={stockSearch}
                 onChange={(event) => setStockSearch(event.target.value)}
                 placeholder={copy.inventoryView.searchStockPlaceholder}
@@ -317,6 +349,7 @@ export default function InventoryView() {
               </Label>
               <Select
                 id="inventory-filter"
+                disabled={Boolean(focusedProductId)}
                 value={stockFilter}
                 onChange={(event) => setStockFilter(event.target.value as StockFilter)}
                 aria-label={copy.inventoryView.filterStock}

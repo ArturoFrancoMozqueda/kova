@@ -22,6 +22,8 @@ export type ReportDataState = {
   trendStory: BusinessStoryReport | null;
   stock: StockItem[];
   velocity: InventoryVelocityItem[];
+  stockFailed: boolean;
+  velocityFailed: boolean;
   reload: () => void;
 };
 
@@ -46,6 +48,8 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
     trendStory: null,
     stock: [],
     velocity: [],
+    stockFailed: false,
+    velocityFailed: false,
   });
 
   const load = useCallback(async () => {
@@ -83,6 +87,8 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
         trendStory: trend,
         stock: stock ?? [],
         velocity: velocity ?? [],
+        stockFailed: stock === null,
+        velocityFailed: velocity === null,
       });
     } catch (err) {
       // A 402 on the primary story means the plan is inactive — a dead-end that

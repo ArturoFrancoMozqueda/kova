@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { makeStory } from "../__fixtures__/story";
-import { buildActionPlan } from "./actionPlan";
+import { buildActionPlan, recommendationLink } from "./actionPlan";
 import type { Recommendation } from "./recommendations";
 
 function makeRecommendations(count: number): Recommendation[] {
@@ -89,13 +89,19 @@ describe("buildActionPlan", () => {
     expect(plan.signals.some((item) => item.id === "signal|ops-normal")).toBe(false);
   });
 
-  it("links inventory-template actions to /inventory", () => {
+  it("links inventory-template actions to the exact product", () => {
     const recs = makeRecommendations(3);
     recs[1] = { ...recs[1], id: "R4" };
     recs[2] = { ...recs[2], id: "R6" };
     const plan = buildActionPlan({ recommendations: recs, story: makeStory(), previousStory: null });
-    expect(plan.actions[0].linkTo).toBe("/inventory");
+    expect(plan.actions[0].linkTo).toBe("/inventory?product=subject-2");
     expect(plan.actions[1].linkTo).toBeUndefined();
+  });
+
+  it("sends untracked products to the existing catalog instead of an empty inventory or creation form", () => {
+    expect(recommendationLink("R5", "p1", "Leche & café"))
+      .toBe("/catalog?search=Leche+%26+caf%C3%A9");
+    expect(recommendationLink("R5", "p1")).toBe("/catalog");
   });
 
   it("marks good-signal recommendations as ok rows", () => {

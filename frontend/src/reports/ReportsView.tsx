@@ -9,6 +9,7 @@ import { ViewLayout } from "@/components/ui/view-layout";
 import { SubscriptionInactivePanel } from "@/billing/SubscriptionInactivePanel";
 import { REPORTS_VIEW_ALL_PERMISSION, usePermission } from "../auth/permissions";
 import type { InventoryVelocityItem, StockItem } from "../inventory/types";
+import type { RestockHorizon } from "../inventory/restockPlan";
 import { AnalysisOverview } from "./components/AnalysisOverview";
 import { ActionPlanSection } from "./components/ActionPlanSection";
 import { EmployeePerformance } from "./components/EmployeePerformance";
@@ -18,6 +19,7 @@ import { WasteAnalysis } from "./components/WasteAnalysis";
 import { ProductTableSection } from "./components/ProductInventoryAnalysis";
 import { RefundsAndCancellations } from "./components/RefundsAndCancellations";
 import { ReportsHeader } from "./components/ReportsHeader";
+import { RestockPlan } from "./components/RestockPlan";
 import {
   EmptyBusinessState,
   ErrorState,
@@ -44,6 +46,7 @@ function recommendationsFor(
   previousStory: BusinessStoryReport | null,
   stock: StockItem[],
   velocity: InventoryVelocityItem[],
+  inventoryAvailable: boolean,
 ) {
   return buildRecommendations({
     story,
@@ -52,6 +55,7 @@ function recommendationsFor(
     stockByProduct: new Map(stock.map((item) => [item.product_id, item])),
     velocityByProduct: new Map(velocity.map((item) => [item.product_id, item])),
     rangeDays: daysBetweenInclusive(story.summary.start_date, story.summary.end_date),
+    inventoryAvailable,
   });
 }
 
@@ -63,6 +67,7 @@ export default function ReportsView() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [appliedRange, setAppliedRange] = useState({ startDate: "", endDate: "" });
+  const [restockHorizon, setRestockHorizon] = useState<RestockHorizon>(7);
 
   // Seed the range to "today in the tenant timezone" once the timezone
   // resolves, so operators outside CDMX don't start on the wrong day.
@@ -91,11 +96,11 @@ export default function ReportsView() {
       return null;
     }
     return buildActionPlan({
-      recommendations: recommendationsFor(story, data.previousStory, data.stock, data.velocity),
+      recommendations: recommendationsFor(story, data.previousStory, data.stock, data.velocity, !data.stockFailed),
       story,
       previousStory: data.previousStory,
     });
-  }, [data.status, data.story, data.previousStory, data.stock, data.velocity]);
+  }, [data.status, data.story, data.previousStory, data.stock, data.velocity, data.stockFailed]);
 
   const trackedAnalysisKey = useRef("");
   useEffect(() => {
@@ -183,6 +188,12 @@ export default function ReportsView() {
       {data.status === "error" ? <ErrorState onRetry={data.reload} /> : null}
       {data.status === "subscription-inactive" ? <SubscriptionInactivePanel /> : null}
 
+      {loaded ? (
+        <RestockPlan stock={data.stock} velocity={data.velocity}
+          stockFailed={data.stockFailed} velocityFailed={data.velocityFailed}
+          horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={data.reload} />
+      ) : null}
+
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}
 
       {hasSales && story ? (
@@ -231,7 +242,8 @@ export default function ReportsView() {
             <EmployeePerformance story={story} />
           </div>
 
-          <ProductTableSection story={story} stock={data.stock} velocity={data.velocity} />
+          <ProductTableSection story={story} stock={data.stock} velocity={data.velocity}
+            inventoryAvailable={!data.stockFailed} />
 
           <ActionPlanSection
             actions={plan?.actions ?? []}

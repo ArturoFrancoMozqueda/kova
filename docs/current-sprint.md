@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-09-07
+Last updated: 2026-10-04
 
 ## Source Of Truth
 
@@ -34,6 +34,26 @@ gate and was expressly excluded from the authorized remediation scope.
 
 The July premium redesign and CRO sections below are retained as historical execution context. Their
 dates and checkboxes must not be interpreted as the current release decision.
+
+## Active product improvement (2026-10): Análisis accionable
+
+The owner requested code improvements that make Kova's subscription value concrete through its own
+operating data. The first slice extends the existing inventory recommendations; acceptance and
+calculation rules live in [`specs/reports/restock_decisions.md`](../specs/reports/restock_decisions.md).
+
+- [x] Build a replenishment plan from current available stock, reservations and trailing seven-day
+      inventory consumption, with owner-selected 3/7/14-day coverage.
+- [x] Open the exact inventory product without creating a purchase or changing stock on navigation;
+      reread inventory on return after an actual receipt entered through the existing form.
+- [x] Distinguish unavailable inventory from untracked products, and avoid suggested quantities
+      when stock or consumption evidence is insufficient.
+- [x] Preserve categorical telemetry and label estimates without claiming confirmed savings,
+      lost sales, or subscription ROI.
+- [x] Keep the quantity and next step visible, with calculation details available on demand;
+      verify keyboard access, 44 px controls and 320/390 px mobile layouts.
+
+Commercial value and retention still require real business observation. This local product slice
+does not close KOV-031, pilot recruitment, production deliverability or live billing gates.
 
 ## Historical Sprint (2026-07): Premium redesign app-wide + remaining hardening
 
