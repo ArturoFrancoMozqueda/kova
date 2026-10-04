@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiErrorStatus } from "@/lib/apiError";
+import { useAuth } from "@/auth/useAuth";
 import { listStock, listVelocity } from "../../inventory/api";
 import type { InventoryVelocityItem, StockItem } from "../../inventory/types";
-import { getBusinessStory, getSalesByHour } from "../api";
+import { getBusinessStory, getSalesByHour, invalidateReportsCache } from "../api";
 import type { BusinessStoryReport, SalesByHourRow } from "../types";
-import { addDays, daysBetweenInclusive, previousComparableRange } from "../utils/dateRange";
+import { addDays, daysBetweenInclusive, isValidDateRange, previousComparableRange } from "../utils/dateRange";
 
 export type ReportDataState = {
   status: "loading" | "error" | "subscription-inactive" | "loaded";
@@ -37,8 +38,13 @@ export type ReportDataState = {
  * `listLowStock`, so the view can tell "untracked" apart from "zero on hand".
  */
 export function useReportData(startDate: string, endDate: string, enabled: boolean): ReportDataState {
+  const { state: auth } = useAuth();
+  const identityKey = auth.status === "authenticated"
+    ? JSON.stringify([auth.tenantId, auth.user.id, auth.user.role, auth.sessionMode])
+    : null;
   const requestIdRef = useRef(0);
-  const [state, setState] = useState<Omit<ReportDataState, "reload">>({
+  const [state, setState] = useState<Omit<ReportDataState, "reload"> & { identityKey: string | null }>({
+    identityKey,
     status: "loading",
     story: null,
     previousStory: null,
@@ -53,12 +59,17 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
   });
 
   const load = useCallback(async () => {
-    if (!enabled || !startDate || !endDate) {
+    if (!enabled || (!startDate && !endDate)) {
       requestIdRef.current += 1;
       return;
     }
+    if (!isValidDateRange(startDate, endDate)) {
+      requestIdRef.current += 1;
+      setState((prev) => ({ ...prev, identityKey, status: "error" }));
+      return;
+    }
     const requestId = ++requestIdRef.current;
-    setState((prev) => ({ ...prev, status: "loading" }));
+    setState((prev) => ({ ...prev, identityKey, status: "loading" }));
     try {
       // These endpoints never resolve to null on success, so a null result
       // unambiguously signals that the individual fetch was caught and failed.
@@ -78,6 +89,7 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
       ]);
       if (requestId !== requestIdRef.current) return;
       setState({
+        identityKey,
         status: "loaded",
         story,
         previousStory: previous,
@@ -100,7 +112,7 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
         status: apiErrorStatus(err) === 402 ? "subscription-inactive" : "error",
       }));
     }
-  }, [enabled, startDate, endDate]);
+  }, [enabled, startDate, endDate, identityKey]);
 
   useEffect(() => {
     void load();
@@ -109,5 +121,10 @@ export function useReportData(startDate: string, endDate: string, enabled: boole
     };
   }, [load]);
 
-  return { ...state, reload: () => void load() };
+  // Hide a loaded snapshot immediately if AuthContext adopted another identity,
+  // before the effect has a chance to fetch that identity's report.
+  return { ...state, ...(state.identityKey !== identityKey ? { status: "loading" as const, story: null } : {}), reload: () => {
+    invalidateReportsCache();
+    void load();
+  } };
 }

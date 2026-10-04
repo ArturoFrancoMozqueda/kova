@@ -4,11 +4,21 @@ import {
   activePreset,
   addDays,
   daysBetweenInclusive,
+  isValidDateRange,
   presetRange,
   previousComparableRange,
 } from "./dateRange";
 
 describe("dateRange arithmetic", () => {
+  it("rejects missing, impossible, and reversed date ranges", () => {
+    expect(isValidDateRange("", "2026-07-05")).toBe(false);
+    expect(isValidDateRange("2026-07-05", "")).toBe(false);
+    expect(isValidDateRange("2026-02-30", "2026-03-02")).toBe(false);
+    expect(isValidDateRange("invalid", "2026-07-05")).toBe(false);
+    expect(isValidDateRange("2026-07-05", "2026-07-01")).toBe(false);
+    expect(isValidDateRange("2024-02-29", "2024-03-01")).toBe(true);
+    expect(isValidDateRange("2026-07-05", "2026-07-05")).toBe(true);
+  });
   it("counts a single day as 1", () => {
     expect(daysBetweenInclusive("2026-07-05", "2026-07-05")).toBe(1);
   });

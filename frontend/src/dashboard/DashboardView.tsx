@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -57,6 +57,7 @@ type LoadState =
   | { status: "error" }
   | {
       status: "ready";
+      identity: string | null;
       summary: SalesSummary;
       yesterday: SalesSummary | null;
       payments: PaymentBreakdown;
@@ -413,10 +414,16 @@ export default function DashboardView() {
   useDocumentTitle(copy.documentTitles.dashboard);
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
-  const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const identity = state.status === "authenticated" ? `${state.tenantId}:${state.user.id}:${state.user.role}:${state.sessionMode}` : null;
+  const [storedLoadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const loadState: LoadState = storedLoadState.status === "ready" && storedLoadState.identity !== identity
+    ? { status: "loading" }
+    : storedLoadState;
   const [period, setPeriod] = useState<Period>("day");
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async (selected: Period) => {
+    const requestId = ++requestIdRef.current;
     setLoadState({ status: "loading" });
     try {
       // Fetch the tenant timezone first so date ranges are computed against the
@@ -460,8 +467,10 @@ export default function DashboardView() {
 
       const subscriptionStatus = billing?.subscription?.status;
 
+      if (requestId !== requestIdRef.current) return;
       setLoadState({
         status: "ready",
+        identity,
         summary,
         yesterday: previousSummary,
         payments,
@@ -482,13 +491,15 @@ export default function DashboardView() {
         compareLabel,
       });
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setLoadState({ status: "error" });
     }
-  }, []);
+  }, [identity]);
 
   useEffect(() => {
     void load(period);
-  }, [load, period]);
+    return () => { requestIdRef.current += 1; };
+  }, [load, period, identity]);
 
   const tenantTimezone = loadState.status === "ready" ? loadState.timezone : DEFAULT_TIMEZONE;
   const greeting = getGreeting(tenantTimezone);

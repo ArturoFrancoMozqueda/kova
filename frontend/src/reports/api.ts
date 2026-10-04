@@ -25,35 +25,54 @@ async function requestJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-// Per-URL stale-while-revalidate cache for read-only report endpoints.
+// Short-lived cache for read-only report endpoints within a verified identity.
 // Multiple dashboards/widgets often request the same range simultaneously;
 // the cache prevents repeated network round-trips within a short window.
 const REPORT_TTL_MS = 45_000;
 const reportCache = new Map<string, { value: unknown; fetchedAt: number }>();
 const reportInflight = new Map<string, Promise<unknown>>();
+let reportIdentity: string | null = null;
+let reportEpoch = 0;
+
+/** AuthContext owns this identity; never infer a tenant from persisted storage. */
+export function setReportsCacheIdentity(identity: { tenantId: string; userId: string; role?: string } | null): void {
+  const next = identity ? JSON.stringify([identity.tenantId, identity.userId, identity.role]) : null;
+  if (next === reportIdentity) return;
+  reportIdentity = next;
+  invalidateReportsCache();
+}
 
 function cachedJson<T>(url: string): Promise<T> {
+  const epoch = reportEpoch;
+  // Without a verified identity, do not share or retain authenticated reads.
+  const key = reportIdentity === null ? null : `${reportIdentity}:${url}`;
   const now = Date.now();
-  const hit = reportCache.get(url);
+  const hit = key === null ? undefined : reportCache.get(key);
   if (hit && now - hit.fetchedAt < REPORT_TTL_MS) {
     return Promise.resolve(hit.value as T);
   }
-  const inflight = reportInflight.get(url) as Promise<T> | undefined;
+  const inflight = key === null ? undefined : reportInflight.get(key) as Promise<T> | undefined;
   if (inflight) return inflight;
   const promise = requestJson<T>(url)
     .then((value) => {
-      reportCache.set(url, { value, fetchedAt: Date.now() });
+      if (epoch !== reportEpoch) {
+        throw new Error("La sesión o los datos del reporte cambiaron. Vuelve a cargar el reporte.");
+      }
+      if (key !== null) reportCache.set(key, { value, fetchedAt: Date.now() });
       return value;
     })
     .finally(() => {
-      reportInflight.delete(url);
+      // An old request must not remove a newer request for the same key.
+      if (key !== null && reportInflight.get(key) === promise) reportInflight.delete(key);
     });
-  reportInflight.set(url, promise);
+  if (key !== null) reportInflight.set(key, promise);
   return promise;
 }
 
 export function invalidateReportsCache(): void {
+  reportEpoch += 1;
   reportCache.clear();
+  reportInflight.clear();
 }
 
 function query(startDate: string, endDate: string): string {

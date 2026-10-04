@@ -4,6 +4,15 @@ export type ReportPreset = "today" | "seven_days" | "month";
 
 export type DateRange = { startDate: string; endDate: string };
 
+export function isValidDateRange(startDate: string, endDate: string): boolean {
+  const validDate = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = localDate(value);
+    return Number.isFinite(date.getTime()) && toISODate(date) === value;
+  };
+  return validDate(startDate) && validDate(endDate) && startDate <= endDate;
+}
+
 /** UTC-anchored date-only math. Report ranges are `YYYY-MM-DD` strings with no
  * time component, so we anchor them to UTC midnight to shift days without the
  * viewer's timezone ever moving the calendar day. Display formatting lives in

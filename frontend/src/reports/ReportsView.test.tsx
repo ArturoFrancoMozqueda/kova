@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
@@ -15,10 +15,11 @@ vi.mock("../auth/permissions", () => ({
   REPORTS_VIEW_ALL_PERMISSION: "reports.view.all",
   usePermission: () => true,
 }));
-vi.mock("./api", () => ({ getBusinessStory: vi.fn(), getSalesByHour: vi.fn() }));
+vi.mock("./api", () => ({ getBusinessStory: vi.fn(), getSalesByHour: vi.fn(), invalidateReportsCache: vi.fn() }));
 vi.mock("../inventory/api", () => ({ listStock: vi.fn(), listVelocity: vi.fn() }));
+const auth = vi.hoisted(() => ({ tenantId: "tenant-1", userId: "user-1" }));
 vi.mock("@/auth/useAuth", () => ({
-  useAuth: () => ({ state: { status: "authenticated", tenantId: "tenant-1" } }),
+  useAuth: () => ({ state: { status: "authenticated", tenantId: auth.tenantId, user: { id: auth.userId, role: "owner" }, sessionMode: "online" } }),
 }));
 const telemetry = vi.hoisted(() => ({
   trackAnalysisActionFeedback: vi.fn(),
@@ -27,7 +28,9 @@ const telemetry = vi.hoisted(() => ({
 }));
 vi.mock("@/telemetry/funnel", () => telemetry);
 
-import { getBusinessStory, getSalesByHour } from "./api";
+import { getBusinessStory, getSalesByHour, invalidateReportsCache } from "./api";
+import { formatDayMonthLong } from "@/i18n/date";
+import { addDays } from "./utils/dateRange";
 import { listStock, listVelocity } from "../inventory/api";
 import { useFeature } from "@/auth/useFeature";
 import ReportsView from "./ReportsView";
@@ -43,6 +46,8 @@ function renderView() {
 }
 
 beforeEach(() => {
+  auth.tenantId = "tenant-1";
+  auth.userId = "user-1";
   window.localStorage.clear();
   (useFeature as Mock).mockReturnValue(false);
   (getSalesByHour as Mock).mockResolvedValue([]);
@@ -55,9 +60,60 @@ afterEach(() => {
 });
 
 describe("ReportsView", () => {
+  it("hides loaded report data and reloads when the authenticated tenant changes", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    const view = renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+    let finish!: (story: ReturnType<typeof makeStory>) => void;
+    (getBusinessStory as Mock).mockImplementation((start: string) => start === today
+      ? new Promise((resolve) => { finish = resolve; })
+      : Promise.resolve(makeStory()));
+    const oldCalls = (getBusinessStory as Mock).mock.calls.length;
+    auth.tenantId = "tenant-2";
+    view.rerender(<MemoryRouter><ReportsView /></MemoryRouter>);
+    expect(screen.queryByText(copy.reportsView.kpiNetSalesLabel)).not.toBeInTheDocument();
+    await waitFor(() => expect((getBusinessStory as Mock).mock.calls.length).toBeGreaterThan(oldCalls));
+    await act(async () => finish(makeStory({ summary: { ...makeStory().summary, net_sales: "222.00" } })));
+    expect(await screen.findByText(copy.reportsView.kpiNetSalesLabel)).toBeInTheDocument();
+    expect(screen.getAllByText("$222.00").length).toBeGreaterThan(0);
+  });
+  it("keeps the applied period visible until valid custom dates are submitted", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.customRange }));
+    const from = screen.getByLabelText(copy.reportsView.startDate);
+    const to = screen.getByLabelText(copy.reportsView.endDate);
+    const apply = screen.getByRole("button", { name: copy.reportsView.apply });
+    const initialCalls = (getBusinessStory as Mock).mock.calls.length;
+    fireEvent.change(from, { target: { value: addDays(today, -3) } });
+    expect(screen.getByText(formatDayMonthLong(today), { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Aplica el rango para actualizar las cifras.")).toBeInTheDocument();
+    expect(getBusinessStory).toHaveBeenCalledTimes(initialCalls);
+    fireEvent.change(to, { target: { value: "" } });
+    expect(apply).toBeDisabled();
+    fireEvent.submit(apply.closest("form")!);
+    expect(getBusinessStory).toHaveBeenCalledTimes(initialCalls);
+    expect(screen.getByText(copy.reportsView.kpiNetSalesLabel)).toBeInTheDocument();
+    fireEvent.change(to, { target: { value: today } });
+    fireEvent.click(apply);
+    await waitFor(() => expect(getBusinessStory).toHaveBeenCalledWith(addDays(today, -3), today));
+    expect(screen.getByText(`Del ${formatDayMonthLong(addDays(today, -3))} al ${formatDayMonthLong(today)}`, { exact: false })).toBeInTheDocument();
+  });
+
+  it("invalidates cached report data when the applied range is refreshed", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.customRange }));
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.apply }));
+    expect(invalidateReportsCache).toHaveBeenCalledOnce();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+  });
   it("associates unique Desde and Hasta labels with constrained date inputs", async () => {
     (getBusinessStory as Mock).mockResolvedValue(makeStory());
     renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
     fireEvent.click(screen.getByRole("button", { name: copy.reportsView.customRange }));
 
     const from = screen.getByLabelText(copy.reportsView.startDate);

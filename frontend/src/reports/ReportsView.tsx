@@ -31,7 +31,7 @@ import { usePlanDoneState } from "./hooks/usePlanDoneState";
 import { useReportData } from "./hooks/useReportData";
 import type { BusinessStoryReport } from "./types";
 import { buildActionPlan, recommendationDecisionArea } from "./utils/actionPlan";
-import { activePreset, daysBetweenInclusive, presetRange, type ReportPreset } from "./utils/dateRange";
+import { activePreset, daysBetweenInclusive, isValidDateRange, presetRange, type ReportPreset } from "./utils/dateRange";
 import { buildRecommendations } from "./utils/recommendations";
 import {
   trackAnalysisActionState,
@@ -155,6 +155,7 @@ export default function ReportsView() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!isValidDateRange(startDate, endDate)) return;
     if (startDate === appliedRange.startDate && endDate === appliedRange.endDate) {
       data.reload();
       return;
@@ -176,8 +177,9 @@ export default function ReportsView() {
       <ReportsHeader
         startDate={startDate}
         endDate={endDate}
+        appliedRange={appliedRange}
         timezone={story?.summary.timezone}
-        activePreset={activePreset(startDate, endDate, tz)}
+        activePreset={activePreset(appliedRange.startDate, appliedRange.endDate, tz)}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
         onSubmit={submit}
