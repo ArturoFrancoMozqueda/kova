@@ -47,6 +47,10 @@ type ModalState =
 type StockFilter = "all" | "low" | "healthy";
 type StockSort = "name_asc" | "stock_asc" | "stock_desc" | "threshold_asc";
 
+// Match backend/app/shared/validation.py and the persisted INTEGER quantities.
+const INVENTORY_QUANTITY_MAX = 2_147_483_647;
+const INVENTORY_QUANTITY_MIN = -2_147_483_648;
+
 export default function InventoryView() {
   useDocumentTitle(copy.documentTitles.inventory);
   const canAdjust = usePermission(INVENTORY_ADJUST_PERMISSION);
@@ -655,10 +659,15 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
     validationError = copy.inventoryModal.amountRequired;
   } else if (!Number.isSafeInteger(numeric)) {
     validationError = "Ingresa una cantidad entera válida.";
+  } else if (numeric > INVENTORY_QUANTITY_MAX || numeric < INVENTORY_QUANTITY_MIN) {
+    validationError = modal.type === "adjust"
+      ? "La cantidad supera el límite permitido. Ingresa un valor entre -2,147,483,648 y 2,147,483,647."
+      : "La cantidad supera el límite permitido. Ingresa un valor entre 0 y 2,147,483,647.";
   } else if (modal.type === "adjust") {
     const resulting = modal.item.stock_on_hand + numeric;
     if (numeric === 0) validationError = "Ingresa una cantidad distinta de 0 para ajustar el stock.";
     else if (resulting < 0) validationError = copy.inventoryModal.wouldLeaveNegative(resulting);
+    else if (resulting > INVENTORY_QUANTITY_MAX) validationError = "Este ajuste superaría el stock máximo de 2,147,483,647 unidades. Reduce la cantidad a agregar.";
     else if (numeric < 0 && !reasonCode) validationError = copy.inventoryModal.reasonCodeRequired;
   } else if (modal.type === "stockTake" && numeric < 0) {
     validationError = copy.inventoryModal.negativeCount;
@@ -693,7 +702,8 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             type="number"
             inputMode="numeric"
             step={1}
-            min={modal.type === "adjust" ? undefined : 0}
+            min={modal.type === "adjust" ? Math.max(INVENTORY_QUANTITY_MIN, -modal.item.stock_on_hand) : 0}
+            max={modal.type === "adjust" ? Math.min(INVENTORY_QUANTITY_MAX, INVENTORY_QUANTITY_MAX - modal.item.stock_on_hand) : INVENTORY_QUANTITY_MAX}
             disabled={pending}
             value={amount}
             onChange={(event) => setAmount(event.target.value)}

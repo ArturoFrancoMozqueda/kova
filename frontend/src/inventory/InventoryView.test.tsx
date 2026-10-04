@@ -58,7 +58,7 @@ beforeEach(() => {
 });
 
 describe("inventory write safety", () => {
-  it.each(["0", "1.5", "9007199254740992", "-11"])("blocks an invalid adjustment of %s before calling the API", async (amount) => {
+  it.each(["0", "1.5", "9007199254740992", "-11", "2147483648", "-2147483649", "2147483638"])("blocks an invalid adjustment of %s before calling the API", async (amount) => {
     const dialog = await openModal();
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.quantityDelta), { target: { value: amount } });
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Compra" } });
@@ -76,6 +76,33 @@ describe("inventory write safety", () => {
     expect(within(dialog).getByRole("alert")).toHaveTextContent(/negativ/);
     expect(recordStockTake).not.toHaveBeenCalled();
     expect(updateLowStockThreshold).not.toHaveBeenCalled();
+  });
+
+  it.each([copy.inventoryView.stockTake, copy.inventoryView.setThreshold])("limits %s to the INTEGER contract and allows its boundary", async (action) => {
+    const dialog = await openModal(action);
+    const amount = within(dialog).getByRole("spinbutton");
+    expect(amount).toHaveAttribute("max", "2147483647");
+    expect(amount).toHaveAttribute("min", "0");
+    fireEvent.change(amount, { target: { value: "2147483648" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(recordStockTake).not.toHaveBeenCalled();
+    expect(updateLowStockThreshold).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("límite permitido");
+    fireEvent.change(amount, { target: { value: "2147483647" } });
+    if (action === copy.inventoryView.stockTake) {
+      fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+    }
+    expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled();
+  });
+
+  it("bounds an adjustment by current stock and allows reaching the maximum exactly", async () => {
+    const dialog = await openModal();
+    const amount = within(dialog).getByRole("spinbutton");
+    expect(amount).toHaveAttribute("min", "-10");
+    expect(amount).toHaveAttribute("max", "2147483637");
+    fireEvent.change(amount, { target: { value: "2147483637" } });
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Compra" } });
+    expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled();
   });
 
   it("requires an outgoing reason code and allows a typed withdrawal down to zero", async () => {
