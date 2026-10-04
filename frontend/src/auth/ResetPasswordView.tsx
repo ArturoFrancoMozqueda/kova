@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { ApiError, confirmPasswordReset } from "./api";
@@ -9,18 +9,30 @@ import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Loader2 } from "lucid
 import { AuthLayout } from "./AuthLayout";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
-type State = "idle" | "submitting" | "success" | "error";
+type State = "idle" | "submitting" | "success" | "error" | "invalid";
 
 export default function ResetPasswordView() {
-  useDocumentTitle(copy.documentTitles.resetPassword);
   const [searchParams] = useSearchParams();
+  const token = searchParams.get("token")?.trim() ?? "";
+  // Each link owns its form, pending result and redirect timer. Browser
+  // navigation between links must not reuse an expired link's state.
+  return <ResetPasswordForm key={token} token={token} />;
+}
+
+function ResetPasswordForm({ token }: { token: string }) {
+  useDocumentTitle(copy.documentTitles.resetPassword);
   const navigate = useNavigate();
-  const token = useMemo(() => searchParams.get("token")?.trim() ?? "", [searchParams]);
 
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [state, setState] = useState<State>("idle");
   const [errorMessage, setErrorMessage] = useState<string>(copy.auth.operationError);
+
+  useEffect(() => {
+    if (state !== "success") return;
+    const timeout = window.setTimeout(() => navigate("/login", { replace: true }), 2500);
+    return () => window.clearTimeout(timeout);
+  }, [state, navigate]);
 
   const mismatch = confirmation.length > 0 && password !== confirmation;
   const tooShort = password.length > 0 && password.length < 8;
@@ -36,7 +48,7 @@ export default function ResetPasswordView() {
     password.length >= 8 &&
     !weakPassword &&
     password === confirmation &&
-    state !== "submitting";
+    state !== "submitting" && state !== "invalid";
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -45,10 +57,11 @@ export default function ResetPasswordView() {
     try {
       await confirmPasswordReset(token, password);
       setState("success");
-      window.setTimeout(() => navigate("/login", { replace: true }), 2500);
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
         setErrorMessage(copy.auth.resetTokenInvalid);
+        setState("invalid");
+        return;
       } else if (err instanceof ApiError && err.status === 422) {
         setErrorMessage(copy.auth.resetPasswordWeak);
       } else {
@@ -65,7 +78,7 @@ export default function ResetPasswordView() {
         subtitle={copy.auth.resetTokenMissingBody}
         contentClassName="space-y-3"
       >
-        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive">
+        <div role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>{copy.auth.resetTokenMissingHint}</span>
         </div>
@@ -84,7 +97,7 @@ export default function ResetPasswordView() {
     <AuthLayout title={copy.auth.resetPasswordTitle} subtitle={copy.auth.resetPasswordSubtitle}>
             {state === "success" ? (
               <div className="space-y-3">
-                <div className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
+                <div role="status" className="flex items-start gap-2 rounded-lg bg-success/10 border border-success/20 px-3 py-2.5 text-sm text-success">
                   <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>{copy.auth.resetPasswordSuccess}</span>
                 </div>
@@ -151,11 +164,17 @@ export default function ResetPasswordView() {
                   )}
                 </Button>
 
-                {state === "error" && (
-                  <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in">
+                {(state === "error" || state === "invalid") && (
+                  <div role="alert" className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-sm text-destructive animate-fade-in">
                     <AlertCircle className="h-4 w-4 shrink-0" />
                     {errorMessage}
                   </div>
+                )}
+                {state === "invalid" && (
+                  <Link to="/forgot-password" className="inline-flex items-center gap-1 text-sm font-medium text-kova-blue hover:underline">
+                    <ArrowRight className="h-4 w-4" />
+                    {copy.auth.resetTokenRequestAgain}
+                  </Link>
                 )}
 
                 <div className="text-center text-sm text-muted-foreground">

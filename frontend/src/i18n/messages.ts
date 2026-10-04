@@ -999,6 +999,7 @@ export const copy = {
     forgotPasswordSubtitle: "Ingresa el correo con el que abriste tu cuenta y te enviaremos un enlace para crear una contraseña nueva.",
     forgotPasswordSubmit: "Enviar instrucciones",
     forgotPasswordSent: "Si la cuenta existe, te enviamos un correo con instrucciones para restablecer la contraseña.",
+    forgotPasswordError: "No pudimos procesar la solicitud. Revisa tu conexión e intenta enviar las instrucciones de nuevo en unos momentos.",
     backToLogin: "Volver a iniciar sesión",
     devResetReady: "Token de prueba (solo entorno local)",
     devResetOpen: "Abrir pantalla de restablecimiento",
