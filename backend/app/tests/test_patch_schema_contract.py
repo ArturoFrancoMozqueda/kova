@@ -98,5 +98,7 @@ def test_patch_schema_preserves_money_and_image_constraints():
     ],
 )
 def test_patch_runtime_constraints_remain_enforced(model, payload):
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc:
         model.model_validate(payload)
+    field = next(iter(payload))
+    assert all(error["loc"] == (field,) for error in exc.value.errors())

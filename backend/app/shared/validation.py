@@ -44,8 +44,17 @@ def reject_null(value: object) -> object:
     return value
 
 
-def omit_null_default(schema: dict[str, object]) -> None:
-    """Omitted PATCH fields preserve stored values, rather than defaulting to null."""
+def non_nullable_patch_schema(schema: dict[str, object]) -> None:
+    """Document reject_null without changing runtime union/error semantics."""
+    branches = schema.get("anyOf")
+    if isinstance(branches, list):
+        non_null = [branch for branch in branches if branch != {"type": "null"}]
+        if len(non_null) == 1:
+            schema.pop("anyOf")
+            schema.update(non_null[0])
+        else:
+            schema["anyOf"] = non_null
+    # Omitted PATCH fields preserve stored values rather than assigning null.
     if schema.get("default") is None:
         schema.pop("default", None)
 
