@@ -192,6 +192,8 @@ function RegularRegisterView() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  // Undo actions belong to the cart that created them, never to the next sale.
+  const cartGenerationRef = useRef(0);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [pendingReceipt, setPendingReceipt] = useState<{
     clientUuid: string;
@@ -276,7 +278,7 @@ function RegularRegisterView() {
     if (!cartSheetOpen || !isCartSheetModal) return;
     const sheet = paymentSectionRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    window.requestAnimationFrame(() => sheet?.focus());
+    const focusFrame = window.requestAnimationFrame(() => sheet?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -287,12 +289,15 @@ function RegularRegisterView() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", onKeyDown);
       if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
     };
   }, [cartSheetOpen, isCartSheetModal]);
 
   const resetSale = useCallback(() => {
+    if (submittingRef.current) return;
+    cartGenerationRef.current += 1;
     setCart({});
     setPaymentMethod("cash");
     setCashTendered("");
@@ -374,11 +379,13 @@ function RegularRegisterView() {
 
   // Focus the primary CTA + handle Escape on mobile success overlay.
   useEffect(() => {
-    if (!saleResultVisible) return;
+    // The cart sheet restores its prior focus when it closes. Wait for that
+    // cleanup before focusing the sale confirmation so it cannot steal focus.
+    if (!saleResultVisible || (isCartSheetModal && cartSheetOpen)) return;
     // Remember where focus was so it returns there when the overlay closes
     // (same guard as the Dialog primitive uses).
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    successPrimaryRef.current?.focus();
+    if (isCartSheetModal) successPrimaryRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") resetSale();
     };
@@ -393,7 +400,7 @@ function RegularRegisterView() {
         previouslyFocused.focus();
       }
     };
-  }, [resetSale, saleResultVisible]);
+  }, [cartSheetOpen, isCartSheetModal, resetSale, saleResultVisible]);
 
   // Fetch the printable receipt for the completed sale so the cashier can print
   // it in one tap without leaving the register. Non-blocking: the sale is already
@@ -692,7 +699,7 @@ function RegularRegisterView() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (saleResultVisible || isEditableTarget(event.target)) return;
+      if (submittingRef.current || modifierTarget || saleResultVisible || isEditableTarget(event.target)) return;
       if (event.key === "/" && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         skuInputRef.current?.focus();
@@ -723,7 +730,7 @@ function RegularRegisterView() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [canSubmitSale, cashPaymentNeedsAmount, revealCashValidationAfterAttempt, saleResultVisible, selectPaymentMethod]);
+  }, [canSubmitSale, cashPaymentNeedsAmount, modifierTarget, revealCashValidationAfterAttempt, saleResultVisible, selectPaymentMethod]);
 
   const quantityInCart = (productId: string, currentCart = cart) =>
     Object.values(currentCart)
@@ -740,6 +747,7 @@ function RegularRegisterView() {
   };
 
   const addProduct = (product: Product) => {
+    if (submittingRef.current) return;
     if (!canAddProductUnit(product)) {
       reportStockBlocked(product);
       return;
@@ -752,6 +760,7 @@ function RegularRegisterView() {
   };
 
   const commitAddProduct = (product: Product, selectedModifiers: SelectedModifier[]) => {
+    if (submittingRef.current) return;
     if (!canAddProductUnit(product)) {
       reportStockBlocked(product);
       return;
@@ -775,6 +784,7 @@ function RegularRegisterView() {
   };
 
   const updateQuantity = (cartKey: string, quantity: number) => {
+    if (submittingRef.current) return;
     const currentItem = cart[cartKey];
     if (currentItem && quantity > currentItem.quantity) {
       const stock = stockMap.get(currentItem.product.id);
@@ -797,9 +807,11 @@ function RegularRegisterView() {
   };
 
   const removeItem = (cartKey: string) => {
+    if (submittingRef.current) return;
     const removed = cart[cartKey];
     if (!removed) return;
     const keyOrderBeforeRemoval = Object.keys(cart);
+    const cartGeneration = cartGenerationRef.current;
     setCart((current) => {
       if (!current[cartKey]) return current;
       const next = { ...current };
@@ -811,6 +823,7 @@ function RegularRegisterView() {
       action: {
         label: copy.register.undo,
         onAction: () => {
+          if (submittingRef.current || cartGenerationRef.current !== cartGeneration) return;
           setCart((current) => restoreCartLine(current, keyOrderBeforeRemoval, cartKey, removed));
         },
       },
@@ -826,7 +839,7 @@ function RegularRegisterView() {
       setSplitPayments([
         {
           ...createPaymentDraft(paymentMethod, totalAmount),
-          amountTendered: paymentMethod === "cash" ? cashTendered || totalAmount : "",
+          amountTendered: paymentMethod === "cash" ? cashTendered : "",
           reference: paymentMethod === "cash" ? "" : reference,
         },
       ]);
@@ -901,6 +914,7 @@ function RegularRegisterView() {
 
     submittingRef.current = true;
     setSubmitting(true);
+    clearSkuSearch();
     const submittedCart = cart;
 
     const sale = {
@@ -983,6 +997,7 @@ function RegularRegisterView() {
     }
 
     activeSaleClientUuidRef.current = queueItem.client_uuid;
+    cartGenerationRef.current += 1;
     setCompletedOrder(null);
     setPendingReceipt({ clientUuid: queueItem.client_uuid, snapshot: receiptSnapshot });
     adjustKnownStockForCart(submittedCart, -1);
@@ -1113,7 +1128,11 @@ function RegularRegisterView() {
         />
       )}
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <fieldset
+        disabled={submitting}
+        aria-busy={submitting}
+        className="min-w-0 grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_420px]"
+      >
         {/* Product Grid */}
         <Card className="overflow-hidden border-kova-border/90">
           <CardHeader className="border-b bg-white p-5 pb-4">
@@ -1893,7 +1912,7 @@ function RegularRegisterView() {
             </div>
           </div>
         </div>
-      </div>
+      </fieldset>
 
       {modifierTarget && (
         <ModifierSelectionModal
@@ -1915,7 +1934,7 @@ function RegularRegisterView() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="sale-success-title"
-          className="fixed inset-0 z-50 flex flex-col bg-background animate-fade-in lg:hidden"
+          className="fixed inset-0 z-50 flex flex-col bg-background animate-fade-in xl:hidden"
           style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
           // Container-scoped trap (APG modal pattern): on desktop this overlay
           // is display:none, so focus never lands inside it and the handler
@@ -2010,7 +2029,7 @@ function RegularRegisterView() {
       )}
 
       {/* Keep the printable receipt outside the desktop/mobile success variants.
-          The mobile dialog is `lg:hidden`, which also made its receipt disappear
+          The mobile dialog is `xl:hidden`, which also made its receipt disappear
           from desktop print previews. */}
       {receiptProps && (
         <div className="print-only" aria-hidden="true">

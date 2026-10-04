@@ -647,7 +647,7 @@ test("register quick sale keeps CTAs above mobile navigation", async ({ page }) 
       sales: Array<{ client_uuid: string }>;
     };
     await route.fulfill({
-      json: makeSyncResponse(body.sales[0].client_uuid, "order-mobile", "18.50"),
+      json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000004", "18.50"),
     });
   });
 

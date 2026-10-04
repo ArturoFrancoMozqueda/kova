@@ -61,6 +61,39 @@ async function expectRegisterReady(page: Page) {
   await expect(page.getByRole("heading", { name: /^catálogo$/i })).toBeVisible();
 }
 
+for (const width of [390, 1100, 1440]) {
+  test(`sale confirmation and receipt remain accessible at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await markFirstUseToursSeen(page);
+    await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: CASHIER_SESSION }));
+    await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: CATALOG }));
+    await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/shifts/current", (route) => route.fulfill({ json: OPEN_SHIFT }));
+    // Keep the local receipt available to verify the same confirmation layout
+    // when the sale is safely saved but cannot sync yet.
+    await page.route("**/api/v1/sync/offline-sales", (route) => route.abort());
+    await page.goto("/register");
+    await expectRegisterReady(page);
+    await page.getByRole("button", { name: "Agregar Concha" }).click();
+    await page.getByLabel(/efectivo recibido/i).fill("20.00");
+    await page.getByRole("button", { name: /^cobrar$/i }).click();
+
+    await expect(page.getByRole("button", { name: /nueva venta/i }).filter({ visible: true })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /imprimir recibo/i }).filter({ visible: true })).toHaveCount(1);
+    if (width < 1280) {
+      const confirmation = page.getByRole("dialog", { name: /venta guardada en este dispositivo/i });
+      await expect(confirmation).toBeVisible();
+      await expect(confirmation.getByRole("button", { name: /nueva venta/i })).toBeFocused();
+      await expect(confirmation).toContainText("Concha");
+      await page.keyboard.press("Escape");
+      await expect(confirmation).toBeHidden();
+    } else {
+      await page.getByRole("button", { name: /nueva venta/i }).filter({ visible: true }).click();
+    }
+    await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeEnabled();
+  });
+}
+
 test("cashier completes a cash sale from the register", async ({ page }) => {
   await markFirstUseToursSeen(page);
   await page.route("**/api/v1/auth/session", (route) =>
@@ -90,7 +123,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
       payments: [{ method: "cash", amount: "18.50", amount_tendered: "20.00" }],
     });
     await route.fulfill({
-      json: makeSyncResponse(body.sales[0].client_uuid, "order-1", "18.50"),
+      json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000001", "18.50"),
     });
   });
 
@@ -110,7 +143,7 @@ test("cashier completes a cash sale from the register", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
   await expect(page.getByRole("link", { name: /abrir orden/i })).toHaveAttribute(
     "href",
-    "/orders/order-1",
+    "/orders/10000000-0000-4000-8000-000000000001",
   );
 });
 
@@ -143,7 +176,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
       ],
     });
     await route.fulfill({
-      json: makeSyncResponse(body.sales[0].client_uuid, "order-split", "18.50"),
+      json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000002", "18.50"),
     });
   });
 
@@ -163,7 +196,7 @@ test("cashier completes a split cash and bank transfer sale", async ({ page }) =
   await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
   await expect(page.getByRole("link", { name: /abrir orden/i })).toHaveAttribute(
     "href",
-    "/orders/order-split",
+    "/orders/10000000-0000-4000-8000-000000000002",
   );
 });
 
@@ -228,7 +261,7 @@ test("cash is blocked without an open shift but a transfer sale completes", asyn
     expect(body.sales[0].order.payments[0].method).toBe("bank_transfer");
     expect(body.sales[0].shift_id).toBeUndefined();
     await route.fulfill({
-      json: makeSyncResponse(body.sales[0].client_uuid, "order-transfer", "18.50"),
+      json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000003", "18.50"),
     });
   });
 

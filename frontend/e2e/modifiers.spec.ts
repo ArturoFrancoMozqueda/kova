@@ -122,7 +122,7 @@ test("selecting a modifier adds it to cart with effective price", async ({ page 
     const clientUuid = body.sales[0].client_uuid;
     await route.fulfill({
       json: {
-        results: [{ client_uuid: clientUuid, status: "synced", order_id: "order-1", order: { id: "order-1", tenant_id: "tenant-1", status: "completed", subtotal_amount: "55.00", total_amount: "55.00", items: [], payments: [] }, error: null }],
+        results: [{ client_uuid: clientUuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000005", order: { id: "10000000-0000-4000-8000-000000000005", tenant_id: "tenant-1", status: "completed", subtotal_amount: "55.00", total_amount: "55.00", items: [], payments: [] }, error: null }],
       },
     });
   });
