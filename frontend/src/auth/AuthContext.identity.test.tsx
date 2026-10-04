@@ -1,6 +1,8 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect, useState } from "react";
+import { queryClient } from "@/lib/queryClient";
 
 const coordination = vi.hoisted(() => ({
   listener: null as null | (() => void),
@@ -17,6 +19,8 @@ const localCaches = vi.hoisted(() => ({
 }));
 const reportIdentity = vi.hoisted(() => vi.fn());
 vi.mock("@/reports/api", () => ({ setReportsCacheIdentity: reportIdentity }));
+const billingIdentity = vi.hoisted(() => vi.fn());
+vi.mock("@/billing/api", () => ({ setBillingCacheIdentity: billingIdentity }));
 
 vi.mock("./api", () => ({
   ApiError: class ApiError extends Error {},
@@ -79,6 +83,23 @@ function Probe() {
   );
 }
 
+function StatefulProbe({ onMount, onUnmount }: { onMount: () => void; onUnmount: () => void }) {
+  const { state, refresh, logout, setTenantLogoUrl } = useAuthContext();
+  const [draft, setDraft] = useState(0);
+  useEffect(() => {
+    onMount();
+    return onUnmount;
+  }, [onMount, onUnmount]);
+  return <div>
+    <p>{state.status === "authenticated" ? `${state.tenantId}:${state.user.id}:${state.user.role}:${state.sessionMode}` : state.status}</p>
+    <p data-testid="draft">{draft}</p>
+    <button onClick={() => setDraft((value) => value + 1)}>edit-draft</button>
+    <button onClick={() => void refresh()}>refresh-probe</button>
+    <button onClick={() => void logout()}>logout-probe</button>
+    <button onClick={() => setTenantLogoUrl("/brand/logo.png")}>change-logo</button>
+  </div>;
+}
+
 describe("AuthProvider identity continuity", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -93,6 +114,84 @@ describe("AuthProvider identity continuity", () => {
     vi.mocked(refreshSession).mockReset();
     vi.mocked(apiLogout).mockReset().mockResolvedValue(undefined);
     reportIdentity.mockReset();
+    billingIdentity.mockReset();
+  });
+
+  it.each([
+    ["tenant", session("tenant-b", "user-a")],
+    ["user", session("tenant-a", "user-b")],
+    ["role", session("tenant-a", "user-a", "manager")],
+  ])("discards all child snapshots and query data when the verified %s changes", async (_change, next) => {
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-a", "user-a")).mockResolvedValueOnce(next);
+    const onMount = vi.fn();
+    const onUnmount = vi.fn();
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider>
+      <StatefulProbe onMount={onMount} onUnmount={onUnmount} />
+    </AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:owner:online");
+    const mounts = onMount.mock.calls.length;
+    const unmounts = onUnmount.mock.calls.length;
+    queryClient.setQueryData(["private-snapshot"], { tenantId: "tenant-a" });
+    act(() => screen.getByRole("button", { name: "edit-draft" }).click());
+    expect(screen.getByTestId("draft")).toHaveTextContent("1");
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    await screen.findByText(`${next.tenant_id}:${next.user.id}:${next.user.role}:online`);
+    expect(screen.getByTestId("draft")).toHaveTextContent("0");
+    expect(onMount).toHaveBeenCalledTimes(mounts + 1);
+    expect(onUnmount).toHaveBeenCalledTimes(unmounts + 1);
+    expect(queryClient.getQueryData(["private-snapshot"])).toBeUndefined();
+  });
+
+  it("preserves child state through same-identity refresh, branding and online/offline changes", async () => {
+    const original = session("tenant-a", "user-a");
+    vi.mocked(getSession)
+      .mockResolvedValueOnce(original)
+      .mockResolvedValueOnce({ ...original, tenant_name: "Nuevo nombre" })
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce(original);
+    offlineAccess.read.mockResolvedValue({ status: "ready", snapshot: {
+      ...original, user: { id: "user-a", tenant_id: "tenant-a", role: "owner" },
+    } });
+    const onMount = vi.fn();
+    const onUnmount = vi.fn();
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider>
+      <StatefulProbe onMount={onMount} onUnmount={onUnmount} />
+    </AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:owner:online");
+    const mounts = onMount.mock.calls.length;
+    const unmounts = onUnmount.mock.calls.length;
+    act(() => screen.getByRole("button", { name: "edit-draft" }).click());
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledTimes(2));
+    act(() => screen.getByRole("button", { name: "change-logo" }).click());
+    expect(screen.getByTestId("draft")).toHaveTextContent("1");
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    await screen.findByText("tenant-a:user-a:owner:offline");
+    expect(screen.getByTestId("draft")).toHaveTextContent("1");
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    await screen.findByText("tenant-a:user-a:owner:online");
+    expect(screen.getByTestId("draft")).toHaveTextContent("1");
+    expect(onMount).toHaveBeenCalledTimes(mounts);
+    expect(onUnmount).toHaveBeenCalledTimes(unmounts);
+  });
+
+  it("discards child snapshots on logout and does not restore them on the next login", async () => {
+    vi.mocked(getSession).mockResolvedValue(session("tenant-a", "user-a"));
+    const onMount = vi.fn();
+    const onUnmount = vi.fn();
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider>
+      <StatefulProbe onMount={onMount} onUnmount={onUnmount} />
+    </AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:owner:online");
+    act(() => screen.getByRole("button", { name: "edit-draft" }).click());
+    expect(screen.getByTestId("draft")).toHaveTextContent("1");
+    act(() => screen.getByRole("button", { name: "logout-probe" }).click());
+    await screen.findByText("unauthenticated");
+    expect(screen.getByTestId("draft")).toHaveTextContent("0");
+    expect(billingIdentity).toHaveBeenLastCalledWith(null);
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    await screen.findByText("tenant-a:user-a:owner:online");
+    expect(screen.getByTestId("draft")).toHaveTextContent("0");
   });
 
   it("suspends a stale tab and adopts only the freshly probed cookie identity", async () => {
@@ -106,6 +205,7 @@ describe("AuthProvider identity continuity", () => {
     );
     expect(await screen.findByText("tenant-a:user-a:online")).toBeVisible();
     expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "owner" });
+    expect(billingIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "owner" });
 
     let resolveProbe!: (value: ReturnType<typeof session>) => void;
     vi.mocked(getSession).mockImplementationOnce(() => new Promise((resolve) => {
@@ -114,6 +214,7 @@ describe("AuthProvider identity continuity", () => {
     act(() => coordination.listener?.());
     expect(screen.getByText("loading")).toBeVisible();
     expect(reportIdentity).toHaveBeenLastCalledWith(null);
+    expect(billingIdentity).toHaveBeenLastCalledWith(null);
     await expect(window.fetch("/api/v1/orders", { method: "POST" })).rejects.toThrow(
       /verificando el negocio activo/i,
     );
@@ -122,6 +223,7 @@ describe("AuthProvider identity continuity", () => {
     resolveProbe(session("tenant-b", "user-b", "cashier"));
     expect(await screen.findByText("tenant-b:user-b:online")).toBeVisible();
     expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-b", userId: "user-b", role: "cashier" });
+    expect(billingIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-b", userId: "user-b", role: "cashier" });
   });
 
   it("opens only the prepared tenant in local mode when the session endpoint is offline", async () => {
@@ -149,6 +251,7 @@ describe("AuthProvider identity continuity", () => {
 
     expect(await screen.findByText("tenant-a:user-a:offline")).toBeVisible();
     expect(reportIdentity).toHaveBeenLastCalledWith(null);
+    expect(billingIdentity).toHaveBeenLastCalledWith(null);
     expect(offlineAccess.cache).not.toHaveBeenCalled();
   });
 
@@ -220,6 +323,7 @@ describe("AuthProvider identity continuity", () => {
     expect(headers.get("X-Kova-Expected-User")).toBe("user-a");
     expect(headers.get("Idempotency-Key")).toBe("category-1");
     view.unmount();
+    expect(billingIdentity).toHaveBeenLastCalledWith(null);
   });
 
   it.each([
@@ -260,5 +364,6 @@ describe("AuthProvider identity continuity", () => {
     await waitFor(() => expect(offlineAccess.cache).toHaveBeenCalledTimes(2));
     expect(offlineAccess.cache.mock.calls[1][0].user.role).toBe("cashier");
     expect(reportIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "cashier" });
+    expect(billingIdentity).toHaveBeenLastCalledWith({ tenantId: "tenant-a", userId: "user-a", role: "cashier" });
   });
 });

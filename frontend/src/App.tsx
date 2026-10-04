@@ -62,9 +62,11 @@ export const PRERENDERED_ROUTES: Record<string, () => Promise<void>> = {
  */
 export function AppRoutes() {
   return (
+    <>
+    {/* The update belongs to this device, so it survives identity remounts. */}
+    <PWAUpdatePrompt />
     <AuthProvider>
       <ToastProvider>
-        <PWAUpdatePrompt />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             {/* Public */}
@@ -150,6 +152,7 @@ export function AppRoutes() {
         </Suspense>
       </ToastProvider>
     </AuthProvider>
+    </>
   );
 }
 

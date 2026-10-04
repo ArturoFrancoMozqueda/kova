@@ -42,6 +42,12 @@ export function setReportsCacheIdentity(identity: { tenantId: string; userId: st
   invalidateReportsCache();
 }
 
+function ensureCurrentEpoch(epoch: number): void {
+  if (epoch !== reportEpoch) {
+    throw new Error("La sesión o los datos del reporte cambiaron. Vuelve a cargar el reporte.");
+  }
+}
+
 function cachedJson<T>(url: string): Promise<T> {
   const epoch = reportEpoch;
   // Without a verified identity, do not share or retain authenticated reads.
@@ -49,15 +55,16 @@ function cachedJson<T>(url: string): Promise<T> {
   const now = Date.now();
   const hit = key === null ? undefined : reportCache.get(key);
   if (hit && now - hit.fetchedAt < REPORT_TTL_MS) {
-    return Promise.resolve(hit.value as T);
+    return Promise.resolve().then(() => {
+      ensureCurrentEpoch(epoch);
+      return hit.value as T;
+    });
   }
   const inflight = key === null ? undefined : reportInflight.get(key) as Promise<T> | undefined;
   if (inflight) return inflight;
   const promise = requestJson<T>(url)
     .then((value) => {
-      if (epoch !== reportEpoch) {
-        throw new Error("La sesión o los datos del reporte cambiaron. Vuelve a cargar el reporte.");
-      }
+      ensureCurrentEpoch(epoch);
       if (key !== null) reportCache.set(key, { value, fetchedAt: Date.now() });
       return value;
     })

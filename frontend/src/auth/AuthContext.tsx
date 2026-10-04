@@ -1,5 +1,6 @@
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -19,6 +20,7 @@ import { setActiveOfflineTenant } from "@/offline/activeTenant";
 import { captureApiRequestId, clearLatestRequestId } from "@/lib/supportContext";
 import { queryClient } from "@/lib/queryClient";
 import { setReportsCacheIdentity } from "@/reports/api";
+import { setBillingCacheIdentity } from "@/billing/api";
 import {
   announceSessionChange,
   clearLogoutPending,
@@ -94,14 +96,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authenticatedTenantId = state.status === "authenticated" ? state.tenantId : null;
 
   const applyState = useCallback((next: AuthState) => {
-    setReportsCacheIdentity(next.status === "authenticated" && next.sessionMode === "online"
+    const cacheIdentity = next.status === "authenticated" && next.sessionMode === "online"
       ? { tenantId: next.tenantId, userId: next.user.id, role: next.user.role }
-      : null);
+      : null;
+    setReportsCacheIdentity(cacheIdentity);
+    setBillingCacheIdentity(cacheIdentity);
     stateRef.current = next;
     setState(next);
   }, []);
 
-  useEffect(() => () => setReportsCacheIdentity(null), []);
+  useEffect(() => () => {
+    setReportsCacheIdentity(null);
+    setBillingCacheIdentity(null);
+  }, []);
 
   useEffect(() => {
     setActiveOfflineTenant(authenticatedTenantId);
@@ -227,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const previous = stateRef.current;
     if (
       previous.status === "authenticated" &&
-      (previous.tenantId !== session.tenant_id || previous.user.id !== session.user.id)
+      (previous.tenantId !== session.tenant_id || previous.user.id !== session.user.id || previous.user.role !== session.user.role)
     ) {
       queryClient.clear();
     }
@@ -417,7 +424,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ state, logout, refresh, setTenantLogoUrl }}>
-      {children}
+      {/* Discard view snapshots and drafts between identities/permission roles.
+          Connectivity and branding updates keep the same identity's work. */}
+      <Fragment key={state.status === "authenticated"
+        ? JSON.stringify([state.tenantId, state.user.id, state.user.role])
+        : "anonymous"}>
+        {children}
+      </Fragment>
     </AuthContext.Provider>
   );
 }
