@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
+import { useOptionalAuth } from "../auth/useAuth";
 import { copy } from "../i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
@@ -46,13 +47,23 @@ type ModalState =
 type StockFilter = "all" | "low" | "healthy";
 type StockSort = "name_asc" | "stock_asc" | "stock_desc" | "threshold_asc";
 
+// Match backend/app/shared/validation.py and the persisted INTEGER quantities.
+const INVENTORY_QUANTITY_MAX = 2_147_483_647;
+const INVENTORY_QUANTITY_MIN = -2_147_483_648;
+
 export default function InventoryView() {
   useDocumentTitle(copy.documentTitles.inventory);
   const canAdjust = usePermission(INVENTORY_ADJUST_PERMISSION);
+  const auth = useOptionalAuth();
+  const identity = auth?.state.status === "authenticated"
+    ? `${auth.state.tenantId}:${auth.state.user.id}` : null;
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [modal, setModal] = useState<ModalState>(null);
   const [pending, setPending] = useState(false);
   const submissionPending = useRef(false);
+  // Retain the last ambiguous write across modal closes; a changed operation,
+  // confirmed success, identity change or unmount starts a new attempt.
+  const writeAttempt = useRef<{ identity: string; payload: string; key: string } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const focusedProductId = searchParams.get("product");
   const [stockSearch, setStockSearch] = useState("");
@@ -63,6 +74,11 @@ export default function InventoryView() {
   const [stockSort, setStockSort] = useState<StockSort>("name_asc");
   const { toast } = useToast();
   const handleBillingBlocked = useBillingBlocked();
+
+  useEffect(() => {
+    writeAttempt.current = null;
+    setModal(null);
+  }, [identity]);
 
   const load = useCallback(async () => {
     setLoadState({ status: "loading" });
@@ -120,20 +136,25 @@ export default function InventoryView() {
   const submitModal = async (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null }) => {
     if (!modal || submissionPending.current) return;
     submissionPending.current = true;
+    const payload = JSON.stringify({ productId: modal.item.product_id, type: modal.type, ...values });
+    const idempotencyKey = writeAttempt.current?.identity === identity && writeAttempt.current.payload === payload
+      ? writeAttempt.current.key : crypto.randomUUID();
+    if (identity) writeAttempt.current = { identity, payload, key: idempotencyKey };
     setPending(true);
     try {
       if (modal.type === "adjust") {
-        await adjustStock(modal.item.product_id, values.amount, values.reason, values.reasonCode);
+        await adjustStock(modal.item.product_id, values.amount, values.reason, values.reasonCode, idempotencyKey);
         toast(copy.inventoryView.adjustmentSuccess, "success");
       }
       if (modal.type === "stockTake") {
-        await recordStockTake(modal.item.product_id, values.amount, values.reason);
+        await recordStockTake(modal.item.product_id, values.amount, values.reason, idempotencyKey);
         toast(copy.inventoryView.stockTakeSuccess, "success");
       }
       if (modal.type === "threshold") {
-        await updateLowStockThreshold(modal.item.product_id, values.amount);
+        await updateLowStockThreshold(modal.item.product_id, values.amount, idempotencyKey);
         toast(copy.inventoryView.thresholdSuccess, "success");
       }
+      if (writeAttempt.current?.key === idempotencyKey) writeAttempt.current = null;
       setModal(null);
       await load();
     } catch (err) {
@@ -638,10 +659,15 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
     validationError = copy.inventoryModal.amountRequired;
   } else if (!Number.isSafeInteger(numeric)) {
     validationError = "Ingresa una cantidad entera válida.";
+  } else if (numeric > INVENTORY_QUANTITY_MAX || numeric < INVENTORY_QUANTITY_MIN) {
+    validationError = modal.type === "adjust"
+      ? "La cantidad supera el límite permitido. Ingresa un valor entre -2,147,483,648 y 2,147,483,647."
+      : "La cantidad supera el límite permitido. Ingresa un valor entre 0 y 2,147,483,647.";
   } else if (modal.type === "adjust") {
     const resulting = modal.item.stock_on_hand + numeric;
     if (numeric === 0) validationError = "Ingresa una cantidad distinta de 0 para ajustar el stock.";
     else if (resulting < 0) validationError = copy.inventoryModal.wouldLeaveNegative(resulting);
+    else if (resulting > INVENTORY_QUANTITY_MAX) validationError = "Este ajuste superaría el stock máximo de 2,147,483,647 unidades. Reduce la cantidad a agregar.";
     else if (numeric < 0 && !reasonCode) validationError = copy.inventoryModal.reasonCodeRequired;
   } else if (modal.type === "stockTake" && numeric < 0) {
     validationError = copy.inventoryModal.negativeCount;
@@ -676,7 +702,8 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             type="number"
             inputMode="numeric"
             step={1}
-            min={modal.type === "adjust" ? undefined : 0}
+            min={modal.type === "adjust" ? Math.max(INVENTORY_QUANTITY_MIN, -modal.item.stock_on_hand) : 0}
+            max={modal.type === "adjust" ? Math.min(INVENTORY_QUANTITY_MAX, INVENTORY_QUANTITY_MAX - modal.item.stock_on_hand) : INVENTORY_QUANTITY_MAX}
             disabled={pending}
             value={amount}
             onChange={(event) => setAmount(event.target.value)}

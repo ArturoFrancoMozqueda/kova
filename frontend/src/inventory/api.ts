@@ -47,10 +47,11 @@ export function adjustStock(
   quantityDelta: number,
   reason: string,
   reasonCode?: string | null,
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<MovementResponse> {
   return requestJson<MovementResponse>(`/api/v1/inventory/products/${productId}/adjustments`, {
     method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID() },
+    headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify({ quantity_delta: quantityDelta, reason, reason_code: reasonCode }),
   });
 }
@@ -59,10 +60,11 @@ export function recordStockTake(
   productId: string,
   countedQuantity: number,
   reason: string,
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<MovementResponse> {
   return requestJson<MovementResponse>(`/api/v1/inventory/products/${productId}/stock-take`, {
     method: "POST",
-    headers: { "Idempotency-Key": crypto.randomUUID() },
+    headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify({ counted_quantity: countedQuantity, reason }),
   });
 }
@@ -80,12 +82,13 @@ export function listMovements(
 export function updateLowStockThreshold(
   productId: string,
   lowStockThreshold: number | null,
+  idempotencyKey: string = crypto.randomUUID(),
 ): Promise<StockItem> {
   return requestJson<StockItem>(
     `/api/v1/inventory/products/${productId}/low-stock-threshold`,
     {
       method: "PATCH",
-      headers: { "Idempotency-Key": crypto.randomUUID() },
+      headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({ low_stock_threshold: lowStockThreshold }),
     },
   );

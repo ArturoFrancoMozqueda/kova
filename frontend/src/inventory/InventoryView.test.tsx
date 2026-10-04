@@ -7,6 +7,9 @@ import InventoryView from "./InventoryView";
 import { adjustStock, listLowStock, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
 import type { StockItem } from "./types";
 
+const authIdentity = vi.hoisted(() => ({ tenantId: "tenant-1", user: { id: "user-1" } }));
+vi.mock("../auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", ...authIdentity } }) }));
+
 vi.mock("../auth/permissions", () => ({
   INVENTORY_ADJUST_PERMISSION: "inventory.adjust",
   usePermission: () => true,
@@ -47,13 +50,15 @@ async function openModal(action = copy.inventoryView.adjust) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  authIdentity.tenantId = "tenant-1";
+  authIdentity.user.id = "user-1";
   vi.mocked(listStock).mockResolvedValue([item]);
   vi.mocked(listLowStock).mockResolvedValue([]);
   vi.mocked(listVelocity).mockResolvedValue([]);
 });
 
 describe("inventory write safety", () => {
-  it.each(["0", "1.5", "9007199254740992", "-11"])("blocks an invalid adjustment of %s before calling the API", async (amount) => {
+  it.each(["0", "1.5", "9007199254740992", "-11", "2147483648", "-2147483649", "2147483638"])("blocks an invalid adjustment of %s before calling the API", async (amount) => {
     const dialog = await openModal();
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.quantityDelta), { target: { value: amount } });
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Compra" } });
@@ -73,6 +78,33 @@ describe("inventory write safety", () => {
     expect(updateLowStockThreshold).not.toHaveBeenCalled();
   });
 
+  it.each([copy.inventoryView.stockTake, copy.inventoryView.setThreshold])("limits %s to the INTEGER contract and allows its boundary", async (action) => {
+    const dialog = await openModal(action);
+    const amount = within(dialog).getByRole("spinbutton");
+    expect(amount).toHaveAttribute("max", "2147483647");
+    expect(amount).toHaveAttribute("min", "0");
+    fireEvent.change(amount, { target: { value: "2147483648" } });
+    fireEvent.submit(dialog.querySelector("form")!);
+    expect(recordStockTake).not.toHaveBeenCalled();
+    expect(updateLowStockThreshold).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("límite permitido");
+    fireEvent.change(amount, { target: { value: "2147483647" } });
+    if (action === copy.inventoryView.stockTake) {
+      fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Conteo físico" } });
+    }
+    expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled();
+  });
+
+  it("bounds an adjustment by current stock and allows reaching the maximum exactly", async () => {
+    const dialog = await openModal();
+    const amount = within(dialog).getByRole("spinbutton");
+    expect(amount).toHaveAttribute("min", "-10");
+    expect(amount).toHaveAttribute("max", "2147483637");
+    fireEvent.change(amount, { target: { value: "2147483637" } });
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Compra" } });
+    expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled();
+  });
+
   it("requires an outgoing reason code and allows a typed withdrawal down to zero", async () => {
     const dialog = await openModal();
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.quantityDelta), { target: { value: "-10" } });
@@ -82,7 +114,7 @@ describe("inventory write safety", () => {
     expect(within(dialog).getByRole("alert")).toHaveTextContent(copy.inventoryModal.reasonCodeRequired);
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reasonCode), { target: { value: "caducidad" } });
     fireEvent.submit(dialog.querySelector("form")!);
-    await waitFor(() => expect(adjustStock).toHaveBeenCalledWith(item.product_id, -10, "Caducidad", "caducidad"));
+    await waitFor(() => expect(adjustStock).toHaveBeenCalledWith(item.product_id, -10, "Caducidad", "caducidad", expect.any(String)));
   });
 
   it.each([copy.inventoryView.stockTake, copy.inventoryView.setThreshold])("blocks fractional quantities in %s", async (action) => {
@@ -105,7 +137,7 @@ describe("inventory write safety", () => {
 
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "  Compra  " } });
     fireEvent.submit(dialog.querySelector("form")!);
-    await waitFor(() => expect(adjustStock).toHaveBeenCalledWith(item.product_id, 3, "Compra", null));
+    await waitFor(() => expect(adjustStock).toHaveBeenCalledWith(item.product_id, 3, "Compra", null, expect.any(String)));
   });
 
   it("clears an outgoing reason code when an adjustment changes to incoming stock", async () => {
@@ -116,7 +148,7 @@ describe("inventory write safety", () => {
     fireEvent.change(amount, { target: { value: "3" } });
     fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: "Compra" } });
     fireEvent.submit(dialog.querySelector("form")!);
-    await waitFor(() => expect(adjustStock).toHaveBeenCalledWith(item.product_id, 3, "Compra", null));
+    await waitFor(() => expect(adjustStock).toHaveBeenCalledWith(item.product_id, 3, "Compra", null, expect.any(String)));
   });
 
   it("keeps a pending write open and prevents duplicate submissions", async () => {
@@ -149,8 +181,8 @@ describe("inventory write safety", () => {
     expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled();
     fireEvent.submit(dialog.querySelector("form")!);
     await waitFor(() => {
-      if (action === copy.inventoryView.stockTake) expect(recordStockTake).toHaveBeenCalledWith(item.product_id, 0, "Conteo físico");
-      else expect(updateLowStockThreshold).toHaveBeenCalledWith(item.product_id, 0);
+      if (action === copy.inventoryView.stockTake) expect(recordStockTake).toHaveBeenCalledWith(item.product_id, 0, "Conteo físico", expect.any(String));
+      else expect(updateLowStockThreshold).toHaveBeenCalledWith(item.product_id, 0, expect.any(String));
     });
   });
 });
@@ -177,5 +209,69 @@ describe("inventory stock visibility", () => {
     renderView();
     await screen.findAllByRole("heading", { name: item.product_name });
     expect(screen.getAllByRole("button", { name: `${copy.inventoryModal.adjustmentTitle}: ${item.product_name}` })).toHaveLength(2);
+  });
+});
+
+describe("inventory ambiguous-response retries", () => {
+  function submitAdjustment(reason = "Compra", amount = "3") {
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.quantityDelta), { target: { value: amount } });
+    fireEvent.change(within(dialog).getByLabelText(copy.inventoryModal.reason), { target: { value: reason } });
+    fireEvent.submit(dialog.querySelector("form")!);
+  }
+
+  it("replays a processed adjustment after closing/reopening instead of applying stock twice, then rotates after success", async () => {
+    const processed = new Map<string, number>();
+    vi.mocked(adjustStock).mockImplementation(async (productId, delta, reason, _code, key) => {
+      if (!processed.has(key!)) {
+        processed.set(key!, delta);
+        if (processed.size === 1) throw new TypeError("Response lost after commit");
+      }
+      return { id: "movement-1", product_id: productId, movement_type: "adjustment", quantity_delta: delta, stock_on_hand: 13, reason };
+    });
+    const dialog = await openModal();
+    submitAdjustment();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled());
+    expect(processed.size).toBe(1);
+    fireEvent.click(within(dialog).getByRole("button", { name: copy.inventoryModal.cancel }));
+    fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.adjust }));
+    submitAdjustment();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(processed.size).toBe(1);
+    expect(vi.mocked(adjustStock).mock.calls[0][4]).toBe(vi.mocked(adjustStock).mock.calls[1][4]);
+
+    await screen.findByRole("button", { name: copy.inventoryView.adjust });
+    fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.adjust }));
+    submitAdjustment();
+    await waitFor(() => expect(adjustStock).toHaveBeenCalledTimes(3));
+    expect(processed.size).toBe(2);
+    expect(vi.mocked(adjustStock).mock.calls[2][4]).not.toBe(vi.mocked(adjustStock).mock.calls[1][4]);
+  });
+
+  it("creates a new key when the retry payload changes", async () => {
+    vi.mocked(adjustStock).mockRejectedValue(new TypeError("Response lost"));
+    const dialog = await openModal();
+    submitAdjustment();
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled());
+    submitAdjustment("Otra compra", "4");
+    await waitFor(() => expect(adjustStock).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(adjustStock).mock.calls[0][4]).not.toBe(vi.mocked(adjustStock).mock.calls[1][4]);
+  });
+
+  it.each(["tenantId", "userId"])("clears retry state when %s changes", async (change) => {
+    vi.mocked(adjustStock).mockRejectedValue(new TypeError("Response lost"));
+    const { rerender } = renderView();
+    await screen.findByRole("button", { name: copy.inventoryView.adjust });
+    fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.adjust }));
+    submitAdjustment();
+    await waitFor(() => expect(within(screen.getByRole("dialog")).getByRole("button", { name: copy.inventoryModal.submit })).toBeEnabled());
+    if (change === "tenantId") authIdentity.tenantId = "tenant-2";
+    else authIdentity.user.id = "user-2";
+    rerender(<MemoryRouter><ToastProvider><InventoryView /></ToastProvider></MemoryRouter>);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.adjust }));
+    submitAdjustment();
+    await waitFor(() => expect(adjustStock).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(adjustStock).mock.calls[0][4]).not.toBe(vi.mocked(adjustStock).mock.calls[1][4]);
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createProduct,
+  commitCatalogImport,
   previewCatalogImport,
   setProductModifierGroups,
   updateProduct,
@@ -120,5 +121,25 @@ describe("catalog api product payloads", () => {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     }));
     expect(init.body).toBe(workbook);
+  });
+
+  it("sends a preserved import key after a response is lost", async () => {
+    const processed = new Set<string>();
+    const keys: string[] = [];
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const key = new Headers(init.headers).get("Idempotency-Key")!;
+      keys.push(key);
+      if (!processed.has(key)) {
+        processed.add(key);
+        throw new TypeError("Response lost after server commit");
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File(["nombre,precio\nCafé,18"], "catalogo.csv");
+    await expect(commitCatalogImport(file, "stable-import-key")).rejects.toThrow("Response lost");
+    await commitCatalogImport(file, "stable-import-key");
+    expect(keys).toEqual(["stable-import-key", "stable-import-key"]);
+    expect(processed.size).toBe(1);
   });
 });
