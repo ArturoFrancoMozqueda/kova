@@ -1,5 +1,6 @@
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -233,7 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const previous = stateRef.current;
     if (
       previous.status === "authenticated" &&
-      (previous.tenantId !== session.tenant_id || previous.user.id !== session.user.id)
+      (previous.tenantId !== session.tenant_id || previous.user.id !== session.user.id || previous.user.role !== session.user.role)
     ) {
       queryClient.clear();
     }
@@ -423,7 +424,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ state, logout, refresh, setTenantLogoUrl }}>
-      {children}
+      {/* Discard view snapshots and drafts between identities/permission roles.
+          Connectivity and branding updates keep the same identity's work. */}
+      <Fragment key={state.status === "authenticated"
+        ? JSON.stringify([state.tenantId, state.user.id, state.user.role])
+        : "anonymous"}>
+        {children}
+      </Fragment>
     </AuthContext.Provider>
   );
 }
