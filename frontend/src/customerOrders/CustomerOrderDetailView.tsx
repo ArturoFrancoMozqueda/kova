@@ -161,8 +161,8 @@ export default function CustomerOrderDetailView() {
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap">
             {order.status === "new" ? <Button disabled={mutating} onClick={() => void applyMutation(() => confirmCustomerOrder(order.id, order.version))}>Confirmar y reservar</Button> : null}
             {canCheckout ? <Button disabled={mutating || order.stock_conflict} onClick={() => navigate(`/register?customerOrderId=${order.id}`)}><Banknote className="mr-2 h-4 w-4" /> Cobrar en Caja</Button> : null}
-            {following && following !== "confirmed" ? <Button variant="secondary" disabled={mutating || (following === "fulfilled" && order.payment_status !== "paid")} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, following))}><ChevronRight className="mr-2 h-4 w-4" /> Marcar {statusLabels[following].toLocaleLowerCase("es-MX")}</Button> : null}
             {isManager && previous ? <Button variant="outline" disabled={mutating} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, previous))}><ChevronLeft className="mr-2 h-4 w-4" /> Corregir a {statusLabels[previous]}</Button> : null}
+            {following && following !== "confirmed" ? <Button variant="secondary" disabled={mutating || (following === "fulfilled" && order.payment_status !== "paid")} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, following))}><ChevronRight className="mr-2 h-4 w-4" /> Marcar {statusLabels[following].toLocaleLowerCase("es-MX")}</Button> : null}
             <Button variant="ghost" className="sm:ml-auto text-destructive" disabled={mutating} onClick={() => setCancelOpen(true)}><XCircle className="mr-2 h-4 w-4" /> Cancelar pedido</Button>
           </CardContent>
         </Card>
