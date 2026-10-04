@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.shared.validation import StrictModel
+from app.shared.validation import INTEGER_MAX, INTEGER_MIN, StrictModel
 
 InventoryReasonCode = Literal["merma", "caducidad", "robo", "daño", "autoconsumo", "otro"]
 
@@ -33,7 +33,7 @@ class InventoryMovementResponse(BaseModel):
 
 
 class InventoryAdjustmentCreate(StrictModel):
-    quantity_delta: int
+    quantity_delta: int = Field(ge=INTEGER_MIN, le=INTEGER_MAX)
     reason: str = Field(min_length=1, max_length=255)
     reason_code: InventoryReasonCode | None = None
 
@@ -46,12 +46,12 @@ class InventoryAdjustmentCreate(StrictModel):
 
 
 class StockTakeCreate(StrictModel):
-    counted_quantity: int = Field(ge=0)
+    counted_quantity: int = Field(ge=0, le=INTEGER_MAX)
     reason: str = Field(min_length=1, max_length=255)
 
 
 class LowStockThresholdUpdate(StrictModel):
-    low_stock_threshold: int | None = Field(default=None, ge=0)
+    low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
 
 
 class MovementHistoryItem(BaseModel):

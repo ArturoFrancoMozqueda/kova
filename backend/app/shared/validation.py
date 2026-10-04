@@ -32,6 +32,10 @@ MAX_REFUND_ITEMS = 200
 MAX_OFFLINE_SALES_BATCH = 100
 MAX_MODIFIER_GROUP_ASSIGNMENTS = 50
 
+# Bounds of the existing PostgreSQL INTEGER columns used for counts and order.
+INTEGER_MIN = -(2**31)
+INTEGER_MAX = 2**31 - 1
+
 
 def reject_null(value: object) -> object:
     """Reject explicit null for PATCH fields backed by NOT NULL columns.

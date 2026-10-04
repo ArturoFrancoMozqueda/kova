@@ -933,6 +933,8 @@
           },
           "sort_order": {
             "default": 0,
+            "maximum": 2147483647.0,
+            "minimum": -2147483648.0,
             "title": "Sort Order",
             "type": "integer"
           }
@@ -1016,6 +1018,8 @@
             "type": "string"
           },
           "sort_order": {
+            "maximum": 2147483647.0,
+            "minimum": -2147483648.0,
             "title": "Sort Order",
             "type": "integer"
           }
@@ -3572,6 +3576,8 @@
         "additionalProperties": false,
         "properties": {
           "quantity_delta": {
+            "maximum": 2147483647.0,
+            "minimum": -2147483648.0,
             "title": "Quantity Delta",
             "type": "integer"
           },
@@ -3986,6 +3992,7 @@
           "low_stock_threshold": {
             "anyOf": [
               {
+                "maximum": 2147483647.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -6169,6 +6176,7 @@
           "low_stock_threshold": {
             "anyOf": [
               {
+                "maximum": 2147483647.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -6552,6 +6560,7 @@
           "low_stock_threshold": {
             "anyOf": [
               {
+                "maximum": 2147483647.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -7807,6 +7816,7 @@
         "additionalProperties": false,
         "properties": {
           "counted_quantity": {
+            "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Counted Quantity",
             "type": "integer"
