@@ -8,7 +8,7 @@ vi.mock("./queue", () => ({
   rollbackOfflineSaleAttempt: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { markOfflineSaleFailed, markOfflineSaleStatus, rollbackOfflineSaleAttempt } from "./queue";
+import { markOfflineSaleFailed, markOfflineSaleStatus, markOfflineSaleSynced, rollbackOfflineSaleAttempt } from "./queue";
 import { parseRetryAfterMs, RateLimitError, syncOfflineSales } from "./sync";
 import type { OfflineSaleQueueItem } from "./types";
 import { setActiveOfflineTenant } from "./activeTenant";
@@ -61,6 +61,83 @@ describe("syncOfflineSales", () => {
     setActiveOfflineTenant(null);
   });
 
+  it.each([
+    { results: [] },
+    { results: null },
+    {},
+    null,
+    { results: [null] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "pending" }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced" }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced", order_id: null }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced", order_id: "" }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced", order_id: "not-an-order-id" }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced", order_id: 123 }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001", order: "invalid" }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001", order: { id: "10000000-0000-4000-8000-000000000002", tenant_id: "tenant-1" } }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001", order: { id: "10000000-0000-4000-8000-000000000001", tenant_id: "tenant-2" } }] },
+    { results: [{ client_uuid: queueItem().client_uuid, status: "failed", error: { detail: "invalid" } }] },
+    { results: [{ client_uuid: "unrequested-sale", status: "synced", order_id: "10000000-0000-4000-8000-000000000001" }] },
+    { results: [
+      { client_uuid: queueItem().client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001" },
+      { client_uuid: queueItem().client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001" },
+    ] },
+    { results: [
+      { client_uuid: queueItem().client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001" },
+      { client_uuid: "unrequested-sale", status: "synced", order_id: "10000000-0000-4000-8000-000000000002" },
+    ] },
+    { results: [
+      { client_uuid: queueItem().client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001" },
+      { client_uuid: queueItem().client_uuid, status: "failed", error: "Conflicting acknowledgement" },
+    ] },
+  ])("keeps the sale retryable when the acknowledgement is invalid: %j", async (body) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })));
+
+    await expect(syncOfflineSales("tenant-1", [queueItem()])).rejects.toThrow(/se reintentará/);
+
+    expect(markOfflineSaleStatus).toHaveBeenCalledWith(
+      "tenant-1", queueItem().client_uuid, "lease-1", "pending", expect.any(String),
+    );
+    expect(markOfflineSaleSynced).not.toHaveBeenCalled();
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+  });
+
+  it("releases every lease when a successful response omits one sale", async () => {
+    const first = queueItem();
+    const second = queueItem({ client_uuid: "00000000-0000-4000-8000-000000000002", lease_id: "lease-2" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      results: [{ client_uuid: first.client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001" }],
+    }), { status: 200 })));
+
+    await expect(syncOfflineSales("tenant-1", [first, second])).rejects.toThrow(/se reintentará/);
+
+    for (const item of [first, second]) {
+      expect(markOfflineSaleStatus).toHaveBeenCalledWith(
+        "tenant-1", item.client_uuid, item.lease_id, "pending", expect.any(String),
+      );
+    }
+    expect(markOfflineSaleSynced).not.toHaveBeenCalled();
+    expect(markOfflineSaleFailed).not.toHaveBeenCalled();
+  });
+
+  it("handles a complete batch in response order with independent sale outcomes", async () => {
+    const first = queueItem();
+    const second = queueItem({ client_uuid: "00000000-0000-4000-8000-000000000002", lease_id: "lease-2" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      results: [
+        { client_uuid: second.client_uuid, status: "failed", error: "Producto no disponible" },
+        { client_uuid: first.client_uuid, status: "synced", order_id: "10000000-0000-4000-8000-000000000001" },
+      ],
+    }), { status: 200 })));
+
+    const results = await syncOfflineSales("tenant-1", [first, second]);
+
+    expect(results).toHaveLength(2);
+    expect(markOfflineSaleSynced).toHaveBeenCalledWith("tenant-1", first.client_uuid, "lease-1", "10000000-0000-4000-8000-000000000001");
+    expect(markOfflineSaleFailed).toHaveBeenCalledWith("tenant-1", second.client_uuid, "lease-2", "Producto no disponible");
+    expect(markOfflineSaleStatus).not.toHaveBeenCalled();
+  });
+
   it("sends the ring-time occurred_at (created_at) in the payload", async () => {
     let capturedBody: string | undefined;
     vi.stubGlobal(
@@ -73,8 +150,16 @@ describe("syncOfflineSales", () => {
               {
                 client_uuid: "00000000-0000-4000-8000-000000000001",
                 status: "synced",
-                order_id: "order-1",
-                order: null,
+                order_id: "10000000-0000-4000-8000-000000000001",
+                order: {
+                  id: "10000000-0000-4000-8000-000000000001",
+                  tenant_id: "tenant-1",
+                  status: "completed",
+                  subtotal_amount: "18.50",
+                  total_amount: "18.50",
+                  items: [],
+                  payments: [],
+                },
                 error: null,
               },
             ],

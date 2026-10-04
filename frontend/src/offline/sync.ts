@@ -42,6 +42,39 @@ export class RateLimitError extends Error {
 }
 
 const DEFAULT_RETRY_AFTER_MS = 60_000;
+const ORDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function readSyncResults(body: unknown, tenantId: string, items: OfflineSaleQueueItem[]): ApiSyncResult[] {
+  const invalidResponse = () => new Error(
+    "La respuesta de sincronización está incompleta o no es válida; se reintentará.",
+  );
+  if (!body || typeof body !== "object" || !("results" in body) || !Array.isArray(body.results)) {
+    throw invalidResponse();
+  }
+
+  const expected = new Set(items.map((item) => item.client_uuid));
+  for (const result of body.results) {
+    if (
+      !result || typeof result !== "object" ||
+      typeof result.client_uuid !== "string" || !expected.delete(result.client_uuid) ||
+      (result.status !== "synced" && result.status !== "failed") ||
+      (result.status === "synced" && (
+        typeof result.order_id !== "string" || !ORDER_ID_PATTERN.test(result.order_id)
+      )) ||
+      (result.order_id != null && typeof result.order_id !== "string") ||
+      (result.error != null && typeof result.error !== "string") ||
+      (result.order != null && (
+        typeof result.order !== "object" ||
+        result.order.id !== result.order_id || result.order.tenant_id !== tenantId
+      ))
+    ) {
+      throw invalidResponse();
+    }
+  }
+  if (expected.size > 0) throw invalidResponse();
+
+  return body.results as ApiSyncResult[];
+}
 
 export function parseRetryAfterMs(header: string | null): number {
   if (!header) return DEFAULT_RETRY_AFTER_MS;
@@ -136,8 +169,11 @@ export async function syncOfflineSales(
       }));
     }
 
-    const body = (await response.json()) as { results: ApiSyncResult[] };
-    apiResults = body.results;
+    // Validate the entire acknowledgement before releasing any lease. A partial
+    // or malformed 200 must not strand omitted sales in `syncing`, or turn an
+    // unknown result into a dead letter. Replaying the original UUIDs is safe
+    // even when the server already committed some sales from this batch.
+    apiResults = readSyncResults(await response.json(), tenantId, items);
   } catch (err) {
     // Network error — mark back to pending so sync worker can retry
     for (const item of items) {
