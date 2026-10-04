@@ -47,6 +47,19 @@ describe("report cache identity and invalidation", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it.each(["identity", "same-identity-return", "invalidation"])("rejects a cached value if %s changes before the caller receives it", async (change) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response("100.00")));
+    await readSummary();
+    const cached = readSummary();
+    const rejected = expect(cached).rejects.toThrow(/cambiaron/);
+    if (change === "invalidation") invalidateReportsCache();
+    else {
+      setReportsCacheIdentity({ tenantId: "tenant-b", userId: "user-b" });
+      if (change === "same-identity-return") setReportsCacheIdentity(identityA);
+    }
+    await rejected;
+  });
+
   it.each(["identity", "same-identity-return", "refresh"])("rejects old in-flight results after %s and keeps the new request deduplicated", async (change) => {
     let finishOld!: (value: Response) => void;
     let finishNew!: (value: Response) => void;

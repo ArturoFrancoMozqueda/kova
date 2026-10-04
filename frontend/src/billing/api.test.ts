@@ -46,6 +46,19 @@ describe("subscription cache identity and invalidation", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it.each(["identity", "same-identity-return", "invalidation"])("rejects a cached plan if %s changes before the caller receives it", async (change) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response("tenant-a")));
+    await getBillingSubscription();
+    const cached = getBillingSubscription();
+    const rejected = expect(cached).rejects.toThrow(/cambiaron/);
+    if (change === "invalidation") invalidateBillingSubscription();
+    else {
+      setBillingCacheIdentity({ tenantId: "tenant-b", userId: "user-b" });
+      if (change === "same-identity-return") setBillingCacheIdentity(identityA);
+    }
+    await rejected;
+  });
+
   it.each(["identity", "same-identity-return", "invalidation", "force"])("rejects old in-flight results after %s without deleting the new request", async (change) => {
     let finishOld!: (value: Response) => void;
     let finishNew!: (value: Response) => void;

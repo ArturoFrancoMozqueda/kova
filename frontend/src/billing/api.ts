@@ -52,6 +52,12 @@ function fetchBillingSubscription(): Promise<BillingSubscription> {
   return requestJson<BillingSubscription>("/api/v1/billing/subscription");
 }
 
+function ensureCurrentEpoch(epoch: number): void {
+  if (epoch !== subscriptionEpoch) {
+    throw new Error("La sesión o la suscripción cambiaron. Vuelve a cargar el estado del plan.");
+  }
+}
+
 export function getBillingSubscription(
   options: { force?: boolean } = {},
 ): Promise<BillingSubscription> {
@@ -60,14 +66,16 @@ export function getBillingSubscription(
   const cacheEnabled = subscriptionIdentity !== null;
   const now = Date.now();
   if (cacheEnabled && subscriptionCache && now - subscriptionCache.fetchedAt < SUBSCRIPTION_TTL_MS) {
-    return Promise.resolve(subscriptionCache.value);
+    const value = subscriptionCache.value;
+    return Promise.resolve().then(() => {
+      ensureCurrentEpoch(epoch);
+      return value;
+    });
   }
   if (cacheEnabled && subscriptionInflight) return subscriptionInflight;
   const promise = fetchBillingSubscription()
     .then((value) => {
-      if (epoch !== subscriptionEpoch) {
-        throw new Error("La sesión o la suscripción cambiaron. Vuelve a cargar el estado del plan.");
-      }
+      ensureCurrentEpoch(epoch);
       if (cacheEnabled) subscriptionCache = { value, fetchedAt: Date.now() };
       return value;
     })
