@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { ApiError, confirmPasswordReset } from "./api";
@@ -12,10 +12,16 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 type State = "idle" | "submitting" | "success" | "error" | "invalid";
 
 export default function ResetPasswordView() {
-  useDocumentTitle(copy.documentTitles.resetPassword);
   const [searchParams] = useSearchParams();
+  const token = searchParams.get("token")?.trim() ?? "";
+  // Each link owns its form, pending result and redirect timer. Browser
+  // navigation between links must not reuse an expired link's state.
+  return <ResetPasswordForm key={token} token={token} />;
+}
+
+function ResetPasswordForm({ token }: { token: string }) {
+  useDocumentTitle(copy.documentTitles.resetPassword);
   const navigate = useNavigate();
-  const token = useMemo(() => searchParams.get("token")?.trim() ?? "", [searchParams]);
 
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");

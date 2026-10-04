@@ -27,6 +27,64 @@ afterEach(() => {
 });
 
 describe("ResetPasswordView", () => {
+  it("opens a new token as a fresh form after a previous link expired", async () => {
+    const fetchMock = mockFetch((_input, init) => {
+      const valid = JSON.parse(String(init?.body)).token === "new-token";
+      return new Response(JSON.stringify(valid ? { message: "Password updated." } : { detail: "Invalid or expired reset token" }), {
+        status: valid ? 200 : 400, headers: { "content-type": "application/json" },
+      });
+    });
+    render(
+      <MemoryRouter initialEntries={["/reset-password?token=expired-token"]}>
+        <Link to="/reset-password?token=new-token">Abrir enlace nuevo</Link>
+        <Routes><Route path="/reset-password" element={<ResetPasswordView />} /></Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText(/Nueva contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.change(screen.getByLabelText(/Confirma la contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/i }));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByRole("link", { name: "Abrir enlace nuevo" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Nueva contraseña/i)).toHaveValue("");
+    expect(screen.getByLabelText(/Confirma la contraseña/i)).toHaveValue("");
+    fireEvent.change(screen.getByLabelText(/Nueva contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.change(screen.getByLabelText(/Confirma la contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/i }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][1]?.body).toBe(JSON.stringify({ token: "new-token", new_password: "abc12345" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/Tu contraseña se actualizó/i);
+  });
+
+  it("ignores a successful previous token response after opening a new link", async () => {
+    vi.useFakeTimers();
+    let finishOld!: (response: Response) => void;
+    mockFetch(() => new Promise<Response>((resolve) => { finishOld = resolve; }));
+    render(
+      <MemoryRouter initialEntries={["/reset-password?token=old-token"]}>
+        <Link to="/reset-password?token=new-token">Abrir enlace nuevo</Link>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPasswordView />} />
+          <Route path="/login" element={<div>login</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText(/Nueva contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.change(screen.getByLabelText(/Confirma la contraseña/i), { target: { value: "abc12345" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/i }));
+    fireEvent.click(screen.getByRole("link", { name: "Abrir enlace nuevo" }));
+    await act(async () => {
+      finishOld(new Response(JSON.stringify({ message: "Password updated." }), {
+        status: 200, headers: { "content-type": "application/json" },
+      }));
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("login")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Nueva contraseña/i)).toHaveValue("");
+  });
+
   it("blocks weak passwords before submitting the reset token", () => {
     const fetchMock = mockFetch(() => new Response("", { status: 500 }));
     renderAt("/reset-password?token=reset-token");
