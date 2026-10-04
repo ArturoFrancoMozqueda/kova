@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CatalogImportDialog } from "./CatalogImportDialog";
 import type { CatalogImportResponse } from "./types";
 
+const authIdentity = vi.hoisted(() => ({ tenantId: "tenant-1", user: { id: "user-1" } }));
+vi.mock("../auth/useAuth", () => ({ useOptionalAuth: () => ({ state: { status: "authenticated", ...authIdentity } }) }));
+
 const previewCatalogImport = vi.fn();
 const commitCatalogImport = vi.fn();
 
@@ -39,6 +42,8 @@ const validPreview: CatalogImportResponse = {
 
 describe("CatalogImportDialog", () => {
   beforeEach(() => {
+    authIdentity.tenantId = "tenant-1";
+    authIdentity.user.id = "user-1";
     previewCatalogImport.mockReset();
     commitCatalogImport.mockReset();
   });
@@ -63,7 +68,7 @@ describe("CatalogImportDialog", () => {
     expect(commitCatalogImport).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
-    await waitFor(() => expect(commitCatalogImport).toHaveBeenCalledWith(file));
+    await waitFor(() => expect(commitCatalogImport).toHaveBeenCalledWith(file, expect.any(String)));
     expect(onImported).toHaveBeenCalledWith(expect.objectContaining({ created_products: 1 }));
   });
 
@@ -193,7 +198,7 @@ describe("CatalogImportDialog", () => {
     expect(screen.getByText("Concha")).toBeInTheDocument();
     commitCatalogImport.mockResolvedValue({ ...validPreview, dry_run: false });
     fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
-    await waitFor(() => expect(commitCatalogImport).toHaveBeenCalledWith(currentFile));
+    await waitFor(() => expect(commitCatalogImport).toHaveBeenCalledWith(currentFile, expect.any(String)));
   });
 
   it("rejects an empty preview instead of confirming a zero-product import", async () => {
@@ -216,7 +221,7 @@ describe("CatalogImportDialog", () => {
     await screen.findByText("Concha");
     const button = screen.getByRole("button", { name: "Importar productos" });
     act(() => { fireEvent.click(button); fireEvent.click(button); });
-    expect(commitCatalogImport).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(commitCatalogImport).toHaveBeenCalledTimes(1));
     fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
     expect(onClose).not.toHaveBeenCalled();
@@ -236,5 +241,79 @@ describe("CatalogImportDialog", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Los productos se importaron");
     expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
     expect(commitCatalogImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("replays an import whose response was lost after closing and selecting identical bytes under a new filename", async () => {
+    previewCatalogImport.mockResolvedValue(validPreview);
+    const processed = new Set<string>();
+    commitCatalogImport.mockImplementation(async (_file, key: string) => {
+      if (!processed.has(key)) {
+        processed.add(key);
+        throw new TypeError("Response lost after commit");
+      }
+      return { ...validPreview, dry_run: false, created_products: 1 };
+    });
+    const props = { onClose: vi.fn(), onImported: vi.fn() };
+    const { rerender } = render(<CatalogImportDialog open {...props} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["same bytes"], "original.csv")] } });
+    await screen.findByText("Concha");
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await screen.findByRole("alert");
+    rerender(<CatalogImportDialog open={false} {...props} />);
+    rerender(<CatalogImportDialog open {...props} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["same bytes"], "renombrado.csv")] } });
+    await screen.findByText("Concha");
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await waitFor(() => expect(props.onImported).toHaveBeenCalledTimes(1));
+    expect(processed.size).toBe(1);
+    expect(commitCatalogImport.mock.calls[0][1]).toBe(commitCatalogImport.mock.calls[1][1]);
+
+    // A confirmed import is finished; importing the same bytes deliberately is a new operation.
+    rerender(<CatalogImportDialog open={false} {...props} />);
+    rerender(<CatalogImportDialog open {...props} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["same bytes"], "otra.csv")] } });
+    await screen.findByText("Concha");
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await screen.findByRole("alert");
+    expect(commitCatalogImport.mock.calls[2][1]).not.toBe(commitCatalogImport.mock.calls[1][1]);
+  });
+
+  it.each(["content", "format", "tenant", "user"])("creates a new import key when %s changes", async (change) => {
+    previewCatalogImport.mockResolvedValue(validPreview);
+    commitCatalogImport.mockRejectedValue(new TypeError("Response lost"));
+    const props = { onClose: vi.fn(), onImported: vi.fn() };
+    const { rerender } = render(<CatalogImportDialog open {...props} />);
+    const choose = async (content: string, name: string) => {
+      fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File([content], name)] } });
+      await screen.findByText("Concha");
+      fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+      await screen.findByRole("alert");
+    };
+    await choose("data", "catalogo.csv");
+    rerender(<CatalogImportDialog open={false} {...props} />);
+    if (change === "tenant") authIdentity.tenantId = "tenant-2";
+    if (change === "user") authIdentity.user.id = "user-2";
+    rerender(<CatalogImportDialog open {...props} />);
+    await choose(change === "content" ? "edited data" : "data", change === "format" ? "catalogo.xlsx" : "catalogo.csv");
+    expect(commitCatalogImport.mock.calls[0][1]).not.toBe(commitCatalogImport.mock.calls[1][1]);
+  });
+
+  it("does not send an old session's file if identity changes during fingerprint calculation", async () => {
+    previewCatalogImport.mockResolvedValue(validPreview);
+    let finishDigest!: (value: ArrayBuffer) => void;
+    const digest = vi.spyOn(crypto.subtle, "digest").mockImplementationOnce(() => new Promise((resolve) => { finishDigest = resolve; }));
+    const props = { onClose: vi.fn(), onImported: vi.fn() };
+    const { rerender } = render(<CatalogImportDialog open {...props} />);
+    fireEvent.change(screen.getByLabelText("Elegir archivo CSV o Excel"), { target: { files: [new File(["data"], "catalogo.csv")] } });
+    await screen.findByText("Concha");
+    fireEvent.click(screen.getByRole("button", { name: "Importar productos" }));
+    await waitFor(() => expect(digest).toHaveBeenCalledTimes(1));
+    authIdentity.tenantId = "tenant-2";
+    rerender(<CatalogImportDialog open {...props} />);
+    await act(async () => { finishDigest(new ArrayBuffer(32)); });
+    expect(commitCatalogImport).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Importar productos" })).toBeDisabled();
+    expect(screen.queryByText("Concha")).not.toBeInTheDocument();
+    digest.mockRestore();
   });
 });

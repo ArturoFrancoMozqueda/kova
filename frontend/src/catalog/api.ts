@@ -42,6 +42,7 @@ function ikey(): string {
 async function sendCatalogImport(
   file: File,
   dryRun: boolean,
+  idempotencyKey?: string,
 ): Promise<CatalogImportResponse> {
   const fileFormat = file.name.toLowerCase().endsWith(".xlsx") ? "xlsx" : "csv";
   const contentType = fileFormat === "xlsx"
@@ -54,7 +55,7 @@ async function sendCatalogImport(
     headers: {
       "content-type": contentType,
       ...csrfHeaders("POST"),
-      ...(dryRun ? {} : { "Idempotency-Key": ikey() }),
+      ...(dryRun ? {} : { "Idempotency-Key": idempotencyKey ?? ikey() }),
     },
     body: file,
     },
@@ -69,8 +70,8 @@ export function previewCatalogImport(file: File): Promise<CatalogImportResponse>
   return sendCatalogImport(file, true);
 }
 
-export function commitCatalogImport(file: File): Promise<CatalogImportResponse> {
-  return sendCatalogImport(file, false);
+export function commitCatalogImport(file: File, idempotencyKey?: string): Promise<CatalogImportResponse> {
+  return sendCatalogImport(file, false, idempotencyKey);
 }
 
 export const catalogImportTemplateUrl = "/api/v1/catalog/import/template";

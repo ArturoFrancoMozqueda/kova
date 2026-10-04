@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { copy } from "../i18n/messages";
 import { catalogImportTemplateUrl, commitCatalogImport, previewCatalogImport } from "./api";
 import type { CatalogImportResponse } from "./types";
+import { useOptionalAuth } from "../auth/useAuth";
+import { catalogImportFingerprint } from "./importFingerprint";
 
 type Props = {
   open: boolean;
@@ -16,13 +18,29 @@ type Props = {
 };
 
 export function CatalogImportDialog({ open, onClose, onImported }: Props) {
+  const auth = useOptionalAuth();
+  const identity = auth?.state.status === "authenticated"
+    ? `${auth.state.tenantId}:${auth.state.user.id}` : null;
   const inputRef = useRef<HTMLInputElement>(null);
+  // Keep an ambiguous import through dialog closes and identical reselections.
+  // This is scoped to this authenticated view's lifetime, never persisted.
+  const writeAttempt = useRef<{ identity: string; fingerprint: string; key: string } | null>(null);
   const requestVersion = useRef(0);
   const requestPending = useRef(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CatalogImportResponse | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    writeAttempt.current = null;
+    requestVersion.current += 1;
+    requestPending.current = false;
+    setFile(null);
+    setPreview(null);
+    setPending(false);
+    setError(null);
+  }, [identity]);
 
   useEffect(() => {
     if (!open) {
@@ -81,8 +99,14 @@ export function CatalogImportDialog({ open, onClose, onImported }: Props) {
     setError(null);
     let committed = false;
     try {
-      const result = await commitCatalogImport(file);
+      const fingerprint = await catalogImportFingerprint(file);
+      if (version !== requestVersion.current) return;
+      const idempotencyKey = writeAttempt.current?.identity === identity && writeAttempt.current.fingerprint === fingerprint
+        ? writeAttempt.current.key : crypto.randomUUID();
+      if (identity) writeAttempt.current = { identity, fingerprint, key: idempotencyKey };
+      const result = await commitCatalogImport(file, idempotencyKey);
       committed = true;
+      if (writeAttempt.current?.key === idempotencyKey) writeAttempt.current = null;
       if (version !== requestVersion.current) return;
       // The write succeeded even if refreshing the catalog fails afterwards.
       setFile(null);
