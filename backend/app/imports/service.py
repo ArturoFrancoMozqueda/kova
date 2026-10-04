@@ -15,7 +15,7 @@ from app.catalog import repository as catalog_repo
 from app.idempotency import service as idempotency_service
 from app.inventory import repository as inventory_repo
 from app.shared.exceptions import bad_request
-from app.shared.validation import reject_html
+from app.shared.validation import INTEGER_MAX, reject_html
 
 MAX_IMPORT_ROWS = 1000
 MAX_IMPORT_BYTES = 2 * 1024 * 1024
@@ -67,6 +67,8 @@ def _integer(value: str, *, label: str) -> tuple[int | None, str | None]:
         return None, f"{label} debe ser un número entero"
     if parsed < 0:
         return None, f"{label} no puede ser negativo"
+    if parsed > INTEGER_MAX:
+        return None, f"{label} no puede superar {INTEGER_MAX}"
     return parsed, None
 
 

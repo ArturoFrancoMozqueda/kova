@@ -3,13 +3,20 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.shared.validation import StrictModel, non_nullable_patch_schema, reject_html, reject_null
+from app.shared.validation import (
+    INTEGER_MAX,
+    INTEGER_MIN,
+    StrictModel,
+    non_nullable_patch_schema,
+    reject_html,
+    reject_null,
+)
 
 
 class CategoryCreate(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=500)
-    sort_order: int = 0
+    sort_order: int = Field(default=0, ge=INTEGER_MIN, le=INTEGER_MAX)
 
     @field_validator("name")
     @classmethod
@@ -22,7 +29,9 @@ class CategoryUpdate(StrictModel):
         default=None, min_length=1, max_length=120, json_schema_extra=non_nullable_patch_schema
     )
     description: str | None = Field(default=None, max_length=500)
-    sort_order: int | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
+    sort_order: int | None = Field(
+        default=None, ge=INTEGER_MIN, le=INTEGER_MAX, json_schema_extra=non_nullable_patch_schema
+    )
     is_active: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
 
     _required_fields = field_validator("name", "sort_order", "is_active", mode="before")(
@@ -54,7 +63,7 @@ class ProductCreate(StrictModel):
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
     track_inventory: bool = False
-    low_stock_threshold: int | None = Field(default=None, ge=0)
+    low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int = Field(default=50, ge=0, le=100)
     image_position_y: int = Field(default=50, ge=0, le=100)
     image_zoom: float = Field(default=1.0, ge=0.5, le=3.0)
@@ -81,7 +90,7 @@ class ProductUpdate(StrictModel):
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
     track_inventory: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
-    low_stock_threshold: int | None = Field(default=None, ge=0)
+    low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int | None = Field(
         default=None, ge=0, le=100, json_schema_extra=non_nullable_patch_schema
     )

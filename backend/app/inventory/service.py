@@ -20,6 +20,7 @@ from app.inventory.schemas import (
 )
 from app.orders.models import InventoryMovement
 from app.shared.exceptions import bad_request, not_found
+from app.shared.validation import INTEGER_MAX, INTEGER_MIN
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
@@ -100,6 +101,31 @@ def _tracked_product_for_update(db: Session, *, tenant_id: UUID, product_id: UUI
     if not product.track_inventory:
         raise bad_request("Product does not track inventory")
     return product
+
+
+def _validate_movement_range(*, quantity_delta: int, stock_on_hand: int) -> None:
+    # A valid individual adjustment can still overflow the persisted stock
+    # snapshot. A stock take can also derive an out-of-range delta from legacy
+    # ledger aggregates, even when the requested count fits INTEGER.
+    if not INTEGER_MIN <= quantity_delta <= INTEGER_MAX:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "QUANTITY_LIMIT_EXCEEDED",
+                "minimum": INTEGER_MIN,
+                "maximum": INTEGER_MAX,
+                "message": "La diferencia del conteo supera el límite permitido por ajuste.",
+            },
+        )
+    if stock_on_hand > INTEGER_MAX:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "STOCK_LIMIT_EXCEEDED",
+                "maximum": INTEGER_MAX,
+                "message": f"El inventario no puede superar {INTEGER_MAX} unidades.",
+            },
+        )
 
 
 def list_stock(db: Session, *, tenant_id: UUID) -> list[dict[str, Any]]:
@@ -224,6 +250,7 @@ def adjust_stock(
                 ),
             },
         )
+    _validate_movement_range(quantity_delta=body.quantity_delta, stock_on_hand=resulting_stock)
     movement = repo.create_movement(
         db,
         tenant_id=tenant_id,
@@ -284,6 +311,7 @@ def stock_take(
     product = _tracked_product_for_update(db, tenant_id=tenant_id, product_id=product_id)
     current_stock = repo.stock_on_hand(db, tenant_id=tenant_id, product_id=product.id)
     delta = body.counted_quantity - current_stock
+    _validate_movement_range(quantity_delta=delta, stock_on_hand=body.counted_quantity)
     movement = None
     if delta != 0:
         movement = repo.create_movement(
