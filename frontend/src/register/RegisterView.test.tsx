@@ -308,6 +308,132 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(lineOrder()).toEqual([product.name, secondProduct.name]);
   });
 
+  it("locks cart and payment edits while saving, then keeps the draft if saving fails", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    let rejectSave!: (reason: Error) => void;
+    queueOfflineSale.mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectSave = reject;
+    }));
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    const add = screen.getByRole("button", { name: `${copy.register.add} ${product.name}` });
+    const increase = screen.getByRole("button", { name: copy.register.increaseQuantity });
+    const remove = screen.getByRole("button", { name: copy.register.removeItem(product.name) });
+    const cash = screen.getByLabelText(copy.register.amountTendered);
+    expect(add).toBeDisabled();
+    expect(increase).toBeDisabled();
+    expect(remove).toBeDisabled();
+    expect(cash).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /pago dividido/i })).toBeDisabled();
+
+    // Programmatic callbacks and global shortcuts must respect the same lock.
+    fireEvent.click(add);
+    fireEvent.click(increase);
+    fireEvent.click(remove);
+    fireEvent.keyDown(document.body, { key: "2", altKey: true });
+    fireEvent.keyDown(document.body, { key: "Enter", ctrlKey: true });
+    expect(queueOfflineSale).toHaveBeenCalledTimes(1);
+    expect(queueOfflineSale.mock.calls[0][1]).toMatchObject({
+      items: [{ product_id: product.id, quantity: 1 }],
+      payments: [{ method: "cash", amount: "50.00", amount_tendered: "50.00" }],
+    });
+
+    rejectSave(new Error("storage unavailable"));
+    expect(await screen.findByText(copy.register.saleError)).toBeVisible();
+    expect(add).not.toBeDisabled();
+    expect(cash).toHaveValue(50);
+    expect(remove).toBeVisible();
+    fireEvent.click(increase);
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    expect(cash).toHaveValue(100);
+  });
+
+  it("does not let an old undo action put a removed product into the next sale", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "saved-sale" });
+    syncOfflineSales.mockResolvedValue([]);
+    const secondProduct = { ...product, id: "product-2", name: "Bolillo", sku: "PAN-002" };
+    catalogApi.listProducts.mockResolvedValue([product, secondProduct]);
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: `${copy.register.add} ${secondProduct.name}` }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.removeItem(product.name) }));
+    const undo = await screen.findByRole("button", { name: copy.register.undo });
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    await screen.findByRole("dialog", { name: copy.register.offlineSaleSavedTitle });
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.getByText(copy.register.paymentEmptyTitle)).toBeVisible());
+    fireEvent.click(undo);
+
+    expect(screen.getByText(copy.register.paymentEmptyTitle)).toBeVisible();
+    await waitFor(() => expect(screen.queryByRole("button", {
+      name: copy.register.removeItem(product.name),
+    })).not.toBeInTheDocument());
+  });
+
+  it("requires explicit cash received when switching to split payments", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("checkbox", { name: /pago dividido/i }));
+
+    expect(screen.getByLabelText(copy.register.amountTendered)).toHaveValue(null);
+    expect(screen.getByText(copy.register.splitCashShort)).toBeVisible();
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toBeDisabled();
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+  });
+
+  it("does not submit the underlying cart while a product modifier dialog is open", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    const customizedProduct: Product = {
+      ...product,
+      id: "product-customized",
+      name: "Café",
+      sku: "CAFE-001",
+      modifier_groups: [{
+        id: "milk", tenant_id: "tenant-1", name: "Leche", is_required: true,
+        min_selections: 1, max_selections: 1, sort_order: 0, is_active: true,
+        options: [{
+          id: "whole", group_id: "milk", name: "Entera", price_delta: "0.00",
+          sort_order: 0, is_active: true,
+        }],
+      }],
+    };
+    catalogApi.listProducts.mockResolvedValue([product, customizedProduct]);
+    renderRegister();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: `${copy.register.add} ${customizedProduct.name}` }));
+    expect(await screen.findByRole("dialog", { name: /Café/ })).toBeVisible();
+    fireEvent.keyDown(document.body, { key: "Enter", ctrlKey: true });
+    expect(queueOfflineSale).not.toHaveBeenCalled();
+  });
+
+  it("preserves entered cash and change when switching to split payments", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "split-sale" });
+    syncOfflineSales.mockResolvedValue([]);
+    renderRegister();
+    await addProductToCart();
+    fireEvent.change(screen.getByLabelText(copy.register.amountTendered), { target: { value: "100.00" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /pago dividido/i }));
+    expect(screen.getByLabelText(copy.register.amountTendered)).toHaveValue(100);
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    await waitFor(() => expect(queueOfflineSale).toHaveBeenCalledWith(
+      "tenant-1",
+      expect.objectContaining({ payments: [{ method: "cash", amount: "50.00", amount_tendered: "100.00" }] }),
+      "shift-123",
+      expect.objectContaining({ total_tendered: "100.00", total_change: "50.00" }),
+    ));
+  });
+
   it("removes a line without updating ToastProvider from the cart updater", async () => {
     getOpenShift.mockResolvedValue(openShift);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
