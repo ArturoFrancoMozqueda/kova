@@ -28,7 +28,7 @@ function idempotencyKey(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-// Stale-while-revalidate cache for /billing/subscription. Multiple consumers
+// Short-lived cache for /billing/subscription within a verified identity. Multiple consumers
 // (BillingBanner, dashboard checklist, billing view, trial chip) used to fetch
 // independently on every navigation, producing 4+ requests per dashboard load.
 const SUBSCRIPTION_TTL_MS = 60_000;
@@ -37,6 +37,16 @@ let subscriptionCache: {
   fetchedAt: number;
 } | null = null;
 let subscriptionInflight: Promise<BillingSubscription> | null = null;
+let subscriptionIdentity: string | null = null;
+let subscriptionEpoch = 0;
+
+/** Cache identity comes only from the verified online AuthContext session. */
+export function setBillingCacheIdentity(identity: { tenantId: string; userId: string; role?: string } | null): void {
+  const next = identity ? JSON.stringify([identity.tenantId, identity.userId, identity.role]) : null;
+  if (next === subscriptionIdentity) return;
+  subscriptionIdentity = next;
+  invalidateBillingSubscription();
+}
 
 function fetchBillingSubscription(): Promise<BillingSubscription> {
   return requestJson<BillingSubscription>("/api/v1/billing/subscription");
@@ -45,24 +55,33 @@ function fetchBillingSubscription(): Promise<BillingSubscription> {
 export function getBillingSubscription(
   options: { force?: boolean } = {},
 ): Promise<BillingSubscription> {
+  if (options.force) invalidateBillingSubscription();
+  const epoch = subscriptionEpoch;
+  const cacheEnabled = subscriptionIdentity !== null;
   const now = Date.now();
-  if (!options.force && subscriptionCache && now - subscriptionCache.fetchedAt < SUBSCRIPTION_TTL_MS) {
+  if (cacheEnabled && subscriptionCache && now - subscriptionCache.fetchedAt < SUBSCRIPTION_TTL_MS) {
     return Promise.resolve(subscriptionCache.value);
   }
-  if (subscriptionInflight) return subscriptionInflight;
-  subscriptionInflight = fetchBillingSubscription()
+  if (cacheEnabled && subscriptionInflight) return subscriptionInflight;
+  const promise = fetchBillingSubscription()
     .then((value) => {
-      subscriptionCache = { value, fetchedAt: Date.now() };
+      if (epoch !== subscriptionEpoch) {
+        throw new Error("La sesión o la suscripción cambiaron. Vuelve a cargar el estado del plan.");
+      }
+      if (cacheEnabled) subscriptionCache = { value, fetchedAt: Date.now() };
       return value;
     })
     .finally(() => {
-      subscriptionInflight = null;
+      if (subscriptionInflight === promise) subscriptionInflight = null;
     });
-  return subscriptionInflight;
+  if (cacheEnabled) subscriptionInflight = promise;
+  return promise;
 }
 
 export function invalidateBillingSubscription(): void {
+  subscriptionEpoch += 1;
   subscriptionCache = null;
+  subscriptionInflight = null;
 }
 
 export function startCheckout(): Promise<CheckoutSession> {

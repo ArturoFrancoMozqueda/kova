@@ -19,6 +19,7 @@ import { setActiveOfflineTenant } from "@/offline/activeTenant";
 import { captureApiRequestId, clearLatestRequestId } from "@/lib/supportContext";
 import { queryClient } from "@/lib/queryClient";
 import { setReportsCacheIdentity } from "@/reports/api";
+import { setBillingCacheIdentity } from "@/billing/api";
 import {
   announceSessionChange,
   clearLogoutPending,
@@ -94,14 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authenticatedTenantId = state.status === "authenticated" ? state.tenantId : null;
 
   const applyState = useCallback((next: AuthState) => {
-    setReportsCacheIdentity(next.status === "authenticated" && next.sessionMode === "online"
+    const cacheIdentity = next.status === "authenticated" && next.sessionMode === "online"
       ? { tenantId: next.tenantId, userId: next.user.id, role: next.user.role }
-      : null);
+      : null;
+    setReportsCacheIdentity(cacheIdentity);
+    setBillingCacheIdentity(cacheIdentity);
     stateRef.current = next;
     setState(next);
   }, []);
 
-  useEffect(() => () => setReportsCacheIdentity(null), []);
+  useEffect(() => () => {
+    setReportsCacheIdentity(null);
+    setBillingCacheIdentity(null);
+  }, []);
 
   useEffect(() => {
     setActiveOfflineTenant(authenticatedTenantId);
