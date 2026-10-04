@@ -49,13 +49,16 @@ export default function SyncQueueView() {
   // Nombres reales del catalogo offline (solo lectura) para que las lineas de
   // ventas fallidas digan "Concha" en vez de un id truncado. No toca la cola
   // ni su logica de reintento — si el cache esta vacio/viejo, cae al id.
-  const [productNames, setProductNames] = useState<Map<string, string>>(new Map());
+  const [productNames, setProductNames] = useState<{
+    tenantId: string;
+    names: Map<string, string>;
+  } | null>(null);
   useEffect(() => {
     if (!tenantId) return;
     let cancelled = false;
     void readCatalogCache(tenantId).then((cached) => {
       if (cancelled || !cached) return;
-      setProductNames(new Map(cached.products.map((p) => [p.id, p.name])));
+      setProductNames({ tenantId, names: new Map(cached.products.map((p) => [p.id, p.name])) });
     });
     return () => {
       cancelled = true;
@@ -187,7 +190,10 @@ export default function SyncQueueView() {
                     )}
                     <p className="text-xs text-muted-foreground mt-2">
                       {entry.sale.items
-                        .map((i) => `${i.quantity}x ${productNames.get(i.product_id) ?? copy.syncQueue.unknownProduct}`)
+                        .map((i) => `${i.quantity}x ${
+                          (productNames?.tenantId === tenantId ? productNames.names.get(i.product_id) : undefined)
+                          ?? copy.syncQueue.unknownProduct
+                        }`)
                         .join(", ")}
                     </p>
                     <details className="mt-1 text-[11px] text-muted-foreground/70">
