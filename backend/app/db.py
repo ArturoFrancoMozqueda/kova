@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 TENANT_SCOPED_TABLES = (
     "account_deletion_requests",
     "audit_logs",
+    "branches",
     "cash_movements",
     "categories",
     "customer_order_item_modifiers",
@@ -218,6 +219,7 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
+        db.info.pop("kova_branch_id", None)
         db.close()
 
 
@@ -228,6 +230,7 @@ def get_privileged_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
+        db.info.pop("kova_branch_id", None)
         db.close()
 
 

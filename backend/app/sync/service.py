@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.branches.scope import active_branch_id, bind_branch
 from app.orders import repository as orders_repo
 from app.orders import service as order_service
 from app.shifts import repository as shifts_repo
@@ -24,8 +25,11 @@ def sync_offline_sales(
     # Batch counters for observability (no PII): a spike in failed/replayed is a
     # signal of a sync regression or a client racing itself across tabs.
     synced = replayed = failed = 0
+    request_branch = active_branch_id(db, tenant_id)
     for sale in sales:
         try:
+            # Old bundles belong to principal; never infer origin from sync-time selection.
+            bind_branch(db, tenant_id=tenant_id, branch_id=sale.branch_id or tenant_id)
             # Sales are attributed to the shift that was open on the device at
             # ring time (sent by the client), verified tenant-scoped here. The
             # shift may already be closed by sync time — attribution is still
@@ -34,9 +38,7 @@ def sync_offline_sales(
             # unattributed; attribution metadata never fails a sale.
             verified_shift_id: UUID | None = None
             if sale.shift_id:
-                shift = shifts_repo.get_shift(
-                    db, tenant_id=tenant_id, shift_id=sale.shift_id
-                )
+                shift = shifts_repo.get_shift(db, tenant_id=tenant_id, shift_id=sale.shift_id)
                 if shift:
                     verified_shift_id = shift.id
 
@@ -84,9 +86,7 @@ def sync_offline_sales(
                 db, tenant_id=tenant_id, client_uuid=sale.client_uuid
             )
             if existing:
-                order = order_service.get_order(
-                    db, tenant_id=tenant_id, order_id=existing.id
-                )
+                order = order_service.get_order(db, tenant_id=tenant_id, order_id=existing.id)
                 results.append(
                     OfflineSaleSyncResult(
                         client_uuid=sale.client_uuid,
@@ -110,9 +110,7 @@ def sync_offline_sales(
             # request and false-dead-letter already-committed sales. Fail only
             # this item; log the full trace server-side, expose only the type.
             db.rollback()
-            logger.exception(
-                "offline sale sync failed for client_uuid=%s", sale.client_uuid
-            )
+            logger.exception("offline sale sync failed for client_uuid=%s", sale.client_uuid)
             results.append(
                 OfflineSaleSyncResult(
                     client_uuid=sale.client_uuid,
@@ -121,6 +119,9 @@ def sync_offline_sales(
                 )
             )
             failed += 1
+
+        finally:
+            db.info["kova_branch_id"] = request_branch
 
     logger.info(
         "offline_sales_sync batch tenant=%s attempted=%d synced=%d replayed=%d failed=%d",

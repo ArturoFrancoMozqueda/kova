@@ -66,6 +66,7 @@ class PaymentResponse(BaseModel):
 
 
 class OrderResponse(BaseModel):
+    branch_id: UUID
     id: UUID
     tenant_id: UUID
     status: str

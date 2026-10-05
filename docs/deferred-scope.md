@@ -18,7 +18,6 @@ Do not implement these for beta:
 - Annual plans
 - Add-ons
 - Usage-based billing
-- Multi-location
 - KDS
 - Pedidos especializados por restaurante (mesas, comandas, estaciones de cocina)
 - Tables / floor plan
@@ -66,8 +65,10 @@ gates before feature work begins.
 - Read-only natural-language questions over an approved semantic layer.
 - Mobile owner supervision.
 
-Multi-location is only conditionally approved for Phase 4: at least 10 active businesses must ask
-for it and five must commit to a pilot. Until that gate is evidenced, it remains deferred. The
+Multi-location operation and branch comparison were explicitly moved into the active sprint by
+the owner on 2026-10-05. See [`current-sprint.md`](current-sprint.md) and the
+[`branch spec`](../specs/branches/multi_location.md); that authorization supersedes the former
+Phase 4 demand gate. Transfers, branch-specific prices and staff restrictions remain deferred. The
 roadmap does not approve a generic AI chatbot, autonomous mutations, generated SQL against
 production, accounting, payroll, KDS, manufacturing, a marketplace or mass marketing automation.
 
@@ -75,7 +76,6 @@ production, accounting, payroll, KDS, manufacturing, a marketplace or mass marke
 
 These should not be considered until there is real usage, support capacity, and revenue signal:
 
-- Multi-location
 - Stripe Terminal
 - KDS
 - Tables/floor plan

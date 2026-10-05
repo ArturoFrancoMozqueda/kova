@@ -61,6 +61,23 @@ describe("syncOfflineSales", () => {
     setActiveOfflineTenant(null);
   });
 
+  it("sends each queued branch and rejects a different branch acknowledgement", async () => {
+    const item = queueItem({ branch_id: "branch-centro" });
+    const orderId = "10000000-0000-4000-8000-000000000001";
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: [{
+      client_uuid: item.client_uuid, status: "synced", order_id: orderId,
+      order: { id: orderId, tenant_id: "tenant-1", branch_id: "branch-norte" },
+    }] }), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    await expect(syncOfflineSales("tenant-1", [item])).rejects.toThrow(/se reintentará/);
+    const payload = JSON.parse(request.mock.calls[0][1].body);
+    expect(payload.sales[0].branch_id).toBe("branch-centro");
+    expect(markOfflineSaleSynced).not.toHaveBeenCalled();
+    expect(markOfflineSaleStatus).toHaveBeenCalledWith(
+      "tenant-1", item.client_uuid, "lease-1", "pending", expect.any(String),
+    );
+  });
+
   it.each([
     { results: [] },
     { results: null },

@@ -156,6 +156,211 @@
         "title": "BillingSubscriptionResponse",
         "type": "object"
       },
+      "BranchComparisonResponse": {
+        "properties": {
+          "branches": {
+            "items": {
+              "$ref": "#/components/schemas/BranchSales"
+            },
+            "title": "Branches",
+            "type": "array"
+          },
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "leader_branch_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Leader Branch Ids",
+            "type": "array"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "total_net_sales": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Net Sales",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "end_date",
+          "timezone",
+          "total_net_sales",
+          "leader_branch_ids",
+          "branches"
+        ],
+        "title": "BranchComparisonResponse",
+        "type": "object"
+      },
+      "BranchProductSales": {
+        "properties": {
+          "net_quantity": {
+            "title": "Net Quantity",
+            "type": "integer"
+          },
+          "net_sales": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Sales",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "net_quantity",
+          "net_sales"
+        ],
+        "title": "BranchProductSales",
+        "type": "object"
+      },
+      "BranchResponse": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "created_at"
+        ],
+        "title": "BranchResponse",
+        "type": "object"
+      },
+      "BranchSales": {
+        "properties": {
+          "average_ticket": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Average Ticket",
+            "type": "string"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "branch_name": {
+            "title": "Branch Name",
+            "type": "string"
+          },
+          "completed_orders": {
+            "title": "Completed Orders",
+            "type": "integer"
+          },
+          "gross_sales": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gross Sales",
+            "type": "string"
+          },
+          "net_sales": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Sales",
+            "type": "string"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/BranchProductSales"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "refunded_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refunded Amount",
+            "type": "string"
+          },
+          "share_pct": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Share Pct",
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch_id",
+          "branch_name",
+          "completed_orders",
+          "gross_sales",
+          "refunded_amount",
+          "net_sales",
+          "average_ticket",
+          "share_pct",
+          "products"
+        ],
+        "title": "BranchSales",
+        "type": "object"
+      },
+      "BranchWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "BranchWrite",
+        "type": "object"
+      },
       "BusinessProfileResponse": {
         "additionalProperties": false,
         "properties": {
@@ -4769,6 +4974,18 @@
       },
       "OfflineSaleSyncItem": {
         "properties": {
+          "branch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Id"
+          },
           "client_uuid": {
             "format": "uuid",
             "title": "Client Uuid",
@@ -5664,6 +5881,11 @@
       },
       "OrderResponse": {
         "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -5704,6 +5926,7 @@
           }
         },
         "required": [
+          "branch_id",
           "id",
           "tenant_id",
           "status",
@@ -9925,6 +10148,157 @@
         "summary": "Stripe Webhook",
         "tags": [
           "billing"
+        ]
+      }
+    },
+    "/api/v1/branches": {
+      "get": {
+        "operationId": "list_branches_api_v1_branches_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BranchResponse"
+                  },
+                  "title": "Response List Branches Api V1 Branches Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Branches",
+        "tags": [
+          "branches"
+        ]
+      },
+      "post": {
+        "operationId": "create_branch_api_v1_branches_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Branch",
+        "tags": [
+          "branches"
+        ]
+      }
+    },
+    "/api/v1/branches/{branch_id}": {
+      "patch": {
+        "operationId": "update_branch_api_v1_branches__branch_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "branch_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Branch Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Branch",
+        "tags": [
+          "branches"
         ]
       }
     },
@@ -14588,6 +14962,73 @@
         "summary": "Create Void",
         "tags": [
           "orders"
+        ]
+      }
+    },
+    "/api/v1/reports/branches": {
+      "get": {
+        "operationId": "branch_comparison_api_v1_reports_branches_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "start_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchComparisonResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Branch Comparison",
+        "tags": [
+          "reports"
         ]
       }
     },

@@ -23,12 +23,14 @@ export function makeQueuedSale(
   clientUuid: string = crypto.randomUUID(),
   shiftId?: string,
   receiptSnapshot?: OfflineReceiptSnapshot,
+  branchId?: string,
 ): OfflineSaleQueueItem {
   if (!tenantId) throw new Error("An authenticated tenant is required to queue an offline sale");
   const now = nowIso();
   return {
     client_uuid: clientUuid,
     tenant_id: tenantId,
+    ...(branchId ? { branch_id: branchId } : {}),
     status: "pending",
     sale,
     ...(shiftId ? { shift_id: shiftId } : {}),
@@ -44,8 +46,9 @@ export async function queueOfflineSale(
   sale: OfflineSaleDraft,
   shiftId?: string,
   receiptSnapshot?: OfflineReceiptSnapshot,
+  branchId?: string,
 ): Promise<OfflineSaleQueueItem> {
-  const item = makeQueuedSale(tenantId, sale, undefined, shiftId, receiptSnapshot);
+  const item = makeQueuedSale(tenantId, sale, undefined, shiftId, receiptSnapshot, branchId);
   // `add` fails closed on the astronomically unlikely UUID collision instead
   // of overwriting a sale owned by another tenant.
   await offlineDb.offline_sales.add(item);

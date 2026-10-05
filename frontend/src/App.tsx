@@ -122,6 +122,7 @@ export function AppRoutes() {
               <Route path="/settings/billing" element={<BillingView />} />
               <Route path="/settings/billing/:returnState" element={<BillingView />} />
               <Route path="/settings/business-profile" element={<SettingsView />} />
+              <Route path="/settings/branches" element={<SettingsView />} />
               <Route path="/settings/receipt" element={<SettingsView />} />
               <Route path="/settings/employees" element={<SettingsView />} />
               <Route path="/settings/fiscal" element={<SettingsView />} />

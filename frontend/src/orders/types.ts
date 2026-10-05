@@ -26,6 +26,7 @@ export type Payment = {
 export type Order = {
   id: string;
   tenant_id: string;
+  branch_id?: string;
   status: "completed" | "voided";
   subtotal_amount: string;
   total_amount: string;

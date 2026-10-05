@@ -1,3 +1,4 @@
+import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -35,6 +36,7 @@ def claim(db: Session, *, tenant_id: UUID, key: str, request_hash: str) -> Idemp
     request therefore waits for the winner and can only replay its response;
     it cannot persist a second mutation before discovering the collision.
     """
+    request_hash = _branch_request_hash(db, tenant_id, request_hash)
     existing = _by_key(db, tenant_id=tenant_id, key=key, for_update=True)
     if existing is not None:
         if existing.request_hash != request_hash:
@@ -79,6 +81,7 @@ def store(
     response_status: int,
     response_body: dict,
 ) -> IdempotencyKey:
+    request_hash = _branch_request_hash(db, tenant_id, request_hash)
     record = _by_key(db, tenant_id=tenant_id, key=key, for_update=True)
     if record is None:
         raise RuntimeError("Idempotency response stored without a reservation")
@@ -91,3 +94,13 @@ def store(
     )
     db.flush()
     return record
+
+
+def _branch_request_hash(db: Session, tenant_id: UUID, request_hash: str) -> str:
+    from app.branches.scope import active_branch_id
+
+    branch_id = active_branch_id(db, tenant_id)
+    # Principal keeps the pre-migration hash so old financial replays remain valid.
+    if branch_id == tenant_id:
+        return request_hash
+    return hashlib.sha256(f"{branch_id}:{request_hash}".encode()).hexdigest()

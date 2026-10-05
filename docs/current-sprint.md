@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-10-04
+Last updated: 2026-10-05
 
 ## Source Of Truth
 
@@ -57,6 +57,28 @@ calculation rules live in [`specs/reports/restock_decisions.md`](../specs/report
 
 Commercial value and retention still require real business observation. This local product slice
 does not close KOV-031, pilot recruitment, production deliverability or live billing gates.
+
+## Active product improvement (2026-10): Sucursales
+
+The owner explicitly requested multi-location operation and answers to which branch sells most
+and which products sell in each branch. This authorization supersedes the Phase 4 demand gate.
+Contract and acceptance criteria live in
+[`specs/branches/multi_location.md`](../specs/branches/multi_location.md).
+
+- [x] Principal-branch historical backfill, tenant RLS and branch-consistent operational FKs.
+- [x] Create/rename branches and select the operating branch on mobile and desktop.
+- [x] Separate sales, drawers, stock, customer orders, reservations and expenses per branch.
+- [x] Compare net sales, tickets and product quantities for the selected reporting period.
+- [x] Preserve the original branch of queued offline sales, including legacy principal sales.
+- [x] Verify PostgreSQL migrations/grants, backend/frontend suites, production bundle and mobile
+      comparison accessibility; dated local evidence is recorded in the branch spec.
+- [ ] Apply migration 0068 and deploy the backend before the new frontend in production.
+
+Catalog, prices, employee roles, subscription and fiscal periods remain business-wide. There is no
+new per-location pricing. Natural-language chat, branch-restricted staff and inventory transfers
+remain outside this slice. Local checks do not establish commercial traction or close existing
+production gates. Once additional branches exist, schema downgrade is intentionally blocked;
+retain migration 0068 when rolling back the application.
 
 ## Historical Sprint (2026-07): Premium redesign app-wide + remaining hardening
 

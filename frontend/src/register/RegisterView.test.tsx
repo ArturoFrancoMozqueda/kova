@@ -176,6 +176,7 @@ describe("RegisterView cash-without-shift guard", () => {
       expect.anything(),
       "shift-123",
       expect.anything(),
+      "tenant-1",
     );
   });
 
@@ -431,6 +432,7 @@ describe("RegisterView cash-without-shift guard", () => {
       expect.objectContaining({ payments: [{ method: "cash", amount: "50.00", amount_tendered: "100.00" }] }),
       "shift-123",
       expect.objectContaining({ total_tendered: "100.00", total_change: "50.00" }),
+      "tenant-1",
     ));
   });
 
@@ -711,6 +713,7 @@ describe("RegisterView cash-without-shift guard", () => {
         total_amount: "50.00",
         items: [expect.objectContaining({ product_name: "Concha" })],
       }),
+      "tenant-1",
     );
 
     const printButtons = screen.getAllByRole("button", { name: copy.register.printReceipt });

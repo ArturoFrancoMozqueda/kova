@@ -22,6 +22,7 @@ import app.account_lifecycle.models  # noqa: F401
 import app.audit.models  # noqa: F401
 import app.auth.models  # noqa: F401
 import app.billing.models  # noqa: F401
+import app.branches.models  # noqa: F401
 import app.business_settings.models  # noqa: F401
 import app.catalog.models  # noqa: F401
 import app.customer_orders.models  # noqa: F401
@@ -103,6 +104,8 @@ def _provision_kova_app() -> None:
         conn.execute(text("GRANT USAGE ON SCHEMA public TO kova_app"))
         conn.execute(text("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM kova_app"))
         conn.execute(text("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM kova_app"))
+        conn.execute(text("GRANT SELECT, INSERT ON branches TO kova_app"))
+        conn.execute(text("GRANT UPDATE (name, address) ON branches TO kova_app"))
         grants = {
             "SELECT, INSERT, UPDATE, DELETE": (
                 "expenses product_image_files tenant_logo_files"
@@ -178,7 +181,12 @@ def db(apply_migrations):  # noqa: ARG001
     session = Session(bind=connection, join_transaction_mode="create_savepoint")
 
     def override_get_db():
-        yield session
+        try:
+            yield session
+        finally:
+            # The production dependency closes its request-local session.
+            # Tests reuse one transaction, so discard the request branch too.
+            session.info.pop("kova_branch_id", None)
 
     # Route BOTH the normal and the privileged dependency to the single
     # transactional session. In production get_privileged_db opens a separate

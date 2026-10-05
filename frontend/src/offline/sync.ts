@@ -53,6 +53,7 @@ function readSyncResults(body: unknown, tenantId: string, items: OfflineSaleQueu
   }
 
   const expected = new Set(items.map((item) => item.client_uuid));
+  const origins = new Map(items.map((item) => [item.client_uuid, item.branch_id ?? tenantId]));
   for (const result of body.results) {
     if (
       !result || typeof result !== "object" ||
@@ -65,7 +66,8 @@ function readSyncResults(body: unknown, tenantId: string, items: OfflineSaleQueu
       (result.error != null && typeof result.error !== "string") ||
       (result.order != null && (
         typeof result.order !== "object" ||
-        result.order.id !== result.order_id || result.order.tenant_id !== tenantId
+        result.order.id !== result.order_id || result.order.tenant_id !== tenantId ||
+        (result.order.branch_id != null && result.order.branch_id !== origins.get(result.client_uuid))
       ))
     ) {
       throw invalidResponse();
@@ -126,6 +128,7 @@ export async function syncOfflineSales(
         body: JSON.stringify({
           sales: items.map((item) => ({
             client_uuid: item.client_uuid,
+            ...(item.branch_id ? { branch_id: item.branch_id } : {}),
             order: item.sale,
             ...(item.shift_id ? { shift_id: item.shift_id } : {}),
             ...(item.created_at ? { occurred_at: item.created_at } : {}),

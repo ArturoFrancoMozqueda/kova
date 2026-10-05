@@ -51,6 +51,7 @@ def _columns(value: str) -> tuple[str, ...]:
 
 
 _EXPORT_TABLES = (
+    ExportTable("branches", _columns("id tenant_id name address created_at")),
     ExportTable(
         "categories",
         _columns("id tenant_id name description sort_order is_active created_at updated_at"),
@@ -87,7 +88,7 @@ _EXPORT_TABLES = (
     ExportTable(
         "orders",
         _columns(
-            "id tenant_id client_uuid shift_id created_by_user_id status subtotal_amount "
+            "id tenant_id branch_id client_uuid shift_id created_by_user_id status subtotal_amount "
             "total_amount occurred_at created_at updated_at"
         ),
     ),
@@ -115,44 +116,48 @@ _EXPORT_TABLES = (
     ExportTable(
         "inventory_movements",
         _columns(
-            "id tenant_id product_id order_id movement_type quantity_delta stock_on_hand_after "
+            "id tenant_id branch_id product_id order_id movement_type quantity_delta "
+            "stock_on_hand_after "
             "reason reason_code created_by_user_id created_at"
         ),
     ),
     ExportTable(
         "refunds",
         _columns(
-            "id tenant_id order_id created_by_user_id reason refunded_amount "
+            "id tenant_id branch_id order_id created_by_user_id reason refunded_amount "
             "refund_payment_method created_at"
         ),
     ),
     ExportTable(
         "voids",
-        _columns("id tenant_id order_id created_by_user_id reason created_at"),
+        _columns("id tenant_id branch_id order_id created_by_user_id reason created_at"),
     ),
     ExportTable(
         "shifts",
         _columns(
-            "id tenant_id opened_by_user_id closed_by_user_id status opening_cash_amount "
+            "id tenant_id branch_id opened_by_user_id closed_by_user_id status opening_cash_amount "
             "actual_cash_amount expected_cash_amount reconciliation_status variance_amount "
             "opened_at closed_at"
         ),
     ),
     ExportTable(
         "cash_movements",
-        _columns("id tenant_id shift_id type amount reason created_by_user_id created_at"),
+        _columns(
+            "id tenant_id branch_id shift_id type amount reason created_by_user_id created_at"
+        ),
     ),
     ExportTable(
         "expenses",
         _columns(
-            "id tenant_id category amount expense_date note created_by_user_id created_at "
+            "id tenant_id branch_id category amount expense_date note created_by_user_id "
+            "created_at "
             "updated_at"
         ),
     ),
     ExportTable(
         "customer_orders",
         _columns(
-            "id tenant_id folio status fulfillment_type source_channel customer_name "
+            "id tenant_id branch_id folio status fulfillment_type source_channel customer_name "
             "customer_phone delivery_address delivery_reference promised_at note "
             "subtotal_amount total_amount sale_order_id version created_by_user_id "
             "updated_by_user_id cancelled_by_user_id cancellation_reason cancellation_note "
@@ -175,7 +180,10 @@ _EXPORT_TABLES = (
     ),
     ExportTable(
         "inventory_reservations",
-        _columns("id tenant_id customer_order_id product_id quantity status created_at updated_at"),
+        _columns(
+            "id tenant_id branch_id customer_order_id product_id quantity status "
+            "created_at updated_at"
+        ),
     ),
     ExportTable(
         "tenant_business_profiles",
@@ -344,6 +352,7 @@ _TENANT_DELETE_ORDER = (
     "audit_logs",
     "webhook_events",
     "ops_notes",
+    "branches",
 )
 _PURGE_TENANT_TABLES = frozenset(_TENANT_DELETE_ORDER) | {
     "account_deletion_requests",

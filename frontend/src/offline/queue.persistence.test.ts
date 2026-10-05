@@ -30,6 +30,18 @@ describe("tenant-scoped offline queue leases", () => {
     await Dexie.delete("pos_offline");
   });
 
+  it("preserves each branch across persistence, claim and retry", async () => {
+    const centro = await queueOfflineSale("tenant-a", draft, "drawer-centro", undefined, "branch-centro");
+    const norte = await queueOfflineSale("tenant-a", draft, "drawer-norte", undefined, "branch-norte");
+    const rows = await claimPendingOfflineSales("tenant-a", "worker-a", 100);
+    expect(rows.find((row) => row.client_uuid === centro.client_uuid)?.branch_id).toBe("branch-centro");
+    expect(rows.find((row) => row.client_uuid === norte.client_uuid)?.branch_id).toBe("branch-norte");
+    offlineDb.close();
+    await offlineDb.open();
+    expect((await offlineDb.offline_sales.get(centro.client_uuid))?.branch_id).toBe("branch-centro");
+    expect((await offlineDb.offline_sales.get(norte.client_uuid))?.shift_id).toBe("drawer-norte");
+  });
+
   it("isolates claims, dead-letter retries and UUID collisions by tenant", async () => {
     await offlineDb.offline_sales.add({ ...makeQueuedSale("tenant-a", draft, "uuid-a"), status: "failed" });
     await offlineDb.offline_sales.add(makeQueuedSale("tenant-b", draft, "uuid-b"));

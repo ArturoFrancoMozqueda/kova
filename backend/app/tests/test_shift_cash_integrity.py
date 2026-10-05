@@ -282,6 +282,7 @@ def test_close_waits_for_inflight_movement_and_includes_it(owner_engine, monkeyp
     user_id = uuid4()
     with Session(owner_engine) as seed:
         seed.add(Tenant(id=tenant_id, name="Concurrent Drawer", slug=f"drawer-{uuid4().hex}"))
+        seed.flush()  # Tenant insert creates its principal branch before drawer insertion.
         now = datetime.now(UTC)
         seed.add(
             User(

@@ -1,3 +1,4 @@
+import { getActiveBranchId } from "@/branches/activeBranch";
 import {
   createContext,
   Fragment,
@@ -361,6 +362,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      const activeIdentity = stateRef.current;
+      if (url.includes("/api/v1/") && !url.includes("/auth/") && activeIdentity.status === "authenticated") {
+        const headers = new Headers(input instanceof Request ? input.headers : undefined);
+        new Headers(requestInit?.headers).forEach((value, key) => headers.set(key, value));
+        if (!headers.has("X-Kova-Branch")) {
+          headers.set("X-Kova-Branch", getActiveBranchId(activeIdentity.tenantId, activeIdentity.user.id));
+        }
+        requestInit = { ...requestInit, headers };
+      }
       const response = await originalFetch(input, requestInit);
       captureApiRequestId(input, response);
       if (response.headers.get("X-Kova-Identity-Mismatch") === "true") {

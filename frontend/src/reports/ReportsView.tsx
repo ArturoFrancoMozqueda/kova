@@ -1,3 +1,4 @@
+import { BranchComparison } from "@/branches/BranchComparison";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTenantTimezone } from "@/hooks/useTenantTimezone";
@@ -67,6 +68,7 @@ export default function ReportsView() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [appliedRange, setAppliedRange] = useState({ startDate: "", endDate: "" });
+  const [comparisonRefresh, setComparisonRefresh] = useState(0);
   const [restockHorizon, setRestockHorizon] = useState<RestockHorizon>(7);
 
   // Seed the range to "today in the tenant timezone" once the timezone
@@ -82,6 +84,7 @@ export default function ReportsView() {
   }, [tz, tzResolved]);
 
   const data = useReportData(appliedRange.startDate, appliedRange.endDate, canViewReports);
+  const reloadReports = () => { data.reload(); setComparisonRefresh((value) => value + 1); };
   const { doneIds, feedbackById, toggleDone, setFeedback, clearFeedback } = usePlanDoneState(
     data.story ?? null,
   );
@@ -157,7 +160,7 @@ export default function ReportsView() {
     event.preventDefault();
     if (!isValidDateRange(startDate, endDate)) return;
     if (startDate === appliedRange.startDate && endDate === appliedRange.endDate) {
-      data.reload();
+      reloadReports();
       return;
     }
     setAppliedRange({ startDate, endDate });
@@ -186,14 +189,16 @@ export default function ReportsView() {
         onPreset={applyPreset}
       />
 
+      {data.status !== "subscription-inactive" ? <BranchComparison startDate={appliedRange.startDate} endDate={appliedRange.endDate} refreshKey={comparisonRefresh} /> : null}
+
       {data.status === "loading" ? <LoadingState /> : null}
-      {data.status === "error" ? <ErrorState onRetry={data.reload} /> : null}
+      {data.status === "error" ? <ErrorState onRetry={reloadReports} /> : null}
       {data.status === "subscription-inactive" ? <SubscriptionInactivePanel /> : null}
 
       {loaded ? (
         <RestockPlan stock={data.stock} velocity={data.velocity}
           stockFailed={data.stockFailed} velocityFailed={data.velocityFailed}
-          horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={data.reload} />
+          horizon={restockHorizon} onHorizonChange={setRestockHorizon} onRetry={reloadReports} />
       ) : null}
 
       {loaded && !hasSales ? <EmptyBusinessState onPickToday={setToday} /> : null}

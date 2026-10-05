@@ -1,3 +1,4 @@
+import { getActiveBranchId } from "@/branches/activeBranch";
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, ArrowLeft, Banknote, ChevronLeft, ChevronRight, MapPin, Pencil, Phone, Printer, Store, XCircle } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
@@ -29,6 +30,7 @@ export default function CustomerOrderDetailView() {
   const enabled = useFeature("customer_orders");
   const { state } = useAuth();
   const tenantId = state.status === "authenticated" ? state.tenantId : "";
+  const branchId = getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : "");
   const role = state.status === "authenticated" ? state.user.role : "";
   const isManager = role === "owner" || role === "manager";
   const isOnline = useIsOnline();
@@ -47,7 +49,7 @@ export default function CustomerOrderDetailView() {
     setLoading(true);
     setError(null);
     if (!isOnline) {
-      const cached = await readCustomerOrderCache(tenantId);
+      const cached = await readCustomerOrderCache(tenantId, branchId);
       setOrder(cached?.details[orderId] ?? null);
       setCachedAt(cached?.cached_at ?? null);
       setError(cached?.details[orderId] ? null : "Este pedido no se había abierto en este dispositivo.");
@@ -58,9 +60,9 @@ export default function CustomerOrderDetailView() {
       const detail = await getCustomerOrder(orderId);
       setOrder(detail);
       setCachedAt(null);
-      await saveCustomerOrderDetail(tenantId, detail);
+      await saveCustomerOrderDetail(tenantId, detail, branchId);
     } catch {
-      const cached = await readCustomerOrderCache(tenantId);
+      const cached = await readCustomerOrderCache(tenantId, branchId);
       const detail = cached?.details[orderId] ?? null;
       setOrder(detail);
       setCachedAt(detail ? cached?.cached_at ?? null : null);
@@ -68,7 +70,7 @@ export default function CustomerOrderDetailView() {
     } finally {
       setLoading(false);
     }
-  }, [isOnline, orderId, tenantId]);
+  }, [branchId, isOnline, orderId, tenantId]);
 
   useEffect(() => {
     void load();
@@ -84,7 +86,7 @@ export default function CustomerOrderDetailView() {
     try {
       const updated = await mutation();
       setOrder(updated);
-      await saveCustomerOrderDetail(tenantId, updated);
+      await saveCustomerOrderDetail(tenantId, updated, branchId);
     } catch (caught) {
       const api = caught as { detail?: { detail?: { message?: string } } };
       setError(api.detail?.detail?.message ?? "No se pudo actualizar el pedido.");

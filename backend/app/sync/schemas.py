@@ -13,6 +13,7 @@ from app.shared.validation import MAX_OFFLINE_SALES_BATCH
 
 class OfflineSaleSyncItem(BaseModel):
     client_uuid: UUID
+    branch_id: UUID | None = None
     order: OrderCreate
     # Shift that was open on the device when the sale was rung. Optional so
     # queue items created by older bundles keep syncing unchanged.
