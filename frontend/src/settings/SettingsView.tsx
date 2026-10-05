@@ -1,3 +1,4 @@
+import { BranchesSettings } from "@/branches/BranchesSettings";
 import { FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
@@ -47,7 +48,7 @@ import {
 
 type LoadState = "loading" | "ready" | "error";
 type Role = "owner" | "manager" | "cashier";
-type SettingsTab = "profile" | "receipt" | "employees" | "fiscal" | "advanced";
+type SettingsTab = "profile" | "receipt" | "employees" | "fiscal" | "advanced" | "branches";
 
 const roleOptions: { value: Role; label: string; description: string }[] = [
   {
@@ -92,6 +93,7 @@ const timezoneOptions = [
 
 const settingsTabs: { id: SettingsTab; label: string; to: string }[] = [
   { id: "profile", label: copy.settings.tabProfile, to: "/settings/business-profile" },
+  { id: "branches", label: "Sucursales", to: "/settings/branches" },
   { id: "receipt", label: copy.settings.tabReceipt, to: "/settings/receipt" },
   { id: "employees", label: copy.settings.tabEmployees, to: "/settings/employees" },
   { id: "fiscal", label: copy.settings.tabFiscal, to: "/settings/fiscal" },
@@ -99,6 +101,7 @@ const settingsTabs: { id: SettingsTab; label: string; to: string }[] = [
 ];
 
 function tabFromPath(pathname: string): SettingsTab {
+  if (pathname.endsWith("/branches")) return "branches";
   if (pathname.endsWith("/receipt")) return "receipt";
   if (pathname.endsWith("/employees")) return "employees";
   if (pathname.endsWith("/fiscal")) return "fiscal";
@@ -392,6 +395,7 @@ export default function SettingsView() {
       </Card>
       )}
 
+      {visibleActiveTab === "branches" && <BranchesSettings />}
       {visibleActiveTab === "receipt" && (
       <Card>
         <CardHeader><CardTitle>{copy.settings.receiptSettings}</CardTitle></CardHeader>

@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.branches.scope import BranchScoped
 from app.db import Base
 
 
@@ -20,16 +21,22 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-class Order(Base):
+class Order(BranchScoped, Base):
     __tablename__ = "orders"
     __table_args__ = (
+        UniqueConstraint("tenant_id", "branch_id", "id", name="uq_orders_tenant_branch_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_orders_branch",
+        ),
         # Orders are only ever "completed" or "voided"; guard against typos
         # writing an unknown status that would silently drop out of reports.
         CheckConstraint("status IN ('completed', 'voided')", name="ck_orders_status"),
         UniqueConstraint("tenant_id", "id", name="uq_orders_tenant_id_id"),
         ForeignKeyConstraint(
-            ["tenant_id", "shift_id"],
-            ["shifts.tenant_id", "shifts.id"],
+            ["tenant_id", "branch_id", "shift_id"],
+            ["shifts.tenant_id", "shifts.branch_id", "shifts.id"],
             name="fk_orders_tenant_shift",
         ),
     )
@@ -108,9 +115,14 @@ class Payment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
-class InventoryMovement(Base):
+class InventoryMovement(BranchScoped, Base):
     __tablename__ = "inventory_movements"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_inventory_movements_branch",
+        ),
         CheckConstraint(
             "reason_code IS NULL OR reason_code IN "
             "('merma', 'caducidad', 'robo', 'daño', 'autoconsumo', 'otro')",
@@ -122,8 +134,8 @@ class InventoryMovement(Base):
             name="fk_inventory_movements_tenant_product",
         ),
         ForeignKeyConstraint(
-            ["tenant_id", "order_id"],
-            ["orders.tenant_id", "orders.id"],
+            ["tenant_id", "branch_id", "order_id"],
+            ["orders.tenant_id", "orders.branch_id", "orders.id"],
             name="fk_inventory_movements_tenant_order",
         ),
     )
@@ -141,13 +153,18 @@ class InventoryMovement(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
-class Refund(Base):
+class Refund(BranchScoped, Base):
     __tablename__ = "refunds"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_refunds_branch",
+        ),
         UniqueConstraint("tenant_id", "id", name="uq_refunds_tenant_id_id"),
         ForeignKeyConstraint(
-            ["tenant_id", "order_id"],
-            ["orders.tenant_id", "orders.id"],
+            ["tenant_id", "branch_id", "order_id"],
+            ["orders.tenant_id", "orders.branch_id", "orders.id"],
             name="fk_refunds_tenant_order",
         ),
     )
@@ -189,12 +206,17 @@ class RefundItem(Base):
     line_total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
 
-class Void(Base):
+class Void(BranchScoped, Base):
     __tablename__ = "voids"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["tenant_id", "order_id"],
-            ["orders.tenant_id", "orders.id"],
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_voids_branch",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "order_id"],
+            ["orders.tenant_id", "orders.branch_id", "orders.id"],
             name="fk_voids_tenant_order",
         ),
     )

@@ -1,3 +1,4 @@
+import { getActiveBranchId } from "@/branches/activeBranch";
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardList, CloudOff, PackageCheck, Plus, Search } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
@@ -46,6 +47,7 @@ export default function CustomerOrderListView() {
   const enabled = useFeature("customer_orders");
   const { state } = useAuth();
   const tenantId = state.status === "authenticated" ? state.tenantId : "";
+  const branchId = getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : "");
   const isOnline = useIsOnline();
   const [status, setStatus] = useState<CustomerOrderStatus | undefined>();
   const [search, setSearch] = useState("");
@@ -64,7 +66,7 @@ export default function CustomerOrderListView() {
     setLoading(true);
     setError(false);
     if (!isOnline) {
-      const cached = await readCustomerOrderCache(tenantId);
+      const cached = await readCustomerOrderCache(tenantId, branchId);
       setData(cached?.list ?? null);
       setCachedAt(cached?.cached_at ?? null);
       setError(!cached);
@@ -83,16 +85,16 @@ export default function CustomerOrderListView() {
       });
       setData(result);
       setCachedAt(null);
-      await saveCustomerOrderList(tenantId, result);
+      await saveCustomerOrderList(tenantId, result, branchId);
     } catch {
-      const cached = await readCustomerOrderCache(tenantId);
+      const cached = await readCustomerOrderCache(tenantId, branchId);
       setData(cached?.list ?? null);
       setCachedAt(cached?.cached_at ?? null);
       setError(!cached);
     } finally {
       setLoading(false);
     }
-  }, [fulfillmentType, isOnline, offset, paymentStatus, promisedDate, status, submittedSearch, tenantId]);
+  }, [branchId, fulfillmentType, isOnline, offset, paymentStatus, promisedDate, status, submittedSearch, tenantId]);
 
   useEffect(() => {
     void load();

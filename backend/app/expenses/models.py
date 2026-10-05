@@ -2,9 +2,18 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Numeric,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.branches.scope import BranchScoped
 from app.db import Base
 
 
@@ -12,9 +21,14 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-class Expense(Base):
+class Expense(BranchScoped, Base):
     __tablename__ = "expenses"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_expenses_branch",
+        ),
         CheckConstraint("amount > 0", name="ck_expenses_amount_positive"),
         CheckConstraint(
             "category IN ('renta', 'nomina', 'servicios', 'transporte', "

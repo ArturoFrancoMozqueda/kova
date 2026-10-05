@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Membership, User, UserSession
 from app.billing.access import require_commercial_access
+from app.branches.reports import BranchComparisonResponse, compare_branches
 from app.db import get_db
 from app.rbac.permissions import Permission
 from app.reports import service
@@ -148,4 +149,19 @@ def refunds_by_reason(
         tenant_id=membership.tenant_id,
         start_date=start_date or start,
         end_date=end_date or end,
+    )
+
+
+@router.get("/branches", response_model=BranchComparisonResponse)
+def branch_comparison(
+    start_date: date | None = None,
+    end_date: date | None = None,
+    db: Session = Depends(get_db),
+    ctx: tuple[User, Membership, UserSession] = Depends(
+        require_commercial_access(Permission.REPORTS_VIEW_ALL)
+    ),
+):
+    _, membership, _ = ctx
+    return compare_branches(
+        db, tenant_id=membership.tenant_id, start_date=start_date, end_date=end_date
     )

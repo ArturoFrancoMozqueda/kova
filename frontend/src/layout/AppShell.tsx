@@ -1,3 +1,4 @@
+import { BranchSelector } from "@/branches/BranchSelector";
 import { Suspense, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { copy } from "@/i18n/messages";
@@ -464,6 +465,7 @@ export default function AppShell() {
               {copy.auth.offlineAccessBanner}
             </div>
           ) : null}
+          <BranchSelector />
           {!isOfflineSession ? <EmailVerificationBanner /> : null}
           {!isOfflineSession ? <BillingBanner /> : null}
           <Suspense

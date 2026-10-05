@@ -103,6 +103,7 @@ function StatefulProbe({ onMount, onUnmount }: { onMount: () => void; onUnmount:
 describe("AuthProvider identity continuity", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     coordination.listener = null;
     coordination.logoutPending = false;
     offlineAccess.cache.mockReset().mockResolvedValue(undefined);
@@ -322,6 +323,13 @@ describe("AuthProvider identity continuity", () => {
     expect(headers.get("X-Kova-Expected-Tenant")).toBe("tenant-a");
     expect(headers.get("X-Kova-Expected-User")).toBe("user-a");
     expect(headers.get("Idempotency-Key")).toBe("category-1");
+    expect(headers.get("X-Kova-Branch")).toBe("tenant-a");
+    const selected = "10000000-0000-4000-8000-000000000001";
+    window.sessionStorage.setItem("kova-branch:tenant-a:user-a", selected);
+    await window.fetch("/api/v1/orders");
+    expect(new Headers(networkFetch.mock.calls[1][1].headers).get("X-Kova-Branch")).toBe(selected);
+    await window.fetch("/api/v1/branches", { headers: { "X-Kova-Branch": "tenant-a" } });
+    expect(new Headers(networkFetch.mock.calls[2][1].headers).get("X-Kova-Branch")).toBe("tenant-a");
     view.unmount();
     expect(billingIdentity).toHaveBeenLastCalledWith(null);
   });

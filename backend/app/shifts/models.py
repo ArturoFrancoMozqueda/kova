@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.branches.scope import BranchScoped
 from app.db import Base
 
 
@@ -20,14 +21,20 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-class Shift(Base):
+class Shift(BranchScoped, Base):
     __tablename__ = "shifts"
     __table_args__ = (
-        # At most one open shift per tenant. Enforced at the DB level so a
-        # concurrent double-open can't create two drawers (see migration 0041).
+        UniqueConstraint("tenant_id", "branch_id", "id", name="uq_shifts_tenant_branch_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_shifts_branch",
+        ),
+        # At most one open shift per branch, including concurrent opens.
         Index(
-            "uq_one_open_shift_per_tenant",
+            "uq_one_open_shift_per_branch",
             "tenant_id",
+            "branch_id",
             unique=True,
             postgresql_where=text("status = 'open'"),
         ),
@@ -39,31 +46,26 @@ class Shift(Base):
     opened_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     closed_by_user_id: Mapped[UUID | None] = mapped_column(nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="open")
-    opening_cash_amount: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 2), nullable=True
-    )
-    actual_cash_amount: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 2), nullable=True
-    )
-    expected_cash_amount: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 2), nullable=True
-    )
-    reconciliation_status: Mapped[str | None] = mapped_column(
-        String(20), nullable=True
-    )
+    opening_cash_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    actual_cash_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    expected_cash_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    reconciliation_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
     variance_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    closed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class CashMovement(Base):
+class CashMovement(BranchScoped, Base):
     __tablename__ = "cash_movements"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["tenant_id", "shift_id"],
-            ["shifts.tenant_id", "shifts.id"],
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_cash_movements_branch",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "shift_id"],
+            ["shifts.tenant_id", "shifts.branch_id", "shifts.id"],
             name="fk_cash_movements_tenant_shift",
         ),
     )

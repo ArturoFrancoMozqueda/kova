@@ -122,6 +122,7 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
     return {
         "id": str(order.id),
         "tenant_id": str(order.tenant_id),
+        "branch_id": str(order.branch_id),
         "status": order.status,
         "subtotal_amount": str(order.subtotal_amount),
         "total_amount": str(order.total_amount),
@@ -275,6 +276,15 @@ def create_order(
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     if client_uuid:
+        from app.branches.scope import active_branch_id, tenant_wide_branches
+
+        with tenant_wide_branches(db):
+            previous = repo.get_order_by_client_uuid(
+                db, tenant_id=tenant_id, client_uuid=client_uuid
+            )
+        if previous is not None and previous.branch_id != active_branch_id(db, tenant_id):
+            raise bad_request("La venta ya está registrada en otra sucursal")
+    if client_uuid:
         payload["client_uuid"] = str(client_uuid)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
@@ -293,9 +303,7 @@ def create_order(
     # the client's cart below.
     locked_products: dict[UUID, Product] = {}
     for product_id in sorted({item.product_id for item in body.items}, key=lambda value: value.int):
-        product = repo.get_active_product_for_update(
-            db, tenant_id=tenant_id, product_id=product_id
-        )
+        product = repo.get_active_product_for_update(db, tenant_id=tenant_id, product_id=product_id)
         if not product:
             raise not_found("Product not found")
         locked_products[product_id] = product

@@ -70,6 +70,7 @@ _RUNTIME_TABLE_PRIVILEGES = {
             "tenant_receipt_settings",
         )
     },
+    "branches": {"SELECT", "INSERT"},
     "memberships": {"SELECT", "UPDATE"},
     "sessions": {"SELECT", "UPDATE"},
     **{
@@ -210,7 +211,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     name = column.name
     tenant_token = str(tenant).split("-")[0]
     token = f"{tenant_token}-{variant}-{table.name}"
-    if name == "tenant_id":
+    if name in {"tenant_id", "branch_id"}:
         return tenant
     if name == "id":
         return ids[(table.name, tenant, variant)]
@@ -691,8 +692,15 @@ def _assert_tenant_relation_catalog(conn) -> None:
         expected_child, expected_foreign_column, expected_parent = _TENANT_RELATIONS[name]
         assert child == expected_child
         assert parent == expected_parent
-        assert child_columns == ["tenant_id", expected_foreign_column]
-        assert parent_columns == ["tenant_id", "id"]
+        branch_relations = {
+            "fk_inventory_movements_tenant_order", "fk_refunds_tenant_order",
+            "fk_voids_tenant_order", "fk_orders_tenant_shift",
+            "fk_cash_movements_tenant_shift", "fk_customer_orders_tenant_sale",
+            "fk_inventory_reservations_tenant_order",
+        }
+        scope_columns = ["tenant_id", "branch_id"] if name in branch_relations else ["tenant_id"]
+        assert child_columns == [*scope_columns, expected_foreign_column]
+        assert parent_columns == [*scope_columns, "id"]
         assert validated
 
 

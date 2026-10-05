@@ -1,3 +1,4 @@
+import { getActiveBranchId } from "@/branches/activeBranch";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CustomerOrderCheckoutRegister } from "@/customerOrders/CustomerOrderCheckoutRegister";
@@ -988,7 +989,7 @@ function RegularRegisterView() {
     let queueItem: OfflineSaleQueueItem;
     try {
       if (!tenantId) throw new Error("Authenticated tenant required");
-      queueItem = await queueOfflineSale(tenantId, sale, openShift?.id, receiptSnapshot);
+      queueItem = await queueOfflineSale(tenantId, sale, openShift?.id, receiptSnapshot, getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : ""));
     } catch {
       toast(copy.register.saleError, "error");
       submittingRef.current = false;

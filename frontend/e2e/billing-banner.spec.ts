@@ -40,7 +40,7 @@ function mockBilling(
 function mockEmptyApis(page: import("@playwright/test").Page) {
   return page.route("**/api/v1/**", async (route) => {
     const url = route.request().url();
-    if (url.includes("/auth/session") || url.includes("/billing/subscription")) {
+    if (url.includes("/auth/session") || url.includes("/billing/subscription") || url.endsWith("/branches")) {
       await route.fallback();
       return;
     }

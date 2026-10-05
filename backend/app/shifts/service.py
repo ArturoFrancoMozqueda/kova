@@ -72,6 +72,7 @@ def _shift_body(db: Session, *, shift: Shift) -> dict[str, Any]:
     return {
         "id": str(shift.id),
         "tenant_id": str(shift.tenant_id),
+        "branch_id": str(shift.branch_id),
         "status": shift.status,
         "opening_cash_amount": (
             str(shift.opening_cash_amount) if shift.opening_cash_amount is not None else None
@@ -127,7 +128,7 @@ def open_shift(
 
     # The app-level check above loses a race between two concurrent opens: both
     # can read "no open shift" and both insert. The partial unique index
-    # (uq_one_open_shift_per_tenant) is the real backstop — catch its violation
+    # (uq_one_open_shift_per_branch) is the real backstop — catch its violation
     # and return 409 so exactly one open shift can ever exist per tenant.
     try:
         shift = repo.create_shift(

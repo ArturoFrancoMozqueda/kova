@@ -122,6 +122,7 @@ BEGIN
         SELECT * FROM (VALUES
             ('account_deletion_requests', 'SELECT, INSERT, UPDATE'),
             ('categories', 'SELECT, INSERT, UPDATE'),
+            ('branches', 'SELECT, INSERT'),
             ('customer_order_item_modifiers', 'SELECT, INSERT, DELETE'),
             ('customer_order_items', 'SELECT, INSERT, DELETE'),
             ('customer_orders', 'SELECT, INSERT, UPDATE'),
@@ -192,3 +193,9 @@ BEGIN
     END LOOP;
 END
 $$;
+
+DO $$ BEGIN
+    IF to_regclass('public.branches') IS NOT NULL THEN
+        GRANT UPDATE (name, address) ON TABLE branches TO kova_app;
+    END IF;
+END $$;

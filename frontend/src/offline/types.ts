@@ -50,6 +50,7 @@ export type OfflineSaleQueueItem = {
    * logical local identity used for every queue read and mutation.
    */
   tenant_id: string;
+  branch_id?: string;
   status: OfflineSaleStatus;
   sale: OfflineSaleDraft;
   // Local-only printable snapshot. Never included in the sync API payload.

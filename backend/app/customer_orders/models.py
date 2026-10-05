@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.branches.scope import BranchScoped
 from app.db import Base
 
 
@@ -20,9 +21,17 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-class CustomerOrder(Base):
+class CustomerOrder(BranchScoped, Base):
     __tablename__ = "customer_orders"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "branch_id", "id", name="uq_customer_orders_tenant_branch_id"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_customer_orders_branch",
+        ),
         CheckConstraint(
             "status IN ('new', 'confirmed', 'in_progress', 'ready', 'fulfilled', 'cancelled')",
             name="ck_customer_orders_status",
@@ -39,8 +48,8 @@ class CustomerOrder(Base):
         UniqueConstraint("sale_order_id", name="uq_customer_orders_sale_order_id"),
         UniqueConstraint("tenant_id", "id", name="uq_customer_orders_tenant_id_id"),
         ForeignKeyConstraint(
-            ["tenant_id", "sale_order_id"],
-            ["orders.tenant_id", "orders.id"],
+            ["tenant_id", "branch_id", "sale_order_id"],
+            ["orders.tenant_id", "orders.branch_id", "orders.id"],
             name="fk_customer_orders_tenant_sale",
         ),
     )
@@ -133,9 +142,14 @@ class CustomerOrderItemModifier(Base):
     price_delta_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
 
-class InventoryReservation(Base):
+class InventoryReservation(BranchScoped, Base):
     __tablename__ = "inventory_reservations"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_inventory_reservations_branch",
+        ),
         CheckConstraint(
             "status IN ('active', 'consumed', 'released')",
             name="ck_inventory_reservations_status",
@@ -144,8 +158,8 @@ class InventoryReservation(Base):
             "customer_order_id", "product_id", name="uq_inventory_reservations_order_product"
         ),
         ForeignKeyConstraint(
-            ["tenant_id", "customer_order_id"],
-            ["customer_orders.tenant_id", "customer_orders.id"],
+            ["tenant_id", "branch_id", "customer_order_id"],
+            ["customer_orders.tenant_id", "customer_orders.branch_id", "customer_orders.id"],
             name="fk_inventory_reservations_tenant_order",
         ),
         ForeignKeyConstraint(

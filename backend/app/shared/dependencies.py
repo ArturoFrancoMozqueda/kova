@@ -65,6 +65,17 @@ def get_current_session(
     if not membership:
         raise forbidden("No active membership for this tenant")
 
+    from app.branches.scope import bind_branch
+
+    selected_branch = request.headers.get("X-Kova-Branch")
+    try:
+        branch_id = UUID(selected_branch) if selected_branch else None
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Sucursal inválida") from None
+    bind_branch(db, tenant_id=membership.tenant_id, branch_id=branch_id)
+    # Fiscal periods consolidate the business, regardless of the active drawer.
+    if request.url.path.startswith("/api/v1/fiscal/"):
+        db.info.pop("kova_branch_id", None)
     set_request_context(tenant_id=membership.tenant_id, user_id=user.id)
     return user, membership, session
 

@@ -283,8 +283,8 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run alembic downgrade base
       - run: uv run alembic upgrade head
-      - name: Test populated fiscal upgrade and runtime grants
-        run: uv run pytest -q migration_tests/test_0062_accountant_packages.py
+      - name: Test populated upgrades, branch attribution and runtime grants
+        run: uv run python -m pytest -q migration_tests
 
   capture-release-state:
     name: capture required rollback artifact
