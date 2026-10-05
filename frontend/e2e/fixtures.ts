@@ -11,7 +11,7 @@ const SHARED_BACKGROUND_ALLOWLIST = [
   { method: "GET", path: /^\/api\/v1\/settings\/(receipt|business-profile)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/billing\/subscription$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/catalog\/(products|categories|modifier-groups)$/, status: 503 },
-  { method: "GET", path: /^\/api\/v1\/reports\/(sales-by-hour|sales-summary|business-story)$/, status: 503 },
+  { method: "GET", path: /^\/api\/v1\/reports\/(sales-by-hour|sales-summary|business-story|branches)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/inventory\/(stock|low-stock)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/inventory\/(velocity|movements)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/(onboarding\/state|employees|shifts)$/, status: 503 },
@@ -38,6 +38,12 @@ export const test = base.extend<GuardFixtures>({
         await page.route("**/api/v1/**", async (route) => {
           const request = route.request();
           const pathname = new URL(request.url()).pathname;
+          // Branch discovery is shared by every authenticated screen. Scenarios
+          // that exercise it override this typed, empty background response.
+          if (request.method() === "GET" && pathname === "/api/v1/branches") {
+            await route.fulfill({ json: [] });
+            return;
+          }
           const sharedBackground = SHARED_BACKGROUND_ALLOWLIST.find(
             (entry) => entry.method === request.method() && entry.path.test(pathname),
           );
