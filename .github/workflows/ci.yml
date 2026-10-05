@@ -284,7 +284,7 @@ jobs:
       - run: uv run alembic downgrade base
       - run: uv run alembic upgrade head
       - name: Test populated upgrades, branch attribution and runtime grants
-        run: uv run pytest -q migration_tests
+        run: uv run python -m pytest -q migration_tests
 
   capture-release-state:
     name: capture required rollback artifact
