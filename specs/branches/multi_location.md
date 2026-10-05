@@ -67,6 +67,13 @@ si no existen sucursales adicionales; una reversión de aplicación después de 
 conservar el esquema y restaurar una versión compatible con multiubicación. No usar una versión
 anterior para operar sucursales adicionales.
 
+El primer intento de publicación encontró un turno legado cuyo tenant ya no existe. La migración
+conserva íntegros esos registros sin crear cuentas ficticias: las FKs de sucursal se añaden con
+`NOT VALID`, que exige integridad en nuevas operaciones, y se validan por completo cuando no hay
+huérfanos anteriores. Un negocio existente sin principal sigue abortando la migración. Los datos
+legados sin negocio no participan en la comparación ni son accesibles desde otras cuentas. La
+prueba de regresión cubre turnos/movimientos huérfanos, rechazo de nuevos huérfanos y reversibilidad.
+
 ## Evidencia local (2026-10-05)
 
 - Backend: suite completa con 739 pruebas aprobadas. Los dos health checks omitidos al no haber

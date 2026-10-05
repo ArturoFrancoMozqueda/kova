@@ -7,8 +7,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 
@@ -86,6 +88,15 @@ def test_populated_branch_migration_and_guarded_downgrade():
         applied = _migrate(url, "upgrade", "head")
         assert applied.returncode == 0, applied.stderr
         with engine.begin() as conn:
+            assert (
+                conn.execute(
+                    text(
+                        "SELECT bool_and(convalidated) FROM pg_constraint "
+                        "WHERE conname LIKE 'fk_%_branch'"
+                    )
+                ).scalar_one()
+                is True
+            )
             row = conn.execute(
                 text("SELECT branch_id, total_amount FROM orders WHERE id = :id"), {"id": sale}
             ).one()
@@ -128,3 +139,96 @@ def test_populated_branch_migration_and_guarded_downgrade():
                 conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
                 == "0068_branches"
             )
+
+
+def test_legacy_orphan_history_is_retained_without_allowing_new_orphans():
+    with _database() as (url, engine):
+        assert _migrate(url, "upgrade", "0067_runtime_grant_matrix").returncode == 0
+        tenant, deleted_tenant, shift, orphan_shift, movement = (uuid4() for _ in range(5))
+        with engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO tenants (id, name, slug) VALUES (:id, 'Existing', :slug)"),
+                {"id": tenant, "slug": str(tenant)},
+            )
+            # Legacy shifts/cash movements lacked direct tenant foreign keys.
+            for shift_id, tenant_id in ((shift, tenant), (orphan_shift, deleted_tenant)):
+                conn.execute(
+                    text(
+                        "INSERT INTO shifts "
+                        "(id, tenant_id, status, opening_cash_amount, opened_at) "
+                        "VALUES (:id, :tenant, 'closed', 50, now())"
+                    ),
+                    {"id": shift_id, "tenant": tenant_id},
+                )
+            conn.execute(
+                text(
+                    "INSERT INTO cash_movements "
+                    "(id, tenant_id, shift_id, type, amount, reason, created_at) "
+                    "VALUES (:id, :tenant, :shift, 'cash_in', 25, 'History', now())"
+                ),
+                {"id": movement, "tenant": deleted_tenant, "shift": orphan_shift},
+            )
+            before = conn.execute(
+                text("SELECT to_jsonb(s) FROM shifts s WHERE id = :id"), {"id": orphan_shift}
+            ).scalar_one()
+        applied = _migrate(url, "upgrade", "head")
+        assert applied.returncode == 0, applied.stderr
+        with engine.connect() as conn:
+            after = conn.execute(
+                text("SELECT to_jsonb(s) - 'branch_id' FROM shifts s WHERE id = :id"),
+                {"id": orphan_shift},
+            ).scalar_one()
+            assert after == before
+            assert (
+                conn.execute(
+                    text("SELECT branch_id FROM shifts WHERE id = :id"), {"id": orphan_shift}
+                ).scalar_one()
+                == deleted_tenant
+            )
+            assert conn.execute(
+                text("SELECT branch_id, amount FROM cash_movements WHERE id = :id"),
+                {"id": movement},
+            ).one() == (deleted_tenant, 25)
+            assert conn.execute(text("SELECT count(*) FROM tenants")).scalar_one() == 1
+            assert conn.execute(text("SELECT count(*) FROM branches")).scalar_one() == 1
+            validated = dict(
+                conn.execute(
+                    text(
+                        "SELECT conname, convalidated FROM pg_constraint "
+                        "WHERE conname LIKE 'fk_%_branch'"
+                    )
+                ).all()
+            )
+            assert validated["fk_orders_branch"] is True
+            assert validated["fk_shifts_branch"] is False
+            assert validated["fk_cash_movements_branch"] is False
+        with pytest.raises(IntegrityError, match="fk_shifts_branch"), engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO shifts (id, tenant_id, status, opened_at) "
+                    "VALUES (:id, :tenant, 'closed', now())"
+                ),
+                {"id": uuid4(), "tenant": deleted_tenant},
+            )
+        with (
+            pytest.raises(IntegrityError, match="fk_cash_movements_branch"),
+            engine.begin() as conn,
+        ):
+            conn.execute(
+                text(
+                    "INSERT INTO cash_movements "
+                    "(id, tenant_id, shift_id, type, amount, reason, created_at) "
+                    "VALUES (:id, :tenant, :shift, 'cash_in', 25, 'History', now())"
+                ),
+                {"id": uuid4(), "tenant": deleted_tenant, "shift": orphan_shift},
+            )
+        rolled = _migrate(url, "downgrade", "0067_runtime_grant_matrix")
+        assert rolled.returncode == 0, rolled.stderr
+        with engine.connect() as conn:
+            assert (
+                conn.execute(
+                    text("SELECT to_jsonb(s) FROM shifts s WHERE id = :id"), {"id": orphan_shift}
+                ).scalar_one()
+                == before
+            )
+        assert _migrate(url, "upgrade", "head").returncode == 0
