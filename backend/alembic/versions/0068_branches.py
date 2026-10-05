@@ -92,9 +92,35 @@ def upgrade():
             f"CREATE TRIGGER {table}_default_branch BEFORE INSERT OR UPDATE OF branch_id ON {table} "
             "FOR EACH ROW EXECUTE FUNCTION kova_default_operation_branch()"
         )
-        op.create_foreign_key(
-            f"fk_{table}_branch", table, "branches", ["tenant_id", "branch_id"], ["tenant_id", "id"]
+        # Older tables (notably shifts) did not reference tenants directly.
+        # Retain rows whose tenant was already deleted without inventing a
+        # business or discarding financial history. NOT VALID still enforces
+        # the FK for every new row/key change; validate whenever history permits.
+        op.execute(
+            f"ALTER TABLE {table} ADD CONSTRAINT fk_{table}_branch "
+            "FOREIGN KEY (tenant_id, branch_id) REFERENCES branches (tenant_id, id) NOT VALID"
         )
+        op.execute(f"""
+            DO $$ BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM {table} child
+                    JOIN tenants tenant ON tenant.id = child.tenant_id
+                    LEFT JOIN branches branch ON branch.tenant_id = child.tenant_id
+                        AND branch.id = child.branch_id
+                    WHERE branch.id IS NULL
+                ) THEN
+                    RAISE EXCEPTION 'Missing principal branch for existing tenant in {table}';
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM {table} child
+                    LEFT JOIN branches branch ON branch.tenant_id = child.tenant_id
+                        AND branch.id = child.branch_id
+                    WHERE branch.id IS NULL
+                ) THEN
+                    ALTER TABLE {table} VALIDATE CONSTRAINT fk_{table}_branch;
+                END IF;
+            END $$;
+        """)
         op.create_index(f"ix_{table}_branch_id", table, ["branch_id"])
     for table in ("shifts", "orders", "customer_orders"):
         op.create_unique_constraint(
