@@ -780,7 +780,7 @@ test("mobile CFDI Test connects, corrects receiver, previews and reconciles one 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Descargar XML" }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe(`cfdi-${documentId}.xml`);
+  expect(download.suggestedFilename()).toBe(`test-sin-validez-fiscal-cfdi-${documentId}.xml`);
   expect(await download.failure()).toBeNull();
   expect(emissions).toBe(1);
   expect(reconciliations).toBe(1);

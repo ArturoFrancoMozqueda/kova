@@ -48,6 +48,10 @@ expectProperties("OpsMfaStatusResponse", [
   "enrolled", "step_up_valid", "recovery_codes_remaining",
 ]);
 expectProperties("OpsMfaSetupResponse", ["secret", "qr_png_data_url"]);
+expectProperties("StatusResponse", ["provider", "storage_available", "connections"]);
+expectProperties("InvoicePreparation", ["request_id", "environment", "recipient", "lines", "payment_form"]);
+expectProperties("PreviewResponse", ["recipient_snapshot", "total_amount", "lines"]);
+expectProperties("DocumentResponse", ["environment", "state", "uuid", "recipient_snapshot", "xml_available"]);
 
 expectStatus("/api/v1/auth/signup", "post", "200");
 expectStatus("/api/v1/auth/login", "post", "200");
@@ -65,6 +69,12 @@ expectStatus("/api/v1/internal/ops/mfa/status", "get", "200");
 expectStatus("/api/v1/internal/ops/mfa/setup", "post", "200");
 expectStatus("/api/v1/internal/ops/mfa/confirm", "post", "200");
 expectStatus("/api/v1/internal/ops/mfa/verify", "post", "200");
+expectStatus("/api/v1/integrations/cfdi/status", "get", "200");
+expectStatus("/api/v1/integrations/cfdi/connection", "put", "200");
+expectStatus("/api/v1/integrations/cfdi/preview", "post", "200");
+expectStatus("/api/v1/integrations/cfdi/documents", "post", "201");
+expectStatus("/api/v1/integrations/cfdi/documents/{document_id}/reconcile", "post", "200");
+expectStatus("/api/v1/integrations/cfdi/documents/{document_id}/xml", "get", "200");
 
 if (errors.length) {
   console.error(`Contrato frontend/backend incompatible:\n- ${errors.join("\n- ")}`);

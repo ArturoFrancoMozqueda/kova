@@ -35,7 +35,8 @@ requieren contratos de producto propios y se rechazan o permanecen sin emisión.
   motivo01 exige UUID. Motivo04 sólo global y fuera de esta entrega. Idempotency-Key.
 - GET /documents/{id}/xml y /pdf: descarga privada, no-store, filename controlado.
 
-InvoicePreparation = `{request_id, environment, payment_form:"01"|"03"|"04"|"28",
+InvoicePreparation = `{request_id, environment, recipient?:InvoiceRecipient,
+payment_form:"01"|"03"|"04"|"28",
 lines:[{order_item_id, product_key, unit_key, tax_kind:"iva16"|"iva8"|"iva0"|
 "exempt"|"not_subject", tax_included:boolean}]}`. Los importes/cantidades no los
 manda el cliente; proceden de snapshots de venta. Se valida relación con la forma
@@ -43,11 +44,13 @@ de pago real (cash=01,transfer=03,card=04/28). Los importes adicionales cobrados
 sólo se tratan como IVA cuando el administrador lo declara y se reconcilian; las
 ventas sin impuesto añadido permiten declarar IVA incluido sin cambiar el total.
 Toda preparación debe conciliar exactamente con la venta y con su descuento.
-La vista previa muestra el efecto fiscal antes de emitir.
+La vista previa muestra el efecto fiscal y el receptor normalizado antes de emitir.
+La corrección del receptor se conserva en el documento nuevo, sin reescribir la
+solicitud histórica. Editar preparación invalida la vista previa y su confirmación.
 
 DocumentResponse = `{id, request_id, order_id, environment, state, provider_id?,
 uuid?, total_amount, created_at, updated_at, last_error_code?, cancellation_status?,
-xml_available}`. Estados: prepared, submitting, unknown, pending, issued,
+xml_available, recipient_snapshot}`. Estados: prepared, submitting, unknown, pending, issued,
 cancel_pending, canceled, rejected, integrity_error. TEST muestra siempre etiqueta
 sin validez fiscal; sólo LIVE confirmado aporta evento confirmed al ledger.
 
