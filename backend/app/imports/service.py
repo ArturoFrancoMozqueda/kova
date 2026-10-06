@@ -377,6 +377,7 @@ def commit_catalog_import(
     content: bytes,
     idempotency_key: str,
     file_format: CatalogImportFormat,
+    commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     request_hash = _catalog_import_request_hash(content, file_format=file_format)
     existing = idempotency_service.claim(
@@ -480,7 +481,10 @@ def commit_catalog_import(
         response_status=201,
         response_body=response,
     )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return 201, response
 
 

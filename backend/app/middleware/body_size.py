@@ -26,6 +26,9 @@ class BodySizeLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
+        limit = MAX_REQUEST_BYTES
+        if scope.get("path") == "/api/v1/assistant/documents" and scope.get("method") == "POST":
+            limit = 20 * 1024 * 1024
         headers = dict(scope.get("headers", []))
         content_length = headers.get(b"content-length")
         if content_length is not None:
@@ -37,7 +40,7 @@ class BodySizeLimitMiddleware:
             if declared < 0:
                 await self._reject(400, "Invalid Content-Length", scope, receive, send)
                 return
-            if declared > MAX_REQUEST_BYTES:
+            if declared > limit:
                 await self._reject(413, "Request body too large", scope, receive, send)
                 return
 
@@ -48,7 +51,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > MAX_REQUEST_BYTES:
+                if received > limit:
                     raise _BodyTooLarge
             return message
 

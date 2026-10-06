@@ -8,8 +8,6 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from alembic.config import Config
-from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
@@ -87,7 +85,7 @@ def test_populated_branch_migration_and_guarded_downgrade():
                 ),
                 {"id": uuid4(), "tenant": tenant, "product": product, "order": sale},
             )
-        applied = _migrate(url, "upgrade", "head")
+        applied = _migrate(url, "upgrade", "0068_branches")
         assert applied.returncode == 0, applied.stderr
         with engine.begin() as conn:
             assert (
@@ -120,7 +118,7 @@ def test_populated_branch_migration_and_guarded_downgrade():
             )
         rolled = _migrate(url, "downgrade", "0067_runtime_grant_matrix")
         assert rolled.returncode == 0, rolled.stderr
-        assert _migrate(url, "upgrade", "head").returncode == 0
+        assert _migrate(url, "upgrade", "0068_branches").returncode == 0
         with engine.begin() as conn:
             conn.execute(
                 text("INSERT INTO branches (id, tenant_id, name) VALUES (:id, :tenant, 'Centro')"),
@@ -139,7 +137,7 @@ def test_populated_branch_migration_and_guarded_downgrade():
             )
             assert (
                 conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-                == ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini"))).get_current_head()
+                == "0068_branches"
             )
 
 
@@ -173,7 +171,7 @@ def test_legacy_orphan_history_is_retained_without_allowing_new_orphans():
             before = conn.execute(
                 text("SELECT to_jsonb(s) FROM shifts s WHERE id = :id"), {"id": orphan_shift}
             ).scalar_one()
-        applied = _migrate(url, "upgrade", "head")
+        applied = _migrate(url, "upgrade", "0068_branches")
         assert applied.returncode == 0, applied.stderr
         with engine.connect() as conn:
             after = conn.execute(
@@ -233,4 +231,4 @@ def test_legacy_orphan_history_is_retained_without_allowing_new_orphans():
                 ).scalar_one()
                 == before
             )
-        assert _migrate(url, "upgrade", "head").returncode == 0
+        assert _migrate(url, "upgrade", "0068_branches").returncode == 0

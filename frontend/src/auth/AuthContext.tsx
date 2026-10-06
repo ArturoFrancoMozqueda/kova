@@ -356,8 +356,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (identity.status === "authenticated") {
           const headers = new Headers(input instanceof Request ? input.headers : undefined);
           new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-          headers.set("X-Kova-Expected-Tenant", identity.tenantId);
-          headers.set("X-Kova-Expected-User", identity.user.id);
+          // A view may have captured its identity before a session change. Keep
+          // that expectation so the server rejects the stale request with 409.
+          if (!headers.has("X-Kova-Expected-Tenant")) headers.set("X-Kova-Expected-Tenant", identity.tenantId);
+          if (!headers.has("X-Kova-Expected-User")) headers.set("X-Kova-Expected-User", identity.user.id);
           requestInit = { ...init, headers };
         }
       }

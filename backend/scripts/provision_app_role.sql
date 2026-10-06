@@ -222,3 +222,9 @@ DO $$ BEGIN
         GRANT UPDATE (name, address) ON TABLE branches TO kova_app;
     END IF;
 END $$;
+
+-- Assistant content stays behind tenant RLS and restrictive user/document ACLs.
+GRANT SELECT, INSERT, UPDATE, DELETE ON assistant_records, assistant_chunks TO kova_app;
+GRANT USAGE ON SCHEMA assistant_control, extensions TO kova_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA assistant_control TO kova_app;
+GRANT EXECUTE ON FUNCTION extensions.cosine_distance(extensions.vector,extensions.vector) TO kova_app;

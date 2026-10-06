@@ -6,7 +6,10 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+import app.assistant.events  # noqa: F401
 from app.account_lifecycle.router import router as account_lifecycle_router
+from app.assistant.access import assert_private_policies
+from app.assistant.router import router as assistant_router
 from app.auth.router import router as auth_router
 from app.billing import service as billing_service
 from app.billing.router import router as billing_router
@@ -145,6 +148,7 @@ def create_app() -> FastAPI:
     init_sentry()
     _validate_config()
     assert_rls_active()
+    assert_private_policies()
     _hide_docs = settings.app_env == "production"
     app = FastAPI(
         title="POS API",
@@ -201,6 +205,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(account_lifecycle_router)
     app.include_router(auth_router)
+    app.include_router(assistant_router)
     app.include_router(billing_router)
     app.include_router(branches_router)
     app.include_router(business_settings_router)

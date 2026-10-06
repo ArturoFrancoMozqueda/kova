@@ -362,6 +362,8 @@ _EXPORTABLE_TENANT_TABLES = frozenset(spec.name for spec in _EXPORT_TABLES) | {
 _NON_EXPORTABLE_TENANT_TABLES = frozenset(
     {
         "account_deletion_requests",
+        "assistant_records",
+        "assistant_chunks",
         "audit_logs",
         "idempotency_keys",
         "ops_notes",
@@ -375,6 +377,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "assistant_chunks",
+    "assistant_records",
     "cfdi_documents",
     "cfdi_connections",
     "invoice_requests",
@@ -746,6 +750,10 @@ def _purge_account_graph(
     unknown_tables = schema_tables - _PURGE_TENANT_TABLES
     if unknown_tables:
         raise RuntimeError("account purge ownership graph is incomplete")
+
+    from app.assistant.storage import purge_tenant as purge_assistant_objects
+
+    purge_assistant_objects(db, tenant_id)
 
     # Immutable fiscal history may only be physically removed as part of this
     # privileged whole-account purge. SET LOCAL cannot leak after commit/rollback.

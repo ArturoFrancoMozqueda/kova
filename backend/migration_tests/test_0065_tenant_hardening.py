@@ -40,6 +40,8 @@ _RUNTIME_TABLE_PRIVILEGES = {
             "expenses",
             "product_image_files",
             "tenant_logo_files",
+            "assistant_records",
+            "assistant_chunks",
         )
     },
     **{
@@ -229,6 +231,8 @@ _SEMANTIC_INSERT_ORDER = (
     "refund_items",
     "fiscal_global_draft_adjustments",
     "customer_order_item_modifiers",
+    "assistant_records",
+    "assistant_chunks",
 )
 
 
@@ -242,6 +246,8 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     token = f"{tenant_token}-{variant}-{table.name}"
     if name in {"tenant_id", "branch_id"}:
         return tenant
+    if table.name == "assistant_records" and name == "kind":
+        return "document"
     if name == "source_branch_id":
         return tenant
     if name == "destination_branch_id":
@@ -1188,6 +1194,11 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                     text("SELECT set_config('app.tenant_id', :tenant, true)"),
                     {"tenant": str(TENANT_A)},
                 )
+
+                conn.execute(
+                    text("SELECT set_config('app.assistant_user_id', :user, true)"),
+                    {"user": str(USER_A)},
+                )
                 _insert_semantic_graph(
                     conn,
                     [
@@ -1302,6 +1313,11 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                         text("SELECT set_config('app.tenant_id', :tenant, true)"),
                         {"tenant": str(TENANT_A)},
                     )
+
+                    conn.execute(
+                        text("SELECT set_config('app.assistant_user_id', :user, true)"),
+                        {"user": str(USER_A)},
+                    )
                     if "SELECT" in expected:
                         assert conn.scalar(
                             text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :a"),
@@ -1324,6 +1340,11 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                         text("SELECT set_config('app.tenant_id', :tenant, true)"),
                         {"tenant": str(TENANT_A)},
                     )
+
+                    conn.execute(
+                        text("SELECT set_config('app.assistant_user_id', :user, true)"),
+                        {"user": str(USER_A)},
+                    )
                     if "INSERT" in expected:
                         with pytest.raises(DBAPIError) as exc:
                             conn.execute(
@@ -1344,6 +1365,11 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                         text("SELECT set_config('app.tenant_id', :tenant, true)"),
                         {"tenant": str(TENANT_A)},
                     )
+
+                    conn.execute(
+                        text("SELECT set_config('app.assistant_user_id', :user, true)"),
+                        {"user": str(USER_A)},
+                    )
                     statement = text(
                         f"UPDATE {table_name} SET tenant_id = tenant_id WHERE tenant_id = :tenant"
                     )
@@ -1360,6 +1386,11 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                         text("SELECT set_config('app.tenant_id', :tenant, true)"),
                         {"tenant": str(TENANT_A)},
                     )
+
+                    conn.execute(
+                        text("SELECT set_config('app.assistant_user_id', :user, true)"),
+                        {"user": str(USER_A)},
+                    )
                     statement = text(f"DELETE FROM {table_name} WHERE tenant_id = :tenant")
                     if "DELETE" in expected:
                         assert conn.execute(statement, {"tenant": TENANT_B}).rowcount == 0
@@ -1373,6 +1404,11 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                 conn.execute(
                     text("SELECT set_config('app.tenant_id', :tenant, true)"),
                     {"tenant": str(TENANT_A)},
+                )
+
+                conn.execute(
+                    text("SELECT set_config('app.assistant_user_id', :user, true)"),
+                    {"user": str(USER_A)},
                 )
                 assert conn.scalars(text("SELECT id FROM tenants ORDER BY id")).all() == [TENANT_A]
                 assert conn.scalars(text("SELECT id FROM users ORDER BY id")).all() == [USER_A]

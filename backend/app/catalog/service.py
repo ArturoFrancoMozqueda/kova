@@ -119,6 +119,7 @@ def create_category(
     user_id: UUID,
     body: CategoryCreate,
     idempotency_key: str,
+    commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     stored = _stored_response(
@@ -153,7 +154,10 @@ def create_category(
         status_code=201,
         response_body=response_body,
     )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return 201, response_body
 
 
@@ -165,6 +169,7 @@ def update_category(
     category_id: UUID,
     body: CategoryUpdate,
     idempotency_key: str,
+    commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json", exclude_unset=True)
     stored = _stored_response(
@@ -203,7 +208,10 @@ def update_category(
         status_code=200,
         response_body=response_body,
     )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return 200, response_body
 
 
@@ -267,6 +275,7 @@ def create_product(
     user_id: UUID,
     body: ProductCreate,
     idempotency_key: str,
+    commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     stored = _stored_response(
@@ -317,7 +326,10 @@ def create_product(
         status_code=201,
         response_body=response_body,
     )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return 201, response_body
 
 
@@ -329,6 +341,7 @@ def update_product(
     product_id: UUID,
     body: ProductUpdate,
     idempotency_key: str,
+    commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json", exclude_unset=True)
     stored = _stored_response(
@@ -385,7 +398,10 @@ def update_product(
         status_code=200,
         response_body=response_body,
     )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return 200, response_body
 
 
