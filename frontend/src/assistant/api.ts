@@ -12,7 +12,10 @@ export type Resource = {
     title?: string; content?: string; role?: string; answer?: string; error?: string;
     fingerprint?: string; steps?: Step[]; filename?: string; purpose?: string;
     source_ids?: string[]; sources?: { id: string; title: string; page: number; path: string }[];
-    cards?: { kind: string; data: { start_date?: string; end_date?: string; total_net_sales?: string; branch_count?: number; branches?: { branch_id: string; branch_name: string; net_sales: string; completed_orders: number }[]; products?: { product_id: string; product_name: string; quantity_sold: number; gross_sales: string }[] } }[];
+    cards?: { kind: string; data: { start_date?: string; end_date?: string; total_net_sales?: string; branch_count?: number; branches?: { branch_id: string; branch_name: string; net_sales: string; completed_orders: number }[]; products?: { product_id: string; product_name: string; quantity_sold: number; gross_sales: string }[];
+      restock_alerts?: { product_id: string; product_name: string; stock_on_hand: number; low_stock_threshold: number; days_until_out: string | null; severity: "critical" | "warning" }[];
+      available_alert_count?: number; inventory_valuation?: { complete: boolean; tracked_products: number; products_without_cost: number };
+    } }[];
     metrics?: Record<string, string | number> | null; proposal_id?: string | null;
     preview?: { total_rows: number; valid_rows: number; error_rows: number; rows: { row_number: number; errors: string[]; normalized?: { name: string; price_amount: string } }[] };
     ocr?: boolean; metric?: string; target?: string; current?: string; achieved?: boolean;

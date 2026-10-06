@@ -348,6 +348,174 @@ def test_atomic_budget_does_not_overspend(owner_engine):
         conn.execute(text("DELETE FROM assistant_control.budgets WHERE bucket=:key"), {"key": key})
 
 
+def test_user_can_use_remaining_shared_budget_without_personal_discount(enabled_client, monkeypatch):
+    _, db, tenant, _ = enabled_client
+    user, _, _ = context(db, tenant)
+    monkeypatch.setattr(settings, "assistant_daily_budget", 400)
+    monkeypatch.setattr(settings, "assistant_chat_budget", 400)
+    amount = budget.reserve(
+        db, tenant, user.id, model="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        input_tokens=3500, output_tokens=1024,
+    )
+    assert 300 < amount <= 400
+    assert budget.usage(db, tenant, user.id)["user_limit"] == 400
+    with pytest.raises(HTTPException) as exc:
+        budget.reserve(
+            db, tenant, user.id, model="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+            input_tokens=3500, output_tokens=1024,
+        )
+    assert exc.value.status_code == 429
+
+
+def test_message_count_does_not_block_daily_capacity_but_burst_guard_remains(enabled_client, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    _, db, tenant, _ = enabled_client
+    user, _, _ = context(db, tenant)
+    current = [datetime(2026, 10, 6, 12, tzinfo=UTC)]
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return current[0]
+
+    monkeypatch.setattr(budget, "datetime", Clock)
+    for _ in range(40):
+        budget.turn(db, tenant, user.id)
+        current[0] += timedelta(minutes=1)
+    for _ in range(3):
+        budget.turn(db, tenant, user.id)
+    with pytest.raises(HTTPException) as exc:
+        budget.turn(db, tenant, user.id)
+    assert exc.value.status_code == 429
+
+
+def reserve_job(db, tenant, *, window=None):
+    ctx, job = running_job(db, tenant)
+    model = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    window = window or budget.datetime.now(budget.UTC).date().isoformat()
+    amount = budget.reserve(
+        db, tenant, ctx[0].id, model=model, input_tokens=1000, output_tokens=1024,
+        window=window,
+    )
+    receipt_id = str(uuid4())
+    repo.update(job, reserved=amount, remote_started=True, pending_reservation={
+        "id": receipt_id, "window": window, "amount": amount, "model": model,
+        "input_tokens": 1000, "output_tokens": 1024,
+    })
+    db.commit()
+    return ctx, job, receipt_id, amount
+
+
+def test_verified_usage_releases_unused_capacity_once_in_original_window(enabled_client):
+    _, db, tenant, _ = enabled_client
+    ctx, job, receipt_id, amount = reserve_job(db, tenant, window="2026-09-30")
+    assert "pending_reservation" not in repo.view(db, tenant, ctx[0].id, job)["data"]
+    reported = {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}
+    retained = budget.estimate("@cf/meta/llama-3.3-70b-instruct-fp8-fast", 100, 20)
+    assert budget.settle(db, tenant, ctx[0].id, job.id, receipt_id, reported) == amount - retained
+    db.commit()
+    assert budget.settle(db, tenant, ctx[0].id, job.id, receipt_id, reported) == 0
+    rows = db.execute(text(
+        "SELECT used FROM assistant_control.budgets WHERE period_key='2026-09-30'"
+    )).scalars().all()
+    assert rows == [retained] * 4
+    assert job.data["reserved"] == retained
+    assert job.data["remote_started"] is False
+    assert job.data["pending_reservation"] is None
+
+
+@pytest.mark.parametrize("reported", [
+    None, {},
+    {"prompt_tokens": 100, "completion_tokens": 20},
+    {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 121},
+    {"prompt_tokens": True, "completion_tokens": 20, "total_tokens": 21},
+    {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+    {"prompt_tokens": 100, "completion_tokens": -1, "total_tokens": 99},
+    {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120,
+     "completion_tokens_details": {"reasoning_tokens": 10}},
+])
+def test_unverified_usage_keeps_full_reservation(enabled_client, reported):
+    _, db, tenant, _ = enabled_client
+    ctx, job, receipt_id, amount = reserve_job(db, tenant)
+    assert budget.settle(db, tenant, ctx[0].id, job.id, receipt_id, reported) == 0
+    assert job.data["reserved"] == amount
+    assert budget.usage(db, tenant, ctx[0].id)["tenant_used"] == amount
+
+
+def test_reported_usage_above_bound_fails_closed(enabled_client):
+    _, db, tenant, _ = enabled_client
+    ctx, job, receipt_id, amount = reserve_job(db, tenant)
+    with pytest.raises(HTTPException) as exc:
+        budget.settle(db, tenant, ctx[0].id, job.id, receipt_id,
+                      {"prompt_tokens": 1001, "completion_tokens": 20, "total_tokens": 1021})
+    assert exc.value.status_code == 503
+    assert job.data["reserved"] == amount
+    assert job.data["remote_started"] is True
+    assert budget.usage(db, tenant, ctx[0].id)["tenant_used"] == amount
+
+
+def test_concurrent_usage_settlement_cannot_refund_twice(owner_engine, monkeypatch):
+    tenant, user, receipt_id = uuid4(), uuid4(), str(uuid4())
+    window = "settlement-test:" + uuid4().hex
+    monkeypatch.setattr(settings, "assistant_tenant_ids", str(tenant))
+    model = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    with Session(owner_engine) as db:
+        db.execute(text("INSERT INTO tenants(id,name,slug) VALUES (:id,'Prueba de cuota',:slug)"),
+                   {"id": tenant, "slug": str(tenant)})
+        db.execute(text("INSERT INTO users(id,email,hashed_password) VALUES (:id,:email,'test')"),
+                   {"id": user, "email": str(user) + "@example.com"})
+        amount = budget.reserve(db, tenant, user, model=model, input_tokens=1000,
+                                output_tokens=1024, window=window)
+        job = repo.create(db, tenant, user, tenant, "run", {
+            "reserved": amount, "remote_started": True, "pending_reservation": {
+                "id": receipt_id, "window": window, "model": model, "amount": amount,
+                "input_tokens": 1000, "output_tokens": 1024,
+            },
+        }, status="running")
+        job_id = job.id
+        db.commit()
+
+    def complete(_):
+        with Session(owner_engine) as db:
+            released = budget.settle(db, tenant, user, job_id, receipt_id,
+                                     {"prompt_tokens": 100, "completion_tokens": 20,
+                                      "total_tokens": 120})
+            db.commit()
+            return released
+
+    try:
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(complete, range(8)))
+        retained = budget.estimate(model, 100, 20)
+        assert sum(value > 0 for value in results) == 1
+        assert sum(results) == amount - retained
+        with Session(owner_engine) as db:
+            assert db.execute(text(
+                "SELECT used FROM assistant_control.budgets WHERE period_key=:window"
+            ), {"window": window}).scalars().all() == [retained] * 4
+    finally:
+        with owner_engine.begin() as conn:
+            conn.execute(text("DELETE FROM assistant_control.budgets WHERE period_key=:window"),
+                         {"window": window})
+            conn.execute(text("DELETE FROM assistant_control.allocations WHERE period_key=:window"),
+                         {"window": window})
+            conn.execute(text("DELETE FROM tenants WHERE id=:id"), {"id": tenant})
+            conn.execute(text("DELETE FROM users WHERE id=:id"), {"id": user})
+
+
+@pytest.mark.parametrize("query, title", [
+    ("como cierro la caja", "Abrir y cerrar un turno de caja"),
+    ("ticket promedio y utilidad", "Interpretar ventas, ticket promedio y utilidad"),
+    ("reposición inventario", "Revisar inventario y reposición"),
+])
+def test_public_guides_match_spanish_topics_without_embeddings(enabled_client, monkeypatch, query, title):
+    _, db, tenant, _ = enabled_client
+    user, _, _ = context(db, tenant)
+    monkeypatch.setattr(provider, "embed", lambda *args: pytest.fail("Public guides must be free"))
+    assert knowledge.search(db, tenant, user.id, query)[0]["title"] == title
+
+
 def test_rls_private_read_and_write_even_between_admins(owner_engine, kova_app_engine):
     tenant, user, other, document = uuid4(), uuid4(), uuid4(), uuid4()
     with owner_engine.begin() as conn:
@@ -486,6 +654,71 @@ def test_generation_returns_real_metrics_and_only_retrieved_citations(enabled_cl
     assert job.data["source_ids"] == [source]
 
 
+def test_read_only_business_review_finishes_after_one_plan_and_tracks_usage(enabled_client, monkeypatch):
+    import json
+
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant, "Revisa mis ventas, productos e inventario")
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    monkeypatch.setattr(settings, "assistant_model", "@cf/meta/llama-3.3-70b-instruct-fp8-fast")
+    calls = []
+
+    def respond(messages, available, *, model, structured):
+        calls.append((available, structured))
+        reported = {"prompt_tokens": 100, "completion_tokens": 30, "total_tokens": 130}
+        if not structured:
+            return {"content": "", "usage": reported, "tool_calls": [
+                {"name": name, "arguments": {}}
+                for name in ("get_sales", "get_top_products", "get_inventory")
+            ]}
+        assert available == []
+        assert sum(message["role"] == "tool" for message in messages) == 3
+        return {"content": json.dumps({
+            "answer": "No hay ventas completadas. Registra una venta en Caja para empezar.",
+            "source_ids": [], "steps": [],
+        }), "usage": reported, "tool_calls": []}
+
+    monkeypatch.setattr(provider, "generate", respond)
+    generation.run(db, ctx, job)
+    assert job.status == "completed"
+    assert len(calls) == 2
+    assert [structured for _, structured in calls] == [False, True]
+    assert job.data["metrics"]["order_count"] == 0
+    assert {card["kind"] for card in job.data["cards"]} == {"get_top_products", "get_inventory"}
+    assert job.data["reserved"] == 2 * budget.estimate(settings.assistant_model, 100, 30)
+    assert budget.usage(db, tenant, ctx[0].id)["tenant_used"] == job.data["reserved"]
+
+
+def test_inventory_evidence_uses_real_stock_and_explicit_available_sample(enabled_client):
+    from app.assistant import tools
+    from app.inventory.repository import create_movement
+
+    _, db, tenant, _ = enabled_client
+    user, _, _ = context(db, tenant)
+    for i in range(6):
+        product = Product(
+            tenant_id=tenant, name=f"Producto de prueba {i}", price_amount="35.00",
+            track_inventory=True, low_stock_threshold=5,
+        )
+        db.add(product)
+        db.flush()
+        if i == 0:
+            create_movement(
+                db, tenant_id=tenant, product_id=product.id, user_id=user.id,
+                movement_type="adjustment", quantity_delta=1, reason="Conteo físico de prueba",
+            )
+    db.flush()
+    result = tools.call(db, tenant, user.id, "get_inventory", {})
+    assert len(result["restock_alerts"]) == result["alert_limit"] == 5
+    assert result["available_alert_count"] == 6
+    assert {row["stock_on_hand"] for row in result["restock_alerts"]} == {0, 1}
+    assert {row["days_until_out"] for row in result["restock_alerts"]} == {None}
+    # Only positive stock without a cost makes inventory valuation incomplete.
+    assert result["inventory_valuation"]["products_without_cost"] == 1
+    assert result["inventory_valuation"]["complete"] is False
+    assert result["start_date"] == result["end_date"]
+
+
 def test_read_only_configuration_guidance_never_prepares_changes(enabled_client, monkeypatch):
     import json
 
@@ -559,7 +792,9 @@ def test_read_only_final_explanation_preserves_sales_evidence(enabled_client, mo
 
     monkeypatch.setattr(provider, "generate", respond)
     generation.run(db, ctx, job)
-    assert stages == [False, False, True]
+    # The final explanation follows the first successful read directly, saving
+    # the redundant planning call while preserving the same evidence checks.
+    assert stages == [False, True]
     assert job.status == "completed"
     assert job.data["metrics"]["net_sales"] == "0.00"
     assert "99999" not in job.data["answer"]

@@ -1,5 +1,6 @@
 import json
 import re
+import unicodedata
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -50,6 +51,51 @@ GUIDES = {
         ),
         "/settings/branches",
     ),
+    "6141fe70-9b98-4d18-865e-a874a72e1775": (
+        "Registrar una venta en Caja",
+        (
+            "En Caja selecciona productos, revisa cantidades y total y registra el pago. "
+            "La venta debe quedar completada para aparecer en Análisis. Para cobrar en "
+            "efectivo necesitas un turno abierto. Revisa la venta registrada en Ventas. "
+            "El asistente orienta; el cobro se realiza en Caja. Las ventas offline "
+            "aparecen en reportes después de sincronizar."
+        ),
+        "/register",
+    ),
+    "6141fe70-9b98-4d18-865e-a874a72e1776": (
+        "Abrir y cerrar un turno de caja",
+        (
+            "En Turnos abre la caja y registra el fondo inicial antes de cobrar efectivo. "
+            "Antes de cerrar revisa ventas y movimientos de efectivo, cuenta el dinero "
+            "físico y registra el cierre en la pantalla. Revisa cualquier diferencia "
+            "con el efectivo esperado; no significa automáticamente pérdida o fraude. "
+            "El asistente no cuenta dinero, abre turnos ni ejecuta cierres."
+        ),
+        "/shifts",
+    ),
+    "6141fe70-9b98-4d18-865e-a874a72e1777": (
+        "Revisar inventario y reposición",
+        (
+            "En Inventario revisa las existencias de la sucursal activa y los productos "
+            "con control de inventario. El umbral de stock bajo se configura en Catálogo. "
+            "Análisis muestra alertas de reposición con el stock y ritmo de venta "
+            "registrados. Si falta historial no hay una estimación confiable de duración. "
+            "Verifica las existencias físicas antes de registrar un ajuste en Inventario."
+        ),
+        "/inventory",
+    ),
+    "6141fe70-9b98-4d18-865e-a874a72e1778": (
+        "Interpretar ventas, ticket promedio y utilidad",
+        (
+            "La venta neta descuenta reembolsos de las ventas completadas del periodo. "
+            "El ticket promedio relaciona venta neta y tickets completados. Vender más "
+            "no garantiza más utilidad: el margen depende de costos registrados; "
+            "la utilidad operativa es aproximada y considera gastos capturados. "
+            "Si faltan costos o gastos, reconoce esa limitación. Para decidir, revisa "
+            "ventas, productos más vendidos y alertas de inventario en Análisis."
+        ),
+        "/reports",
+    ),
 }
 SECRET = re.compile(
     "(?i)(?:sk_(?:live|test)_[a-z0-9]+|eyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-"
@@ -86,13 +132,33 @@ def safe_document_text(value: str) -> str:
     return safe_text(value)
 
 
+def guide_terms(value: str) -> set[str]:
+    normalized = "".join(
+        c for c in unicodedata.normalize("NFD", value.lower()) if not unicodedata.combining(c)
+    )
+    stopwords = {"como", "para", "puedo", "quiero", "ayuda", "sobre", "tengo", "desde"}
+    aliases = {"cierro": "cerrar", "cierre": "cerrar", "abro": "abrir", "configura": "configurar"}
+    # Normalize accents/plurals without broad prefixes that confuse, for example,
+    # a business horario with a zona horaria.
+    words = {word.removesuffix("s") for word in re.findall(r"\w{4,}", normalized)
+             if word not in stopwords}
+    return {aliases.get(word, word) for word in words}
+
+
 def search(db, tenant, user, query: str) -> list[dict]:
     if not 1 <= len(query) <= 400:
         raise HTTPException(422, "Consulta de conocimiento inválida.")
     matches = []
-    words = set(re.findall(r"\w{4,}", query.lower()))
-    for key, (title, content, path) in GUIDES.items():
-        if words & set(re.findall(r"\w{4,}", (title + " " + content).lower())):
+    words = guide_terms(query)
+    ranked = sorted(
+        GUIDES.items(),
+        key=lambda item: -(
+            2 * len(words & guide_terms(item[1][0]))
+            + len(words & guide_terms(item[1][1]))
+        ),
+    )
+    for key, (title, content, path) in ranked:
+        if words & guide_terms(title + " " + content):
             matches.append(
                 {
                     "id": key,

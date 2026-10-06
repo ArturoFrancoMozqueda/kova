@@ -105,6 +105,66 @@ bolita visible con sesión autorizada. Hasta esas comprobaciones, no declarar el
 funcional. Los datos del negocio solo salen al proveedor tras aceptar el consentimiento
 del producto.
 
+## Mejora de capacidad gratuita para Sweet Home — 2026-10-06
+
+El operador indicó que actualmente prueba con Sweet Home y pidió priorizar una prueba
+sin gasto adicional de inferencia. La corrección local conserva los máximos gratuitos
+de configuración: `ASSISTANT_DAILY_BUDGET=9000` y `ASSISTANT_CHAT_BUDGET=8000`.
+Cloudflare publica diez mil neuronas gratuitas al día por cuenta, con renovación a
+medianoche UTC; [tarifas verificadas](https://developers.cloudflare.com/workers-ai/platform/pricing/).
+El worker de Fly y otros recursos conservan su costo propio. Estos contadores no pueden
+garantizar la factura completa de una cuenta que también ejecuta otras aplicaciones.
+
+Cambios de comportamiento:
+
+- Se elimina el máximo independiente de treinta mensajes diarios. Se conservan tres
+  consultas por minuto, concurrencia y el presupuesto compartido atómico.
+- Cada persona puede utilizar hasta la parte completa de su negocio. El contador del
+  negocio sigue compartido: dos personas no duplican su cuota. Se retira el descuento
+  personal anterior de un cuarto, que impedía aprovechar capacidad todavía disponible.
+- El chat de lectura realiza una planificación y una explicación final después de
+  consultar sus herramientas; se elimina la planificación adicional redundante.
+- Antes de cada llamada se persiste una reserva con identificador y día UTC. Solo el
+  uso completo y coherente reportado por Llama permite liberar la parte no utilizada,
+  conservando el margen de estimación del quince por ciento. El esquema del proveedor
+  publica `prompt_tokens`, `completion_tokens` y `total_tokens` en
+  [su contrato de salida](https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/sync-output.json).
+  Uso ausente, cero, incompleto, con campos adicionales o de modelos con razonamiento
+  conserva la reserva completa. Un consumo superior al límite reservado detiene la
+  consulta. La conciliación y su comprobante se confirman juntos; los reintentos
+  concurrentes no pueden liberar la misma reserva dos veces ni descontar de otro día.
+- Las guías publicadas cubren Caja, Turnos, reposición y significado de métricas, con
+  búsqueda de plurales y acentos sin embeddings para las guías públicas. Las instrucciones
+  piden explicar hallazgo, significado y siguiente acción sin inventar causas.
+- Inventario envía hasta cinco alertas de las disponibles en el reporte, con tamaño de
+  muestra explícito, fechas y valoración. El reporte base entrega hasta diez alertas;
+  el conteo comunicado no representa todos los productos del negocio. Las tarjetas
+  muestran existencias reales, duración estimada o historial insuficiente y costos
+  faltantes. No se modifican las definiciones de ventas o inventario.
+
+Para aplicar la capacidad máxima después del release aprobado, ajustar únicamente las
+dos variables de presupuesto anteriores en el runtime. El piloto de lectura se activó
+inicialmente con 6000/5000: los valores existentes pueden prevalecer sobre los defaults.
+El reparto fijado al comenzar el día se conserva hasta la siguiente renovación UTC;
+no borrar contadores ni asignaciones para aparentar una cuota nueva. Verificar antes
+el consumo externo de esa cuenta y mantener margen para él. No hace falta contratar
+inferencia de pago para esta corrección.
+
+Archivos afectados: `backend/app/assistant/{budget,generation,knowledge,provider,repository,tools}.py`,
+`frontend/src/assistant/{AssistantCompanion,AssistantView,EvidenceCards}.tsx`, el DTO de tarjetas
+en `frontend/src/assistant/api.ts`, `backend/app/tests/test_assistant.py`, el nuevo
+`frontend/src/assistant/EvidenceCards.test.tsx` y esta guía. El test previo de etapas de
+planificación pasa de tres llamadas a dos porque ese comportamiento cambió; conserva
+las comprobaciones de evidencia y no publica la prosa de planificación.
+
+Validación local: 64 tests backend del asistente con Postgres/pgvector real, incluida
+conciliación concurrente, ACL/RLS y contexto retirado; 18 tests de sus componentes;
+typecheck, lint, contratos, build/SSR/prerender y revisión de secretos del bundle. El navegador
+comprueba apertura, privacidad del borrador
+y continuidad a 320 y 1280 px con API simulada. No acredita respuesta live del modelo,
+calidad general ni factura real. Release y verificación autenticada en Sweet Home
+siguen pendientes de aprobación de producción.
+
 ## Comportamiento implementado
 
 - `/assistant`: conversaciones privadas, configuración con vista previa y confirmación, archivos,
@@ -178,10 +238,11 @@ como máximo 9,000/día: 8,000 chat y el resto ingesta. El reset del contador es
 
 - La primera reserva congela la cohorte y el presupuesto de ese día. Añadir negocios espera al
   siguiente día; bajar un límite surte efecto inmediatamente. No redistribuir cuota a mitad del día.
-- El pool se divide por tenant; un usuario consume como máximo 75% de la porción de su tenant.
+- El pool se divide por tenant; una persona puede utilizar toda la porción compartida de su tenant.
   Nadie puede agotar la porción asignada a otro negocio. No hay préstamos de cuota en esta versión.
-- Máximo 30 turnos diarios y tres/minuto por usuario; cuatro llamadas al modelo y ocho herramientas
-  por turno. Contexto acotado a 8,000 bytes reservados como tokens, salida a 1,024; sin fallback pagado.
+- Tres consultas/minuto por usuario, sin tope independiente de mensajes diarios; hasta cuatro
+  llamadas al modelo para configuración y dos para lectura, con ocho herramientas por turno.
+  Contexto acotado a 8,000 bytes reservados como tokens, salida a 1,024; sin fallback pagado.
 - Tres trabajos/cargas simultáneos globales, dos por tenant y uno por usuario, con leases de 11 min.
   Indexación en lotes y pausa entre iteraciones para evitar monopolizar un slot.
 - Archivos: 20 MiB para conocimiento, 2 MiB para CSV/XLSX; 100 documentos/100 MiB acumulados por
@@ -190,15 +251,18 @@ como máximo 9,000/día: 8,000 chat y el resto ingesta. El reset del contador es
 - El OCR reserva CPU antes de intentar extracción: 1,800 segundos máximos por tenant/día. El parser
   corre sin red, read-only, nonroot, sin capabilities, con RAM/CPU/PIDs/tmp/timeout acotados.
 
-Las reservas son conservadoras y **no se devuelven** al terminar; tampoco se informa que sean consumo
-exacto conciliado con Cloudflare. Tarifas, tokens de razonamiento y facturación deben verificarse en
+Las reservas son conservadoras. Para Llama, una respuesta con uso completo y coherente libera
+capacidad no utilizada de forma atómica; los demás modelos y resultados inciertos conservan
+la reserva completa. El contador mantiene margen y no representa una factura exacta conciliada
+con Cloudflare. Tarifas, tokens de razonamiento y facturación deben verificarse en
 la cuenta dedicada antes de activar. Si cambian, apagar la inferencia y actualizar contratos/pruebas.
 No se promete un número de clientes: medir consultas reales, latencia, reservas y cola por cohorte.
 Aumentar tenants reduce su porción; un techo de gasto no prueba capacidad ni calidad.
 El modelo Llama del piloto se reserva con las tarifas verificadas de 26,668 neuronas
 por millón de tokens de entrada y 204,805 por millón de salida, con margen del 15%.
-El límite temporal del piloto (6000 total/5000 chat) deja margen para el consumo externo
-observado; la cuota de Cloudflare conserva su alcance de cuenta y no es por negocio.
+El límite inicial del piloto (6000 total/5000 chat) deja margen para el consumo externo
+observado. Su ampliación gratuita a 9000/8000 está preparada, pendiente de release y revisión
+del consumo de la cuenta; la cuota de Cloudflare conserva su alcance de cuenta y no es por negocio.
 
 Referencias de operación: [tarifas Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/),
 [modelo principal](https://developers.cloudflare.com/workers-ai/models/qwen3.8-27b/),

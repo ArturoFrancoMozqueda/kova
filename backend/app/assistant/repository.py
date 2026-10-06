@@ -87,7 +87,10 @@ def view(db, tenant, user, row):
     data = dict(row.data)
     # Private job internals, session IDs, invitation ciphertext and provider
     # bookkeeping never become a public DTO or LLM context.
-    for key in ("session_id", "ciphertext", "lease_until", "remote_started", "file_hash"):
+    for key in (
+        "session_id", "ciphertext", "lease_until", "remote_started", "file_hash",
+        "pending_reservation",
+    ):
         data.pop(key, None)
     if not sources_valid(db, tenant, user, data):
         data = {

@@ -171,4 +171,4 @@ def embed(texts: list[str]) -> list[list[float]]:
 def tokens_upper_bound(value: object) -> int:
     # One token cannot encode less than one UTF-8 byte. Reserve bytes instead
     # of optimistic character/4 heuristics until a verified tokenizer is used.
-    return len(json.dumps(value, ensure_ascii=False).encode("utf-8"))
+    return len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))

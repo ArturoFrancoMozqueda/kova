@@ -20,7 +20,7 @@ const surfaces = [
   { paths: ["/orders", "/ventas", "/ordenes"], title: "Ventas", suggestion: "¿Cómo puedo revisar los resultados de mis ventas?" },
   { paths: ["/shifts", "/turnos"], title: "Turnos", suggestion: "¿Qué debo revisar antes de cerrar mi turno?" },
 ];
-const fallback = { title: "Tu negocio", suggestion: "¿Qué pendientes tengo?" };
+const fallback = { title: "Tu negocio", suggestion: "Revisa mis ventas, productos más vendidos e inventario. ¿Qué debería atender?" };
 
 export function AssistantCompanion({ enabled, suspended = false }: { enabled: boolean; suspended?: boolean }) {
   const { state } = useAuth();
@@ -167,7 +167,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
         <p className="flex items-center gap-2 text-xs text-kova-muted"><LockKeyhole size={14} />Conversación privada · Sucursal activa</p>
         {error ? <p role="alert" className="text-kova-danger">{error}</p> : null}
         {!caps || !prefs ? <p role="status">Cargando el asistente…</p> : !caps.enabled ? <p>El asistente aún no está habilitado para este negocio.</p> : <>
-          {messages.length === 0 ? <><p>Te acompaño en {surface.title.toLocaleLowerCase("es-MX")}. ¿Qué quieres resolver?</p><button type="button" className="min-h-11 w-full rounded-kova-md border border-kova-border p-3 text-left text-kova-blue hover:bg-kova-mist focus-visible:outline focus-visible:outline-2" disabled={busy || generating} onClick={() => setQuestion(surface.suggestion)}>{surface.suggestion}</button></> : null}
+          {messages.length === 0 ? <><p>Te ayudo a usar Kova y entender tu negocio con tus datos reales. ¿Qué quieres resolver?</p><button type="button" className="min-h-11 w-full rounded-kova-md border border-kova-border p-3 text-left text-kova-blue hover:bg-kova-mist focus-visible:outline focus-visible:outline-2" disabled={busy || generating} onClick={() => setQuestion(surface.suggestion)}>{surface.suggestion}</button></> : null}
           <div role="log" aria-label="Conversación del asistente" className="space-y-3">{messages.map(message => <div key={message.id} className={cn("rounded-kova-md p-3", message.data.role === "user" ? "bg-kova-mist" : "border border-kova-border")}><p className="mb-1 text-xs text-kova-muted">{message.data.role === "user" ? "Tú" : "Asistente Kova"}</p><p className="whitespace-pre-wrap break-words leading-relaxed">{message.data.content}</p></div>)}</div>
           {run?.data.metrics ? <div className="rounded-kova-md bg-kova-mist p-3"><p>Venta neta: {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(run.data.metrics.net_sales))}</p><p>Tickets: {run.data.metrics.order_count}</p><p className="mt-1 text-xs text-kova-muted">{run.data.metrics.start_date} a {run.data.metrics.end_date} · Sucursal activa</p></div> : null}
           {run?.data.cards ? <EvidenceCards cards={run.data.cards} /> : null}
@@ -181,7 +181,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
       {caps?.enabled && prefs?.chat_consent ? <form onSubmit={send} className="shrink-0 space-y-2 border-t border-kova-border p-3">
         <label htmlFor={`${panelId}-question`} className="text-xs font-medium">Tu pregunta</label>
         <div className="flex items-end gap-2"><textarea id={`${panelId}-question`} rows={2} maxLength={4000} value={question} onChange={event => setQuestion(event.target.value)} disabled={busy || generating} placeholder="Cuéntame qué necesitas…" className="min-h-11 min-w-0 flex-1 resize-none rounded-kova-md border border-kova-border p-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue" /><Button type="submit" size="icon" aria-label="Enviar pregunta" disabled={busy || generating || !question.trim() || !caps.inference_ready}><Send /></Button></div>
-        {usage ? <p className="text-xs text-kova-muted">Tu uso: {usage.user_used.toLocaleString("es-MX")} / {usage.user_limit.toLocaleString("es-MX")} unidades</p> : null}
+        {usage ? <p className="text-xs text-kova-muted">Cuota diaria compartida: {usage.tenant_used.toLocaleString("es-MX")} / {usage.tenant_limit.toLocaleString("es-MX")} unidades · Se renueva {new Date(usage.reset_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</p> : null}
       </form> : null}
       <Link to={fullPath} onClick={() => setOpen(false)} className="flex min-h-11 shrink-0 items-center justify-center gap-2 border-t border-kova-border px-3 text-sm font-medium text-kova-blue hover:bg-kova-mist">Abrir asistente completo<ArrowUpRight size={16} /></Link>
     </div> : null}
