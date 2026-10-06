@@ -343,7 +343,7 @@ def close_period(
         lock=True,
     )
     adjustments = repo.due_adjustments(
-        db, tenant_id=tenant_id, start_utc=start_utc, end_utc=end_utc
+        db, tenant_id=tenant_id, start_utc=start_utc, end_utc=end_utc, lock=True
     )
     if not snapshots and not adjustments:
         if skip_empty:
@@ -445,6 +445,11 @@ def record_individual_invoice_status(
     if stored:
         return stored.response_status or 200, stored.response_body or {}
 
+    repo.lock_fiscal_orders(db, tenant_id=tenant_id, order_ids=[order_id])
+    if repo.live_cfdi_reservation(db, tenant_id=tenant_id, order_id=order_id):
+        raise conflict(
+            "La venta tiene un CFDI vigente o en proceso. Gestiona su estado desde Facturación."
+        )
     snapshot = repo.get_order_snapshot(
         db, tenant_id=tenant_id, order_id=order_id, lock=True
     )

@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Date, cast, func, text
+from sqlalchemy import Date, cast, func, select, text
 from sqlalchemy.orm import Session
 
 from app.fiscal.models import (
@@ -15,6 +15,40 @@ from app.fiscal.models import (
     OrderItemFiscalSnapshot,
 )
 from app.orders.models import Order, OrderItem, Payment, Refund, Void
+
+
+def live_cfdi_reservation(db: Session, *, tenant_id: UUID, order_id: UUID) -> bool:
+    """Live unresolved/issued invoices reserve a sale; test documents never do."""
+    return bool(
+        db.query(_live_cfdi_reservation_clause(tenant_id, order_id)).scalar()
+    )
+
+
+def _live_cfdi_reservation_clause(tenant_id: UUID, order_id=None):
+    from app.cfdi.models import ACTIVE_STATES, CfdiDocument
+
+    document = CfdiDocument.__table__
+    return (
+        select(document.c.id)
+        .where(
+            document.c.tenant_id == tenant_id,
+            document.c.order_id == (Order.id if order_id is None else order_id),
+            document.c.environment == "live",
+            document.c.state.in_(ACTIVE_STATES),
+        )
+        .exists()
+    )
+
+
+def lock_fiscal_orders(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> None:
+    """Match issuer lock order: sale first, immutable fiscal snapshot second."""
+    if order_ids:
+        db.execute(
+            select(Order.__table__.c.id)
+            .where(Order.tenant_id == tenant_id, Order.id.in_(order_ids))
+            .order_by(Order.id)
+            .with_for_update()
+        ).all()
 
 
 def capture_baseline_snapshot(
@@ -198,11 +232,17 @@ def eligible_order_snapshots(
             sale_time >= start_utc,
             sale_time < end_utc,
             ~already_batched,
+            ~_live_cfdi_reservation_clause(tenant_id),
         )
         .order_by(sale_time, Order.id)
     )
     if lock:
-        query = query.with_for_update(of=OrderFiscalSnapshot)
+        # Re-read eligibility after waiting for the issuer/refund's sale lock.
+        # Restrict to the locked candidates: new concurrent sales belong to the
+        # next pass rather than acquiring snapshot locks without their sale lock.
+        candidates = [snapshot.order_id for snapshot in query.all()]
+        lock_fiscal_orders(db, tenant_id=tenant_id, order_ids=candidates)
+        query = query.filter(Order.id.in_(candidates)).with_for_update(of=OrderFiscalSnapshot)
     return query.all()
 
 
@@ -569,6 +609,7 @@ def due_adjustments(
     tenant_id: UUID,
     start_utc: datetime,
     end_utc: datetime,
+    lock: bool = False,
 ) -> list[dict]:
     sale_time = func.coalesce(Order.occurred_at, Order.created_at)
     sale_local_date = cast(func.timezone("America/Mexico_City", sale_time), Date)
@@ -846,10 +887,21 @@ def due_adjustments(
         )
 
     result: list[dict] = []
+    if lock:
+        lock_fiscal_orders(
+            db, tenant_id=tenant_id, order_ids=list({row["order_id"] for row in pending})
+        )
     for row in pending:
         state = states[row["order_id"]]
         balance = max(Decimal("0.00"), Decimal(state["balance"]))
         kind = row["kind"]
+        if kind in {"late_order", "reopened"} and live_cfdi_reservation(
+            db, tenant_id=tenant_id, order_id=row["order_id"]
+        ):
+            # Keep source events unconsumed so cancellation/reconciliation can
+            # release inclusion in a later close. Existing exclusions and money
+            # corrections remain append-only and are still processed below.
+            continue
         if kind == "late_order":
             adjustment_type = "late_inclusion"
             amount = net_at(row) if not state["included"] else Decimal("0.00")

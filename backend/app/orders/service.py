@@ -21,7 +21,7 @@ from app.orders import repository as repo
 from app.orders.models import Order, Payment
 from app.orders.schemas import OrderCreate, PaymentCreate, RefundCreate
 from app.pricing import calculator
-from app.shared.exceptions import bad_request, not_found
+from app.shared.exceptions import bad_request, conflict, not_found
 from app.shifts import repository as shifts_repo
 from app.tenants import repository as tenant_repo
 
@@ -620,6 +620,9 @@ def create_refund(
     if not order:
         raise not_found("Order not found")
 
+    if fiscal_repo.live_cfdi_reservation(db, tenant_id=tenant_id, order_id=order_id):
+        raise conflict("Cancela o resuelve el CFDI vigente antes de devolver esta venta.")
+
     if order.status == "voided":
         raise bad_request("Cannot refund a voided order")
 
@@ -884,6 +887,9 @@ def create_void(
     order = repo.get_order_for_update(db, tenant_id=tenant_id, order_id=order_id)
     if not order:
         raise not_found("Order not found")
+
+    if fiscal_repo.live_cfdi_reservation(db, tenant_id=tenant_id, order_id=order_id):
+        raise conflict("Cancela o resuelve el CFDI vigente antes de anular esta venta.")
 
     if order.status == "voided":
         raise bad_request("Order is already voided")
