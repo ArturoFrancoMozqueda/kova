@@ -1,9 +1,43 @@
 # Asistente de Kova: operación y activación del piloto
 
-Implementación en `codex/tenant-assistant`, basada en `main` (`ddd195d`). Fecha: 2026-10-06.
+Implementación integrada en `main` mediante PR #158 (`204f024`). Fecha: 2026-10-06.
 El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
+
+## Estado de activación — 2026-10-06
+
+El código y Alembic `0075_assistant` ya llegaron a producción con los flags del asistente
+apagados. El release de `204f024` pasó CI y las verificaciones públicas de frontend,
+proxy y backend. En producción se verificaron pgvector 0.8.0 en `extensions`, FORCE RLS,
+las ACL restrictivas y el rol `kova_app` sin superuser ni BYPASSRLS.
+
+La autorización local de Wrangler está confirmada. Se creó `kova-assistant` en R2 y se
+verificó que `r2.dev` está deshabilitado; no se cargaron documentos del piloto. La sesión
+OAuth sirve para administrar estos recursos, pero la API rechazó la gestión de tokens
+con HTTP 403. No reutilizar ese OAuth personal como credencial de producción.
+
+Las pruebas live sintéticas confirmaron disponibilidad del modelo principal y del modelo
+de ayuda, tool calls compatibles con `get_configuration` y embeddings de 1024 dimensiones.
+Con el límite de producción de 1024 tokens, el principal completó una respuesta JSON que
+pasó los controles de prosa y fuentes. El modelo de ayuda completó JSON, pero su prosa
+incluyó dígitos y no pasó ese contrato. Reducir la salida a 256 tokens agotó el límite de
+ambos modelos antes de obtener contenido final. Estos resultados explican por qué no se
+habilitó `ASSISTANT_PROVIDER_VERIFIED`; no sustituyen los 200 casos del plan ni prueban
+la calidad general, el consumo de razonamiento o la retención del proveedor.
+
+Para continuar se requieren un token exclusivo de Workers AI (Read/Edit de la cuenta)
+y claves R2 Object Read & Write limitadas a `kova-assistant`, ingresados directamente
+en los secretos del backend. Nunca enviar sus valores por chat. La creación/entrada
+manual puede hacerse desde un navegador móvil cuando no hay una sesión de dashboard
+disponible para el operador. Referencias: [token AI](https://developers.cloudflare.com/workers-ai/get-started/rest-api/),
+[claves R2](https://developers.cloudflare.com/r2/api/tokens/).
+
+La configuración de un proceso Fly separado para chat/retención está preparada en
+`codex/assistant-runtime`, sin desplegar. Crear esa máquina agrega costo de cómputo y
+requiere un presupuesto explícito. No hay host de ingesta desplegado: documentos,
+mutaciones y correo siguen apagados. La cohorte del piloto está identificada, pero sus
+UUIDs, contactos y credenciales se mantienen fuera de esta documentación pública.
 
 ## Comportamiento implementado
 
