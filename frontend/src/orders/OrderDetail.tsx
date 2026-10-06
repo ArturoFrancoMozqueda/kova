@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuthContext } from "@/auth/AuthContext";
 import { useParams } from "react-router-dom";
 import {
   ORDER_REFUND_PERMISSION,
@@ -40,6 +41,8 @@ type RefundIntent = {
 export default function OrderDetail() {
   useDocumentTitle(copy.documentTitles.orderDetail);
   const { orderId } = useParams();
+  const { state: authState } = useAuthContext();
+  const canPrepareInvoice = authState.status === "authenticated" && authState.user.role === "owner";
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<"refund" | "void" | null>(null);
   const [operationPending, setOperationPending] = useState(false);
@@ -230,6 +233,7 @@ export default function OrderDetail() {
             meta={<span className="tabular-nums text-sm">{orderId?.slice(0, 8)}</span>}
             actions={
               <div className="flex items-center gap-2 flex-wrap">
+                {canPrepareInvoice && order.status === "completed" && receipt.status === "completed" && !receipt.void && receipt.refunds.length === 0 && <Link to={`/settings/integrations?order_id=${encodeURIComponent(order.id)}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>Preparar factura</Link>}
                 <Badge variant={isVoided ? "destructive" : "success"} className="text-sm">
                   {isVoided ? copy.orderDetail.voided : copy.orderDetail.completed}
                 </Badge>
