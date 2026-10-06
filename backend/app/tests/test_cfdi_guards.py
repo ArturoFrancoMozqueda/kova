@@ -1,17 +1,23 @@
 """A live CFDI reserves money and fiscal inclusion until definitively released."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Event
+from time import monotonic, sleep
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from app.auth.models import Membership
+from app.auth.models import Membership, User
 from app.cfdi.models import ACTIVE_STATES, CfdiConnection, CfdiDocument
 from app.fiscal import repository as fiscal_repo
-from app.fiscal.models import FiscalIndividualInvoiceEvent
+from app.fiscal.models import FiscalIndividualInvoiceEvent, OrderFiscalSnapshot
 from app.fiscal.service import FISCAL_TIMEZONE
 from app.integrations.models import InvoiceRequest
 from app.orders.models import Order, Refund, Void
+from app.tenants.models import Tenant
 from app.tests.test_fiscal_global_drafts import (
     _daily_settings,
     _enable,
@@ -22,7 +28,7 @@ from app.tests.test_fiscal_global_drafts import (
 )
 
 
-def _reserve(db, tenant, sale, *, environment="live", state="prepared"):
+def _reserve(db, tenant, sale, *, environment="live", state="prepared", commit=True):
     order = db.get(Order, UUID(sale["id"]))
     owner = db.query(Membership).filter_by(tenant_id=tenant).one()
     connection = CfdiConnection(
@@ -60,7 +66,9 @@ def _reserve(db, tenant, sale, *, environment="live", state="prepared"):
         created_by_user_id=owner.user_id,
     )
     db.add(document)
-    db.commit()
+    db.flush()
+    if commit:
+        db.commit()
     return document
 
 
@@ -250,3 +258,124 @@ def test_pending_cancel_preserves_exclusion_and_defers_reopened_inclusion(client
     original = client.get(f"/api/v1/fiscal/global-drafts/{closed.json()['id']}")
     assert original.status_code == 200
     assert original.json()["total_amount"] == "100.00"
+
+
+@pytest.mark.parametrize("kind", ("current_period", "late_inclusion"))
+@pytest.mark.parametrize("commit_reservation", (True, False))
+def test_global_waits_for_sale_reservation_commit_or_rollback(kind, commit_reservation):
+    """Use real independent transactions and prove the waiter is blocked by PG."""
+    from migration_tests.test_0065_tenant_hardening import _run_alembic, _temporary_database
+
+    with _temporary_database() as (url, engine):
+        _run_alembic(url, "head")
+        tenant, user, sale_id = uuid4(), uuid4(), uuid4()
+        start = datetime(2026, 9, 20, 6, tzinfo=UTC)
+        end = start + timedelta(days=1)
+        sale_time = start + timedelta(hours=6)
+        if kind == "late_inclusion":
+            sale_time -= timedelta(days=1)
+        with Session(engine) as seed:
+            seed.add(Tenant(id=tenant, name="Concurrent fiscal shop", slug=str(tenant)))
+            seed.add(
+                User(
+                    id=user,
+                    email=f"{user}@example.com",
+                    hashed_password="test-hash",
+                    created_at=start,
+                    updated_at=start,
+                )
+            )
+            seed.flush()
+            seed.add(Membership(tenant_id=tenant, user_id=user, role="owner", created_at=start))
+            sale = Order(
+                id=sale_id,
+                tenant_id=tenant,
+                branch_id=tenant,
+                status="completed",
+                subtotal_amount=100,
+                total_amount=100,
+                occurred_at=sale_time,
+                created_at=start + timedelta(hours=6),
+            )
+            seed.add(sale)
+            seed.flush()
+            seed.add(
+                OrderFiscalSnapshot(
+                    tenant_id=tenant,
+                    order_id=sale_id,
+                    gross_amount=100,
+                    discount_total_amount=0,
+                    tax_total_amount=0,
+                    total_amount=100,
+                    pricing_engine_version="baseline-v1",
+                    tax_calculation_status="not_calculated",
+                    currency="MXN",
+                )
+            )
+            if kind == "late_inclusion":
+                # This is an already-closed operational period; the newly synced
+                # sale belongs there, but was not part of its original assignment.
+                day = sale_time.astimezone(FISCAL_TIMEZONE).date()
+                fiscal_repo.create_batch(
+                    seed,
+                    tenant_id=tenant,
+                    user_id=user,
+                    frequency="daily",
+                    period_start=day,
+                    period_end=day,
+                    snapshots=[],
+                    refund_totals={},
+                    excluded_individually_confirmed_count=0,
+                    business_name="Concurrent shop",
+                    adjustments=[],
+                )
+            seed.commit()
+
+        waiter_ready = Event()
+        waiter_pid = []
+
+        def close_candidate():
+            with Session(engine) as closing:
+                closing.execute(text("SET LOCAL statement_timeout = '10s'"))
+                waiter_pid.append(closing.scalar(text("SELECT pg_backend_pid()")))
+                waiter_ready.set()
+                if kind == "late_inclusion":
+                    rows = fiscal_repo.due_adjustments(
+                        closing, tenant_id=tenant, start_utc=start, end_utc=end, lock=True
+                    )
+                    return [row["order_id"] for row in rows]
+                rows = fiscal_repo.eligible_order_snapshots(
+                    closing, tenant_id=tenant, start_utc=start, end_utc=end, lock=True
+                )
+                return [row.order_id for row in rows]
+
+        with Session(engine) as issuing, ThreadPoolExecutor(max_workers=1) as executor:
+            issuing.query(Order).filter_by(tenant_id=tenant, id=sale_id).with_for_update().one()
+            _reserve(issuing, tenant, {"id": str(sale_id)}, commit=False)
+            result = executor.submit(close_candidate)
+            try:
+                assert waiter_ready.wait(5), "global closer did not start"
+                deadline = monotonic() + 5
+                blocked = False
+                while monotonic() < deadline:
+                    with engine.connect() as monitor:
+                        blocked = monitor.scalar(
+                            text(
+                                "SELECT wait_event_type = 'Lock' FROM pg_stat_activity "
+                                "WHERE pid = :pid"
+                            ),
+                            {"pid": waiter_pid[0]},
+                        )
+                    if blocked or result.done():
+                        break
+                    sleep(0.01)
+                assert blocked, "global closer must wait for the issuer's actual sale lock"
+                if commit_reservation:
+                    issuing.commit()
+                else:
+                    issuing.rollback()
+                assert result.result(timeout=10) == ([] if commit_reservation else [sale_id])
+            finally:
+                # Release the lock even if an assertion fails, before joining the
+                # worker, so failed tests cannot hang the rest of the suite.
+                issuing.rollback()
