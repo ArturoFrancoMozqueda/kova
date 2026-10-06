@@ -205,7 +205,13 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     const { container } = renderHome();
     const landingText = container.textContent ?? "";
 
-    expect(landingText).toContain("Beta privada controlada");
+    expect(landingText).not.toContain("Beta privada controlada");
+    expect(container.querySelector(".lp-hero-pricing")).toHaveTextContent(
+      /\$299 MXN\/mes\s*·\s*7 días gratis · Sin tarjeta/,
+    );
+    expect(container.querySelector("#cta-final")).toHaveTextContent(
+      "7 días gratis · Sin tarjeta · Cancela cuando quieras",
+    );
     expect(landingText).toContain("tarjeta manual");
     expect(
       screen.getByRole("button", { name: "¿Kova procesa cobros con tarjeta?" }),
@@ -243,9 +249,11 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(screen.getByText("¿Qué producto se mueve?")).toBeInTheDocument();
     expect(screen.getByText("¿Cuándo vendo más?")).toBeInTheDocument();
     expect(screen.getByText("¿Qué necesita atención?")).toBeInTheDocument();
-    expect(
-      screen.getByAltText(/Reportes de Kova con ventas netas/i),
-    ).toHaveAttribute("loading", "lazy");
+    const analysisImage = screen.getByAltText(/Análisis de Kova con ventas netas/i);
+    expect(analysisImage).toHaveAttribute("src", "/showcase/analysis-story.jpeg");
+    expect(analysisImage).toHaveAttribute("width", "3196");
+    expect(analysisImage).toHaveAttribute("height", "1811");
+    expect(analysisImage).toHaveAttribute("loading", "lazy");
   });
 
   it("does not render decorative live or browser dots", () => {

@@ -39,7 +39,7 @@ export const copy = {
       ctaPrimary: "Probar Kova gratis",
       ctaSecondary: "Ver cómo funciona",
       dailyNote: `≈ $${STANDARD_PLAN_DAILY_APPROX} al día`,
-      trialBadge: `Beta privada controlada · ${BILLING_TRIAL_LABEL} gratis · Sin tarjeta`,
+      trialBadge: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta`,
     },
     benefits: {
       eyebrow: "Lo esencial, conectado",
@@ -163,7 +163,7 @@ export const copy = {
       eyebrow: "Respuestas, no ruido",
       title: "Tus ventas se convierten en respuestas para el negocio.",
       body: "Kova reúne lo que pasó en caja para que puedas revisar el día sin perseguir tickets ni volver a hacer cuentas.",
-      alt: "Reportes de Kova con ventas netas, ticket promedio, mejores horarios y producto top.",
+      alt: "Análisis de Kova con ventas netas, comparación con el periodo anterior, productos más vendidos y mejores horarios.",
       questionsLabel: "Preguntas que responde Reportes",
       questions: ["¿Cuánto vendí?", "¿Qué producto se mueve?", "¿Cuándo vendo más?", "¿Qué necesita atención?"],
       insights: [
@@ -334,7 +334,7 @@ export const copy = {
       body: "Crea tu cuenta, carga tus productos, abre tu turno y empieza a cobrar.",
       steps: ["Crea tu cuenta", "Carga tus productos", "Abre tu turno", "Cobra"],
       button: "Probar Kova gratis",
-      fineprint: `Beta privada controlada · ${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
+      fineprint: `${BILLING_TRIAL_LABEL} gratis · Sin tarjeta · Cancela cuando quieras`,
     },
     testimonials: {
       eyebrow: "Clientes reales",

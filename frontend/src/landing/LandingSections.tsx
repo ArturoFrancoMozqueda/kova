@@ -192,10 +192,10 @@ export function ReportsSpotlight() {
           <figure className={styles.reportFrame}>
             <div className={styles.reportViewport}>
               <img
-                src="/showcase/reports.png"
+                src="/showcase/analysis-story.jpeg"
                 alt={t.reportsSpotlight.alt}
-                width={1440}
-                height={900}
+                width={3196}
+                height={1811}
                 loading="lazy"
                 decoding="async"
               />
