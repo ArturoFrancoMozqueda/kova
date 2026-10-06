@@ -66,6 +66,13 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
       .then((shift) => {
         if (cancelled) return;
         setOpenShift(Boolean(shift));
+        if (!shift) {
+          setPayments((current) => current.map((payment) =>
+            payment.method === "cash"
+              ? { ...payment, method: "bank_transfer", tendered: "" }
+              : payment,
+          ));
+        }
         setShiftCheckFailed(false);
       })
       .catch(() => {
@@ -76,14 +83,6 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
     };
   }, []);
 
-  useEffect(() => {
-    if (openShift !== false) return;
-    setPayments((current) => current.map((payment) =>
-      payment.method === "cash"
-        ? { ...payment, method: "bank_transfer", tendered: "" }
-        : payment,
-    ));
-  }, [openShift]);
 
   const totalCents = moneyToCents(order?.total_amount ?? "0");
   const assignedCents = payments.reduce((sum, payment) => sum + moneyToCents(payment.amount), 0);
