@@ -1,5 +1,9 @@
 import { useAuthContext } from "./AuthContext";
 
+export const CUSTOMERS_VIEW_PERMISSION = "customers.view";
+export const CUSTOMERS_MANAGE_PERMISSION = "customers.manage";
+export const CUSTOMERS_HISTORY_PERMISSION = "customers.history";
+
 export const CATALOG_CREATE_PERMISSION = "catalog.create";
 export const CATALOG_UPDATE_PERMISSION = "catalog.update";
 export const CATALOG_DELETE_PERMISSION = "catalog.delete";
@@ -21,6 +25,9 @@ export const BILLING_MANAGE_PERMISSION = "billing.manage";
 
 const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
   owner: [
+    CUSTOMERS_VIEW_PERMISSION,
+    CUSTOMERS_MANAGE_PERMISSION,
+    CUSTOMERS_HISTORY_PERMISSION,
     CATALOG_CREATE_PERMISSION,
     CATALOG_UPDATE_PERMISSION,
     CATALOG_DELETE_PERMISSION,
@@ -41,6 +48,9 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     BILLING_MANAGE_PERMISSION,
   ],
   manager: [
+    CUSTOMERS_VIEW_PERMISSION,
+    CUSTOMERS_MANAGE_PERMISSION,
+    CUSTOMERS_HISTORY_PERMISSION,
     CATALOG_CREATE_PERMISSION,
     CATALOG_UPDATE_PERMISSION,
     CATALOG_DELETE_PERMISSION,
@@ -59,6 +69,7 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     SHIFT_CLOSE_PERMISSION,
   ],
   cashier: [
+    CUSTOMERS_VIEW_PERMISSION,
     ORDER_CREATE_PERMISSION,
     CUSTOMER_ORDER_VIEW_PERMISSION,
     CUSTOMER_ORDER_CREATE_PERMISSION,
@@ -69,6 +80,7 @@ const ROLE_PERMISSIONS: Record<string, ReadonlyArray<string>> = {
     SHIFT_CLOSE_PERMISSION,
   ],
   staff: [
+    CUSTOMERS_VIEW_PERMISSION,
     ORDER_CREATE_PERMISSION,
     CUSTOMER_ORDER_VIEW_PERMISSION,
     CUSTOMER_ORDER_CREATE_PERMISSION,
