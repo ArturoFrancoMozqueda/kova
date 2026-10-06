@@ -54,6 +54,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     sku: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    barcode: Mapped[str | None] = mapped_column(String(100), nullable=True)
     price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     cost_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     track_inventory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -70,6 +71,7 @@ class Product(Base):
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "sku", name="uq_products_tenant_sku"),
+        UniqueConstraint("tenant_id", "barcode", name="uq_products_tenant_barcode"),
         UniqueConstraint("tenant_id", "id", name="uq_products_tenant_id_id"),
         ForeignKeyConstraint(
             ["tenant_id", "category_id"],

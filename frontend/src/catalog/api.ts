@@ -115,6 +115,7 @@ function productPayload(body: ProductCreate | ProductUpdate) {
     name: body.name,
     description: body.description,
     sku: body.sku,
+    barcode: body.barcode,
     price_amount: body.price_amount,
     cost_price: body.cost_price,
     category_id: body.category_id,

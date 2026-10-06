@@ -35,6 +35,7 @@ export type Product = {
   name: string;
   description: string | null;
   sku: string | null;
+  barcode?: string | null;
   price_amount: string;
   // Optional for compatibility with catalog rows cached by older PWA bundles.
   // The API returns null when cost is unknown or hidden for the current role.
@@ -66,6 +67,7 @@ export type ProductCreate = {
   name: string;
   description?: string | null;
   sku?: string | null;
+  barcode?: string | null;
   price_amount: string;
   cost_price?: string | null;
   category_id?: string | null;
@@ -80,6 +82,7 @@ export type ProductUpdate = {
   name?: string;
   description?: string | null;
   sku?: string | null;
+  barcode?: string | null;
   price_amount?: string;
   cost_price?: string | null;
   category_id?: string | null;
@@ -97,6 +100,7 @@ export type CatalogImportRow = {
   normalized: {
     name: string;
     sku: string | null;
+  barcode?: string | null;
     price_amount: string | null;
     cost_price: string | null;
     category_name: string | null;

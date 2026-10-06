@@ -59,6 +59,13 @@ class ProductCreate(StrictModel):
     name: str = Field(min_length=1, max_length=160)
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
+    barcode: str | None = Field(default=None, max_length=100, pattern=r"^[!-~]+$")
+
+    @field_validator("barcode", mode="before")
+    @classmethod
+    def _barcode_normalize(cls, value):
+        return value.strip() or None if isinstance(value, str) else value
+
     price_amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
@@ -80,6 +87,13 @@ class ProductUpdate(StrictModel):
     )
     description: str | None = Field(default=None, max_length=1000)
     sku: str | None = Field(default=None, max_length=100)
+    barcode: str | None = Field(default=None, max_length=100, pattern=r"^[!-~]+$")
+
+    @field_validator("barcode", mode="before")
+    @classmethod
+    def _barcode_normalize(cls, value):
+        return value.strip() or None if isinstance(value, str) else value
+
     price_amount: Decimal | None = Field(
         default=None,
         ge=0,
@@ -128,6 +142,7 @@ class ProductResponse(BaseModel):
     name: str
     description: str | None
     sku: str | None
+    barcode: str | None = None
     price_amount: Decimal
     cost_price: Decimal | None
     track_inventory: bool
