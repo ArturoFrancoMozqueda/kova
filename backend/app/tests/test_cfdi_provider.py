@@ -167,7 +167,7 @@ def test_cancel_200_preserves_pending_sat_status_and_substitution_query(state):
 @pytest.mark.parametrize(
     "status,code,definitive,transient",
     [
-        (400, "provider_invalid_request", True, False),
+        (400, "provider_invalid_request", False, False),
         (401, "provider_authentication_failed", True, False),
         (402, "provider_subscription_required", True, False),
         (403, "provider_access_denied", True, False),
@@ -300,3 +300,96 @@ def test_invalid_numeric_payload_rejected_locally(value):
         with pytest.raises(ProviderError) as error:
             client.create_invoice({"price": value}, "stable")
     assert error.value.code == "provider_invalid_payload"
+
+
+@pytest.mark.parametrize("status", [400, 409])
+@pytest.mark.parametrize("nested", [False, True])
+def test_idempotency_in_use_reserves_unknown_even_when_http400(status, nested):
+    body = (
+        {
+            "code": "invalid_request",
+            "errors": [
+                {
+                    "code": "idempotency_key_in_use",
+                    "source": "facturapi",
+                    "message": f"secret {TEST_KEY}",
+                }
+            ],
+        }
+        if nested
+        else {"code": "idempotency_key_in_use", "message": f"secret {TEST_KEY}"}
+    )
+    with provider(lambda _: httpx.Response(status, json=body)) as client:
+        with pytest.raises(ProviderError) as error:
+            client.create_invoice({}, "stable")
+    assert error.value.code == "provider_idempotency_in_use"
+    assert error.value.definitive is False and error.value.transient is True
+    assert TEST_KEY not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"code": "invoice_stamping_failed"},
+        {"code": "invoice_stamping_service_unavailable"},
+        {
+            "code": "invoice_stamping_validation_error",
+            "errors": [{"source": "pac", "code": "402", "message": "taxpayer secret"}],
+        },
+        {"code": "invalid_request", "errors": [{"source": "sat", "code": "CFDI40145"}]},
+        {"code": "future_provider_error"},
+        {"code": []},
+        {"code": "invalid_request", "errors": [{"source": "facturapi", "code": []}]},
+    ],
+)
+def test_external_or_unrecognized_400_cannot_release_invoice_reservation(body):
+    with provider(lambda _: httpx.Response(400, json=body)) as client:
+        with pytest.raises(ProviderError) as error:
+            client.create_invoice({}, "stable")
+    assert error.value.definitive is False
+    assert error.value.code == "provider_invalid_request"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"code": "invalid_request", "errors": [{"source": "facturapi", "code": "required"}]},
+        {"code": "invalid_json"},
+        {"code": "product_key_not_found"},
+        {"code": "tax_system_not_in_catalog"},
+    ],
+)
+def test_documented_local_validation_is_definitive(body):
+    with provider(lambda _: httpx.Response(400, json=body)) as client:
+        with pytest.raises(ProviderError) as error:
+            client.create_invoice({}, "stable")
+    assert error.value.definitive is True
+    assert error.value.code == "provider_invalid_request"
+
+
+def test_opaque_printable_key_suffix_accepts_dot_padding_and_keeps_mode_check():
+    key = "sk_test_opaque.part+/padded=="
+
+    def handle(request):
+        assert request.headers["Authorization"] == f"Bearer {key}"
+        return httpx.Response(200, json={"id": ID})
+
+    with FacturapiProvider(key, "test", transport=httpx.MockTransport(handle)) as client:
+        assert client.organization()["id"] == ID
+    for tail in ("white space", "line\nfeed", "control\x00", "del\x7f", "nonasciié"):
+        with pytest.raises(ProviderError):
+            FacturapiProvider("sk_test_" + tail)
+
+
+def test_error_body_has_small_independent_stream_limit():
+    from app.cfdi.provider import MAX_ERROR_BYTES
+
+    with provider(
+        lambda _: httpx.Response(
+            400, headers={"Content-Length": str(MAX_ERROR_BYTES + 1)}, content=b"error"
+        )
+    ) as client:
+        with pytest.raises(ProviderError) as error:
+            client.download_xml(ID)
+    assert error.value.code == "provider_response_too_large"
+    assert error.value.definitive is False
