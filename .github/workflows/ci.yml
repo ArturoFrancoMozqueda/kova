@@ -366,6 +366,11 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
+      - name: Retain or provision dedicated fiscal credential encryption
+        run: python3 ../scripts/ensure_cfdi_storage_key.py
+        working-directory: backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       - name: Deploy backend image from this commit
         # Both values identify the exact deployed commit: KOVA_RELEASE_SHA is
         # immutable image metadata and GIT_SHA is surfaced in Kova Ops/Sentry.

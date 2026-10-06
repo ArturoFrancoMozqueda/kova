@@ -1,11 +1,14 @@
 import hashlib
 import json
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit
 from app.branches.scope import active_branch_id
+from app.cfdi.credentials import storage_available
+from app.cfdi.models import CfdiConnection
 from app.fiscal.models import OrderFiscalSnapshot
 from app.idempotency import service as idempotency
 from app.integrations.models import FiscalIssuerProfile, InvoiceRequest
@@ -22,7 +25,29 @@ from app.tenants.models import Tenant
 
 def readiness(db: Session, tenant_id: UUID) -> ReadinessResponse:
     row = db.query(FiscalIssuerProfile).filter_by(tenant_id=tenant_id).first()
-    return ReadinessResponse(issuer=FiscalIdentity(**row.fiscal_data) if row else None)
+    connections = db.query(CfdiConnection).filter_by(tenant_id=tenant_id).all()
+    live = next(
+        (connection for connection in connections if connection.environment == "live"), None
+    )
+    ready = bool(
+        live
+        and storage_available()
+        and live.production_ready
+        and live.certificate_expires_at
+        and live.certificate_expires_at > datetime.now(UTC)
+        and row
+        and live.issuer_rfc == row.fiscal_data.get("rfc")
+    )
+    state = (
+        ("live_ready" if ready else "live_not_ready")
+        if live
+        else ("test_connected" if connections else "not_connected")
+    )
+    return ReadinessResponse(
+        issuer=FiscalIdentity(**row.fiscal_data) if row else None,
+        cfdi_status=state,
+        can_issue_cfdi=ready,
+    )
 
 
 def save_issuer(

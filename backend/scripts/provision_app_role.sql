@@ -130,6 +130,8 @@ BEGIN
             ('inventory_transfers', 'SELECT, INSERT'),
             ('fiscal_issuer_profiles', 'SELECT, INSERT'),
             ('invoice_requests', 'SELECT, INSERT'),
+            ('cfdi_connections', 'SELECT, INSERT'),
+            ('cfdi_documents', 'SELECT, INSERT'),
             ('customer_order_item_modifiers', 'SELECT, INSERT, DELETE'),
             ('customer_order_items', 'SELECT, INSERT, DELETE'),
             ('customer_orders', 'SELECT, INSERT, UPDATE'),
@@ -208,6 +210,13 @@ DO $$ BEGIN
     END IF;
     IF to_regclass('public.fiscal_issuer_profiles') IS NOT NULL THEN
         GRANT UPDATE (fiscal_data) ON TABLE fiscal_issuer_profiles TO kova_app;
+    END IF;
+    IF to_regclass('public.cfdi_connections') IS NOT NULL THEN
+        GRANT UPDATE (organization_id, encrypted_api_key, issuer_rfc, production_ready,
+            certificate_expires_at, refreshed_at) ON cfdi_connections TO kova_app;
+        GRANT UPDATE (state, provider_id, uuid, xml_bytes, last_error_code, cancellation_status,
+            cancellation_key, cancellation_hash, cancellation_payload, confirmed_at, canceled_at,
+            updated_at) ON cfdi_documents TO kova_app;
     END IF;
     IF to_regclass('public.branches') IS NOT NULL THEN
         GRANT UPDATE (name, address) ON TABLE branches TO kova_app;

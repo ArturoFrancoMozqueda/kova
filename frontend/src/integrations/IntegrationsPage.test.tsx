@@ -6,9 +6,12 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { IntegrationContents, IntegrationsPage } from "./IntegrationsPage";
 import { createInvoiceRequest, getReadiness, listInvoiceRequests } from "./api";
-import { listOrders } from "@/orders/api";
+import { getOrder, listOrders } from "@/orders/api";
+// Keep request-creation tests isolated; CFDI provider lifecycle has its own suite.
+vi.mock("./CfdiPanel", () => ({ CfdiPanel: () => null }));
 const auth = vi.hoisted(() => ({ role: "owner" }));
 vi.mock("@/auth/AuthContext", () => ({
   useAuthContext: () => ({
@@ -17,6 +20,7 @@ vi.mock("@/auth/AuthContext", () => ({
 }));
 vi.mock("@/orders/api", () => ({
   listOrders: vi.fn().mockResolvedValue({ items: [] }),
+  getOrder: vi.fn(),
 }));
 vi.mock("./api", () => ({
   getReadiness: vi.fn(),
@@ -58,6 +62,32 @@ describe("IntegrationsPage", () => {
       screen.queryByRole("button", { name: "Guardar solicitud pendiente" }),
     ).not.toBeInTheDocument();
   });
+  it("shows actual Live readiness to a manager without loading customer requests", async () => {
+    auth.role = "manager";
+    vi.mocked(getReadiness).mockResolvedValue({
+      cfdi_status: "live_ready",
+      terminal_status: "not_connected",
+      can_issue_cfdi: true,
+      can_charge_terminal: false,
+      issuer: null,
+      validation_scope: "format_only",
+    });
+    render(
+      <MemoryRouter>
+        <IntegrationsPage />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: "Facturación CFDI · Conectada en Live",
+      }),
+    ).toBeInTheDocument();
+    expect(listInvoiceRequests).not.toHaveBeenCalled();
+    expect(listOrders).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Guardar conexión" }),
+    ).not.toBeInTheDocument();
+  });
   it("requires issuer preparation before a manager can submit a request", async () => {
     render(<IntegrationContents canManage />);
     const button = await screen.findByRole("button", {
@@ -97,7 +127,11 @@ async function prepareRequest() {
     limit: 100,
     offset: 0,
   });
-  render(<IntegrationsPage />);
+  render(
+    <MemoryRouter>
+      <IntegrationsPage />
+    </MemoryRouter>,
+  );
   const selector = await screen.findByRole("combobox", {
     name: "Venta completada",
   });
@@ -130,7 +164,11 @@ describe("invoice request user flow", () => {
   it("denies unauthorized roles before reading any fiscal data", () => {
     vi.clearAllMocks();
     auth.role = "cashier";
-    render(<IntegrationsPage />);
+    render(
+      <MemoryRouter>
+        <IntegrationsPage />
+      </MemoryRouter>,
+    );
     expect(screen.getByText(/No tienes permiso/)).toBeInTheDocument();
     expect(getReadiness).not.toHaveBeenCalled();
     expect(listInvoiceRequests).not.toHaveBeenCalled();
@@ -172,5 +210,123 @@ describe("invoice request user flow", () => {
     expect(screen.getByText("Cliente real")).toBeInTheDocument();
     expect(listInvoiceRequests).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("invoice preparation from an existing ticket", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    auth.role = "owner";
+    vi.mocked(getReadiness).mockResolvedValue({
+      cfdi_status: "not_connected",
+      terminal_status: "not_connected",
+      can_issue_cfdi: false,
+      can_charge_terminal: false,
+      issuer: identity,
+      validation_scope: "format_only",
+    });
+    vi.mocked(listInvoiceRequests).mockResolvedValue([]);
+    vi.mocked(listOrders).mockResolvedValue({
+      items: [sale],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
+    vi.mocked(getOrder).mockReset();
+  });
+  function openTicket(id = sale.id) {
+    render(
+      <MemoryRouter initialEntries={[`/settings/integrations?order_id=${id}`]}>
+        <IntegrationsPage />
+      </MemoryRouter>,
+    );
+  }
+  it("prefills the linked recent sale and waits for owner review without creating a request", async () => {
+    openTicket();
+    expect(
+      await screen.findByRole("combobox", { name: "Venta completada" }),
+    ).toHaveValue(sale.id);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Revisa los datos del receptor",
+    );
+    expect(createInvoiceRequest).not.toHaveBeenCalled();
+    expect(getOrder).not.toHaveBeenCalled();
+    expect(screen.getAllByLabelText("RFC")[1]).toHaveValue("");
+  });
+  it("loads an older ticket only when it is missing from recent sales", async () => {
+    const oldId = "11223344-5566-7788-9900-aabbccddeeff";
+    vi.mocked(getOrder).mockResolvedValue({
+      id: oldId,
+      tenant_id: "tenant-1",
+      status: "completed",
+      total_amount: "85.00",
+      subtotal_amount: "85.00",
+      items: [],
+      payments: [],
+    });
+    openTicket(oldId);
+    expect(
+      await screen.findByRole("combobox", { name: "Venta completada" }),
+    ).toHaveValue(oldId);
+    expect(
+      screen.getByRole("option", { name: /Venta del ticket.*85.00/ }),
+    ).toBeInTheDocument();
+    expect(getOrder).toHaveBeenCalledOnce();
+    expect(getOrder).toHaveBeenCalledWith(oldId);
+    expect(createInvoiceRequest).not.toHaveBeenCalled();
+  });
+  it("points to an existing request without creating another or reloading the ticket", async () => {
+    vi.mocked(listInvoiceRequests).mockResolvedValue([
+      {
+        id: "request-1",
+        order_id: sale.id,
+        total_amount: sale.total_amount,
+        recipient_snapshot: {
+          ...identity,
+          cfdi_use: "G03",
+          email: "client@example.com",
+        },
+        status: "pending_provider",
+        fiscal_status: "not_issued",
+        created_at: sale.created_at,
+      },
+    ]);
+    openTicket();
+    expect(await screen.findByText(/Esta venta ya tiene una solicitud registrada/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Venta completada" }),
+    ).toHaveValue("");
+    expect(getOrder).not.toHaveBeenCalled();
+    expect(createInvoiceRequest).not.toHaveBeenCalled();
+  });
+  it("ignores owner-only ticket prefill for a manager without reading sale or recipient data", async () => {
+    auth.role = "manager";
+    openTicket();
+    await screen.findByText("Mi negocio · EKU9003173C9");
+    expect(
+      screen.queryByRole("combobox", { name: "Venta completada" }),
+    ).not.toBeInTheDocument();
+    expect(listOrders).not.toHaveBeenCalled();
+    expect(getOrder).not.toHaveBeenCalled();
+    expect(listInvoiceRequests).not.toHaveBeenCalled();
+    expect(createInvoiceRequest).not.toHaveBeenCalled();
+  });
+  it("rejects an older voided ticket instead of selecting another sale", async () => {
+    const oldId = "11223344-5566-7788-9900-aabbccddeeff";
+    vi.mocked(getOrder).mockResolvedValue({
+      id: oldId,
+      tenant_id: "tenant-1",
+      status: "voided",
+      total_amount: "85.00",
+      subtotal_amount: "85.00",
+      items: [],
+      payments: [],
+    });
+    openTicket(oldId);
+    expect(await screen.findByText(/Esta venta no está completada/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Venta completada" }),
+    ).toHaveValue("");
+    expect(createInvoiceRequest).not.toHaveBeenCalled();
   });
 });

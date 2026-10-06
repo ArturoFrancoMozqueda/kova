@@ -992,6 +992,37 @@
         "title": "BusinessStorySummary",
         "type": "object"
       },
+      "CancellationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "motive": {
+            "enum": [
+              "01",
+              "02",
+              "03"
+            ],
+            "title": "Motive",
+            "type": "string"
+          },
+          "substitution_uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Substitution Uuid"
+          }
+        },
+        "required": [
+          "motive"
+        ],
+        "title": "CancellationInput",
+        "type": "object"
+      },
       "CashMovementCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1248,6 +1279,209 @@
           "checkout_session_id"
         ],
         "title": "CheckoutSessionResponse",
+        "type": "object"
+      },
+      "ConnectionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "format": "password",
+            "maxLength": 1000,
+            "minLength": 10,
+            "title": "Api Key",
+            "type": "string",
+            "writeOnly": true
+          },
+          "environment": {
+            "enum": [
+              "test",
+              "live"
+            ],
+            "title": "Environment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment",
+          "api_key"
+        ],
+        "title": "ConnectionInput",
+        "type": "object"
+      },
+      "ConnectionPublic": {
+        "properties": {
+          "certificate_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Expires At"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "environment": {
+            "enum": [
+              "test",
+              "live"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "issuer_rfc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer Rfc"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "production_ready": {
+            "title": "Production Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "environment",
+          "organization_id",
+          "connected",
+          "issuer_rfc",
+          "production_ready",
+          "certificate_expires_at"
+        ],
+        "title": "ConnectionPublic",
+        "type": "object"
+      },
+      "ContextLine": {
+        "properties": {
+          "discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
+          "line_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total Amount",
+            "type": "string"
+          },
+          "order_item_id": {
+            "format": "uuid",
+            "title": "Order Item Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "tax_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Amount",
+            "type": "string"
+          },
+          "unit_price_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_item_id",
+          "product_name",
+          "quantity",
+          "unit_price_amount",
+          "discount_amount",
+          "tax_amount",
+          "line_total_amount"
+        ],
+        "title": "ContextLine",
+        "type": "object"
+      },
+      "ContextResponse": {
+        "properties": {
+          "discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
+          "issuer": {
+            "additionalProperties": true,
+            "title": "Issuer",
+            "type": "object"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ContextLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "payments": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Payments",
+            "type": "array"
+          },
+          "recipient": {
+            "additionalProperties": true,
+            "title": "Recipient",
+            "type": "object"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "suggested_payment_forms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Suggested Payment Forms",
+            "type": "array"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "order_id",
+          "issuer",
+          "recipient",
+          "total_amount",
+          "discount_amount",
+          "lines",
+          "payments",
+          "suggested_payment_forms"
+        ],
+        "title": "ContextResponse",
         "type": "object"
       },
       "CustomerHistory": {
@@ -2453,6 +2687,135 @@
         "title": "DeletionStatusResponse",
         "type": "object"
       },
+      "DocumentResponse": {
+        "properties": {
+          "cancellation_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Status"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "test",
+              "live"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Code"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "recipient_snapshot": {
+            "additionalProperties": true,
+            "title": "Recipient Snapshot",
+            "type": "object"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "prepared",
+              "submitting",
+              "unknown",
+              "pending",
+              "issued",
+              "cancel_pending",
+              "canceled",
+              "rejected",
+              "integrity_error"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uuid"
+          },
+          "xml_available": {
+            "title": "Xml Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "order_id",
+          "environment",
+          "state",
+          "provider_id",
+          "uuid",
+          "total_amount",
+          "created_at",
+          "updated_at",
+          "last_error_code",
+          "cancellation_status",
+          "xml_available",
+          "recipient_snapshot"
+        ],
+        "title": "DocumentResponse",
+        "type": "object"
+      },
       "EmployeeBranchUpdate": {
         "additionalProperties": false,
         "properties": {
@@ -2625,6 +2988,24 @@
           "role"
         ],
         "title": "EmployeeRoleUpdate",
+        "type": "object"
+      },
+      "EnvironmentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "environment": {
+            "enum": [
+              "test",
+              "live"
+            ],
+            "title": "Environment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment"
+        ],
+        "title": "EnvironmentInput",
         "type": "object"
       },
       "ExpenseCreate": {
@@ -4403,6 +4784,105 @@
           "created_at"
         ],
         "title": "InvitationResponse",
+        "type": "object"
+      },
+      "InvoiceLinePreparation": {
+        "additionalProperties": false,
+        "properties": {
+          "order_item_id": {
+            "format": "uuid",
+            "title": "Order Item Id",
+            "type": "string"
+          },
+          "product_key": {
+            "pattern": "^[0-9]{8}$",
+            "title": "Product Key",
+            "type": "string"
+          },
+          "tax_included": {
+            "title": "Tax Included",
+            "type": "boolean"
+          },
+          "tax_kind": {
+            "enum": [
+              "iva16",
+              "iva8",
+              "iva0",
+              "exempt",
+              "not_subject"
+            ],
+            "title": "Tax Kind",
+            "type": "string"
+          },
+          "unit_key": {
+            "pattern": "^[A-Z0-9]{2,3}$",
+            "title": "Unit Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_item_id",
+          "product_key",
+          "unit_key",
+          "tax_kind",
+          "tax_included"
+        ],
+        "title": "InvoiceLinePreparation",
+        "type": "object"
+      },
+      "InvoicePreparation": {
+        "additionalProperties": false,
+        "properties": {
+          "environment": {
+            "enum": [
+              "test",
+              "live"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLinePreparation"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "payment_form": {
+            "enum": [
+              "01",
+              "03",
+              "04",
+              "28"
+            ],
+            "title": "Payment Form",
+            "type": "string"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceRecipient"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "environment",
+          "payment_form",
+          "lines"
+        ],
+        "title": "InvoicePreparation",
         "type": "object"
       },
       "InvoiceRecipient": {
@@ -6791,6 +7271,154 @@
         "title": "PresetApplyResponse",
         "type": "object"
       },
+      "PreviewLine": {
+        "properties": {
+          "discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
+          "gross_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gross Amount",
+            "type": "string"
+          },
+          "order_item_id": {
+            "format": "uuid",
+            "title": "Order Item Id",
+            "type": "string"
+          },
+          "product_key": {
+            "title": "Product Key",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "tax_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Amount",
+            "type": "string"
+          },
+          "tax_included": {
+            "title": "Tax Included",
+            "type": "boolean"
+          },
+          "tax_kind": {
+            "enum": [
+              "iva16",
+              "iva8",
+              "iva0",
+              "exempt",
+              "not_subject"
+            ],
+            "title": "Tax Kind",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          },
+          "unit_key": {
+            "title": "Unit Key",
+            "type": "string"
+          },
+          "unit_price_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_item_id",
+          "product_name",
+          "quantity",
+          "product_key",
+          "unit_key",
+          "tax_kind",
+          "tax_included",
+          "unit_price_amount",
+          "gross_amount",
+          "discount_amount",
+          "tax_amount",
+          "total_amount"
+        ],
+        "title": "PreviewLine",
+        "type": "object"
+      },
+      "PreviewResponse": {
+        "properties": {
+          "discount_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
+          "environment": {
+            "enum": [
+              "test",
+              "live"
+            ],
+            "title": "Environment",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "recipient_snapshot": {
+            "additionalProperties": true,
+            "title": "Recipient Snapshot",
+            "type": "object"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "subtotal_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal Amount",
+            "type": "string"
+          },
+          "tax_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Amount",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient_snapshot",
+          "request_id",
+          "order_id",
+          "environment",
+          "subtotal_amount",
+          "discount_amount",
+          "tax_amount",
+          "total_amount",
+          "lines"
+        ],
+        "title": "PreviewResponse",
+        "type": "object"
+      },
       "ProductCreate": {
         "additionalProperties": false,
         "properties": {
@@ -7556,14 +8184,18 @@
             "type": "boolean"
           },
           "can_issue_cfdi": {
-            "const": false,
             "default": false,
             "title": "Can Issue Cfdi",
             "type": "boolean"
           },
           "cfdi_status": {
-            "const": "not_connected",
             "default": "not_connected",
+            "enum": [
+              "not_connected",
+              "test_connected",
+              "live_not_ready",
+              "live_ready"
+            ],
             "title": "Cfdi Status",
             "type": "string"
           },
@@ -8847,6 +9479,33 @@
           "interval"
         ],
         "title": "StandardPlanResponse",
+        "type": "object"
+      },
+      "StatusResponse": {
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionPublic"
+            },
+            "title": "Connections",
+            "type": "array"
+          },
+          "provider": {
+            "const": "facturapi",
+            "default": "facturapi",
+            "title": "Provider",
+            "type": "string"
+          },
+          "storage_available": {
+            "title": "Storage Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "storage_available",
+          "connections"
+        ],
+        "title": "StatusResponse",
         "type": "object"
       },
       "StockTakeCreate": {
@@ -14481,6 +15140,518 @@
         "summary": "Put Global Draft Settings",
         "tags": [
           "fiscal"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/connection": {
+      "put": {
+        "operationId": "connection_api_v1_integrations_cfdi_connection_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connection",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/connection/refresh": {
+      "post": {
+        "operationId": "refresh_api_v1_integrations_cfdi_connection_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvironmentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/documents": {
+      "get": {
+        "operationId": "documents_api_v1_integrations_cfdi_documents_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "request_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Request Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "environment",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "test",
+                    "live"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Environment"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentResponse"
+                  },
+                  "title": "Response Documents Api V1 Integrations Cfdi Documents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Documents",
+        "tags": [
+          "cfdi"
+        ]
+      },
+      "post": {
+        "operationId": "create_document_api_v1_integrations_cfdi_documents_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoicePreparation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Document",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/documents/{document_id}/cancel": {
+      "post": {
+        "operationId": "cancel_api_v1_integrations_cfdi_documents__document_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancellationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/documents/{document_id}/pdf": {
+      "get": {
+        "operationId": "pdf_api_v1_integrations_cfdi_documents__document_id__pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pdf",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/documents/{document_id}/reconcile": {
+      "post": {
+        "operationId": "reconcile_api_v1_integrations_cfdi_documents__document_id__reconcile_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconcile",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/documents/{document_id}/xml": {
+      "get": {
+        "operationId": "xml_api_v1_integrations_cfdi_documents__document_id__xml_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Xml",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/preview": {
+      "post": {
+        "operationId": "preview_api_v1_integrations_cfdi_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoicePreparation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/requests/{request_id}/context": {
+      "get": {
+        "operationId": "context_api_v1_integrations_cfdi_requests__request_id__context_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Context",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/status": {
+      "get": {
+        "operationId": "status_api_v1_integrations_cfdi_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "cfdi"
         ]
       }
     },

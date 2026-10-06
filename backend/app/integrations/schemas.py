@@ -44,9 +44,11 @@ class InvoiceRequestResponse(BaseModel):
 
 
 class ReadinessResponse(BaseModel):
-    cfdi_status: Literal["not_connected"] = "not_connected"
+    cfdi_status: Literal[
+        "not_connected", "test_connected", "live_not_ready", "live_ready"
+    ] = "not_connected"
     terminal_status: Literal["not_connected"] = "not_connected"
-    can_issue_cfdi: Literal[False] = False
+    can_issue_cfdi: bool = False
     can_charge_terminal: Literal[False] = False
     issuer: FiscalIdentity | None
     validation_scope: Literal["format_only"] = "format_only"

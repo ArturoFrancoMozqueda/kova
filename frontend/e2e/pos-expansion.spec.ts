@@ -328,6 +328,18 @@ test("mobile fiscal setup saves a pending request without claiming CFDI issuance
   page,
 }) => {
   await shell(page);
+  await page.route("**/api/v1/integrations/cfdi/status", (route) =>
+    route.fulfill({
+      json: {
+        provider: "facturapi",
+        storage_available: false,
+        connections: [],
+      },
+    }),
+  );
+  await page.route("**/api/v1/integrations/cfdi/documents", (route) =>
+    route.fulfill({ json: [] }),
+  );
   const issuer = {
     rfc: "AAA010101AAA",
     legal_name: "Panadería Aurora SA",
@@ -400,11 +412,9 @@ test("mobile fiscal setup saves a pending request without claiming CFDI issuance
   await expect(
     page.getByRole("button", { name: "Guardar solicitud pendiente" }),
   ).toBeDisabled();
-  const issuerSection = page
-    .locator("section")
-    .filter({
-      has: page.getByRole("heading", { name: "Datos fiscales del negocio" }),
-    });
+  const issuerSection = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "Datos fiscales del negocio" }),
+  });
   await issuerSection.getByLabel("RFC", { exact: true }).fill(issuer.rfc);
   await issuerSection
     .getByLabel("Nombre o razón social")
@@ -418,13 +428,11 @@ test("mobile fiscal setup saves a pending request without claiming CFDI issuance
   await noOverflow(page);
   await page.getByRole("button", { name: "Guardar datos del negocio" }).click();
   await expect(page.getByText("Datos fiscales guardados.")).toBeVisible();
-  const requestSection = page
-    .locator("section")
-    .filter({
-      has: page.getByRole("heading", {
-        name: "Registrar solicitud de factura",
-      }),
-    });
+  const requestSection = page.locator("section").filter({
+    has: page.getByRole("heading", {
+      name: "Registrar solicitud de factura",
+    }),
+  });
   await requestSection.getByLabel("Venta completada").selectOption(saleId);
   await requestSection.getByLabel("RFC", { exact: true }).fill(recipient.rfc);
   await requestSection
@@ -448,7 +456,7 @@ test("mobile fiscal setup saves a pending request without claiming CFDI issuance
     ),
   ).toBeVisible();
   await expect(
-    page.getByText("Pendiente de proveedor · Sin emitir"),
+    page.getByText("Solicitud registrada · Consulta el estado del documento"),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Facturación CFDI · Sin conectar" }),
@@ -465,6 +473,15 @@ test("manager sees fiscal readiness but cannot create requests or expose recipie
   page,
 }) => {
   await shell(page, "manager");
+  const ownerRequests: string[] = [];
+  await page.route("**/api/v1/integrations/cfdi/**", async (route) => {
+    ownerRequests.push(route.request().url());
+    await route.fulfill({ status: 403 });
+  });
+  await page.route("**/api/v1/integrations/invoice-requests", async (route) => {
+    ownerRequests.push(route.request().url());
+    await route.fulfill({ status: 403 });
+  });
   await page.route("**/api/v1/integrations/readiness", (route) =>
     route.fulfill({
       json: {
@@ -489,5 +506,290 @@ test("manager sees fiscal readiness but cannot create requests or expose recipie
   await expect(
     page.getByRole("heading", { name: "Solicitudes recientes" }),
   ).toHaveCount(0);
+  await expect(page.getByLabel("Ambiente fiscal")).toHaveCount(0);
+  expect(ownerRequests).toEqual([]);
+  await noOverflow(page);
+});
+
+test("mobile CFDI Test connects, corrects receiver, previews and reconciles one pending document", async ({
+  page,
+}) => {
+  await shell(page);
+  const issuer = {
+    rfc: "EKU9003173C9",
+    legal_name: "Panadería Aurora SA",
+    postal_code: "06000",
+    tax_regime: "601",
+  };
+  const recipient = {
+    ...issuer,
+    legal_name: "Cliente original",
+    cfdi_use: "G03",
+    email: "ana@example.com",
+  };
+  const corrected = {
+    ...recipient,
+    rfc: "AAA010101AAA",
+    legal_name: "Cliente corregido",
+  };
+  const requestId = "55555555-5555-4555-8555-555555555555";
+  const documentId = "66666666-6666-4666-8666-666666666666";
+  const lineId = "77777777-7777-4777-8777-777777777777";
+  const connection = {
+    environment: "test",
+    organization_id: "organization-test",
+    connected: true,
+    issuer_rfc: issuer.rfc,
+    production_ready: false,
+    certificate_expires_at: null,
+  };
+  const line = {
+    order_item_id: lineId,
+    product_name: "Pan de caja",
+    quantity: 1,
+    unit_price_amount: "116.00",
+    discount_amount: "0.00",
+    tax_amount: "0.00",
+    line_total_amount: "116.00",
+  };
+  const body = {
+    request_id: requestId,
+    recipient: corrected,
+    environment: "test",
+    payment_form: "01",
+    lines: [
+      {
+        order_item_id: lineId,
+        product_key: "50181900",
+        unit_key: "H87",
+        tax_kind: "iva16",
+        tax_included: true,
+      },
+    ],
+  };
+  const document = {
+    id: documentId,
+    request_id: requestId,
+    order_id: saleId,
+    recipient_snapshot: corrected,
+    environment: "test",
+    state: "pending",
+    total_amount: "116.00",
+    created_at: createdAt,
+    updated_at: createdAt,
+    provider_id: "provider-test",
+    uuid: null,
+    xml_available: false,
+    last_error_code: null,
+    cancellation_status: null,
+  };
+  let connected = false;
+  let emissions = 0;
+  let reconciliations = 0;
+  await page.route("**/api/v1/integrations/readiness", (route) =>
+    route.fulfill({
+      json: {
+        cfdi_status: "not_connected",
+        terminal_status: "not_connected",
+        can_issue_cfdi: false,
+        can_charge_terminal: false,
+        issuer,
+        validation_scope: "format_only",
+      },
+    }),
+  );
+  await page.route(/\/api\/v1\/orders\?/, (route) =>
+    route.fulfill({ json: { items: [], total: 0 } }),
+  );
+  await page.route("**/api/v1/integrations/invoice-requests", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: requestId,
+          order_id: saleId,
+          recipient_snapshot: recipient,
+          total_amount: "116.00",
+          status: "pending_provider",
+          fiscal_status: "not_issued",
+          created_at: createdAt,
+        },
+      ],
+    }),
+  );
+  await page.route("**/api/v1/integrations/cfdi/status", (route) =>
+    route.fulfill({
+      json: {
+        provider: "facturapi",
+        storage_available: true,
+        connections: connected ? [connection] : [],
+      },
+    }),
+  );
+  await page.route("**/api/v1/integrations/cfdi/connection", async (route) => {
+    expect(route.request().method()).toBe("PUT");
+    expect(route.request().postDataJSON()).toEqual({
+      environment: "test",
+      api_key: "mock-organization-test",
+    });
+    connected = true;
+    await route.fulfill({ json: connection });
+  });
+  await page.route(
+    `**/api/v1/integrations/cfdi/requests/${requestId}/context`,
+    (route) =>
+      route.fulfill({
+        json: {
+          request_id: requestId,
+          order_id: saleId,
+          issuer,
+          recipient,
+          total_amount: "116.00",
+          discount_amount: "0.00",
+          lines: [line],
+          payments: [{ method: "cash", amount: "116.00" }],
+          suggested_payment_forms: ["01"],
+        },
+      }),
+  );
+  await page.route("**/api/v1/integrations/cfdi/preview", async (route) => {
+    expect(route.request().postDataJSON()).toEqual(body);
+    await route.fulfill({
+      json: {
+        request_id: requestId,
+        order_id: saleId,
+        recipient_snapshot: corrected,
+        environment: "test",
+        subtotal_amount: "100.00",
+        discount_amount: "0.00",
+        tax_amount: "16.00",
+        total_amount: "116.00",
+        lines: [
+          {
+            ...body.lines[0],
+            product_name: "Pan de caja",
+            quantity: 1,
+            unit_price_amount: "100.000000",
+            gross_amount: "100.000000",
+            discount_amount: "0.000000",
+            tax_amount: "16.00",
+            total_amount: "116.00",
+          },
+        ],
+      },
+    });
+  });
+  await page.route("**/api/v1/integrations/cfdi/documents", async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ json: [] });
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual(body);
+    expect(route.request().headers()["idempotency-key"]).toBeTruthy();
+    emissions += 1;
+    await route.fulfill({ json: document });
+  });
+  await page.route(
+    `**/api/v1/integrations/cfdi/documents/${documentId}/reconcile`,
+    async (route) => {
+      expect(route.request().method()).toBe("POST");
+      reconciliations += 1;
+      await route.fulfill({
+        json: {
+          ...document,
+          state: "issued",
+          uuid: "88888888-8888-4888-8888-888888888888",
+          xml_available: true,
+        },
+      });
+    },
+  );
+  await page.route(
+    `**/api/v1/integrations/cfdi/documents/${documentId}/xml`,
+    (route) =>
+      route.fulfill({
+        contentType: "application/xml",
+        body: '<?xml version="1.0"?><TestDocument />',
+      }),
+  );
+  await page.goto("/settings/integrations");
+  await expect(page.getByLabel("Ambiente fiscal")).toHaveValue("test");
+  await expect(
+    page.getByText("Pruebas · Sin validez fiscal", { exact: true }),
+  ).toBeVisible();
+  const secret = page.getByLabel("Llave de organización Test");
+  await expect(secret).toHaveAttribute("type", "password");
+  await secret.fill("mock-organization-test");
+  await page
+    .getByRole("button", { name: "Guardar conexión", exact: true })
+    .click();
+  await expect(
+    page.getByText("Organización conectada · RFC EKU9003173C9"),
+  ).toBeVisible();
+  await expect(secret).toHaveValue("");
+  await page
+    .getByRole("button", { name: "Preparar emisión", exact: true })
+    .click();
+  await expect(page.getByText("Pan de caja · 1 unidades")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Calcular vista previa fiscal" }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("RFC del receptor", { exact: true })
+    .fill(corrected.rfc);
+  await page.getByLabel("Razón social del receptor").fill(corrected.legal_name);
+  await page.getByLabel("Forma de pago SAT").selectOption("01");
+  await page.getByLabel("Clave SAT del producto 1").fill("50181900");
+  await page.getByLabel("Clave SAT de unidad 1").fill("H87");
+  await page.getByLabel("Tratamiento fiscal 1").selectOption("iva16");
+  await page.getByLabel("Impuesto en el precio 1").selectOption("included");
+  await page
+    .getByRole("button", { name: "Calcular vista previa fiscal" })
+    .click();
+  await expect(
+    page.getByText(/Receptor de esta emisión: Cliente corregido/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Emitir documento de prueba" }),
+  ).toBeDisabled();
+  await page.getByRole("checkbox", { name: /Revisé el receptor/ }).check();
+  await noOverflow(page);
+  await page
+    .getByRole("button", { name: "Emitir documento de prueba" })
+    .click();
+  expect(emissions).toBe(0);
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Confirmar envío al proveedor" })
+    .click();
+  await expect(
+    page.getByText("Pendiente en el proveedor", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Preparar emisión", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Descargar XML" })).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("button", { name: "Consultar estado con proveedor" })
+    .click();
+  await expect(
+    page.getByText("Emitido · UUID confirmado", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Test · Sin validez fiscal · $116.00", { exact: true }),
+  ).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Descargar XML" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(`test-sin-validez-fiscal-cfdi-${documentId}.xml`);
+  expect(await download.failure()).toBeNull();
+  expect(emissions).toBe(1);
+  expect(reconciliations).toBe(1);
+  expect(
+    await page.evaluate(() =>
+      Object.values(localStorage).some((value) =>
+        value.includes("mock-organization-test"),
+      ),
+    ),
+  ).toBe(false);
   await noOverflow(page);
 });

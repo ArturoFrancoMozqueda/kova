@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/auth/AuthContext";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
-import { listOrders } from "@/orders/api";
+import { getOrder, listOrders } from "@/orders/api";
 import { formatDateTime, formatMoney } from "@/orders/format";
-import type { OrderListItem } from "@/orders/types";
+import type { Order, OrderListItem } from "@/orders/types";
 import {
   createInvoiceRequest,
   getReadiness,
@@ -14,6 +15,8 @@ import {
   type InvoiceRecipient,
   type InvoiceRequest,
 } from "./api";
+
+import { CfdiPanel } from "./CfdiPanel";
 
 const emptyIdentity: FiscalIdentity = {
   rfc: "",
@@ -55,9 +58,16 @@ function IdentityFields({
 
 export function IntegrationContents({
   canManage = false,
+  initialOrderId = "",
 }: {
   canManage?: boolean;
+  initialOrderId?: string;
 }) {
+  const [connectionLabel, setConnectionLabel] = useState("Sin conectar");
+  const updateConnectionLabel = useCallback(
+    (label: string) => setConnectionLabel(label),
+    [],
+  );
   const [issuer, setIssuer] = useState<FiscalIdentity>(emptyIdentity);
   const [saved, setSaved] = useState(false);
   const [recipient, setRecipient] = useState<InvoiceRecipient>({
@@ -66,6 +76,7 @@ export function IntegrationContents({
     email: "",
   });
   const [orderId, setOrderId] = useState("");
+  const [linkedSale, setLinkedSale] = useState<Order | null>(null);
   const [sales, setSales] = useState<OrderListItem[]>([]);
   const [requests, setRequests] = useState<InvoiceRequest[]>([]);
   const [error, setError] = useState("");
@@ -76,6 +87,12 @@ export function IntegrationContents({
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    if (canManage && initialOrderId) {
+      setOrderId("");
+      setLinkedSale(null);
+      setMessage("");
+    }
     Promise.all([
       getReadiness(),
       canManage ? listInvoiceRequests() : Promise.resolve([]),
@@ -83,12 +100,52 @@ export function IntegrationContents({
         ? listOrders({ status: "completed", limit: 100 })
         : Promise.resolve({ items: [] }),
     ])
-      .then(([state, items, orders]) => {
+      .then(async ([state, items, orders]) => {
         if (active) {
+          const readinessLabels = {
+            not_connected: "Sin conectar",
+            test_connected: "Conectada en pruebas",
+            live_not_ready: "Live requiere revisión",
+            live_ready: "Conectada en Live",
+          };
+          setConnectionLabel(
+            readinessLabels[state.cfdi_status] ?? "Sin conectar",
+          );
           setIssuer(state.issuer ?? emptyIdentity);
           setSaved(!!state.issuer);
           setRequests(items);
           setSales(orders.items);
+          setLinkedSale(null);
+          if (canManage && initialOrderId) {
+            setRequestKey(crypto.randomUUID());
+            if (items.some((request) => request.order_id === initialOrderId)) {
+              setOrderId("");
+              setMessage(
+                "Esta venta ya tiene una solicitud registrada. Revisa su documento antes de preparar otra emisión.",
+              );
+            } else {
+              const recent = orders.items.find(
+                (sale) => sale.id === initialOrderId,
+              );
+              const linked = recent ?? (await getOrder(initialOrderId));
+              if (!active) return;
+              if (
+                linked.id !== initialOrderId ||
+                linked.status !== "completed"
+              ) {
+                setOrderId("");
+                setMessage(
+                  "Esta venta no está completada y no puede prepararse para facturación.",
+                );
+              } else {
+                if (!recent) setLinkedSale(linked as Order);
+                setOrderId(linked.id);
+                setMessage(
+                  "Venta del ticket seleccionada. Revisa los datos del receptor y guarda la solicitud para continuar.",
+                );
+              }
+            }
+          }
         }
       })
       .catch((e) => {
@@ -100,7 +157,7 @@ export function IntegrationContents({
     return () => {
       active = false;
     };
-  }, [canManage]);
+  }, [canManage, initialOrderId]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -121,14 +178,16 @@ export function IntegrationContents({
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-2xl border border-border p-5">
-          <h2 className="font-semibold">Facturación CFDI · Sin conectar</h2>
+          <h2 className="font-semibold">
+            Facturación CFDI · {connectionLabel}
+          </h2>
           <p className="mt-2 text-sm">
             Un PAC es la empresa autorizada por el SAT que certifica las
             facturas. Kova necesita una integración contratada para emitirlas.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Las solicitudes guardadas aquí quedan pendientes. No generan un CFDI
-            ni un folio fiscal.
+            No generan un CFDI ni un folio fiscal por sí solas. La emisión
+            requiere revisar los conceptos y confirmar el envío al proveedor.
           </p>
         </section>
         <section className="rounded-2xl border border-border p-5">
@@ -168,7 +227,13 @@ export function IntegrationContents({
                   });
                 }}
               >
-                <IdentityFields value={issuer} onChange={setIssuer} />
+                <IdentityFields
+                  value={issuer}
+                  onChange={(value) => {
+                    setIssuer(value);
+                    setSaved(false);
+                  }}
+                />
                 <button
                   disabled={busy}
                   className="rounded-xl bg-primary px-4 py-2 text-primary-foreground"
@@ -223,6 +288,16 @@ export function IntegrationContents({
                     }}
                   >
                     <option value="">Selecciona una venta reciente</option>
+                    {linkedSale &&
+                      !requests.some(
+                        (request) => request.order_id === linkedSale.id,
+                      ) && (
+                        <option value={linkedSale.id}>
+                          Venta del ticket ·{" "}
+                          {formatMoney(linkedSale.total_amount)} · Folio{" "}
+                          {linkedSale.id.slice(0, 8)}
+                        </option>
+                      )}
                     {sales
                       .filter(
                         (sale) =>
@@ -286,6 +361,13 @@ export function IntegrationContents({
             </section>
           )}
           {canManage && (
+            <CfdiPanel
+              requests={requests}
+              issuerRfc={saved ? issuer.rfc : undefined}
+              onConnectionLabel={updateConnectionLabel}
+            />
+          )}
+          {canManage && (
             <section className="rounded-2xl border border-border p-5">
               <h2 className="mb-3 font-semibold">Solicitudes recientes</h2>
               {requests.length === 0 ? (
@@ -307,7 +389,7 @@ export function IntegrationContents({
                         {formatMoney(item.total_amount)}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Pendiente de proveedor · Sin emitir
+                        Solicitud registrada · Consulta el estado del documento
                       </p>
                     </li>
                   ))}
@@ -322,6 +404,14 @@ export function IntegrationContents({
 }
 
 export function IntegrationsPage() {
+  const [searchParams] = useSearchParams();
+  const linkedOrder = searchParams.get("order_id") ?? "";
+  const initialOrderId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      linkedOrder,
+    )
+      ? linkedOrder
+      : "";
   const { state } = useAuthContext();
   const user = state.status === "authenticated" ? state.user : null;
   if (user?.role !== "owner" && user?.role !== "manager")
@@ -331,5 +421,10 @@ export function IntegrationsPage() {
         <p>No tienes permiso para consultar esta sección.</p>
       </ViewLayout>
     );
-  return <IntegrationContents canManage={user?.role === "owner"} />;
+  return (
+    <IntegrationContents
+      canManage={user?.role === "owner"}
+      initialOrderId={user?.role === "owner" ? initialOrderId : ""}
+    />
+  );
 }

@@ -24,6 +24,8 @@ dependencies = [
     "pyotp>=2.9,<3",
     "qrcode[pil]>=8.2,<9",
     "reportlab>=4.4,<5",
+    "cryptography>=50,<51",
+    "httpx>=0.28,<1",
 ]
 
 [dependency-groups]
