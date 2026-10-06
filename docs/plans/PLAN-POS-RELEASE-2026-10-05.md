@@ -147,3 +147,28 @@ Runbooks: `docs/runbooks/restore-supabase-backup.md`,
 `docs/email-deliverability.md`, `docs/runbooks/ops-beta-gate.md` y
 `docs/current-sprint.md`. La firma comercial y verificaciones que requieren
 proveedores/personas siguen sus dueños; no se inventan evidencia ni contratos.
+
+## Evidencia de integración (2026-10-06 UTC)
+
+Entrega revisable: [PR #156](https://github.com/ArturoFrancoMozqueda/kova/pull/156).
+La descripción del PR registra la conclusión final de CI y del release; las
+casillas del sprint reflejan el momento de escritura anterior al despliegue.
+
+- Frontend integrado: 134 archivos / 704 pruebas aprobadas.
+- Navegador con API simulada: desarrollo 151 aprobadas / 10 omitidas; producción
+  compilada 158 aprobadas / 3 omitidas. Las suites separan la integración real
+  (job `integration`) y el smoke productivo; los mocks no prueban producción.
+- Migraciones PostgreSQL: 13 pruebas aprobadas, incluyendo datos heredados,
+  políticas/grants por tenant y bloqueo de downgrade con traspasos o empleados
+  restringidos existentes.
+- Lint, typecheck, build/prerender, contrato OpenAPI y bundle sin patrones de
+  secretos aprobados. Contratos locales de release: 10 aprobados / 1 omitido
+  por necesitar variables externas.
+- Gitleaks 8.24.3 verificó la excepción limitada a una frase del plan: el mismo
+  historial no tiene hallazgos; una clave sintética en la misma ruta sigue
+  detectándose. No se excluyen el archivo ni las reglas de credenciales.
+- Smoke manual del navegador: landing renderizada sin errores de consola;
+  captura revisada. Los flujos móviles nuevos se recorren en
+  `frontend/e2e/pos-expansion.spec.ts`.
+- Backend completo y checks de CI/release: seguir la evidencia final del PR,
+  sin confundir los resultados locales ni runs cancelados con aceptación.
