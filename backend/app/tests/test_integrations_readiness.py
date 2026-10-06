@@ -104,3 +104,54 @@ def test_requests_reject_foreign_or_voided_sales(client, db):
 def test_invoice_request_requires_auth(client):
     assert client.get(f"{BASE}/readiness").status_code == 401
     assert client.get(f"{BASE}/invoice-requests").status_code == 401
+
+
+def test_invoice_requests_keep_customer_data_owner_only(client, db):
+    from app.auth.models import Membership
+
+    tenant = _signup_login(client, prefix="privacy-integration")
+    client.put(f"{BASE}/issuer", json=ISSUER)
+    order = _sale(client, _product(client)["id"])
+    assert _request(client, order["id"]).status_code == 201
+    membership = db.query(Membership).filter_by(tenant_id=tenant).one()
+    membership.role = "manager"
+    db.commit()
+    assert client.get(f"{BASE}/readiness").status_code == 200
+    assert client.get(f"{BASE}/invoice-requests").status_code == 403
+    assert client.put(f"{BASE}/issuer", json=ISSUER).status_code == 403
+    assert _request(client, order["id"]).status_code == 403
+    membership.role = "cashier"
+    db.commit()
+    assert client.get(f"{BASE}/readiness").status_code == 403
+
+
+def test_invoice_request_wrong_branch_and_changed_replay_are_rejected(client, db):
+    _signup_login(client, prefix="branch-integration")
+    client.put(f"{BASE}/issuer", json=ISSUER)
+    order = _sale(client, _product(client)["id"])
+    created = client.post(
+        "/api/v1/branches",
+        json={"name": "Otra sucursal"},
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert created.status_code == 201, created.text
+    branch_headers = {"X-Kova-Branch": created.json()["id"]}
+    foreign_branch = client.post(
+        f"{BASE}/invoice-requests",
+        json={"order_id": order["id"], "recipient": RECIPIENT},
+        headers={**branch_headers, "Idempotency-Key": str(uuid4())},
+    )
+    assert foreign_branch.status_code == 404
+    key = str(uuid4())
+    assert _request(client, order["id"], key).status_code == 201
+    assert client.get(f"{BASE}/invoice-requests", headers=branch_headers).json() == []
+    changed = client.post(
+        f"{BASE}/invoice-requests",
+        json={
+            "order_id": order["id"],
+            "recipient": {**RECIPIENT, "email": "different@example.com"},
+        },
+        headers={"Idempotency-Key": key},
+    )
+    assert changed.status_code == 400
+    assert len(client.get(f"{BASE}/invoice-requests").json()) == 1

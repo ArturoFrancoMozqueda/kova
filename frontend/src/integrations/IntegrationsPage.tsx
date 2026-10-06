@@ -194,16 +194,20 @@ export function IntegrationContents({
                 onSubmit={(e) => {
                   e.preventDefault();
                   void run(async () => {
-                    await createInvoiceRequest(
+                    const created = await createInvoiceRequest(
                       orderId.trim(),
                       recipient,
                       requestKey,
                     );
+                    setRequests((existing) => [
+                      created,
+                      ...existing.filter((item) => item.id !== created.id),
+                    ]);
+                    setOrderId("");
                     setRequestKey(crypto.randomUUID());
                     setMessage(
                       "Solicitud guardada, pendiente de proveedor. La factura no se ha emitido.",
                     );
-                    setRequests(await listInvoiceRequests());
                   });
                 }}
               >
