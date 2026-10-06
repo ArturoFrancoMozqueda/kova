@@ -596,3 +596,156 @@ def test_test_provider_can_use_fictitious_issuer_without_csd(client, db, provide
         .count()
         == 0
     )
+
+
+@pytest.mark.parametrize("definitive", [True, False])
+@pytest.mark.parametrize("cancel_during_post", [True, False])
+def test_late_post_error_never_downgrades_concurrently_confirmed_invoice(
+    client, db, provider, definitive, cancel_during_post
+):
+    signup, sale, payload = prepare_sale(client, "live")
+    original_create = provider.create_invoice
+
+    def interrupted(payload, idempotency_key):
+        result = original_create(payload, idempotency_key)
+        document = db.query(CfdiDocument).filter_by(external_id=result["external_id"]).one()
+        tenant = UUID(signup["tenant_id"])
+        reconciled = service.reconcile(db, tenant, document.created_by_user_id, document.id)
+        assert reconciled.state == "issued"
+        if cancel_during_post:
+            from app.cfdi.schemas import CancellationInput
+
+            provider.cancel_accepted = True
+            canceled = service.cancel(
+                db,
+                tenant,
+                document.created_by_user_id,
+                document.id,
+                CancellationInput(motive="02"),
+                "concurrent-cancel",
+            )
+            assert canceled.state == "canceled"
+        raise ProviderError("provider_timeout", definitive=definitive)
+
+    provider.create_invoice = interrupted
+    issued = issue(client, payload)
+    assert issued.status_code == 201, issued.text
+    assert issued.json()["state"] == ("canceled" if cancel_during_post else "issued")
+    assert issued.json()["xml_available"] is True
+    assert provider.posts == 1
+    tenant = UUID(signup["tenant_id"])
+    assert bool(service.live_reservation(db, tenant, UUID(sale["id"]))) is (not cancel_during_post)
+    assert (
+        db.query(FiscalIndividualInvoiceEvent)
+        .filter_by(tenant_id=tenant, status="confirmed")
+        .count()
+        == 1
+    )
+
+
+def test_definitive_cancel_auth_error_allows_rotation_and_new_key_retry(client, db, provider):
+    signup, _, payload = prepare_sale(client, "live")
+    document = issue(client, payload).json()
+    original_cancel = provider.cancel_invoice
+
+    def unauthorized(*args):
+        provider.cancels += 1
+        raise ProviderError("provider_unauthorized", status_code=401, definitive=True)
+
+    provider.cancel_invoice = unauthorized
+    endpoint = f"{BASE}/documents/{document['id']}/cancel"
+    failed = client.post(
+        endpoint, json={"motive": "02"}, headers={"Idempotency-Key": "failed-cancel"}
+    )
+    assert failed.status_code == 200, failed.text
+    assert failed.json()["state"] == "issued"
+    assert failed.json()["cancellation_status"] == "rejected"
+    assert failed.json()["last_error_code"] == "provider_unauthorized"
+    assert (
+        client.post(
+            endpoint, json={"motive": "02"}, headers={"Idempotency-Key": "failed-cancel"}
+        ).json()["state"]
+        == "issued"
+    )
+    assert provider.cancels == 1
+    rotate = client.put(
+        f"{BASE}/connection", json={"environment": "live", "api_key": "sk_live_rotated_fixture_key"}
+    )
+    assert rotate.status_code == 200, rotate.text
+    # Repeated reads after a rejected DELETE must not resurrect pending.
+    for _ in range(2):
+        assert (
+            client.post(f"{BASE}/documents/{document['id']}/reconcile").json()["state"] == "issued"
+        )
+    provider.cancel_invoice = original_cancel
+    provider.cancel_accepted = True
+    retried = client.post(
+        endpoint, json={"motive": "02"}, headers={"Idempotency-Key": "new-cancel"}
+    )
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["state"] == "canceled"
+    assert provider.cancels == 2
+    assert (
+        db.query(FiscalIndividualInvoiceEvent)
+        .filter_by(tenant_id=UUID(signup["tenant_id"]), status="reopened")
+        .count()
+        == 1
+    )
+
+
+def test_successful_cancel_then_auth_error_keeps_pending(client, db, provider):
+    _, _, payload = prepare_sale(client, "live")
+    document = issue(client, payload).json()
+    original_get = provider.get_invoice
+
+    def unauthorized(*args):
+        raise ProviderError("provider_unauthorized", status_code=401, definitive=True)
+
+    provider.get_invoice = unauthorized
+    endpoint = f"{BASE}/documents/{document['id']}/cancel"
+    pending = client.post(
+        endpoint, json={"motive": "02"}, headers={"Idempotency-Key": "pending-cancel"}
+    )
+    assert pending.json()["state"] == "cancel_pending"
+    assert provider.cancels == 1
+    assert (
+        client.post(
+            endpoint, json={"motive": "02"}, headers={"Idempotency-Key": "new-cancel"}
+        ).status_code
+        == 409
+    )
+    provider.get_invoice = original_get
+    assert (
+        client.post(f"{BASE}/documents/{document['id']}/reconcile").json()["state"]
+        == "cancel_pending"
+    )
+
+
+def test_connection_readiness_reports_test_live_and_disabled_states(
+    client, db, provider, monkeypatch
+):
+    signup, _, _ = prepare_sale(client)
+    tenant = UUID(signup["tenant_id"])
+    readiness_url = "/api/v1/integrations/readiness"
+    state = client.get(readiness_url).json()
+    assert state["cfdi_status"] == "test_connected" and state["can_issue_cfdi"] is False
+    connected = client.put(
+        f"{BASE}/connection", json={"environment": "live", "api_key": "sk_live_fixture_ready_key"}
+    )
+    assert connected.status_code == 200, connected.text
+    state = client.get(readiness_url).json()
+    assert state["cfdi_status"] == "live_ready" and state["can_issue_cfdi"] is True
+    monkeypatch.setattr(settings, "kova_cfdi_enabled", False)
+    assert client.get(readiness_url).json()["can_issue_cfdi"] is False
+    monkeypatch.setattr(settings, "kova_cfdi_enabled", True)
+    from datetime import UTC, datetime
+
+    live = db.query(CfdiConnection).filter_by(tenant_id=tenant, environment="live").one()
+    live.certificate_expires_at = datetime(2020, 1, 1, tzinfo=UTC)
+    db.commit()
+    assert client.get(readiness_url).json()["can_issue_cfdi"] is False
+    live.certificate_expires_at = datetime(2035, 1, 1, tzinfo=UTC)
+    live.issuer_rfc = "AAA010101AAA"
+    db.commit()
+    state = client.get(readiness_url).json()
+    assert state["cfdi_status"] == "live_not_ready" and state["can_issue_cfdi"] is False
