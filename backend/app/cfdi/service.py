@@ -456,8 +456,16 @@ def create_document(db, tenant_id, user_id, body, key):
         return _apply_result(db, tenant_id, identifier, result, provider, user_id)
     except ProviderError as exc:
         row = _document(db, tenant_id, identifier, lock=True)
-        row.state = "rejected" if exc.definitive else "unknown"
-        row.last_error_code = exc.code
+        # A concurrent reconciliation can win while the original POST is in
+        # flight. Its confirmed/pending evidence must never be overwritten by
+        # a late timeout or rejection from the original connection.
+        if (
+            row.state in {"submitting", "unknown"}
+            and row.confirmed_at is None
+            and row.provider_id is None
+        ):
+            row.state = "rejected" if exc.definitive else "unknown"
+            row.last_error_code = exc.code
         db.commit()
         return public(row)
     finally:
@@ -620,6 +628,11 @@ def _apply_result(db, tenant_id, identifier, result, provider, user_id):
         else:
             row.provider_id = identifier
             provider_status = result.get("status")
+            cancellation_open = row.state == "cancel_pending" or (
+                row.state in {"unknown", "integrity_error"}
+                and row.cancellation_payload is not None
+                and row.cancellation_status not in {"rejected", "expired", "accepted"}
+            )
             cancellation = result.get("cancellation_status")
             row.cancellation_status = (
                 cancellation if isinstance(cancellation, str) and len(cancellation) <= 40 else None
@@ -648,7 +661,10 @@ def _apply_result(db, tenant_id, identifier, result, provider, user_id):
                     else:
                         row.state = (
                             "cancel_pending"
-                            if row.cancellation_payload
+                            if (
+                                cancellation_open
+                                or cancellation in {"pending", "verifying", "accepted"}
+                            )
                             and cancellation not in {"rejected", "expired"}
                             else "issued"
                         )
@@ -736,18 +752,32 @@ def cancel(db, tenant_id, user_id, document_id, body, key):
     row.state, row.cancellation_status = "cancel_pending", "pending"
     provider_id = row.provider_id
     db.commit()  # Reserve the cancellation before the provider effect as well.
+    cancellation_sent = False
     try:
         provider.cancel_invoice(
             provider_id,
             body.motive,
             str(body.substitution_uuid) if body.substitution_uuid else None,
         )
+        cancellation_sent = True
         # HTTP 200/DELETE receipt is not a confirmed SAT cancellation.
         result = provider.get_invoice(provider_id)
         return _apply_result(db, tenant_id, document_id, result, provider, user_id)
     except ProviderError as exc:
         row = _document(db, tenant_id, document_id, lock=True)
-        row.last_error_code = exc.code
+        # A definitive rejection of DELETE guarantees no cancellation effect.
+        # A failed GET after a successful DELETE proves nothing about SAT state.
+        if (
+            not cancellation_sent
+            and exc.definitive
+            and row.state == "cancel_pending"
+            and row.cancellation_key == key
+            and row.canceled_at is None
+        ):
+            row.state = "issued"
+            row.cancellation_status = "rejected"
+        if row.state != "canceled":
+            row.last_error_code = exc.code
         db.commit()
         return public(row)
     finally:
