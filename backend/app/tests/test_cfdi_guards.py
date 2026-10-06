@@ -199,7 +199,7 @@ def test_late_sale_is_deferred_while_reserved_then_included_after_cancel(client,
     assert adjustments[0]["adjustment_type"] == "late_inclusion"
     assert adjustments[0]["amount"] == 100
     assert (
-        client.get(f"/api/v1/fiscal/global-drafts/{closed.json()['id']}").json()["order_count"] == 1
+        client.get(f"/api/v1/fiscal/global-drafts/batches/{closed.json()['id']}").json()["order_count"] == 1
     )
 
 
@@ -255,7 +255,7 @@ def test_pending_cancel_preserves_exclusion_and_defers_reopened_inclusion(client
     assert len(adjustments) == 1
     assert adjustments[0]["adjustment_type"] == "late_inclusion"
     assert adjustments[0]["amount"] == 100
-    original = client.get(f"/api/v1/fiscal/global-drafts/{closed.json()['id']}")
+    original = client.get(f"/api/v1/fiscal/global-drafts/batches/{closed.json()['id']}")
     assert original.status_code == 200
     assert original.json()["total_amount"] == "100.00"
 
