@@ -26,6 +26,10 @@ import app.branches.models  # noqa: F401
 import app.business_settings.models  # noqa: F401
 import app.catalog.models  # noqa: F401
 import app.customer_orders.models  # noqa: F401
+import app.customers.models  # noqa: F401
+import app.integrations.models  # noqa: F401
+import app.purchasing.models  # noqa: F401
+import app.branches.transfers  # noqa: F401
 import app.employees.models  # noqa: F401
 import app.expenses.models  # noqa: F401
 import app.idempotency.models  # noqa: F401
@@ -115,7 +119,7 @@ def _provision_kova_app() -> None:
                 "product_modifier_groups"
             ),
             "SELECT, INSERT, UPDATE": (
-                "account_deletion_requests categories customer_orders idempotency_keys "
+                "account_deletion_requests categories customer_orders customers idempotency_keys "
                 "inventory_reservations membership_invitations modifier_groups "
                 "modifier_options orders products shifts subscriptions "
                 "tenant_business_profiles tenant_onboarding_state tenant_receipt_settings"
@@ -124,7 +128,9 @@ def _provision_kova_app() -> None:
                 "memberships sessions"
             ),
             "SELECT, INSERT": (
-                "cash_movements inventory_movements order_item_modifiers order_items payments "
+                "cash_movements inventory_movements inventory_transfers suppliers purchase_orders "
+                "purchase_order_items fiscal_issuer_profiles invoice_requests "
+                "order_item_modifiers order_items payments "
                 "refund_items refunds voids order_fiscal_snapshots "
                 "order_item_fiscal_snapshots order_item_tax_snapshots "
                 "fiscal_global_draft_batches fiscal_global_draft_orders "
@@ -143,6 +149,9 @@ def _provision_kova_app() -> None:
         conn.execute(
             text("GRANT SELECT, INSERT, UPDATE ON fiscal_global_draft_settings TO kova_app")
         )
+        conn.execute(text("GRANT UPDATE (status) ON purchase_orders TO kova_app"))
+        conn.execute(text("GRANT UPDATE (received_quantity) ON purchase_order_items TO kova_app"))
+        conn.execute(text("GRANT UPDATE (fiscal_data) ON fiscal_issuer_profiles TO kova_app"))
         conn.execute(text("GRANT INSERT ON anonymous_telemetry_events TO kova_app"))
         conn.execute(text("GRANT SELECT ON tenants TO kova_app"))
         conn.execute(text("GRANT UPDATE (name, updated_at) ON tenants TO kova_app"))

@@ -7,6 +7,8 @@ import { useFeature } from "@/auth/useFeature";
 import {
   BILLING_VIEW_PERMISSION,
   CUSTOMER_ORDER_VIEW_PERMISSION,
+  CUSTOMERS_VIEW_PERMISSION,
+  INVENTORY_ADJUST_PERMISSION,
   EXPENSES_MANAGE_PERMISSION,
   REPORTS_VIEW_ALL_PERMISSION,
   usePermission,
@@ -21,6 +23,8 @@ import {
   BarChart3,
   CreditCard,
   WalletCards,
+  Users,
+  Truck,
   Settings,
   LogOut,
   LayoutDashboard,
@@ -56,12 +60,16 @@ type NavItem = {
 };
 
 const adminNavItems: NavItem[] = [
+  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMERS_VIEW_PERMISSION },
+
   { to: "/dashboard", label: copy.app.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/shifts", label: copy.shiftView.title, icon: <Clock className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/catalog", label: copy.catalog.title, icon: <LayoutGrid className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/purchasing", label: "Compras y proveedores", icon: <Truck className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
+  { to: "/settings/integrations", label: "Facturación e integraciones", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business" },
   { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" />, group: "business" },
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
@@ -70,6 +78,8 @@ const adminNavItems: NavItem[] = [
 ];
 
 const cashierNavItems: NavItem[] = [
+  { to: "/customers", label: "Clientes", icon: <Users className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMERS_VIEW_PERMISSION },
+
   { to: "/register", label: copy.register.title, icon: <ShoppingCart className="h-4.5 w-4.5" />, group: "operation" },
   { to: "/pedidos", label: copy.app.customerOrders, icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "operation", permission: CUSTOMER_ORDER_VIEW_PERMISSION, feature: "customer_orders" },
   { to: "/orders", label: copy.orderList.title, icon: <ClipboardList className="h-4.5 w-4.5" />, group: "operation" },
@@ -134,11 +144,16 @@ export default function AppShell() {
   const canViewReports = usePermission(REPORTS_VIEW_ALL_PERMISSION);
   const canViewBilling = usePermission(BILLING_VIEW_PERMISSION);
   const canManageExpenses = usePermission(EXPENSES_MANAGE_PERMISSION);
+  const canViewCustomers = usePermission(CUSTOMERS_VIEW_PERMISSION);
+  const canAdjustInventory = usePermission(INVENTORY_ADJUST_PERMISSION);
   const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
   const customerOrdersEnabled = useFeature("customer_orders");
   const loadingViewName = (() => {
     const path = location.pathname;
+    if (path.startsWith("/customers")) return "Clientes";
+    if (path.startsWith("/purchasing")) return "Compras y proveedores";
+    if (path.startsWith("/settings/integrations")) return "Facturación e integraciones";
     if (path.startsWith("/register") || path === "/caja") return copy.register.title;
     if (path.startsWith("/shifts") || path === "/turnos") return copy.shiftView.title;
     if (path.startsWith("/catalog") || path === "/catalogo") return copy.catalog.title;
@@ -176,6 +191,8 @@ export default function AppShell() {
       ];
 
   const filteredNavItems = navItems.filter((item) => {
+    if (item.permission === CUSTOMERS_VIEW_PERMISSION && !canViewCustomers) return false;
+    if (item.permission === INVENTORY_ADJUST_PERMISSION && !canAdjustInventory) return false;
     if (item.permission === "reports.view_all") return canViewReports;
     if (item.permission === "billing.view") return canViewBilling;
     if (item.permission === "expenses.manage" && !canManageExpenses) return false;

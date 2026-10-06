@@ -57,7 +57,7 @@ _EXPORT_TABLES = (
     ExportTable("purchase_order_items", _columns("id tenant_id purchase_order_id product_id product_name quantity received_quantity unit_cost")),
     ExportTable("inventory_transfers", _columns("id tenant_id source_branch_id destination_branch_id product_id quantity reason created_by_user_id created_at")),
     ExportTable("fiscal_issuer_profiles", _columns("tenant_id fiscal_data")),
-    ExportTable("invoice_requests", _columns("id tenant_id branch_id order_id status issuer_snapshot recipient_snapshot total_amount created_at")),
+    ExportTable("invoice_requests", _columns("id tenant_id branch_id order_id status issuer_snapshot recipient_snapshot pricing_snapshot total_amount created_at")),
     ExportTable("branches", _columns("id tenant_id name address created_at")),
     ExportTable(
         "categories",
