@@ -11,9 +11,13 @@ export type InvoiceRecipient = FiscalIdentity & {
   email: string;
 };
 export type Readiness = {
-  cfdi_status: "not_connected";
+  cfdi_status:
+    | "not_connected"
+    | "test_connected"
+    | "live_not_ready"
+    | "live_ready";
   terminal_status: "not_connected";
-  can_issue_cfdi: false;
+  can_issue_cfdi: boolean;
   can_charge_terminal: false;
   issuer: FiscalIdentity | null;
   validation_scope: "format_only";

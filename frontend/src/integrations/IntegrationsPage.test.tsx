@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IntegrationContents, IntegrationsPage } from "./IntegrationsPage";
 import { createInvoiceRequest, getReadiness, listInvoiceRequests } from "./api";
 import { listOrders } from "@/orders/api";
+// Keep request-creation tests isolated; CFDI provider lifecycle has its own suite.
+vi.mock("./CfdiPanel", () => ({ CfdiPanel: () => null }));
 const auth = vi.hoisted(() => ({ role: "owner" }));
 vi.mock("@/auth/AuthContext", () => ({
   useAuthContext: () => ({
@@ -56,6 +58,28 @@ describe("IntegrationsPage", () => {
     expect(screen.getByText(/No generan un CFDI/)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Guardar solicitud pendiente" }),
+    ).not.toBeInTheDocument();
+  });
+  it("shows actual Live readiness to a manager without loading customer requests", async () => {
+    auth.role = "manager";
+    vi.mocked(getReadiness).mockResolvedValue({
+      cfdi_status: "live_ready",
+      terminal_status: "not_connected",
+      can_issue_cfdi: true,
+      can_charge_terminal: false,
+      issuer: null,
+      validation_scope: "format_only",
+    });
+    render(<IntegrationsPage />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Facturación CFDI · Conectada en Live",
+      }),
+    ).toBeInTheDocument();
+    expect(listInvoiceRequests).not.toHaveBeenCalled();
+    expect(listOrders).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "Guardar conexión" }),
     ).not.toBeInTheDocument();
   });
   it("requires issuer preparation before a manager can submit a request", async () => {
