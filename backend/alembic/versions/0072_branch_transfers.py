@@ -73,7 +73,7 @@ def upgrade():
 def downgrade():
     # Keep recorded inventory history; refuse downgrade after the feature is used.
     op.execute(
-        "DO $$ BEGIN IF EXISTS (SELECT 1 FROM inventory_transfers) THEN RAISE EXCEPTION 'Cannot downgrade recorded inventory transfers'; END IF; END $$;"
+        "DO $$ BEGIN IF EXISTS (SELECT 1 FROM inventory_transfers) OR EXISTS (SELECT 1 FROM memberships WHERE allowed_branch_id IS NOT NULL) THEN RAISE EXCEPTION 'Cannot downgrade recorded inventory transfers'; END IF; END $$;"
     )
     op.drop_table("inventory_transfers")
     op.drop_constraint("ck_inventory_movements_type", "inventory_movements", type_="check")

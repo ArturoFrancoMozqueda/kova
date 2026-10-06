@@ -12,6 +12,8 @@ const SHARED_BACKGROUND_ALLOWLIST = [
   { method: "GET", path: /^\/api\/v1\/billing\/subscription$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/catalog\/(products|categories|modifier-groups)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/reports\/(sales-by-hour|sales-summary|business-story|branches)$/, status: 503 },
+  { method: "GET", path: /^\/api\/v1\/customers$/, status: 503 },
+  { method: "GET", path: /^\/api\/v1\/branches\/transfers$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/inventory\/(stock|low-stock)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/inventory\/(velocity|movements)$/, status: 503 },
   { method: "GET", path: /^\/api\/v1\/(onboarding\/state|employees|shifts)$/, status: 503 },

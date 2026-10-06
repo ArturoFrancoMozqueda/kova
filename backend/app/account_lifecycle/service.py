@@ -80,7 +80,7 @@ _EXPORT_TABLES = (
     ExportTable(
         "inventory_transfers",
         _columns(
-            "id tenant_id source_branch_id destination_branch_id product_id quantity "
+            "id tenant_id source_branch_id destination_branch_id product_id product_name quantity "
             "reason created_by_user_id created_at"
         ),
     ),
@@ -525,7 +525,7 @@ def build_account_export(db: Session, *, tenant_id: UUID) -> BinaryIO:
         members = db.execute(
             text(
                 "SELECT m.id AS membership_id, m.user_id, u.email, m.role, "
-                "m.is_active, m.created_at FROM memberships m "
+                "m.is_active, m.allowed_branch_id, m.created_at FROM memberships m "
                 "JOIN users u ON u.id = m.user_id WHERE m.tenant_id = :tenant_id "
                 "ORDER BY m.created_at"
             ),

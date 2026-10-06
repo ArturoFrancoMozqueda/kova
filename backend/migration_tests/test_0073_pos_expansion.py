@@ -112,10 +112,17 @@ def test_upgrade_keeps_legacy_sale_values_and_product_identity():
         (
             "0071_purchasing",
             "INSERT INTO inventory_transfers (id, tenant_id, source_branch_id, "
-            "destination_branch_id, product_id, quantity, reason, created_by_user_id) "
-            "VALUES (:id, :tenant, :tenant, :destination, :product, 1, 'Restock', :user)",
+            "destination_branch_id, product_id, product_name, quantity, reason, created_by_user_id) "
+            "VALUES (:id, :tenant, :tenant, :destination, :product, 'Existing bread', 1, 'Restock', :user)",
             "Cannot downgrade recorded inventory transfers",
             "inventory_transfers",
+        ),
+        (
+            "0071_purchasing",
+            "INSERT INTO memberships (id, tenant_id, user_id, role, is_active, allowed_branch_id, created_at) "
+            "VALUES (:id, :tenant, :user, 'staff', true, :destination, now())",
+            "Cannot downgrade recorded inventory transfers",
+            "memberships",
         ),
         (
             "0072_branch_transfers",
