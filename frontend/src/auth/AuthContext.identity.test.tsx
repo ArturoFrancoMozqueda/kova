@@ -334,6 +334,22 @@ describe("AuthProvider identity continuity", () => {
     expect(billingIdentity).toHaveBeenLastCalledWith(null);
   });
 
+  it("preserves a captured identity and branch instead of rebinding a stale assistant request", async () => {
+    const networkFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    window.fetch = networkFetch;
+    vi.mocked(getSession).mockResolvedValueOnce(session("tenant-b", "user-b"));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-b:user-b:online");
+    await window.fetch("/api/v1/assistant/proposals", { method: "POST", headers: {
+      "X-Kova-Expected-Tenant": "tenant-a", "X-Kova-Expected-User": "user-a", "X-Kova-Branch": "branch-a",
+    } });
+    const headers = new Headers(networkFetch.mock.calls[0][1].headers);
+    expect(headers.get("X-Kova-Expected-Tenant")).toBe("tenant-a");
+    expect(headers.get("X-Kova-Expected-User")).toBe("user-a");
+    expect(headers.get("X-Kova-Branch")).toBe("branch-a");
+    view.unmount();
+  });
+
   it.each([
     ["offline sync", "/api/v1/sync/offline-sales"],
     ["refund", "/api/v1/orders/order-1/refunds"],

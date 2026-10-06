@@ -24,7 +24,12 @@ def get_business_profile(db: Session, *, tenant_id: UUID) -> BusinessProfile | N
 
 
 def upsert_business_profile(
-    db: Session, *, tenant_id: UUID, user_id: UUID, body: BusinessProfileUpsert
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    body: BusinessProfileUpsert,
+    commit: bool = True,
 ) -> BusinessProfile:
     profile = repository.get_business_profile(db, tenant_id=tenant_id)
     now = datetime.now(UTC)
@@ -50,8 +55,12 @@ def upsert_business_profile(
         resource_id=tenant_id,
         changes=body.model_dump(mode="json"),
     )
-    db.commit()
-    _refresh_with_tenant_context(db, profile, tenant_id)
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+    if commit:
+        _refresh_with_tenant_context(db, profile, tenant_id)
     return profile
 
 
@@ -60,7 +69,12 @@ def get_receipt_settings(db: Session, *, tenant_id: UUID) -> ReceiptSettings | N
 
 
 def upsert_receipt_settings(
-    db: Session, *, tenant_id: UUID, user_id: UUID, body: ReceiptSettingsUpsert
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    body: ReceiptSettingsUpsert,
+    commit: bool = True,
 ) -> ReceiptSettings:
     settings = repository.get_receipt_settings(db, tenant_id=tenant_id)
     now = datetime.now(UTC)
@@ -86,6 +100,10 @@ def upsert_receipt_settings(
         resource_id=tenant_id,
         changes=body.model_dump(mode="json"),
     )
-    db.commit()
-    _refresh_with_tenant_context(db, settings, tenant_id)
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+    if commit:
+        _refresh_with_tenant_context(db, settings, tenant_id)
     return settings

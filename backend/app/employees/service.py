@@ -92,7 +92,13 @@ def list_invitations(db: Session, *, tenant_id: UUID) -> list[MembershipInvitati
 
 
 def invite_employee(
-    db: Session, *, tenant_id: UUID, user_id: UUID, actor_role: str, body: InvitationCreate
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    actor_role: str,
+    body: InvitationCreate,
+    delivery_hook=None,
 ) -> MembershipInvitation:
     # Only an owner can grant owner-level access. USERS_MANAGE alone (managers)
     # must not be able to mint owners — that would be privilege escalation.
@@ -148,6 +154,10 @@ def invite_employee(
         resource_id=invitation.id,
         changes={"email": invitation.email, "role": invitation.role},
     )
+    if delivery_hook is not None:
+        delivery_hook(invitation, plain_token)
+        db.flush()
+        return invitation
     db.commit()
     db.refresh(invitation)
     email_service.send_invitation_email(

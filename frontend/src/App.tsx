@@ -30,6 +30,7 @@ const OrderListView = lazy(() => import("./orders/OrderListView"));
 const SyncQueueView = lazy(() => import("./offline/SyncQueueView"));
 const RegisterView = lazy(() => import("./register/RegisterView"));
 const ReportsView = lazy(() => import("./reports/ReportsView"));
+const AssistantView = lazy(() => import("./assistant/AssistantView"));
 const SettingsView = lazy(() => import("./settings/SettingsView"));
 const ShiftView = lazy(() => import("./shifts/ShiftView"));
 const AppShell = lazy(() => import("./layout/AppShell"));
@@ -122,6 +123,7 @@ export function AppRoutes() {
               <Route path="/pedidos/:orderId/editar" element={<CustomerOrderFormView />} />
               <Route path="/orders" element={<OrderListView />} />
               <Route path="/orders/:orderId" element={<OrderDetail />} />
+              <Route path="/assistant" element={<AssistantView />} />
               <Route path="/reports" element={<ReportsView />} />
               <Route path="/shifts" element={<ShiftView />} />
               <Route path="/billing" element={<Navigate to="/settings/billing" replace />} />

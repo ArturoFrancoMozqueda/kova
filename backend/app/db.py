@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 TENANT_SCOPED_TABLES = (
     "account_deletion_requests",
     "audit_logs",
+    "assistant_records",
+    "assistant_chunks",
     "branches",
     "cash_movements",
     "categories",
@@ -167,6 +169,12 @@ def _restore_transaction_tenant_context(
     session: Session, _transaction: object, connection: Connection
 ) -> None:
     """Reapply transaction-local RLS context after every commit or rollback."""
+    assistant_user = session.info.get("kova_assistant_user_id")
+    if assistant_user is not None:
+        connection.execute(
+            text("SELECT set_config('app.assistant_user_id', :uid, true)"),
+            {"uid": assistant_user},
+        )
     tenant_id = session.info.get(_TENANT_CONTEXT_INFO_KEY)
     if tenant_id is not None:
         connection.execute(
@@ -229,6 +237,7 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
         db.info.pop("kova_branch_id", None)
+        db.info.pop("kova_assistant_user_id", None)
         db.info.pop("kova_allowed_branch_id", None)
         db.close()
 

@@ -1281,6 +1281,21 @@
         "title": "CheckoutSessionResponse",
         "type": "object"
       },
+      "Confirm": {
+        "additionalProperties": false,
+        "properties": {
+          "fingerprint": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fingerprint"
+        ],
+        "title": "Confirm",
+        "type": "object"
+      },
       "ConnectionInput": {
         "additionalProperties": false,
         "properties": {
@@ -1482,6 +1497,20 @@
           "suggested_payment_forms"
         ],
         "title": "ContextResponse",
+        "type": "object"
+      },
+      "ConversationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "default": "Conversaci\u00f3n privada",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "ConversationCreate",
         "type": "object"
       },
       "CustomerHistory": {
@@ -3921,6 +3950,54 @@
         "title": "FunnelStep",
         "type": "object"
       },
+      "GoalWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "metric": {
+            "enum": [
+              "net_sales",
+              "order_count"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "shared": {
+            "default": false,
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "target": {
+            "pattern": "^\\d{1,10}(\\.\\d{1,2})?$",
+            "title": "Target",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "metric",
+          "target",
+          "start_date",
+          "end_date"
+        ],
+        "title": "GoalWrite",
+        "type": "object"
+      },
       "GrowthTruths": {
         "description": "Canonical lifetime growth counts shared with the protected snapshot.",
         "properties": {
@@ -5331,6 +5408,52 @@
           "feature_flags"
         ],
         "title": "MeResponse",
+        "type": "object"
+      },
+      "MemoryWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "shared": {
+            "default": false,
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "source_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "MemoryWrite",
+        "type": "object"
+      },
+      "MessageCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "MessageCreate",
         "type": "object"
       },
       "MessageResponse": {
@@ -7223,6 +7346,37 @@
         "title": "PaymentResponse",
         "type": "object"
       },
+      "PreferenceWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_consent": {
+            "default": false,
+            "title": "Chat Consent",
+            "type": "boolean"
+          },
+          "document_consent": {
+            "default": false,
+            "title": "Document Consent",
+            "type": "boolean"
+          },
+          "email_opt_in": {
+            "default": false,
+            "title": "Email Opt In",
+            "type": "boolean"
+          },
+          "frequency": {
+            "default": "weekly",
+            "enum": [
+              "daily",
+              "weekly"
+            ],
+            "title": "Frequency",
+            "type": "string"
+          }
+        },
+        "title": "PreferenceWrite",
+        "type": "object"
+      },
       "PresetApplyRequest": {
         "additionalProperties": false,
         "properties": {
@@ -7954,6 +8108,25 @@
           }
         },
         "title": "ProductUpdate",
+        "type": "object"
+      },
+      "ProposalCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/Step"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps"
+        ],
+        "title": "ProposalCreate",
         "type": "object"
       },
       "PurchaseCreate": {
@@ -9266,6 +9439,20 @@
         "title": "SetProductModifierGroups",
         "type": "object"
       },
+      "ShareWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "shared"
+        ],
+        "title": "ShareWrite",
+        "type": "object"
+      },
       "ShiftCloseCreate": {
         "additionalProperties": false,
         "properties": {
@@ -9508,6 +9695,50 @@
         "title": "StatusResponse",
         "type": "object"
       },
+      "Step": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "business_profile",
+              "receipt",
+              "category_create",
+              "category_update",
+              "product_create",
+              "product_update",
+              "branch_create",
+              "branch_update",
+              "catalog_import",
+              "invitation"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "values": {
+            "additionalProperties": true,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "action",
+          "values"
+        ],
+        "title": "Step",
+        "type": "object"
+      },
       "StockTakeCreate": {
         "additionalProperties": false,
         "properties": {
@@ -9742,6 +9973,25 @@
           "is_active"
         ],
         "title": "SupplierResponse",
+        "type": "object"
+      },
+      "TaskWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "reviewed",
+              "postponed",
+              "declared_completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TaskWrite",
         "type": "object"
       },
       "TechnicalResponse": {
@@ -11143,6 +11393,1156 @@
         "tags": [
           "account-lifecycle",
           "internal"
+        ]
+      }
+    },
+    "/api/v1/assistant/capabilities": {
+      "get": {
+        "operationId": "capabilities_api_v1_assistant_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Capabilities",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/conversations": {
+      "get": {
+        "operationId": "conversations_api_v1_assistant_conversations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Conversations",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "post": {
+        "operationId": "conversation_create_api_v1_assistant_conversations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Conversation Create",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/conversations/{identifier}": {
+      "delete": {
+        "operationId": "conversation_delete_api_v1_assistant_conversations__identifier__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Conversation Delete",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "get": {
+        "operationId": "conversation_get_api_v1_assistant_conversations__identifier__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Conversation Get",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/conversations/{identifier}/messages": {
+      "post": {
+        "operationId": "message_create_api_v1_assistant_conversations__identifier__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Message Create",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/documents": {
+      "get": {
+        "operationId": "document_list_api_v1_assistant_documents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Document List",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "post": {
+        "operationId": "document_upload_api_v1_assistant_documents_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "maxLength": 180,
+              "title": "Filename",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "pattern": "^(knowledge|catalog)$",
+              "title": "Purpose",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "replaces",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Replaces"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Document Upload",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/documents/{identifier}": {
+      "delete": {
+        "operationId": "document_delete_api_v1_assistant_documents__identifier__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Document Delete",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/documents/{identifier}/sharing": {
+      "patch": {
+        "operationId": "document_share_api_v1_assistant_documents__identifier__sharing_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Document Share",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/documents/{identifier}/source": {
+      "get": {
+        "operationId": "document_source_api_v1_assistant_documents__identifier__source_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Document Source",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/export": {
+      "get": {
+        "operationId": "personal_export_api_v1_assistant_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Personal Export",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/goals": {
+      "get": {
+        "operationId": "goals_api_v1_assistant_goals_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Goals",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "post": {
+        "operationId": "goal_create_api_v1_assistant_goals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Goal Create",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/goals/{identifier}": {
+      "delete": {
+        "operationId": "goal_delete_api_v1_assistant_goals__identifier__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Goal Delete",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "put": {
+        "operationId": "goal_update_api_v1_assistant_goals__identifier__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoalWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Goal Update",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/memory": {
+      "get": {
+        "operationId": "memory_api_v1_assistant_memory_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Memory",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "post": {
+        "operationId": "memory_create_api_v1_assistant_memory_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Create",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/memory/{identifier}": {
+      "delete": {
+        "operationId": "memory_delete_api_v1_assistant_memory__identifier__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Delete",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "put": {
+        "operationId": "memory_update_api_v1_assistant_memory__identifier__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Update",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/preferences": {
+      "get": {
+        "operationId": "preferences_api_v1_assistant_preferences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Preferences",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "put": {
+        "operationId": "preferences_write_api_v1_assistant_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenceWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preferences Write",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/proposals": {
+      "get": {
+        "operationId": "proposals_api_v1_assistant_proposals_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Proposals",
+        "tags": [
+          "assistant"
+        ]
+      },
+      "post": {
+        "operationId": "proposal_create_api_v1_assistant_proposals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Proposal Create",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/proposals/{identifier}/confirm": {
+      "post": {
+        "operationId": "proposal_confirm_api_v1_assistant_proposals__identifier__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Confirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Proposal Confirm",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/proposals/{identifier}/reject": {
+      "post": {
+        "operationId": "proposal_reject_api_v1_assistant_proposals__identifier__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Proposal Reject",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/proposals/{identifier}/revise": {
+      "post": {
+        "operationId": "proposal_revise_api_v1_assistant_proposals__identifier__revise_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Proposal Revise",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/runs/{identifier}": {
+      "get": {
+        "operationId": "run_get_api_v1_assistant_runs__identifier__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Get",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/runs/{identifier}/cancel": {
+      "post": {
+        "operationId": "run_cancel_api_v1_assistant_runs__identifier__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Cancel",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/tasks": {
+      "get": {
+        "operationId": "tasks_api_v1_assistant_tasks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Tasks",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/tasks/{identifier}": {
+      "patch": {
+        "operationId": "task_write_api_v1_assistant_tasks__identifier__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Task Write",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/usage": {
+      "get": {
+        "operationId": "usage_api_v1_assistant_usage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Usage",
+        "tags": [
+          "assistant"
         ]
       }
     },

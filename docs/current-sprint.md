@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 
 ## Source Of Truth
 
@@ -100,6 +100,28 @@ new per-location pricing. Natural-language chat, branch-restricted staff and inv
 remain outside this slice. Local checks do not establish commercial traction or close existing
 production gates. Once additional branches exist, schema downgrade is intentionally blocked;
 retain migration 0068 when rolling back the application.
+
+## Active implementation (2026-10): Asistente por tenant
+
+The owner requested the complete assistant design: guided configuration with explicit confirmation,
+catalog imports, private-document RAG, authorized analytics, memory, goals and proactive in-app/opt-in
+email follow-up. Architecture, quota estimates, security boundaries and 72 acceptance scenarios live
+in [`plans/PLAN-ASISTENTE-TENANT.md`](plans/PLAN-ASISTENTE-TENANT.md), linked from the
+[product roadmap](plans/PLAN-KOVA-COPILOT.md).
+
+- [x] Consolidate the complete scope and implementation plan against existing code/contracts.
+- [ ] Validate the real provider account, quality, consumption and data-processing conditions.
+- [x] Implement the pilot UI/API/worker, confirmation, tenant/private RLS, idempotency, shared budgets,
+      document lifecycle, memory/goals and deterministic follow-up on `codex/tenant-assistant`.
+      A floating Kova logo companion opens a private chat without leaving the current page;
+      checkout, onboarding tours and confirmation dialogs retain visual priority.
+- [ ] Close external provider/parser/ingestion/restore gates before enabling a real pilot.
+- [ ] Complete full-flow QA, observed pilot capacity and applicable production gates.
+
+The owner authorized implementation on a new branch from main on 2026-10-06. Code and local
+verification are tracked in [assistant-operations.md](assistant-operations.md) and the plan. Flags
+remain disabled by default. This does not change pricing, authorize paid inference/deployment or
+close operational gates. The branch-management slice above remains independently completed.
 
 ## Historical Sprint (2026-07): Premium redesign app-wide + remaining hardening
 

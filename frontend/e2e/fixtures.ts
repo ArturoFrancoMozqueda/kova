@@ -46,6 +46,16 @@ export const test = base.extend<GuardFixtures>({
             await route.fulfill({ json: [] });
             return;
           }
+          // The shell now discovers the server-controlled assistant cohort.
+          // Other scenarios keep the production default (all capabilities off);
+          // assistant scenarios override this exact route with explicit gates.
+          if (request.method() === "GET" && pathname === "/api/v1/assistant/capabilities") {
+            await route.fulfill({ json: {
+              enabled: false, inference_ready: false, configuration: false,
+              documents: false, email: false, role: "owner",
+            } });
+            return;
+          }
           const sharedBackground = SHARED_BACKGROUND_ALLOWLIST.find(
             (entry) => entry.method === request.method() && entry.path.test(pathname),
           );

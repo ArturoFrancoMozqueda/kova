@@ -106,14 +106,15 @@ def _provision_kova_app() -> None:
         )
         conn.execute(text(f"ALTER ROLE kova_app WITH PASSWORD '{_KOVA_APP_PASSWORD}'"))
         conn.execute(text(f'GRANT CONNECT ON DATABASE "{db_name}" TO kova_app'))
-        conn.execute(text("GRANT USAGE ON SCHEMA public TO kova_app"))
+        conn.execute(text("GRANT USAGE ON SCHEMA public,extensions,assistant_control TO kova_app"))
+        conn.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA assistant_control TO kova_app"))
         conn.execute(text("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM kova_app"))
         conn.execute(text("REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM kova_app"))
         conn.execute(text("GRANT SELECT, INSERT ON branches TO kova_app"))
         conn.execute(text("GRANT UPDATE (name, address) ON branches TO kova_app"))
         grants = {
             "SELECT, INSERT, UPDATE, DELETE": (
-                "expenses product_image_files tenant_logo_files"
+                "expenses product_image_files tenant_logo_files assistant_records assistant_chunks"
             ),
             "SELECT, INSERT, DELETE": (
                 "customer_order_item_modifiers customer_order_items "

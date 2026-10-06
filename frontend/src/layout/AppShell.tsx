@@ -1,4 +1,5 @@
 import { BranchSelector } from "@/branches/BranchSelector";
+import { AssistantCompanion } from "@/assistant/AssistantCompanion";
 import { Suspense, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { copy } from "@/i18n/messages";
@@ -34,6 +35,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   CircleHelp,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -73,6 +75,7 @@ const adminNavItems: NavItem[] = [
   { to: "/inventory", label: copy.inventoryView.title, icon: <Package className="h-4.5 w-4.5" />, group: "business" },
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
+  { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" />, group: "business" },
   { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, group: "business", permission: "billing.view" },
 ];
@@ -112,6 +115,7 @@ export default function AppShell() {
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
+  const [assistantEnabled, setAssistantEnabled] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const { toast } = useToast();
 
@@ -163,8 +167,20 @@ export default function AppShell() {
     if (path.startsWith("/expenses") || path === "/gastos") return copy.expenses.title;
     if (path.startsWith("/sync-queue")) return copy.syncQueue.title;
     if (path.startsWith("/settings")) return copy.settings.title;
+    if (path.startsWith("/assistant")) return "Asistente";
     return copy.app.dashboard;
   })();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setAssistantEnabled(false);
+    if (state.status !== "authenticated" || state.sessionMode !== "online" || !isAdminRole(state.user.role)) return;
+    void fetch("/api/v1/assistant/capabilities", { signal: controller.signal, cache: "no-store" })
+      .then(response => response.ok ? response.json() as Promise<{ enabled: boolean }> : { enabled: false })
+      .then(value => { if (!controller.signal.aborted) setAssistantEnabled(value.enabled); })
+      .catch(() => { /* Unavailable assistant never blocks navigation or POS. */ });
+    return () => controller.abort();
+  }, [state]);
 
   const navItems = isOfflineSession
     ? adminNavItems.filter((item) => item.to === "/register")
@@ -191,6 +207,7 @@ export default function AppShell() {
       ];
 
   const filteredNavItems = navItems.filter((item) => {
+    if (item.to === "/assistant" && !assistantEnabled) return false;
     if (item.permission === CUSTOMERS_VIEW_PERMISSION && !canViewCustomers) return false;
     if (item.permission === INVENTORY_ADJUST_PERMISSION && !canAdjustInventory) return false;
     if (item.permission === "reports.view_all") return canViewReports;
@@ -498,6 +515,7 @@ export default function AppShell() {
         </div>
         <FirstUseTour />
         <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} />
+        <AssistantCompanion enabled={assistantEnabled} suspended={sidebarOpen || supportOpen} />
 
         {/* Bottom navigation — mobile only */}
         <nav

@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:0.8.7-pg16-bookworm
         env:
           POSTGRES_USER: pos
           POSTGRES_PASSWORD: pos
@@ -218,6 +218,16 @@ jobs:
           path: backend-sbom.spdx.json
           if-no-files-found: error
 
+  assistant-parser:
+    name: isolated assistant parser and antivirus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Build parser with current antivirus signatures
+        run: docker build --tag kova-assistant-parser:1 backend/assistant-parser
+      - name: Verify isolated business files and adversarial rejection
+        run: python3 backend/scripts/check_assistant_parser.py
+
   integration:
     runs-on: ubuntu-latest
     steps:
@@ -250,11 +260,11 @@ jobs:
 
   migrations:
     name: migration reversibility
-    needs: [backend-integration, frontend-unit-build, e2e-mocked-dev, e2e-mocked-preview, integration, dependency-audit, no-secrets, container-supply-chain]
+    needs: [backend-integration, frontend-unit-build, e2e-mocked-dev, e2e-mocked-preview, integration, dependency-audit, no-secrets, container-supply-chain, assistant-parser]
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:0.8.7-pg16-bookworm
         env:
           POSTGRES_USER: pos
           POSTGRES_PASSWORD: pos

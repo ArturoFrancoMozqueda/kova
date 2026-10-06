@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -86,6 +86,30 @@ class Settings(BaseSettings):
     upstash_redis_rest_token: str | None = None
     trusted_client_ip_header: str = "fly-client-ip"
     email_from: str = "onboarding@resend.dev"
+
+    # Assistant is opt-in by server cohort; never call inference by default.
+    assistant_provider_verified: bool = False
+    assistant_enabled: bool = False
+    assistant_mutations_enabled: bool = False
+    assistant_documents_enabled: bool = False
+    assistant_email_enabled: bool = False
+    assistant_tenant_ids: str = ""
+    assistant_cloudflare_account_id: str = ""
+    assistant_cloudflare_token: SecretStr | None = None
+    assistant_r2_access_key: SecretStr | None = None
+    assistant_r2_secret_key: SecretStr | None = None
+    assistant_r2_bucket: str = "kova-assistant"
+    assistant_daily_budget: int = Field(default=9000, ge=1, le=9000)
+    assistant_chat_budget: int = Field(default=8000, ge=1, le=8000)
+    assistant_model: str = "@cf/qwen/qwen3.8-27b"
+    assistant_help_model: str = "@cf/qwen/qwen3-30b-a3b-fp8"
+
+    @field_validator("assistant_tenant_ids")
+    @classmethod
+    def validate_assistant_cohort(cls, value: str) -> str:
+        return ",".join(
+            sorted({str(UUID(part.strip())) for part in value.split(",") if part.strip()})
+        )
 
     # Internal ops dashboard (founder only). Production requires one exact
     # verified email plus its immutable user UUID. Leaving both empty disables
