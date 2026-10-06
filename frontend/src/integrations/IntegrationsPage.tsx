@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/auth/AuthContext";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
-import { listOrders } from "@/orders/api";
+import { getOrder, listOrders } from "@/orders/api";
 import { formatDateTime, formatMoney } from "@/orders/format";
-import type { OrderListItem } from "@/orders/types";
+import type { Order, OrderListItem } from "@/orders/types";
 import {
   createInvoiceRequest,
   getReadiness,
@@ -57,8 +58,10 @@ function IdentityFields({
 
 export function IntegrationContents({
   canManage = false,
+  initialOrderId = "",
 }: {
   canManage?: boolean;
+  initialOrderId?: string;
 }) {
   const [connectionLabel, setConnectionLabel] = useState("Sin conectar");
   const updateConnectionLabel = useCallback(
@@ -73,6 +76,7 @@ export function IntegrationContents({
     email: "",
   });
   const [orderId, setOrderId] = useState("");
+  const [linkedSale, setLinkedSale] = useState<Order | null>(null);
   const [sales, setSales] = useState<OrderListItem[]>([]);
   const [requests, setRequests] = useState<InvoiceRequest[]>([]);
   const [error, setError] = useState("");
@@ -83,6 +87,12 @@ export function IntegrationContents({
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    if (canManage && initialOrderId) {
+      setOrderId("");
+      setLinkedSale(null);
+      setMessage("");
+    }
     Promise.all([
       getReadiness(),
       canManage ? listInvoiceRequests() : Promise.resolve([]),
@@ -90,7 +100,7 @@ export function IntegrationContents({
         ? listOrders({ status: "completed", limit: 100 })
         : Promise.resolve({ items: [] }),
     ])
-      .then(([state, items, orders]) => {
+      .then(async ([state, items, orders]) => {
         if (active) {
           const readinessLabels = {
             not_connected: "Sin conectar",
@@ -105,6 +115,37 @@ export function IntegrationContents({
           setSaved(!!state.issuer);
           setRequests(items);
           setSales(orders.items);
+          setLinkedSale(null);
+          if (canManage && initialOrderId) {
+            setRequestKey(crypto.randomUUID());
+            if (items.some((request) => request.order_id === initialOrderId)) {
+              setOrderId("");
+              setMessage(
+                "Esta venta ya tiene una solicitud registrada. Revisa su documento antes de preparar otra emisión.",
+              );
+            } else {
+              const recent = orders.items.find(
+                (sale) => sale.id === initialOrderId,
+              );
+              const linked = recent ?? (await getOrder(initialOrderId));
+              if (!active) return;
+              if (
+                linked.id !== initialOrderId ||
+                linked.status !== "completed"
+              ) {
+                setOrderId("");
+                setMessage(
+                  "Esta venta no está completada y no puede prepararse para facturación.",
+                );
+              } else {
+                if (!recent) setLinkedSale(linked as Order);
+                setOrderId(linked.id);
+                setMessage(
+                  "Venta del ticket seleccionada. Revisa los datos del receptor y guarda la solicitud para continuar.",
+                );
+              }
+            }
+          }
         }
       })
       .catch((e) => {
@@ -116,7 +157,7 @@ export function IntegrationContents({
     return () => {
       active = false;
     };
-  }, [canManage]);
+  }, [canManage, initialOrderId]);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -247,6 +288,16 @@ export function IntegrationContents({
                     }}
                   >
                     <option value="">Selecciona una venta reciente</option>
+                    {linkedSale &&
+                      !requests.some(
+                        (request) => request.order_id === linkedSale.id,
+                      ) && (
+                        <option value={linkedSale.id}>
+                          Venta del ticket ·{" "}
+                          {formatMoney(linkedSale.total_amount)} · Folio{" "}
+                          {linkedSale.id.slice(0, 8)}
+                        </option>
+                      )}
                     {sales
                       .filter(
                         (sale) =>
@@ -353,6 +404,14 @@ export function IntegrationContents({
 }
 
 export function IntegrationsPage() {
+  const [searchParams] = useSearchParams();
+  const linkedOrder = searchParams.get("order_id") ?? "";
+  const initialOrderId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      linkedOrder,
+    )
+      ? linkedOrder
+      : "";
   const { state } = useAuthContext();
   const user = state.status === "authenticated" ? state.user : null;
   if (user?.role !== "owner" && user?.role !== "manager")
@@ -362,5 +421,10 @@ export function IntegrationsPage() {
         <p>No tienes permiso para consultar esta sección.</p>
       </ViewLayout>
     );
-  return <IntegrationContents canManage={user?.role === "owner"} />;
+  return (
+    <IntegrationContents
+      canManage={user?.role === "owner"}
+      initialOrderId={user?.role === "owner" ? initialOrderId : ""}
+    />
+  );
 }

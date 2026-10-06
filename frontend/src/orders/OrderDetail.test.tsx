@@ -149,6 +149,32 @@ beforeAll(async () => {
 });
 
 describe("OrderDetail", () => {
+  it("offers owner invoice preparation from a completed ticket without mutating the sale", async () => {
+    const fetchMock = mockInitialLoad(receipt, "owner");
+    window.history.pushState(null, "", "/orders/order-1");
+    render(<App />);
+    const action = await screen.findByRole("link", { name: "Preparar factura" });
+    expect(action).toHaveAttribute("href", "/settings/integrations?order_id=order-1");
+    expect(fetchMock.mock.calls.every(([, options]) => !options || options.method !== "POST")).toBe(true);
+  });
+
+  it.each(["manager", "cashier"])("does not offer fiscal preparation to %s", async (role) => {
+    mockInitialLoad(receipt, role);
+    window.history.pushState(null, "", "/orders/order-1");
+    render(<App />);
+    await screen.findByRole("heading", { name: /detalle de la venta/i });
+    expect(screen.queryByRole("link", { name: "Preparar factura" })).not.toBeInTheDocument();
+  });
+
+  it.each(["voided", "refunded"])("does not offer invoice preparation on a %s ticket", async (state) => {
+    const changed = state === "voided" ? { ...receipt, status: "voided" } : { ...receipt, refunds: [{ id: "refund-1", reason: "customer_return", refunded_amount: "25.00", created_at: receipt.created_at, items: [] }] };
+    mockInitialLoad(changed, "owner");
+    window.history.pushState(null, "", "/orders/order-1");
+    render(<App />);
+    await screen.findByRole("heading", { name: /detalle de la venta/i });
+    expect(screen.queryByRole("link", { name: "Preparar factura" })).not.toBeInTheDocument();
+  });
+
   it("shows receipt refunds and hides actions without permission", async () => {
     mockInitialLoad({
       ...receipt,
