@@ -8,6 +8,8 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
@@ -137,7 +139,7 @@ def test_populated_branch_migration_and_guarded_downgrade():
             )
             assert (
                 conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-                == "0068_branches"
+                == ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini"))).get_current_head()
             )
 
 
