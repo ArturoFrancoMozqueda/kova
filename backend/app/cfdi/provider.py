@@ -2,6 +2,7 @@
 
 Contract: https://docs.facturapi.io/api/ (invoice, organization, downloads)
 and https://docs.facturapi.io/docs/guides/invoices/intermitencias/ .
+Error codes: https://docs.facturapi.io/docs/getting-started/errors/ .
 Credential encryption and stamped XML integrity belong to the lifecycle service.
 """
 
@@ -16,6 +17,7 @@ import httpx
 
 API_BASE = "https://www.facturapi.io/v2"
 MAX_JSON_BYTES = 4 * 1024 * 1024
+MAX_ERROR_BYTES = 64 * 1024
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
 MAX_XML_BYTES = 10 * 1024 * 1024
 MAX_PDF_BYTES = 20 * 1024 * 1024
@@ -91,8 +93,11 @@ class FacturapiProvider:
     ):
         if environment not in ("test", "live"):
             raise ProviderError("provider_invalid_environment")
-        if not isinstance(api_key, str) or not re.fullmatch(
-            rf"sk_{environment}_[A-Za-z0-9_-]+", api_key
+        # Organization environment prefixes are documented; the suffix is opaque.
+        if (
+            not isinstance(api_key, str)
+            or len(api_key) > 4096
+            or not re.fullmatch(rf"sk_{environment}_[\x21-\x7e]+", api_key)
         ):
             raise ProviderError("provider_invalid_credentials")
         if not isinstance(timeout_seconds, int | float) or not 1 <= timeout_seconds <= 60:
@@ -142,24 +147,26 @@ class FacturapiProvider:
                 headers={"Accept": accept},
             ) as response:
                 status = response.status_code
-                if status not in (200, 201, 202):
-                    self._raise_status(status)
+                response_limit = limit if status in (200, 201, 202) else min(limit, MAX_ERROR_BYTES)
                 length = response.headers.get("Content-Length")
                 if length is not None:
                     try:
                         size = int(length)
                     except ValueError:
                         raise ProviderError("provider_invalid_response", definitive=False) from None
-                    if size < 0 or size > limit:
+                    if size < 0 or size > response_limit:
                         raise ProviderError("provider_response_too_large", definitive=False)
                 chunks = []
                 total = 0
                 for chunk in response.iter_bytes(chunk_size=64 * 1024):
                     total += len(chunk)
-                    if total > limit:
+                    if total > response_limit:
                         raise ProviderError("provider_response_too_large", definitive=False)
                     chunks.append(chunk)
-                return status, b"".join(chunks)
+                data = b"".join(chunks)
+                if status not in (200, 201, 202):
+                    self._raise_status(status, data)
+                return status, data
         except httpx.TimeoutException:
             error = ProviderError("provider_timeout", transient=True, definitive=False)
         except httpx.HTTPError:
@@ -169,8 +176,84 @@ class FacturapiProvider:
         raise error
 
     @staticmethod
-    def _raise_status(status: int) -> None:
-        if status in (400, 401, 402, 403, 404, 422):
+    def _raise_status(status: int, body: bytes) -> None:
+        # Only documented fixed codes influence classification; messages,
+        # paths and SAT/PAC payloads are never copied into exceptions.
+        try:
+            value = json.loads(body, parse_constant=_reject_json_constant)
+        except (ValueError, UnicodeError, RecursionError):
+            value = None
+        details = value.get("errors", []) if isinstance(value, dict) else []
+        details = details if isinstance(details, list) else [None]
+        root = value.get("code") if isinstance(value, dict) else None
+        codes = {
+            detail.get("code")
+            for detail in details
+            if isinstance(detail, dict) and isinstance(detail.get("code"), str)
+        }
+        if isinstance(root, str):
+            codes.add(root)
+        pending = {
+            "idempotency_key_in_use": "provider_idempotency_in_use",
+            "stamping_in_progress": "provider_stamping_in_progress",
+            "invoice_cancellation_in_progress": "provider_cancellation_in_progress",
+        }
+        for source, code in pending.items():
+            if source in codes:
+                raise ProviderError(code, status_code=status, transient=True, definitive=False)
+        if "invoice_already_stamped" in codes:
+            raise ProviderError("provider_already_stamped", status_code=status, definitive=False)
+        if "rate_limit_exceeded" in codes:
+            raise ProviderError(
+                "provider_rate_limited", status_code=status, transient=True, definitive=False
+            )
+        if status in (400, 422):
+            local_codes = {
+                "invalid_json",
+                "payload_too_large",
+                "invalid_date",
+                "invalid_country_code",
+                "legal_name_mismatch",
+                "tax_address_zip_mismatch",
+                "tax_id_not_found",
+                "tax_system_not_allowed_for_tax_id",
+                "tax_system_not_in_catalog",
+                "product_key_not_found",
+                "unit_key_not_found",
+                "organization_incomplete",
+                "certificate_expired",
+                "certificate_invalid",
+                "certificate_not_yet_valid",
+            }
+            detail_codes = {
+                "invalid_format",
+                "invalid_length",
+                "invalid_type",
+                "not_found",
+                "not_allowed",
+                "required",
+                "too_large",
+                "too_small",
+                "unknown_field",
+                "invalid_value",
+                *local_codes,
+            }
+            local_details = all(
+                isinstance(detail, dict)
+                and detail.get("source") == "facturapi"
+                and isinstance(detail.get("code"), str)
+                and detail["code"] in detail_codes
+                for detail in details
+            )
+            # External stamping errors (even HTTP400), unknown codes or malformed
+            # responses keep the durable reservation until GET reconciliation.
+            definite = (
+                local_details
+                and isinstance(root, str)
+                and (root in local_codes or root == "invalid_request")
+            )
+            raise ProviderError("provider_invalid_request", status_code=status, definitive=definite)
+        if status in (401, 402, 403, 404):
             code = {
                 400: "provider_invalid_request",
                 401: "provider_authentication_failed",
