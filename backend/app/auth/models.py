@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     String,
     UniqueConstraint,
 )
@@ -37,12 +38,18 @@ class Membership(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     user_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    allowed_branch_id: Mapped[UUID | None] = mapped_column(nullable=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "user_id", name="uq_memberships_tenant_user"),
+        ForeignKeyConstraint(
+            ["tenant_id", "allowed_branch_id"],
+            ["branches.tenant_id", "branches.id"],
+            name="fk_memberships_allowed_branch",
+        ),
         CheckConstraint(
             "role IN ('owner','manager','cashier','staff')", name="ck_memberships_role"
         ),

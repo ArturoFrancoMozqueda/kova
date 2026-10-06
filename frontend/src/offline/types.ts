@@ -8,8 +8,12 @@ export type OfflinePaymentDraft = {
 };
 
 export type OfflineSaleDraft = {
+  customer_id?: string;
+  discount_amount?: string;
+  tax_rate?: string;
   items: Array<{
     product_id: string;
+    unit_price_amount?: string;
     quantity: number;
     modifier_option_ids?: string[];
   }>;
@@ -31,6 +35,9 @@ export type OfflineReceiptSnapshot = {
       price_delta_amount: string;
     }>;
   }>;
+  discount_amount?: string;
+  tax_rate?: string;
+  tax_amount?: string;
   subtotal_amount: string;
   total_amount: string;
   payments: Array<{

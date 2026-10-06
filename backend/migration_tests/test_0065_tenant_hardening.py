@@ -99,6 +99,13 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "anonymous_telemetry_events": {"INSERT"},
     "tenants": {"SELECT"},
     "users": {"SELECT"},
+    "customers": {"SELECT", "INSERT", "UPDATE"},
+    "suppliers": {"SELECT", "INSERT"},
+    "purchase_orders": {"SELECT", "INSERT"},
+    "purchase_order_items": {"SELECT", "INSERT"},
+    "inventory_transfers": {"SELECT", "INSERT"},
+    "fiscal_issuer_profiles": {"SELECT", "INSERT"},
+    "invoice_requests": {"SELECT", "INSERT"},
 }
 _TENANT_RELATIONS = {
     "fk_products_tenant_category": ("products", "category_id", "categories"),
@@ -158,6 +165,9 @@ _TENANT_RELATIONS = {
 
 _SPECIAL_RUNTIME_TABLES = {"anonymous_telemetry_events", "tenants", "users"}
 _SEMANTIC_INSERT_ORDER = (
+    "customers",
+    "suppliers",
+    "fiscal_issuer_profiles",
     "account_deletion_requests",
     "audit_logs",
     "categories",
@@ -178,6 +188,10 @@ _SEMANTIC_INSERT_ORDER = (
     "webhook_events",
     "orders",
     "products",
+    "purchase_orders",
+    "purchase_order_items",
+    "inventory_transfers",
+    "invoice_requests",
     "modifier_options",
     "cash_movements",
     "customer_orders",
@@ -213,6 +227,10 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     token = f"{tenant_token}-{variant}-{table.name}"
     if name in {"tenant_id", "branch_id"}:
         return tenant
+    if name == "source_branch_id":
+        return tenant
+    if name == "destination_branch_id":
+        return _semantic_uuid("destination_branch", tenant)
     if name == "id":
         return ids[(table.name, tenant, variant)]
 
@@ -257,6 +275,8 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
             "orders": "completed",
             "shifts": "open",
             "subscriptions": "incomplete",
+            "purchase_orders": "pending",
+            "invoice_requests": "pending_provider",
         }.get(table.name, "active"),
         "tax_code": "002",
         "tax_calculation_status": "not_calculated",
@@ -910,8 +930,8 @@ def test_populated_upgrade_rejects_mismatch_then_enforces_fks_and_rls() -> None:
                             "INSERT INTO products (tenant_id, name, price_amount) "
                             "VALUES (:tenant, 'cross tenant', 10)"
                         ),
-                            {"tenant": TENANT_B},
-                        )
+                        {"tenant": TENANT_B},
+                    )
                     assert exc.value.orig.sqlstate == "42501"
                 transaction.rollback()
 
@@ -1099,6 +1119,17 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                 ),
                 {"a": USER_A, "b": USER_B},
             )
+            # A transfer must join two distinct branches owned by the same tenant.
+            # Principal branches are created by the tenant trigger; create actual
+            # destination branches so every transfer FK is exercised too.
+            for tenant in (TENANT_A, TENANT_B):
+                conn.execute(
+                    text(
+                        "INSERT INTO branches (id, tenant_id, name) "
+                        "VALUES (:id, :tenant, 'Semantic destination')"
+                    ),
+                    {"id": _semantic_uuid("destination_branch", tenant), "tenant": tenant},
+                )
             protected_tables = [
                 table for table in metadata.sorted_tables if table.name in protected
             ]
@@ -1140,14 +1171,73 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                     assert conn.scalar(
                         text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :tenant"),
                         {"tenant": TENANT_A},
-                    ) == 1
+                    ) == (2 if table_name == "branches" else 1)
                     assert conn.scalar(
                         text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :tenant"),
                         {"tenant": TENANT_B},
-                    ) == 1
+                    ) == (2 if table_name == "branches" else 1)
 
             for table_name in sorted(protected):
                 expected = _RUNTIME_TABLE_PRIVILEGES.get(table_name, set())
+
+                # Operational state may advance, while original amounts and
+                # snapshots remain immutable through the runtime role. Exercise
+                # actual column-limited updates against real A/B rows.
+                limited_updates = {
+                    "purchase_orders": ("status", "partial", "supplier_name"),
+                    "purchase_order_items": ("received_quantity", 1, "unit_cost"),
+                    "fiscal_issuer_profiles": ("fiscal_data", {"rfc": "AAA010101AAA"}, None),
+                }
+                if table_name in limited_updates:
+                    column, value, immutable_column = limited_updates[table_name]
+                    table = metadata.tables[table_name]
+                    with runtime.connect() as conn:
+                        transaction = conn.begin()
+                        conn.execute(
+                            text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                            {"tenant": str(TENANT_A)},
+                        )
+                        assert (
+                            conn.execute(
+                                table.update()
+                                .where(table.c.tenant_id == TENANT_A)
+                                .values({column: value})
+                            ).rowcount
+                            == 1
+                        )
+                        assert (
+                            conn.execute(
+                                table.update()
+                                .where(table.c.tenant_id == TENANT_B)
+                                .values({column: value})
+                            ).rowcount
+                            == 0
+                        )
+                        assert (
+                            conn.scalar(
+                                table.select()
+                                .with_only_columns(table.c[column])
+                                .where(table.c.tenant_id == TENANT_A)
+                            )
+                            == value
+                        )
+                        transaction.rollback()
+                    if immutable_column:
+                        with runtime.connect() as conn:
+                            transaction = conn.begin()
+                            conn.execute(
+                                text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                                {"tenant": str(TENANT_A)},
+                            )
+                            _assert_permission_denied(
+                                conn,
+                                text(
+                                    f"UPDATE {table_name} SET {immutable_column} = "
+                                    f"{immutable_column} WHERE tenant_id = :tenant"
+                                ),
+                                {"tenant": TENANT_A},
+                            )
+                            transaction.rollback()
 
                 with runtime.connect() as conn:
                     transaction = conn.begin()
@@ -1159,15 +1249,16 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                         assert conn.scalar(
                             text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :a"),
                             {"a": TENANT_A},
-                        ) == 1
-                        assert conn.scalar(
-                            text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :b"),
-                            {"b": TENANT_B},
-                        ) == 0
-                    else:
-                        _assert_permission_denied(
-                            conn, text(f"SELECT count(*) FROM {table_name}")
+                        ) == (2 if table_name == "branches" else 1)
+                        assert (
+                            conn.scalar(
+                                text(f"SELECT count(*) FROM {table_name} WHERE tenant_id = :b"),
+                                {"b": TENANT_B},
+                            )
+                            == 0
                         )
+                    else:
+                        _assert_permission_denied(conn, text(f"SELECT count(*) FROM {table_name}"))
                     transaction.rollback()
 
                 with runtime.connect() as conn:
@@ -1245,9 +1336,7 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                 for statement in (
                     text(f"SELECT * FROM {table_name} WHERE false"),
                     text(f"INSERT INTO {table_name} DEFAULT VALUES"),
-                    text(
-                        f"UPDATE {table_name} SET {first_column} = {first_column} WHERE false"
-                    ),
+                    text(f"UPDATE {table_name} SET {first_column} = {first_column} WHERE false"),
                     text(f"DELETE FROM {table_name} WHERE false"),
                 ):
                     with runtime.connect() as conn:

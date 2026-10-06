@@ -20,6 +20,13 @@ TENANT_SCOPED_TABLES = (
     "customer_order_item_modifiers",
     "customer_order_items",
     "customer_orders",
+    "customers",
+    "suppliers",
+    "purchase_orders",
+    "purchase_order_items",
+    "inventory_transfers",
+    "fiscal_issuer_profiles",
+    "invoice_requests",
     "expenses",
     "fiscal_global_draft_batches",
     "fiscal_global_draft_adjustments",
@@ -220,6 +227,7 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
         db.info.pop("kova_branch_id", None)
+        db.info.pop("kova_allowed_branch_id", None)
         db.close()
 
 
@@ -231,6 +239,7 @@ def get_privileged_db() -> Generator[Session, None, None]:
     finally:
         db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
         db.info.pop("kova_branch_id", None)
+        db.info.pop("kova_allowed_branch_id", None)
         db.close()
 
 

@@ -15,6 +15,9 @@ const ResetPasswordView = lazy(() => import("./auth/ResetPasswordView"));
 const VerifyEmailView = lazy(() => import("./auth/VerifyEmailView"));
 const AcceptInviteView = lazy(() => import("./auth/AcceptInviteView"));
 const BillingView = lazy(() => import("./billing/BillingView"));
+const CustomersView = lazy(() => import("./customers/CustomersView").then(module => ({ default: module.CustomersView })));
+const PurchasingView = lazy(() => import("./purchasing/PurchasingView"));
+const IntegrationsView = lazy(() => import("./integrations/IntegrationsPage").then(module => ({ default: module.IntegrationsPage })));
 const CatalogView = lazy(() => import("./catalog/CatalogView"));
 const DashboardView = lazy(() => import("./dashboard/DashboardView"));
 const InventoryView = lazy(() => import("./inventory/InventoryView"));
@@ -108,6 +111,9 @@ export function AppRoutes() {
               <Route path="/dashboard" element={<DashboardView />} />
               <Route path="/register" element={<RegisterView />} />
               <Route path="/catalog" element={<CatalogView />} />
+              <Route path="/customers" element={<CustomersView />} />
+              <Route path="/purchasing" element={<PurchasingView />} />
+              <Route path="/settings/integrations" element={<IntegrationsView />} />
               <Route path="/inventory" element={<InventoryView />} />
               <Route path="/expenses" element={<ExpensesView />} />
               <Route path="/pedidos" element={<CustomerOrderListView />} />

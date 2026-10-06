@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
@@ -25,6 +26,9 @@ class BusinessProfileResponse(BusinessProfileUpsert):
 
 
 class ReceiptSettingsUpsert(StrictModel):
+    default_tax_rate: Decimal | None = Field(
+        default=None, ge=0, le=100, max_digits=5, decimal_places=2
+    )
     receipt_business_name: str = Field(min_length=1, max_length=255)
     footer: str | None = Field(default=None, max_length=1000)
     tax_contact_text: str | None = Field(default=None, max_length=1000)
@@ -35,6 +39,7 @@ class ReceiptSettingsUpsert(StrictModel):
 
 
 class ReceiptSettingsResponse(ReceiptSettingsUpsert):
+    default_tax_rate: Decimal = Decimal("0.00")
     paper_width_mm: Literal[58, 80] = 80
     tenant_id: UUID
     created_at: datetime

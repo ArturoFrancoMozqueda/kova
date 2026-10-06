@@ -1,3 +1,4 @@
+import { calculateSalePricing, cachedTaxRate, cacheTaxRate } from "./pricing";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -180,6 +181,11 @@ function RegularRegisterView() {
   const { toast } = useToast();
 
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const [discount, setDiscount] = useState("0.00");
+  const [taxRate, setTaxRate] = useState(() => cachedTaxRate(tenantId));
+  const [customerId, setCustomerId] = useState("");
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customers, setCustomers] = useState<Array<{ id: string; name: string }>>([]);
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashTendered, setCashTendered] = useState("");
@@ -252,10 +258,14 @@ function RegularRegisterView() {
       return;
     }
     setPaperWidthMm(readCachedReceiptPaperWidth(tenantId));
+    setTaxRate(cachedTaxRate(tenantId));
     let cancelled = false;
     void getReceiptSettings()
       .then((settings) => {
         if (cancelled) return;
+        const rate = settings.default_tax_rate ?? "0.00";
+        setTaxRate(rate);
+        cacheTaxRate(tenantId, rate);
         const width = normalizeReceiptPaperWidth(settings.paper_width_mm);
         setPaperWidthMm(width);
         cacheReceiptPaperWidth(tenantId, width);
@@ -300,6 +310,10 @@ function RegularRegisterView() {
     if (submittingRef.current) return;
     cartGenerationRef.current += 1;
     setCart({});
+    setDiscount("0.00");
+    setCustomerId("");
+    setCustomerQuery("");
+    setTaxRate(cachedTaxRate(tenantId));
     setPaymentMethod("cash");
     setCashTendered("");
     resetCashInteraction();
@@ -311,7 +325,21 @@ function RegularRegisterView() {
     setPendingReceipt(null);
     activeSaleClientUuidRef.current = null;
     submittingRef.current = false;
-  }, [resetCashInteraction]);
+  }, [resetCashInteraction, tenantId]);
+
+  useEffect(() => {
+    setCustomerId("");
+    setCustomers([]);
+    if (!tenantId || !navigator.onLine) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/v1/customers?q=${encodeURIComponent(customerQuery)}`, { signal: controller.signal })
+        .then(async (response) => response.ok ? response.json() : null)
+        .then((result) => { if (result) setCustomers(result.items ?? result); })
+        .catch(() => undefined);
+    }, 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [customerQuery, tenantId]);
 
   const selectPaymentMethod = useCallback((next: PaymentMethod) => {
     if (next !== paymentMethod) {
@@ -433,6 +461,9 @@ function RegularRegisterView() {
         receiptNumber: saleReceipt.receipt_number,
         createdAt: saleReceipt.created_at,
         items: saleReceipt.items,
+        discountAmount: saleReceipt.discount_amount,
+        taxRate: saleReceipt.tax_rate,
+        taxAmount: saleReceipt.tax_amount,
         subtotalAmount: saleReceipt.subtotal_amount,
         totalAmount: saleReceipt.total_amount,
         payments: saleReceipt.payments,
@@ -451,6 +482,9 @@ function RegularRegisterView() {
       createdAt: snapshot.created_at,
       paperWidthMm: snapshot.paper_width_mm ?? paperWidthMm,
       items: snapshot.items,
+      discountAmount: snapshot.discount_amount,
+      taxRate: snapshot.tax_rate,
+      taxAmount: snapshot.tax_amount,
       subtotalAmount: snapshot.subtotal_amount,
       totalAmount: snapshot.total_amount,
       payments: snapshot.payments,
@@ -614,14 +648,10 @@ function RegularRegisterView() {
     }
     previousCartLineCountRef.current = cartItems.length;
   }, [cartItems.length, resetCashInteraction]);
-  const totalCents = useMemo(
-    () =>
-      cartItems.reduce(
-        (sum, item) => sum + moneyToCents(item.effectiveUnitPrice) * item.quantity,
-        0,
-      ),
-    [cartItems],
-  );
+  const pricing = useMemo(() => calculateSalePricing(
+    cartItems.map((item) => moneyToCents(item.effectiveUnitPrice) * item.quantity), discount, taxRate,
+  ), [cartItems, discount, taxRate]);
+  const totalCents = pricing.total;
   const totalAmount = centsToMoney(totalCents);
   // Total units, not lines. Drives the two cart count badges (mobile sheet
   // header, desktop card header) and their kv-count-pop keys.
@@ -662,6 +692,7 @@ function RegularRegisterView() {
   const cashBlocked = hasOpenShift !== true && saleIncludesCash;
   const canSubmitSale =
     canCreateOrders &&
+    pricing.valid &&
     cartItems.length > 0 &&
     (splitPaymentsEnabled ? splitIsValid : cashIsValid) &&
     !cashBlocked &&
@@ -919,8 +950,12 @@ function RegularRegisterView() {
     const submittedCart = cart;
 
     const sale = {
+      discount_amount: centsToMoney(pricing.discount),
+      tax_rate: taxRate || "0.00",
+      ...(customerId ? { customer_id: customerId } : {}),
       items: cartItems.map((item) => ({
         product_id: item.product.id,
+        unit_price_amount: item.effectiveUnitPrice,
         quantity: item.quantity,
         modifier_option_ids: item.selectedModifiers.map((m) => m.optionId),
       })),
@@ -963,20 +998,21 @@ function RegularRegisterView() {
       business_name: tenantName,
       created_at: new Date().toISOString(),
       paper_width_mm: paperWidthMm,
-      items: cartItems.map((item) => ({
+      items: cartItems.map((item, index) => ({
         product_name: item.product.name,
         quantity: item.quantity,
-        unit_price_amount: item.product.price_amount,
-        line_total_amount: centsToMoney(
-          moneyToCents(item.effectiveUnitPrice) * item.quantity,
-        ),
+        unit_price_amount: item.effectiveUnitPrice,
+        line_total_amount: centsToMoney(pricing.allocated[index]),
         modifiers: item.selectedModifiers.map((modifier) => ({
           modifier_group_name: modifier.groupName,
           modifier_option_name: modifier.optionName,
           price_delta_amount: modifier.priceDelta,
         })),
       })),
-      subtotal_amount: totalAmount,
+      subtotal_amount: centsToMoney(pricing.subtotal),
+      discount_amount: centsToMoney(pricing.discount),
+      tax_rate: taxRate || "0.00",
+      tax_amount: centsToMoney(pricing.tax),
       total_amount: totalAmount,
       payments: sale.payments.map((payment) => ({
         method: payment.method,
@@ -1476,6 +1512,29 @@ function RegularRegisterView() {
           <Card>
             <form ref={formRef} onSubmit={(event) => void submitSale(event)}>
               <CardContent className="p-4 space-y-4">
+                <details className="rounded-lg border p-3">
+                  <summary className="cursor-pointer text-sm font-medium">Cliente, descuento e impuesto</summary>
+                  <div className="mt-3 space-y-3">
+                    <Label htmlFor="sale-customer-query">Buscar cliente</Label>
+                    <Input id="sale-customer-query" value={customerQuery} onChange={(event) => setCustomerQuery(event.target.value)} placeholder="Nombre, teléfono o correo" />
+                    <Label htmlFor="sale-customer">Cliente de la venta</Label>
+                    <Select id="sale-customer" value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
+                      <option value="">Público general</option>
+                      {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
+                    </Select>
+                    <Label htmlFor="sale-discount">Descuento de la venta (MXN)</Label>
+                    <Input id="sale-discount" inputMode="decimal" value={discount} onChange={(event) => setDiscount(event.target.value)} />
+                    <Label htmlFor="sale-tax">Impuesto adicional al precio (%)</Label>
+                    <Input id="sale-tax" inputMode="decimal" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} />
+                    <p className="text-xs text-muted-foreground">Se calcula después del descuento. Si tus precios ya incluyen impuestos, usa 0%. Esta configuración no emite una factura.</p>
+                    {!pricing.valid && <p role="alert" className="text-sm text-destructive">El descuento debe estar entre 0 y el subtotal; el impuesto entre 0 y 100%, con hasta dos decimales.</p>}
+                  </div>
+                </details>
+                {(pricing.discount > 0 || pricing.tax > 0) && <div className="text-sm space-y-1">
+                  <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(centsToMoney(pricing.subtotal))}</span></div>
+                  <div className="flex justify-between"><span>Descuento</span><span>−{formatMoney(centsToMoney(pricing.discount))}</span></div>
+                  <div className="flex justify-between"><span>Impuesto adicional ({taxRate}%)</span><span>{formatMoney(centsToMoney(pricing.tax))}</span></div>
+                </div>}
                 {/* Total */}
                 <div className="flex items-center justify-between py-2 border-b">
                   <span className="text-sm font-medium text-muted-foreground">{copy.register.total}</span>

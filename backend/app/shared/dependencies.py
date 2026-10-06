@@ -34,9 +34,8 @@ def get_current_session(
     # tab therefore cannot write under the newer cookie's tenant or user.
     expected_tenant = request.headers.get("X-Kova-Expected-Tenant")
     expected_user = request.headers.get("X-Kova-Expected-User")
-    if (
-        (expected_tenant and expected_tenant != tenant_id)
-        or (expected_user and expected_user != user_id)
+    if (expected_tenant and expected_tenant != tenant_id) or (
+        expected_user and expected_user != user_id
     ):
         raise HTTPException(
             status_code=409,
@@ -72,8 +71,20 @@ def get_current_session(
         branch_id = UUID(selected_branch) if selected_branch else None
     except ValueError:
         raise HTTPException(status_code=422, detail="Sucursal inválida") from None
+    if membership.allowed_branch_id is not None:
+        if branch_id is not None and branch_id != membership.allowed_branch_id:
+            # Discovery must work even with a stale browser preference.
+            if request.url.path != "/api/v1/branches":
+                raise forbidden("No tienes acceso a esta sucursal")
+        branch_id = membership.allowed_branch_id
+    db.info["kova_allowed_branch_id"] = membership.allowed_branch_id
     bind_branch(db, tenant_id=membership.tenant_id, branch_id=branch_id)
     # Fiscal periods consolidate the business, regardless of the active drawer.
+    if membership.allowed_branch_id is not None and (
+        request.url.path.startswith("/api/v1/fiscal/")
+        or request.url.path == "/api/v1/reports/branches"
+    ):
+        raise forbidden("Esta consulta requiere acceso a todas las sucursales")
     if request.url.path.startswith("/api/v1/fiscal/"):
         db.info.pop("kova_branch_id", None)
     set_request_context(tenant_id=membership.tenant_id, user_id=user.id)

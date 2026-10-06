@@ -13,6 +13,7 @@ from app.catalog.models import Category, Product
 from app.catalog.schemas import CategoryCreate, CategoryUpdate, ProductCreate, ProductUpdate
 from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request, not_found
+from app.tenants.repository import lock_by_id
 
 _SKU_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -94,6 +95,7 @@ def _product_body(product: Product) -> dict[str, Any]:
         "name": product.name,
         "description": product.description,
         "sku": product.sku,
+        "barcode": product.barcode,
         "price_amount": str(product.price_amount),
         "cost_price": str(product.cost_price) if product.cost_price is not None else None,
         "track_inventory": product.track_inventory,
@@ -272,9 +274,12 @@ def create_product(
     )
     if stored:
         return stored
+    if body.barcode:
+        lock_by_id(db, tenant_id)
     _ensure_category(db, tenant_id=tenant_id, category_id=body.category_id)
     if body.sku and repo.get_product_by_sku(db, tenant_id=tenant_id, sku=body.sku):
         raise bad_request("Product SKU already exists")
+    _ensure_barcode(db, tenant_id=tenant_id, barcode=body.barcode)
     sku = body.sku
     if not sku or not sku.strip():
         sku = _generate_sku(db, tenant_id=tenant_id, category_id=body.category_id)
@@ -285,6 +290,7 @@ def create_product(
         name=body.name,
         description=body.description,
         sku=sku,
+        barcode=body.barcode,
         price_amount=body.price_amount,
         cost_price=body.cost_price,
         track_inventory=body.track_inventory,
@@ -330,6 +336,8 @@ def update_product(
     )
     if stored:
         return stored
+    if "barcode" in body.model_fields_set:
+        lock_by_id(db, tenant_id)
     product = repo.get_product(db, tenant_id=tenant_id, product_id=product_id)
     if not product:
         raise not_found("Product not found")
@@ -341,6 +349,9 @@ def update_product(
         if duplicate:
             raise bad_request("Product SKU already exists")
         product.sku = body.sku
+    if "barcode" in body.model_fields_set:
+        _ensure_barcode(db, tenant_id=tenant_id, barcode=body.barcode, product_id=product.id)
+        product.barcode = body.barcode
     for field in (
         "name",
         "description",
@@ -417,3 +428,15 @@ def deactivate_product(
     )
     db.commit()
     return 200, response_body
+
+
+def _ensure_barcode(
+    db: Session, *, tenant_id: UUID, barcode: str | None, product_id: UUID | None = None
+) -> None:
+    if not barcode:
+        return
+    query = db.query(Product).filter(Product.tenant_id == tenant_id, Product.barcode == barcode)
+    if product_id:
+        query = query.filter(Product.id != product_id)
+    if query.first():
+        raise bad_request("El código de barras ya está asignado a otro producto")

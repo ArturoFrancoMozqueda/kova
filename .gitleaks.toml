@@ -13,6 +13,13 @@ regexTarget = "line"
 paths = ['''^frontend/src/internal-ops/api\.test\.ts$''']
 regexes = ['''private-enrollment-key-with-32-characters''']
 
+[[rules.allowlists]]
+description = "Spanish acceptance prose misidentified as an API key in the POS plan"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^docs/plans/PLAN-POS-EXPANSION-2026-10-05\.md$''']
+regexes = ['''(?m)^- Verificar Python/PostgreSQL, frontend, contrato OpenAPI, migraciones/grants y flujos en navegador\.$''']
+
 [[rules]]
 id = "stripe-access-token"
 

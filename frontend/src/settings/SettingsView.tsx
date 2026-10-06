@@ -150,6 +150,7 @@ export default function SettingsView() {
     locale: "es-MX",
     currency: "MXN",
   });
+  const [defaultTaxRate, setDefaultTaxRate] = useState("0.00");
   const [receipt, setReceipt] = useState({
     receipt_business_name: tenantName,
     footer: "",
@@ -215,6 +216,7 @@ export default function SettingsView() {
         });
       }
       if (receiptSettings) {
+        setDefaultTaxRate(receiptSettings.default_tax_rate ?? "0.00");
         setReceipt({
           receipt_business_name: receiptSettings.receipt_business_name,
           footer: receiptSettings.footer ?? "",
@@ -308,6 +310,7 @@ export default function SettingsView() {
     try {
       const saved = await saveReceiptSettings({
         ...receipt,
+        default_tax_rate: defaultTaxRate,
         footer: receipt.footer || null,
         tax_contact_text: receipt.tax_contact_text || null,
         logo_url: receipt.logo_url || null,
@@ -404,6 +407,8 @@ export default function SettingsView() {
             <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitReceipt}>
               <Field label={copy.settings.receiptName} value={receipt.receipt_business_name} onChange={(value) => setReceipt((x) => ({ ...x, receipt_business_name: value }))} required />
               <Field label={copy.settings.receiptFooter} value={receipt.footer} onChange={(value) => setReceipt((x) => ({ ...x, footer: value }))} />
+              <Field label="Impuesto adicional predeterminado (%)" value={defaultTaxRate} onChange={setDefaultTaxRate} />
+              <p className="text-xs text-muted-foreground">Se suma al precio después del descuento. Usa 0% si los precios ya incluyen impuestos.</p>
               <Field label={copy.settings.taxContact} value={receipt.tax_contact_text} onChange={(value) => setReceipt((x) => ({ ...x, tax_contact_text: value }))} />
               <div className="space-y-1 sm:col-span-2">
                 <Label htmlFor="receipt-paper-width">{copy.settings.receiptPaperWidth}</Label>

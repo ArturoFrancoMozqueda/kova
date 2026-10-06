@@ -216,7 +216,7 @@ export default function CatalogView() {
     const filtered = loadState.products.filter((product) => {
       const matchesCategory = selectedCategoryId ? product.category_id === selectedCategoryId : true;
       const matchesSearch = query
-        ? [product.name, product.sku ?? "", product.description ?? ""]
+        ? [product.name, product.sku ?? "", product.barcode ?? "", product.description ?? ""]
             .some((value) => value.toLowerCase().includes(query))
         : true;
       return matchesCategory && matchesSearch;
@@ -1373,6 +1373,7 @@ type ProductFormValues = {
   name: string;
   description: string | null;
   sku: string | null;
+  barcode: string | null;
   price_amount: string;
   cost_price: string | null;
   category_id: string | null;
@@ -1417,6 +1418,7 @@ export function ProductForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [sku, setSku] = useState(initial?.sku ?? "");
+  const [barcode, setBarcode] = useState(initial?.barcode ?? "");
   const [price, setPrice] = useState(initial?.price_amount ?? "");
   const [cost, setCost] = useState(initial?.cost_price ?? "");
   const [categoryId, setCategoryId] = useState(
@@ -1500,6 +1502,7 @@ export function ProductForm({
       name: name.trim(),
       description: description.trim() || null,
       sku: sku.trim() || null,
+      barcode: barcode.trim() || null,
       price_amount: price,
       cost_price: cost.trim() || null,
       category_id: categoryId || null,
@@ -1652,6 +1655,11 @@ export function ProductForm({
               {copy.catalog.productSkuAutoHint}
             </p>
           )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="prod-barcode">Código de barras</Label>
+          <Input id="prod-barcode" value={barcode} onChange={(e) => setBarcode(e.target.value)} maxLength={100} pattern="[!-~]+" />
+          <p className="text-xs text-muted-foreground">Escanea o captura el código del empaque. Conserva los ceros iniciales.</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="prod-desc">{copy.catalog.productDescription}</Label>

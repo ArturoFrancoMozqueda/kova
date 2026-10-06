@@ -798,6 +798,13 @@ def _net_item_rows(db: Session, *, tenant_id: UUID, order_ids: list[UUID]) -> li
                 "item": item,
                 "net_quantity": net_quantity,
                 "net_sales": net_sales,
+                "net_sales_before_tax": calculator.money(
+                    item.line_total_amount - item.tax_amount
+                    - calculator.refund_line_total(
+                        item.line_total_amount - item.tax_amount,
+                        item.quantity, 0, refunded["quantity"],
+                    )
+                ),
             }
         )
     return rows
@@ -816,7 +823,7 @@ def _margin_report(
     for row in item_rows:
         item = row["item"]
         net_quantity = row["net_quantity"]
-        net_sales = row["net_sales"]
+        net_sales = row.get("net_sales_before_tax", row["net_sales"])
         missing_cost = item.unit_cost is None and net_quantity > 0
         cogs = (
             None

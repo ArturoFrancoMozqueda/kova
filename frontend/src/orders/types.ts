@@ -28,6 +28,9 @@ export type Order = {
   tenant_id: string;
   branch_id?: string;
   status: "completed" | "voided";
+  discount_amount?: string;
+  tax_rate?: string;
+  tax_amount?: string;
   subtotal_amount: string;
   total_amount: string;
   items: OrderItem[];
@@ -35,8 +38,12 @@ export type Order = {
 };
 
 export type OrderCreatePayload = {
+  customer_id?: string;
+  discount_amount?: string;
+  tax_rate?: string;
   items: Array<{
     product_id: string;
+    unit_price_amount?: string;
     quantity: number;
   }>;
   payments: Array<{
@@ -82,6 +89,9 @@ export type Receipt = {
     line_total_amount: string;
     modifiers: OrderItemModifier[];
   }>;
+  discount_amount?: string;
+  tax_rate?: string;
+  tax_amount?: string;
   subtotal_amount: string;
   total_amount: string;
   payments: Payment[];
@@ -100,6 +110,9 @@ export type RefundPayload = {
 export type OrderListItem = {
   id: string;
   status: string;
+  discount_amount?: string;
+  tax_rate?: string;
+  tax_amount?: string;
   subtotal_amount: string;
   total_amount: string;
   created_at: string;

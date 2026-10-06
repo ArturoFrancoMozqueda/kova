@@ -51,6 +51,52 @@ def _columns(value: str) -> tuple[str, ...]:
 
 
 _EXPORT_TABLES = (
+    ExportTable(
+        "customers",
+        _columns(
+            "id tenant_id name email phone is_active created_at updated_at"
+        ),
+    ),
+    ExportTable(
+        "suppliers",
+        _columns(
+            "id tenant_id name contact is_active created_at"
+        ),
+    ),
+    ExportTable(
+        "purchase_orders",
+        _columns(
+            "id tenant_id branch_id supplier_id supplier_name status notes "
+            "created_by_user_id created_at"
+        ),
+    ),
+    ExportTable(
+        "purchase_order_items",
+        _columns(
+            "id tenant_id purchase_order_id product_id product_name quantity "
+            "received_quantity unit_cost"
+        ),
+    ),
+    ExportTable(
+        "inventory_transfers",
+        _columns(
+            "id tenant_id source_branch_id destination_branch_id product_id product_name quantity "
+            "reason created_by_user_id created_at"
+        ),
+    ),
+    ExportTable(
+        "fiscal_issuer_profiles",
+        _columns(
+            "tenant_id fiscal_data"
+        ),
+    ),
+    ExportTable(
+        "invoice_requests",
+        _columns(
+            "id tenant_id branch_id order_id status issuer_snapshot recipient_snapshot "
+            "pricing_snapshot total_amount created_at"
+        ),
+    ),
     ExportTable("branches", _columns("id tenant_id name address created_at")),
     ExportTable(
         "categories",
@@ -59,7 +105,7 @@ _EXPORT_TABLES = (
     ExportTable(
         "products",
         _columns(
-            "id tenant_id category_id name description sku price_amount cost_price "
+            "id tenant_id category_id name description sku barcode price_amount cost_price "
             "track_inventory low_stock_threshold is_active image_url image_position_x "
             "image_position_y image_zoom created_at updated_at"
         ),
@@ -89,14 +135,15 @@ _EXPORT_TABLES = (
         "orders",
         _columns(
             "id tenant_id branch_id client_uuid shift_id created_by_user_id status subtotal_amount "
-            "total_amount occurred_at created_at updated_at"
+            "total_amount discount_amount tax_rate tax_amount customer_id occurred_at "
+            "created_at updated_at"
         ),
     ),
     ExportTable(
         "order_items",
         _columns(
             "id tenant_id order_id product_id product_name quantity unit_price_amount unit_cost "
-            "line_total_amount"
+            "line_total_amount discount_amount tax_amount"
         ),
     ),
     ExportTable(
@@ -196,6 +243,7 @@ _EXPORT_TABLES = (
         "tenant_receipt_settings",
         _columns(
             "tenant_id receipt_business_name footer tax_contact_text logo_url paper_width_mm "
+            "default_tax_rate "
             "created_at updated_at"
         ),
     ),
@@ -311,6 +359,12 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "invoice_requests",
+    "fiscal_issuer_profiles",
+    "inventory_transfers",
+    "purchase_order_items",
+    "purchase_orders",
+    "suppliers",
     "fiscal_global_draft_adjustments",
     "fiscal_global_draft_orders",
     "order_item_tax_snapshots",
@@ -330,6 +384,7 @@ _TENANT_DELETE_ORDER = (
     "customer_order_items",
     "customer_orders",
     "orders",
+    "customers",
     "product_modifier_groups",
     "product_image_files",
     "modifier_options",
@@ -470,7 +525,7 @@ def build_account_export(db: Session, *, tenant_id: UUID) -> BinaryIO:
         members = db.execute(
             text(
                 "SELECT m.id AS membership_id, m.user_id, u.email, m.role, "
-                "m.is_active, m.created_at FROM memberships m "
+                "m.is_active, m.allowed_branch_id, m.created_at FROM memberships m "
                 "JOIN users u ON u.id = m.user_id WHERE m.tenant_id = :tenant_id "
                 "ORDER BY m.created_at"
             ),

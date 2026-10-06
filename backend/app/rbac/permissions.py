@@ -2,6 +2,9 @@ from enum import StrEnum
 
 
 class Permission(StrEnum):
+    CUSTOMERS_VIEW = "customers.view"
+    CUSTOMERS_MANAGE = "customers.manage"
+    CUSTOMERS_HISTORY = "customers.history"
     CATALOG_CREATE = "catalog.create"
     CATALOG_UPDATE = "catalog.update"
     CATALOG_DELETE = "catalog.delete"
@@ -29,6 +32,9 @@ class Permission(StrEnum):
 ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "owner": set(Permission),
     "manager": {
+        Permission.CUSTOMERS_VIEW,
+        Permission.CUSTOMERS_MANAGE,
+        Permission.CUSTOMERS_HISTORY,
         Permission.CATALOG_CREATE,
         Permission.CATALOG_UPDATE,
         Permission.CATALOG_DELETE,
@@ -49,6 +55,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.FISCAL_VIEW,
     },
     "cashier": {
+        Permission.CUSTOMERS_VIEW,
         Permission.ORDERS_CREATE,
         Permission.CUSTOMER_ORDERS_VIEW,
         Permission.CUSTOMER_ORDERS_CREATE,
@@ -59,6 +66,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.SHIFTS_CLOSE,
     },
     "staff": {
+        Permission.CUSTOMERS_VIEW,
         Permission.ORDERS_CREATE,
         Permission.CUSTOMER_ORDERS_VIEW,
         Permission.CUSTOMER_ORDERS_CREATE,

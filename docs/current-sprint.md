@@ -18,6 +18,27 @@ historical evidence and are labelled with their period.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
 
+## Active product integration (2026-10-05): Expansión POS
+
+The owner explicitly authorized implementation, agent branches/worktrees, integration and production
+publication. This supersedes the previous discovery gates for the capabilities below. Execution plan:
+[`PLAN-POS-EXPANSION-2026-10-05.md`](plans/PLAN-POS-EXPANSION-2026-10-05.md); validation/release matrix:
+[`PLAN-POS-RELEASE-2026-10-05.md`](plans/PLAN-POS-RELEASE-2026-10-05.md).
+
+- [x] Integrate sale discounts, added tax defaults, immutable line allocations and offline price snapshots.
+- [x] Integrate customer records/history, product barcodes, catalog import and register selection/scanning.
+- [x] Integrate suppliers, purchase orders, partial receiving and explicit cost updates.
+- [x] Integrate atomic inventory transfers and optional staff assignment to one branch.
+- [x] Integrate issuer profiles and internal invoice requests that remain pending external provider.
+- [x] Extend tenant RLS/grants, account portability/purge graph, API contracts and mobile scenarios.
+- [ ] Complete full integrated verification and CI on the final commit.
+- [ ] Merge the verified PR and verify production backend/frontend acceptance.
+
+Each domain spec records delivered behavior and tests. Implemented here means integrated into the
+release branch, not yet production acceptance. No PAC or terminal service is contracted by the owner;
+real CFDI emission/public autofactura and terminal payment processing remain externally blocked.
+These changes do not close restore, live Stripe lifecycle or inbox-delivery research gates.
+
 ## Active Sprint (2026-09): Comprehensive audit remediation
 
 The active execution target is the 36 findings in

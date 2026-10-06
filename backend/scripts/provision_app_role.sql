@@ -123,6 +123,13 @@ BEGIN
             ('account_deletion_requests', 'SELECT, INSERT, UPDATE'),
             ('categories', 'SELECT, INSERT, UPDATE'),
             ('branches', 'SELECT, INSERT'),
+            ('customers', 'SELECT, INSERT, UPDATE'),
+            ('suppliers', 'SELECT, INSERT'),
+            ('purchase_orders', 'SELECT, INSERT'),
+            ('purchase_order_items', 'SELECT, INSERT'),
+            ('inventory_transfers', 'SELECT, INSERT'),
+            ('fiscal_issuer_profiles', 'SELECT, INSERT'),
+            ('invoice_requests', 'SELECT, INSERT'),
             ('customer_order_item_modifiers', 'SELECT, INSERT, DELETE'),
             ('customer_order_items', 'SELECT, INSERT, DELETE'),
             ('customer_orders', 'SELECT, INSERT, UPDATE'),
@@ -195,6 +202,13 @@ END
 $$;
 
 DO $$ BEGIN
+    IF to_regclass('public.purchase_orders') IS NOT NULL THEN
+        GRANT UPDATE (status) ON TABLE purchase_orders TO kova_app;
+        GRANT UPDATE (received_quantity) ON TABLE purchase_order_items TO kova_app;
+    END IF;
+    IF to_regclass('public.fiscal_issuer_profiles') IS NOT NULL THEN
+        GRANT UPDATE (fiscal_data) ON TABLE fiscal_issuer_profiles TO kova_app;
+    END IF;
     IF to_regclass('public.branches') IS NOT NULL THEN
         GRANT UPDATE (name, address) ON TABLE branches TO kova_app;
     END IF;

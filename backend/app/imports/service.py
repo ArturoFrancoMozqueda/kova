@@ -34,6 +34,7 @@ TEMPLATE_COLUMNS = (
     "control_inventario",
     "stock_inicial",
     "umbral_stock",
+    "codigo_barras",
 )
 # Excel recognizes the UTF-8 BOM and preserves Spanish accents when the owner
 # opens the downloaded template. `_decode` already accepts the same BOM on
@@ -203,9 +204,7 @@ def _parse_catalog_xlsx(content: bytes) -> list[tuple[int, dict[str, Any]]]:
                     )
                 value = cell.value
                 if isinstance(value, str) and len(value) > MAX_XLSX_CELL_CHARACTERS:
-                    raise bad_request(
-                        f"La celda {cell.coordinate} excede el límite de caracteres"
-                    )
+                    raise bad_request(f"La celda {cell.coordinate} excede el límite de caracteres")
                 values.append(value)
             if row_number == 1:
                 headers = [str(value or "").strip().lower() for value in values]
@@ -235,11 +234,15 @@ def _validate_catalog_rows(
     }
     inactive_categories = {
         category.name.casefold()
-        for category in catalog_repo.list_categories(
-            db, tenant_id=tenant_id, include_inactive=True
-        )
+        for category in catalog_repo.list_categories(db, tenant_id=tenant_id, include_inactive=True)
         if not category.is_active
     }
+    existing_barcodes = {
+        product.barcode
+        for product in catalog_repo.list_products(db, tenant_id=tenant_id, include_inactive=True)
+        if product.barcode
+    }
+    seen_barcodes: set[str] = set()
     seen_skus: set[str] = set()
     rows = []
     for row_number, raw in raw_rows:
@@ -295,6 +298,13 @@ def _validate_catalog_rows(
             errors.append("activa control_inventario para cargar stock_inicial")
         if threshold is not None and not track_inventory:
             errors.append("activa control_inventario para definir umbral_stock")
+        barcode = values.get("codigo_barras", "") or None
+        if barcode and (len(barcode) > 100 or any(ord(c) < 33 or ord(c) > 126 for c in barcode)):
+            errors.append("codigo_barras admite de 1 a 100 caracteres sin espacios")
+        if barcode and (barcode in existing_barcodes or barcode in seen_barcodes):
+            errors.append("codigo_barras ya existe o está repetido")
+        if barcode:
+            seen_barcodes.add(barcode)
         normalized = {
             "name": name,
             "sku": sku,
@@ -305,6 +315,8 @@ def _validate_catalog_rows(
             "initial_stock": initial_stock or 0,
             "low_stock_threshold": threshold,
         }
+        if barcode is not None:
+            normalized["barcode"] = barcode
         rows.append(
             {
                 "row_number": row_number,
@@ -337,11 +349,7 @@ def validate_catalog_import(
 ) -> dict[str, Any]:
     if file_format == "csv" and content.startswith(ZIP_SIGNATURES):
         raise bad_request("El contenido del archivo no coincide con el formato CSV seleccionado")
-    raw_rows = (
-        _parse_catalog_csv(content)
-        if file_format == "csv"
-        else _parse_catalog_xlsx(content)
-    )
+    raw_rows = _parse_catalog_csv(content) if file_format == "csv" else _parse_catalog_xlsx(content)
     return _validate_catalog_rows(db, tenant_id=tenant_id, raw_rows=raw_rows)
 
 
@@ -379,6 +387,9 @@ def commit_catalog_import(
     )
     if existing:
         return existing.response_status or 200, existing.response_body or {}
+    from app.tenants.repository import lock_by_id
+
+    lock_by_id(db, tenant_id)
     result = validate_catalog_import(
         db,
         tenant_id=tenant_id,
@@ -417,6 +428,7 @@ def commit_catalog_import(
             name=values["name"],
             description=None,
             sku=values["sku"],
+            barcode=values.get("barcode"),
             price_amount=Decimal(values["price_amount"]),
             cost_price=(Decimal(values["cost_price"]) if values["cost_price"] else None),
             track_inventory=values["track_inventory"],
