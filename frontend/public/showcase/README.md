@@ -2,7 +2,7 @@
 
 `register.png`, `sale-register.jpeg`, `inventory.png`, `inventory-story.jpeg`, `shifts.png`, `reports.png` y `analysis-story.jpeg` son capturas sanitizadas del producto real. Incluyen el AppShell vigente; no se deben envolver en una réplica manual de la navegación.
 
-`sale-register.jpeg`, `inventory-story.jpeg` y `analysis-story.jpeg` se usan únicamente en los pasos “Venta”, “Inventario” y “Análisis” del recorrido de la landing. Los assets PNG permanecen como las capturas de las demás secciones.
+`sale-register.jpeg`, `inventory-story.jpeg` y `analysis-story.jpeg` se usan en los pasos “Venta”, “Inventario” y “Análisis” del recorrido de la landing. La sección “Respuestas, no ruido” también usa `analysis-story.jpeg`, que muestra la vista actual de Análisis. Los assets PNG permanecen como las capturas de las demás secciones.
 
 La captura de Caja se usa de forma estática en el hero. La única experiencia operable está en “Kova en acción”, usa estado y activos locales y muestra explícitamente `Demo interactiva · No registra ventas`.
 
