@@ -30,6 +30,17 @@ class Order(BranchScoped, Base):
             ["branches.tenant_id", "branches.id"],
             name="fk_orders_branch",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "customer_id"],
+            ["customers.tenant_id", "customers.id"],
+            name="fk_orders_tenant_customer",
+        ),
+        CheckConstraint(
+            "discount_amount >= 0 AND discount_amount <= subtotal_amount", name="ck_orders_discount"
+        ),
+        CheckConstraint(
+            "tax_rate >= 0 AND tax_rate <= 100 AND tax_amount >= 0", name="ck_orders_tax"
+        ),
         # Orders are only ever "completed" or "voided"; guard against typos
         # writing an unknown status that would silently drop out of reports.
         CheckConstraint("status IN ('completed', 'voided')", name="ck_orders_status"),
@@ -41,6 +52,16 @@ class Order(BranchScoped, Base):
         ),
     )
 
+    customer_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    discount_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=0, server_default="0"
+    )
+    tax_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), nullable=False, default=0, server_default="0"
+    )
+    tax_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=0, server_default="0"
+    )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     client_uuid: Mapped[UUID | None] = mapped_column(nullable=True)
@@ -92,6 +113,12 @@ class OrderItem(Base):
     unit_price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     line_total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    discount_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=0, server_default="0"
+    )
+    tax_amount: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=0, server_default="0"
+    )
 
 
 class Payment(Base):

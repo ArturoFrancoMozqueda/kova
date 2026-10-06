@@ -24,7 +24,7 @@ def capture_baseline_snapshot(
     order: Order,
     pricing_engine_version: str = "baseline-v1",
 ) -> OrderFiscalSnapshot:
-    """Freeze the existing no-tax calculation without inferring fiscal rules."""
+    """Freeze the collected amounts; added tax is not a SAT tax catalog determination."""
     existing = get_order_snapshot(db, tenant_id=tenant_id, order_id=order.id)
     if existing:
         return existing
@@ -33,10 +33,14 @@ def capture_baseline_snapshot(
         tenant_id=tenant_id,
         order_id=order.id,
         gross_amount=order.subtotal_amount,
-        discount_total_amount=Decimal("0.00"),
-        tax_total_amount=Decimal("0.00"),
+        discount_total_amount=order.discount_amount,
+        tax_total_amount=order.tax_amount,
         total_amount=order.total_amount,
-        pricing_engine_version=pricing_engine_version,
+        pricing_engine_version=(
+            "sale-adjustments-v1"
+            if order.discount_amount or order.tax_amount
+            else pricing_engine_version
+        ),
         tax_catalog_version=None,
         tax_calculation_status="not_calculated",
         currency="MXN",
@@ -51,7 +55,9 @@ def capture_baseline_snapshot(
         .all()
     )
     line_sum = sum((item.line_total_amount for item in items), Decimal("0.00"))
-    if line_sum != order.subtotal_amount or order.subtotal_amount != order.total_amount:
+    if line_sum != order.total_amount or (
+        order.subtotal_amount - order.discount_amount + order.tax_amount != order.total_amount
+    ):
         raise ValueError("baseline fiscal snapshot does not reconcile with persisted order totals")
     for item in items:
         db.add(
@@ -63,11 +69,11 @@ def capture_baseline_snapshot(
                 product_name=item.product_name,
                 quantity=item.quantity,
                 unit_price_amount=item.unit_price_amount,
-                gross_line_amount=item.line_total_amount,
+                gross_line_amount=item.unit_price_amount * item.quantity,
                 line_discount_amount=Decimal("0.00"),
-                order_discount_allocated_amount=Decimal("0.00"),
-                net_before_tax_amount=item.line_total_amount,
-                tax_total_amount=Decimal("0.00"),
+                order_discount_allocated_amount=item.discount_amount,
+                net_before_tax_amount=item.line_total_amount - item.tax_amount,
+                tax_total_amount=item.tax_amount,
                 line_total_amount=item.line_total_amount,
                 tax_object_code_snapshot=None,
                 product_service_code_snapshot=None,
@@ -82,12 +88,9 @@ def capture_baseline_snapshot(
 def get_order_snapshot(
     db: Session, *, tenant_id: UUID, order_id: UUID, lock: bool = False
 ) -> OrderFiscalSnapshot | None:
-    query = (
-        db.query(OrderFiscalSnapshot)
-        .filter(
-            OrderFiscalSnapshot.tenant_id == tenant_id,
-            OrderFiscalSnapshot.order_id == order_id,
-        )
+    query = db.query(OrderFiscalSnapshot).filter(
+        OrderFiscalSnapshot.tenant_id == tenant_id,
+        OrderFiscalSnapshot.order_id == order_id,
     )
     if lock:
         query = query.with_for_update()

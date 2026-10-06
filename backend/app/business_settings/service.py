@@ -48,7 +48,7 @@ def upsert_business_profile(
         user_id=user_id,
         resource_type="tenant",
         resource_id=tenant_id,
-        changes=body.model_dump(),
+        changes=body.model_dump(mode="json"),
     )
     db.commit()
     _refresh_with_tenant_context(db, profile, tenant_id)
@@ -69,6 +69,9 @@ def upsert_receipt_settings(
         db.add(settings)
     values = body.model_dump()
     paper_width_mm = values.pop("paper_width_mm")
+    default_tax_rate = values.pop("default_tax_rate")
+    if default_tax_rate is not None:
+        settings.default_tax_rate = default_tax_rate
     for field, value in values.items():
         setattr(settings, field, value)
     if paper_width_mm is not None:
@@ -81,7 +84,7 @@ def upsert_receipt_settings(
         user_id=user_id,
         resource_type="tenant",
         resource_id=tenant_id,
-        changes=body.model_dump(),
+        changes=body.model_dump(mode="json"),
     )
     db.commit()
     _refresh_with_tenant_context(db, settings, tenant_id)

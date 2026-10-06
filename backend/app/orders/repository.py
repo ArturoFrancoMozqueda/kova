@@ -47,6 +47,10 @@ def create_order(
     user_id: UUID,
     subtotal_amount: Decimal,
     total_amount: Decimal,
+    discount_amount: Decimal = Decimal("0.00"),
+    tax_rate: Decimal = Decimal("0.00"),
+    tax_amount: Decimal = Decimal("0.00"),
+    customer_id: UUID | None = None,
     client_uuid: UUID | None = None,
     shift_id: UUID | None = None,
     occurred_at: datetime.datetime | None = None,
@@ -59,6 +63,10 @@ def create_order(
         status="completed",
         subtotal_amount=subtotal_amount,
         total_amount=total_amount,
+        discount_amount=discount_amount,
+        tax_rate=tax_rate,
+        tax_amount=tax_amount,
+        customer_id=customer_id,
         occurred_at=occurred_at,
     )
     db.add(order)
@@ -99,6 +107,8 @@ def create_order_item(
     line_total_amount: Decimal,
     unit_price_amount: Decimal | None = None,
     product_name: str | None = None,
+    discount_amount: Decimal = Decimal("0.00"),
+    tax_amount: Decimal = Decimal("0.00"),
 ) -> OrderItem:
     item = OrderItem(
         tenant_id=tenant_id,
@@ -110,6 +120,8 @@ def create_order_item(
             unit_price_amount if unit_price_amount is not None else product.price_amount
         ),
         unit_cost=product.cost_price,
+        discount_amount=discount_amount,
+        tax_amount=tax_amount,
         line_total_amount=line_total_amount,
     )
     db.add(item)

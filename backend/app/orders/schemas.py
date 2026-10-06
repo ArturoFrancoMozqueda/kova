@@ -19,6 +19,7 @@ from app.shared.validation import (
 
 
 class OrderItemCreate(BaseModel):
+    unit_price_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     product_id: UUID
     quantity: int = Field(gt=0)
     modifier_option_ids: list[UUID] = Field(default_factory=list, max_length=MAX_MODIFIER_OPTIONS)
@@ -32,6 +33,9 @@ class PaymentCreate(BaseModel):
 
 
 class OrderCreate(BaseModel):
+    customer_id: UUID | None = None
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=0, max_digits=12, decimal_places=2)
+    tax_rate: Decimal = Field(default=Decimal("0.00"), ge=0, le=100, max_digits=5, decimal_places=2)
     items: list[OrderItemCreate] = Field(min_length=1, max_length=MAX_ORDER_ITEMS)
     payments: list[PaymentCreate] = Field(min_length=1, max_length=MAX_PAYMENTS)
 
@@ -66,6 +70,10 @@ class PaymentResponse(BaseModel):
 
 
 class OrderResponse(BaseModel):
+    customer_id: UUID | None = None
+    discount_amount: Decimal = Decimal("0.00")
+    tax_rate: Decimal = Decimal("0.00")
+    tax_amount: Decimal = Decimal("0.00")
     branch_id: UUID
     id: UUID
     tenant_id: UUID
@@ -114,6 +122,9 @@ class ReceiptVoidLine(BaseModel):
 
 
 class ReceiptResponse(BaseModel):
+    discount_amount: Decimal = Decimal("0.00")
+    tax_rate: Decimal = Decimal("0.00")
+    tax_amount: Decimal = Decimal("0.00")
     order_id: UUID
     receipt_number: str
     tenant_name: str

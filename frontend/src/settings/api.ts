@@ -11,6 +11,7 @@ export type BusinessProfile = {
 };
 
 export type ReceiptSettings = {
+  default_tax_rate?: string;
   tenant_id: string;
   receipt_business_name: string;
   footer: string | null;
