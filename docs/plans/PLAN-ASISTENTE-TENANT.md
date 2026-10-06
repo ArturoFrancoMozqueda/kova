@@ -2,7 +2,8 @@
 
 Fecha de evaluación: **2026-10-05**. Estado al **2026-10-06**: **código integrado y desplegado en `main` (`204f024`, PR #158), con el piloto apagado; activación externa y evaluación live pendientes**.
 
-El estado de credenciales, bucket privado, pruebas live sintéticas y worker se registra en
+El estado de credenciales, bucket privado, pruebas live sintéticas, worker desplegado y
+piloto de lectura solicitado por el operador se registra en
 [operación del asistente](../assistant-operations.md#estado-de-activación--2026-10-06).
 Riesgo: backend/API, auth/seguridad, datos, archivos, consumo, notificaciones y experiencia de producto.
 Documento rector: [Kova como copiloto del dueño](PLAN-KOVA-COPILOT.md).
@@ -108,6 +109,15 @@ un catálogo grande usa el importador, no cientos de herramientas individuales.
 ## 4. Modelo, cuota gratuita y capacidad estimada
 
 ### 4.1 Elección inicial sujeta a evaluación
+
+Decisión de piloto de lectura al 2026-10-06: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
+para consultas y ayuda. Las pruebas con Qwen detectaron incompatibilidades con el contrato
+de salida; Llama permite herramientas nativas y explicación final con JSON Mode. No se
+habilitan mutaciones, archivos ni correo; mantener consentimiento, aislamiento y cuotas.
+Los cuatro smoke sintéticos verifican la integración y no reemplazan los doscientos casos.
+La configuración de rollout y atribución **Built with Llama** están en
+[operación del asistente](../assistant-operations.md#piloto-de-lectura-solicitado-por-el-operador).
+La tabla siguiente conserva los candidatos iniciales; no describe el modelo activo del piloto.
 
 | Uso | Modelo propuesto en Workers AI | Motivo y condición |
 |---|---|---|
@@ -680,6 +690,12 @@ Construir 200 casos con datos sintéticos aislados, nunca copiar datos de produc
 40 de configuración, 40 de análisis, 40 de RAG, 30 de evidencia insuficiente/contradictoria,
 30 de ataques/permiso y 20 de fallos/recuperación. Ejecutar tres repeticiones por candidato,
 presupuestadas fuera de la cuenta de producción o distribuidas entre días sin superar cuota.
+
+Excepción de alcance solicitada por el operador el 2026-10-06: preparar un piloto de
+lectura en una única cohorte, usando Llama 3.3 70B para chat y ayuda y manteniendo documentos,
+mutaciones y correo apagados. Requiere contratos live sintéticos y verificación de
+capacidades/respuesta real; no sustituye esta batería ni autoriza ampliar tenants o
+capacidades antes de completar sus gates. Detalles en la guía de operación.
 
 Medir por capacidad: corrección, abstención apropiada, citas pertinentes, consumo total incluyendo
 razonamiento, llamadas/herramientas, latencia p50/p95 y recuperación. Validar importes y métricas

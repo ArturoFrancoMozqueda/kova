@@ -53,7 +53,8 @@ GUIDES = {
 }
 SECRET = re.compile(
     "(?i)(?:sk_(?:live|test)_[a-z0-9]+|eyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-"
-    "]+\\.[a-zA-Z0-9_-]+|(?:password|contraseña|api[_ -]?key|secret[_ -"
+    "]+\\.[a-zA-Z0-9_-]+|\\bbearer\\s+[a-zA-Z0-9._~+/-]{16,}={0,2}|"
+    "(?:password|contraseña|api[_ -]?key|secret[_ -"
     "]?key)\\s*[:=]\\s*\\S+)"
 )
 DOCUMENT_CODE = re.compile(

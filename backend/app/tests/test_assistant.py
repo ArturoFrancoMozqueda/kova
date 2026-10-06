@@ -314,6 +314,7 @@ def test_public_guides_are_citable_and_model_digits_rejected(enabled_client, mon
     assert not knowledge.valid_sources(db, tenant, ctx[0].id, [uuid4()])
     assert provider.tokens_upper_bound("á") >= 2
     assert set(provider.RATES) == {
+        "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         "@cf/qwen/qwen3.8-27b",
         "@cf/qwen/qwen3-30b-a3b-fp8",
         "@cf/qwen/qwen3-embedding-0.6b",
@@ -483,6 +484,102 @@ def test_generation_returns_real_metrics_and_only_retrieved_citations(enabled_cl
     assert job.data["metrics"]["net_sales"] == "0.00"
     assert job.data["metrics"]["order_count"] == 0
     assert job.data["source_ids"] == [source]
+
+
+def test_read_only_configuration_guidance_never_prepares_changes(enabled_client, monkeypatch):
+    import json
+
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant)
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    messages_sent = []
+
+    def response(messages, *args, **kwargs):
+        messages_sent.append(list(messages))
+        return {
+            "content": json.dumps(
+                {
+                    "answer": "Puedes revisar el nombre de tu negocio en Configuración.",
+                    "steps": [
+                        {
+                            "action": "business_profile",
+                            "values": {"public_name": "Cambio que no debe prepararse"},
+                        }
+                    ],
+                }
+            ),
+            "tool_calls": [],
+        }
+
+    def unexpected_proposal(*args, **kwargs):
+        pytest.fail("Read-only chat must not invoke the mutation proposal executor")
+
+    monkeypatch.setattr(provider, "generate", response)
+    monkeypatch.setattr(generation.executor, "prepare", unexpected_proposal)
+    generation.run(db, ctx, job)
+
+    assert job.status == "completed"
+    assert job.data["proposal_id"] is None
+    assert repo.records(db, tenant, ctx[0].id, "proposal").count() == 0
+    assert len(messages_sent) == 2
+    assert any(
+        message["role"] == "system" and "steps=[]" in message["content"]
+        for message in messages_sent[0]
+    )
+    for messages in messages_sent:
+        assert messages[0]["role"] == "system"
+        assert "La configuración real actual es evidencia" in messages[0]["content"]
+        assert all(message["role"] != "system" for message in messages[1:])
+
+
+def test_read_only_final_explanation_preserves_sales_evidence(enabled_client, monkeypatch):
+    import json
+
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant)
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    stages = []
+
+    def respond(messages, available_tools, *, model, structured=False):
+        stages.append(structured)
+        if len(stages) == 1:
+            return {"content": "", "tool_calls": [{"name": "get_sales", "arguments": {}}]}
+        if not structured:
+            # Planning prose must never be delivered, even if it contains invented figures.
+            return {"content": "Vendiste 99999 pesos", "tool_calls": []}
+        assert not available_tools
+        sales = json.loads(next(m["content"] for m in messages if m["role"] == "tool"))
+        assert sales["net_sales"] == "0.00"
+        return {
+            "content": json.dumps(
+                {"answer": "No hay ventas en el periodo consultado.", "source_ids": [], "steps": []}
+            ),
+            "tool_calls": [],
+        }
+
+    monkeypatch.setattr(provider, "generate", respond)
+    generation.run(db, ctx, job)
+    assert stages == [False, False, True]
+    assert job.status == "completed"
+    assert job.data["metrics"]["net_sales"] == "0.00"
+    assert "99999" not in job.data["answer"]
+
+
+def test_configuration_with_credentials_is_rejected_before_inference(enabled_client, monkeypatch):
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant)
+    monkeypatch.setattr(
+        generation.tools, "configuration", lambda *args: {"footer": "Bearer abcdef1234567890"}
+    )
+
+    def unexpected_inference(*args, **kwargs):
+        pytest.fail("Configuration credentials must never reach the provider")
+
+    monkeypatch.setattr(provider, "generate", unexpected_inference)
+    with pytest.raises(HTTPException) as error:
+        generation.run(db, ctx, job)
+    assert error.value.status_code == 422
+    assert job.data.get("remote_started") is not True
 
 
 @pytest.mark.parametrize(
@@ -1080,6 +1177,77 @@ def test_provider_uses_fixed_compatible_chat_contract_and_native_embeddings(monk
     assert seen[1][1]["store"] is False
     assert all(tool["type"] == "function" for tool in seen[0][1]["tools"])
     assert seen[2][0].endswith("/ai/run/" + provider.EMBEDDING_MODEL)
+
+
+@pytest.mark.parametrize("mutations", [False, True])
+def test_provider_constrains_read_only_output_without_enabling_proposals(monkeypatch, mutations):
+    import json
+    import re
+
+    sent = []
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", mutations)
+
+    def call(model, body, **kwargs):
+        sent.append(body)
+        return {"choices": [{"message": {"content": json.dumps({"answer": "Orientación"})}}]}
+
+    monkeypatch.setattr(provider, "_call", call)
+    provider.generate([], [], model=settings.assistant_model, structured=True)
+    output_format = sent[0].get("response_format")
+    if mutations:
+        assert output_format is None
+    else:
+        assert output_format["type"] == "json_schema"
+        schema = output_format["json_schema"]
+        assert schema["properties"]["steps"]["maxItems"] == 0
+        pattern = schema["properties"]["answer"]["pattern"]
+        assert re.fullmatch(pattern, "Consulta las tarjetas de ventas.")
+        assert not re.fullmatch(pattern, "Vendiste 900 pesos")
+        assert not re.fullmatch(pattern, "<script>contenido</script>")
+
+
+def test_llama_native_reads_and_compatible_final_json(monkeypatch):
+    import json
+
+    from app.assistant import tools
+
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    model = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    messages = [
+        {"role": "system", "content": "Contexto autorizado"},
+        {"role": "user", "content": "Consulta ventas"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {"id": "read_sales", "function": {"name": "get_sales", "arguments": "{}"}}
+            ],
+        },
+        {"role": "tool", "tool_call_id": "read_sales", "content": '{"net_sales":"0.00"}'},
+    ]
+    sent = []
+
+    def call(selected_model, body, *, chat=False):
+        assert selected_model == model
+        sent.append((body, chat))
+        if not chat:
+            return {"response": "", "tool_calls": [{"name": "get_sales", "arguments": {}}]}
+        assert "tools" not in body
+        return {"choices": [{"message": {"content": '{"answer":"No hay ventas"}'}}]}
+
+    monkeypatch.setattr(provider, "_call", call)
+    planning = provider.generate(messages, tools.TOOLS, model=model)
+    final = provider.generate(messages, [], model=model, structured=True)
+    native, chat = sent[0]
+    assert not chat
+    assert all("name" in tool and "function" not in tool for tool in native["tools"])
+    assert json.loads(native["messages"][2]["content"]) == [{"name": "get_sales", "arguments": {}}]
+    assert native["messages"][3] == {"role": "tool", "content": '{"net_sales":"0.00"}'}
+    assert planning["tool_calls"][0]["name"] == "get_sales"
+    assert sent[1][1] is True
+    assert sent[1][0]["messages"] == messages
+    assert sent[1][0]["response_format"]["type"] == "json_schema"
+    assert final["content"] == '{"answer":"No hay ventas"}'
 
 
 def test_provider_does_not_follow_redirects_to_unapproved_hosts(monkeypatch):

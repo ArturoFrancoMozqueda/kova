@@ -7,6 +7,7 @@ import httpx
 from fastapi import HTTPException
 
 from app.assistant.budget import RATES
+from app.assistant.schemas import Answer
 from app.config import settings
 
 EMBEDDING_MODEL = "@cf/qwen/qwen3-embedding-0.6b"
@@ -67,21 +68,71 @@ def _call(model: str, body: dict, *, chat=False) -> dict:
         raise HTTPException(503, "No se pudo completar la consulta de IA.") from None
 
 
-def generate(messages: list[dict], tools: list[dict], *, model: str) -> dict:
+def read_only_response_format() -> dict | None:
+    if not settings.assistant_mutations_enabled:
+        schema = Answer.model_json_schema()
+        schema.pop("$defs", None)
+        schema["properties"]["answer"].pop("maxLength", None)
+        schema["required"] = ["answer", "source_ids", "steps"]
+        schema["properties"]["answer"]["pattern"] = "^[^0-9<>$]*$"
+        schema["properties"]["steps"] = {
+            "type": "array",
+            "maxItems": 0,
+            "items": {"type": "object", "properties": {}, "additionalProperties": False},
+        }
+        return {
+            "type": "json_schema",
+            "json_schema": schema,
+        }
+    return None
+
+
+def generate(
+    messages: list[dict], tools: list[dict], *, model: str, structured: bool = False
+) -> dict:
     body = {
         "messages": messages,
-        "tools": tools,
         "store": False,
         "stream": False,
         "parallel_tool_calls": False,
     }
+    # Workers AI rejects an empty tools array; omit it for the final explanation.
+    if tools:
+        body["tools"] = tools
+    response_format = read_only_response_format() if structured else None
+    if response_format:
+        body["response_format"] = response_format
     if model == "@cf/qwen/qwen3.8-27b":
         body.update(max_completion_tokens=1024, reasoning_effort="low")
-    elif model == "@cf/qwen/qwen3-30b-a3b-fp8":
+    elif model in {"@cf/qwen/qwen3-30b-a3b-fp8", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"}:
         body.update(max_tokens=1024)
     else:
         raise HTTPException(503, "Modelo de generación no permitido.")
-    result = _call(model, body, chat=True)
+    if model == "@cf/meta/llama-3.3-70b-instruct-fp8-fast" and not structured:
+        # The native Llama API consumes flat tools and textual tool-call history.
+        if tools:
+            body["tools"] = [tool["function"] for tool in tools]
+        native_messages = []
+        for message in messages:
+            if message.get("tool_calls"):
+                calls = []
+                for call in message["tool_calls"]:
+                    function = call.get("function", call)
+                    arguments = function.get("arguments", {})
+                    if isinstance(arguments, str):
+                        arguments = json.loads(arguments)
+                    calls.append({"name": function["name"], "arguments": arguments})
+                native_messages.append(
+                    {"role": "assistant", "content": json.dumps(calls, ensure_ascii=False)}
+                )
+            else:
+                native_messages.append(
+                    {"role": message["role"], "content": message.get("content") or ""}
+                )
+        body["messages"] = native_messages
+        result = _call(model, body)
+    else:
+        result = _call(model, body, chat=True)
     # Both native Workers AI and compatible completion responses are supported.
     if "choices" in result:
         message = result["choices"][0]["message"]
@@ -90,8 +141,11 @@ def generate(messages: list[dict], tools: list[dict], *, model: str) -> dict:
             "tool_calls": message.get("tool_calls") or [],
             "usage": result.get("usage"),
         }
+    content = result.get("response") or ""
+    if isinstance(content, dict):
+        content = json.dumps(content, ensure_ascii=False)
     return {
-        "content": result.get("response") or "",
+        "content": content,
         "tool_calls": result.get("tool_calls") or [],
         "usage": result.get("usage"),
     }

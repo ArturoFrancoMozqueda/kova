@@ -26,6 +26,13 @@ ambos modelos antes de obtener contenido final. Estos resultados explican por qu
 habilitó `ASSISTANT_PROVIDER_VERIFIED`; no sustituyen los 200 casos del plan ni prueban
 la calidad general, el consumo de razonamiento o la retención del proveedor.
 
+La prueba posterior con las ocho herramientas reales encontró HTTP 400 por un mensaje
+system después del usuario: Workers AI exige ese contexto al inicio. Se consolida el
+sistema/configuración antes de la conversación y se filtra la configuración con el mismo
+control de credenciales del resto del contexto, incluyendo Bearer. También se observó
+numeración en prosa del principal; el prompt ahora prohíbe dígitos expresamente, incluyendo
+listas y medidas, sin relajar el rechazo determinista de respuestas inválidas.
+
 Con sesiones del operador en los dashboards se crearon un token exclusivo de Workers AI
 (Read/Edit de la cuenta) y un token R2 de servicio (Account API token, Object Read & Write,
 solo `kova-assistant`). El panel de R2 confirmó que ese token está activo y restringido al
@@ -39,15 +46,18 @@ de aplicación desde el dashboard (`2132183`) falló al iniciar el deployer, ant
 desplegar la aplicación. La incorporación al runtime usa el release protegido de CI,
 con captura de rollback, verificación de salud y el mismo proceso HTTP existente;
 no requiere crear el worker ni habilitar inferencia. Verificar después del release
-que ya no aparecen como staged antes de declarar la configuración aplicada.
+que ya no aparecen como staged antes de declarar la configuración aplicada. Ese check
+pasó con el release de `ff83b66`; frontend, API, proxy y DB se verificaron con SHA exacto.
 
 Referencias: [token AI](https://developers.cloudflare.com/workers-ai/get-started/rest-api/),
 [claves R2](https://developers.cloudflare.com/r2/api/tokens/).
 
-La configuración de un proceso Fly separado para chat/retención está preparada en
+La configuración de un proceso Fly separado para chat/retención se integró desde
 `codex/assistant-runtime` ([PR #159](https://github.com/ArturoFrancoMozqueda/kova/pull/159)),
-sin desplegar; su primer CI pasó. El operador autorizó mantener una máquina activa
-para la cohorte de prueba; los gates del modelo siguen pendientes antes de habilitar chat.
+y se desplegó en `83850dc` (Fly release 326). CI y aceptación pasaron; el dashboard
+confirmó una máquina assistant activa shared-cpu-1x@1024MB y un standby detenido,
+conservando las dos máquinas web existentes. El operador autorizó mantener una
+máquina activa para la cohorte de prueba.
 La [calculadora de Fly](https://fly.io/calculator/) mostró
 US$8.37 de cómputo mensual para una máquina shared, un CPU, 1024 MiB, 730 horas en `dfw`,
 sin volumen ni reserva; la transferencia se presupuesta aparte. Fly crea por defecto
@@ -57,6 +67,43 @@ tiempo encendido; apagar el worker requiere un mecanismo de arranque y retrasa s
 No es un techo de gasto impuesto por el proveedor. No hay host de ingesta desplegado: documentos,
 mutaciones y correo siguen apagados. La cohorte del piloto está identificada, pero sus
 UUIDs, contactos y credenciales se mantienen fuera de esta documentación pública.
+
+### Piloto de lectura solicitado por el operador
+
+El operador pidió habilitar la bolita con IA en la cohorte de prueba antes de la batería
+general. El piloto de lectura selecciona `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
+para consultas y ayuda, por su contrato de herramientas nativas y JSON Mode. Los Qwen
+siguen como defaults históricos, pero no se activan en esta cohorte. Mantener documentos,
+mutaciones y correo en false y consentimiento externo por usuario. Para reservar margen
+por las pruebas externas, configurar presupuesto diario de 6000 neuronas y chat de 5000;
+las reservas personales siguen limitadas a tres cuartos de la parte del negocio.
+La orientación de configuración debe completar el chat sin crear propuestas cuando
+mutaciones está apagado, aunque el modelo devuelva steps; no cambiar los guards de
+preparación ni confirmación del ejecutor. Verificar contratos live con datos sintéticos
+antes de encender los flags del piloto, después capacidades autenticadas y una respuesta
+real a través del worker. Habilitar una sola cohorte no acredita calidad general:
+la batería de 200 casos y revisión humana sigue pendiente antes de ampliar clientes
+o capacidades. No afirmar que el piloto superó sus porcentajes de resolución/citas.
+
+Se separa la planificación de lectura de la explicación final: Llama usa el endpoint
+nativo con herramientas planas y luego el endpoint compatible con JSON Schema, sin
+herramientas. No enviar un array vacío de tools: el proveedor lo rechaza. Ambas llamadas
+conservan el modelo permitido, contexto autorizado, reservas y límites existentes. La
+respuesta de planificación no se publica. El servidor sigue validando fuentes y prosa.
+Los cuatro escenarios sintéticos live pasaron: orientación de ticket, ventas con lectura
+real del contrato, guía con instrucción maliciosa y rechazo de infraestructura/otro negocio.
+Esto comprueba la integración acotada, no la calidad general ni un chat autenticado real.
+
+**Built with Llama.** Este piloto usa Llama 3.3 bajo la
+[Llama 3.3 Community License](https://github.com/meta-llama/llama-models/blob/main/models/llama3_3/LICENSE)
+y su política de uso aceptable. Cloudflare aloja la inferencia; no se distribuyen pesos
+ni se instala el modelo con acceso al servidor de Kova.
+
+La activación de flags se aplica junto con el release protegido de esta corrección.
+Verificar después del release: credenciales ya aplicadas, worker activo, SHA público y
+bolita visible con sesión autorizada. Hasta esas comprobaciones, no declarar el piloto
+funcional. Los datos del negocio solo salen al proveedor tras aceptar el consentimiento
+del producto.
 
 ## Comportamiento implementado
 
@@ -115,6 +162,7 @@ UUIDs, contactos y credenciales se mantienen fuera de esta documentación públi
    Usar token de Workers AI, nunca un token de administración de DNS/Fly/Vercel/Supabase.
 9. Verificar los contratos del proveedor y la batería del plan. Solo entonces poner
    ASSISTANT_PROVIDER_VERIFIED=true y habilitar una cohorte explícita de UUIDs del servidor.
+   La excepción de lectura de una cohorte se describe arriba; no habilita otras capacidades.
    Activar configuración, documentos y resúmenes con flags separados, gradualmente.
 
 Las variables nuevas y sus defaults están en `.env.example`. Ninguna usa prefijo VITE_. El código
@@ -147,6 +195,10 @@ exacto conciliado con Cloudflare. Tarifas, tokens de razonamiento y facturación
 la cuenta dedicada antes de activar. Si cambian, apagar la inferencia y actualizar contratos/pruebas.
 No se promete un número de clientes: medir consultas reales, latencia, reservas y cola por cohorte.
 Aumentar tenants reduce su porción; un techo de gasto no prueba capacidad ni calidad.
+El modelo Llama del piloto se reserva con las tarifas verificadas de 26,668 neuronas
+por millón de tokens de entrada y 204,805 por millón de salida, con margen del 15%.
+El límite temporal del piloto (6000 total/5000 chat) deja margen para el consumo externo
+observado; la cuota de Cloudflare conserva su alcance de cuenta y no es por negocio.
 
 Referencias de operación: [tarifas Workers AI](https://developers.cloudflare.com/workers-ai/platform/pricing/),
 [modelo principal](https://developers.cloudflare.com/workers-ai/models/qwen3.8-27b/),

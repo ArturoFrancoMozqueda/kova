@@ -11,6 +11,7 @@ from app.assistant.access import cohort
 from app.config import settings
 
 RATES = {
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast": (26668, 204805),
     "@cf/qwen/qwen3.8-27b": (40909, 290909),
     "@cf/qwen/qwen3-30b-a3b-fp8": (4625, 30475),
     "@cf/qwen/qwen3-embedding-0.6b": (1075, 0),
