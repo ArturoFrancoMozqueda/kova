@@ -174,5 +174,13 @@ Evidencia de integración local: 754 tests frontend, 14 de migraciones y 40 espe
 asistente pasaron; build/SSR/prerender, lint, contratos OpenAPI, bundle y contratos operativos
 pasaron. La suite backend integrada dio 968 aprobados y un fallo de gastos por el timezone
 America/Mexico_City heredado por la base temporal nueva. Se ajustó solo esa base a UTC (como CI)
-y se reejecutan gastos + asistente; no se cambia código ni expectativas de gastos. CI ejecuta
-la suite completa en UTC antes de autorizar el merge.
+y pasaron los 43 casos focalizados de gastos/asistente y las 969 pruebas de la suite completa;
+no se cambia código ni expectativas de gastos. CI ejecuta la suite completa en UTC antes del merge.
+
+El primer CI del PR verificó la imagen del parser y los ocho casos reales, incluyendo EICAR;
+esto cierra el smoke gate de construcción/scanner, no la batería PDF/OCR completa. Los recorridos
+mockeados detectaron la nueva consulta de capacidades del shell: el fixture ahora declara ese
+contrato exacto con todos los flags apagados por defecto, sin relajar el rechazo de otras llamadas.
+Los recorridos nuevos cubren cohorte apagada y bolita a 1280/320 px: no hay inferencia al abrir,
+la URL se conserva, el borrador sobrevive navegación, el menú tiene prioridad y el contenido
+privado no se escribe en Web Storage.
