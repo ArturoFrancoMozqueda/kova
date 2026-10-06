@@ -124,6 +124,10 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
         "tenant_id": str(order.tenant_id),
         "branch_id": str(order.branch_id),
         "status": order.status,
+        "customer_id": str(order.customer_id) if order.customer_id else None,
+        "discount_amount": str(order.discount_amount),
+        "tax_rate": str(order.tax_rate),
+        "tax_amount": str(order.tax_amount),
         "subtotal_amount": str(order.subtotal_amount),
         "total_amount": str(order.total_amount),
         "items": [
@@ -274,7 +278,17 @@ def create_order(
     shift_id: UUID | None = None,
     occurred_at: datetime | None = None,
 ) -> tuple[int, dict[str, Any]]:
-    payload = body.model_dump(mode="json")
+    # Exclude newly defaulted fields to retain old idempotency hashes.
+    payload = body.model_dump(mode="json", exclude={"customer_id", "discount_amount", "tax_rate"})
+    for item_payload in payload["items"]:
+        if item_payload.get("unit_price_amount") is None:
+            item_payload.pop("unit_price_amount", None)
+    if body.customer_id is not None:
+        payload["customer_id"] = str(body.customer_id)
+    if body.discount_amount:
+        payload["discount_amount"] = str(body.discount_amount)
+    if body.tax_rate:
+        payload["tax_rate"] = str(body.tax_rate)
     if client_uuid:
         from app.branches.scope import active_branch_id, tenant_wide_branches
 
@@ -296,6 +310,21 @@ def create_order(
         existing = repo.get_order_by_client_uuid(db, tenant_id=tenant_id, client_uuid=client_uuid)
         if existing:
             return 200, _order_body(db, tenant_id=tenant_id, order=existing)
+
+    if body.customer_id is not None:
+        from app.customers.models import Customer
+
+        customer = (
+            db.query(Customer)
+            .filter(
+                Customer.tenant_id == tenant_id,
+                Customer.id == body.customer_id,
+                Customer.is_active.is_(True),
+            )
+            .first()
+        )
+        if customer is None:
+            raise not_found("Cliente no encontrado")
 
     # Acquire every product lock in one deterministic order before pricing.
     # Two checkouts containing A/B and B/A therefore cannot deadlock while
@@ -321,7 +350,13 @@ def create_order(
             product_id=product.id,
             modifier_option_ids=item.modifier_option_ids,
         )
-        effective_price = calculator.money(product.price_amount + price_delta)
+        if item.unit_price_amount is not None and client_uuid is None:
+            raise bad_request("Price snapshots are only accepted for offline sales")
+        effective_price = calculator.money(
+            item.unit_price_amount
+            if item.unit_price_amount is not None
+            else product.price_amount + price_delta
+        )
         line_total = calculator.line_total(effective_price, item.quantity)
         priced_items.append(
             PricedOrderLine(
@@ -361,8 +396,12 @@ def create_order(
                 },
             )
 
-    subtotal = calculator.order_total([line.line_total for line in priced_items])
-    total = subtotal
+    try:
+        subtotal, tax, total, allocated_totals = calculator.sale_pricing(
+            [line.line_total for line in priced_items], body.discount_amount, body.tax_rate
+        )
+    except ValueError as exc:
+        raise bad_request(str(exc)) from exc
     validated_payments = _validate_payments(body.payments, total)
 
     # Attribute real-time sales to the open shift so their cash counts toward
@@ -394,11 +433,20 @@ def create_order(
         user_id=user_id,
         subtotal_amount=subtotal,
         total_amount=total,
+        discount_amount=body.discount_amount,
+        tax_rate=body.tax_rate,
+        tax_amount=tax,
+        customer_id=body.customer_id,
         client_uuid=client_uuid,
         shift_id=shift_id,
         occurred_at=_clamp_occurred_at(occurred_at),
     )
-    for line in priced_items:
+    net_lines = calculator.allocate_amount(
+        [line.line_total for line in priced_items], subtotal - body.discount_amount
+    )
+    for line, allocated_total, net_line in zip(
+        priced_items, allocated_totals, net_lines, strict=True
+    ):
         order_item = repo.create_order_item(
             db,
             tenant_id=tenant_id,
@@ -406,7 +454,9 @@ def create_order(
             product=line.product,
             quantity=line.quantity,
             unit_price_amount=line.unit_price,
-            line_total_amount=line.line_total,
+            line_total_amount=allocated_total,
+            discount_amount=line.line_total - net_line,
+            tax_amount=allocated_total - net_line,
         )
         for snap in line.modifier_snapshots:
             db.add(
@@ -512,6 +562,10 @@ def get_receipt(db: Session, *, tenant_id: UUID, order_id: UUID) -> dict[str, An
             }
             for item in items
         ],
+        "customer_id": str(order.customer_id) if order.customer_id else None,
+        "discount_amount": str(order.discount_amount),
+        "tax_rate": str(order.tax_rate),
+        "tax_amount": str(order.tax_amount),
         "subtotal_amount": str(order.subtotal_amount),
         "total_amount": str(order.total_amount),
         "payments": [_payment_body(p) for p in payments],
@@ -616,7 +670,9 @@ def create_refund(
                 },
             )
 
-        line_total = calculator.line_total(order_item.unit_price_amount, requested_quantity)
+        line_total = calculator.refund_line_total(
+            order_item.line_total_amount, order_item.quantity, refunded_qty, requested_quantity
+        )
         refund_lines.append((order_item, requested_quantity, line_total))
         total_refunded = calculator.money(total_refunded + line_total)
 

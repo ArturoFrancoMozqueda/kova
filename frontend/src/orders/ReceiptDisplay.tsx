@@ -48,6 +48,9 @@ export function ReceiptDisplay({ order, receipt }: ReceiptDisplayProps) {
             createdAt={receipt.created_at}
             paperWidthMm={receipt.paper_width_mm ?? 80}
             items={receipt.items}
+            discountAmount={receipt.discount_amount}
+            taxRate={receipt.tax_rate}
+            taxAmount={receipt.tax_amount}
             subtotalAmount={receipt.subtotal_amount}
             totalAmount={receipt.total_amount}
             payments={receipt.payments}

@@ -41,6 +41,9 @@ type ReceiptTemplateProps = {
   taxContactText?: string;
   footer?: string;
   items: ReceiptItem[];
+  discountAmount?: string;
+  taxRate?: string;
+  taxAmount?: string;
   subtotalAmount: string;
   totalAmount: string;
   payments: ReceiptPayment[];
@@ -74,6 +77,9 @@ export function ReceiptTemplate({
   taxContactText,
   footer,
   items,
+  discountAmount,
+  taxRate,
+  taxAmount,
   subtotalAmount,
   totalAmount,
   payments,
@@ -158,6 +164,8 @@ export function ReceiptTemplate({
 
       <div {...band(2)} className="space-y-1">
         <ReceiptLine label={copy.orderDetail.subtotal} value={formatMoney(subtotalAmount)} />
+        {Number(discountAmount) > 0 && <ReceiptLine label="Descuento" value={`−${formatMoney(discountAmount!)}`} />}
+        {Number(taxAmount) > 0 && <ReceiptLine label={`Impuesto adicional (${taxRate ?? "0"}%)`} value={formatMoney(taxAmount!)} />}
         <ReceiptLine label={copy.orderDetail.total} value={formatMoney(totalAmount)} strong />
         {payments.map((payment, index) => (
           <ReceiptLine
