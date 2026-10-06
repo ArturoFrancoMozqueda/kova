@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuthContext } from "@/auth/AuthContext";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
@@ -14,6 +14,8 @@ import {
   type InvoiceRecipient,
   type InvoiceRequest,
 } from "./api";
+
+import { CfdiPanel } from "./CfdiPanel";
 
 const emptyIdentity: FiscalIdentity = {
   rfc: "",
@@ -58,6 +60,11 @@ export function IntegrationContents({
 }: {
   canManage?: boolean;
 }) {
+  const [connectionLabel, setConnectionLabel] = useState("Sin conectar");
+  const updateConnectionLabel = useCallback(
+    (label: string) => setConnectionLabel(label),
+    [],
+  );
   const [issuer, setIssuer] = useState<FiscalIdentity>(emptyIdentity);
   const [saved, setSaved] = useState(false);
   const [recipient, setRecipient] = useState<InvoiceRecipient>({
@@ -85,6 +92,15 @@ export function IntegrationContents({
     ])
       .then(([state, items, orders]) => {
         if (active) {
+          const readinessLabels = {
+            not_connected: "Sin conectar",
+            test_connected: "Conectada en pruebas",
+            live_not_ready: "Live requiere revisión",
+            live_ready: "Conectada en Live",
+          };
+          setConnectionLabel(
+            readinessLabels[state.cfdi_status] ?? "Sin conectar",
+          );
           setIssuer(state.issuer ?? emptyIdentity);
           setSaved(!!state.issuer);
           setRequests(items);
@@ -121,14 +137,16 @@ export function IntegrationContents({
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-2xl border border-border p-5">
-          <h2 className="font-semibold">Facturación CFDI · Sin conectar</h2>
+          <h2 className="font-semibold">
+            Facturación CFDI · {connectionLabel}
+          </h2>
           <p className="mt-2 text-sm">
             Un PAC es la empresa autorizada por el SAT que certifica las
             facturas. Kova necesita una integración contratada para emitirlas.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Las solicitudes guardadas aquí quedan pendientes. No generan un CFDI
-            ni un folio fiscal.
+            No generan un CFDI ni un folio fiscal por sí solas. La emisión
+            requiere revisar los conceptos y confirmar el envío al proveedor.
           </p>
         </section>
         <section className="rounded-2xl border border-border p-5">
@@ -168,7 +186,13 @@ export function IntegrationContents({
                   });
                 }}
               >
-                <IdentityFields value={issuer} onChange={setIssuer} />
+                <IdentityFields
+                  value={issuer}
+                  onChange={(value) => {
+                    setIssuer(value);
+                    setSaved(false);
+                  }}
+                />
                 <button
                   disabled={busy}
                   className="rounded-xl bg-primary px-4 py-2 text-primary-foreground"
@@ -286,6 +310,13 @@ export function IntegrationContents({
             </section>
           )}
           {canManage && (
+            <CfdiPanel
+              requests={requests}
+              issuerRfc={saved ? issuer.rfc : undefined}
+              onConnectionLabel={updateConnectionLabel}
+            />
+          )}
+          {canManage && (
             <section className="rounded-2xl border border-border p-5">
               <h2 className="mb-3 font-semibold">Solicitudes recientes</h2>
               {requests.length === 0 ? (
@@ -307,7 +338,7 @@ export function IntegrationContents({
                         {formatMoney(item.total_amount)}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Pendiente de proveedor · Sin emitir
+                        Solicitud registrada · Consulta el estado del documento
                       </p>
                     </li>
                   ))}
