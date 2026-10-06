@@ -242,7 +242,8 @@ _EXPORT_TABLES = (
     ExportTable(
         "tenant_receipt_settings",
         _columns(
-            "tenant_id receipt_business_name footer tax_contact_text logo_url paper_width_mm default_tax_rate "
+            "tenant_id receipt_business_name footer tax_contact_text logo_url paper_width_mm "
+            "default_tax_rate "
             "created_at updated_at"
         ),
     ),
