@@ -13,6 +13,8 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatMoney } from "@/orders/format";
 import { cancelPurchase, createPurchase, createSupplier, listPurchases, listSuppliers, receivePurchase, type Purchase, type Supplier } from "./api";
 
+import { formatPurchaseTotal } from "./formatPurchaseTotal";
+
 const statusLabel = { pending: "Pendiente", partial: "Recibida parcialmente", received: "Recibida", cancelled: "Cancelada" };
 type DraftLine = { product_id: string; quantity: number; unit_cost: string };
 
@@ -95,7 +97,7 @@ export default function PurchasingView() {
           </div>)}
           <Button type="button" variant="outline" disabled={disabled || lines.length >= 200 || lines.length >= products.length} onClick={() => setLines(rows => [...rows, { product_id: "", quantity: 1, unit_cost: "0.00" }])}>Agregar producto</Button>
           <div><Label htmlFor="purchase-notes">Referencia o notas (opcional)</Label><Input id="purchase-notes" maxLength={500} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-          <p>Total de la compra: <strong>{formatMoney(lines.reduce((sum, line) => sum + line.quantity * Number(line.unit_cost), 0))}</strong></p>
+          <p>Total de la compra: <strong>{formatPurchaseTotal(lines)}</strong></p>
           <Button type="submit" disabled={disabled || products.length === 0 || suppliers.length === 0}>Crear compra pendiente</Button>
         </form>
       </CardContent></Card>

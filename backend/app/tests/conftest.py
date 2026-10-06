@@ -196,6 +196,7 @@ def db(apply_migrations):  # noqa: ARG001
             # The production dependency closes its request-local session.
             # Tests reuse one transaction, so discard the request branch too.
             session.info.pop("kova_branch_id", None)
+            session.info.pop("kova_allowed_branch_id", None)
 
     # Route BOTH the normal and the privileged dependency to the single
     # transactional session. In production get_privileged_db opens a separate

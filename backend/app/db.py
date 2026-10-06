@@ -227,6 +227,7 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
         db.info.pop("kova_branch_id", None)
+        db.info.pop("kova_allowed_branch_id", None)
         db.close()
 
 
@@ -238,6 +239,7 @@ def get_privileged_db() -> Generator[Session, None, None]:
     finally:
         db.info.pop(_TENANT_CONTEXT_INFO_KEY, None)
         db.info.pop("kova_branch_id", None)
+        db.info.pop("kova_allowed_branch_id", None)
         db.close()
 
 
