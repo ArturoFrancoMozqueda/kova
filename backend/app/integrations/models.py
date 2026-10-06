@@ -28,6 +28,7 @@ class InvoiceRequest(BranchScoped, Base):
     __tablename__ = "invoice_requests"
     __table_args__ = (
         UniqueConstraint("tenant_id", "order_id", name="uq_invoice_requests_order"),
+        UniqueConstraint("tenant_id", "id", name="uq_invoice_requests_tenant_id_id"),
         ForeignKeyConstraint(
             ["tenant_id", "branch_id", "order_id"],
             ["orders.tenant_id", "orders.branch_id", "orders.id"],

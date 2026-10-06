@@ -26,6 +26,7 @@ import app.branches.models  # noqa: F401
 import app.branches.transfers  # noqa: F401
 import app.business_settings.models  # noqa: F401
 import app.catalog.models  # noqa: F401
+import app.cfdi.models  # noqa: F401
 import app.customer_orders.models  # noqa: F401
 import app.customers.models  # noqa: F401
 import app.employees.models  # noqa: F401
@@ -130,6 +131,7 @@ def _provision_kova_app() -> None:
             "SELECT, INSERT": (
                 "cash_movements inventory_movements inventory_transfers suppliers purchase_orders "
                 "purchase_order_items fiscal_issuer_profiles invoice_requests "
+                "cfdi_connections cfdi_documents "
                 "order_item_modifiers order_items payments "
                 "refund_items refunds voids order_fiscal_snapshots "
                 "order_item_fiscal_snapshots order_item_tax_snapshots "
@@ -152,6 +154,15 @@ def _provision_kova_app() -> None:
         conn.execute(text("GRANT UPDATE (status) ON purchase_orders TO kova_app"))
         conn.execute(text("GRANT UPDATE (received_quantity) ON purchase_order_items TO kova_app"))
         conn.execute(text("GRANT UPDATE (fiscal_data) ON fiscal_issuer_profiles TO kova_app"))
+        conn.execute(text(
+            "GRANT UPDATE (organization_id, encrypted_api_key, issuer_rfc, production_ready, "
+            "certificate_expires_at, refreshed_at) ON cfdi_connections TO kova_app"
+        ))
+        conn.execute(text(
+            "GRANT UPDATE (state, provider_id, uuid, xml_bytes, last_error_code, cancellation_status, "
+            "cancellation_key, cancellation_hash, cancellation_payload, confirmed_at, canceled_at, "
+            "updated_at) ON cfdi_documents TO kova_app"
+        ))
         conn.execute(text("GRANT INSERT ON anonymous_telemetry_events TO kova_app"))
         conn.execute(text("GRANT SELECT ON tenants TO kova_app"))
         conn.execute(text("GRANT UPDATE (name, updated_at) ON tenants TO kova_app"))

@@ -52,6 +52,22 @@ def _columns(value: str) -> tuple[str, ...]:
 
 _EXPORT_TABLES = (
     ExportTable(
+        "cfdi_connections",
+        _columns(
+            "id tenant_id environment organization_id issuer_rfc production_ready "
+            "certificate_expires_at refreshed_at"
+        ),
+    ),
+    ExportTable(
+        "cfdi_documents",
+        _columns(
+            "id tenant_id branch_id order_id request_id connection_id environment organization_id "
+            "state external_id provider_id uuid payload total_amount last_error_code "
+            "cancellation_status cancellation_payload confirmed_at canceled_at "
+            "created_by_user_id created_at updated_at"
+        ),
+    ),
+    ExportTable(
         "customers",
         _columns(
             "id tenant_id name email phone is_active created_at updated_at"
@@ -359,6 +375,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "cfdi_documents",
+    "cfdi_connections",
     "invoice_requests",
     "fiscal_issuer_profiles",
     "inventory_transfers",
@@ -483,6 +501,21 @@ def build_account_export(db: Session, *, tenant_id: UUID) -> BinaryIO:
             )
             manifest["tables"][spec.name] = count  # type: ignore[index]
 
+        # Fiscal XML is the business's issued evidence, not a replaceable image.
+        # Preserve its exact bytes in the portability archive without credentials.
+        fiscal_xml = db.execute(
+            text(
+                "SELECT id, environment, xml_bytes FROM cfdi_documents "
+                "WHERE tenant_id = :tenant_id AND xml_bytes IS NOT NULL ORDER BY id"
+            ),
+            {"tenant_id": tenant_id},
+        )
+        xml_count = 0
+        for document_id, environment, xml_bytes in fiscal_xml:
+            archive.writestr(f"cfdi/{environment}/{document_id}.xml", bytes(xml_bytes))
+            xml_count += 1
+        manifest["fiscal_xml_files"] = xml_count
+
         # refund_items has indirect ownership through refunds. The explicit
         # tenant-safe join makes partial and repeated refunds reconstructable.
         refund_items = db.execute(
@@ -544,7 +577,10 @@ def build_account_export(db: Session, *, tenant_id: UUID) -> BinaryIO:
             "LEEME.txt",
             "Exportación de cuenta Kova. Los importes conservan la precisión almacenada "
             "y las fechas están en formato ISO. Los archivos binarios se omiten; sus "
-            "metadatos permanecen en los CSV.\n",
+            "metadatos permanecen en los CSV. Los XML fiscales disponibles se conservan "
+            "en cfdi/test o cfdi/live. Los documentos de prueba no tienen validez fiscal. "
+            "Las llaves de proveedores se excluyen de esta exportación. Conserva tus CFDI "
+            "antes de eliminar la cuenta; la eliminación en Kova no cancela un CFDI ante el SAT.\n",
         )
     buffer.seek(0)
     return buffer

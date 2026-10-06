@@ -44,7 +44,11 @@ def export_account(
     return StreamingResponse(
         iter(lambda: export_file.read(64 * 1024), b""),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="kova-export-{stamp}.zip"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="kova-export-{stamp}.zip"',
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
         background=BackgroundTask(export_file.close),
     )
 

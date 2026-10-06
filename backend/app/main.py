@@ -15,6 +15,7 @@ from app.business_settings.logo_router import router as business_settings_logo_r
 from app.business_settings.router import router as business_settings_router
 from app.catalog.image_router import router as catalog_image_router
 from app.catalog.router import router as catalog_router
+from app.cfdi.router import router as cfdi_router
 from app.config import settings
 from app.customer_orders.router import router as customer_orders_router
 from app.customers.router import router as customers_router
@@ -208,6 +209,7 @@ def create_app() -> FastAPI:
     app.include_router(customer_orders_router)
     app.include_router(customers_router)
     app.include_router(integrations_router)
+    app.include_router(cfdi_router)
     app.include_router(purchasing_router)
     app.include_router(catalog_image_router)
     app.include_router(employees_router)

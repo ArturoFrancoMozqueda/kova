@@ -27,6 +27,8 @@ TENANT_SCOPED_TABLES = (
     "inventory_transfers",
     "fiscal_issuer_profiles",
     "invoice_requests",
+    "cfdi_connections",
+    "cfdi_documents",
     "expenses",
     "fiscal_global_draft_batches",
     "fiscal_global_draft_adjustments",
