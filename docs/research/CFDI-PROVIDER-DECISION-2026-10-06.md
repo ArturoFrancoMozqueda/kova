@@ -28,11 +28,15 @@ La [referencia API oficial](https://docs.facturapi.io/api/) documenta:
 - `GET /v2/organizations/me`: llave de organización Test/Live. `GET /v2/organizations/{id}`: también admite User Key. El ejemplo cURL con User Key no restringe las autorizaciones enumeradas.
 - Emisión `POST /v2/invoices`: `idempotency_key` **en JSON**, no asumir un header. `external_id` ayuda a buscar, pero **no es único**.
 - Factura: `status` puede ser `pending`, `valid`, `canceled`, `draft`, `failed`; `livemode` distingue ambientes.
-- `product_key`, `unit_key`, `taxability`, `taxes`, `tax_included` son datos fiscales explícitos; `items[].discount` existe, pero la extracción consultada no aclaró su base/unidad. No asumir porcentaje ni descuento unitario.
+- `product_key`, `unit_key`, `taxability`, `taxes`, `tax_included` son datos fiscales explícitos. El esquema `LineItemInput` define `discount` como **monto total de descuento del concepto**, no porcentaje ni descuento por unidad. `quantity`, `discount` y `product.price` tienen tipo JSON `number`; no enviar strings decimales como contrato documentado. `price` es unitario y su inclusión de impuestos depende de `tax_included`.
+
+Esta verificación usa el [OpenAPI oficial, `LineItemInput`](https://github.com/FacturAPI/facturapi-docs/blob/main/website/openapi_v2.yaml#L13702) y `ProductEditableProperties` (blob SHA `71c723e7884e8fb86e3908a37e85d235343d7c05`, versión API 3.1.0 consultada). Mantener aritmética decimal internamente y serializar números JSON sin redondeos binarios que cambien la venta; probar precisión efectiva aceptada por proveedor.
 
 Las organizaciones, usuarios y llaves se crean/administra con User Key. La configuración operativa puede hacerse con User Key o Live Key de la organización. [Onboarding oficial](https://docs.facturapi.io/docs/getting-started/organization-onboarding/).
 
 **Recomendación de Kova:** vincular mediante `/organizations/me`, comparar RFC/identidad devuelta con emisor local y guardar ID comprobado. No pedir User Key global en el flujo normal de un negocio. No aceptar un ID de organización del navegador como prueba de propiedad. User Key, si se usa para onboarding SaaS centralizado futuro, debe quedar en infraestructura administrativa separada.
+
+Existe una inconsistencia documental: el [SDK oficial `Organization`](https://github.com/FacturAPI/facturapi-node/blob/main/src/types/organization.ts) declara `legal.tax_id: string`, pero el esquema OpenAPI `Organization.legal` y sus ejemplos consultados omiten ese campo. El contrato de seguridad de `/organizations/me` admite Test y Live; una muestra cURL usa User Key y no coincide con esa definición. No se verificó con credenciales reales si Test devuelve RFC real o identidad ficticia. **Live debe exigir RFC no vacío y coincidencia explícita**, además de `is_production_ready` y `pending_steps`; una respuesta sin RFC no permite activar producción. Probar Test separadamente, sin usarlo como evidencia de identidad o validez SAT.
 
 ## Reintentos y reconciliación de emisión
 
@@ -56,7 +60,7 @@ La [guía de productos](https://docs.facturapi.io/docs/guides/products/) conside
 
 **Diseño de Kova:** los impuestos de POS recientemente incorporados son configuración operativa, no clasificación SAT suficiente. Requerir mapeo fiscal aprobado por producto y snapshot de venta: clave producto/servicio, unidad, objeto de impuesto, tasa/factor y descuentos distribuidos. No asignar IVA 16%, H87 o una clave genérica a todos los productos por comodidad.
 
-Ejemplo de aceptación a probar: precio antes de impuesto $100, descuento total $10, IVA 16% debe mantener base $90 y total $104.40 cuando esa clasificación sea aplicable. Probar también cantidad 2, descuentos por renglón y orden, IVA cero frente a exento, sin objeto, redondeos y productos mixtos. Es un caso de ingeniería esperado, no una confirmación del significado de `discount` del proveedor. Si el XML o total difiere de la venta, no esconder la diferencia ni alterar el ticket cobrado.
+Ejemplo de aceptación a probar: precio antes de impuesto $100, descuento total $10, IVA 16% debe mantener base $90 y total $104.40 cuando esa clasificación sea aplicable. Con cantidad 2 y descuento total de concepto $10, la base esperada es $190 y el total $220.40; no multiplicar ese descuento nuevamente por cantidad. Verificar además cómo se expresa el descuento cuando `tax_included: true`, descuentos por orden distribuidos, IVA cero frente a exento, sin objeto, redondeos y productos mixtos. Los resultados son criterios de ingeniería a comprobar en sandbox/XML, no evidencia de una emisión real. Si el XML o total difiere de la venta, no esconder la diferencia ni alterar el ticket cobrado.
 
 ## Custodia de certificados y habilitación productiva
 
