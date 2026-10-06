@@ -1,6 +1,9 @@
 # Plan de implementación — Asistente del negocio por tenant
 
-Fecha de evaluación: **2026-10-05**. Estado al **2026-10-06**: **implementación del piloto en `codex/tenant-assistant`; activación externa y producción pendientes**.
+Fecha de evaluación: **2026-10-05**. Estado al **2026-10-06**: **código integrado y desplegado en `main` (`204f024`, PR #158), con el piloto apagado; activación externa y evaluación live pendientes**.
+
+El estado de credenciales, bucket privado, pruebas live sintéticas y worker se registra en
+[operación del asistente](../assistant-operations.md#estado-de-activación--2026-10-06).
 Riesgo: backend/API, auth/seguridad, datos, archivos, consumo, notificaciones y experiencia de producto.
 Documento rector: [Kova como copiloto del dueño](PLAN-KOVA-COPILOT.md).
 
