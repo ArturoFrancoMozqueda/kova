@@ -2,6 +2,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { BranchesSettings } from "./BranchesSettings";
 import { listBranches, saveBranch } from "./api";
+// Child flows have their own API/auth tests; this suite isolates branch editing.
+vi.mock("./EmployeeBranchAccess", () => ({ EmployeeBranchAccess: () => null }));
+vi.mock("./InventoryTransfers", () => ({ InventoryTransfers: () => null }));
 vi.mock("./api", () => ({ listBranches: vi.fn(), saveBranch: vi.fn() }));
 const principal = {
   id: "principal",

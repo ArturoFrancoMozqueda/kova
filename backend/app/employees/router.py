@@ -7,6 +7,7 @@ from app.auth.models import Membership, User, UserSession
 from app.db import get_db, get_privileged_db
 from app.employees import service
 from app.employees.schemas import (
+    EmployeeBranchUpdate,
     EmployeeResponse,
     EmployeeRoleUpdate,
     InvitationAccept,
@@ -142,3 +143,24 @@ def deactivate_employee(
         membership_id=membership_id,
     )
     return None
+
+
+@router.patch("/{membership_id}/branch", response_model=EmployeeResponse)
+def update_employee_branch(
+    membership_id: UUID,
+    body: EmployeeBranchUpdate,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_permission(Permission.USERS_MANAGE)),
+):
+    user, membership, _ = ctx
+    service.update_employee_branch(
+        db,
+        tenant_id=membership.tenant_id,
+        user_id=user.id,
+        actor_role=membership.role,
+        membership_id=membership_id,
+        branch_id=body.allowed_branch_id,
+    )
+    return service.employee_response(
+        db, tenant_id=membership.tenant_id, membership_id=membership_id
+    )
