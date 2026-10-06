@@ -26,16 +26,35 @@ ambos modelos antes de obtener contenido final. Estos resultados explican por qu
 habilitó `ASSISTANT_PROVIDER_VERIFIED`; no sustituyen los 200 casos del plan ni prueban
 la calidad general, el consumo de razonamiento o la retención del proveedor.
 
-Para continuar se requieren un token exclusivo de Workers AI (Read/Edit de la cuenta)
-y claves R2 Object Read & Write limitadas a `kova-assistant`, ingresados directamente
-en los secretos del backend. Nunca enviar sus valores por chat. La creación/entrada
-manual puede hacerse desde un navegador móvil cuando no hay una sesión de dashboard
-disponible para el operador. Referencias: [token AI](https://developers.cloudflare.com/workers-ai/get-started/rest-api/),
+Con sesiones del operador en los dashboards se crearon un token exclusivo de Workers AI
+(Read/Edit de la cuenta) y un token R2 de servicio (Account API token, Object Read & Write,
+solo `kova-assistant`). El panel de R2 confirmó que ese token está activo y restringido al
+bucket previsto. Los valores se transfirieron directamente a Fly, sin mostrarlos en chat,
+archivos, commits o logs, y se limpiaron las copias temporales de memoria.
+
+Fly guardó once variables `ASSISTANT_*`: credenciales, cuenta, bucket, cohorte explícita
+y los cinco flags de habilitación/verificación en `false`. No se editaron los secretos
+existentes de autenticación, base de datos, Stripe, correo o cifrado fiscal. El intento
+de aplicación desde el dashboard (`2132183`) falló al iniciar el deployer, antes de
+desplegar la aplicación. La incorporación al runtime usa el release protegido de CI,
+con captura de rollback, verificación de salud y el mismo proceso HTTP existente;
+no requiere crear el worker ni habilitar inferencia. Verificar después del release
+que ya no aparecen como staged antes de declarar la configuración aplicada.
+
+Referencias: [token AI](https://developers.cloudflare.com/workers-ai/get-started/rest-api/),
 [claves R2](https://developers.cloudflare.com/r2/api/tokens/).
 
 La configuración de un proceso Fly separado para chat/retención está preparada en
-`codex/assistant-runtime`, sin desplegar. Crear esa máquina agrega costo de cómputo y
-requiere un presupuesto explícito. No hay host de ingesta desplegado: documentos,
+`codex/assistant-runtime` ([PR #159](https://github.com/ArturoFrancoMozqueda/kova/pull/159)),
+sin desplegar; su primer CI pasó. El operador autorizó mantener una máquina activa
+para la cohorte de prueba; los gates del modelo siguen pendientes antes de habilitar chat.
+La [calculadora de Fly](https://fly.io/calculator/) mostró
+US$8.37 de cómputo mensual para una máquina shared, un CPU, 1024 MiB, 730 horas en `dfw`,
+sin volumen ni reserva; la transferencia se presupuesta aparte. Fly crea por defecto
+un standby detenido para procesos sin servicio; verificar una sola máquina activa
+y el almacenamiento facturable de la reserva al desplegar. CPU/RAM se cobran por
+tiempo encendido; apagar el worker requiere un mecanismo de arranque y retrasa sus tareas.
+No es un techo de gasto impuesto por el proveedor. No hay host de ingesta desplegado: documentos,
 mutaciones y correo siguen apagados. La cohorte del piloto está identificada, pero sus
 UUIDs, contactos y credenciales se mantienen fuera de esta documentación pública.
 
