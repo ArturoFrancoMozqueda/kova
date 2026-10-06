@@ -749,3 +749,174 @@ def test_connection_readiness_reports_test_live_and_disabled_states(
     db.commit()
     state = client.get(readiness_url).json()
     assert state["cfdi_status"] == "live_not_ready" and state["can_issue_cfdi"] is False
+
+
+@pytest.fixture
+def committed_cfdi_client(owner_engine, monkeypatch):
+    """Use real commits: a savepoint fixture cannot prove independent row locking."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy import text
+
+    from app.account_lifecycle.service import _TENANT_DELETE_ORDER
+    from app.db import get_db, get_privileged_db
+    from app.main import app
+
+    session = Session(owner_engine)
+    tenants = []
+    monkeypatch.setattr(
+        settings, "kova_cfdi_credentials_key", SecretStr(Fernet.generate_key().decode())
+    )
+    monkeypatch.setattr(settings, "kova_cfdi_enabled", True)
+    fake = FakeProvider(session)
+    fake.initial_state = "pending"
+
+    def factory(key, environment="test", **kwargs):
+        fake.environment = environment
+        return fake
+
+    def dependency():
+        try:
+            yield session
+        finally:
+            session.rollback()
+            session.info.pop("kova_branch_id", None)
+            session.info.pop("kova_allowed_branch_id", None)
+
+    monkeypatch.setattr(service, "FacturapiProvider", factory)
+    original_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = dependency
+    app.dependency_overrides[get_privileged_db] = dependency
+    try:
+        with TestClient(app) as client:
+            yield client, session, fake, tenants
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(original_overrides)
+        session.close()
+        with owner_engine.begin() as connection:
+            connection.execute(text("SET LOCAL app.allow_fiscal_history_delete = 'on'"))
+            for tenant_id in tenants:
+                params = {"tenant": tenant_id}
+                user_ids = (
+                    connection.execute(
+                        text("SELECT user_id FROM memberships WHERE tenant_id=:tenant"), params
+                    )
+                    .scalars()
+                    .all()
+                )
+                for table in _TENANT_DELETE_ORDER:
+                    connection.execute(
+                        text(f'DELETE FROM "{table}" WHERE tenant_id=:tenant'), params
+                    )
+                connection.execute(text("DELETE FROM tenants WHERE id=:tenant"), params)
+                for user_id in user_ids:
+                    connection.execute(text("DELETE FROM users WHERE id=:user"), {"user": user_id})
+
+
+@pytest.mark.parametrize("rotate_credentials", [False, True])
+def test_live_preflight_releases_pos_locks_and_detects_key_rotation(
+    committed_cfdi_client, owner_engine, monkeypatch, rotate_credentials
+):
+    from sqlalchemy import text
+
+    from app.cfdi.credentials import encrypt_key
+
+    client, session, fake, tenants = committed_cfdi_client
+    signup, sale, payload = prepare_sale(client, environment="live")
+    tenant_id, order_id = UUID(signup["tenant_id"]), UUID(sale["id"])
+    tenants.append(tenant_id)
+    organization = fake.organization()
+    preflights = []
+    closes = []
+
+    def preflight():
+        assert not session.in_transaction()
+        # These committed rows MUST be visible and lockable on another real
+        # PostgreSQL connection while the provider organization GET is running.
+        with owner_engine.begin() as observer:
+            params = {"tenant": tenant_id, "order": order_id}
+            assert (
+                observer.execute(
+                    text("SELECT id FROM tenants WHERE id=:tenant FOR UPDATE NOWAIT"), params
+                ).scalar_one()
+                == tenant_id
+            )
+            assert (
+                observer.execute(
+                    text("SELECT id FROM orders WHERE id=:order FOR UPDATE NOWAIT"), params
+                ).scalar_one()
+                == order_id
+            )
+            if rotate_credentials:
+                encrypted = encrypt_key(
+                    tenant_id=tenant_id,
+                    environment="live",
+                    organization_id="org-kova",
+                    api_key="sk_live_rotated_fixture_not_a_real_key",
+                )
+                observer.execute(
+                    text(
+                        "UPDATE cfdi_connections SET encrypted_api_key=:encrypted "
+                        "WHERE tenant_id=:tenant AND environment='live'"
+                    ),
+                    {"tenant": tenant_id, "encrypted": encrypted},
+                )
+        preflights.append(True)
+        return organization
+
+    monkeypatch.setattr(fake, "organization", preflight)
+    monkeypatch.setattr(fake, "close", lambda: closes.append(True))
+    response = issue(client, payload, "independent-preflight")
+    assert preflights == [True]
+    assert closes == [True]
+    if rotate_credentials:
+        assert response.status_code == 409, response.text
+        assert fake.posts == 0
+        assert session.query(CfdiDocument).filter_by(tenant_id=tenant_id).count() == 0
+    else:
+        assert response.status_code == 201, response.text
+        assert response.json()["state"] == "pending"
+        assert fake.posts == 1
+        # Replay avoids another GET/POST even if provider preflight would fail.
+        monkeypatch.setattr(fake, "organization", lambda: pytest.fail("replay GET"))
+        assert issue(client, payload, "independent-preflight").json()["id"] == response.json()["id"]
+        assert fake.posts == 1
+
+
+def test_live_preflight_rechecks_replay_committed_during_get(
+    committed_cfdi_client, owner_engine, monkeypatch
+):
+    from app.cfdi.schemas import InvoicePreparation
+
+    client, session, fake, tenants = committed_cfdi_client
+    signup, sale, payload = prepare_sale(client, environment="live")
+    tenant_id = UUID(signup["tenant_id"])
+    tenants.append(tenant_id)
+    organization = fake.organization()
+    winner = []
+    closes = []
+
+    def preflight():
+        assert not session.in_transaction()
+        monkeypatch.setattr(fake, "organization", lambda: organization)
+        with Session(owner_engine) as competitor:
+            winner.append(
+                service.create_document(
+                    competitor,
+                    tenant_id,
+                    UUID(signup["user_id"]),
+                    InvoicePreparation.model_validate(payload),
+                    "concurrent-preflight",
+                )
+            )
+        return organization
+
+    monkeypatch.setattr(fake, "organization", preflight)
+    monkeypatch.setattr(fake, "close", lambda: closes.append(True))
+    response = issue(client, payload, "concurrent-preflight")
+    assert response.status_code == 201, response.text
+    assert response.json()["id"] == str(winner[0].id)
+    assert response.json()["state"] == "pending"
+    assert fake.posts == 1
+    assert closes == [True, True]
+    assert session.query(CfdiDocument).filter_by(tenant_id=tenant_id).count() == 1

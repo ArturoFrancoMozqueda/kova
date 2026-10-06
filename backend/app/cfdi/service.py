@@ -369,105 +369,138 @@ def _wire_payload(payload):
 def create_document(db, tenant_id, user_id, body, key):
     if not key or len(key) > 200:
         raise bad_request("Idempotency-Key debe contener entre 1 y 200 caracteres")
-    db.query(Tenant).filter_by(id=tenant_id).with_for_update().one()
     digest = fingerprint(body.model_dump(mode="json"))
-    with tenant_wide_branches(db):
-        existing = (
-            db.query(CfdiDocument).filter_by(tenant_id=tenant_id, idempotency_key=key).first()
-        )
-    if existing:
-        if existing.branch_id != active_branch_id(db, tenant_id) or existing.request_hash != digest:
+
+    def replay():
+        with tenant_wide_branches(db):
+            existing = (
+                db.query(CfdiDocument).filter_by(tenant_id=tenant_id, idempotency_key=key).first()
+            )
+        if existing and (
+            existing.branch_id != active_branch_id(db, tenant_id) or existing.request_hash != digest
+        ):
             raise conflict("La llave ya se utilizó para otra preparación")
+        return existing
+
+    existing = replay()
+    if existing:
         return public(existing)
-    request, order = _request_order(db, tenant_id, body.request_id, lock=True)
-    active = (
-        db.query(CfdiDocument)
-        .filter_by(tenant_id=tenant_id, order_id=order.id, environment=body.environment)
-        .filter(CfdiDocument.state.in_(ACTIVE_STATES))
-        .first()
-    )
-    if active:
-        raise conflict("La venta ya tiene un documento vigente; consulta o reconcilia su estado")
-    previous_event = fiscal_repo.latest_individual_invoice_event(
-        db, tenant_id=tenant_id, order_id=order.id
-    )
-    if body.environment == "live" and previous_event and previous_event.status == "confirmed":
-        raise conflict("La venta ya está registrada como facturada individualmente")
-    prepared, payload = preview(db, tenant_id, body)
+    # Validate locally before opening the provider, but do not reserve POS rows
+    # until the potentially slow organization GET has finished.
+    preview(db, tenant_id, body)
     connection = (
         db.query(CfdiConnection)
         .filter_by(tenant_id=tenant_id, environment=body.environment)
-        .with_for_update()
         .first()
     )
     if connection is None:
         raise bad_request("Conecta primero la organización del ambiente seleccionado")
+    identity = (connection.id, connection.organization_id, connection.encrypted_api_key)
     provider = _provider(connection)
-    if body.environment == "live":
-        # Revalidate certificates immediately before a new Live effect.
-        try:
-            organization = provider.organization()
-            values = _organization_values(organization)
-        except ProviderError as exc:
-            provider.close()
-            raise bad_request(f"No se pudo verificar el emisor: {exc.code}") from None
-        if values[0] != connection.organization_id or not values[2]:
-            provider.close()
-            raise bad_request(
-                "El emisor Live requiere una organización lista y certificados vigentes"
-            )
-        _require_issuer(db, tenant_id, values[1], request, organization=organization)
-    identifier = uuid4()
-    external_id = f"kova-{body.environment}-{identifier}"
-    provider_key = f"kova-{body.environment}-{connection.organization_id}-{identifier}"
-    payload["external_id"] = external_id
-    row = CfdiDocument(
-        id=identifier,
-        tenant_id=tenant_id,
-        branch_id=order.branch_id,
-        order_id=order.id,
-        request_id=request.id,
-        connection_id=connection.id,
-        environment=body.environment,
-        organization_id=connection.organization_id,
-        state="submitting",
-        idempotency_key=key,
-        request_hash=digest,
-        external_id=external_id,
-        provider_key=provider_key,
-        payload=_canonical(payload),
-        total_amount=prepared.total_amount,
-        created_by_user_id=user_id,
-    )
-    db.add(row)
-    db.flush()
-    audit.log(
-        db,
-        tenant_id=tenant_id,
-        user_id=user_id,
-        action="cfdi.submission_reserved",
-        resource_type="cfdi_document",
-        resource_id=row.id,
-        changes={"environment": row.environment, "state": row.state},
-    )
-    db.commit()  # The durable journal/reservation MUST precede the external POST.
     try:
-        result = provider.create_invoice(payload, idempotency_key=provider_key)
-        return _apply_result(db, tenant_id, identifier, result, provider, user_id)
-    except ProviderError as exc:
-        row = _document(db, tenant_id, identifier, lock=True)
-        # A concurrent reconciliation can win while the original POST is in
-        # flight. Its confirmed/pending evidence must never be overwritten by
-        # a late timeout or rejection from the original connection.
+        # Release the read transaction (including locks acquired by dependencies)
+        # before network I/O. Only captured primitives cross this boundary.
+        db.rollback()
+        organization = None
+        if body.environment == "live":
+            try:
+                organization = provider.organization()
+            except ProviderError as exc:
+                raise bad_request(f"No se pudo verificar el emisor: {exc.code}") from None
+
+        # Serialize the reservation only after preflight. Another request may
+        # have journaled this key/order or rotated credentials during the GET.
+        db.query(Tenant).filter_by(id=tenant_id).with_for_update().one()
+        existing = replay()
+        if existing:
+            return public(existing)
+        request, order = _request_order(db, tenant_id, body.request_id, lock=True)
+        connection = (
+            db.query(CfdiConnection)
+            .filter_by(tenant_id=tenant_id, environment=body.environment)
+            .with_for_update()
+            .populate_existing()
+            .first()
+        )
         if (
-            row.state in {"submitting", "unknown"}
-            and row.confirmed_at is None
-            and row.provider_id is None
+            connection is None
+            or (connection.id, connection.organization_id, connection.encrypted_api_key) != identity
         ):
-            row.state = "rejected" if exc.definitive else "unknown"
-            row.last_error_code = exc.code
-        db.commit()
-        return public(row)
+            raise conflict("La conexión fiscal cambió durante la verificación; vuelve a preparar")
+        active = (
+            db.query(CfdiDocument)
+            .filter_by(tenant_id=tenant_id, order_id=order.id, environment=body.environment)
+            .filter(CfdiDocument.state.in_(ACTIVE_STATES))
+            .first()
+        )
+        if active:
+            raise conflict(
+                "La venta ya tiene un documento vigente; consulta o reconcilia su estado"
+            )
+        previous_event = fiscal_repo.latest_individual_invoice_event(
+            db, tenant_id=tenant_id, order_id=order.id
+        )
+        if body.environment == "live" and previous_event and previous_event.status == "confirmed":
+            raise conflict("La venta ya está registrada como facturada individualmente")
+        prepared, payload = preview(db, tenant_id, body)
+        if organization is not None:
+            values = _organization_values(organization)
+            if values[0] != connection.organization_id or not values[2]:
+                raise bad_request(
+                    "El emisor Live requiere una organización lista y certificados vigentes"
+                )
+            _require_issuer(db, tenant_id, values[1], request, organization=organization)
+        identifier = uuid4()
+        external_id = f"kova-{body.environment}-{identifier}"
+        provider_key = f"kova-{body.environment}-{connection.organization_id}-{identifier}"
+        payload["external_id"] = external_id
+        row = CfdiDocument(
+            id=identifier,
+            tenant_id=tenant_id,
+            branch_id=order.branch_id,
+            order_id=order.id,
+            request_id=request.id,
+            connection_id=connection.id,
+            environment=body.environment,
+            organization_id=connection.organization_id,
+            state="submitting",
+            idempotency_key=key,
+            request_hash=digest,
+            external_id=external_id,
+            provider_key=provider_key,
+            payload=_canonical(payload),
+            total_amount=prepared.total_amount,
+            created_by_user_id=user_id,
+        )
+        db.add(row)
+        db.flush()
+        audit.log(
+            db,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            action="cfdi.submission_reserved",
+            resource_type="cfdi_document",
+            resource_id=row.id,
+            changes={"environment": row.environment, "state": row.state},
+        )
+        db.commit()  # The durable journal/reservation MUST precede the external POST.
+        try:
+            result = provider.create_invoice(payload, idempotency_key=provider_key)
+            return _apply_result(db, tenant_id, identifier, result, provider, user_id)
+        except ProviderError as exc:
+            row = _document(db, tenant_id, identifier, lock=True)
+            # A concurrent reconciliation can win while the original POST is in
+            # flight. Its confirmed/pending evidence must never be overwritten by
+            # a late timeout or rejection from the original connection.
+            if (
+                row.state in {"submitting", "unknown"}
+                and row.confirmed_at is None
+                and row.provider_id is None
+            ):
+                row.state = "rejected" if exc.definitive else "unknown"
+                row.last_error_code = exc.code
+            db.commit()
+            return public(row)
     finally:
         provider.close()
 
