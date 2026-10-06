@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     # Emergency server-side stop for every fiscal global-draft surface. This
     # wins over the globally-enabled default and tenant overrides.
     fiscal_global_drafts_kill_switch: bool = False
+    # Dedicated encryption root for tenant-scoped provider organization keys.
+    # Provision once in the host secret store; never derive from auth or put in DB.
+    kova_cfdi_credentials_key: SecretStr | None = None
+    kova_cfdi_enabled: bool = True
+    kova_cfdi_timeout_seconds: int = Field(default=20, ge=5, le=30)
     account_deletion_grace_days: int = 30
     resend_api_key: str | None = None
     # Rate limiting — when both are set, the limiter uses Upstash Redis; otherwise
