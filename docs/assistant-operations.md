@@ -46,11 +46,15 @@ Referencias: [token AI](https://developers.cloudflare.com/workers-ai/get-started
 
 La configuración de un proceso Fly separado para chat/retención está preparada en
 `codex/assistant-runtime` ([PR #159](https://github.com/ArturoFrancoMozqueda/kova/pull/159)),
-sin desplegar; su CI pasó. Crear esa máquina agrega costo de cómputo y requiere un
-presupuesto explícito. La [calculadora de Fly](https://fly.io/calculator/) mostró
+sin desplegar; su primer CI pasó. El operador autorizó mantener una máquina activa
+para la cohorte de prueba; los gates del modelo siguen pendientes antes de habilitar chat.
+La [calculadora de Fly](https://fly.io/calculator/) mostró
 US$8.37 de cómputo mensual para una máquina shared, un CPU, 1024 MiB, 730 horas en `dfw`,
-sin volumen ni reserva; la transferencia se presupuesta aparte. No es un techo de gasto
-impuesto por el proveedor. No hay host de ingesta desplegado: documentos,
+sin volumen ni reserva; la transferencia se presupuesta aparte. Fly crea por defecto
+un standby detenido para procesos sin servicio; verificar una sola máquina activa
+y el almacenamiento facturable de la reserva al desplegar. CPU/RAM se cobran por
+tiempo encendido; apagar el worker requiere un mecanismo de arranque y retrasa sus tareas.
+No es un techo de gasto impuesto por el proveedor. No hay host de ingesta desplegado: documentos,
 mutaciones y correo siguen apagados. La cohorte del piloto está identificada, pero sus
 UUIDs, contactos y credenciales se mantienen fuera de esta documentación pública.
 
