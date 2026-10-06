@@ -106,6 +106,19 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "inventory_transfers": {"SELECT", "INSERT"},
     "fiscal_issuer_profiles": {"SELECT", "INSERT"},
     "invoice_requests": {"SELECT", "INSERT"},
+    "cfdi_connections": {"SELECT", "INSERT"},
+    "cfdi_documents": {"SELECT", "INSERT"},
+}
+_CFDI_RUNTIME_UPDATE_COLUMNS = {
+    "cfdi_connections": {
+        "organization_id", "encrypted_api_key", "issuer_rfc", "production_ready",
+        "certificate_expires_at", "refreshed_at",
+    },
+    "cfdi_documents": {
+        "state", "provider_id", "uuid", "xml_bytes", "last_error_code",
+        "cancellation_status", "cancellation_key", "cancellation_hash",
+        "cancellation_payload", "confirmed_at", "canceled_at", "updated_at",
+    },
 }
 _TENANT_RELATIONS = {
     "fk_products_tenant_category": ("products", "category_id", "categories"),
@@ -192,6 +205,8 @@ _SEMANTIC_INSERT_ORDER = (
     "purchase_order_items",
     "inventory_transfers",
     "invoice_requests",
+    "cfdi_connections",
+    "cfdi_documents",
     "modifier_options",
     "cash_movements",
     "customer_orders",
@@ -253,6 +268,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "direction": "transfer",
         "document_kind": "operational_draft",
         "event_name": "landing_viewed",
+        "environment": "test" if variant == 0 else "live",
         "factor_type": "rate",
         "fiscal_status": "not_issued",
         "frequency": "monthly",
@@ -265,6 +281,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "refund_payment_method": "cash",
         "role": "owner",
         "source_channel": "counter",
+        "state": "prepared" if table.name == "cfdi_documents" else "active",
         "status": {
             "account_deletion_requests": "pending",
             "customer_orders": "new",
@@ -754,6 +771,24 @@ def test_fresh_upgrade_and_reprovision_keep_internal_tables_private() -> None:
                             table,
                             privilege,
                         )
+            # Full-table UPDATE remains denied; verify the complete per-column
+            # exception list, including no column access for the public API roles.
+            for table, writable_columns in _CFDI_RUNTIME_UPDATE_COLUMNS.items():
+                columns = conn.execute(
+                    text("SELECT column_name FROM information_schema.columns "
+                         "WHERE table_schema='public' AND table_name=:table"),
+                    {"table": table},
+                ).scalars().all()
+                assert writable_columns <= set(columns)
+                for role in ("kova_app", "anon", "authenticated"):
+                    for column in columns:
+                        actual = conn.scalar(
+                            text("SELECT has_column_privilege(:role,:table,:column,'UPDATE')"),
+                            {"role": role, "table": table, "column": column},
+                        )
+                        assert actual is (role == "kova_app" and column in writable_columns), (
+                            role, table, column,
+                        )
             internal_rls = conn.execute(
                 text(
                     "SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity "
@@ -1180,6 +1215,24 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
             for table_name in sorted(protected):
                 expected = _RUNTIME_TABLE_PRIVILEGES.get(table_name, set())
 
+                if table_name in _CFDI_RUNTIME_UPDATE_COLUMNS:
+                    table = metadata.tables[table_name]
+                    with runtime.begin() as conn:
+                        conn.execute(
+                            text("SELECT set_config('app.tenant_id', :tenant, true)"),
+                            {"tenant": str(TENANT_A)},
+                        )
+                        # Every granted operational column executes against actual
+                        # A/B rows; self-assignment preserves journal evidence.
+                        for column in sorted(_CFDI_RUNTIME_UPDATE_COLUMNS[table_name]):
+                            statement = table.update().values({column: table.c[column]})
+                            assert conn.execute(
+                                statement.where(table.c.tenant_id == TENANT_A)
+                            ).rowcount == 1
+                            assert conn.execute(
+                                statement.where(table.c.tenant_id == TENANT_B)
+                            ).rowcount == 0
+
                 # Operational state may advance, while original amounts and
                 # snapshots remain immutable through the runtime role. Exercise
                 # actual column-limited updates against real A/B rows.
@@ -1187,6 +1240,10 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                     "purchase_orders": ("status", "partial", "supplier_name"),
                     "purchase_order_items": ("received_quantity", 1, "unit_cost"),
                     "fiscal_issuer_profiles": ("fiscal_data", {"rfc": "AAA010101AAA"}, None),
+                    "cfdi_connections": (
+                        "encrypted_api_key", "rotated-encrypted-fixture", "environment"
+                    ),
+                    "cfdi_documents": ("state", "pending", "payload"),
                 }
                 if table_name in limited_updates:
                     column, value, immutable_column = limited_updates[table_name]
