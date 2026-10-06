@@ -10,6 +10,7 @@ EmployeeRole = Literal["owner", "manager", "cashier"]
 
 
 class EmployeeResponse(BaseModel):
+    allowed_branch_id: UUID | None = None
     membership_id: UUID
     user_id: UUID
     email: EmailStr
@@ -47,3 +48,7 @@ class InvitationPreview(BaseModel):
 class InvitationAccept(StrictModel):
     token: str
     password: str | None = None
+
+
+class EmployeeBranchUpdate(StrictModel):
+    allowed_branch_id: UUID | None
