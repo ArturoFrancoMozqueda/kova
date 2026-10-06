@@ -50,6 +50,7 @@ def list_employees(db: Session, *, tenant_id: UUID) -> list[dict]:
     return [
         {
             "membership_id": membership.id,
+            "allowed_branch_id": membership.allowed_branch_id,
             "user_id": user.id,
             "email": user.email,
             "role": membership.role,
@@ -72,6 +73,7 @@ def employee_response(db: Session, *, tenant_id: UUID, membership_id: UUID) -> d
     membership, user = row
     return {
         "membership_id": membership.id,
+        "allowed_branch_id": membership.allowed_branch_id,
         "user_id": user.id,
         "email": user.email,
         "role": membership.role,
@@ -158,9 +160,7 @@ def invite_employee(
     return invitation
 
 
-def revoke_invitation(
-    db: Session, *, tenant_id: UUID, user_id: UUID, invitation_id: UUID
-) -> None:
+def revoke_invitation(db: Session, *, tenant_id: UUID, user_id: UUID, invitation_id: UUID) -> None:
     """Revoke a pending invitation so its link stops working. Tenant-scoped:
     an invitation from another tenant is treated as not found, never revealed.
     Only pending invitations can be revoked (already-accepted/revoked ones are
@@ -241,9 +241,7 @@ def accept_invitation(
     user = auth_repo.get_user_by_email(db, invitation.email)
     if user is None:
         if not body.password or len(body.password) < MIN_PASSWORD_LENGTH:
-            raise bad_request(
-                f"Password must be at least {MIN_PASSWORD_LENGTH} characters"
-            )
+            raise bad_request(f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
         user = auth_repo.create_user(
             db,
             email=invitation.email,
@@ -314,6 +312,8 @@ def update_employee_role(
         raise bad_request("No puedes quitar al último propietario del negocio")
 
     membership.role = body.role
+    if body.role == "owner":
+        membership.allowed_branch_id = None
     audit_service.log(
         db,
         action="employee.role_updated",
@@ -361,3 +361,55 @@ def deactivate_employee(
     db.commit()
     db.refresh(membership)
     return membership
+
+
+def update_employee_branch(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    actor_role: str,
+    membership_id: UUID,
+    branch_id: UUID | None,
+):
+    from app.branches.models import Branch
+
+    # An assigned manager cannot widen their own or other employees' access.
+    actor = (
+        db.query(Membership)
+        .filter(Membership.tenant_id == tenant_id, Membership.user_id == user_id)
+        .first()
+    )
+    if not actor or actor.allowed_branch_id is not None:
+        raise forbidden("Solo un administrador con acceso a todas las sucursales puede asignarlas")
+    tenant_repo.lock_by_id(db, tenant_id)
+    employee = (
+        db.query(Membership)
+        .filter(Membership.tenant_id == tenant_id, Membership.id == membership_id)
+        .with_for_update()
+        .first()
+    )
+    if not employee:
+        raise not_found("Empleado no encontrado")
+    if employee.role == "owner":
+        raise bad_request("Los propietarios conservan acceso a todas las sucursales")
+    if employee.user_id == user_id:
+        raise bad_request("No puedes limitar tu propio acceso")
+    if (
+        branch_id is not None
+        and not db.query(Branch)
+        .filter(Branch.tenant_id == tenant_id, Branch.id == branch_id)
+        .first()
+    ):
+        raise not_found("Sucursal no encontrada")
+    employee.allowed_branch_id = branch_id
+    audit_service.log(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        action="employee.branch_updated",
+        resource_type="membership",
+        resource_id=employee.id,
+        changes={"allowed_branch_id": str(branch_id) if branch_id else None},
+    )
+    db.commit()

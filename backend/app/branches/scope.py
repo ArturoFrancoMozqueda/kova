@@ -13,7 +13,7 @@ from uuid import UUID
 from sqlalchemy import event, inspect
 from sqlalchemy.orm import Mapped, Session, mapped_column, with_loader_criteria
 
-from app.shared.exceptions import conflict, not_found
+from app.shared.exceptions import conflict, forbidden, not_found
 
 _SCOPE_KEY = "kova_branch_id"
 
@@ -34,6 +34,11 @@ def bind_branch(db: Session, *, tenant_id: UUID, branch_id: UUID | None = None) 
     from app.branches.models import Branch
 
     selected = branch_id or tenant_id
+    allowed = db.info.get("kova_allowed_branch_id")
+    if allowed is not None and selected != allowed:
+        raise forbidden(
+            "No tienes acceso a la sucursal de esta operación; solicita ayuda al propietario"
+        )
     branch = db.query(Branch).filter(Branch.tenant_id == tenant_id, Branch.id == selected).first()
     if branch is None:
         raise not_found("Sucursal no encontrada para este negocio")
@@ -49,6 +54,21 @@ def tenant_wide_branches(db: Session):
     finally:
         if previous is not None:
             db.info[_SCOPE_KEY] = previous
+
+
+@contextmanager
+def transfer_branches(db: Session, branch_ids: set[UUID]):
+    """For the transfer service after tenant ownership and permissions validation."""
+    previous = db.info.get("kova_transfer_branches")
+    db.info["kova_transfer_branches"] = branch_ids
+    try:
+        with tenant_wide_branches(db):
+            yield
+    finally:
+        if previous is None:
+            db.info.pop("kova_transfer_branches", None)
+        else:
+            db.info["kova_transfer_branches"] = previous
 
 
 @event.listens_for(Session, "do_orm_execute")
@@ -70,7 +90,9 @@ def _stamp_branch(db: Session, _flush_context, _instances):
             expected = selected or row.tenant_id
             if row.branch_id is None:
                 row.branch_id = expected
-            elif row.branch_id != expected:
+            elif row.branch_id != expected and row.branch_id not in db.info.get(
+                "kova_transfer_branches", set()
+            ):
                 raise conflict("La operación pertenece a otra sucursal")
     for row in db.dirty:
         if isinstance(row, BranchScoped):
