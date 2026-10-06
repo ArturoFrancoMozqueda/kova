@@ -1250,6 +1250,41 @@
         "title": "CheckoutSessionResponse",
         "type": "object"
       },
+      "CustomerHistory": {
+        "properties": {
+          "customer": {
+            "$ref": "#/components/schemas/CustomerResponse"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "purchases": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerPurchase"
+            },
+            "title": "Purchases",
+            "type": "array"
+          }
+        },
+        "required": [
+          "customer",
+          "purchases",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "CustomerHistory",
+        "type": "object"
+      },
       "CustomerOrderCancel": {
         "additionalProperties": false,
         "properties": {
@@ -2219,6 +2254,150 @@
         "title": "CustomerOrderUpdate",
         "type": "object"
       },
+      "CustomerPurchase": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "refunded_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Refunded Amount",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "branch_id",
+          "occurred_at",
+          "status",
+          "total_amount",
+          "refunded_amount"
+        ],
+        "title": "CustomerPurchase",
+        "type": "object"
+      },
+      "CustomerResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "phone",
+          "is_active",
+          "created_at"
+        ],
+        "title": "CustomerResponse",
+        "type": "object"
+      },
+      "CustomerWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "maxLength": 254,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "is_active": {
+            "default": true,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "pattern": "^[+0-9 ()-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CustomerWrite",
+        "type": "object"
+      },
       "DeepLink": {
         "properties": {
           "label": {
@@ -2272,6 +2451,28 @@
           "status"
         ],
         "title": "DeletionStatusResponse",
+        "type": "object"
+      },
+      "EmployeeBranchUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_branch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Branch Id"
+          }
+        },
+        "required": [
+          "allowed_branch_id"
+        ],
+        "title": "EmployeeBranchUpdate",
         "type": "object"
       },
       "EmployeeContribution": {
@@ -2355,6 +2556,18 @@
       },
       "EmployeeResponse": {
         "properties": {
+          "allowed_branch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Branch Id"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -3028,6 +3241,40 @@
           "frequency"
         ],
         "title": "FiscalGlobalDraftSettingsUpsert",
+        "type": "object"
+      },
+      "FiscalIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "legal_name": {
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "postal_code": {
+            "pattern": "^[0-9]{5}$",
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "rfc": {
+            "pattern": "^[A-Z\u00d1&]{3,4}[0-9]{6}[A-Z0-9]{3}$",
+            "title": "Rfc",
+            "type": "string"
+          },
+          "tax_regime": {
+            "pattern": "^[0-9]{3}$",
+            "title": "Tax Regime",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rfc",
+          "legal_name",
+          "postal_code",
+          "tax_regime"
+        ],
+        "title": "FiscalIdentity",
         "type": "object"
       },
       "FiscalIndividualInvoiceCurrentResponse": {
@@ -4156,6 +4403,131 @@
           "created_at"
         ],
         "title": "InvitationResponse",
+        "type": "object"
+      },
+      "InvoiceRecipient": {
+        "additionalProperties": false,
+        "properties": {
+          "cfdi_use": {
+            "pattern": "^[A-Z][0-9]{2}$",
+            "title": "Cfdi Use",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "legal_name": {
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "postal_code": {
+            "pattern": "^[0-9]{5}$",
+            "title": "Postal Code",
+            "type": "string"
+          },
+          "rfc": {
+            "pattern": "^[A-Z\u00d1&]{3,4}[0-9]{6}[A-Z0-9]{3}$",
+            "title": "Rfc",
+            "type": "string"
+          },
+          "tax_regime": {
+            "pattern": "^[0-9]{3}$",
+            "title": "Tax Regime",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rfc",
+          "legal_name",
+          "postal_code",
+          "tax_regime",
+          "cfdi_use",
+          "email"
+        ],
+        "title": "InvoiceRecipient",
+        "type": "object"
+      },
+      "InvoiceRequestCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/InvoiceRecipient"
+          }
+        },
+        "required": [
+          "order_id",
+          "recipient"
+        ],
+        "title": "InvoiceRequestCreate",
+        "type": "object"
+      },
+      "InvoiceRequestResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "fiscal_status": {
+            "const": "not_issued",
+            "default": "not_issued",
+            "title": "Fiscal Status",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issuer_snapshot": {
+            "$ref": "#/components/schemas/FiscalIdentity"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "pricing_snapshot": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Pricing Snapshot",
+            "type": "object"
+          },
+          "recipient_snapshot": {
+            "$ref": "#/components/schemas/InvoiceRecipient"
+          },
+          "status": {
+            "const": "pending_provider",
+            "title": "Status",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "order_id",
+          "status",
+          "issuer_snapshot",
+          "pricing_snapshot",
+          "recipient_snapshot",
+          "total_amount",
+          "created_at"
+        ],
+        "title": "InvoiceRequestResponse",
         "type": "object"
       },
       "LoginRequest": {
@@ -5683,6 +6055,32 @@
       },
       "OrderCreate": {
         "properties": {
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "discount_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0.00",
+            "title": "Discount Amount"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/OrderItemCreate"
@@ -5700,6 +6098,21 @@
             "minItems": 1,
             "title": "Payments",
             "type": "array"
+          },
+          "tax_rate": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,6}0*$)\\d{0,3}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0.00",
+            "title": "Tax Rate"
           }
         },
         "required": [
@@ -5729,6 +6142,22 @@
             "exclusiveMinimum": 0.0,
             "title": "Quantity",
             "type": "integer"
+          },
+          "unit_price_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Price Amount"
           }
         },
         "required": [
@@ -5886,6 +6315,24 @@
             "title": "Branch Id",
             "type": "string"
           },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "discount_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -5912,6 +6359,18 @@
           "subtotal_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Subtotal Amount",
+            "type": "string"
+          },
+          "tax_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Amount",
+            "type": "string"
+          },
+          "tax_rate": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Rate",
             "type": "string"
           },
           "tenant_id": {
@@ -6335,6 +6794,19 @@
       "ProductCreate": {
         "additionalProperties": false,
         "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "pattern": "^[!-~]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
           "category_id": {
             "anyOf": [
               {
@@ -6488,6 +6960,17 @@
       },
       "ProductResponse": {
         "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
           "category_id": {
             "anyOf": [
               {
@@ -6718,6 +7201,19 @@
       "ProductUpdate": {
         "additionalProperties": false,
         "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "pattern": "^[!-~]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
           "category_id": {
             "anyOf": [
               {
@@ -6832,6 +7328,212 @@
         "title": "ProductUpdate",
         "type": "object"
       },
+      "PurchaseCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseItemCreate"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "supplier_id",
+          "items"
+        ],
+        "title": "PurchaseCreate",
+        "type": "object"
+      },
+      "PurchaseItemCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit_cost": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Unit Cost"
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity",
+          "unit_cost"
+        ],
+        "title": "PurchaseItemCreate",
+        "type": "object"
+      },
+      "PurchaseItemResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "received_quantity": {
+            "title": "Received Quantity",
+            "type": "integer"
+          },
+          "unit_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "product_name",
+          "quantity",
+          "received_quantity",
+          "unit_cost"
+        ],
+        "title": "PurchaseItemResponse",
+        "type": "object"
+      },
+      "PurchaseReceive": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiveItem"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "update_catalog_cost": {
+            "default": false,
+            "title": "Update Catalog Cost",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PurchaseReceive",
+        "type": "object"
+      },
+      "PurchaseResponse": {
+        "properties": {
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "partial",
+              "received",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          },
+          "supplier_name": {
+            "title": "Supplier Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "branch_id",
+          "supplier_id",
+          "supplier_name",
+          "status",
+          "notes",
+          "created_at",
+          "items"
+        ],
+        "title": "PurchaseResponse",
+        "type": "object"
+      },
       "PurgeResponse": {
         "properties": {
           "purged": {
@@ -6843,6 +7545,55 @@
           "purged"
         ],
         "title": "PurgeResponse",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "can_charge_terminal": {
+            "const": false,
+            "default": false,
+            "title": "Can Charge Terminal",
+            "type": "boolean"
+          },
+          "can_issue_cfdi": {
+            "const": false,
+            "default": false,
+            "title": "Can Issue Cfdi",
+            "type": "boolean"
+          },
+          "cfdi_status": {
+            "const": "not_connected",
+            "default": "not_connected",
+            "title": "Cfdi Status",
+            "type": "string"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FiscalIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terminal_status": {
+            "const": "not_connected",
+            "default": "not_connected",
+            "title": "Terminal Status",
+            "type": "string"
+          },
+          "validation_scope": {
+            "const": "format_only",
+            "default": "format_only",
+            "title": "Validation Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "issuer"
+        ],
+        "title": "ReadinessResponse",
         "type": "object"
       },
       "ReceiptItemLine": {
@@ -7009,6 +7760,12 @@
             "title": "Created At",
             "type": "string"
           },
+          "discount_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount Amount",
+            "type": "string"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ReceiptItemLine"
@@ -7055,6 +7812,18 @@
           "subtotal_amount": {
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Subtotal Amount",
+            "type": "string"
+          },
+          "tax_amount": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Amount",
+            "type": "string"
+          },
+          "tax_rate": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tax Rate",
             "type": "string"
           },
           "tenant_name": {
@@ -7109,6 +7878,12 @@
           "created_at": {
             "format": "date-time",
             "title": "Created At",
+            "type": "string"
+          },
+          "default_tax_rate": {
+            "default": "0.00",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Default Tax Rate",
             "type": "string"
           },
           "footer": {
@@ -7185,6 +7960,23 @@
       "ReceiptSettingsUpsert": {
         "additionalProperties": false,
         "properties": {
+          "default_tax_rate": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,3}|(?=[\\d.]{1,6}0*$)\\d{0,3}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Tax Rate"
+          },
           "footer": {
             "anyOf": [
               {
@@ -7272,6 +8064,28 @@
           "created_at"
         ],
         "title": "ReceiptVoidLine",
+        "type": "object"
+      },
+      "ReceiveItem": {
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "format": "uuid",
+            "title": "Item Id",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "quantity"
+        ],
+        "title": "ReceiveItem",
         "type": "object"
       },
       "ReconcileCheckoutRequest": {
@@ -8204,6 +9018,73 @@
         "title": "SubscriptionResponse",
         "type": "object"
       },
+      "SupplierCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "contact": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SupplierCreate",
+        "type": "object"
+      },
+      "SupplierResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "contact": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "is_active"
+        ],
+        "title": "SupplierResponse",
+        "type": "object"
+      },
       "TechnicalResponse": {
         "properties": {
           "db": {
@@ -8896,6 +9777,105 @@
           "deep_links"
         ],
         "title": "TraceResponse",
+        "type": "object"
+      },
+      "TransferResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "destination_branch_id": {
+            "format": "uuid",
+            "title": "Destination Branch Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_branch_id": {
+            "format": "uuid",
+            "title": "Source Branch Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_branch_id",
+          "destination_branch_id",
+          "product_id",
+          "quantity",
+          "reason",
+          "product_name",
+          "id",
+          "created_at"
+        ],
+        "title": "TransferResponse",
+        "type": "object"
+      },
+      "TransferWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "destination_branch_id": {
+            "format": "uuid",
+            "title": "Destination Branch Id",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_branch_id": {
+            "format": "uuid",
+            "title": "Source Branch Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_branch_id",
+          "destination_branch_id",
+          "product_id",
+          "quantity",
+          "reason"
+        ],
+        "title": "TransferWrite",
         "type": "object"
       },
       "TriageUpdate": {
@@ -10228,6 +11208,88 @@
           }
         },
         "summary": "Create Branch",
+        "tags": [
+          "branches"
+        ]
+      }
+    },
+    "/api/v1/branches/transfers": {
+      "get": {
+        "operationId": "list_transfers_api_v1_branches_transfers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TransferResponse"
+                  },
+                  "title": "Response List Transfers Api V1 Branches Transfers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Transfers",
+        "tags": [
+          "branches"
+        ]
+      },
+      "post": {
+        "operationId": "create_transfer_api_v1_branches_transfers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Transfer",
         "tags": [
           "branches"
         ]
@@ -12066,6 +13128,279 @@
         ]
       }
     },
+    "/api/v1/customers": {
+      "get": {
+        "operationId": "list_customers_api_v1_customers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 160,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_inactive",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Inactive",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  },
+                  "title": "Response List Customers Api V1 Customers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Customers",
+        "tags": [
+          "customers"
+        ]
+      },
+      "post": {
+        "operationId": "create_customer_api_v1_customers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Customer",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/api/v1/customers/{customer_id}": {
+      "put": {
+        "operationId": "update_customer_api_v1_customers__customer_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Customer",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
+    "/api/v1/customers/{customer_id}/history": {
+      "get": {
+        "operationId": "customer_history_api_v1_customers__customer_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customer_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Customer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Customer History",
+        "tags": [
+          "customers"
+        ]
+      }
+    },
     "/api/v1/employees": {
       "get": {
         "operationId": "list_employees_api_v1_employees_get",
@@ -12306,6 +13641,59 @@
           }
         },
         "summary": "Deactivate Employee",
+        "tags": [
+          "employees"
+        ]
+      }
+    },
+    "/api/v1/employees/{membership_id}/branch": {
+      "patch": {
+        "operationId": "update_employee_branch_api_v1_employees__membership_id__branch_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeBranchUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Employee Branch",
         "tags": [
           "employees"
         ]
@@ -13093,6 +14481,185 @@
         "summary": "Put Global Draft Settings",
         "tags": [
           "fiscal"
+        ]
+      }
+    },
+    "/api/v1/integrations/invoice-requests": {
+      "get": {
+        "operationId": "list_requests_api_v1_integrations_invoice_requests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvoiceRequestResponse"
+                  },
+                  "title": "Response List Requests Api V1 Integrations Invoice Requests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Requests",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "post": {
+        "operationId": "create_request_api_v1_integrations_invoice_requests_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Request",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/issuer": {
+      "put": {
+        "operationId": "save_issuer_api_v1_integrations_issuer_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiscalIdentity"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Issuer",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/readiness": {
+      "get": {
+        "operationId": "readiness_api_v1_integrations_readiness_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness",
+        "tags": [
+          "integrations"
         ]
       }
     },
@@ -14962,6 +16529,333 @@
         "summary": "Create Void",
         "tags": [
           "orders"
+        ]
+      }
+    },
+    "/api/v1/purchasing/orders": {
+      "get": {
+        "operationId": "orders_api_v1_purchasing_orders_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PurchaseResponse"
+                  },
+                  "title": "Response Orders Api V1 Purchasing Orders Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Orders",
+        "tags": [
+          "purchasing"
+        ]
+      },
+      "post": {
+        "operationId": "create_order_api_v1_purchasing_orders_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Order",
+        "tags": [
+          "purchasing"
+        ]
+      }
+    },
+    "/api/v1/purchasing/orders/{order_id}/cancel": {
+      "post": {
+        "operationId": "cancel_api_v1_purchasing_orders__order_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "purchasing"
+        ]
+      }
+    },
+    "/api/v1/purchasing/orders/{order_id}/receive": {
+      "post": {
+        "operationId": "receive_api_v1_purchasing_orders__order_id__receive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseReceive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receive",
+        "tags": [
+          "purchasing"
+        ]
+      }
+    },
+    "/api/v1/purchasing/suppliers": {
+      "get": {
+        "operationId": "suppliers_api_v1_purchasing_suppliers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierResponse"
+                  },
+                  "title": "Response Suppliers Api V1 Purchasing Suppliers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Suppliers",
+        "tags": [
+          "purchasing"
+        ]
+      },
+      "post": {
+        "operationId": "create_supplier_api_v1_purchasing_suppliers_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Supplier",
+        "tags": [
+          "purchasing"
         ]
       }
     },

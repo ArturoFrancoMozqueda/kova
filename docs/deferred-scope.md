@@ -4,6 +4,18 @@ This document protects the product from scope creep.
 
 If a feature is listed here, do not implement it unless explicitly moved into the active sprint and approved.
 
+## Authorized POS expansion (2026-10-05)
+
+The owner explicitly authorized agent implementation, branch integration and deployment of the POS
+expansion. Discounts/added taxes and snapshots, barcode support, customers/history, suppliers/purchases/
+receiving, inventory transfers and optional employee branch restrictions are now integrated into the
+release branch. Historical deferrals below no longer govern those capabilities. Current verification
+and publication status lives in [`current-sprint.md`](current-sprint.md).
+
+Issuer data and internal invoice requests are prepared, with requests explicitly pending provider.
+Real CFDI/autofactura and terminal processing still require contracted providers and real credentials;
+the owner confirms neither is currently contracted. The remaining roadmap capabilities stay gated.
+
 ## Deferred From Closed Beta
 
 The closed beta should focus on a reliable bakery / small food retail POS.
@@ -68,7 +80,8 @@ gates before feature work begins.
 Multi-location operation and branch comparison were explicitly moved into the active sprint by
 the owner on 2026-10-05. See [`current-sprint.md`](current-sprint.md) and the
 [`branch spec`](../specs/branches/multi_location.md); that authorization supersedes the former
-Phase 4 demand gate. Transfers, branch-specific prices and staff restrictions remain deferred. The
+Phase 4 demand gate. Transfers and staff restrictions moved into the authorized October 5 expansion;
+branch-specific prices remain deferred. The
 roadmap does not approve a generic AI chatbot, autonomous mutations, generated SQL against
 production, accounting, payroll, KDS, manufacturing, a marketplace or mass marketing automation.
 
