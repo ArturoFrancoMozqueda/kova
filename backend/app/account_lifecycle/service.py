@@ -51,13 +51,52 @@ def _columns(value: str) -> tuple[str, ...]:
 
 
 _EXPORT_TABLES = (
-    ExportTable("customers", _columns("id tenant_id name email phone is_active created_at updated_at")),
-    ExportTable("suppliers", _columns("id tenant_id name contact is_active created_at")),
-    ExportTable("purchase_orders", _columns("id tenant_id branch_id supplier_id supplier_name status notes created_by_user_id created_at")),
-    ExportTable("purchase_order_items", _columns("id tenant_id purchase_order_id product_id product_name quantity received_quantity unit_cost")),
-    ExportTable("inventory_transfers", _columns("id tenant_id source_branch_id destination_branch_id product_id quantity reason created_by_user_id created_at")),
-    ExportTable("fiscal_issuer_profiles", _columns("tenant_id fiscal_data")),
-    ExportTable("invoice_requests", _columns("id tenant_id branch_id order_id status issuer_snapshot recipient_snapshot pricing_snapshot total_amount created_at")),
+    ExportTable(
+        "customers",
+        _columns(
+            "id tenant_id name email phone is_active created_at updated_at"
+        ),
+    ),
+    ExportTable(
+        "suppliers",
+        _columns(
+            "id tenant_id name contact is_active created_at"
+        ),
+    ),
+    ExportTable(
+        "purchase_orders",
+        _columns(
+            "id tenant_id branch_id supplier_id supplier_name status notes "
+            "created_by_user_id created_at"
+        ),
+    ),
+    ExportTable(
+        "purchase_order_items",
+        _columns(
+            "id tenant_id purchase_order_id product_id product_name quantity "
+            "received_quantity unit_cost"
+        ),
+    ),
+    ExportTable(
+        "inventory_transfers",
+        _columns(
+            "id tenant_id source_branch_id destination_branch_id product_id quantity "
+            "reason created_by_user_id created_at"
+        ),
+    ),
+    ExportTable(
+        "fiscal_issuer_profiles",
+        _columns(
+            "tenant_id fiscal_data"
+        ),
+    ),
+    ExportTable(
+        "invoice_requests",
+        _columns(
+            "id tenant_id branch_id order_id status issuer_snapshot recipient_snapshot "
+            "pricing_snapshot total_amount created_at"
+        ),
+    ),
     ExportTable("branches", _columns("id tenant_id name address created_at")),
     ExportTable(
         "categories",
@@ -96,7 +135,8 @@ _EXPORT_TABLES = (
         "orders",
         _columns(
             "id tenant_id branch_id client_uuid shift_id created_by_user_id status subtotal_amount "
-            "total_amount discount_amount tax_rate tax_amount customer_id occurred_at created_at updated_at"
+            "total_amount discount_amount tax_rate tax_amount customer_id occurred_at "
+            "created_at updated_at"
         ),
     ),
     ExportTable(
