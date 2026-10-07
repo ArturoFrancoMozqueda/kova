@@ -34,7 +34,8 @@ def harness_hash():
     digest = hashlib.sha256()
     for relative in ("scripts/evaluate_assistant.py", "assistant_evaluation/cases.py",
                      "app/assistant/provider.py", "app/assistant/generation.py",
-                     "app/assistant/schemas.py", "app/assistant/tools.py"):
+                     "app/assistant/schemas.py", "app/assistant/tools.py",
+                     "assistant_evaluation/openrouter.py", "scripts/compare_assistant.py"):
         digest.update((ROOT / relative).read_bytes())
     return digest.hexdigest()
 
@@ -48,7 +49,8 @@ def reserve(ledger, model, input_size, *, paid=None):
         model, input_size, 1024
     )
     recent = [row for row in ledger if row["at"] > clock - 86400
-              and row["groq"] == groq]
+              and row["groq"] == groq and row.get("provider") != "openrouter"
+              and row.get("kind") != "funding_fee"]
     minute = [row for row in recent if row["at"] > clock - 60]
     charge = None
     if paid is not None:

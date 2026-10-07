@@ -24,9 +24,11 @@ Integración de GPT-OSS-20B, ayuda/reportes directos, cuotas por proveedor y con
 renovado al cambiar destinatario entregada en `main` mediante PR #167. Cuenta Groq Free y
 Global ZDR verificados; calidad comparativa y activación en producción pendientes. La
 corrección posterior de formato y reserva completa está en PR #169. El alcance confirmado incluye
-guías, archivos propios y recomendaciones; GPT-OSS-120B es el comparador prioritario, sin aprobación
-de calidad todavía. Se añaden veinte casos privados a la batería original, sin habilitar documentos
-ni mutaciones en producción. La evidencia y los
+guías, archivos propios y recomendaciones. La comparación autorizada actual enfrenta
+GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4; el evaluador aislado y sus tres rutas ZDR están
+verificados localmente (150 tests), pero falta cuenta/saldo/clave OpenRouter para inferencia real.
+Ningún candidato tiene aprobación de calidad. Se añaden veinte casos privados a la batería original,
+sin habilitar documentos ni mutaciones en producción. No hay gasto ni programación. La evidencia y los
 gates viven en [operación del asistente](assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
 
 ## Active product integration (2026-10-05): Expansión POS

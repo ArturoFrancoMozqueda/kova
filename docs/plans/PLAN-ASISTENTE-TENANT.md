@@ -707,8 +707,12 @@ backend, inyección en documento y archivo no disponible: 220 casos y 660 ejecuc
 candidato. No se reducen umbrales ni repeticiones y no se sustituyen resultados originales.
 Los fragmentos sintéticos no acreditan extracción, retrieval/ACL, OCR ni ingesta desplegada.
 Escalabilidad, costos y carga se verifican desde el inicio; Free no es una promesa de capacidad
-ilimitada. GPT-OSS-120B se prioriza como comparador tras fallos de 20B; ninguno está aprobado.
-La investigación es inmediata; el operador descartó programación diaria.
+ilimitada. Tras investigar lanzamientos actuales, el operador autorizó comparar GLM-5.3-Flash,
+Qwen3.8-27B y Mistral Small 4 con el mismo corpus; ninguno está aprobado. El transporte de
+evaluación OpenRouter permanece aislado del runtime, con rutas ZDR verificadas públicamente,
+pero cuenta/saldo/clave e inferencia live pendientes. El máximo total USD 10 incluye comisiones.
+La investigación es inmediata; el operador descartó programación diaria. Procedimiento y evidencia:
+[comparación actual](../assistant-operations.md#comparación-autorizada-de-modelos-actuales--2026-10-07).
 
 Excepción de alcance solicitada por el operador el 2026-10-06: preparar un piloto de
 lectura en una única cohorte, usando Llama 3.3 70B para chat y ayuda y manteniendo documentos,

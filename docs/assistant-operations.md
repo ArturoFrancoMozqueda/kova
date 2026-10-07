@@ -229,6 +229,90 @@ Referencias: [Mistral Small 4](https://docs.mistral.ai/models/mistral-small-4-0-
 [rutas OpenRouter](https://openrouter.ai/docs/guides/routing/provider-selection),
 [datos](https://openrouter.ai/docs/guides/privacy/data-collection).
 
+### Comparación autorizada de modelos actuales — 2026-10-07
+
+El operador autorizó comparar **GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4**. Esta lista
+sustituye la shortlist de investigación anterior; GPT-OSS queda como evidencia histórica.
+La comparación usa los mismos 220 casos y tres repeticiones por candidato (660 ejecuciones),
+sin modificar oráculos ni reducir gates. Incluye la cobertura de configuración como regresión;
+aprobar esa cobertura no habilita mutaciones ni amplía el lanzamiento solicitado.
+
+`backend/scripts/compare_assistant.py` reutiliza el corpus, herramientas, prompts y contrato
+cerrado del evaluador. Su transporte vive exclusivamente en `assistant_evaluation/openrouter.py`;
+no integra OpenRouter al runtime de producción. Los candidatos se intercalan por caso/repetición
+para no consumir primero todo el presupuesto con un solo modelo. El razonamiento es `low` y
+el límite común de salida es 1024 tokens, incluyendo razonamiento. Truncamientos son fallos;
+estas condiciones comparables no demuestran el mejor desempeño posible de cada modelo.
+
+Verificación pública sin inferencia realizada el 2026-10-07:
+
+| Alias | Modelo | Ruta exacta | Techo USD/millón entrada/salida |
+|---|---|---|---|
+| `glm-flash` | `z-ai/glm-5.3-flash` | `fireworks` | 0.15 / 0.50 |
+| `qwen-38` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | 0.20 / 2.50 |
+| `mistral-small` | `mistralai/mistral-small-2603` | `mistral/zdr` | 0.15 / 0.60 |
+
+Las tres rutas aparecen activas en el catálogo, admiten herramientas y `structured_outputs`,
+y están en la lista pública de endpoints ZDR. Qwen usa techos sin el descuento temporal
+publicado; no se supone ahorro de caché. Cada ejecución vuelve a comprobar estos requisitos,
+precios y ausencia de recargos/overrides. Cada POST exige la ruta exacta, ZDR, `data_collection=deny`,
+soporte de parámetros, techo de precio y ausencia de fallbacks; no habilita plugins ni red del modelo.
+Esto verifica oferta publicada, no SLA, capacidad pagada de la cuenta ni calidad para Kova.
+
+**Acceso pendiente:** el operador confirmó que no tiene cuenta OpenRouter. Se abrió el registro;
+no se creó cuenta, aceptaron términos, pagó ni emitió clave en su nombre. No existe credencial
+de evaluación configurada. La cuenta debe tener saldo, autorecarga apagada y logging de
+prompts/respuestas desactivado. Crear una key dedicada de inferencia con techo total sin reset,
+menor o igual al presupuesto de inferencia disponible. No usar una management key.
+`GET /key` comprueba techo y tipo de key; el saldo se verifica en consola porque `/credits`
+requiere privilegios de gestión. Ante errores, incluido saldo insuficiente o rate limit, se detiene
+todo el lote sin reintentos automáticos. La oferta pagada de Groq sigue bloqueada.
+
+El máximo autorizado **USD 10 total** se conserva entre proveedores y días en el ledger existente.
+Las comisiones reales acumuladas de recarga se indican con `--funding-fee-usd` y cuentan dentro
+del corte; comprar créditos no autoriza otra recarga ni exceder USD 10 con comisiones. Verificar
+el total final de checkout antes de pagar. Una recarga inicial de USD 5–8 puede dejar margen,
+pero no se promete completar el corpus con un importe determinado.
+
+Guardar la credencial únicamente en `backend/.env.evaluation.local` (permisos 0600), bajo
+`OPENROUTER_EVALUATION_API_KEY`, o en esa variable del proceso. Git y Docker excluyen ese archivo;
+no pegar la clave en chat ni comandos visibles. El evaluador nunca carga un `.env` de producción.
+
+```bash
+cd backend
+python scripts/compare_assistant.py --preflight
+python scripts/compare_assistant.py --summary
+# Solo tras tener saldo, verificar privacidad/techo y sustituir la comisión por la real:
+python scripts/compare_assistant.py --run --model all --limit 5 \
+  --budget-usd 10 --funding-fee-usd 0.80 --account-verified
+# Tras revisar el smoke, reanudar con el mismo presupuesto/ledger y comisión real:
+python scripts/compare_assistant.py --run --model all --limit 660 \
+  --budget-usd 10 --funding-fee-usd 0.80 --account-verified
+```
+
+`0.80` es un ejemplo, no una comisión confirmada de esta cuenta. El smoke por defecto empieza
+en los primeros casos del corpus; no sustituye análisis/RAG privado ni el conjunto completo.
+Resultados: `output/assistant-evaluation/comparison-results.json`; preflight público separado;
+ledger y lock compartidos con Groq. Se conserva la reserva antes de enviar la solicitud, incluso
+si ocurre un fallo/cancelación. Solo se reduce con tokens/costo completos verificados; razonamiento
+no se suma dos veces. La escritura atómica preserva los symlinks del ledger compartido.
+Resultados/versiones previos no se reutilizan como aprobación de un harness modificado.
+
+Validación local: **150 tests backend del asistente**, Ruff y `git diff --check`; tres preflights
+públicos y cinco rechazos CLI de presupuesto/cuenta/clave sin inferencia. Los tests comprueban
+intercalado, persistencia antes de POST, privacidad/ruta/precios, costos inciertos y comisiones,
+cuenta sin reset, consumo razonado y detención global ante error. Las respuestas de esos tests
+son simuladas y nunca entran al archivo de evaluación real. **Cero ejecuciones live de los tres
+candidatos, cero gasto y ninguno aprobado.** Revisión humana, ingesta/ACL/OCR real, carga y QA
+autenticada de producción permanecen pendientes; no se cambió ningún flag ni se programó trabajo.
+
+Fuentes: [rutas y precios](https://openrouter.ai/docs/guides/routing/provider-selection),
+[ZDR](https://openrouter.ai/docs/guides/features/zdr),
+[key de inferencia](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-api-key),
+[créditos y privilegios](https://openrouter.ai/docs/api/api-reference/credits/get-credits),
+[GLM y pesos MIT](https://huggingface.co/zai-org/GLM-5.3-Flash),
+[Qwen y pesos Apache 2.0](https://huggingface.co/Qwen/Qwen3.8-27B).
+
 ## Mejora de interfaz y presentación — 2026-10-07
 
 Cambio local de frontend: conversación con más espacio, historial plegable en móvil,
