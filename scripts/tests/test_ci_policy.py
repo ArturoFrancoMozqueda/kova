@@ -42,7 +42,7 @@ class PolicyTests(unittest.TestCase):
         policy = POLICY.classify(["README.md"])
         needs = {job: {"result": "success"} for job in
                  ["changes", "repository", "security"]}
-        for job in ["backend-integration", "frontend", "integration", "migrations",
+        for job in ["backend-integration", "frontend", "frontend-unit", "integration", "migrations",
                     "assistant-parser", "supply-chain"]:
             needs[job] = {"result": "skipped"}
         self.assertEqual(POLICY.gate_errors(policy, needs), [])
@@ -52,7 +52,7 @@ class PolicyTests(unittest.TestCase):
 
     def test_gate_rejects_failure_cancellation_or_missing_required_job(self):
         policy = POLICY.classify(None)
-        jobs = ["changes", "repository", "security", "backend-integration", "frontend",
+        jobs = ["changes", "repository", "security", "backend-integration", "frontend", "frontend-unit",
                 "integration", "migrations", "assistant-parser", "supply-chain"]
         for job in jobs:
             for result in ["failure", "cancelled", "skipped", None]:
@@ -62,3 +62,8 @@ class PolicyTests(unittest.TestCase):
 
     def test_invalid_policy_cannot_succeed(self):
         self.assertTrue(POLICY.gate_errors({}, {}))
+
+    def test_new_job_cannot_fail_or_skip_silently(self):
+        needs = {"future-check": {"result": "failure"}}
+        self.assertIn("future-check: unplanned non-success result",
+                      POLICY.gate_errors(POLICY.classify(None), needs))

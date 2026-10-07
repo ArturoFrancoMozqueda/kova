@@ -12,6 +12,9 @@ from app.integrations.schemas import FiscalIdentity, InvoiceRecipient
 from app.orders.models import Order
 from app.tests.test_fiscal_global_drafts import _product, _sale, _signup_login
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 ISSUER = {
     "rfc": "EKU9003173C9",
     "legal_name": "Negocio",

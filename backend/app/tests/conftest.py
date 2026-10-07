@@ -63,7 +63,7 @@ def fast_business_auth(monkeypatch, request):
     from app.auth import service
 
     protected = ("test_auth", "test_security", "test_csrf", "test_hardening",
-                 "test_rate_limit", "test_ops_auth")
+                 "test_rate_limit", "test_ops_auth", "test_ops_mfa")
     if request.path.name.startswith(protected):
         raise RuntimeError("auth/security tests must use production bcrypt cost")
     monkeypatch.setattr(service, "_BCRYPT_ROUNDS", 4)

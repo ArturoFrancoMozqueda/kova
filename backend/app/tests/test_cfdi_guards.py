@@ -27,6 +27,9 @@ from app.tests.test_fiscal_global_drafts import (
     _signup_login,
 )
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _reserve(db, tenant, sale, *, environment="live", state="prepared", commit=True):
     order = db.get(Order, UUID(sale["id"]))

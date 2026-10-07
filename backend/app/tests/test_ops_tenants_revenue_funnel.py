@@ -6,6 +6,8 @@ counts active subscriptions, and that responses never carry secrets.
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import pytest
+
 from app.auth.models import User
 from app.billing.models import Subscription, WebhookEvent
 from app.config import settings
@@ -13,6 +15,9 @@ from app.orders.models import Order
 from app.telemetry.models import TelemetryEvent
 from app.tenants.models import Tenant
 from app.tests.test_ops_auth import _signup_login
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 ADMIN = "kpi-ceo@ops-test.com"
 

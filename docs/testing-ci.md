@@ -18,7 +18,7 @@ Todos los PR con código ejecutan **las suites completas**. No hay selección de
 | Playwright preview | Interacciones, rutas/prerender, variantes móviles y offline sobre bundle compilado | Chromium, build de producción; APIs simuladas explícitamente | `frontend/reports/preview.xml`, HTML, screenshots y traces de fallos |
 | Playwright stack real (4 casos) | Venta real, stock y cambio; aislamiento entre tenants; accesibilidad de vistas y modal financiero | Docker Compose, API real, Postgres y rol de aplicación sin bypass RLS | `frontend/reports/integration.xml`, HTML y diagnóstico |
 | Contratos de release (20 casos; uno exclusivo de Windows) | SHA/health/proxy, orden de promoción y restauración, incidentes de recuperación | Node; proveedores simulados, sin credenciales | Log de `test:release-contract` |
-| Contratos operativos/política CI (25 casos) | Filtros conservadores, gates obligatorios, pinning y schedules existentes | Python estándar | Log de `unittest` |
+| Contratos operativos/política CI (26 casos) | Filtros conservadores, gates obligatorios, pinning y schedules existentes | Python estándar | Log de `unittest` |
 | Parser | Rechazo adversarial y aislamiento de archivos de negocio | Contenedor y firmas antivirus actuales | Log del job |
 | Reproducibilidad/SBOM | Dos builds idénticos y lista de dependencias | BuildKit, bases fijadas por digest | SBOM por commit |
 | Secretos/dependencias | Gitleaks, dependencias runtime y bundle público | Git completo, npm audit, pip-audit | Logs y comprobación del bundle |
@@ -41,11 +41,13 @@ Se conserva el mismatch de pagos, el test directo de la restricción de base de 
 
 `App.test.tsx` tenía una aserción que podía conservar un nodo separado del DOM por revalidación de sesión. La aserción se consulta dentro de `waitFor`, manteniendo la exigencia de llegar a Caja y `/register`; no se añadió retry de la suite ni se eliminó el caso. El primer run local completo detectó esta intermitencia; el run aislado pasó antes del ajuste.
 
-Se retiró la ejecución duplicada de toda la suite browser en Vite dev dentro de CI, conservando `npm run test:e2e-dev` para uso local. Se retiró el typecheck separado: `npm run build` ya ejecuta `tsc --noEmit`. Se evita el segundo build de preview con `test:e2e-preview:built`; el build de release conserva su configuración de producción.
+El scan de contraste espera las transiciones finitas de entrada antes de ejecutar axe. Una visibilidad inicial durante el fade del modal había provocado un retry en una de las cinco ejecuciones anteriores; siguen siendo obligatorias todas las comprobaciones serias/críticas de contraste y semántica.
+
+Se retiró la ejecución duplicada de toda la suite browser en Vite dev dentro de CI, conservando `npm run test:e2e-dev` para uso local. Se retiró el typecheck separado: `npm run build` ya ejecuta `tsc --noEmit`. Las unidades y el build/browser corren en dos jobs paralelos; el build sigue ejecutándose una sola vez por validación. Se instala solo Chromium headless y se prueba su arranque; se instalan librerías del sistema únicamente si faltan. Se evita el segundo build de preview con `test:e2e-preview:built`; el build de release conserva su configuración de producción.
 
 ## Preparación rápida de usuarios
 
-Solo los módulos de negocio que declaran `pytest.mark.usefixtures("fast_business_auth")` reducen bcrypt a cuatro rondas durante su test. La verificación de contraseña sigue siendo real y rechaza claves incorrectas; signup, login, cookies, CSRF, sesiones, permisos y RLS permanecen reales. `monkeypatch` restaura tanto el costo como el dummy hash después de cada caso. Los módulos de auth/security/CSRF/hardening/rate-limit/ops-auth no pueden solicitar esa fixture. Producción permanece en doce rondas sin nuevas variables o configuración.
+Solo los módulos de negocio que declaran `pytest.mark.usefixtures("fast_business_auth")` reducen bcrypt a cuatro rondas durante su test. La verificación de contraseña sigue siendo real y rechaza claves incorrectas; signup, login, cookies, CSRF, sesiones, permisos y RLS permanecen reales. `monkeypatch` restaura tanto el costo como el dummy hash después de cada caso. Los módulos de auth/security/CSRF/hardening/rate-limit/ops-auth/ops-mfa no pueden solicitar esa fixture. Producción permanece en doce rondas sin nuevas variables o configuración.
 
 Módulos de negocio que optan explícitamente por la fixture:
 
@@ -109,6 +111,13 @@ Módulos de negocio que optan explícitamente por la fixture:
 - `bdd/test_receipt_settings.py`
 - `bdd/test_split_payment.py`
 - `bdd/test_shifts_open.py`
+
+- `test_ops_incidents.py`
+- `test_ops_notes.py`
+- `test_ops_tenants_revenue_funnel.py`
+- `test_ops_trace.py`
+- `test_integrations_readiness.py`
+- `test_cfdi_guards.py`
 
 ## Comandos y diagnóstico
 

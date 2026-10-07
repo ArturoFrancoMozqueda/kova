@@ -1,8 +1,12 @@
 """Internal ops dashboard — notes/triage persistence tests."""
+import pytest
 from sqlalchemy import text
 
 from app.config import settings
 from app.tests.test_ops_auth import _signup_login
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 ADMIN = "notes-ceo@ops-test.com"
 

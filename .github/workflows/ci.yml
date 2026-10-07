@@ -105,8 +105,8 @@ jobs:
             backend/reports/backend.xml
           retention-days: 7
 
-  frontend:
-    name: frontend tests, build and browser preview
+  frontend-unit:
+    name: frontend unit and contracts
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     timeout-minutes: 10
@@ -126,10 +126,41 @@ jobs:
       - run: npm run check:api-contract
       - run: npm test -- --run --reporter=default --reporter=junit --outputFile=reports/vitest.xml
       - run: npm run test:release-contract
+      - name: Upload unit diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-unit-${{ github.run_attempt }}
+          path: frontend/reports/vitest.xml
+          retention-days: 7
+
+  frontend:
+    name: frontend production build and browser
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
       - run: npm run build
       - run: npm run check:bundle-secrets
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install and verify Chromium
+        # Hosted runners normally have these libraries. Avoid a network-bound
+        # apt update unless a real browser launch proves dependencies missing.
+        run: |
+          npx playwright install --only-shell chromium
+          if ! node --input-type=module -e 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();'; then
+            npx playwright install-deps chromium
+          fi
       - name: Test the existing production build
         run: npm run test:e2e-preview:built -- --reporter=list,junit,html
         env:
@@ -160,8 +191,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install and verify Chromium
+        # Hosted runners normally have these libraries. Avoid a network-bound
+        # apt update unless a real browser launch proves dependencies missing.
+        run: |
+          npx playwright install --only-shell chromium
+          if ! node --input-type=module -e 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();'; then
+            npx playwright install-deps chromium
+          fi
         working-directory: frontend
       - name: Start disposable application stack
         run: docker compose -f docker-compose.test.yml up -d --build --wait
@@ -289,7 +326,7 @@ jobs:
   required:
     name: CI required
     if: always()
-    needs: [changes, repository, backend-integration, frontend, integration, migrations, security, assistant-parser, supply-chain]
+    needs: [changes, repository, backend-integration, frontend-unit, frontend, integration, migrations, security, assistant-parser, supply-chain]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

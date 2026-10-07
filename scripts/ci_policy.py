@@ -55,6 +55,7 @@ def gate_errors(policy: dict[str, str], needs: dict) -> list[str]:
         "security": True,
         "backend-integration": policy.get("code") == "true",
         "frontend": policy.get("code") == "true",
+        "frontend-unit": policy.get("code") == "true",
         "integration": policy.get("code") == "true",
         "migrations": policy.get("code") == "true",
         "assistant-parser": policy.get("parser") == "true",
@@ -70,6 +71,9 @@ def gate_errors(policy: dict[str, str], needs: dict) -> list[str]:
         allowed = {"success"} if required else {"success", "skipped"}
         if result not in allowed:
             errors.append(f"{job}: {result or 'missing'} (expected {sorted(allowed)})")
+    for job in needs.keys() - expected.keys():
+        if needs[job].get("result") != "success":
+            errors.append(f"{job}: unplanned non-success result")
     return errors
 
 
