@@ -2,7 +2,11 @@
 
 Proves that a user authenticated as Tenant A cannot access Tenant B's data.
 """
+import pytest
 from fastapi.testclient import TestClient
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _create_and_login(client: TestClient, email: str, tenant: str) -> None:

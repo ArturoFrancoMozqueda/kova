@@ -1,0 +1,69 @@
+name: CI maintenance
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 8 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maintenance-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  container-supply-chain:
+    name: reproducible container and SBOM
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Set up isolated BuildKit builder
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        with:
+          driver: docker-container
+      - name: Build backend image twice without layer reuse
+        shell: bash
+        run: |
+          first_archive="$RUNNER_TEMP/kova-backend-first.docker.tar"
+          second_archive="$RUNNER_TEMP/kova-backend-second.docker.tar"
+          common_args=(
+            --quiet
+            --no-cache
+            --provenance=false
+            --build-arg SOURCE_DATE_EPOCH=0
+            --build-arg "KOVA_RELEASE_SHA=$GITHUB_SHA"
+          )
+          docker buildx build "${common_args[@]}" \
+            --output "type=docker,name=kova-backend:first,dest=$first_archive,rewrite-timestamp=true" backend
+          docker buildx build "${common_args[@]}" \
+            --output "type=docker,name=kova-backend:first,dest=$second_archive,rewrite-timestamp=true" backend
+          first="$(tar -xOf "$first_archive" manifest.json | jq -er \
+            'if length == 1 then .[0].Config else error("expected one image") end')"
+          second="$(tar -xOf "$second_archive" manifest.json | jq -er \
+            'if length == 1 then .[0].Config else error("expected one image") end')"
+          first_archive_sha="$(sha256sum "$first_archive" | cut -d ' ' -f 1)"
+          second_archive_sha="$(sha256sum "$second_archive" | cut -d ' ' -f 1)"
+          test "$first" = "$second" && test "$first_archive_sha" = "$second_archive_sha" || {
+            echo "Backend image is not reproducible:" >&2
+            echo "manifest $first != $second" >&2
+            echo "archive $first_archive_sha != $second_archive_sha" >&2
+            exit 1
+          }
+          docker load --input "$first_archive"
+          echo "Backend image reproduced exactly as $first ($first_archive_sha)"
+      - name: Generate SPDX JSON SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: kova-backend:first
+          format: spdx-json
+          output-file: backend-sbom.spdx.json
+          upload-artifact: false
+      - name: Upload backend SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-sbom-${{ github.sha }}
+          path: backend-sbom.spdx.json
+          if-no-files-found: error

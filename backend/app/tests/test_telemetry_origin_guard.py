@@ -14,11 +14,15 @@ so an absolute count would be measuring the rest of the suite.
 from datetime import UTC, datetime, timedelta
 
 import jwt
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app as fastapi_app
 from app.telemetry.models import AnonymousTelemetryEvent
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 ANON_URL = "/api/v1/telemetry/events/anonymous"
 ANON_SESSION_URL = "/api/v1/telemetry/events/anonymous/session"

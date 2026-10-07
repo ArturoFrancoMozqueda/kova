@@ -4,6 +4,7 @@ import json
 import time
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from pytest_bdd import given, scenario, then, when
 from sqlalchemy.orm import Session
@@ -14,6 +15,9 @@ from app.billing import service as billing_service
 from app.billing.models import Subscription, WebhookEvent
 from app.config import settings
 from app.main import app
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 # ─── Scenario declarations ───────────────────────────────────────────────────
 

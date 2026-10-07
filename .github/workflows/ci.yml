@@ -19,8 +19,41 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: classify changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      code: ${{ steps.policy.outputs.code }}
+      parser: ${{ steps.policy.outputs.parser }}
+      supply: ${{ steps.policy.outputs.supply }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - id: policy
+        run: python3 scripts/ci_policy.py changes
+        env:
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD: ${{ github.sha }}
+
+  repository:
+    name: repository contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python scripts/check_ops_readiness.py repository
+      - run: python -m unittest discover -s scripts/tests
+
   backend-integration:
     name: integration (FastAPI + Postgres)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -51,17 +84,11 @@ jobs:
         with:
           version: "0.9.18"
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
       - name: Lint
         run: uv run ruff check .
-      - name: Check local operational contracts
-        run: |
-          uv run python ../scripts/check_ops_readiness.py repository
-          uv run python -m unittest discover -s ../scripts/tests
-      - name: Apply migrations
-        run: uv run alembic upgrade head
       - name: Run integration suite
-        run: uv run pytest
+        run: uv run pytest --durations=40 --junitxml=reports/backend.xml
       - name: Check versioned OpenAPI contract
         run: uv run python scripts/export_openapi.py --check
       - name: Upload OpenAPI artifact
@@ -69,9 +96,20 @@ jobs:
         with:
           name: openapi-json
           path: specs/openapi.json
+      - name: Upload backend diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-${{ github.run_attempt }}
+          path: |
+            backend/reports/backend.xml
+          retention-days: 7
 
-  frontend-unit-build:
-    name: unit/build (React)
+  frontend:
+    name: frontend tests, build and browser preview
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -85,150 +123,32 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm run typecheck
       - run: npm run check:api-contract
-      - run: npm test -- --run
+      - run: npm test -- --run --reporter=default --reporter=junit --outputFile=reports/vitest.xml
       - run: npm run test:release-contract
       - run: npm run build
       - run: npm run check:bundle-secrets
-
-  e2e-mocked-dev:
-    name: e2e-mocked dev server (Playwright)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run mocked E2E against Vite dev
-        run: npm run test:e2e-dev
-
-  e2e-mocked-preview:
-    name: e2e-mocked production preview (Playwright)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Build and run mocked E2E against production preview
-        run: npm run test:e2e-preview
-
-  dependency-audit:
-    name: dependency audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-        with:
-          version: "0.9.18"
-      - name: Audit Python runtime dependencies
-        run: uv sync --no-dev && uv run --with pip-audit pip-audit
-        working-directory: backend
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-      - name: Audit npm runtime dependencies
-        run: npm audit --omit=dev --audit-level=high --package-lock-only
-        working-directory: frontend
-
-  no-secrets:
-    name: secret scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+      - name: Test the existing production build
+        run: npm run test:e2e-preview:built -- --reporter=list,junit,html
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  container-supply-chain:
-    name: reproducible container and SBOM
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: Set up isolated BuildKit builder
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-        with:
-          driver: docker-container
-      - name: Build backend image twice without layer reuse
-        shell: bash
-        run: |
-          first_archive="$RUNNER_TEMP/kova-backend-first.docker.tar"
-          second_archive="$RUNNER_TEMP/kova-backend-second.docker.tar"
-          common_args=(
-            --quiet
-            --no-cache
-            --provenance=false
-            --build-arg SOURCE_DATE_EPOCH=0
-            --build-arg "KOVA_RELEASE_SHA=$GITHUB_SHA"
-          )
-          docker buildx build "${common_args[@]}" \
-            --output "type=docker,name=kova-backend:first,dest=$first_archive,rewrite-timestamp=true" backend
-          docker buildx build "${common_args[@]}" \
-            --output "type=docker,name=kova-backend:first,dest=$second_archive,rewrite-timestamp=true" backend
-          first="$(tar -xOf "$first_archive" manifest.json | jq -er \
-            'if length == 1 then .[0].Config else error("expected one image") end')"
-          second="$(tar -xOf "$second_archive" manifest.json | jq -er \
-            'if length == 1 then .[0].Config else error("expected one image") end')"
-          first_archive_sha="$(sha256sum "$first_archive" | cut -d ' ' -f 1)"
-          second_archive_sha="$(sha256sum "$second_archive" | cut -d ' ' -f 1)"
-          test "$first" = "$second" && test "$first_archive_sha" = "$second_archive_sha" || {
-            echo "Backend image is not reproducible:" >&2
-            echo "manifest $first != $second" >&2
-            echo "archive $first_archive_sha != $second_archive_sha" >&2
-            exit 1
-          }
-          docker load --input "$first_archive"
-          echo "Backend image reproduced exactly as $first ($first_archive_sha)"
-      - name: Generate SPDX JSON SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
-        with:
-          image: kova-backend:first
-          format: spdx-json
-          output-file: backend-sbom.spdx.json
-          upload-artifact: false
-      - name: Upload backend SBOM
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: reports/preview.xml
+      - name: Upload frontend diagnostics
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: backend-sbom-${{ github.sha }}
-          path: backend-sbom.spdx.json
-          if-no-files-found: error
-
-  assistant-parser:
-    name: isolated assistant parser and antivirus
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: Build parser with current antivirus signatures
-        run: docker build --tag kova-assistant-parser:1 backend/assistant-parser
-      - name: Verify isolated business files and adversarial rejection
-        run: python3 backend/scripts/check_assistant_parser.py
+          name: frontend-${{ github.run_attempt }}
+          path: |
+            frontend/reports
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
 
   integration:
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -246,9 +166,10 @@ jobs:
       - name: Start disposable application stack
         run: docker compose -f docker-compose.test.yml up -d --build --wait
       - name: Run integration and real-browser axe gates
-        run: npm run test:integration
+        run: npm run test:integration -- --reporter=list,junit,html
         working-directory: frontend
         env:
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: reports/integration.xml
           KOVA_INTEGRATION: "1"
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5174
       - name: Collect disposable stack logs
@@ -257,10 +178,22 @@ jobs:
       - name: Tear down disposable stack
         if: always()
         run: docker compose -f docker-compose.test.yml down --volumes --remove-orphans
+      - name: Upload integration diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: integration-${{ github.run_attempt }}
+          path: |
+            frontend/reports/integration.xml
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
 
   migrations:
     name: migration reversibility
-    needs: [backend-integration, frontend-unit-build, e2e-mocked-dev, e2e-mocked-preview, integration, dependency-audit, no-secrets, container-supply-chain, assistant-parser]
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    timeout-minutes: 6
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -289,17 +222,90 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: "0.9.18"
-      - run: uv sync
+      - run: uv sync --frozen
       - run: uv run alembic upgrade head
       - run: uv run alembic downgrade base
       - run: uv run alembic upgrade head
       - name: Test populated upgrades, branch attribution and runtime grants
-        run: uv run python -m pytest -q migration_tests
+        run: uv run python -m pytest -q migration_tests --durations=20 --junitxml=reports/migrations.xml
+      - name: Upload migrations diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: migrations-${{ github.run_attempt }}
+          path: |
+            backend/reports/migrations.xml
+          retention-days: 7
 
-  capture-release-state:
-    name: capture required rollback artifact
-    needs: [migrations]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  security:
+    name: secrets and dependency audit
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.9.18"
+      - name: Audit Python runtime dependencies
+        run: uv sync --frozen --no-dev && uv run --with pip-audit pip-audit
+        working-directory: backend
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+      - name: Audit npm runtime dependencies
+        run: npm audit --omit=dev --audit-level=high --package-lock-only
+        working-directory: frontend
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  assistant-parser:
+    name: isolated assistant parser and antivirus
+    needs: [changes]
+    if: needs.changes.outputs.parser == 'true'
+    timeout-minutes: 8
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Build parser with current antivirus signatures
+        run: docker build --tag kova-assistant-parser:1 backend/assistant-parser
+      - name: Verify isolated business files and adversarial rejection
+        run: python3 backend/scripts/check_assistant_parser.py
+
+  supply-chain:
+    needs: [changes]
+    if: needs.changes.outputs.supply == 'true'
+    uses: ./.github/workflows/ci-maintenance.yml
+
+
+  required:
+    name: CI required
+    if: always()
+    needs: [changes, repository, backend-integration, frontend, integration, migrations, security, assistant-parser, supply-chain]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Require every applicable validation
+        run: python3 scripts/ci_policy.py gate
+        env:
+          CI_POLICY: ${{ toJSON(needs.changes.outputs) }}
+          CI_NEEDS: ${{ toJSON(needs) }}
+
+
+  release:
+    name: publish and verify release
+    needs: [changes, required]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -307,7 +313,11 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
+      - run: npm ci
+        working-directory: frontend
       - name: Capture and verify current production before creating a candidate
         shell: bash
         run: |
@@ -366,155 +376,10 @@ jobs:
           path: ${{ runner.temp }}/release-rollback.json
           if-no-files-found: error
           retention-days: 7
-
-  deploy-fly:
-    name: deploy Fly (exact commit)
-    needs: [capture-release-state]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
-      - name: Retain or provision dedicated fiscal credential encryption
-        run: python3 ../scripts/ensure_cfdi_storage_key.py
-        working-directory: backend
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-      - name: Deploy backend image from this commit
-        # Both values identify the exact deployed commit: KOVA_RELEASE_SHA is
-        # immutable image metadata and GIT_SHA is surfaced in Kova Ops/Sentry.
-        run: flyctl deploy --remote-only --build-arg KOVA_RELEASE_SHA="$GITHUB_SHA" --env GIT_SHA="$GITHUB_SHA" --strategy rolling --wait-timeout 5m
-        working-directory: backend
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-  deploy-vercel-preview:
-    name: deploy Vercel candidate (exact commit)
-    needs: [capture-release-state]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    outputs:
-      url: ${{ steps.deploy.outputs.url }}
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-        working-directory: frontend
-      - name: Pull production build configuration
-        run: npx --yes vercel@59.0.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
-      - name: Build immutable production candidate
-        run: npx --yes vercel@59.0.0 build --prod --token="$VERCEL_TOKEN"
+      - name: Release candidate, promote and recover by phase
+        run: node frontend/scripts/release.mjs --artifact "$RUNNER_TEMP/release-rollback.json"
         env:
           COMMIT_SHA: ${{ github.sha }}
-      - id: deploy
-        name: Deploy candidate without production promotion
-        shell: bash
-        run: |
-          url="$(npx --yes vercel@59.0.0 deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN")"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  post-deploy-read-only:
-    name: production health/read-only smoke
-    needs: [deploy-fly, deploy-vercel-preview]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-      - name: Wait for Fly candidate
-        run: npx --yes wait-on@9.0.1 "https://api.kovasuite.com/health/db" --timeout 180000
-      - name: Verify commit and health contracts
-        run: node frontend/scripts/verify-deployment.mjs --frontend "${{ needs.deploy-vercel-preview.outputs.url }}" --backend "https://api.kovasuite.com" --sha "$GITHUB_SHA"
-        env:
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-
-  promote-vercel:
-    name: promote accepted Vercel candidate
-    needs: [deploy-vercel-preview, post-deploy-read-only]
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-      - name: Promote the tested artifact without rebuilding
-        run: npx --yes vercel@59.0.0 promote "${{ needs.deploy-vercel-preview.outputs.url }}" --yes --token="$VERCEL_TOKEN"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-  release-acceptance:
-    name: release acceptance
-    needs: [deploy-fly, promote-vercel]
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-      - name: Verify promoted frontend and backend commit
-        run: node frontend/scripts/verify-deployment.mjs --frontend "${{ secrets.VERCEL_URL }}" --backend "https://api.kovasuite.com" --sha "$GITHUB_SHA"
-        env:
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-
-  recover-release:
-    name: recover failed release by phase
-    needs: [capture-release-state, deploy-fly, deploy-vercel-preview, post-deploy-read-only, promote-vercel, release-acceptance]
-    if: >-
-      ${{ always() && needs.capture-release-state.result == 'success' &&
-          (needs.deploy-fly.result != 'success' ||
-           needs.deploy-vercel-preview.result != 'success' ||
-           needs.post-deploy-read-only.result != 'success' ||
-           needs.promote-vercel.result != 'success' ||
-           needs.release-acceptance.result != 'success') }}
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version: "24"
-      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
-      - name: Download required rollback artifact
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
-        with:
-          name: release-rollback-${{ github.sha }}
-          path: ${{ runner.temp }}/release-rollback
-      - name: Select failed release phase
-        id: phase
-        shell: bash
-        run: |
-          if [[ "${{ needs.release-acceptance.result }}" != "skipped" ]]; then
-            phase="acceptance"
-          elif [[ "${{ needs.promote-vercel.result }}" != "skipped" ]]; then
-            phase="promotion"
-          else
-            phase="candidate"
-          fi
-          echo "phase=$phase" >> "$GITHUB_OUTPUT"
-      - name: Restore exact prior artifacts and verify public service
-        run: >-
-          node frontend/scripts/release-recovery.mjs
-          --phase "${{ steps.phase.outputs.phase }}"
-          --artifact "${{ runner.temp }}/release-rollback/release-rollback.json"
-        env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

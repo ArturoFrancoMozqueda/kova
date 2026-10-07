@@ -4,6 +4,7 @@ import json
 import time
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,9 @@ from app.billing import service as billing_service
 from app.billing.models import Subscription, WebhookEvent
 from app.billing.stripe_client import StripePriceError, StripeSubscriptionError
 from app.config import settings
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:

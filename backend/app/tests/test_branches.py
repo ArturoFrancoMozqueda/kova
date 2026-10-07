@@ -11,6 +11,9 @@ from app.branches.scope import tenant_wide_branches
 from app.orders.models import Order
 from app.tests.test_orders import _create_product, _signup_verify_login
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _post(client, url, body, branch=None, key=None):
     headers = {"Idempotency-Key": key or str(uuid4())}

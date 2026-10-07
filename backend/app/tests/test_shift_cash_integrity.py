@@ -5,6 +5,7 @@ from decimal import Decimal
 from threading import Event
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -28,6 +29,9 @@ from app.shifts import service as shift_service
 from app.shifts.models import CashMovement, Shift
 from app.shifts.schemas import CashMovementCreate, ShiftCloseCreate
 from app.tenants.models import Tenant
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_and_open_shift(client) -> dict:

@@ -13,6 +13,9 @@ from app.catalog.models import Product
 from app.imports import service as import_service
 from app.orders.models import InventoryMovement
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 

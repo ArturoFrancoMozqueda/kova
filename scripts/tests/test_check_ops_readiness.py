@@ -22,32 +22,10 @@ class RepositoryGateTests(unittest.TestCase):
 class WorkflowContractTests(unittest.TestCase):
     def _workflows(self, directory: str) -> Path:
         target = Path(directory)
-        ci_group = (
-            "${{ github.event_name == 'push' "
-            "&& format('{0}-{1}', github.workflow, github.ref) "
-            "|| format('{0}-pr-{1}', github.workflow, "
-            "github.event.pull_request.number) }}"
-        )
+        # Negative tests mutate a real, valid workflow rather than a list of
+        # obsolete job-name markers masquerading as YAML.
         target.joinpath("ci.yml").write_text(
-            textwrap.dedent(
-                f"""\
-                permissions: {{}}
-                concurrency:
-                  group: {ci_group}
-                  cancel-in-progress: ${{{{ github.event_name == 'pull_request' }}}}
-                e2e-mocked-dev:
-                e2e-mocked-preview:
-                  run: npm run test:e2e-preview
-                capture-release-state:
-                  project_setting: .autoAssignCustomDomains
-                  artifact: release-rollback-
-                deploy-vercel-preview:
-                  run: vercel deploy --prebuilt --prod --skip-domain
-                recover-release:
-                  run: node frontend/scripts/release-recovery.mjs
-                """
-            ),
-            encoding="utf-8",
+            (OPS.WORKFLOWS / "ci.yml").read_text(encoding="utf-8"), encoding="utf-8"
         )
         scheduler_curl = (
             'curl -X POST -H "X-Internal-Key: $INTERNAL_API_KEY" '
@@ -168,13 +146,13 @@ class WorkflowContractTests(unittest.TestCase):
             ci = workflows.joinpath("ci.yml")
             ci.write_text(
                 ci.read_text(encoding="utf-8").replace(
-                    "recover-release:", "recovery-removed:"
+                    "frontend/scripts/release.mjs --artifact", "frontend/scripts/no-recovery.mjs --artifact"
                 ),
                 encoding="utf-8",
             )
             errors = OPS.workflow_contract_errors(workflows)
         self.assertIn(
-            "contrato de release recuperable faltante: recover-release:",
+            'contrato de release recuperable faltante: frontend/scripts/release.mjs --artifact "$RUNNER_TEMP/release-rollback.json"',
             errors,
         )
 
@@ -185,7 +163,7 @@ class WorkflowContractTests(unittest.TestCase):
             ci.write_text(
                 ci.read_text(encoding="utf-8")
                 .replace(".autoAssignCustomDomains", ".framework")
-                .replace("--skip-domain", "--with-domain"),
+                ,
                 encoding="utf-8",
             )
             errors = OPS.workflow_contract_errors(workflows)
@@ -193,10 +171,17 @@ class WorkflowContractTests(unittest.TestCase):
             "contrato de release recuperable faltante: .autoAssignCustomDomains",
             errors,
         )
-        self.assertIn(
-            "contrato de release recuperable faltante: --skip-domain",
-            errors,
-        )
+
+    def test_rejects_release_without_ci_gate_or_with_ignored_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workflows = self._workflows(directory)
+            ci = workflows / "ci.yml"
+            ci.write_text(ci.read_text().replace("needs: [changes, required]",
+                                                "needs: [changes]")
+                          + "    continue-on-error: true\n")
+            errors = OPS.workflow_contract_errors(workflows)
+        self.assertIn("release debe depender del resultado CI required", errors)
+        self.assertIn("release no puede ignorar fallos", errors)
 
     def test_rejects_provider_drill_without_cleanup_or_with_automatic_trigger(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

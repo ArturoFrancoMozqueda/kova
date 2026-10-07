@@ -97,20 +97,25 @@ export function resolveNpxCommand({
 }
 
 export function runProviderCommand(command, args, options = {}) {
-  const { label = command, ...spawnOptions } = options;
+  const { label = command, capture = false, ...spawnOptions } = options;
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: "inherit", shell: false, ...spawnOptions });
+    let output = "";
+    const child = spawn(command, args, {
+      stdio: capture ? ["ignore", "pipe", "inherit"] : "inherit",
+      shell: false, ...spawnOptions,
+    });
+    if (capture) child.stdout.on("data", (chunk) => { output += chunk; });
     child.once("error", (error) =>
       reject(new Error(`${label} could not start: ${error.code ?? error.message}`)),
     );
     child.once("exit", (code) => {
-      if (code === 0) resolve();
+      if (code === 0) resolve(output.trim());
       else reject(new Error(`${label} exited with code ${code ?? "unknown"}`));
     });
   });
 }
 
-function cliProvider() {
+export function cliProvider({ globalConfig } = {}) {
   if (!process.env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
   if (!process.env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
   const npx = resolveNpxCommand();
@@ -127,8 +132,8 @@ function cliProvider() {
           "promote",
           deployment,
           "--yes",
-          "--token",
-          process.env.VERCEL_TOKEN ?? "",
+          ...(globalConfig ? ["--global-config", globalConfig]
+            : ["--token", process.env.VERCEL_TOKEN ?? ""]),
         ],
         { label: "Vercel restore" },
       );

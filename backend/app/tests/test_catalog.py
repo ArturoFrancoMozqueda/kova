@@ -1,11 +1,15 @@
 from decimal import Decimal
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import event
 
 from app.audit.models import AuditLog
 from app.auth.models import Membership
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 # A real 1x1 PNG. Uploads are now signature-validated (the declared content-type
 # must match the actual file bytes), so placeholder byte strings no longer pass.

@@ -36,7 +36,8 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         if not re.search(r"(?m)^permissions:\s*(?:\{\})?\s*$", content):
             errors.append(f"workflow sin permisos explícitos mínimos: {path.name}")
         for line_number, line in enumerate(content.splitlines(), start=1):
-            if "uses:" in line and not PINNED_ACTION.fullmatch(line):
+            if ("uses:" in line and not PINNED_ACTION.fullmatch(line)
+                    and not re.fullmatch(r"\s*uses: \./\.github/workflows/ci-maintenance\.yml", line)):
                 errors.append(
                     f"action sin SHA inmutable: {path.name}:{line_number}"
                 )
@@ -52,20 +53,37 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         if marker not in ci:
             errors.append(f"contrato de concurrencia CI faltante: {marker}")
 
+    # Require behavior and wiring, independent of the previous job names.
+    sections = dict(re.findall(
+        r"(?ms)^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:|\Z)",
+        ci.split("jobs:\n", 1)[-1],
+    ))
+    aggregate = next(((key, body) for key, body in sections.items()
+                      if "name: CI required" in body), None)
+    if not aggregate or not all(marker in aggregate[1] for marker in (
+        "if: always()", "scripts/ci_policy.py gate", "toJSON(needs)",
+        "toJSON(needs.changes.outputs)",
+    )):
+        errors.append("CI required debe evaluar todos los resultados incluso ante fallos")
+    release = next((body for body in sections.values()
+                    if "environment: production" in body), "")
+    if not aggregate or not re.search(
+        rf"needs: \[[^\]]*\b{re.escape(aggregate[0])}\b[^\]]*\]", release
+    ):
+        errors.append("release debe depender del resultado CI required")
     release_markers = (
-        "e2e-mocked-dev:",
-        "e2e-mocked-preview:",
-        "npm run test:e2e-preview",
-        "capture-release-state:",
-        "release-rollback-",
-        "recover-release:",
-        "frontend/scripts/release-recovery.mjs",
-        ".autoAssignCustomDomains",
-        "--skip-domain",
+        "github.event_name == 'push'", "github.ref == 'refs/heads/main'",
+        "needs.changes.outputs.code == 'true'", "release-rollback-",
+        "if-no-files-found: error", ".autoAssignCustomDomains",
+        'frontend/scripts/release.mjs --artifact "$RUNNER_TEMP/release-rollback.json"',
     )
     for marker in release_markers:
-        if marker not in ci:
+        if marker not in release:
             errors.append(f"contrato de release recuperable faltante: {marker}")
+    if "continue-on-error:" in release:
+        errors.append("release no puede ignorar fallos")
+    if "test:e2e-preview:built" not in ci:
+        errors.append("CI debe probar el build de producción existente")
 
     drill_path = workflows / "release-recovery-drill.yml"
     if not drill_path.is_file():

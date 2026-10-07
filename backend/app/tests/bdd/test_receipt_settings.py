@@ -1,8 +1,12 @@
 from uuid import UUID, uuid4
 
+import pytest
 from pytest_bdd import given, scenario, then, when
 
 from app.audit.models import AuditLog
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 @scenario(

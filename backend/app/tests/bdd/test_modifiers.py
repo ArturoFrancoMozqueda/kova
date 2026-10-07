@@ -1,10 +1,14 @@
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from pytest_bdd import given, parsers, scenario, then, when
 
 from app.main import app
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 @scenario(

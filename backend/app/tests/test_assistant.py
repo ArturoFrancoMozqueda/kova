@@ -15,6 +15,9 @@ from app.catalog.models import Product
 from app.config import settings
 from app.db import set_tenant_context
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def signup(client, name="Negocio de prueba"):
     email = f"{uuid4().hex}@example.com"

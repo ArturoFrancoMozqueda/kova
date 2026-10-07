@@ -8,6 +8,11 @@ net_sales.
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _signup_verify_login(client, email: str, tenant_name: str) -> None:
     response = client.post(

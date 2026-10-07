@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,9 @@ from app.config import settings
 from app.email import service as email_service
 from app.email import trial_reminders
 from app.tenants.models import Tenant
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify(client: TestClient, email: str, tenant_name: str) -> dict:

@@ -3,10 +3,14 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+import pytest
 from pytest_bdd import given, scenario, then, when
 
 from app.auth.models import Membership, User
 from app.orders.models import Order, Refund
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 @scenario("../../../../specs/reports/reports.feature", "Manager views a sales range summary")

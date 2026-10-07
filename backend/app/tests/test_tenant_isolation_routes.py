@@ -10,7 +10,11 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_login(client: TestClient, *, email: str, tenant_name: str) -> None:
