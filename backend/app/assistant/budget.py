@@ -1,4 +1,4 @@
-"""Atomic shared reservations. An uncertain remote outcome keeps its full charge."""
+"""Atomic shared reservations; only verified Llama usage releases unused capacity."""
 
 import math
 from datetime import UTC, datetime, timedelta
@@ -29,7 +29,11 @@ def reset_at() -> datetime:
     return datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
 
 
-def charge(db, limits: list[tuple[str, int, int]], *, window: str | None = None) -> None:
+def charge(
+    db, limits: list[tuple[str, int, int]], *, window: str | None = None,
+    detail: str = "Se alcanzó el límite del asistente. Intenta después.",
+    retry_after: int | None = None,
+) -> None:
     window = window or datetime.now(UTC).date().isoformat()
     # All counters are metadata only in a non-exposed control schema. The lock
     # lasts only through reservation commit, never over a network call.
@@ -48,10 +52,10 @@ def charge(db, limits: list[tuple[str, int, int]], *, window: str | None = None)
         if used + amount > ceiling:
             raise HTTPException(
                 429,
-                "Se alcanzó el límite del asistente. Intenta después.",
+                detail,
                 headers={
                     "Retry-After": str(
-                        max(1, int((reset_at() - datetime.now(UTC)).total_seconds()))
+                        retry_after or max(1, int((reset_at() - datetime.now(UTC)).total_seconds()))
                     )
                 },
             )
@@ -63,16 +67,19 @@ def charge(db, limits: list[tuple[str, int, int]], *, window: str | None = None)
 
 
 def turn(db, tenant: UUID, user: UUID) -> None:
-    charge(db, [(f"turn:{tenant}:{user}", 1, 30)])
+    # Daily inference capacity already bounds cost. Keep the burst guard without
+    # an unrelated message cap that blocks testing even with capacity remaining.
     charge(
-        db, [(f"rate:{tenant}:{user}", 1, 3)], window=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M")
+        db, [(f"rate:{tenant}:{user}", 1, 3)], window=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M"),
+        detail="Estás enviando consultas muy rápido. Espera un minuto y vuelve a intentar.",
+        retry_after=60,
     )
 
 
-def allocation(db, *, initialize=False):
+def allocation(db, *, initialize=False, window: str | None = None):
     import json
 
-    today = now_day = datetime.now(UTC).date().isoformat()
+    today = now_day = window or datetime.now(UTC).date().isoformat()
     configured = {
         "tenants": [str(t) for t in cohort()],
         "chat": min(settings.assistant_chat_budget, settings.assistant_daily_budget),
@@ -105,9 +112,11 @@ def reserve(
     input_tokens: int,
     output_tokens: int,
     background: bool = False,
+    window: str | None = None,
 ) -> int:
+    window = window or datetime.now(UTC).date().isoformat()
     amount = estimate(model, input_tokens, output_tokens)
-    fixed = allocation(db, initialize=True)
+    fixed = allocation(db, initialize=True, window=window)
     tenants = fixed["tenants"]
     if str(tenant) not in tenants:
         raise HTTPException(503, "El asistente no está habilitado.")
@@ -122,10 +131,60 @@ def reserve(
             ("account", amount, total),
             (category, amount, pool),
             (f"{category}:{tenant}", amount, share),
-            (f"{category}:{tenant}:{user}", amount, int(share * 0.75)),
+            (f"{category}:{tenant}:{user}", amount, share),
         ],
+        window=window,
+        detail=(
+            "No queda suficiente cuota diaria de IA para esta consulta. "
+            "Se renueva al final del día UTC."
+        ),
     )
     return amount
+
+
+def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, reported) -> int:
+    from app.assistant import repository as repo
+
+    # Same lock ordering as reserve: shared counters, then private job. Settlement
+    # and the receipt transition commit together, preventing replayed refunds.
+    db.execute(text("SELECT pg_advisory_xact_lock(69850425)"))
+    job = repo.get(db, tenant, user, "run", job_id, lock=True)
+    receipt = job.data.get("pending_reservation")
+    if not receipt or receipt["id"] != reservation_id:
+        return 0
+    retained = receipt["amount"]
+    # Llama has no separate reasoning budget. Do not infer billable usage for
+    # reasoning models, missing usage, partial responses or ambiguous requests.
+    if receipt["model"] == "@cf/meta/llama-3.3-70b-instruct-fp8-fast" and isinstance(
+        reported, dict
+    ):
+        counts = [reported.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")]
+        if (
+            all(type(v) is int and v >= 0 for v in counts)
+            and counts[0] > 0
+            and counts[2] == counts[0] + counts[1]
+            and set(reported) <= {"prompt_tokens", "completion_tokens", "total_tokens"}
+        ):
+            if counts[0] > receipt["input_tokens"] or counts[1] > receipt["output_tokens"]:
+                raise HTTPException(503, "El consumo reportado excedió la reserva verificada.")
+            retained = estimate(receipt["model"], counts[0], counts[1])
+    released = receipt["amount"] - retained
+    if released:
+        for bucket in ("account", "chat", f"chat:{tenant}", f"chat:{tenant}:{user}"):
+            result = db.execute(
+                text("""UPDATE assistant_control.budgets SET used=used-:amount
+                WHERE period_key=:window AND bucket=:bucket AND used>=:amount"""),
+                {"amount": released, "window": receipt["window"], "bucket": bucket},
+            )
+            if result.rowcount != 1:
+                raise HTTPException(503, "No se pudo verificar el consumo del asistente.")
+    repo.update(
+        job,
+        remote_started=False,
+        pending_reservation=None,
+        reserved=job.data["reserved"] - released,
+    )
+    return released
 
 
 def usage(db, tenant: UUID, user: UUID) -> dict:
@@ -149,6 +208,6 @@ def usage(db, tenant: UUID, user: UUID) -> dict:
         "tenant_used": used.get(bucket, 0),
         "tenant_limit": share,
         "user_used": used.get(own, 0),
-        "user_limit": int(share * 0.75),
+        "user_limit": share,
         "reset_at": reset_at().isoformat(),
     }

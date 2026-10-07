@@ -116,17 +116,15 @@ def call(db, tenant, user, name, arguments):
     if name == "get_inventory":
         story = reports.business_story(db, tenant_id=tenant, **body.model_dump())
         return {
-            k: v
-            for k, v in story.items()
-            if k
-            in {
-                "restock_alerts",
-                "recommended_actions",
-                "data_quality",
-                "inventory_valuation",
-                "start_date",
-                "end_date",
-            }
+            "start_date": story["summary"]["start_date"],
+            "end_date": story["summary"]["end_date"],
+            "restock_alerts": [
+                {k: v for k, v in alert.items() if k != "detail"}
+                for alert in story["restock_alerts"][:5]
+            ],
+            "available_alert_count": len(story["restock_alerts"]),
+            "alert_limit": 5,
+            "inventory_valuation": story["inventory_valuation"],
         }
     if name == "get_catalog":
         return {
