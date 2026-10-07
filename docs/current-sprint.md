@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 
 ## Source Of Truth
 
@@ -20,9 +20,10 @@ historical evidence and are labelled with their period.
 
 ## Active assistant implementation (2026-10-07): Groq y eficiencia
 
-Implementación local de GPT-OSS-20B, ayuda/reportes directos, cuotas por proveedor y
-consentimiento renovado al cambiar destinatario. Cuenta Groq Free y Global ZDR verificados;
-calidad comparativa, integración y activación en producción pendientes. La evidencia y los
+Integración de GPT-OSS-20B, ayuda/reportes directos, cuotas por proveedor y consentimiento
+renovado al cambiar destinatario entregada en `main` mediante PR #167. Cuenta Groq Free y
+Global ZDR verificados; calidad comparativa y activación en producción pendientes. La
+corrección posterior de formato y reserva completa está en validación local. La evidencia y los
 gates viven en [operación del asistente](assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
 
 ## Active product integration (2026-10-05): Expansión POS

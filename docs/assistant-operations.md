@@ -7,7 +7,7 @@ los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue
 
 ## Integración de Groq y respuestas directas — 2026-10-07
 
-Implementación local pendiente de integración y activación. El candidato principal es
+Integración entregada en `main` mediante PR #167; activación pendiente. El candidato principal es
 `openai/gpt-oss-20b` en Groq Free, con razonamiento `low` y salida máxima de 1024 tokens.
 GPT-OSS-120B se permite únicamente como comparador en entorno local; no hay fallback de
 pago ni cambio automático de modelo. Cloudflare conserva embeddings y su piloto actual
@@ -88,6 +88,39 @@ La suite completa local registró 1037 pruebas correctas y una diferencia de zon
 en gastos ajena al cambio: el Postgres aislado heredaba la zona del equipo. Al fijar ese
 Postgres a UTC, gastos y asistente pasaron juntos (112 pruebas), sin modificar gastos ni sus
 expectativas. CI debe confirmar la suite completa con su Postgres en UTC.
+
+### Corrección de formato y reserva completa — 2026-10-07
+
+El operador solicitó completar la preparación de Groq. Se reprodujeron tres rechazos
+`json_validate_failed` en la guía de configuración: GPT-OSS-20B copiaba medidas de papel
+en `answer`, aunque el esquema remoto y el prompt prohibían dígitos. Se refuerza esa
+instrucción junto a la evidencia de la llamada final y se mantiene el rechazo determinista
+de prosa inválida. También se aclara que preparar una propuesta no equivale a aplicarla
+y que una comparación sin referencia no permite calificar ventas como altas o bajas.
+
+La reserva de producción y el evaluador ahora cuentan las mismas instrucciones finales
+que recibe Groq. Antes, el adaptador añadía instrucciones después de medir el contexto.
+Se compactaron esas instrucciones conservando campos, esquema y validación: las
+solicitudes mínimas de los cuarenta escenarios de configuración caben individualmente
+en el techo de un minuto. Esto no garantiza que un historial o resultado más extenso
+quepa, ni elimina la espera entre consultas o la cuota compartida.
+
+Validación local: 115 pruebas del asistente con Postgres/pgvector real en UTC, Ruff,
+contrato OpenAPI y `git diff --check` correctos. Las regresiones nuevas verifican
+rechazo antes de guardar prosa con dígitos ASCII/Unicode, enlaces o HTML; correspondencia
+exacta entre reserva y mensajes/esquema enviados; y capacidad mínima de configuración.
+La guía que fallaba pasó sus tres repeticiones live con GPT-OSS-20B y citas recuperadas.
+Esto acredita ese caso de contrato, no los seiscientos resultados revisados ni la
+calidad general del modelo. El código se integró localmente con `origin/main` de PR #168;
+CI, publicación y QA autenticada de producción permanecen pendientes.
+
+La evaluación usa el ledger previo compartido sin reiniciar consumo. Las credenciales
+permanecen en el archivo privado existente; no se incluyeron en este checkout ni se
+transfirieron a Fly. La sesión local de Fly no pasó `auth whoami`. Las comprobaciones
+públicas de API y DB respondieron HTTP 200, con release
+`9275d4327e2c753318c14942d536fc30984ad209`; no verifican el proveedor activo ni una
+conversación autenticada. La batería completa, revisión humana, comparación y release
+protegido siguen siendo requisitos de activación. Ningún flag de producción se cambió.
 
 ## Mejora de interfaz y presentación — 2026-10-07
 

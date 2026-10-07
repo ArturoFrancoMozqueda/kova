@@ -257,7 +257,9 @@ def main():
                 calls = []
 
                 def call(messages, tools, *, call_log=calls, **kwargs):
-                    size = provider.tokens_upper_bound([messages, tools,
+                    size = provider.tokens_upper_bound([
+                        provider.generation_messages(messages, structured=kwargs["structured"]),
+                        tools,
                         provider.groq_response_format(kwargs.get("allowed_source_ids"))
                         if kwargs["structured"] and model.startswith("openai/") else None])
                     receipt = reserve(ledger, model, size)

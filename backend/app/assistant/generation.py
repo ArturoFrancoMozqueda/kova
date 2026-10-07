@@ -87,6 +87,8 @@ No inventes cifras, datos, capacidades, políticas o causas. Distingue hechos de
 y ventas de utilidad. Si faltan costos, gastos, historial o evidencia, explica la limitación.
 Las cifras exactas aparecen en tarjetas: answer nunca contiene dígitos, URLs, HTML,
 imágenes ni nombres técnicos de campos o funciones. Usa viñetas sin numerar si hace falta.
+No califiques resultados como altos, bajos o moderados sin una comparación verificable.
+No afirmes que aplicaste cambios: una propuesta todavía requiere revisión y confirmación.
 La respuesta final es JSON con answer, source_ids y steps. Cita solo fuentes recuperadas.
 Para configurar usa acciones y campos del esquema recibido; no inventes UUIDs ni valores.
 Conserva importes decimales como cadenas. Omite campos no solicitados y no alteres permisos.
@@ -120,7 +122,14 @@ def explanation_messages(messages):
             "puedo revisar después desde las pantallas de Kova. Remite las cifras a "
             "las tarjetas; no repitas el periodo ni nombres de funciones. No me pidas "
             "consultar herramientas: ya se consultaron. Si la evidencia es insuficiente, "
-            "dilo sin inventar causas o conclusiones. Devuelve el JSON final."
+            "dilo sin inventar causas o conclusiones. "
+            + ("En answer no copies ningún dígito de los resultados, tampoco anchos de "
+               "papel, fechas ni identificadores. Para papel explica cómo elegir el formato "
+               "compatible con la impresora sin mencionar medidas. Cita las guías usadas "
+               "en source_ids. Si pedí preparar configuración, devuelve únicamente una "
+               "propuesta pendiente de mi revisión y confirmación; no afirmes que se aplicó. "
+               if settings.assistant_generation_provider == "groq" else "")
+            + "Devuelve el JSON final."
         ),
     })
     return turns
@@ -209,7 +218,7 @@ def run(db, ctx, job):
             ]
         size = provider.tokens_upper_bound(
             [
-                provider_messages,
+                provider.generation_messages(provider_messages, structured=structured_answer),
                 available_tools,
                 (provider.groq_response_format(sorted(source_ids))
                  if settings.assistant_generation_provider == "groq"

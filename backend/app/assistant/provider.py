@@ -192,21 +192,29 @@ def _normalize_groq_answer(content: str) -> str:
     return json.dumps(answer, ensure_ascii=False)
 
 
+def generation_messages(messages, *, structured: bool):
+    """Use the same provider instructions for reservation and transport."""
+    messages = [dict(message) for message in messages]
+    if structured and settings.assistant_generation_provider == "groq":
+        output_instruction = (
+            "En steps, values usa pares {key,value} solo para campos solicitados; "
+            "importes como cadenas."
+            if settings.assistant_mutations_enabled else
+            "Devuelve solo answer y source_ids; sin steps ni propuestas."
+        )
+        messages[0] = {**messages[0], "content": messages[0]["content"] + (
+            "\n" + output_instruction + " Cita solo fuentes recuperadas en source_ids. "
+            "answer no lleva dígitos ni medidas; remite cifras a tarjetas."
+        )}
+    return messages
+
+
 def _generate_groq(messages, tools, *, model, structured, allowed_source_ids):
     if model not in groq_models() or model != settings.assistant_groq_model:
         raise HTTPException(503, "Modelo de generación no permitido.")
     if structured and tools:
         raise HTTPException(422, "La explicación final no admite herramientas.")
-    messages = [dict(message) for message in messages]
-    if structured:
-        messages[0] = {**messages[0], "content": messages[0]["content"] + (
-            "\nEn steps, values es una lista de pares {key,value} del esquema recibido. "
-            "Incluye solo campos solicitados expresamente; no rellenes valores faltantes. "
-            "source_ids solo puede contener fuentes recuperadas. "
-            + ("Configuración deshabilitada: devuelve solo answer y source_ids; "
-               "Kova incorpora steps vacío. No incluyas propuestas."
-               if not settings.assistant_mutations_enabled else "")
-        )}
+    messages = generation_messages(messages, structured=structured)
     body = {
         "model": model, "messages": messages, "stream": False,
         "reasoning_effort": "low", "include_reasoning": False,

@@ -302,6 +302,86 @@ def test_groq_final_cannot_execute_a_disabled_proposal(groq, enabled_client, mon
     assert db.query(Product).filter_by(tenant_id=tenant).count() == 0
 
 
+@pytest.mark.parametrize("prose", [
+    "Revisa el papel de 58 u 80 mm en Configuración.",
+    "Consulta el detalle en https://example.com.",
+    "Revisa <b>Configuración</b>.",
+    "Revisa el papel de ٥٨ mm en Configuración.",
+])
+def test_groq_invalid_explanation_is_never_saved(groq, enabled_client, monkeypatch, prose):
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant, "Cómo configuro mi negocio sin ejecutar cambios")
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+
+    def respond(messages, tools, **kw):
+        return {"content": json.dumps({"answer": prose, "source_ids": [], "steps": []}),
+                "tool_calls": [], "usage": {"prompt_tokens": 100, "completion_tokens": 20,
+                    "total_tokens": 120, "completion_tokens_details": {"reasoning_tokens": 0}}}
+
+    monkeypatch.setattr(provider, "generate", respond)
+    with pytest.raises(HTTPException) as exc:
+        generation.run(db, ctx, job)
+    assert exc.value.status_code == 422
+    assert not repo.records(db, tenant, ctx[0].id, "message").filter(
+        repo.AssistantRecord.data["role"].astext == "assistant"
+    ).count()
+    assert job.status != "completed"
+
+
+def test_groq_reserves_the_complete_final_request(groq, enabled_client, monkeypatch):
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant, "Cómo configuro mi negocio sin ejecutar cambios")
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    original = httpx.Client
+    stages = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        db.refresh(job)
+        assert job.data["pending_reservation"]["input_tokens"] == provider.tokens_upper_bound([
+            body["messages"], body.get("tools", []), body.get("response_format"),
+        ])
+        final = "response_format" in body
+        stages.append(final)
+        return httpx.Response(200, json=completion(
+            json.dumps({"answer": "Revisa el perfil y el formato de papel en Configuración.",
+                        "source_ids": []}) if final else "",
+            usage={"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120,
+                   "completion_tokens_details": {"reasoning_tokens": 0}},
+        ))
+
+    monkeypatch.setattr(httpx, "Client", lambda **kw: original(
+        transport=httpx.MockTransport(handler), **kw
+    ))
+    generation.run(db, ctx, job)
+    assert stages == [False, True]
+    assert job.status == "completed"
+
+
+def test_groq_configuration_requests_fit_the_free_minute_budget(groq, monkeypatch):
+    from assistant_evaluation.cases import cases
+    from scripts.evaluate_assistant import evaluate
+
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", True)
+    for case in cases():
+        if case.capability != "configuration":
+            continue
+
+        def respond(messages, tools, *, expected_steps=case.expected_steps, **kw):
+            size = provider.tokens_upper_bound([
+                provider.generation_messages(messages, structured=kw["structured"]), tools,
+                provider.groq_response_format(kw.get("allowed_source_ids"))
+                if kw["structured"] else None,
+            ])
+            assert groq_budget.estimate(size, 1024) <= settings.assistant_groq_minute_tokens
+            return {"tool_calls": [], "content": json.dumps({
+                "answer": "Revisa y confirma la propuesta.", "source_ids": [],
+                "steps": expected_steps,
+            })}
+
+        evaluate(case, provider.GROQ_MODEL, respond)
+
+
 def test_compact_tools_preserve_field_names_and_validation(groq):
     from app.assistant import tools
 
