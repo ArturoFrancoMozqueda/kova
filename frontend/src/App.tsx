@@ -8,6 +8,7 @@ import { RouteFallback } from "./components/ui/route-fallback";
 import PWAUpdatePrompt from "./components/PWAUpdatePrompt";
 import { lazyWithPreload } from "./lib/lazyWithPreload";
 import { queryClient } from "./lib/queryClient";
+import RouteIndexing from "./seo/RouteIndexing";
 
 const AuthView = lazy(() => import("./auth/AuthView"));
 const ForgotPasswordView = lazy(() => import("./auth/ForgotPasswordView"));
@@ -67,6 +68,7 @@ export const PRERENDERED_ROUTES: Record<string, () => Promise<void>> = {
 export function AppRoutes() {
   return (
     <>
+    <RouteIndexing />
     {/* The update belongs to this device, so it survives identity remounts. */}
     <PWAUpdatePrompt />
     <AuthProvider>

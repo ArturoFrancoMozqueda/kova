@@ -206,6 +206,9 @@ function injectHead(html, { path, title, description, structuredData, preloadIma
   let out = html;
   const canonical = `${CANONICAL_ORIGIN}${path}`;
   const jsonLd = structuredData ? structuredDataScript(structuredData) : "";
+  // Only the landing is a search entry point. Legal/trust pages remain public
+  // and prerendered, but should not compete with it as separate results.
+  const robots = path === "/" ? "" : '    <meta name="robots" content="noindex" />\n';
   // Route-scoped image preloads (the hero capture). fetchpriority=high puts
   // the LCP image ahead of fonts/CSS in the queue; deferPrerenderHydration's
   // font-media rewrite only matches as="font", so these pass through intact.
@@ -220,7 +223,7 @@ function injectHead(html, { path, title, description, structuredData, preloadIma
   // source shell).
   out = out.replace(
     "</head>",
-    `${images}    <link rel="canonical" href="${escapeAttr(canonical)}" />\n${jsonLd}  </head>`,
+    `${images}    <link rel="canonical" href="${escapeAttr(canonical)}" />\n${robots}${jsonLd}  </head>`,
   );
   if (title) {
     out = out.replace(
