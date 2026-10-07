@@ -153,6 +153,8 @@ export default function AppShell() {
   const canViewCustomerOrders = usePermission(CUSTOMER_ORDER_VIEW_PERMISSION);
   const marginReportsEnabled = useFeature("margin_reports");
   const customerOrdersEnabled = useFeature("customer_orders");
+  const assistantIdentity = state.status === "authenticated" && state.sessionMode === "online" && isAdminRole(state.user.role)
+    ? `${state.tenantId}:${state.user.id}:${state.user.role}` : null;
   const loadingViewName = (() => {
     const path = location.pathname;
     if (path.startsWith("/customers")) return "Clientes";
@@ -174,13 +176,13 @@ export default function AppShell() {
   useEffect(() => {
     const controller = new AbortController();
     setAssistantEnabled(false);
-    if (state.status !== "authenticated" || state.sessionMode !== "online" || !isAdminRole(state.user.role)) return;
+    if (!assistantIdentity) return;
     void fetch("/api/v1/assistant/capabilities", { signal: controller.signal, cache: "no-store" })
       .then(response => response.ok ? response.json() as Promise<{ enabled: boolean }> : { enabled: false })
       .then(value => { if (!controller.signal.aborted) setAssistantEnabled(value.enabled); })
       .catch(() => { /* Unavailable assistant never blocks navigation or POS. */ });
     return () => controller.abort();
-  }, [state]);
+  }, [assistantIdentity]);
 
   const navItems = isOfflineSession
     ? adminNavItems.filter((item) => item.to === "/register")

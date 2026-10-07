@@ -94,13 +94,29 @@ def allocation(db, *, initialize=False, window: str | None = None):
             ),
             {"day": today, "data": json.dumps(configured)},
         )
-    return (
+    fixed = (
         db.execute(
             text("SELECT data FROM assistant_control.allocations WHERE period_key=:day"),
             {"day": now_day},
         ).scalar()
         or configured
     )
+    # Raise capacity for the same frozen cohort without resetting any usage.
+    # Adding or removing tenants still waits for the next UTC day.
+    if fixed["tenants"] == configured["tenants"]:
+        expanded = {
+            **fixed,
+            "chat": max(fixed["chat"], configured["chat"]),
+            "total": max(fixed["total"], configured["total"]),
+        }
+        if initialize and expanded != fixed:
+            db.execute(
+                text("UPDATE assistant_control.allocations SET data=CAST(:data AS jsonb) "
+                     "WHERE period_key=:day"),
+                {"day": today, "data": json.dumps(expanded)},
+            )
+        return expanded
+    return fixed
 
 
 def reserve(

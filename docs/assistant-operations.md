@@ -76,7 +76,7 @@ para consultas y ayuda, por su contrato de herramientas nativas y JSON Mode. Los
 siguen como defaults históricos, pero no se activan en esta cohorte. Mantener documentos,
 mutaciones y correo en false y consentimiento externo por usuario. Para reservar margen
 por las pruebas externas, configurar presupuesto diario de 6000 neuronas y chat de 5000;
-las reservas personales siguen limitadas a tres cuartos de la parte del negocio.
+el release inicial limitaba cada persona a tres cuartos de la parte del negocio.
 La orientación de configuración debe completar el chat sin crear propuestas cuando
 mutaciones está apagado, aunque el modelo devuelva steps; no cambiar los guards de
 preparación ni confirmación del ejecutor. Verificar contratos live con datos sintéticos
@@ -145,10 +145,21 @@ Cambios de comportamiento:
 Para aplicar la capacidad máxima después del release aprobado, ajustar únicamente las
 dos variables de presupuesto anteriores en el runtime. El piloto de lectura se activó
 inicialmente con 6000/5000: los valores existentes pueden prevalecer sobre los defaults.
-El reparto fijado al comenzar el día se conserva hasta la siguiente renovación UTC;
-no borrar contadores ni asignaciones para aparentar una cuota nueva. Verificar antes
+La cohorte fijada al comenzar el día se conserva hasta la siguiente renovación UTC.
+Una ampliación de presupuesto para esa misma cohorte aplica sin borrar ni reducir el
+consumo acumulado; cambiar sus negocios espera al siguiente día. Verificar antes
 el consumo externo de esa cuenta y mantener margen para él. No hace falta contratar
 inferencia de pago para esta corrección.
+
+La prueba autenticada posterior al PR #162 detectó dos interrupciones de interfaz:
+el shell desmontaba la bolita al renovar la misma identidad y la página completa
+repetía su recuperación inicial al cambiar el enlace de continuación. La corrección
+preserva el borrador y trabajo al refrescar la misma sesión, mantiene el borrado de
+estado privado ante cambios de negocio, usuario o rol, y conserva el resultado nuevo
+al actualizar la URL. Sus pruebas cubren el borrador, la revocación y las tarjetas
+de un trabajo que termina después de cambiar el enlace. La ampliación de presupuesto
+conserva el consumo ya registrado y mantiene la cohorte del día; no devuelve reservas
+antiguas ni redistribuye capacidad a otros negocios.
 
 Archivos afectados: `backend/app/assistant/{budget,generation,knowledge,provider,repository,tools}.py`,
 `frontend/src/assistant/{AssistantCompanion,AssistantView,EvidenceCards}.tsx`, el DTO de tarjetas
@@ -236,8 +247,9 @@ acceso al host, herramientas integradas o credenciales de infraestructura.
 Workers AI ofrece 10,000 neuronas diarias por cuenta; no es una cuota por tenant. El código reserva
 como máximo 9,000/día: 8,000 chat y el resto ingesta. El reset del contador es 00:00 UTC.
 
-- La primera reserva congela la cohorte y el presupuesto de ese día. Añadir negocios espera al
-  siguiente día; bajar un límite surte efecto inmediatamente. No redistribuir cuota a mitad del día.
+- La primera reserva congela la cohorte de ese día. Añadir o retirar negocios espera al
+  siguiente día. Aumentar el presupuesto de la misma cohorte conserva todos los contadores;
+  bajar un límite surte efecto inmediatamente. No redistribuir cuota a mitad del día.
 - El pool se divide por tenant; una persona puede utilizar toda la porción compartida de su tenant.
   Nadie puede agotar la porción asignada a otro negocio. No hay préstamos de cuota en esta versión.
 - Tres consultas/minuto por usuario, sin tope independiente de mensajes diarios; hasta cuatro

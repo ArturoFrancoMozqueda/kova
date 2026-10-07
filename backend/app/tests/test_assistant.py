@@ -945,6 +945,33 @@ def test_partial_failure_preserves_applied_step_without_duplicate(enabled_client
     assert db.query(Product).filter_by(tenant_id=tenant).count() == 2
 
 
+def test_quota_increase_preserves_usage_for_same_cohort(enabled_client, monkeypatch):
+    _, db, tenant, _ = enabled_client
+    user, _, _ = context(db, tenant)
+    monkeypatch.setattr(settings, "assistant_daily_budget", 6000)
+    monkeypatch.setattr(settings, "assistant_chat_budget", 5000)
+    model = settings.assistant_help_model
+    first = budget.reserve(db, tenant, user.id, model=model, input_tokens=1, output_tokens=1)
+    buckets = ("account", "chat", f"chat:{tenant}", f"chat:{tenant}:{user.id}")
+    budget.charge(db, [(b, 5000 - first, 6000) for b in buckets])
+    db.commit()
+    with pytest.raises(HTTPException):
+        budget.reserve(db, tenant, user.id, model=model, input_tokens=1, output_tokens=1)
+    db.rollback()
+    monkeypatch.setattr(settings, "assistant_daily_budget", 9000)
+    monkeypatch.setattr(settings, "assistant_chat_budget", 8000)
+    assert budget.usage(db, tenant, user.id)["tenant_used"] == 5000
+    assert budget.usage(db, tenant, user.id)["tenant_limit"] == 8000
+    second = budget.reserve(db, tenant, user.id, model=model, input_tokens=1, output_tokens=1)
+    db.commit()
+    assert budget.allocation(db)["tenants"] == [str(tenant)]
+    assert budget.usage(db, tenant, user.id)["tenant_used"] == 5000 + second
+    monkeypatch.setattr(settings, "assistant_chat_budget", 5000)
+    assert budget.usage(db, tenant, user.id)["tenant_limit"] == 5000
+    with pytest.raises(HTTPException):
+        budget.reserve(db, tenant, user.id, model=model, input_tokens=1, output_tokens=1)
+
+
 def test_quota_allocation_does_not_expand_midday(enabled_client, monkeypatch):
     _, db, tenant, _ = enabled_client
     user, _, _ = context(db, tenant)
