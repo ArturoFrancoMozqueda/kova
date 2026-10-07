@@ -5,6 +5,90 @@ El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
 
+## Integración de Groq y respuestas directas — 2026-10-07
+
+Implementación local pendiente de integración y activación. El candidato principal es
+`openai/gpt-oss-20b` en Groq Free, con razonamiento `low` y salida máxima de 1024 tokens.
+GPT-OSS-120B se permite únicamente como comparador en entorno local; no hay fallback de
+pago ni cambio automático de modelo. Cloudflare conserva embeddings y su piloto actual
+hasta completar los gates. No se amplían cohorte, documentos, mutaciones ni correo.
+
+Se verificó en la cuenta creada por el operador: plan **Free**, Global Zero Data Retention
+activado y límites de ambos GPT-OSS de 30 RPM, 1000 RPD, 8000 TPM y 200000 TPD. La clave
+se capturó mediante `backend/scripts/setup_assistant_groq.py`, con entrada oculta y archivo
+privado ignorado por Git y Docker. No se transfirió a Fly ni se activó Groq en producción.
+Referencias: [límites](https://console.groq.com/docs/rate-limits),
+[datos y ZDR](https://console.groq.com/docs/your-data),
+[razonamiento](https://console.groq.com/docs/reasoning),
+[JSON estricto](https://console.groq.com/docs/structured-outputs).
+
+Cambios entregados:
+
+- FAQ inequívocas y reportes directos de ventas, productos, inventario y sucursales usan
+  las guías y servicios existentes, sin inferencia ni reserva de cuota de modelo.
+  Ejemplos: «¿Qué producto es el que más se vende?», «¿Cuánto vendí ayer?» y
+  «¿Cómo importar mi catálogo?». Los periodos usan la zona horaria real del negocio;
+  una pregunta sin periodo usa hoy, explicado en la respuesta. Preguntas ambiguas,
+  seguimientos y solicitudes de cambios pasan al modelo, conservando permisos.
+- Adaptador Groq con destino fijo, herramientas de lectura y explicación final estricta
+  en llamadas separadas. Kova sigue validando prosa, fuentes, campos, permisos y
+  confirmación; el JSON del proveedor no autoriza cambios.
+- Contadores de tokens/solicitudes de Groq separados de neuronas de Cloudflare en el
+  esquema privado existente, con reservas atómicas y límites conservadores: 180000 TPD,
+  900 RPD, 7200 TPM y 27 RPM. Ventanas móviles conservadoras de veinticuatro horas y
+  un minuto; la interfaz muestra recuperación gradual y distingue pausa temporal,
+  capacidad compartida y cuota del negocio. No se promete un reinicio UTC para Groq.
+- Se contabiliza razonamiento dentro de `completion_tokens`, sin sumarlo dos veces.
+  Totales ausentes/incoherentes mantienen la reserva; conciliación idempotente y
+  cooldown de errores 429 compartido entre workers, sin reintentos del proveedor.
+- Consentimiento ligado al destinatario: el consentimiento histórico es Cloudflare.
+  Cambiar a Groq requiere una nueva aceptación explícita antes de enviar datos. El
+  campo opcional `chat_provider` es aditivo y preserva clientes históricos Cloudflare.
+
+Activación requiere `ASSISTANT_GENERATION_PROVIDER=groq`, una clave privada en el gestor
+seguro del host, `ASSISTANT_GROQ_MODEL=openai/gpt-oss-20b` y verificación explícita de
+`ASSISTANT_PROVIDER_VERIFIED`, `ASSISTANT_GROQ_FREE_VERIFIED`,
+`ASSISTANT_GROQ_ZDR_VERIFIED` y `ASSISTANT_GROQ_QUALITY_VERIFIED`. Este último permanece
+**false** mientras la batería no cumpla los requisitos. Mantener los flags y UUIDs actuales
+del piloto; no poner credenciales ni identidades privadas en documentación o commits.
+
+Evaluación reproducible desde `backend/`:
+
+```sh
+.venv/bin/python scripts/evaluate_assistant.py --manifest
+.venv/bin/python scripts/evaluate_assistant.py --model groq-20b --limit 200 --account-verified
+.venv/bin/python scripts/evaluate_assistant.py --model groq-120b --limit 200 --account-verified
+.venv/bin/python scripts/evaluate_assistant.py --model qwen-cloudflare --limit 200 --account-verified
+.venv/bin/python scripts/evaluate_assistant.py --model groq-20b --summary
+```
+
+El corpus tiene 200 casos y tres repeticiones por candidato. El runner reanuda lotes,
+conserva un ledger local compartido entre modelos Groq y se detiene antes de superar
+sus límites. `--capability` permite focalizar una categoría. Solo usa datos sintéticos;
+Cloudflare requiere su propia credencial gratuita, no reutiliza la de Groq. Resultados y
+revisiones viven en `output/assistant-evaluation/`, ignorado por Git. La revisión registra
+resolución correcta/abstención justificada, citas pertinentes, español útil y comportamiento
+seguro. Exigir 600 ejecuciones distintas del mismo código por candidato, resolución ≥95%,
+citas ≥90% y ninguna acción no autorizada/filtración en la batería. Las pruebas de contrato
+no sustituyen revisión semántica ni integración E2E.
+
+Los primeros smoke reales comprobaron propuestas de configuración y consumo de razonamiento.
+Se corrigieron instrucciones mezcladas en planificación y el esquema vacío rechazado por Groq.
+La guía de configuración todavía obtuvo tres rechazos del contrato de prosa con GPT-OSS-20B
+en el lote posterior; no se publicó ese contenido ni se declaró aprobado al modelo.
+La conformidad JSON no equivale a calidad semántica ni a citas pertinentes. La batería completa, comparación de candidatos,
+aceptación humana del español y activación/despliegue en la cohorte siguen pendientes.
+
+Validación local: 109 pruebas específicas de backend, 42 de frontend y ocho escenarios de
+Chromium (320, 390, 768 y 1440 px) correctos. Ruff, ESLint, contrato OpenAPI y build/SSR/prerender
+correctos. La regresión integra una venta real en la base aislada de pruebas y comprueba
+que el reporte directo conserva producto, unidades e importe del backend sin inferencia.
+No se verificaron VoiceOver/NVDA ni la activación Groq con una sesión de producción.
+La suite completa local registró 1037 pruebas correctas y una diferencia de zona horaria
+en gastos ajena al cambio: el Postgres aislado heredaba la zona del equipo. Al fijar ese
+Postgres a UTC, gastos y asistente pasaron juntos (112 pruebas), sin modificar gastos ni sus
+expectativas. CI debe confirmar la suite completa con su Postgres en UTC.
+
 ## Mejora de interfaz y presentación — 2026-10-07
 
 Cambio local de frontend: conversación con más espacio, historial plegable en móvil,

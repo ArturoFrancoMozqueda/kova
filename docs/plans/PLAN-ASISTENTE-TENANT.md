@@ -110,6 +110,15 @@ un catálogo grande usa el importador, no cientos de herramientas individuales.
 
 ### 4.1 Elección inicial sujeta a evaluación
 
+Actualización solicitada al 2026-10-07: candidato principal **GPT-OSS-20B en Groq Free**,
+razonamiento bajo, FAQ/reportes deterministas y cuotas de tokens independientes de Cloudflare.
+La cuenta gratuita y Global ZDR están verificados; calidad y activación siguen pendientes.
+GPT-OSS-120B y Qwen económico son comparadores, sin fallback de pago. Implementación,
+consentimiento al cambiar proveedor, comandos y evidencia actual en
+[operación Groq](../assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
+La decisión siguiente describe el piloto histórico, todavía conservado hasta cerrar los gates.
+
+
 Decisión de piloto de lectura al 2026-10-06: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
 para consultas y ayuda. Las pruebas con Qwen detectaron incompatibilidades con el contrato
 de salida; Llama permite herramientas nativas y explicación final con JSON Mode. No se

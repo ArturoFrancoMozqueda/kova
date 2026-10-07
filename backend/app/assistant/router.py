@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.concurrency import run_in_threadpool
 
-from app.assistant import budget, documents, executor, knowledge, provider, storage
+from app.assistant import budget, direct, documents, executor, knowledge, provider, storage
 from app.assistant import repository as repo
 from app.assistant.access import enabled, principal, require_enabled, scope
 from app.assistant.models import now
@@ -44,6 +44,9 @@ def capabilities(db=Depends(get_db), ctx=Depends(principal)):
     return {
         "enabled": enabled(ctx[1].tenant_id),
         "inference_ready": provider.ready(),
+        "local_answers_ready": enabled(ctx[1].tenant_id),
+        "provider_name": "Groq" if settings.assistant_generation_provider == "groq"
+        else "Cloudflare",
         "configuration": settings.assistant_mutations_enabled and enabled(ctx[1].tenant_id),
         "documents": settings.assistant_documents_enabled
         and storage.ready()
@@ -123,7 +126,7 @@ def message_create(
     if not 1 <= len(key) <= 100:
         raise HTTPException(422, "Clave de idempotencia inválida.")
     pref = repo.records(db, tenant, user, "preferences").first()
-    if not pref or not pref.data.get("chat_consent"):
+    if not pref or not provider.chat_consent_valid(pref.data):
         raise HTTPException(403, "Acepta el procesamiento externo antes de consultar.")
     content = knowledge.safe_text(body.content)
     digest = executor.fingerprint(
@@ -135,7 +138,7 @@ def message_create(
         if replay.data["request_hash"] != digest:
             raise HTTPException(409, "La clave ya se usó para otra consulta.")
         return repo.view(db, tenant, user, replay)
-    if not provider.ready():
+    if not provider.ready() and not direct.match(content):
         raise HTTPException(503, "El proveedor de IA aún no está configurado.")
     if (
         repo.records(db, tenant, user, "run")
@@ -240,18 +243,20 @@ def proposal_reject(identifier: UUID, db=Depends(get_db), ctx=Depends(require_en
 def preferences(db=Depends(get_db), ctx=Depends(principal)):
     tenant, user, _ = scope(db, ctx)
     row = repo.records(db, tenant, user, "preferences").first()
-    return (
-        PreferenceWrite.model_validate(row.data if row else {})
-        if not row
-        else PreferenceWrite.model_validate(
-            {k: v for k, v in row.data.items() if k in PreferenceWrite.model_fields}
-        )
-    )
+    data = {k: v for k, v in row.data.items() if k in PreferenceWrite.model_fields} if row else {}
+    data.update(chat_consent=bool(row and provider.chat_consent_valid(row.data)),
+                chat_provider=settings.assistant_generation_provider)
+    return PreferenceWrite.model_validate(data)
 
 
 @router.put("/preferences")
 def preferences_write(body: PreferenceWrite, db=Depends(get_db), ctx=Depends(principal)):
     tenant, user, branch = scope(db, ctx)
+    if body.chat_consent and (body.chat_provider or "cloudflare") != (
+        settings.assistant_generation_provider
+    ):
+        raise HTTPException(409, "El proveedor cambió. Revisa y acepta el permiso actualizado.")
+    body.chat_provider = settings.assistant_generation_provider
     if body.email_opt_in and not ctx[0].is_email_verified:
         raise HTTPException(422, "Verifica tu correo antes de activar avisos.")
     row = (

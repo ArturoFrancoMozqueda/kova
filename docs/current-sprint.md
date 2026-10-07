@@ -18,6 +18,13 @@ historical evidence and are labelled with their period.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
 
+## Active assistant implementation (2026-10-07): Groq y eficiencia
+
+Implementación local de GPT-OSS-20B, ayuda/reportes directos, cuotas por proveedor y
+consentimiento renovado al cambiar destinatario. Cuenta Groq Free y Global ZDR verificados;
+calidad comparativa, integración y activación en producción pendientes. La evidencia y los
+gates viven en [operación del asistente](assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
+
 ## Active product integration (2026-10-05): Expansión POS
 
 The owner explicitly authorized implementation, agent branches/worktrees, integration and production

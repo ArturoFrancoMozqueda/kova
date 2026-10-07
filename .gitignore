@@ -159,6 +159,7 @@ activemq-data/
 .env.test
 .env.test.local
 .envrc
+/output/assistant-evaluation/
 .venv
 .venv*/
 env/

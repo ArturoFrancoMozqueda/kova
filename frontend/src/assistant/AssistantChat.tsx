@@ -96,6 +96,7 @@ export function AssistantConversation({ messages, run, busy, onCancel, empty, co
           {run.data.sources?.length ? <details className="rounded-kova-lg border border-kova-border bg-kova-mist/40 px-3"><summary className="min-h-11 cursor-pointer py-3 text-xs font-medium focus-visible:outline-kova-blue">Fuentes consultadas · {run.data.sources.length}</summary><div className="space-y-1 border-t border-kova-border py-2">{run.data.sources.map((source, index) => <a key={`${source.id}:${index}`} href={source.path} className="flex min-h-11 items-center gap-2 rounded-kova-md p-2 text-sm text-kova-blue hover:bg-white focus-visible:outline-kova-blue"><FileText size={16} className="shrink-0" /><span className="min-w-0 break-words">{source.title} · Página {source.page}</span><ArrowUpRight size={14} className="ml-auto shrink-0" /></a>)}</div></details> : null}
         </div> : null}
         {generating ? <div role="status" className="flex items-center gap-3 rounded-kova-lg bg-kova-mist/60 px-3 py-2"><Loader2 size={16} className="shrink-0 animate-spin text-kova-blue motion-reduce:animate-none" /><p className="flex-1 text-sm text-kova-muted">{run?.status === "queued" ? "Preparando tu consulta…" : "Consultando los datos de tu negocio…"}</p><Button variant="ghost" disabled={busy} className="px-2 text-xs" onClick={onCancel}>Cancelar</Button></div> : null}
+        {run?.status === "failed" && run.data.limit_kind && run.data.retry_at ? <p role="status" className="rounded-kova-lg bg-kova-mist p-3 text-xs leading-5 text-kova-muted">Puedes volver a consultar con IA después de {new Date(run.data.retry_at).toLocaleString("es-MX", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}. Mientras tanto, pregunta cuánto vendiste hoy, qué productos se venden más o cómo importar tu catálogo.</p> : null}
         {children}
       </div>
     </div>
@@ -127,8 +128,11 @@ export function AssistantComposer({ id, value, onChange, onSubmit, disabled, rea
 
 export function AssistantUsage({ usage }: { usage: Usage }) {
   const percent = usage.tenant_limit > 0 ? Math.min(100, Math.max(0, usage.tenant_used / usage.tenant_limit * 100)) : 0;
+  const paused = usage.limit_kind && usage.limit_kind !== "available";
+  const label = usage.limit_kind === "temporary" ? "La IA tiene una pausa temporal" : usage.limit_kind === "provider_daily" ? "La capacidad compartida de IA se agotó" : "Tu negocio alcanzó su cuota de IA";
+  const recovery = new Date(usage.reset_at).toLocaleString("es-MX", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   return <details className="max-w-full rounded-kova-lg border border-kova-border bg-white px-3 text-xs text-kova-muted">
-    <summary className="min-h-11 cursor-pointer py-3 font-medium focus-visible:outline-kova-blue">Uso del asistente · {Math.round(percent)}% de la cuota diaria</summary>
-    <div className="max-w-xs space-y-2 border-t border-kova-border pb-3 pt-2"><p>Cuota diaria compartida: {usage.tenant_used.toLocaleString("es-MX")} / {usage.tenant_limit.toLocaleString("es-MX")} unidades</p><div className="h-1.5 overflow-hidden rounded-full bg-kova-mist"><div className="h-full rounded-full bg-kova-blue" style={{ width: `${percent}%` }} /></div><p className="leading-5">Incluye consumo estimado y reservas pendientes · Se renueva {new Date(usage.reset_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</p></div>
+    <summary className="min-h-11 cursor-pointer py-3 font-medium focus-visible:outline-kova-blue">{paused ? label : `Uso del asistente · ${Math.round(percent)}% de la cuota diaria`}</summary>
+    <div className="max-w-xs space-y-2 border-t border-kova-border pb-3 pt-2"><p>Cuota diaria compartida: {usage.tenant_used.toLocaleString("es-MX")} / {usage.tenant_limit.toLocaleString("es-MX")} {usage.unit === "tokens" ? "tokens" : usage.unit === "neurons" ? "neuronas" : "unidades"}</p><div className="h-1.5 overflow-hidden rounded-full bg-kova-mist"><div className="h-full rounded-full bg-kova-blue" style={{ width: `${percent}%` }} /></div><p className="leading-5">Incluye consumo estimado y reservas pendientes · {usage.window === "rolling_24h" ? "Se libera gradualmente; próxima recuperación" : "Se renueva"} {recovery}</p><p className="leading-5">La ayuda y los reportes directos siguen disponibles.</p></div>
   </details>;
 }
