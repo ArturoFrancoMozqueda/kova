@@ -11,7 +11,7 @@ describe("inventory evidence", () => {
       inventory_valuation: { complete: false, tracked_products: 6, products_without_cost: 2 },
     } }]} />);
     expect(screen.getByText("Concha")).toBeVisible();
-    expect(screen.getByText("Existencias: 0 · Umbral: 5")).toBeVisible();
+    expect(screen.getByText(/Existencias:/)).toHaveTextContent("Existencias: 0 · Umbral: 5");
     expect(screen.getByText("Sin historial suficiente para estimar la duración.")).toBeVisible();
     expect(screen.getByText(/Faltan costos de 2 productos/)).toBeVisible();
     expect(screen.getByText("Mostrando 1 de 6 alertas disponibles en Análisis.")).toBeVisible();
@@ -22,7 +22,8 @@ describe("inventory evidence", () => {
       restock_alerts: [{ product_id: "p1", product_name: "Pan", stock_on_hand: 3,
         low_stock_threshold: 5, days_until_out: "1.5", severity: "critical" }],
     } }]} />);
-    expect(screen.getByText("Pan · Atención prioritaria")).toBeVisible();
+    expect(screen.getByText("Pan")).toBeVisible();
+    expect(screen.getByText("Atención prioritaria")).toBeVisible();
     expect(screen.getByText(/Duración estimada al ritmo registrado: 1.5 días/)).toBeVisible();
   });
 

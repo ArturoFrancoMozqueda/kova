@@ -5,6 +5,48 @@ El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
 
+## Mejora de interfaz y presentación — 2026-10-07
+
+Cambio local de frontend: conversación con más espacio, historial plegable en móvil,
+editor que ajusta su altura, Enter para consultar y Shift + Enter para otra línea.
+La vista completa y el compañero flotante comparten respuestas con Markdown semántico,
+copiado explícito, estados de consulta/cancelación y fuentes desplegables. Una respuesta
+nueva abre su explicación; leer mensajes anteriores conserva la posición de desplazamiento.
+Ventas, productos, sucursales e inventario usan exclusivamente los payloads existentes;
+las métricas ausentes no se rellenan con ceros. Se conservan estados vacíos, estimaciones,
+costos faltantes, consentimiento, scope, permisos, cuotas e idempotencia.
+
+Referencias de diseño consultadas: [Intercom Copilot](https://www.intercom.com/help/en/articles/8587194-how-to-use-copilot)
+para fuentes verificables y [Vercel, UI con v0](https://vercel.com/academy/ai-sdk/ui-with-v0)
+para patrones de conversación. No se incorporó otro proveedor ni se cambió el contrato de IA.
+
+Archivos: `frontend/src/assistant/{AssistantView,AssistantCompanion,EvidenceCards}.tsx`;
+nuevos componentes `AssistantChat.tsx` y `AnswerContent.tsx`; pruebas
+`AssistantChat.test.tsx`, `EvidenceCards.test.tsx` y `frontend/e2e/assistant.spec.ts`;
+`frontend/package{,-lock}.json`, `frontend/vite.config.ts` y esta guía.
+Las dos aserciones de inventario se adaptan a cantidades en negritas y prioridad como badge;
+conservan los mismos valores, estados y requisitos de evidencia.
+
+Validación local:
+
+- `npm test -- --run src/assistant src/layout/AppShell.assistant.test.tsx`: 38 pruebas.
+- `npm run lint`: correcto; revisión focalizada repetida después de los ajustes finales.
+- `npm run build`: TypeScript, Vite, SSR y prerender correctos.
+- `npm run test:e2e-dev -- e2e/assistant.spec.ts`: ocho escenarios correctos.
+- `npm run test:e2e-preview -- e2e/assistant.spec.ts`: los mismos ocho escenarios
+  correctos sobre el artefacto compilado, con APIs simuladas exclusivamente en pruebas.
+- Capturas revisadas en Chromium a 320, 390, 768 y 1440 px; sin desbordamiento horizontal.
+  Axe no detectó problemas serios/críticos en la vista completa; se verificaron teclado,
+  consentimiento sin inferencia, cambio de ruta, continuidad y retorno de foco del compañero.
+  El escenario de 390 px usa movimiento reducido.
+- El grafo de imports inicial del build excluye `AnswerContent` y
+  `vendor-assistant-markdown`; el parser se carga al mostrar una respuesta.
+
+Vite sigue emitiendo una advertencia de dependencia circular entre `vendor` y
+`vendor-react`; build y navegador compilado pasan. No se verificaron VoiceOver/NVDA,
+teclado físico móvil ni nuevas respuestas con el proveedor real. No hubo cambios backend,
+migraciones, activación de flags ni despliegue. Esta validación no cierra los gates live.
+
 ## Estado de activación — 2026-10-06
 
 El código y Alembic `0075_assistant` ya llegaron a producción con los flags del asistente

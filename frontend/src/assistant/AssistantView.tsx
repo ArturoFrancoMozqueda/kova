@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Brain, FileText, LockKeyhole, MessageCircle, Plus, Send, ShieldCheck, Target, Trash2 } from "lucide-react";
+import { Brain, FileText, LockKeyhole, MessageCircle, Plus, Settings2, ShieldCheck, Target, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ConfigurationDraft } from "./ConfigurationDraft";
-import { EvidenceCards } from "./EvidenceCards";
+import { AssistantComposer, AssistantConversation, AssistantUsage, AssistantWelcome } from "./AssistantChat";
+import { LogoMark } from "@/components/brand/Logo";
 import { assistantApi, type Capabilities, type Identity, type Preferences, type Resource, type Step, type Usage } from "./api";
 
 const DEFAULT_PREFS: Preferences = { chat_consent: false, document_consent: false, email_opt_in: false, frequency: "weekly" };
@@ -191,6 +192,7 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
   };
   const send = (event: FormEvent) => {
     event.preventDefault();
+    if (!input.trim() || busy || generating || !capabilities?.inference_ready || !preferences.chat_consent) return;
     void act(async () => {
       let id = conversation;
       if (!id) {
@@ -220,36 +222,32 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
   });
   const generating = run && ["queued", "running"].includes(run.status);
 
-  return <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><div className="mb-2 flex items-center gap-2 text-sm text-kova-muted"><ShieldCheck size={16} /> {tenantName} · Sucursal activa</div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Tu asistente de negocio</h1>
-        <p className="mt-2 max-w-xl text-sm text-kova-muted">Configura tu negocio, consulta evidencia y da seguimiento a lo que importa.</p>
-      </div>
-      {usage ? <Card className="px-4 py-3 text-sm"><p>Cuota diaria compartida: {usage.tenant_used.toLocaleString("es-MX")} / {usage.tenant_limit.toLocaleString("es-MX")} unidades</p><p className="mt-1 text-xs text-kova-muted">Incluye consumo estimado y reservas pendientes · Se renueva {new Date(usage.reset_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}</p></Card> : null}
+  return <main className="mx-auto w-full min-w-0 max-w-6xl space-y-5 p-4 sm:p-6">
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-kova-blue/10 bg-kova-grad-sky text-kova-blue"><LogoMark size={30} /></span><div><h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Tu asistente de negocio</h1><p className="mt-1 text-xs text-kova-muted">{tenantName} · Sucursal activa</p></div></div>
+      {usage ? <AssistantUsage usage={usage} /> : null}
     </header>
     {error ? <div role="alert" className="rounded-kova-md border border-kova-danger/30 bg-kova-danger/5 p-4 text-sm">{error}<Button variant="ghost" onClick={() => void act(refresh)} className="ml-2">Volver a cargar</Button></div> : null}
     {!capabilities ? <Card className="p-5" role="status">Cargando el asistente…</Card> : !capabilities.enabled ? <Card className="p-6"><h2 className="font-semibold">Disponible próximamente para tu negocio</h2><p className="mt-2 text-sm text-kova-muted">El asistente se habilita después de verificar aislamiento, calidad y capacidad. Tus herramientas actuales siguen disponibles.</p><Link className="mt-4 inline-flex min-h-11 items-center text-kova-blue underline" to="/settings">Abrir configuración</Link></Card> : <>
-      <nav aria-label="Secciones del asistente" className="flex gap-2 overflow-x-auto pb-1">{[
-        ["chat", "Conversaciones", MessageCircle], ["configuration", "Configurar", ShieldCheck], ["files", "Archivos", FileText], ["memory", "Memoria y objetivos", Brain], ["followup", "Seguimiento", Target], ["preferences", "Preferencias", ShieldCheck],
-      ].map(([key, label, Icon]) => { const Glyph = Icon as typeof Brain; return <Button key={String(key)} variant={tab === key ? "default" : "outline"} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(String(key))}><Glyph size={16} />{String(label)}</Button>; })}</nav>
-      {tab === "chat" ? <div className="grid gap-4 lg:grid-cols-[230px_1fr]">
-        <Card className="space-y-2 p-4"><Button variant="outline" className="w-full" onClick={() => { setConversation(null); setMessages([]); setRun(null); setParams({}, { replace: true }); }}><Plus />Nueva conversación</Button>
-          <p className="flex items-center gap-2 py-2 text-xs text-kova-muted"><LockKeyhole size={14} />Privadas para tu usuario</p>
-          {conversations.length === 0 ? <p className="text-sm text-kova-muted">Tu primera consulta aparecerá aquí.</p> : conversations.map(item => <button key={item.id} className={`min-h-11 w-full rounded-kova-md p-2 text-left text-sm ${conversation === item.id ? "bg-kova-mist" : "hover:bg-kova-mist"}`} onClick={() => void act(() => loadConversation(item.id))}>{item.data.title}</button>)}
-          {conversation ? <Button variant="ghost" disabled={busy || !!generating} onClick={() => void act(async () => { await api(`/conversations/${conversation}`, "DELETE"); setConversation(null); setMessages([]); setRun(null); setParams({}, { replace: true }); await refresh(); })}><Trash2 />Borrar conversación</Button> : null}
-        </Card>
-        <Card className="flex min-h-[480px] flex-col p-4 sm:p-5">
-          <div className="flex-1 space-y-4" role="log" aria-label="Conversación privada">
-            {messages.length === 0 ? <div className="py-8"><h2 className="text-xl font-medium">¿Qué quieres resolver hoy?</h2><p className="mt-2 text-sm text-kova-muted">Consulta resultados reales o prepara una configuración. Cada cambio necesita tu revisión.</p><div className="mt-5 flex flex-wrap gap-2">{["Ayúdame a configurar mi negocio", "¿Qué pendientes tengo?", "Revisa mis ventas de este mes"].map(text => <Button key={text} variant="outline" onClick={() => setInput(text)}>{text}</Button>)}</div></div> : messages.map(message => <div key={message.id} className={`max-w-full rounded-kova-lg p-4 ${message.data.role === "user" ? "ml-auto bg-kova-mist sm:max-w-[85%]" : "border border-kova-border"}`}><p className="mb-1 text-xs font-medium text-kova-muted">{message.data.role === "user" ? "Tú" : "Asistente Kova"}</p><p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{message.data.content}</p></div>)}
-            {run ? <div className="space-y-3" aria-live="polite">{generating ? <p className="text-sm text-kova-muted">{statuses[run.status]}… <Button variant="ghost" onClick={() => void act(async () => { const cancelled = await api<Resource>(`/runs/${run.id}/cancel`, "POST"); if (alive.current) setRun(cancelled); })}>Cancelar</Button></p> : run.data.error ? <p role="alert" className="text-sm text-kova-danger">{run.data.error}</p> : null}
-              {run.data.metrics ? <div className="grid grid-cols-2 gap-3">{[["net_sales", "Venta neta"], ["order_count", "Tickets"], ["refund_total", "Reembolsos"], ["gross_sales", "Venta bruta"]].map(([key, label]) => <div key={key} className="rounded-kova-md bg-kova-mist p-3"><p className="text-xs text-kova-muted">{label}</p><p className="mt-1 font-semibold">{key === "order_count" ? run.data.metrics?.[key] : new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(Number(run.data.metrics?.[key]))}</p></div>)}<p className="col-span-2 text-xs text-kova-muted">Periodo: {run.data.metrics.start_date} a {run.data.metrics.end_date} · Sucursal activa</p></div> : null}
-              {run.data.cards ? <EvidenceCards cards={run.data.cards} /> : null}
-              {run.data.sources?.map((source, index) => <a key={`${source.id}:${index}`} href={source.path} className="inline-flex min-h-11 items-center text-sm text-kova-blue underline">{source.title} · Página {source.page}</a>)}
-            </div> : null}
-          </div>
-          {!preferences.chat_consent ? <div className="mt-5 rounded-kova-md bg-kova-mist p-4 text-sm"><p>Para responder, se enviará al proveedor de IA tu consulta y el contexto autorizado mínimo de este negocio. Puedes retirar este permiso en Preferencias.</p><Button className="mt-3" disabled={busy} onClick={() => void act(async () => { await api("/preferences", "PUT", { ...preferences, chat_consent: true }); await refresh(); })}>Aceptar y habilitar consultas</Button></div> : <form className="mt-5 space-y-2" onSubmit={send}><label htmlFor="assistant-question" className="text-sm font-medium">Tu pregunta</label><textarea id="assistant-question" className={`${fieldClass} min-h-24 resize-y`} maxLength={4000} value={input} onChange={event => setInput(event.target.value)} placeholder="Cuéntame qué necesitas resolver…" disabled={busy || !!generating} /><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-kova-muted">No compartas contraseñas ni claves. Los cambios requieren confirmación.</p><Button type="submit" disabled={busy || !!generating || !input.trim() || !capabilities.inference_ready}><Send />Consultar</Button></div>{!capabilities.inference_ready ? <p className="text-sm text-kova-muted">El proveedor de IA aún no está conectado. Puedes revisar archivos, preferencias y propuestas existentes.</p> : null}</form>}
-        </Card>
+      <nav aria-label="Secciones del asistente" className="flex gap-1 overflow-x-auto border-b border-kova-border pb-2">{[
+        ["chat", "Conversaciones", MessageCircle], ["configuration", "Configurar", ShieldCheck], ["files", "Archivos", FileText], ["memory", "Memoria y objetivos", Brain], ["followup", "Seguimiento", Target], ["preferences", "Preferencias", Settings2],
+      ].map(([key, label, Icon]) => { const Glyph = Icon as typeof Brain; return <Button key={String(key)} variant="ghost" className={tab === key ? "bg-kova-blue/10 text-kova-blue hover:bg-kova-blue/10" : "text-kova-muted"} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(String(key))}><Glyph size={16} />{String(label)}</Button>; })}</nav>
+      {tab === "chat" ? <div className="overflow-hidden rounded-2xl border border-kova-border bg-white shadow-kova-card lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="border-b border-kova-border bg-kova-mist/50 p-3 lg:flex lg:flex-col lg:border-b-0 lg:border-r lg:p-4">
+          <Button variant="outline" className="w-full justify-start" disabled={busy || !!generating} onClick={() => { setConversation(null); setMessages([]); setRun(null); pendingTurn.current = null; setParams({}, { replace: true }); }}><Plus />Nueva conversación</Button>
+          <details className="mt-2 lg:hidden"><summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-kova-muted focus-visible:outline-kova-blue">Historial de conversaciones · {conversations.length}</summary><div className="max-h-48 space-y-1 overflow-y-auto">{conversations.length === 0 ? <p className="p-2 text-xs text-kova-muted">Tu primera consulta aparecerá aquí.</p> : conversations.map(item => <button key={item.id} disabled={busy || !!generating} aria-current={conversation === item.id ? "page" : undefined} className={`min-h-11 w-full break-words rounded-kova-md p-2 text-left text-sm focus-visible:outline-kova-blue ${conversation === item.id ? "bg-white font-medium text-kova-blue" : "hover:bg-white"}`} onClick={() => void act(() => loadConversation(item.id))}>{item.data.title}</button>)}</div></details>
+          <div className="mt-6 hidden min-h-0 flex-1 lg:block"><p className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-kova-muted">Tus conversaciones</p><div className="max-h-[460px] space-y-1 overflow-y-auto">{conversations.length === 0 ? <p className="px-2 text-xs leading-5 text-kova-muted">Tu primera consulta aparecerá aquí.</p> : conversations.map(item => <button key={item.id} disabled={busy || !!generating} aria-current={conversation === item.id ? "page" : undefined} className={`flex min-h-11 w-full items-start gap-2 rounded-kova-md p-2 text-left text-sm focus-visible:outline-kova-blue ${conversation === item.id ? "bg-white font-medium text-kova-blue shadow-kova-card" : "text-kova-muted hover:bg-white"}`} onClick={() => void act(() => loadConversation(item.id))}><MessageCircle size={14} className="mt-1 shrink-0" /><span className="min-w-0 break-words line-clamp-2">{item.data.title}</span></button>)}</div></div>
+          <div className="mt-4 hidden border-t border-kova-border pt-3 lg:block"><p className="flex items-center gap-2 text-[11px] text-kova-muted"><LockKeyhole size={13} />Privadas para tu usuario</p>{conversation ? <Button variant="ghost" className="mt-2 w-full justify-start px-2 text-xs text-kova-muted" disabled={busy || !!generating} onClick={() => void act(async () => { await api(`/conversations/${conversation}`, "DELETE"); setConversation(null); setMessages([]); setRun(null); setParams({}, { replace: true }); await refresh(); })}><Trash2 />Borrar conversación</Button> : null}</div>
+        </aside>
+        <div className="flex h-[min(720px,calc(100dvh-230px))] min-h-[540px] min-w-0 flex-col">
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-kova-border px-4 py-3 sm:px-6"><div className="min-w-0"><p className="truncate text-sm font-medium">{conversations.find(item => item.id === conversation)?.data.title ?? "Una mirada a tu negocio"}</p><p className="mt-1 flex items-center gap-1.5 text-[11px] text-kova-muted"><LockKeyhole size={12} />Solo para ti · Sucursal activa</p></div><span className="flex shrink-0 items-center gap-1.5 rounded-full border border-kova-border px-2.5 py-1 text-[10px] text-kova-muted"><span className={`h-1.5 w-1.5 rounded-full ${capabilities.inference_ready ? "bg-kova-blue" : "bg-kova-muted"}`} />{capabilities.inference_ready ? "Disponible" : "IA sin conectar"}</span></header>
+          <AssistantConversation messages={messages} run={run} busy={busy} onCancel={() => void act(async () => { if (!run) return; const cancelled = await api<Resource>(`/runs/${run.id}/cancel`, "POST"); if (alive.current) setRun(cancelled); })} empty={<AssistantWelcome disabled={busy || !!generating} onSuggestion={text => { setInput(text); document.getElementById("assistant-question")?.focus(); }} />} />
+          {!preferences.chat_consent ? <div className="shrink-0 border-t border-kova-border bg-kova-mist/50 p-4 sm:px-8"><div className="mx-auto max-w-2xl"><p className="text-sm leading-6 text-kova-muted">Para responder, se enviará al proveedor de IA tu consulta y el contexto autorizado mínimo de este negocio. Puedes retirar este permiso en Preferencias.</p><Button className="mt-3 bg-kova-blue hover:bg-kova-blue/90" disabled={busy} onClick={() => void act(async () => { await api("/preferences", "PUT", { ...preferences, chat_consent: true }); await refresh(); })}>Aceptar y habilitar consultas</Button></div></div> : <>
+            {!capabilities.inference_ready ? <p className="shrink-0 bg-kova-mist/50 px-4 py-2 text-xs leading-5 text-kova-muted sm:px-8">El proveedor de IA aún no está conectado. Puedes revisar archivos, preferencias y propuestas existentes.</p> : null}
+            <AssistantComposer id="assistant-question" value={input} onChange={setInput} onSubmit={send} disabled={busy || !!generating} ready={capabilities.inference_ready} />
+          </>}
+          {conversation ? <Button variant="ghost" className="shrink-0 rounded-none text-xs text-kova-muted lg:hidden" disabled={busy || !!generating} onClick={() => void act(async () => { await api(`/conversations/${conversation}`, "DELETE"); setConversation(null); setMessages([]); setRun(null); setParams({}, { replace: true }); await refresh(); })}><Trash2 />Borrar conversación</Button> : null}
+        </div>
       </div> : null}
       {tab === "configuration" ? <Card className="space-y-5 p-5"><h2 className="text-lg font-semibold">Configurar con tu asistente</h2><p className="text-sm text-kova-muted">Prepara los datos aunque el proveedor de IA todavía no esté conectado. Cada propuesta requiere tu confirmación.</p>{capabilities.configuration ? <ConfigurationDraft busy={busy} onPreview={steps => void act(async () => { const proposal = await api<Resource>("/proposals", "POST", { steps }); if (alive.current) { setSelectedProposal(proposal); setEditingProposal(false); } await refresh(); })} /> : <p className="text-sm text-kova-muted">La configuración asistida aún no está habilitada.</p>}</Card> : null}
       {tab === "files" ? <Card className="space-y-5 p-5"><div><h2 className="text-lg font-semibold">Archivos de tu negocio</h2><p className="mt-1 text-sm text-kova-muted">Un catálogo cambia datos después de confirmar. Un documento aporta conocimiento y fuentes.</p></div>
@@ -279,5 +277,5 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
         <div className="mt-5 flex flex-wrap gap-3">{!editingProposal && selectedProposal && ["pending_approval", "partial", "approved"].includes(selectedProposal.status) ? <>{selectedProposal.status === "pending_approval" ? <Button variant="outline" disabled={busy} onClick={() => setEditingProposal(true)}>Corregir propuesta</Button> : null}<Button disabled={busy} onClick={confirm}>{busy ? "Aplicando…" : selectedProposal.status === "partial" ? "Confirmar pasos pendientes" : "Aplicar configuración"}</Button><Button variant="outline" disabled={busy} onClick={() => void act(async () => { await api(`/proposals/${selectedProposal.id}/reject`, "POST"); if (alive.current) setSelectedProposal(null); await refresh(); })}>Rechazar pendientes</Button></> : <Button variant="outline" onClick={() => setSelectedProposal(null)}>Cerrar</Button>}</div>
       </Dialog>
     </>}
-  </div>;
+  </main>;
 }

@@ -190,6 +190,12 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
+          // The global companion must not pull the response parser into every
+          // app/landing load. Match Markdown and its parser dependencies before
+          // the generic React/vendor rules; AnswerContent imports this lazily.
+          if (/node_modules\/(?:react-markdown|remark-[^/]+|rehype-[^/]+|micromark[^/]*|mdast-[^/]+|hast-[^/]+|unist-[^/]+|vfile[^/]*|unified|bail|ccount|character-[^/]+|comma-separated-tokens|decode-named-character-reference|devlop|html-url-attributes|longest-streak|markdown-table|parse-entities|property-information|space-separated-tokens|stringify-entities|style-to-js|style-to-object|trim-lines|trough|zwitch)\//.test(id)) {
+            return "vendor-assistant-markdown";
+          }
           // Recharts and its transitive deps (react-redux, react-is, d3-*, ...) must be
           // matched before the generic "react" rule below, otherwise the substring match
           // pulls them into the eager vendor-react chunk and they load on every route.
