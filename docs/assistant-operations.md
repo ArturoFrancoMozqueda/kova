@@ -105,13 +105,19 @@ solicitudes mínimas de los cuarenta escenarios de configuración caben individu
 en el techo de un minuto. Esto no garantiza que un historial o resultado más extenso
 quepa, ni elimina la espera entre consultas o la cuota compartida.
 
-Validación local: 115 pruebas del asistente con Postgres/pgvector real en UTC, Ruff,
+Validación local: 117 pruebas del asistente con Postgres/pgvector real en UTC, Ruff,
 contrato OpenAPI y `git diff --check` correctos. Las regresiones nuevas verifican
 rechazo antes de guardar prosa con dígitos ASCII/Unicode, enlaces o HTML; correspondencia
 exacta entre reserva y mensajes/esquema enviados; y capacidad mínima de configuración.
-La guía que fallaba pasó sus tres repeticiones live con GPT-OSS-20B y citas recuperadas.
-Esto acredita ese caso de contrato, no los seiscientos resultados revisados ni la
-calidad general del modelo. El código se integró localmente con `origin/main` de PR #168;
+Una primera versión de la corrección pasó las tres repeticiones live de la guía
+con GPT-OSS-20B y citas recuperadas. La ampliación encontró un rechazo de validación
+en configuración y una explicación de ventas que inventaba comparaciones y costos,
+aunque esta última pasaba el contrato JSON. La instrucción de papel se limita ahora
+a la guía recuperada de configuración; se aclara que faltan referencias para comparar
+periodos y que utilidad no calculable no significa pérdidas. Dos regresiones adicionales
+impiden incorporar instrucciones de impresión a una explicación de ventas. La nueva
+versión requiere sus propios resultados; ninguna prueba anterior acredita los seiscientos
+resultados revisados ni calidad general. El código se integró con `origin/main` de PR #168;
 CI, publicación y QA autenticada de producción permanecen pendientes.
 
 La evaluación usa el ledger previo compartido sin reiniciar consumo. Las credenciales

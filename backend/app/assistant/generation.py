@@ -83,8 +83,9 @@ get_top_products para más vendidos, get_inventory para reposición, compare_bra
 sucursales, get_catalog para identificar recursos, search_knowledge para guías.
 Resuelve fechas con today y timezone reales. Para revisión general combina ventas,
 productos e inventario. No pidas al usuario ejecutar funciones disponibles.
-No inventes cifras, datos, capacidades, políticas o causas. Distingue hechos de hipótesis
-y ventas de utilidad. Si faltan costos, gastos, historial o evidencia, explica la limitación.
+No inventes datos, capacidades, políticas o causas. Sin periodos comparables no afirmes tendencias.
+Ventas no son utilidad. profit_available=false significa utilidad no calculable, nunca pérdidas.
+Si faltan costos, gastos, historial o evidencia, explica la limitación.
 Las cifras exactas aparecen en tarjetas: answer nunca contiene dígitos, URLs, HTML,
 imágenes ni nombres técnicos de campos o funciones. Usa viñetas sin numerar si hace falta.
 No califiques resultados como altos, bajos o moderados sin una comparación verificable.
@@ -111,6 +112,13 @@ def planning_system_prompt():
 def explanation_messages(messages):
     """A completed read is evidence, not another function-calling turn."""
     results = [json.loads(m["content"]) for m in messages if m["role"] == "tool"]
+    paper_guidance = (
+        "Para papel explica cómo elegir el formato compatible con la impresora sin medidas. "
+        if any(isinstance(result, list) and any(
+            isinstance(source, dict) and source.get("id") == direct.GUIDE_PREFIX + "1"
+            for source in result
+        ) for result in results) else ""
+    )
     turns = [m for m in messages if m["role"] != "tool" and not m.get("tool_calls")]
     turns.append({
         "role": "user",
@@ -123,9 +131,8 @@ def explanation_messages(messages):
             "las tarjetas; no repitas el periodo ni nombres de funciones. No me pidas "
             "consultar herramientas: ya se consultaron. Si la evidencia es insuficiente, "
             "dilo sin inventar causas o conclusiones. "
-            + ("En answer no copies ningún dígito de los resultados, tampoco anchos de "
-               "papel, fechas ni identificadores. Para papel explica cómo elegir el formato "
-               "compatible con la impresora sin mencionar medidas. Cita las guías usadas "
+            + ("En answer no copies ningún dígito de los resultados, tampoco medidas, "
+               "fechas ni identificadores. " + paper_guidance + "Cita las guías usadas "
                "en source_ids. Si pedí preparar configuración, devuelve únicamente una "
                "propuesta pendiente de mi revisión y confirmación; no afirmes que se aplicó. "
                if settings.assistant_generation_provider == "groq" else "")

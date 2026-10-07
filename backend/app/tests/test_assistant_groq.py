@@ -382,6 +382,20 @@ def test_groq_configuration_requests_fit_the_free_minute_budget(groq, monkeypatc
         evaluate(case, provider.GROQ_MODEL, respond)
 
 
+@pytest.mark.parametrize("evidence,mentions_paper", [
+    ([{"id": direct.GUIDE_PREFIX + "1", "content": "Guía del perfil y ticket."}], True),
+    ({"net_sales": "150.00", "profit_available": False}, False),
+])
+def test_groq_paper_guidance_does_not_contaminate_sales(groq, evidence, mentions_paper):
+    final = generation.explanation_messages([
+        {"role": "system", "content": generation.system_prompt()},
+        {"role": "user", "content": "Explica la evidencia disponible."},
+        {"role": "tool", "content": json.dumps(evidence)},
+    ])
+    assert ("impresora" in final[-1]["content"]) is mentions_paper
+    assert ("papel" in final[-1]["content"]) is mentions_paper
+
+
 def test_compact_tools_preserve_field_names_and_validation(groq):
     from app.assistant import tools
 
