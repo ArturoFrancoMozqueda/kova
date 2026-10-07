@@ -50,15 +50,22 @@ describe("tenant assistant review and privacy", () => {
     expect(screen.getByText("Pendientes y seguimiento")).toBeVisible();
   });
   it("keeps the new run and evidence when its continuation URL changes", async () => {
+    let completed = false;
     vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
       const path = input.split("/assistant")[1];
+      if (path === "/runs/new-run") completed = true;
+      // Real conversation reads resolve after React processes the terminal run.
+      if (path === "/conversations/new-chat" && completed) await new Promise(resolve => setTimeout(resolve, 20));
       const data = path === "/capabilities" ? { enabled: true, inference_ready: true }
         : path === "/preferences" ? { chat_consent: true }
         : path === "/usage" ? { tenant_used: 0, tenant_limit: 8000, reset_at: "2026-10-08T00:00:00Z" }
         : path === "/conversations" ? init?.method === "POST" ? { id: "new-chat", data: {} } : [{ id: "old-chat", data: { title: "Anterior" } }]
         : path === "/conversations/old-chat" ? { messages: [{ id: "old-message", data: { role: "assistant", content: "Respuesta anterior" } }] }
         : path === "/conversations/new-chat/messages" ? { id: "new-run", status: "queued", data: {} }
-        : path === "/conversations/new-chat" ? { messages: [{ id: "new-message", data: { role: "user", content: "Revisa mis ventas" } }] }
+        : path === "/conversations/new-chat" ? { messages: [
+          { id: "new-message", data: { role: "user", content: "Revisa mis ventas" } },
+          ...(completed ? [{ id: "new-answer", data: { role: "assistant", content: "Hay ventas completadas; revisa los productos que contribuyeron al resultado." } }] : []),
+        ] }
         : path === "/runs/new-run" ? { id: "new-run", status: "completed", data: { metrics: { net_sales: "125.00", order_count: 2, gross_sales: "125.00", refund_total: "0.00", start_date: "2026-10-01", end_date: "2026-10-06" } } }
         : [];
       return new Response(JSON.stringify(data));
@@ -70,6 +77,7 @@ describe("tenant assistant review and privacy", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Tu pregunta" }), { target: { value: "Revisa mis ventas" } });
     fireEvent.click(screen.getByRole("button", { name: "Consultar" }));
     await waitFor(() => expect(screen.getByText("Venta neta")).toBeVisible(), { timeout: 4000 });
+    await screen.findByText("Hay ventas completadas; revisa los productos que contribuyeron al resultado.");
     expect(screen.queryByText("Respuesta anterior")).toBeNull();
     expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/conversations/old-chat"))).toHaveLength(1);
     expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/capabilities"))).toHaveLength(1);

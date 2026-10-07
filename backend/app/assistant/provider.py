@@ -68,13 +68,20 @@ def _call(model: str, body: dict, *, chat=False) -> dict:
         raise HTTPException(503, "No se pudo completar la consulta de IA.") from None
 
 
-def read_only_response_format() -> dict | None:
+def read_only_response_format(allowed_source_ids: list[str] | None = None) -> dict | None:
     if not settings.assistant_mutations_enabled:
         schema = Answer.model_json_schema()
         schema.pop("$defs", None)
         schema["properties"]["answer"].pop("maxLength", None)
         schema["required"] = ["answer", "source_ids", "steps"]
         schema["properties"]["answer"]["pattern"] = "^[^0-9<>$]*$"
+        if allowed_source_ids is not None:
+            if allowed_source_ids:
+                schema["properties"]["source_ids"]["items"] = {
+                    "type": "string", "enum": allowed_source_ids,
+                }
+            else:
+                schema["properties"]["source_ids"]["maxItems"] = 0
         schema["properties"]["steps"] = {
             "type": "array",
             "maxItems": 0,
@@ -88,7 +95,8 @@ def read_only_response_format() -> dict | None:
 
 
 def generate(
-    messages: list[dict], tools: list[dict], *, model: str, structured: bool = False
+    messages: list[dict], tools: list[dict], *, model: str, structured: bool = False,
+    allowed_source_ids: list[str] | None = None,
 ) -> dict:
     body = {
         "messages": messages,
@@ -99,7 +107,7 @@ def generate(
     # Workers AI rejects an empty tools array; omit it for the final explanation.
     if tools:
         body["tools"] = tools
-    response_format = read_only_response_format() if structured else None
+    response_format = read_only_response_format(allowed_source_ids) if structured else None
     if response_format:
         body["response_format"] = response_format
     if model == "@cf/qwen/qwen3.8-27b":

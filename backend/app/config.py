@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     assistant_r2_secret_key: SecretStr | None = None
     assistant_r2_bucket: str = "kova-assistant"
     assistant_daily_budget: int = Field(default=9000, ge=1, le=9000)
-    assistant_chat_budget: int = Field(default=8000, ge=1, le=8000)
+    assistant_chat_budget: int = Field(default=8000, ge=1, le=9000)
     assistant_model: str = "@cf/qwen/qwen3.8-27b"
     assistant_help_model: str = "@cf/qwen/qwen3-30b-a3b-fp8"
 
