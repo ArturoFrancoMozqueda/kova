@@ -14,6 +14,7 @@ import re
 import sys
 import time
 from dataclasses import asdict
+from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,9 @@ from assistant_evaluation.cases import RESOURCE, cases  # noqa: E402
 
 MODELS = {"groq-20b": "openai/gpt-oss-20b", "groq-120b": "openai/gpt-oss-120b",
           "qwen-cloudflare": "@cf/qwen/qwen3-30b-a3b-fp8"}
+# USD per token in integer billionths; verified Groq standard pricing 2026-10-07.
+# No cache discount assumed. These are evaluation rates, not production billing.
+NANOUSD_RATES = {"openai/gpt-oss-20b": (75, 300), "openai/gpt-oss-120b": (150, 600)}
 
 
 def harness_hash():
@@ -35,7 +39,7 @@ def harness_hash():
     return digest.hexdigest()
 
 
-def reserve(ledger, model, input_size):
+def reserve(ledger, model, input_size, *, paid=None):
     from app.assistant import budget, groq_budget
 
     clock = time.time()
@@ -46,12 +50,33 @@ def reserve(ledger, model, input_size):
     recent = [row for row in ledger if row["at"] > clock - 86400
               and row["groq"] == groq]
     minute = [row for row in recent if row["at"] > clock - 60]
-    if (sum(row["amount"] for row in recent) + amount > (180000 if groq else 9000)
-            or groq and (len(recent) >= 900 or len(minute) >= 27
-                         or sum(row["amount"] for row in minute) + amount > 7200)):
+    charge = None
+    if paid is not None:
+        if model not in NANOUSD_RATES or not 0 <= input_size <= 8000:
+            raise ValueError("invalid_paid_evaluation")
+        input_rate, output_rate = NANOUSD_RATES[model]
+        # Keep the provider overhead allowance and headroom. Uncertain outcomes
+        # retain this entire amount, including errors, cancellations and crashes.
+        charge = math.ceil((input_size + 256) * 1.15) * input_rate + 1024 * output_rate
+        used = sum(row.get("charge_nanousd", 0) for row in ledger)
+        if used + charge > paid["budget_nanousd"]:
+            return None
+        token_limit = math.floor(paid["tpm"] * .9)
+        request_limit = math.floor(paid["rpm"] * .9)
+        if (sum(row["amount"] for row in minute) + amount > token_limit
+                or len(minute) + 1 > request_limit
+                or paid["tpd"] and sum(row["amount"] for row in recent) + amount
+                > math.floor(paid["tpd"] * .9)
+                or paid["rpd"] and len(recent) + 1 > math.floor(paid["rpd"] * .9)):
+            return None
+    elif (sum(row["amount"] for row in recent) + amount > (180000 if groq else 9000)
+          or groq and (len(recent) >= 900 or len(minute) >= 27
+                       or sum(row["amount"] for row in minute) + amount > 7200)):
         return None
     receipt = {"at": clock, "groq": groq, "amount": amount,
                "input_tokens": input_size, "output_tokens": 1024}
+    if charge is not None:
+        receipt.update(model=model, charge_nanousd=charge, paid=True)
     ledger.append(receipt)
     return receipt
 
@@ -61,6 +86,8 @@ def synthetic_result(name, case):
 
     dates = {"start_date": "2026-10-01", "end_date": "2026-10-07"}
     if name == "search_knowledge":
+        if case.capability == "private_rag":
+            return case.private_sources
         selected = list(GUIDES.items())[case.guide - 1:case.guide] if case.guide else []
         return [{"id": key, "title": title, "content": content[:600], "path": path,
                  "page": 1, "public": True} for key, (title, content, path) in selected]
@@ -150,7 +177,8 @@ def evaluate(case, model, call):
     steps = [step.model_dump(mode="json") for step in answer.steps]
     return {"answer": answer.model_dump(mode="json"), "tools": reads,
             "setup_matches": steps == case.expected_steps if case.expected_steps else None,
-            "has_required_citation": bool(answer.source_ids) if case.guide else None}
+            "has_required_citation": bool(answer.source_ids)
+            if case.guide or case.private_sources else None}
 
 
 def summarize(path, model):
@@ -168,13 +196,14 @@ def summarize(path, model):
                     for row in cited) / max(1, len(cited))
     times = sorted(row["latency_seconds"] for row in selected)
     expected = {(case.id, repetition) for case in cases() for repetition in range(3)}
+    required = len(expected)
     identities = {(row.get("case_id"), row.get("repetition")) for row in selected}
-    return {"model": model, "completed": len(selected), "required": 600,
+    return {"model": model, "completed": len(selected), "required": required,
             "human_reviewed": len(reviewed), "resolution_rate": quality,
             "relevant_citation_rate": citations,
             "p50_seconds": times[math.ceil(len(times) * .5) - 1] if times else None,
             "p95_seconds": times[math.ceil(len(times) * .95) - 1] if times else None,
-            "quality_gate_passed": len(selected) == len(reviewed) == 600
+            "quality_gate_passed": len(selected) == len(reviewed) == required
             and identities == expected
             and all(row.get("harness_hash") == harness_hash() for row in selected)
             and quality >= .95 and citations >= .90
@@ -189,23 +218,49 @@ def main():
     parser.add_argument("--model", choices=MODELS, default="groq-20b")
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--capability", choices=["configuration", "analysis", "rag",
-                        "missing_evidence", "security", "recovery"])
+                        "missing_evidence", "security", "recovery", "private_rag"])
     parser.add_argument("--manifest", action="store_true")
     parser.add_argument("--summary", action="store_true")
     parser.add_argument("--account-verified", action="store_true",
                         help="Confirmación de cuenta dedicada gratuita, límites y ZDR verificados")
+    parser.add_argument("--paid-budget-usd", type=Decimal,
+                        help="Gasto total autorizado para evaluación, como máximo diez USD")
+    parser.add_argument("--paid-account-verified", action="store_true",
+                        help="Developer activo, cuenta dedicada, ZDR y tarifas verificadas")
+    parser.add_argument("--paid-tpm", type=int)
+    parser.add_argument("--paid-rpm", type=int)
+    parser.add_argument("--paid-tpd", type=int,
+                        help="Límite verificado; cero solo si la cuenta no impone techo diario")
+    parser.add_argument("--paid-rpd", type=int,
+                        help="Límite verificado; cero solo si la cuenta no impone techo diario")
     args = parser.parse_args()
     OUTPUT.mkdir(parents=True, exist_ok=True)
     results_path = OUTPUT / "results.json"
     if args.manifest:
         (OUTPUT / "cases.json").write_text(json.dumps([asdict(case) for case in cases()],
                                                       ensure_ascii=False, indent=2))
-        print("Manifest: 200 casos sintéticos; tres repeticiones por candidato. No se llamó a IA.")
+        print(f"Manifest: {len(cases())} casos sintéticos; tres repeticiones por candidato. "
+              "No se llamó a IA.")
         return
     if args.summary:
         print(json.dumps(summarize(results_path, args.model), ensure_ascii=False, indent=2))
         return
-    if not args.account_verified or not 1 <= args.limit <= 200:
+    paid = None
+    paid_options = (args.paid_tpm, args.paid_rpm, args.paid_tpd, args.paid_rpd)
+    if args.paid_budget_usd is not None:
+        if (not args.paid_budget_usd.is_finite() or not 0 < args.paid_budget_usd <= 10
+                or not args.paid_account_verified or args.model == "qwen-cloudflare"
+                or any(value is None for value in paid_options)
+                or not 2 <= args.paid_tpm <= 250000 or not 2 <= args.paid_rpm <= 1000
+                or min(args.paid_tpd, args.paid_rpd) < 0):
+            raise SystemExit("Verifica Developer, ZDR, tarifas, límites y presupuesto autorizado. "
+                             "No se llamó a IA.")
+        paid = {"budget_nanousd": int(args.paid_budget_usd * 1_000_000_000),
+                "tpm": args.paid_tpm, "rpm": args.paid_rpm,
+                "tpd": args.paid_tpd, "rpd": args.paid_rpd}
+    elif args.paid_account_verified or any(value is not None for value in paid_options):
+        raise SystemExit("Falta presupuesto de evaluación autorizado. No se llamó a IA.")
+    if (not args.account_verified and paid is None) or not 1 <= args.limit <= 200:
         raise SystemExit("Verifica cuenta gratuita, límites y ZDR; usa --account-verified y "
                          "--limit entre uno y doscientos. No se llamó a IA.")
     # Only this isolated process bypasses the quality flag to measure the model.
@@ -262,7 +317,7 @@ def main():
                         tools,
                         provider.groq_response_format(kwargs.get("allowed_source_ids"))
                         if kwargs["structured"] and model.startswith("openai/") else None])
-                    receipt = reserve(ledger, model, size)
+                    receipt = reserve(ledger, model, size, paid=paid)
                     if receipt is None and model.startswith("openai/"):
                         # Only wait for our own minute reservations, never retry a
                         # provider error or bypass the daily allowance.
@@ -274,7 +329,7 @@ def main():
                             )))
                             print(f"Distribuyendo el lote: espera de {delay} segundos.", flush=True)
                             time.sleep(delay)
-                            receipt = reserve(ledger, model, size)
+                            receipt = reserve(ledger, model, size, paid=paid)
                     if receipt is None:
                         raise RuntimeError("evaluation_quota")
                     ledger_path.write_text(json.dumps(ledger))
@@ -291,6 +346,12 @@ def main():
                         actual = groq_budget.verified_usage(reported, receipt)
                         if actual is not None:
                             receipt["amount"] = actual
+                            if paid is not None:
+                                input_rate, output_rate = NANOUSD_RATES[model]
+                                receipt["charge_nanousd"] = (
+                                    reported["prompt_tokens"] * input_rate
+                                    + reported["completion_tokens"] * output_rate
+                                )
                             ledger_path.write_text(json.dumps(ledger))
                     return response
 

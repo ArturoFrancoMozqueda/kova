@@ -700,6 +700,16 @@ Construir 200 casos con datos sintéticos aislados, nunca copiar datos de produc
 30 de ataques/permiso y 20 de fallos/recuperación. Ejecutar tres repeticiones por candidato,
 presupuestadas fuera de la cuenta de producción o distribuidas entre días sin superar cuota.
 
+Ampliación solicitada el 2026-10-07: incluir archivos propios del negocio en el lanzamiento de
+guías, consultas y recomendaciones, sin requerir configuración por asistente. El evaluador
+conserva estos 200 casos y añade veinte de manuales/catálogos privados, contradicciones con
+backend, inyección en documento y archivo no disponible: 220 casos y 660 ejecuciones por
+candidato. No se reducen umbrales ni repeticiones y no se sustituyen resultados originales.
+Los fragmentos sintéticos no acreditan extracción, retrieval/ACL, OCR ni ingesta desplegada.
+Escalabilidad, costos y carga se verifican desde el inicio; Free no es una promesa de capacidad
+ilimitada. GPT-OSS-120B se prioriza como comparador tras fallos de 20B; ninguno está aprobado.
+La investigación es inmediata; el operador descartó programación diaria.
+
 Excepción de alcance solicitada por el operador el 2026-10-06: preparar un piloto de
 lectura en una única cohorte, usando Llama 3.3 70B para chat y ayuda y manteniendo documentos,
 mutaciones y correo apagados. Requiere contratos live sintéticos y verificación de

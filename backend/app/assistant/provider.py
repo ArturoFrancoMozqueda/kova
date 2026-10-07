@@ -171,6 +171,10 @@ def groq_response_format(allowed_source_ids: list[str] | None = None) -> dict:
         # is rejected by Groq's decoder; Kova restores its public empty steps.
         del schema["properties"]["steps"]
         schema["required"].remove("steps")
+    if allowed_source_ids is not None and not allowed_source_ids:
+        # Numerical tools have cards, not document source IDs. Never invite the
+        # decoder to invent a citation when retrieval produced no sources.
+        schema["properties"]["source_ids"]["maxItems"] = 0
     # Semantics, lengths, UUIDs, citation ACLs and disabled actions are still
     # validated by Kova. Strict JSON is not an authorization boundary.
     return {"type": "json_schema", "json_schema": {

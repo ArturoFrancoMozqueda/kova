@@ -259,10 +259,12 @@ def test_evaluation_manifest_covers_all_required_capabilities():
     from assistant_evaluation.cases import cases
 
     corpus = cases()
-    assert len(corpus) == len({case.id for case in corpus}) == 200
+    # The business-file launch requirement adds coverage without changing any
+    # original oracle or reducing its required repetitions.
+    assert len(corpus) == len({case.id for case in corpus}) == 220
     assert Counter(case.capability for case in corpus) == {
         "configuration": 40, "analysis": 40, "rag": 40,
-        "missing_evidence": 30, "security": 30, "recovery": 20,
+        "missing_evidence": 30, "security": 30, "recovery": 20, "private_rag": 20,
     }
 
 
@@ -358,6 +360,39 @@ def test_groq_reserves_the_complete_final_request(groq, enabled_client, monkeypa
     assert job.status == "completed"
 
 
+def test_groq_free_cold_query_finishes_with_observed_usage(groq, enabled_client, monkeypatch):
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant, "Cómo configuro mi negocio sin ejecutar cambios")
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    original = httpx.Client
+    stages = []
+
+    def handler(request):
+        final = "response_format" in json.loads(request.content)
+        stages.append(final)
+        if not final:
+            return httpx.Response(200, json={"choices": [{"finish_reason": "tool_calls",
+                "message": {"content": "", "tool_calls": [{"id": "guide", "type": "function",
+                    "function": {"name": "search_knowledge",
+                                 "arguments": '{"query":"configurar mi negocio"}'}}]}}],
+                "usage": {"prompt_tokens": 793, "completion_tokens": 99, "total_tokens": 892,
+                          "completion_tokens_details": {"reasoning_tokens": 53}}})
+        return httpx.Response(200, json=completion(
+            json.dumps({"answer": "Revisa el perfil del negocio y el formato de tu impresora.",
+                        "source_ids": [direct.GUIDE_PREFIX + "1"]}),
+            usage={"prompt_tokens": 983, "completion_tokens": 189, "total_tokens": 1172,
+                   "completion_tokens_details": {"reasoning_tokens": 27}},
+        ))
+
+    monkeypatch.setattr(httpx, "Client", lambda **kw: original(
+        transport=httpx.MockTransport(handler), **kw
+    ))
+    generation.run(db, ctx, job)
+    assert stages == [False, True]
+    assert job.status == "completed"
+    assert budget.usage(db, tenant, ctx[0].id)["tenant_used"] == 2064
+
+
 def test_groq_configuration_requests_fit_the_free_minute_budget(groq, monkeypatch):
     from assistant_evaluation.cases import cases
     from scripts.evaluate_assistant import evaluate
@@ -421,6 +456,61 @@ def test_groq_read_only_strict_output_has_no_proposal_schema(groq, monkeypatch):
     assert json.loads(provider._normalize_groq_answer(
         '{"answer":"Revisa tus resultados.","source_ids":[]}'
     ))["steps"] == []
+
+
+@pytest.mark.parametrize("sources", [[], [direct.GUIDE_PREFIX + "1"]])
+def test_groq_final_citations_are_restricted_to_retrieved_documents(groq, sources):
+    schema = provider.groq_response_format(sources)["json_schema"]["schema"]
+    citations = schema["properties"]["source_ids"]
+    if sources:
+        assert citations["items"]["enum"] == sources
+    else:
+        assert citations["maxItems"] == 0
+
+
+def test_evaluation_adds_private_documents_without_removing_original_cases():
+    from assistant_evaluation.cases import cases
+    from scripts.evaluate_assistant import synthetic_result
+
+    corpus = cases()
+    assert len(corpus) == len({case.id for case in corpus}) == 220
+    assert sum(case.capability != "private_rag" for case in corpus) == 200
+    private = [case for case in corpus if case.capability == "private_rag"]
+    assert len(private) == 20
+    assert {case.id.split("-")[-1] for case in private} == {
+        "manual", "catalog", "contradiction", "injection", "missing",
+    }
+    for case in private:
+        sources = synthetic_result("search_knowledge", case)
+        assert all(source["public"] is False for source in sources)
+        assert bool(sources) is (case.limitation != "document_unavailable")
+
+
+def test_paid_evaluation_preserves_free_ledger_and_enforces_total_spend(monkeypatch):
+    from scripts import evaluate_assistant as evaluation
+
+    monkeypatch.setattr(evaluation.time, "time", lambda: 100000)
+    ledger = [{"at": 99900, "groq": True, "amount": 180000}]
+    assert evaluation.reserve(ledger, "openai/gpt-oss-120b", 1000) is None
+    paid = {"budget_nanousd": 2_000_000, "tpm": 250000, "rpm": 1000, "tpd": 0, "rpd": 0}
+    receipt = evaluation.reserve(ledger, "openai/gpt-oss-120b", 1000, paid=paid)
+    assert receipt is not None and receipt["paid"] is True
+    assert ledger[0]["amount"] == 180000
+    # The first outcome is uncertain. A different model/prompt must still retain
+    # its full charge and share the same total authorization, without daily reset.
+    monkeypatch.setattr(evaluation.time, "time", lambda: 200000)
+    assert evaluation.reserve(ledger, "openai/gpt-oss-120b", 8000, paid=paid) is None
+    assert len(ledger) == 2
+
+
+def test_paid_evaluation_keeps_verified_rate_limits(monkeypatch):
+    from scripts import evaluate_assistant as evaluation
+
+    monkeypatch.setattr(evaluation.time, "time", lambda: 100000)
+    ledger = [{"at": 99999, "groq": True, "amount": 7000}]
+    paid = {"budget_nanousd": 10_000_000_000, "tpm": 8000, "rpm": 30, "tpd": 0, "rpd": 0}
+    assert evaluation.reserve(ledger, "openai/gpt-oss-120b", 1000, paid=paid) is None
+    assert len(ledger) == 1
 
 
 def test_provider_change_requires_fresh_explicit_consent(enabled_client, monkeypatch):

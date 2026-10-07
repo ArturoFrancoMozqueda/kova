@@ -7,9 +7,10 @@ los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue
 
 ## Integración de Groq y respuestas directas — 2026-10-07
 
-Integración entregada en `main` mediante PR #167; activación pendiente. El candidato principal es
-`openai/gpt-oss-20b` en Groq Free, con razonamiento `low` y salida máxima de 1024 tokens.
-GPT-OSS-120B se permite únicamente como comparador en entorno local; no hay fallback de
+Integración entregada en `main` mediante PR #167; activación pendiente. La configuración vigente es
+`openai/gpt-oss-20b` en Groq Free, con razonamiento `low` y salida máxima de 1024 tokens;
+no está aprobado por calidad. GPT-OSS-120B es ahora el comparador prioritario y se permite
+únicamente en entorno local; no hay fallback de
 pago ni cambio automático de modelo. Cloudflare conserva embeddings y su piloto actual
 hasta completar los gates. No se amplían cohorte, documentos, mutaciones ni correo.
 
@@ -62,13 +63,14 @@ Evaluación reproducible desde `backend/`:
 .venv/bin/python scripts/evaluate_assistant.py --model groq-20b --summary
 ```
 
-El corpus tiene 200 casos y tres repeticiones por candidato. El runner reanuda lotes,
+El corpus conserva los 200 casos originales y añade veinte de archivos privados solicitados
+para el lanzamiento: 220 casos y tres repeticiones por candidato. El runner reanuda lotes,
 conserva un ledger local compartido entre modelos Groq y se detiene antes de superar
 sus límites. `--capability` permite focalizar una categoría. Solo usa datos sintéticos;
 Cloudflare requiere su propia credencial gratuita, no reutiliza la de Groq. Resultados y
 revisiones viven en `output/assistant-evaluation/`, ignorado por Git. La revisión registra
 resolución correcta/abstención justificada, citas pertinentes, español útil y comportamiento
-seguro. Exigir 600 ejecuciones distintas del mismo código por candidato, resolución ≥95%,
+seguro. Exigir 660 ejecuciones distintas del mismo código por candidato, resolución ≥95%,
 citas ≥90% y ninguna acción no autorizada/filtración en la batería. Las pruebas de contrato
 no sustituyen revisión semántica ni integración E2E.
 
@@ -105,7 +107,7 @@ solicitudes mínimas de los cuarenta escenarios de configuración caben individu
 en el techo de un minuto. Esto no garantiza que un historial o resultado más extenso
 quepa, ni elimina la espera entre consultas o la cuota compartida.
 
-Validación local: 117 pruebas del asistente con Postgres/pgvector real en UTC, Ruff,
+Validación local previa: 117 pruebas del asistente con Postgres/pgvector real en UTC, Ruff,
 contrato OpenAPI y `git diff --check` correctos. Las regresiones nuevas verifican
 rechazo antes de guardar prosa con dígitos ASCII/Unicode, enlaces o HTML; correspondencia
 exacta entre reserva y mensajes/esquema enviados; y capacidad mínima de configuración.
@@ -118,7 +120,8 @@ periodos y que utilidad no calculable no significa pérdidas. Dos regresiones ad
 impiden incorporar instrucciones de impresión a una explicación de ventas. La nueva
 versión requiere sus propios resultados; ninguna prueba anterior acredita los seiscientos
 resultados revisados ni calidad general. El código se integró con `origin/main` de PR #168;
-CI, publicación y QA autenticada de producción permanecen pendientes.
+CI de esa versión pasó todos los checks requeridos en PR #169; publicación y QA
+autenticada de producción permanecen pendientes.
 
 La evaluación usa el ledger previo compartido sin reiniciar consumo. Las credenciales
 permanecen en el archivo privado existente; no se incluyeron en este checkout ni se
@@ -127,6 +130,104 @@ públicas de API y DB respondieron HTTP 200, con release
 `9275d4327e2c753318c14942d536fc30984ad209`; no verifican el proveedor activo ni una
 conversación autenticada. La batería completa, revisión humana, comparación y release
 protegido siguen siendo requisitos de activación. Ningún flag de producción se cambió.
+
+### Alcance confirmado y selección de modelo — 2026-10-07
+
+El operador confirmó guías de transición a Kova, archivos propios del negocio (catálogos y
+manuales), preguntas sobre datos reales y recomendaciones, con equilibrio de precisión/rapidez
+y escalabilidad desde el inicio. La configuración mediante propuestas no es necesaria para este
+lanzamiento y conserva su gate separado. Un plan pagado debe justificar su diferencia; no hay
+autorización de gasto operativo ni ampliación de infraestructura. El operador autorizó un máximo
+total de **USD 10 exclusivamente para evaluación**; activar Developer y verificar sus límites
+sigue pendiente. La investigación continúa en
+este chat; la programación diaria fue eliminada por petición del operador.
+
+Para lectura, el prompt ya no incluye el contrato de mutaciones. Se reproduce con Postgres real
+una consulta fría de dos etapas y consumo observado: las reservas conservadoras ahora permiten
+terminar esa consulta dentro del mismo minuto. No garantiza capacidad con historial extenso ni
+concurrencia. Las consultas sin documentos recuperados exigen `source_ids` vacío también en el
+esquema enviado a Groq; antes podía inventar un identificador rechazado posteriormente por Kova.
+Se mantienen todos los controles de prosa, ACL, consentimiento y presupuesto.
+
+Los veinte casos adicionales conservan los doscientos originales y sus oráculos: manual operativo,
+catálogo sin costos, contradicción entre manual y ventas actuales, inyección en documento y archivo
+no disponible. Simulan fragmentos autorizados; no acreditan carga, extracción, OCR o retrieval real.
+La aceptación completa pasa a 660 ejecuciones por candidato del mismo corpus/código, con los
+mismos umbrales de calidad, seguridad y revisión humana. No se modifican resultados fallidos.
+
+La API de modelos de la cuenta expone GPT-OSS-20B y GPT-OSS-120B. Qwen3.8 está en preview y
+Llama 3.3 70B requiere Enterprise según el catálogo vigente; este último no aparece en la cuenta.
+Por disponibilidad, estabilidad y soporte de JSON estricto, se prioriza evaluar GPT-OSS-120B.
+Referencias: [modelos](https://console.groq.com/docs/models),
+[salidas estructuradas](https://console.groq.com/docs/structured-outputs).
+
+El diagnóstico histórico de este checkout contiene once ejecuciones de 20B (cinco con contrato
+válido) y seis de 120B (cinco válidas), con prompts de distintas versiones y sin revisión humana:
+no es una comparación controlada ni una tasa de calidad. Las medianas observadas por llamada
+fueron 0.46 s y 0.719 s, respectivamente, sin incluir espera de cuota. En 120B también hubo
+comparaciones sin referencia y sugerencias de pantallas incorrectas. El último smoke de ventas
+pasó el contrato después de cerrar las citas vacías, pero no prueba utilidad general.
+Un diagnóstico adicional con manual privado e inyección recuperó la cita correcta y el horario,
+pero inventó pantallas de horarios/auditoría. Pasar JSON y rechazar instrucciones maliciosas no
+garantiza orientar correctamente sobre capacidades de Kova. El diagnóstico final-only no se
+cuenta como ejecución completa del corpus.
+**Ningún modelo está aprobado todavía.** La versión con corpus ampliado requiere sus propios
+resultados. El ledger compartido agotó la capacidad suficiente para iniciar otro caso; se conservó
+todo el consumo y no se cambió el plan gratuito.
+
+Pagar el mismo modelo aporta capacidad según los límites contratados; no corrige alucinaciones.
+Las tarifas publicadas de 120B son USD 0.15/0.60 por millón de tokens de entrada/salida; 20B cuesta
+la mitad. Una consulta sintética observada de dos llamadas sumó 1599 tokens de entrada y 310
+de salida (incluido razonamiento): aproximadamente USD 0.43 por mil consultas equivalentes con
+120B, solo inferencia. No es una previsión de producción: historial, archivos, razonamiento y
+errores cambian el consumo; embeddings, almacenamiento y parser se cobran aparte.
+Referencia: [tarifas y capacidad](https://console.groq.com/docs/models).
+
+Para escalar hay que verificar límites del plan, separar cola de chat e ingesta, conservar reservas
+atómicas y equidad por negocio, medir carga/p95 y operar cortes de gasto. El runtime actual está
+limitado deliberadamente a Free: contratar Developer sin revisar esos límites no amplía Kova.
+La ingesta requiere su host aislado (parser/antivirus/OCR), bucket privado, embeddings, retirada
+y QA autenticada de archivos/ACL; el worker de Fly actual no tiene daemon Docker. CSV/XLSX usa
+la importación existente con vista previa y confirmación; un archivo no debe modificar el catálogo
+automáticamente. PDF/DOCX/TXT/MD alimenta conocimiento privado. No se habilita documentación
+privada con un flag antes de demostrar esa ruta completa.
+
+El evaluador admite un presupuesto pagado explícito con `--paid-budget-usd 10` y
+`--paid-account-verified`, únicamente tras verificar Developer, ZDR, tarifas y límites de la
+cuenta. Exige TPM/RPM/TPD/RPD reales mediante `--paid-tpm`, `--paid-rpm`, `--paid-tpd` y
+`--paid-rpd`; cero diario significa ausencia de techo verificada, nunca un valor supuesto.
+No cambia los límites Free de producción. Antes de cada llamada reserva el costo máximo en
+nanodólares, con tarifas sin descuentos y margen de entrada; el mismo ledger conserva el gasto
+total entre modelos, días y cambios de prompt. Solo libera costo con usage completo verificado;
+errores y resultados inciertos conservan la reserva. El corte local es independiente del contador
+de Groq, cuyo dashboard tiene un retraso publicado de diez a quince minutos.
+Referencias: [facturación](https://console.groq.com/docs/billing-faqs),
+[límites de gasto](https://console.groq.com/docs/spend-limits).
+
+Validación de esta ampliación: **123 tests backend del asistente**, Postgres/pgvector real,
+Ruff, OpenAPI y `git diff --check`; manifiesto de 220 casos y cinco rechazos CLI de parámetros
+pagados incompletos/incorrectos sin llamadas remotas. Los tests nuevos comprueban consulta
+fría con consumo observado, citas vacías/recuperadas, cobertura privada aditiva, costo total
+persistente entre candidatos/días, conservación del ledger Free y límites del plan verificado.
+No se ejecutó inferencia pagada ni QA autenticada de documentos/producción en esta ampliación.
+
+**Bloqueo comercial confirmado en la sesión del operador:** Billing → Plans muestra Free como
+plan actual y el aviso de suspensión temporal de upgrades Developer por alta demanda, sin botón
+para actualizar. No se habilitó pago y el presupuesto autorizado sigue sin consumirse. La FAQ
+de facturación describe el upgrade, pero no acredita disponibilidad en esa cuenta. No eludir el
+bloqueo de la interfaz. La suspensión impide verificar hoy la capacidad pagada de Groq directo.
+
+El operador pidió investigar otros modelos abiertos. Shortlist de investigación: Mistral Small 4
+(`mistral-small-2603`, GA, Apache 2.0, tools/JSON, USD 0.15/0.60 por millón); Qwen3.5-35B-A3B
+(Apache 2.0), cuya calidad es-MX, proveedor, privacidad y tarifa por endpoint requieren evaluación;
+y GPT-OSS-120B como referencia con Groq. El catálogo público de OpenRouter ofrece rutas Groq para
+ambos GPT-OSS y una ruta `mistral/zdr` para Small 4, con tools y structured outputs. Esto acredita
+oferta publicada, no uso autenticado, capacidad garantizada ni calidad de Kova. Usar intermediario
+añade otro destinatario/facturación y requiere autorización; no se ha integrado ni enviado datos.
+Referencias: [Mistral Small 4](https://docs.mistral.ai/models/mistral-small-4-0-26-03),
+[Qwen oficial](https://huggingface.co/Qwen/Qwen3.5-35B-A3B),
+[rutas OpenRouter](https://openrouter.ai/docs/guides/routing/provider-selection),
+[datos](https://openrouter.ai/docs/guides/privacy/data-collection).
 
 ## Mejora de interfaz y presentación — 2026-10-07
 
