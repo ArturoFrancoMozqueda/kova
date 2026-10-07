@@ -200,9 +200,13 @@ mantener la validación de fuentes/ACL antes de entregar. No se habilitan herram
 nuevas ni mutaciones. La publicación y QA de esta última corrección están pendientes.
 
 Para seguir probando sin inferencia de pago, el chat puede utilizar hasta las nueve
-mil unidades del presupuesto total gratuito cuando documentos/correo permanecen
-apagados. El default de chat sigue en ocho mil; esta asignación requiere configuración
-explícita. La cuenta conserva su techo de nueve mil y el margen frente a las diez mil
+mil unidades del presupuesto total gratuito con
+`ASSISTANT_CHAT_USES_TOTAL_BUDGET=true`, únicamente mientras documentos, correo y
+mutaciones permanecen apagados. La variable y el default de chat conservan ocho mil:
+las imágenes anteriores siguen siendo compatibles durante una reversión, porque no
+leen el nuevo flag. Si se habilita otra capacidad, el chat vuelve al presupuesto normal
+y conserva el consumo. No se duplica la reserva de tareas de fondo. Esta asignación
+requiere configuración explícita. La cuenta conserva su techo de nueve mil y el margen frente a las diez mil
 del proveedor. No se reinician contadores, no se devuelve consumo anterior ni se
 elimina la renovación diaria. La estimación conservadora puede bloquear antes de
 agotar la cuota real del proveedor; no usar su dashboard para borrar reservas.

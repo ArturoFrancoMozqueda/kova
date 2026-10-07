@@ -837,7 +837,7 @@ def test_final_citation_schema_only_admits_retrieved_sources(monkeypatch, allowe
         assert citations["maxItems"] == 0
 
 
-def test_chat_can_use_free_account_capacity_without_raising_account_ceiling():
+def test_free_pilot_preserves_existing_configuration_and_account_ceiling():
     from pydantic import ValidationError
 
     from app.config import Settings
@@ -845,12 +845,52 @@ def test_chat_can_use_free_account_capacity_without_raising_account_ceiling():
     values = {
         "_env_file": None, "secret_key": "test-only-free-capacity-secret-32-bytes",
         "database_url": "postgresql+psycopg://pos@localhost/test_only",
-        "assistant_chat_budget": 9000, "assistant_daily_budget": 9000,
+        "assistant_chat_budget": 8000, "assistant_daily_budget": 9000,
+        "assistant_chat_uses_total_budget": True,
     }
-    assert Settings(**values).assistant_chat_budget == 9000
-    for field in ("assistant_chat_budget", "assistant_daily_budget"):
+    assert Settings(**values).assistant_chat_budget == 8000
+    for field, invalid in (("assistant_chat_budget", 8001), ("assistant_daily_budget", 9001)):
         with pytest.raises(ValidationError):
-            Settings(**{**values, field: 9001})
+            Settings(**{**values, field: invalid})
+
+
+@pytest.mark.parametrize("blocked", [
+    "assistant_chat_uses_total_budget", "assistant_documents_enabled",
+    "assistant_email_enabled", "assistant_mutations_enabled",
+])
+def test_total_chat_capacity_requires_explicit_read_only_pilot(monkeypatch, blocked):
+    monkeypatch.setattr(settings, "assistant_daily_budget", 9000)
+    monkeypatch.setattr(settings, "assistant_chat_budget", 8000)
+    monkeypatch.setattr(settings, "assistant_chat_uses_total_budget", True)
+    for flag in ("assistant_documents_enabled", "assistant_email_enabled", "assistant_mutations_enabled"):
+        monkeypatch.setattr(settings, flag, False)
+    assert budget.chat_capacity() == 9000
+    monkeypatch.setattr(settings, blocked, blocked != "assistant_chat_uses_total_budget")
+    assert budget.chat_capacity() == 8000
+
+
+def test_total_chat_capacity_preserves_usage_and_cannot_duplicate_background_pool(enabled_client, monkeypatch):
+    _, db, tenant, _ = enabled_client
+    ctx = context(db, tenant)
+    monkeypatch.setattr(settings, "assistant_daily_budget", 9000)
+    monkeypatch.setattr(settings, "assistant_chat_budget", 8000)
+    for flag in ("assistant_documents_enabled", "assistant_email_enabled", "assistant_mutations_enabled", "assistant_chat_uses_total_budget"):
+        monkeypatch.setattr(settings, flag, False)
+    budget.allocation(db, initialize=True)
+    buckets = ("account", "chat", f"chat:{tenant}", f"chat:{tenant}:{ctx[0].id}")
+    budget.charge(db, [(bucket, 4000, 8000) for bucket in buckets])
+    db.commit()
+    monkeypatch.setattr(settings, "assistant_chat_uses_total_budget", True)
+    assert budget.usage(db, tenant, ctx[0].id)["tenant_used"] == 4000
+    assert budget.usage(db, tenant, ctx[0].id)["tenant_limit"] == 9000
+    model = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    amount = budget.reserve(db, tenant, ctx[0].id, model=model, input_tokens=100, output_tokens=20)
+    db.commit()
+    assert budget.usage(db, tenant, ctx[0].id)["tenant_used"] == 4000 + amount
+    with pytest.raises(HTTPException) as error:
+        budget.reserve(db, tenant, ctx[0].id, model=model, input_tokens=100, output_tokens=20, background=True)
+    assert error.value.status_code == 429
+    db.rollback()
 
 
 def test_configuration_with_credentials_is_rejected_before_inference(enabled_client, monkeypatch):

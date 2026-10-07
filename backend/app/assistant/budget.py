@@ -76,13 +76,22 @@ def turn(db, tenant: UUID, user: UUID) -> None:
     )
 
 
+def chat_capacity() -> int:
+    if settings.assistant_chat_uses_total_budget and not any((
+        settings.assistant_documents_enabled, settings.assistant_email_enabled,
+        settings.assistant_mutations_enabled,
+    )):
+        return settings.assistant_daily_budget
+    return min(settings.assistant_chat_budget, settings.assistant_daily_budget)
+
+
 def allocation(db, *, initialize=False, window: str | None = None):
     import json
 
     today = now_day = window or datetime.now(UTC).date().isoformat()
     configured = {
         "tenants": [str(t) for t in cohort()],
-        "chat": min(settings.assistant_chat_budget, settings.assistant_daily_budget),
+        "chat": chat_capacity(),
         "total": settings.assistant_daily_budget,
     }
     if initialize:
@@ -136,7 +145,7 @@ def reserve(
     tenants = fixed["tenants"]
     if str(tenant) not in tenants:
         raise HTTPException(503, "El asistente no está habilitado.")
-    chat = min(settings.assistant_chat_budget, settings.assistant_daily_budget, fixed["chat"])
+    chat = min(chat_capacity(), fixed["chat"])
     total = min(settings.assistant_daily_budget, fixed["total"])
     pool = max(0, total - chat) if background else chat
     share = pool // max(1, len(tenants))
@@ -215,7 +224,7 @@ def usage(db, tenant: UUID, user: UUID) -> dict:
     used = dict(rows)
     fixed = allocation(db)
     share = (
-        min(settings.assistant_chat_budget, settings.assistant_daily_budget, fixed["chat"])
+        min(chat_capacity(), fixed["chat"])
         // max(1, len(fixed["tenants"]))
         if str(tenant) in fixed["tenants"]
         else 0
