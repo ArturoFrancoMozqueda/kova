@@ -150,12 +150,15 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
       try {
         const result = await api<Resource>(`/runs/${run.id}`);
         if (stopped || !alive.current) return;
-        setRun(result);
-        if (["queued", "running"].includes(result.status)) { timer = setTimeout(() => void poll(), tries++ < 3 ? 2000 : 5000); return; }
+        if (["queued", "running"].includes(result.status)) { setRun(result); timer = setTimeout(() => void poll(), tries++ < 3 ? 2000 : 5000); return; }
         if (conversation) {
           const data = await api<{ messages: Resource[] }>(`/conversations/${conversation}`);
           if (!stopped && alive.current) setMessages(data.messages);
         }
+        if (stopped || !alive.current) return;
+        // Publishing the terminal run cleans up this effect. Finish recovering
+        // its conversation first so that cleanup cannot discard the answer.
+        setRun(result);
         await refresh();
       } catch (e) { if (!stopped && alive.current) setError(e instanceof Error ? e.message : "No pudimos recuperar la consulta."); }
     };

@@ -173,8 +173,43 @@ conciliación concurrente, ACL/RLS y contexto retirado; 18 tests de sus componen
 typecheck, lint, contratos, build/SSR/prerender y revisión de secretos del bundle. El navegador
 comprueba apertura, privacidad del borrador
 y continuidad a 320 y 1280 px con API simulada. No acredita respuesta live del modelo,
-calidad general ni factura real. Release y verificación autenticada en Sweet Home
-siguen pendientes de aprobación de producción.
+calidad general ni factura real. El operador aprobó la publicación para probar el piloto.
+Los PR #162 y #163 se publicaron por el release protegido, con aceptación completa;
+frontend y API confirmaron `712ccebf1ff0`, Fly release 329, dos máquinas web activas,
+una assistant activa y su standby detenido. La cuota autenticada pasó de cinco mil
+a ocho mil sin borrar el consumo del día. No se activó inferencia de pago.
+
+La comprobación autenticada encontró ventas del periodo que coinciden con Análisis,
+y un día sin ventas con tarjetas en cero y explicación guardada. La guía de cierre
+de turno recuperó las fuentes públicas correctas. Una consulta conjunta falló en
+el proveedor y otra de inventario fue rechazada por citar una fuente no recuperada;
+estas pruebas no acreditan calidad general del análisis ni inventario live.
+
+También se reprodujo un fallo adicional de entrega: publicar el run completado
+limpiaba el efecto de polling antes de recuperar sus mensajes. La corrección
+termina esa recuperación antes de publicar el estado final, conservando los guards
+de cancelación y privacidad. Su regresión usa una lectura de conversación retardada
+y verifica la explicación junto con las tarjetas, sin recargar la página.
+
+Para mejorar la explicación de lectura, el paso final recibe el historial autorizado
+y los resultados exactos en un bloque JSON de evidencia no confiable, sin reenviar
+la estructura de llamadas ya ejecutadas. Este contexto completo y el esquema se
+miden antes de reservar presupuesto. Las citas del esquema se restringen a las
+fuentes realmente recuperadas (ninguna en consultas solo numéricas), además de
+mantener la validación de fuentes/ACL antes de entregar. No se habilitan herramientas
+nuevas ni mutaciones. La publicación y QA de esta última corrección están pendientes.
+
+Para seguir probando sin inferencia de pago, el chat puede utilizar hasta las nueve
+mil unidades del presupuesto total gratuito con
+`ASSISTANT_CHAT_USES_TOTAL_BUDGET=true`, únicamente mientras documentos, correo y
+mutaciones permanecen apagados. La variable y el default de chat conservan ocho mil:
+las imágenes anteriores siguen siendo compatibles durante una reversión, porque no
+leen el nuevo flag. Si se habilita otra capacidad, el chat vuelve al presupuesto normal
+y conserva el consumo. No se duplica la reserva de tareas de fondo. Esta asignación
+requiere configuración explícita. La cuenta conserva su techo de nueve mil y el margen frente a las diez mil
+del proveedor. No se reinician contadores, no se devuelve consumo anterior ni se
+elimina la renovación diaria. La estimación conservadora puede bloquear antes de
+agotar la cuota real del proveedor; no usar su dashboard para borrar reservas.
 
 ## Comportamiento implementado
 
