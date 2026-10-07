@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-# Public auth screens serve noindex in their initial HTML. Crawlers must be
+# Public auth, legal and security pages serve noindex in their initial HTML. Crawlers must be
 # allowed to fetch them to remove previously indexed URLs; Disallow would hide
 # that directive. These screens remain outside sitemap.xml.
 

@@ -18,6 +18,7 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).toContain("Vende. Kova mantiene el resto bajo control.");
     expect(html).toContain('rel="canonical"');
     expect(html).toContain('href="https://kovasuite.com/"');
+    expect(html).not.toContain('<meta name="robots" content="noindex"');
     expect(html).toContain(
       '<meta property="og:title" content="Kova | Controla cada venta y entiende tu negocio" />',
     );
@@ -72,13 +73,56 @@ test.describe("technical SEO (prerendered build only)", () => {
     await expect(page.locator(".lp-hero-copy")).toBeVisible();
   });
 
-  test("legal pages are prerendered with their own title", async ({ request }) => {
-    const res = await request.get("/privacy");
-    expect(res.status()).toBe(200);
-    const html = await res.text();
-    expect(html).toContain("Aviso de privacidad");
-    expect(html).toContain('href="https://kovasuite.com/privacy"');
-    expect(html).not.toContain('<meta name="robots" content="noindex"');
+  test("favicons are public images, not the SPA HTML fallback", async ({ request }) => {
+    const landing = await request.get("/");
+    const html = await landing.text();
+    expect(html).toContain('href="/favicon.png" sizes="96x96"');
+    expect(html).toContain('href="/favicon.ico" sizes="16x16 32x32 48x48"');
+
+    const png = await request.get("/favicon.png");
+    expect(png.status()).toBe(200);
+    expect(png.headers()["content-type"]).toContain("image/png");
+    const pngBody = await png.body();
+    expect(pngBody.subarray(1, 4).toString("ascii")).toBe("PNG");
+    expect(pngBody.readUInt32BE(16)).toBe(96);
+    expect(pngBody.readUInt32BE(20)).toBe(96);
+
+    const ico = await request.get("/favicon.ico");
+    expect(ico.status()).toBe(200);
+    expect(ico.headers()["content-type"]).toMatch(/^image\/(x-icon|vnd\.microsoft\.icon)/);
+    const icoBody = await ico.body();
+    expect(icoBody.readUInt16LE(0)).toBe(0);
+    expect(icoBody.readUInt16LE(2)).toBe(1);
+    expect(icoBody.readUInt16LE(4)).toBe(3);
+    for (const [i, size] of [16, 32, 48].entries()) {
+      const entry = 6 + i * 16;
+      expect(icoBody[entry]).toBe(size);
+      expect(icoBody[entry + 1]).toBe(size);
+      const length = icoBody.readUInt32LE(entry + 8);
+      const offset = icoBody.readUInt32LE(entry + 12);
+      expect(offset + length).toBeLessThanOrEqual(icoBody.length);
+      const image = icoBody.subarray(offset, offset + length);
+      expect(image.subarray(1, 4).toString("ascii")).toBe("PNG");
+      expect(image.readUInt32BE(16)).toBe(size);
+      expect(image.readUInt32BE(20)).toBe(size);
+    }
+  });
+
+  test("legal pages stay public and prerendered but are excluded from search", async ({ request }) => {
+    for (const [route, title] of [
+      ["/privacy", "Aviso de privacidad"],
+      ["/terms", "Términos y condiciones"],
+      ["/seguridad", "Seguridad"],
+      ["/cookies", "Política de cookies"],
+    ]) {
+      const res = await request.get(route);
+      expect(res.status()).toBe(200);
+      const html = await res.text();
+      expect(html).toContain(`<title>${title} · kova</title>`);
+      expect(html).toContain(`href="https://kovasuite.com${route}"`);
+      expect(html).toContain('<meta name="robots" content="noindex"');
+      expect(html).not.toContain('<div id="root"></div>');
+    }
   });
 
   test("robots.txt is a real file with the sitemap directive", async ({ request }) => {
@@ -100,8 +144,10 @@ test.describe("technical SEO (prerendered build only)", () => {
     const disallowed = body.split("\n")
       .filter((line) => line.startsWith("Disallow:"))
       .map((line) => line.slice("Disallow:".length).trim());
-    for (const route of ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invite"]) {
+    for (const route of ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invite", "/privacy", "/terms", "/seguridad", "/cookies", "/favicon.png", "/favicon.ico"]) {
       expect(disallowed.some((prefix) => prefix && route.startsWith(prefix))).toBe(false);
+    }
+    for (const route of ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invite"]) {
       const authPage = await request.get(route);
       expect(authPage.status()).toBe(200);
       expect(await authPage.text()).toContain('<meta name="robots" content="noindex"');
@@ -109,13 +155,12 @@ test.describe("technical SEO (prerendered build only)", () => {
     }
   });
 
-  test("sitemap.xml lists the public marketing and legal URLs", async ({ request }) => {
+  test("sitemap.xml lists only the landing as a search entry point", async ({ request }) => {
     const res = await request.get("/sitemap.xml");
     expect(res.status()).toBe(200);
     const body = await res.text();
-    for (const loc of ["/", "/privacy", "/terms", "/seguridad", "/cookies"]) {
-      expect(body).toContain(`https://kovasuite.com${loc === "/" ? "/" : loc}</loc>`);
-    }
+    expect([...body.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]))
+      .toEqual(["https://kovasuite.com/"]);
   });
 
   test("app routes serve the empty shell, not landing content", async ({ request }) => {
