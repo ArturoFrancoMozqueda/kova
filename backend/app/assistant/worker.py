@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy import text
 
-from app.assistant import documents, generation, notifications, provider, storage
+from app.assistant import direct, documents, generation, notifications, provider, storage
 from app.assistant import repository as repo
 from app.assistant.access import bind_user, cohort, enabled
 from app.assistant.budget import reset_at
@@ -89,7 +89,12 @@ def process_job(db, user, member, candidate):
                 if isinstance(exc, HTTPException)
                 else "No se pudo completar la ejecución.",
                 error_code=status,
-                retry_at=reset_at().isoformat(),
+                retry_at=(now() + timedelta(seconds=int((exc.headers or {}).get(
+                    "Retry-After", "60"
+                )))).isoformat() if isinstance(exc, HTTPException) and status == 429
+                else reset_at().isoformat(),
+                limit_kind=(exc.headers or {}).get("X-Kova-Assistant-Limit")
+                if isinstance(exc, HTTPException) else None,
             )
             db.commit()
     finally:
@@ -179,7 +184,8 @@ def process_once() -> int:
                     .all()
                 )
                 for job in jobs:
-                    if not provider.ready() or (
+                    local = job.kind == "run" and direct.match(job.data.get("content", ""))
+                    if not (provider.ready() or local) or (
                         job.kind == "document" and not settings.assistant_documents_enabled
                     ):
                         continue

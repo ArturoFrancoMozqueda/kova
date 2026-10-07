@@ -139,6 +139,13 @@ def reserve(
     background: bool = False,
     window: str | None = None,
 ) -> int:
+    if model in {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}:
+        from app.assistant import groq_budget
+
+        if background or settings.assistant_generation_provider != "groq":
+            raise HTTPException(503, "Modelo o consumo no verificable.")
+        return groq_budget.reserve(db, tenant, user, input_tokens, output_tokens,
+                                   receipt_window=window or groq_budget.window())
     window = window or datetime.now(UTC).date().isoformat()
     amount = estimate(model, input_tokens, output_tokens)
     fixed = allocation(db, initialize=True, window=window)
@@ -178,6 +185,15 @@ def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, repo
     if not receipt or receipt["id"] != reservation_id:
         return 0
     retained = receipt["amount"]
+    if receipt["model"] in {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}:
+        from app.assistant import groq_budget
+
+        actual = groq_budget.verified_usage(reported, receipt)
+        retained = actual if actual is not None else retained
+        released = groq_budget.refund(db, tenant, user, receipt, retained)
+        repo.update(job, remote_started=False, pending_reservation=None,
+                    reserved=job.data["reserved"] - released)
+        return released
     # Llama has no separate reasoning budget. Do not infer billable usage for
     # reasoning models, missing usage, partial responses or ambiguous requests.
     if receipt["model"] == "@cf/meta/llama-3.3-70b-instruct-fp8-fast" and isinstance(
@@ -213,6 +229,10 @@ def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, repo
 
 
 def usage(db, tenant: UUID, user: UUID) -> dict:
+    if settings.assistant_generation_provider == "groq":
+        from app.assistant import groq_budget
+
+        return groq_budget.usage(db, tenant, user)
     today = datetime.now(UTC).date().isoformat()
     bucket = f"chat:{tenant}"
     own = f"chat:{tenant}:{user}"
@@ -235,4 +255,6 @@ def usage(db, tenant: UUID, user: UUID) -> dict:
         "user_used": used.get(own, 0),
         "user_limit": share,
         "reset_at": reset_at().isoformat(),
+        "unit": "neurons", "provider": "cloudflare", "window": "utc_day",
+        "limit_kind": "tenant_daily" if used.get(bucket, 0) >= share else "available",
     }

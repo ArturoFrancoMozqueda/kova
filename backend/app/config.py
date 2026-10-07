@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, SecretStr, field_validator
@@ -104,6 +105,19 @@ class Settings(BaseSettings):
     assistant_chat_uses_total_budget: bool = False
     assistant_model: str = "@cf/qwen/qwen3.8-27b"
     assistant_help_model: str = "@cf/qwen/qwen3-30b-a3b-fp8"
+    # Preserve deployed Cloudflare configuration until Groq passes the pilot gates.
+    assistant_generation_provider: Literal["cloudflare", "groq"] = "cloudflare"
+    assistant_groq_api_key: SecretStr | None = None
+    assistant_groq_model: str = "openai/gpt-oss-20b"
+    assistant_groq_free_verified: bool = False
+    assistant_groq_zdr_verified: bool = False
+    assistant_groq_quality_verified: bool = False
+    # Headroom below the published free allowances. Lower these if the account
+    # has smaller limits; never silently upgrade or route to another provider.
+    assistant_groq_daily_tokens: int = Field(default=180000, ge=1, le=200000)
+    assistant_groq_daily_requests: int = Field(default=900, ge=1, le=1000)
+    assistant_groq_minute_tokens: int = Field(default=7200, ge=1, le=8000)
+    assistant_groq_minute_requests: int = Field(default=27, ge=1, le=30)
 
     @field_validator("assistant_tenant_ids")
     @classmethod

@@ -134,7 +134,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
   };
   const send = (event: FormEvent) => {
     event.preventDefault();
-    if (!question.trim() || busy || generating || !caps?.enabled || !caps.inference_ready || !prefs?.chat_consent) return;
+    if (!question.trim() || busy || generating || !caps?.enabled || !(caps.inference_ready || caps.local_answers_ready) || !prefs?.chat_consent) return;
     void act(async () => {
       let id = conversation;
       if (!id) {
@@ -168,12 +168,12 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
         {error ? <p role="alert" className="text-sm text-kova-danger">{error}</p> : null}
         {!caps || !prefs ? <p role="status" className="py-4 text-sm text-kova-muted">Cargando el asistente…</p> : !caps.enabled ? <p className="text-sm">El asistente aún no está habilitado para este negocio.</p> : <>
           {run?.data.proposal_id ? <p className="rounded-kova-md bg-kova-mist p-3 text-sm leading-6">Preparé una propuesta. Abre el asistente completo para revisar y confirmar cada cambio.</p> : null}
-          {!prefs.chat_consent ? <div className="space-y-3 rounded-xl border border-kova-border bg-kova-mist/50 p-4"><p className="flex items-center gap-2 text-xs font-medium"><LockKeyhole size={14} />Conversación privada · Sucursal activa</p><p className="text-sm leading-6 text-kova-muted">Para responder, enviaremos a la IA tu pregunta y el contexto autorizado mínimo del negocio. Puedes retirar el permiso en Preferencias.</p><Button disabled={busy} className="w-full bg-kova-blue hover:bg-kova-blue/90" onClick={() => void act(async () => { const saved = await api<Preferences>("/preferences", "PUT", { ...prefs, chat_consent: true }); if (alive.current) setPrefs(saved); })}>Aceptar y habilitar consultas</Button></div> : null}
-          {!caps.inference_ready ? <p className="text-xs leading-5 text-kova-muted">La IA aún no está conectada. Puedes configurar el negocio y revisar tu seguimiento en el asistente completo.</p> : null}
+          {!prefs.chat_consent ? <div className="space-y-3 rounded-xl border border-kova-border bg-kova-mist/50 p-4"><p className="flex items-center gap-2 text-xs font-medium"><LockKeyhole size={14} />Conversación privada · Sucursal activa</p><p className="text-sm leading-6 text-kova-muted">Para responder, enviaremos a {caps.provider_name ?? "el proveedor de IA"} tu pregunta y el contexto autorizado mínimo del negocio. Puedes retirar el permiso en Preferencias.</p><Button disabled={busy} className="w-full bg-kova-blue hover:bg-kova-blue/90" onClick={() => void act(async () => { const saved = await api<Preferences>("/preferences", "PUT", { ...prefs, chat_consent: true }); if (alive.current) setPrefs(saved); })}>Aceptar y habilitar consultas</Button></div> : null}
+          {!caps.inference_ready ? <p className="text-xs leading-5 text-kova-muted">La IA aún no está conectada. Puedes preguntar cuánto vendiste hoy, qué productos se venden más o cómo importar tu catálogo.</p> : null}
           {usage && messages.length > 0 ? <AssistantUsage usage={usage} /> : null}
         </>}
       </AssistantConversation>
-      {caps?.enabled && prefs?.chat_consent ? <AssistantComposer compact id={`${panelId}-question`} value={question} onChange={setQuestion} onSubmit={send} disabled={busy || generating} ready={caps.inference_ready} /> : null}
+      {caps?.enabled && prefs?.chat_consent ? <AssistantComposer compact id={`${panelId}-question`} value={question} onChange={setQuestion} onSubmit={send} disabled={busy || generating} ready={caps.inference_ready || !!caps.local_answers_ready} /> : null}
       <Link to={fullPath} onClick={() => setOpen(false)} className="flex min-h-11 shrink-0 items-center justify-center gap-2 border-t border-kova-border bg-kova-mist/30 px-3 text-xs font-medium text-kova-muted hover:bg-kova-mist">Abrir asistente completo<ArrowUpRight size={16} /></Link>
     </div> : null}
     <button ref={trigger} type="button" aria-label={open ? "Minimizar asistente Kova" : "Abrir asistente Kova"} aria-expanded={open} aria-controls={open ? panelId : undefined}

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssistantComposer, AssistantConversation, AssistantWelcome } from "./AssistantChat";
+import { AssistantComposer, AssistantConversation, AssistantUsage, AssistantWelcome } from "./AssistantChat";
 import AnswerContent from "./AnswerContent";
 import { EvidenceCards, SalesEvidence } from "./EvidenceCards";
 import type { Resource } from "./api";
@@ -8,6 +8,21 @@ import type { Resource } from "./api";
 const message = (id: string, role: string, content: string): Resource => ({ id, kind: "message", status: "ready", shared: false, can_edit: true, branch_id: "branch-a", created_at: "", updated_at: "", data: { role, content } });
 const completed: Resource = { ...message("run-a", "assistant", ""), kind: "run", status: "completed", data: { metrics: { net_sales: "125.50", order_count: 2, start_date: "2026-10-01", end_date: "2026-10-06" }, sources: [{ id: "source-a", title: "Guía de ventas", page: 1, path: "/help/sales" }] } };
 afterEach(() => vi.unstubAllGlobals());
+
+describe("provider-aware assistant quota", () => {
+  it("distinguishes a temporary limit from the rolling daily token allowance", () => {
+    render(<AssistantUsage usage={{ tenant_used: 200, tenant_limit: 60000, user_used: 200, user_limit: 60000, reset_at: "2026-10-08T02:00:00Z", unit: "tokens", provider: "groq", window: "rolling_24h", limit_kind: "temporary" }} />);
+    expect(screen.getByText("La IA tiene una pausa temporal")).toBeInTheDocument();
+    expect(screen.getByText(/60,000 tokens/)).toBeInTheDocument();
+    expect(screen.getByText(/Se libera gradualmente/)).toBeInTheDocument();
+    expect(screen.getByText("La ayuda y los reportes directos siguen disponibles.")).toBeInTheDocument();
+  });
+  it("keeps older quota payloads readable", () => {
+    render(<AssistantUsage usage={{ tenant_used: 8000, tenant_limit: 9000, user_used: 8000, user_limit: 9000, reset_at: "2026-10-08T00:00:00Z" }} />);
+    expect(screen.getByText(/9,000 unidades/)).toBeInTheDocument();
+    expect(screen.getByText(/89% de la cuota diaria/)).toBeInTheDocument();
+  });
+});
 
 describe("readable and safe assistant answers", () => {
   it("renders emphasis, sections, lists and tables as semantic content", () => {

@@ -7,6 +7,7 @@ import { AssistantCompanion } from "./AssistantCompanion";
 
 let consent = false;
 let ready = false;
+let localReady = false;
 function LocationControls() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -17,12 +18,12 @@ function Host({ enabled = true }: { enabled?: boolean }) {
 }
 describe("floating Kova companion", () => {
   beforeEach(() => {
-    consent = false; ready = false;
+    consent = false; ready = false; localReady = false;
     auth.state.tenantId = "tenant-a"; auth.state.user.id = "user-a"; auth.state.user.role = "owner"; auth.state.sessionMode = "online";
     vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
       const path = input.split("/assistant")[1];
-      const data = path === "/capabilities" ? { enabled: true, inference_ready: ready }
-        : path === "/preferences" ? init?.method === "PUT" ? JSON.parse(String(init.body)) : { chat_consent: consent, document_consent: false, email_opt_in: false, frequency: "weekly" }
+      const data = path === "/capabilities" ? { enabled: true, inference_ready: ready, local_answers_ready: localReady, provider_name: "Groq" }
+        : path === "/preferences" ? init?.method === "PUT" ? JSON.parse(String(init.body)) : { chat_consent: consent, chat_provider: "groq", document_consent: false, email_opt_in: false, frequency: "weekly" }
         : path === "/usage" ? { tenant_used: 0, tenant_limit: 8000, user_used: 0, user_limit: 6000, reset_at: "2026-10-07T00:00:00Z" }
         : path === "/conversations" ? { id: "chat-a", data: {} }
         : path === "/conversations/chat-a/messages" ? { id: "run-a", status: "queued", data: {} }
@@ -60,6 +61,16 @@ describe("floating Kova companion", () => {
     expect(screen.getByRole("button", { name: "Revisa mis ventas de este mes" })).toBeVisible();
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
   });
+  it("names the recipient and submits explicit consent for that provider", async () => {
+    render(<Host />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
+    expect(await screen.findByText(/enviaremos a Groq tu pregunta/)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Aceptar y habilitar consultas" }));
+    await waitFor(() => {
+      const request = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PUT");
+      expect(JSON.parse(String(request?.[1]?.body))).toMatchObject({ chat_consent: true, chat_provider: "groq" });
+    });
+  });
   it("sends only an explicit question with captured tenant scope and a durable continuation link", async () => {
     consent = true; ready = true;
     render(<Host />);
@@ -74,6 +85,14 @@ describe("floating Kova companion", () => {
     expect(new Headers(init?.headers).get("Idempotency-Key")).toBeTruthy();
     expect(screen.getByLabelText("Ubicación")).toHaveTextContent("/catalog?search=private-name");
     expect(window.localStorage.getItem("assistant-conversation")).toBeNull();
+  });
+  it("allows direct questions when inference is unavailable", async () => {
+    consent = true; localReady = true;
+    render(<Host />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
+    fireEvent.change(await screen.findByRole("textbox", { name: "Tu pregunta" }), { target: { value: "Cuánto vendí hoy" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pregunta" }));
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/messages"))).toBe(true));
   });
   it("clears private draft and aborts old requests when tenant changes", async () => {
     consent = true; ready = true;

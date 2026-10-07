@@ -18,6 +18,7 @@ class MessageCreate(StrictModel):
 
 class PreferenceWrite(StrictModel):
     chat_consent: bool = False
+    chat_provider: Literal["cloudflare", "groq"] | None = None
     document_consent: bool = False
     email_opt_in: bool = False
     frequency: Literal["daily", "weekly"] = "weekly"

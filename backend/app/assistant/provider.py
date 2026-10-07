@@ -1,6 +1,7 @@
-"""Fixed Cloudflare egress, bounded output, no built-in network/code tools."""
+"""Fixed provider egress, bounded output, no built-in network/code tools."""
 
 import json
+import math
 import re
 
 import httpx
@@ -11,9 +12,17 @@ from app.assistant.schemas import Answer
 from app.config import settings
 
 EMBEDDING_MODEL = "@cf/qwen/qwen3-embedding-0.6b"
+GROQ_MODEL = "openai/gpt-oss-20b"
 
 
-def ready() -> bool:
+def chat_consent_valid(data: dict) -> bool:
+    # Historical consent was collected for Cloudflare. Switching the recipient
+    # requires a fresh acceptance; neither a deployment nor a flag grants it.
+    return bool(data.get("chat_consent") and data.get("chat_provider", "cloudflare")
+                == settings.assistant_generation_provider)
+
+
+def cloudflare_ready() -> bool:
     return bool(
         settings.assistant_provider_verified
         and re.fullmatch(r"[a-fA-F0-9]{32}", settings.assistant_cloudflare_account_id)
@@ -21,8 +30,206 @@ def ready() -> bool:
     )
 
 
+def ready() -> bool:
+    if settings.assistant_generation_provider == "groq":
+        return bool(
+            settings.assistant_provider_verified
+            and settings.assistant_groq_api_key
+            and settings.assistant_groq_free_verified
+            and settings.assistant_groq_zdr_verified
+            and settings.assistant_groq_quality_verified
+            and settings.assistant_groq_model in groq_models()
+        )
+    return cloudflare_ready()
+
+
+def groq_models() -> set[str]:
+    # The larger model is a comparator, never an automatic production fallback.
+    return {GROQ_MODEL, "openai/gpt-oss-120b"} if settings.app_env == "local" else {GROQ_MODEL}
+
+
+def planning_tools(tools):
+    if settings.assistant_generation_provider != "groq":
+        return tools
+
+    def compact(schema):
+        # Drop documentation annotations, never types, limits or field names.
+        result = {key: value for key, value in schema.items() if key not in {"title", "default"}}
+        if "properties" in result:
+            result["properties"] = {key: compact(value)
+                                    for key, value in result["properties"].items()}
+        if isinstance(result.get("items"), dict):
+            result["items"] = compact(result["items"])
+        for key in ("anyOf", "oneOf", "allOf"):
+            if key in result:
+                result[key] = [compact(value) for value in result[key]]
+        return result
+
+    return [{**tool, "function": {**tool["function"], "parameters": compact(
+        tool["function"].get("parameters", {})
+    )}} for tool in tools]
+
+
+def _call_groq(body: dict) -> dict:
+    if not ready() or body.get("model") not in groq_models():
+        raise HTTPException(503, "El proveedor de IA aún no está configurado.")
+    assert settings.assistant_groq_api_key is not None
+    try:
+        with httpx.Client(timeout=30, follow_redirects=False, trust_env=False) as client:
+            with client.stream(
+                "POST", "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": "Bearer "
+                         + settings.assistant_groq_api_key.get_secret_value()},
+                json=body,
+            ) as response:
+                if response.status_code == 429:
+                    # Never copy a remote error body or arbitrary header into the UI.
+                    retry = response.headers.get("retry-after", "60")
+                    seconds = min(86400, max(1, math.ceil(float(retry)))) if re.fullmatch(
+                        r"\d+(?:\.\d+)?", retry
+                    ) else 60
+                    raise HTTPException(
+                        429, "La IA alcanzó un límite temporal. La ayuda y los reportes "
+                        "directos siguen disponibles.",
+                        headers={"Retry-After": str(seconds),
+                                 "X-Kova-Assistant-Limit": "temporary"},
+                    )
+                if response.status_code != 200:
+                    # Keep only a recognized diagnostic code, never remote text
+                    # (which can contain the prompt, failed generation or data).
+                    payload = bytearray()
+                    for chunk in response.iter_bytes():
+                        payload.extend(chunk)
+                        if len(payload) > 65536:
+                            break
+                    code = None
+                    if len(payload) <= 65536:
+                        try:
+                            code = json.loads(payload).get("error", {}).get("code")
+                        except (ValueError, AttributeError):
+                            pass
+                    recognized = code in {"tool_use_failed", "json_validate_failed",
+                                          "model_not_found", "invalid_api_key"}
+                    raise HTTPException(503, "El proveedor de IA no está disponible.",
+                        headers={"X-Kova-Assistant-Provider-Error": code} if recognized else None)
+                content = bytearray()
+                for chunk in response.iter_bytes():
+                    content.extend(chunk)
+                    if len(content) > 1_000_000:
+                        raise HTTPException(503, "Respuesta de IA demasiado extensa.")
+                data = json.loads(content)
+        choices = data.get("choices")
+        if not isinstance(choices, list) or len(choices) != 1:
+            raise HTTPException(503, "Respuesta de IA no verificable.")
+        choice = choices[0]
+        if choice.get("finish_reason") not in {"stop", "tool_calls"}:
+            raise HTTPException(422, "La respuesta quedó incompleta. Acota tu consulta.")
+        if not isinstance(choice.get("message"), dict) or choice["message"].get("refusal"):
+            raise HTTPException(422, "No se pudo responder esta consulta con IA.")
+        return data
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        raise HTTPException(503, "No se pudo completar la consulta de IA.") from None
+
+
+def groq_response_format(allowed_source_ids: list[str] | None = None) -> dict:
+    from app.assistant.executor import ALLOWED_FIELDS
+
+    actions = sorted(set(ALLOWED_FIELDS) - {"invitation", "catalog_import"})
+    # Use an internal closed schema. The public Step.values object remains intact;
+    # entries represent explicitly supplied fields, preserving omitted vs null.
+    step = {
+        "type": "object", "additionalProperties": False,
+        "required": ["action", "resource_id", "values"],
+        "properties": {
+            "action": {"type": "string", "enum": actions},
+            "resource_id": {"type": ["string", "null"]},
+            "values": {"type": "array", "items": {
+                "type": "object", "additionalProperties": False,
+                "required": ["key", "value"], "properties": {
+                    "key": {"type": "string", "enum": sorted(set().union(
+                        *(ALLOWED_FIELDS[action] for action in actions)
+                    ))},
+                    "value": {"anyOf": [{"type": kind} for kind in
+                                         ("string", "integer", "boolean", "null")]},
+                },
+            }},
+        },
+    }
+    sources = {"type": "string"}
+    if allowed_source_ids:
+        sources["enum"] = allowed_source_ids
+    schema = {
+        "type": "object", "additionalProperties": False,
+        "required": ["answer", "source_ids", "steps"], "properties": {
+            "answer": {"type": "string", "pattern": "^[^0-9<>]*$"},
+            "source_ids": {"type": "array", "items": sources},
+            "steps": {"type": "array", "items": step},
+        },
+    }
+    if not settings.assistant_mutations_enabled:
+        # Read-only output has no proposal field at all. An empty object schema
+        # is rejected by Groq's decoder; Kova restores its public empty steps.
+        del schema["properties"]["steps"]
+        schema["required"].remove("steps")
+    # Semantics, lengths, UUIDs, citation ACLs and disabled actions are still
+    # validated by Kova. Strict JSON is not an authorization boundary.
+    return {"type": "json_schema", "json_schema": {
+        "name": "kova_answer", "strict": True, "schema": schema,
+    }}
+
+
+def _normalize_groq_answer(content: str) -> str:
+    answer = json.loads(content)
+    if not settings.assistant_mutations_enabled:
+        answer["steps"] = []
+    for step in answer["steps"]:
+        values = {}
+        for entry in step["values"]:
+            if entry["key"] in values:
+                raise HTTPException(422, "La propuesta repitió un campo de configuración.")
+            values[entry["key"]] = entry["value"]
+        step["values"] = values
+    return json.dumps(answer, ensure_ascii=False)
+
+
+def _generate_groq(messages, tools, *, model, structured, allowed_source_ids):
+    if model not in groq_models() or model != settings.assistant_groq_model:
+        raise HTTPException(503, "Modelo de generación no permitido.")
+    if structured and tools:
+        raise HTTPException(422, "La explicación final no admite herramientas.")
+    messages = [dict(message) for message in messages]
+    if structured:
+        messages[0] = {**messages[0], "content": messages[0]["content"] + (
+            "\nEn steps, values es una lista de pares {key,value} del esquema recibido. "
+            "Incluye solo campos solicitados expresamente; no rellenes valores faltantes. "
+            "source_ids solo puede contener fuentes recuperadas. "
+            + ("Configuración deshabilitada: devuelve solo answer y source_ids; "
+               "Kova incorpora steps vacío. No incluyas propuestas."
+               if not settings.assistant_mutations_enabled else "")
+        )}
+    body = {
+        "model": model, "messages": messages, "stream": False,
+        "reasoning_effort": "low", "include_reasoning": False,
+        "max_completion_tokens": 1024,
+    }
+    if tools:
+        body.update(tools=planning_tools(tools), parallel_tool_calls=False)
+    if structured:
+        body["response_format"] = groq_response_format(allowed_source_ids)
+    result = _call_groq(body)
+    message = result["choices"][0]["message"]
+    content = message.get("content") or ""
+    if structured:
+        try:
+            content = _normalize_groq_answer(content)
+        except (ValueError, KeyError, TypeError):
+            raise HTTPException(422, "La respuesta no cumplió el contrato de Kova.") from None
+    return {"content": content, "tool_calls": message.get("tool_calls") or [],
+            "usage": result.get("usage")}
+
+
 def _call(model: str, body: dict, *, chat=False) -> dict:
-    if not ready() or model not in RATES:
+    if not cloudflare_ready() or model not in RATES:
         raise HTTPException(503, "El proveedor de IA aún no está configurado.")
     base = (
         f"https://api.cloudflare.com/client/v4/accounts/{settings.assistant_cloudflare_account_id}"
@@ -98,6 +305,11 @@ def generate(
     messages: list[dict], tools: list[dict], *, model: str, structured: bool = False,
     allowed_source_ids: list[str] | None = None,
 ) -> dict:
+    if settings.assistant_generation_provider == "groq":
+        return _generate_groq(
+            messages, tools, model=model, structured=structured,
+            allowed_source_ids=allowed_source_ids,
+        )
     body = {
         "messages": messages,
         "store": False,

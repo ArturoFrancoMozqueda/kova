@@ -7354,6 +7354,21 @@
             "title": "Chat Consent",
             "type": "boolean"
           },
+          "chat_provider": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cloudflare",
+                  "groq"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Provider"
+          },
           "document_consent": {
             "default": false,
             "title": "Document Consent",
