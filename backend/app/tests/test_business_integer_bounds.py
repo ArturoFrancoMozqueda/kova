@@ -9,6 +9,9 @@ from app.catalog.models import Category, Product
 from app.idempotency.models import IdempotencyKey
 from app.orders.models import InventoryMovement
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 INTEGER_MIN = -(2**31)
 INTEGER_MAX = 2**31 - 1
 

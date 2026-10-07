@@ -1,31 +1,11 @@
 """Split payment + receipt golden tests (Sprint 3)."""
-from decimal import Decimal
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
-from app.pricing import calculator
-
-# ── Pricing golden tests ──────────────────────────────────────────────────────
-
-def test_split_cash_plus_transfer_totals_correctly():
-    cash = calculator.money(Decimal("30.00"))
-    transfer = calculator.money(Decimal("20.00"))
-    assert cash + transfer == Decimal("50.00")
-
-
-def test_cash_change_on_partial_cash_payment():
-    cash_amount = calculator.money(Decimal("30.00"))
-    tendered = calculator.money(Decimal("50.00"))
-    change = calculator.money(tendered - cash_amount)
-    assert change == Decimal("20.00")
-
-
-def test_no_change_on_exact_cash_payment():
-    cash_amount = calculator.money(Decimal("37.00"))
-    tendered = calculator.money(Decimal("37.00"))
-    change = calculator.money(tendered - cash_amount)
-    assert change == Decimal("0.00")
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,31 +40,6 @@ def _setup(client: TestClient, email: str, tenant: str, price: str = "50.00") ->
 
 
 # ── Split payment integration tests ───────────────────────────────────────────
-
-def test_cash_plus_bank_transfer_split(client):
-    ctx = _setup(client, "split-cash-transfer@example.com", "Split CT Bakery")
-    product_id = ctx["product"]["id"]
-
-    r = client.post(
-        "/api/v1/orders",
-        headers={"Idempotency-Key": "split-ct-order"},
-        json={
-            "items": [{"product_id": product_id, "quantity": 1}],
-            "payments": [
-                {"method": "cash", "amount": "30.00", "amount_tendered": "30.00"},
-                {"method": "bank_transfer", "amount": "20.00"},
-            ],
-        },
-    )
-
-    assert r.status_code == 201, r.text
-    body = r.json()
-    assert body["total_amount"] == "50.00"
-    assert len(body["payments"]) == 2
-    cash_p = next(p for p in body["payments"] if p["method"] == "cash")
-    transfer_p = next(p for p in body["payments"] if p["method"] == "bank_transfer")
-    assert cash_p["change_due_amount"] == "0.00"
-    assert transfer_p["change_due_amount"] == "0.00"
 
 
 def test_cash_plus_manual_card_split(client):

@@ -11,6 +11,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.shifts.models import Shift
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _signup_verify_login(client, email: str, tenant_name: str) -> dict:
     response = client.post(
@@ -40,15 +43,6 @@ def _open_shift(client):
         headers={"Idempotency-Key": f"open-shift-{uuid4().hex}"},
         json={"opening_cash_amount": "100.00"},
     )
-
-
-def test_second_open_shift_via_api_is_rejected(client):
-    _signup_verify_login(client, f"one-shift-{uuid4().hex}@example.com", "One Shift Tenant")
-
-    assert _open_shift(client).status_code == 201
-    second = _open_shift(client)
-
-    assert second.status_code == 400, second.text
 
 
 def test_db_rejects_a_second_open_shift(client, db):

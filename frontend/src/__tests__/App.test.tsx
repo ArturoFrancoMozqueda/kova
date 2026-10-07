@@ -200,7 +200,11 @@ describe("App shell", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /iniciar sesi[oó]n/i }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: /^Caja$/ })).toBeInTheDocument();
+    // Session revalidation can replace the first register heading before the
+    // findBy promise resumes. Assert against the current DOM on each poll.
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 1, name: /^Caja$/ })).toBeInTheDocument();
+    });
     expect(window.location.pathname).toBe("/register");
   });
 

@@ -31,6 +31,9 @@ from app.employees.models import MembershipInvitation
 from app.employees.schemas import EmployeeRoleUpdate, InvitationAccept, InvitationCreate
 from app.tenants.models import Tenant
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _signup(client: TestClient, email: str, tenant: str) -> dict:
     r = client.post(

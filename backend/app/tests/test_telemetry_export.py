@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import func, select
 
 from app.billing.models import Subscription, WebhookEvent
@@ -12,6 +13,9 @@ from app.orders.models import Order
 from app.telemetry.export import summarize_analysis_adoption
 from app.telemetry.models import TelemetryEvent
 from app.telemetry.schemas import AnalysisAdoptionReport
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_and_login(client) -> None:

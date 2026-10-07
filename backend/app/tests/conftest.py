@@ -52,6 +52,25 @@ _engine = create_engine(settings.database_url, pool_pre_ping=True)
 _TestSession = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
 
 
+@pytest.fixture
+def fast_business_auth(monkeypatch, request):
+    """Opt-in password cost reduction, with real hashing and real auth routes.
+
+    Only business modules request this fixture. Auth/security suites retain
+    production cost and the timing-equalization hash. Monkeypatch restores both
+    after every test; sessions, CSRF, permissions and RLS are untouched.
+    """
+    from app.auth import service
+
+    protected = ("test_auth", "test_security", "test_csrf", "test_hardening",
+                 "test_rate_limit", "test_ops_auth", "test_ops_mfa")
+    if request.path.name.startswith(protected):
+        raise RuntimeError("auth/security tests must use production bcrypt cost")
+    monkeypatch.setattr(service, "_BCRYPT_ROUNDS", 4)
+    monkeypatch.setattr(service, "_DUMMY_PASSWORD_HASH",
+                        service.hash_password("timing-equalizer-not-a-real-password"))
+
+
 def _install_auto_csrf(test_client: TestClient) -> TestClient:
     """Echo the CSRF cookie for normal test clients."""
     if getattr(test_client, "_auto_csrf_installed", False):

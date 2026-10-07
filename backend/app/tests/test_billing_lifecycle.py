@@ -24,6 +24,9 @@ from app.billing.models import Subscription
 from app.billing.stripe_client import StripeCheckoutClient
 from app.config import settings
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:
     response = client.post(

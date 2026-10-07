@@ -15,6 +15,9 @@ from app.fiscal.models import FiscalIndividualInvoiceEvent
 from app.tests.test_integrations_readiness import ISSUER, RECIPIENT
 from app.tests.test_orders import _create_product, _signup_verify_login
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 BASE = "/api/v1/integrations/cfdi"
 
 

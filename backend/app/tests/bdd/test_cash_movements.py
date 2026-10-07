@@ -1,9 +1,13 @@
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+import pytest
 from pytest_bdd import given, parsers, scenario, then, when
 
 from app.auth.models import Membership
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 @scenario("../../../../specs/shifts/cash_movements.feature", "Manager records a cash removal")

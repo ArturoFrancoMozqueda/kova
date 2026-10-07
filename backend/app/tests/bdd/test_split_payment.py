@@ -1,6 +1,10 @@
 from uuid import uuid4
 
+import pytest
 from pytest_bdd import given, parsers, scenario, then, when
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _open_shift(client) -> dict:
@@ -66,6 +70,7 @@ def cashier_creates_split_order(split_context):
         },
     )
     assert r.status_code == 201, r.text
+    assert len(r.json()["payments"]) == 2
     split_context["order"] = r.json()
 
 

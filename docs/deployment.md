@@ -99,14 +99,14 @@ canonical tenant table lacks RLS, `FORCE ROW LEVEL SECURITY`, `USING`, or
 `backend/Dockerfile` pins both the Python base and `uv` images by release and
 multi-platform digest. Inspect updates with `docker buildx imagetools inspect`,
 review the upstream releases, then change each tag and digest together in one
-commit. CI builds the backend twice without layer reuse, requires identical
-Docker image configs and loadable archives, and generates an SPDX JSON SBOM
-from the reproduced image. The build uses `SOURCE_DATE_EPOCH=0`, BuildKit's
-`rewrite-timestamp=true`, disables nondeterministic inline provenance for this
-comparison, and runs `uv sync --no-cache` so temporary cache paths never enter
-the image layer. Both archives carry the same explicit image tag; CI loads the
-first verified archive before scanning it. The SBOM remains a separate
-commit-addressed artifact. All checks run before any migration or deploy job.
+commit. The supply-chain gate builds the backend twice without layer reuse,
+requires identical Docker image configs and loadable archives, and generates an
+SPDX JSON SBOM. It runs when Dockerfiles, lockfiles, build infrastructure or CI
+change, plus weekly and manually through `CI maintenance`. It blocks release
+when applicable. Ordinary product changes retain real-stack container startup
+validation without repeating the reproducibility exercise. The comparison uses
+`SOURCE_DATE_EPOCH=0`, `rewrite-timestamp=true` and separate commit-addressed SBOM
+artifacts; it does not claim that the separately built Fly image has the same digest.
 
 The frontend uses same-origin relative API paths (`/api/v1/...`). Production routing is handled by
 `frontend/vercel.json`, which rewrites those paths to the Fly backend. No `VITE_API_BASE_URL` is
@@ -121,14 +121,28 @@ steps below are recovery/reference steps only; do not run them in parallel with 
 
 ### Automated release gate
 
-The release graph is: named checks (`integration`, mocked E2E against both Vite dev and the built
-preview, dependency/secret checks) → migration reversibility → capture and verify the currently
-serving Fly image, Vercel deployment and release SHA → Fly deploy plus an unpromoted Vercel
-production candidate → candidate verification → promotion of the already-tested Vercel artifact →
-acceptance on the production alias. Fly receives `KOVA_RELEASE_SHA` at image build time and
-`/health` exposes it; Vercel's `version.json` exposes the first 12 characters of the same SHA. Both
-candidate and acceptance verification also fetch the public HTML and the frontend's `/api/health`
-and `/api/health/db` proxy paths.
+All applicable validations run in parallel and feed the single **CI required**
+result. Frontend validation builds once and runs mocked Playwright against that
+production preview; Vite dev remains a local tool. Migration reversibility no
+longer waits for other suites. Documentation-only changes skip application suites
+and publication, while repository, dependency and secret checks still run.
+See [testing-ci.md](testing-ci.md) for the test inventory, removal rationale and measurements.
+
+After **CI required** passes on `main`, one protected release job captures and
+uploads the exact rollback artifact, builds and stages Vercel with production
+configuration, deploys Fly, verifies the candidate, promotes it without rebuilding,
+and verifies the public alias. `frontend/scripts/release.mjs` sets its recovery
+phase before a provider can change production and calls the existing recovery
+implementation on failure. A failed candidate build/upload leaves production alone.
+Fly receives `KOVA_RELEASE_SHA` and exposes the full SHA in `/health`; Vercel
+`version.json` exposes the first 12 characters. Verification checks public HTML,
+direct backend/database and same-origin API proxy paths. Each request has a
+20-second timeout so unreachable endpoints enter recovery instead of hanging.
+
+The branch API reported `main` unprotected and no repository rulesets on
+2026-10-07. Configure `CI required` as the required status check for merging;
+the workflow already gates publication on that result. This change does not
+alter GitHub branch or environment settings.
 
 Configure a protected GitHub `production` environment with required reviewers and these secrets:
 

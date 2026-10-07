@@ -1,6 +1,10 @@
 from uuid import uuid4
 
+import pytest
 from pytest_bdd import given, scenario, then, when
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 @scenario("../../../../specs/orders/offline_sync.feature", "Queued offline sale syncs into an order")

@@ -2,8 +2,13 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+import pytest
+
 from app.audit.models import AuditLog
 from app.auth.models import Membership
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client, email: str = "expenses@example.com") -> dict:

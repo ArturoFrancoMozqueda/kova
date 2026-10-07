@@ -13,6 +13,15 @@ type AxeViolation = {
 };
 
 async function expectNoSeriousAxeViolations(page: Page, surface: string) {
+  // A visible entering modal can still have transitional opacity. Measure the
+  // rendered state after finite transitions; leave infinite animations alone.
+  await page.evaluate(async () => {
+    const finite = document.getAnimations().filter((animation) =>
+      animation.playState === "running"
+      && animation.effect?.getComputedTiming().endTime !== Infinity
+    );
+    await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+  });
   await page.addScriptTag({ path: axePath });
   const violations = await page.evaluate(async () => {
     const axe = (window as typeof window & {

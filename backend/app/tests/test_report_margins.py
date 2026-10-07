@@ -3,6 +3,11 @@ from decimal import Decimal
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
+import pytest
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _signup_verify_login(client) -> None:
     suffix = uuid4().hex

@@ -4,10 +4,14 @@ replay, ring-time (occurred_at) preservation, and clock-skew clamping."""
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import IntegrityError
 
 from app.orders.service import _clamp_occurred_at
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:

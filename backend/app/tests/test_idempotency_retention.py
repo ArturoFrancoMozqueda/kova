@@ -1,12 +1,16 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.idempotency.models import IdempotencyKey
 from app.orders.models import Order, Refund
 from app.shifts.models import CashMovement
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _expire_marker(db: Session, *, tenant_id: UUID, key: str) -> None:

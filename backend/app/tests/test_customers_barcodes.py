@@ -13,6 +13,9 @@ from app.customers.schemas import CustomerWrite
 from app.orders.models import Order, Refund
 from app.tests.test_catalog import _signup_verify_login
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _customer(client, key="customer", name="Ana García"):
     response = client.post(

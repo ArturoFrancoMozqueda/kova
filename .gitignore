@@ -264,6 +264,8 @@ Thumbs.db
 .playwright-cli/
 
 # Playwright test artifacts
+frontend/reports/
+backend/reports/
 frontend/test-results/
 frontend/playwright-report/
 output/playwright/

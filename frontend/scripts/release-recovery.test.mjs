@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
 import {
+  cliProvider,
   recoverRelease,
   resolveNpxCommand,
   runProviderCommand,
@@ -14,6 +15,21 @@ const artifact = {
   frontendUrl: "https://kovasuite.example",
   backendUrl: "https://api.kovasuite.example",
 };
+
+test("a previously serving Vercel artifact is rolled back without rebuilding or token argv", async () => {
+  const calls = [];
+  const provider = cliProvider({
+    globalConfig: "/test/private-auth",
+    env: { VERCEL_TOKEN: "test-only-token", FLY_API_TOKEN: "test-only-fly" },
+    run: async (_command, args) => { calls.push(args); },
+  });
+  await provider.restoreVercel(artifact.vercelDeployment);
+  assert.ok(calls[0].includes("rollback"));
+  assert.ok(calls[0].includes(artifact.vercelDeployment));
+  assert.equal(calls[0].includes("promote"), false);
+  assert.equal(calls[0].includes("test-only-token"), false);
+  assert.equal(calls[0].includes("build"), false);
+});
 
 function fakes({ failVercel = false } = {}) {
   const calls = [];

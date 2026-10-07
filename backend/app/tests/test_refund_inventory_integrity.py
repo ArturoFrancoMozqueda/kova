@@ -1,6 +1,11 @@
 from uuid import UUID, uuid4
 
+import pytest
+
 from app.orders.models import InventoryMovement, Refund
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client, *, label: str) -> dict:

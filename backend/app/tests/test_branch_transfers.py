@@ -1,9 +1,14 @@
 from uuid import UUID, uuid4
 
+import pytest
+
 from app.auth.models import User
 from app.tests.test_branches import _post, _setup
 from app.tests.test_employee_rbac import _add_member
 from app.tests.test_orders import _create_product
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _stock(client, branch):

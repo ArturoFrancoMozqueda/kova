@@ -32,6 +32,9 @@ from app.orders.models import InventoryMovement, Order, Payment, Refund, Void
 from app.orders.schemas import OrderCreate
 from app.tenants.models import Tenant
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def _signup_login(client, *, prefix: str) -> UUID:
     email = f"fiscal-{prefix}-{uuid4().hex}@example.com"

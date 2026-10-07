@@ -1,9 +1,13 @@
 from uuid import UUID, uuid4
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.tenants.feature_flags import resolve_feature_flags
 from app.tenants.models import Tenant
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client) -> UUID:

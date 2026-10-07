@@ -4,11 +4,15 @@ import json
 import time
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.billing import service as billing_service
 from app.config import settings
 from app.email import service as email_service
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify(client: TestClient, email: str, tenant_name: str) -> dict:

@@ -2,6 +2,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import text
 
 from app.billing.models import Subscription, WebhookEvent
@@ -9,6 +10,9 @@ from app.config import settings
 from app.ops import incidents as incidents_mod
 from app.tenants.models import Tenant
 from app.tests.test_ops_auth import _signup_login
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 ADMIN = "inc-ceo@ops-test.com"
 

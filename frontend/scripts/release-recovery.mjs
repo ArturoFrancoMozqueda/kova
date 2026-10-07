@@ -97,44 +97,49 @@ export function resolveNpxCommand({
 }
 
 export function runProviderCommand(command, args, options = {}) {
-  const { label = command, ...spawnOptions } = options;
+  const { label = command, capture = false, ...spawnOptions } = options;
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: "inherit", shell: false, ...spawnOptions });
+    let output = "";
+    const child = spawn(command, args, {
+      stdio: capture ? ["ignore", "pipe", "inherit"] : "inherit",
+      shell: false, ...spawnOptions,
+    });
+    if (capture) child.stdout.on("data", (chunk) => { output += chunk; });
     child.once("error", (error) =>
       reject(new Error(`${label} could not start: ${error.code ?? error.message}`)),
     );
     child.once("exit", (code) => {
-      if (code === 0) resolve();
+      if (code === 0) resolve(output.trim());
       else reject(new Error(`${label} exited with code ${code ?? "unknown"}`));
     });
   });
 }
 
-function cliProvider() {
-  if (!process.env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
-  if (!process.env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
+export function cliProvider({ globalConfig, run = runProviderCommand, env = process.env } = {}) {
+  if (!env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
+  if (!env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
   const npx = resolveNpxCommand();
   const flyctl = process.platform === "win32" ? "flyctl.exe" : "flyctl";
   const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../backend");
   return {
     restoreVercel(deployment) {
-      return runProviderCommand(
+      return run(
         npx.command,
         [
           ...npx.prefixArgs,
           "--yes",
           "vercel@59.0.0",
-          "promote",
+          "rollback",
           deployment,
           "--yes",
-          "--token",
-          process.env.VERCEL_TOKEN ?? "",
+          ...(globalConfig ? ["--global-config", globalConfig]
+            : ["--token", env.VERCEL_TOKEN]),
         ],
-        { label: "Vercel restore" },
+        { label: "Vercel restore", env },
       );
     },
     restoreFly(image) {
-      return runProviderCommand(
+      return run(
         flyctl,
         [
           "deploy",
@@ -146,7 +151,7 @@ function cliProvider() {
           "--wait-timeout",
           "5m",
         ],
-        { cwd: backendDirectory, label: "Fly restore" },
+        { cwd: backendDirectory, label: "Fly restore", env },
       );
     },
   };

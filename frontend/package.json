@@ -18,15 +18,16 @@
     "test:e2e": "npm run test:e2e-dev",
     "test:e2e-mocked": "npm run test:e2e-dev",
     "test:e2e-dev": "node scripts/check-e2e-imports.mjs && playwright test --config=playwright.mocked.config.ts",
-    "test:e2e-preview": "npm run build && node scripts/check-e2e-imports.mjs && playwright test --config=playwright.preview.config.ts",
+    "test:e2e-preview": "npm run build && npm run test:e2e-preview:built",
     "test:integration": "playwright test e2e/integration.spec.ts e2e/accessibility.spec.ts --project=chromium",
     "test:production-smoke": "playwright test --config=playwright.production.config.ts",
-    "test:release-contract": "node --test scripts/verify-deployment.test.mjs scripts/release-recovery.test.mjs",
+    "test:release-contract": "node --test scripts/verify-deployment.test.mjs scripts/release-recovery.test.mjs scripts/release.test.mjs",
     "capture:showcase": "node scripts/capture-showcase.mjs",
     "capture:film": "node scripts/capture-film.mjs",
     "check:bundle-secrets": "node scripts/check-bundle-secrets.mjs",
     "check:api-contract": "node scripts/check-openapi-contract.mjs",
-    "optimize:og": "node scripts/optimize-og.mjs"
+    "optimize:og": "node scripts/optimize-og.mjs",
+    "test:e2e-preview:built": "node scripts/check-e2e-imports.mjs && playwright test --config=playwright.preview.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.2.10",

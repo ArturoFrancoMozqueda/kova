@@ -1,10 +1,14 @@
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.audit.models import AuditLog
 from app.orders.models import InventoryMovement, OrderItem
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:

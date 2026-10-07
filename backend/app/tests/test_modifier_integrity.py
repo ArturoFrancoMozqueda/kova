@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +11,9 @@ from app.main import app
 from app.modifiers import service as modifier_service
 from app.modifiers.models import ProductModifierGroup
 from app.modifiers.schemas import SetProductModifierGroups
+
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
 
 
 def _signup_verify_login(client: TestClient, email: str, tenant_name: str) -> dict:

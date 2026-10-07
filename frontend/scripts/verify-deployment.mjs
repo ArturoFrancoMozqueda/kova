@@ -9,6 +9,7 @@ function requireArg(name) {
 
 async function getJson(url, extraHeaders = {}) {
   const response = await globalThis.fetch(url, {
+    signal: globalThis.AbortSignal.timeout(20_000),
     headers: { "cache-control": "no-cache", ...extraHeaders },
     redirect: "follow",
   });
@@ -18,6 +19,7 @@ async function getJson(url, extraHeaders = {}) {
 
 async function getText(url, extraHeaders = {}) {
   const response = await globalThis.fetch(url, {
+    signal: globalThis.AbortSignal.timeout(20_000),
     headers: { "cache-control": "no-cache", ...extraHeaders },
     redirect: "follow",
   });

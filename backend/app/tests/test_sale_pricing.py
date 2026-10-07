@@ -10,6 +10,9 @@ from app.pricing import calculator
 from app.reports.service import _margin_report, _net_item_rows
 from app.tests.test_orders import _create_product, _signup_verify_login
 
+# Password cost is incidental to these business scenarios; real auth routes stay active.
+pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
 
 def test_discount_tax_cents_and_rounding():
     subtotal, tax, total, lines = calculator.sale_pricing(

@@ -7,6 +7,7 @@ export default defineConfig({
   ...baseConfig,
   testIgnore: /production-smoke\.spec\.ts/,
   retries: 0,
+  use: { ...baseConfig.use, trace: "retain-on-failure" },
   webServer: {
     command: "npm run preview -- --host 127.0.0.1 --port 5174 --strictPort",
     url: "http://127.0.0.1:5174",
