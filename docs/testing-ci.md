@@ -17,7 +17,7 @@ Todos los PR con código ejecutan **las suites completas**. No hay selección de
 | Vitest (792 casos) | Comportamiento de componentes, persistencia IndexedDB, permisos, cálculos, PWA y secretos en fuente | Node 24, package-lock, jsdom/fake-indexeddb | `frontend/reports/vitest.xml` |
 | Playwright preview | Interacciones, rutas/prerender, variantes móviles y offline sobre bundle compilado | Chromium, build de producción; APIs simuladas explícitamente | `frontend/reports/preview.xml`, HTML, screenshots y traces de fallos |
 | Playwright stack real (4 casos) | Venta real, stock y cambio; aislamiento entre tenants; accesibilidad de vistas y modal financiero | Docker Compose, API real, Postgres y rol de aplicación sin bypass RLS | `frontend/reports/integration.xml`, HTML y diagnóstico |
-| Contratos de release (20 casos; uno exclusivo de Windows) | SHA/health/proxy, orden de promoción y restauración, incidentes de recuperación | Node; proveedores simulados, sin credenciales | Log de `test:release-contract` |
+| Contratos de release (21 casos; uno exclusivo de Windows) | SHA/health/proxy, orden de promoción y restauración, incidentes de recuperación | Node; proveedores simulados, sin credenciales | Log de `test:release-contract` |
 | Contratos operativos/política CI (26 casos) | Filtros conservadores, gates obligatorios, pinning y schedules existentes | Python estándar | Log de `unittest` |
 | Parser | Rechazo adversarial y aislamiento de archivos de negocio | Contenedor y firmas antivirus actuales | Log del job |
 | Reproducibilidad/SBOM | Dos builds idénticos y lista de dependencias | BuildKit, bases fijadas por digest | SBOM por commit |
@@ -127,7 +127,7 @@ Desde `frontend/`: `npm ci`, `npm run lint`, `npm test -- --run`, `npm run test:
 
 Stack real: `scripts/test-stack.sh` o `scripts/test-stack.ps1`. CI incluye el mismo stack con teardown incondicional. Los artefactos de diagnóstico contienen únicamente datos sintéticos del stack o mocks; el job de producción no sube traces, cookies, `.vercel` ni configuración de autenticación.
 
-Publicación: un job protegido captura el rollback y lo sube antes de preparar candidatos. El candidato Vercel se construye con configuración de producción y `--skip-domain`; Fly se despliega después. La fase se fija antes de cada posible modificación de producción: `candidate` para Fly/verificación, `promotion` antes del cambio de alias y `acceptance` antes de verificar el alias. La recuperación conserva un CI rojo aunque restaure correctamente; `RECOVERY_BLOCKED` exige intervención. Las pruebas de proveedores simulados cubren cada fallo y la restauración Vercel→Fly. Nunca se revierte automáticamente la base.
+Publicación: un job protegido captura el rollback y lo sube antes de preparar candidatos. El candidato Vercel se construye con configuración de producción y `--skip-domain`; Fly se despliega después. La fase se fija antes de cada posible modificación de producción: `candidate` para Fly/verificación, `promotion` antes del cambio de alias y `acceptance` antes de verificar el alias. La restauración de un deployment Vercel que ya sirvió producción utiliza `rollback`, no una segunda promoción, y no reconstruye el artefacto. La recuperación conserva un CI rojo aunque restaure correctamente; `RECOVERY_BLOCKED` exige intervención. Las pruebas de proveedores simulados cubren cada fallo y la restauración Vercel→Fly. Nunca se revierte automáticamente la base.
 
 El token Vercel del nuevo release se escribe en un `auth.json` temporal con permisos 0600, se usa mediante `--global-config` y se elimina en `finally`; no aparece en argv. El entorno de producción se restringe a los pasos autenticados.
 
@@ -135,7 +135,7 @@ El token Vercel del nuevo release se escribe en un `auth.json` temporal con perm
 
 La comparación utiliza cinco PR completos antes del cambio y cinco ejecuciones del mismo árbol después. Para cada uno se registra tiempo desde creación hasta terminación de GitHub (incluye colas), suma de segundos ejecutados por todos los jobs y retries reales en los logs de navegador. No se deduce intermitencia de un check verde.
 
-Objetivo: mediana de validación <= 300 segundos y menor consumo de runner, preservando suites completas. Los resultados se completan después de validar el PR. Los benchmarks no publican producción.
+Objetivo: mediana de validación <= 300 segundos y menor consumo de runner, preservando suites completas. Los resultados y enlaces de las cinco ejecuciones antes/después se registran en la descripción del [PR #168](https://github.com/ArturoFrancoMozqueda/kova/pull/168). Los benchmarks usan el mismo árbol de código y no publican producción; las ejecuciones de ajuste se identifican por separado.
 
 ## Configuración de GitHub
 

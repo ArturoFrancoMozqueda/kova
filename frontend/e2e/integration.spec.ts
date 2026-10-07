@@ -50,7 +50,8 @@ test.describe("stack efímero sin mocks", () => {
     await page.getByRole("button", { name: `Agregar ${product.name}` }).click();
     await page.getByLabel(/efectivo recibido/i).fill("40.00");
     await page.getByRole("button", { name: /^cobrar$/i }).click();
-    await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
+    await expect(page.getByRole("status").filter({ hasText: /venta completada\.?/i }))
+      .toHaveText(/venta completada\.?/i);
     const link = page.getByRole("link", { name: /abrir orden/i });
     await expect(link).toHaveAttribute("href", /^\/orders\/[0-9a-f-]+$/);
     const orderPath = await link.getAttribute("href");

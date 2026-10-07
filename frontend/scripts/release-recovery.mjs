@@ -115,31 +115,31 @@ export function runProviderCommand(command, args, options = {}) {
   });
 }
 
-export function cliProvider({ globalConfig } = {}) {
-  if (!process.env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
-  if (!process.env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
+export function cliProvider({ globalConfig, run = runProviderCommand, env = process.env } = {}) {
+  if (!env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
+  if (!env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
   const npx = resolveNpxCommand();
   const flyctl = process.platform === "win32" ? "flyctl.exe" : "flyctl";
   const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../backend");
   return {
     restoreVercel(deployment) {
-      return runProviderCommand(
+      return run(
         npx.command,
         [
           ...npx.prefixArgs,
           "--yes",
           "vercel@59.0.0",
-          "promote",
+          "rollback",
           deployment,
           "--yes",
           ...(globalConfig ? ["--global-config", globalConfig]
-            : ["--token", process.env.VERCEL_TOKEN ?? ""]),
+            : ["--token", env.VERCEL_TOKEN]),
         ],
-        { label: "Vercel restore" },
+        { label: "Vercel restore", env },
       );
     },
     restoreFly(image) {
-      return runProviderCommand(
+      return run(
         flyctl,
         [
           "deploy",
@@ -151,7 +151,7 @@ export function cliProvider({ globalConfig } = {}) {
           "--wait-timeout",
           "5m",
         ],
-        { cwd: backendDirectory, label: "Fly restore" },
+        { cwd: backendDirectory, label: "Fly restore", env },
       );
     },
   };
