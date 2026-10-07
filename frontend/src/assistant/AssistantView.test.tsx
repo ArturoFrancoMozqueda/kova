@@ -49,6 +49,31 @@ describe("tenant assistant review and privacy", () => {
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/tasks")).length).toBeGreaterThan(initial));
     expect(screen.getByText("Pendientes y seguimiento")).toBeVisible();
   });
+  it("keeps the new run and evidence when its continuation URL changes", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
+      const path = input.split("/assistant")[1];
+      const data = path === "/capabilities" ? { enabled: true, inference_ready: true }
+        : path === "/preferences" ? { chat_consent: true }
+        : path === "/usage" ? { tenant_used: 0, tenant_limit: 8000, reset_at: "2026-10-08T00:00:00Z" }
+        : path === "/conversations" ? init?.method === "POST" ? { id: "new-chat", data: {} } : [{ id: "old-chat", data: { title: "Anterior" } }]
+        : path === "/conversations/old-chat" ? { messages: [{ id: "old-message", data: { role: "assistant", content: "Respuesta anterior" } }] }
+        : path === "/conversations/new-chat/messages" ? { id: "new-run", status: "queued", data: {} }
+        : path === "/conversations/new-chat" ? { messages: [{ id: "new-message", data: { role: "user", content: "Revisa mis ventas" } }] }
+        : path === "/runs/new-run" ? { id: "new-run", status: "completed", data: { metrics: { net_sales: "125.00", order_count: 2, gross_sales: "125.00", refund_total: "0.00", start_date: "2026-10-01", end_date: "2026-10-06" } } }
+        : [];
+      return new Response(JSON.stringify(data));
+    }));
+    render(<MemoryRouter initialEntries={["/assistant?conversation=old-chat"]}><AssistantView /></MemoryRouter>);
+    await screen.findByText("Respuesta anterior");
+    fireEvent.click(screen.getByRole("button", { name: "Nueva conversación" }));
+    await screen.findByText("¿Qué quieres resolver hoy?");
+    fireEvent.change(screen.getByRole("textbox", { name: "Tu pregunta" }), { target: { value: "Revisa mis ventas" } });
+    fireEvent.click(screen.getByRole("button", { name: "Consultar" }));
+    await waitFor(() => expect(screen.getByText("Venta neta")).toBeVisible(), { timeout: 4000 });
+    expect(screen.queryByText("Respuesta anterior")).toBeNull();
+    expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/conversations/old-chat"))).toHaveLength(1);
+    expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/capabilities"))).toHaveLength(1);
+  });
   it.each(["cashier", "offline"])("does not load private context in %s mode", async mode => {
     if (mode === "offline") auth.state.sessionMode = "offline";
     else auth.state.user.role = "cashier";

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Brain, FileText, LockKeyhole, MessageCircle, Plus, Send, ShieldCheck, Target, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
 import { getActiveBranchId } from "@/branches/activeBranch";
@@ -62,7 +62,12 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
   const { refresh: refreshIdentity } = useAuth();
   const apiController = useRef(new AbortController());
   const api = useMemo(() => assistantApi({ tenantId: identity.tenantId, userId: identity.userId, branchId: identity.branchId }, () => apiController.current.signal), [identity.tenantId, identity.userId, identity.branchId]);
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  // Updating the continuation URL must not restart initial conversation recovery.
+  const setParams = useCallback((values: Record<string, string>, options: { replace: boolean }) => {
+    navigate({ search: new URLSearchParams(values).toString() }, options);
+  }, [navigate]);
   const initialConversation = useRef(params.get("conversation"));
   const initialRun = useRef(params.get("run"));
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
