@@ -49,11 +49,12 @@ describe("tenant assistant review and privacy", () => {
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/tasks")).length).toBeGreaterThan(initial));
     expect(screen.getByText("Pendientes y seguimiento")).toBeVisible();
   });
-  it("keeps the new run and evidence when its continuation URL changes", async () => {
+  it.each([false, true])("keeps the completed explanation and evidence (quota refresh failure: %s)", async quotaRefreshFails => {
     let completed = false;
     vi.stubGlobal("fetch", vi.fn(async (input: string, init?: RequestInit) => {
       const path = input.split("/assistant")[1];
       if (path === "/runs/new-run") completed = true;
+      if (path === "/usage" && completed && quotaRefreshFails) return new Response(JSON.stringify({ detail: "No pudimos actualizar la cuota." }), { status: 503 });
       // Real conversation reads resolve after React processes the terminal run.
       if (path === "/conversations/new-chat" && completed) await new Promise(resolve => setTimeout(resolve, 20));
       const data = path === "/capabilities" ? { enabled: true, inference_ready: true }

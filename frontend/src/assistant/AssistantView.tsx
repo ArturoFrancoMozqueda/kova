@@ -156,10 +156,10 @@ function AssistantWorkspace({ identity, tenantName }: { identity: Identity; tena
           if (!stopped && alive.current) setMessages(data.messages);
         }
         if (stopped || !alive.current) return;
-        await refresh();
         // Publishing the terminal run cleans up this effect. Finish recovering
         // its conversation first so that cleanup cannot discard the answer.
-        if (!stopped && alive.current) setRun(result);
+        setRun(result);
+        await refresh();
       } catch (e) { if (!stopped && alive.current) setError(e instanceof Error ? e.message : "No pudimos recuperar la consulta."); }
     };
     timer = setTimeout(() => void poll(), 2000);
