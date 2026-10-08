@@ -31,6 +31,10 @@ def cloudflare_ready() -> bool:
 
 
 def ready() -> bool:
+    if settings.assistant_generation_provider == "openrouter":
+        from app.assistant import openrouter
+
+        return openrouter.ready()
     if settings.assistant_generation_provider == "groq":
         return bool(
             settings.assistant_provider_verified
@@ -49,7 +53,7 @@ def groq_models() -> set[str]:
 
 
 def planning_tools(tools):
-    if settings.assistant_generation_provider != "groq":
+    if settings.assistant_generation_provider not in {"groq", "openrouter"}:
         return tools
 
     def compact(schema):
@@ -251,6 +255,18 @@ def _call(model: str, body: dict, *, chat=False) -> dict:
     if chat:
         body = {**body, "model": model}
     assert settings.assistant_cloudflare_token is not None
+    if settings.assistant_generation_provider == "openrouter":
+        # Document embeddings share the interactive request's remaining deadline.
+        # This preserves their separate Cloudflare consent and neuron accounting.
+        import asyncio
+
+        from app.assistant import openrouter
+
+        data = asyncio.run(openrouter.request(url, body, "Bearer "
+                       + settings.assistant_cloudflare_token.get_secret_value()))
+        if not data.get("success") or not isinstance(data.get("result"), dict):
+            raise HTTPException(503, "Respuesta de IA no verificable.")
+        return data["result"]
     try:
         with httpx.Client(timeout=30, follow_redirects=False, trust_env=False) as client:
             with client.stream(
@@ -318,6 +334,11 @@ def generate(
     messages: list[dict], tools: list[dict], *, model: str, structured: bool = False,
     allowed_source_ids: list[str] | None = None,
 ) -> dict:
+    if settings.assistant_generation_provider == "openrouter":
+        from app.assistant import openrouter
+
+        return openrouter.generate(messages, tools, model=model, structured=structured,
+                                   allowed_source_ids=allowed_source_ids)
     if settings.assistant_generation_provider == "groq":
         return _generate_groq(
             messages, tools, model=model, structured=structured,

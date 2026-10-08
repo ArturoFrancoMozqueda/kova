@@ -27,7 +27,8 @@ def acquire(db, job):
         count(*) FILTER (WHERE user_key=:user) FROM assistant_control.slots"""),
         {"tenant": job.tenant_id, "user": job.owner_user_id},
     ).one()
-    if counts[0] >= 3 or counts[1] >= 2 or counts[2] >= 1:
+    if (counts[0] >= settings.assistant_global_concurrency
+            or counts[1] >= settings.assistant_tenant_concurrency or counts[2] >= 1):
         return False
     db.execute(
         text("""INSERT INTO assistant_control.slots(id,tenant_key,user_key,expires_at)

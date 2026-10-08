@@ -7359,7 +7359,8 @@
               {
                 "enum": [
                   "cloudflare",
-                  "groq"
+                  "groq",
+                  "openrouter"
                 ],
                 "type": "string"
               },

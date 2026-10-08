@@ -110,13 +110,15 @@ un catálogo grande usa el importador, no cientos de herramientas individuales.
 
 ### 4.1 Elección inicial sujeta a evaluación
 
-Actualización solicitada al 2026-10-07: candidato principal **GPT-OSS-20B en Groq Free**,
-razonamiento bajo, FAQ/reportes deterministas y cuotas de tokens independientes de Cloudflare.
-La cuenta gratuita y Global ZDR están verificados; calidad y activación siguen pendientes.
-GPT-OSS-120B y Qwen económico son comparadores, sin fallback de pago. Implementación,
-consentimiento al cambiar proveedor, comandos y evidencia actual en
-[operación Groq](../assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
-La decisión siguiente describe el piloto histórico, todavía conservado hasta cerrar los gates.
+Decisión técnica final al 2026-10-07: **GPT-OSS-120B en Cerebras mediante OpenRouter**,
+razonamiento bajo y ruta fija ZDR. Kova redacta reportes y sus límites; el modelo selecciona
+lecturas y pasajes de fuentes autorizadas, cuyo texto reconstruye el servidor. No se habilitan
+mutaciones ni correo. El presupuesto mensual predeterminado es cero; cambiar los destinatarios
+requiere nueva aceptación explícita. La selección no acredita todavía producción: siguen los
+gates de evaluación, revisión, QA de archivos/carga y autorización de despliegue.
+La alternativa Groq Free se rechazó por formato/capacidad y la ruta Groq en OpenRouter tuvo
+un HTTP 429. Evidencia y condiciones en la [decisión final](../research/ASSISTANT-DECISION-2026-10-07.md).
+Las decisiones siguientes se conservan como historia del piloto.
 
 
 Decisión de piloto de lectura al 2026-10-06: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
@@ -694,6 +696,15 @@ contra el backend, DB, workers y UI reales; el modelo nunca es el único juez de
 ## 11. Evaluación, etapas y gates de implementación
 
 ### 11.1 Evaluación del modelo para Kova
+
+**Evaluación de la arquitectura final de consulta:** `qualify_grounded_assistant.py` conserva
+los 220 casos/oráculos originales y ejecuta los 180 de consulta tres veces (540), con modelo,
+ruta y código fijados. Los cuarenta de configuración conservan su gate independiente antes
+de activar mutaciones. No se rebajan resolución ≥95%, citas pertinentes ≥90%, controles de
+seguridad ni revisión humana. La prueba mide selección de lecturas/pasajes y salida escrita
+por el servidor; no se confunde con aprobar prosa financiera libre ni con QA de archivos real.
+La clave, el ledger y el techo total de evaluación siguen compartidos; ninguna revisión del
+agente se registra como humana. La comparación histórica siguiente se conserva para auditoría.
 
 Construir 200 casos con datos sintéticos aislados, nunca copiar datos de producción o secretos:
 40 de configuración, 40 de análisis, 40 de RAG, 30 de evidencia insuficiente/contradictoria,

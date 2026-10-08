@@ -6,7 +6,17 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from app.assistant import budget, direct, executor, groq_budget, knowledge, provider, tools
+from app.assistant import (
+    budget,
+    deadline,
+    direct,
+    executor,
+    groq_budget,
+    grounding,
+    knowledge,
+    provider,
+    tools,
+)
 from app.assistant import repository as repo
 from app.assistant.models import now
 from app.assistant.schemas import Answer
@@ -117,7 +127,7 @@ Cita solo fuentes recuperadas."""
 
 
 def system_prompt():
-    if settings.assistant_generation_provider == "groq":
+    if settings.assistant_generation_provider in {"groq", "openrouter"}:
         return GROQ_SYSTEM if settings.assistant_mutations_enabled else GROQ_READ_SYSTEM
     return SYSTEM
 
@@ -126,7 +136,7 @@ def planning_system_prompt():
     return READ_PLANNING_SYSTEM + (
         "\nPara preguntas sobre cómo usar o configurar Kova, consulta search_knowledge "
         "antes de explicar el procedimiento. La configuración actual no sustituye una guía."
-        if settings.assistant_generation_provider == "groq" else ""
+        if settings.assistant_generation_provider in {"groq", "openrouter"} else ""
     )
 
 
@@ -183,7 +193,25 @@ def explanation_messages(messages):
     return turns
 
 
+def bounded_sources(sources):
+    bounded = []
+    for source in sources:
+        candidate = {**source, "content": source["content"][:600]}
+        limit = 4000 if settings.assistant_generation_provider == "openrouter" else 1200
+        if len(json.dumps([*bounded, candidate], ensure_ascii=False).encode()) > limit:
+            break
+        bounded.append(candidate)
+    return bounded
+
+
 def run(db, ctx, job):
+    if settings.assistant_generation_provider == "openrouter":
+        with deadline.scope(job):
+            return _run(db, ctx, job)
+    return _run(db, ctx, job)
+
+
+def _run(db, ctx, job):
     user, member, _ = ctx
     bind_branch(db, tenant_id=member.tenant_id, branch_id=job.branch_id)
     conversation = repo.get(db, member.tenant_id, user.id, "conversation", job.parent_id)
@@ -255,8 +283,18 @@ def run(db, ctx, job):
             )
         available_tools = [] if structured_answer else provider.planning_tools(tools.TOOLS)
         provider_messages = messages
+        if settings.assistant_generation_provider == "openrouter":
+            deadline.remaining()
+            if structured_answer:
+                if not grounding.useful_passages(messages):
+                    content = grounding.report_answer(messages) or grounding.UNAVAILABLE_ANSWER
+                    _complete(db, ctx, job, conversation, Answer(answer=content), source_ids,
+                              evidence, metrics, cards, context_refs, response_mode="grounded")
+                    return
+                provider_messages = grounding.extraction_messages(messages)
         if structured_answer and (not settings.assistant_mutations_enabled
-                                  or settings.assistant_generation_provider == "groq"):
+                                  or settings.assistant_generation_provider == "groq") and (
+                                      settings.assistant_generation_provider != "openrouter"):
             provider_messages = explanation_messages(messages)
         if not structured_answer and (not settings.assistant_mutations_enabled
                                       or settings.assistant_generation_provider == "groq"):
@@ -268,7 +306,9 @@ def run(db, ctx, job):
             [
                 provider.generation_messages(provider_messages, structured=structured_answer),
                 available_tools,
-                (provider.groq_response_format(sorted(source_ids))
+                (grounding.response_format(grounding.passage_ids(provider_messages))
+                 if settings.assistant_generation_provider == "openrouter" else
+                 provider.groq_response_format(sorted(source_ids))
                  if settings.assistant_generation_provider == "groq"
                  else provider.read_only_response_format(sorted(source_ids)))
                 if structured_answer else None,
@@ -285,11 +325,17 @@ def run(db, ctx, job):
             window=window,
         )
         reservation_id = str(uuid4())
+        extra_receipt = {}
+        if settings.assistant_generation_provider == "openrouter":
+            from app.assistant import openrouter_budget
+
+            extra_receipt = openrouter_budget.metadata(size, 1024, window)
         repo.update(
             job, remote_started=True, reserved=job.data.get("reserved", 0) + amount,
             pending_reservation={
                 "id": reservation_id, "window": window, "model": model, "amount": amount,
                 "input_tokens": size, "output_tokens": 1024,
+                **extra_receipt,
             },
         )
         db.commit()
@@ -335,16 +381,7 @@ def run(db, ctx, job):
                 if name == "search_knowledge":
                     # Only cite snippets actually sent to the model. Preserve valid
                     # JSON and leave room for the system, tools and current question.
-                    bounded = []
-                    for source in result:
-                        candidate = {**source, "content": source["content"][:600]}
-                        if (
-                            len(json.dumps([*bounded, candidate], ensure_ascii=False).encode())
-                            > 1200
-                        ):
-                            break
-                        bounded.append(candidate)
-                    result = bounded
+                    result = bounded_sources(result)
                     evidence.extend(result)
                     source_ids.update(s["id"] for s in result)
                 if name == "get_memory":
@@ -367,7 +404,8 @@ def run(db, ctx, job):
             )
             for identifier, _name, _args, result in normalized:
                 encoded = json.dumps(result, default=str, ensure_ascii=False)
-                if len(encoded.encode()) > 2200:
+                if len(encoded.encode()) > (4200 if settings.assistant_generation_provider
+                                            == "openrouter" else 2200):
                     # Don't truncate JSON into misleading evidence. Report the limitation.
                     encoded = json.dumps(
                         {
@@ -403,8 +441,13 @@ def run(db, ctx, job):
             raise HTTPException(422, "La respuesta no cumplió el contrato de evidencia.")
         if not {str(x) for x in answer.source_ids} <= source_ids:
             raise HTTPException(422, "La respuesta citó una fuente no recuperada.")
+        if settings.assistant_generation_provider == "openrouter":
+            content = grounding.report_answer(messages)
+            if content:
+                answer.answer = content + "\n\n" + answer.answer
         _complete(db, ctx, job, conversation, answer, source_ids, evidence, metrics, cards,
-                  context_refs)
+                  context_refs, response_mode="grounded" if settings.assistant_generation_provider
+                  == "openrouter" else "model")
         return
     raise HTTPException(422, "No pude resolver la consulta dentro del límite de pasos.")
 
@@ -420,6 +463,8 @@ def _complete(db, ctx, job, conversation, answer, source_ids, evidence, metrics,
         raise HTTPException(409, "La fuente cambió durante la consulta.")
     if not repo.references_valid(db, member.tenant_id, user.id, context_refs):
         raise HTTPException(409, "La memoria cambió durante la consulta.")
+    if settings.assistant_generation_provider == "openrouter":
+        deadline.remaining()
     proposal = (
         executor.prepare(db, ctx, job.branch_id, answer.steps, parent=conversation.id)
         if answer.steps and settings.assistant_mutations_enabled
@@ -462,6 +507,10 @@ def _complete(db, ctx, job, conversation, answer, source_ids, evidence, metrics,
 def settings_model(content):
     from app.config import settings
 
+    if settings.assistant_generation_provider == "openrouter":
+        from app.assistant.openrouter import MODEL
+
+        return MODEL
     if settings.assistant_generation_provider == "groq":
         return settings.assistant_groq_model
     return (

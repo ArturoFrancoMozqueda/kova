@@ -18,28 +18,32 @@ historical evidence and are labelled with their period.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
 
-## Active assistant implementation (2026-10-07): Groq y eficiencia
+## Active assistant implementation (2026-10-07): solución de consulta
 
-Integración de GPT-OSS-20B, ayuda/reportes directos, cuotas por proveedor y consentimiento
-renovado al cambiar destinatario entregada en `main` mediante PR #167. Cuenta Groq Free y
-Global ZDR verificados; calidad comparativa y activación en producción pendientes. La
-corrección posterior de formato y reserva completa está en PR #169. El alcance confirmado incluye
-guías, archivos propios y recomendaciones. La comparación autorizada actual enfrenta
-GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4, ampliada a DeepSeek V4.1 Flash y perfiles rápidos.
-Cuenta, saldo y clave OpenRouter ya verificados; se ejecutan pruebas live con datos sintéticos,
-rutas ZDR y presupuesto compartido de USD 10, incluida la comisión confirmada de USD 0.80.
-El evaluador y el runtime tienen 177 tests backend focalizados. El operador fijó espera máxima de diez segundos
-por respuesta completa; DeepSeek con razonamiento bajo queda fuera como principal. Se comparan
-perfiles rápidos y la ruta regional Mistral/US, con privacidad/precio comprobados por separado.
-Qwen rápido mostró fallos de interpretación y
-selección de lecturas; se corrigieron contexto, UUIDs y validación de modos antes de repetir
-la cobertura afectada. Los sondeos de CoreWeave completaron veinte casos privados en p50 4.123 s,
-máximo 4.975 s; se corrigió la búsqueda omitida de archivos y se reautoriza antes de leer.
-Se amplía ese perfil en la batería normal; los sondeos no cuentan como aprobación.
-Ningún candidato tiene aprobación de calidad. Se conservan los 220 casos
-y sus tres repeticiones requeridas; documentos y mutaciones siguen sin habilitarse en producción.
-No hay programación diaria. La evidencia y los
-gates viven en [operación del asistente](assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
+**Selección técnica cerrada:** GPT-OSS-120B por Cerebras/OpenRouter, con reportes redactados
+por Kova y pasajes de documentos seleccionados por identificador. Implementación en PR #169;
+no está activada en producción. La integración Groq anterior se entregó mediante PR #167,
+pero Groq Free no pasó calidad y la ruta Groq pagada por OpenRouter tuvo un HTTP 429.
+La comparación de prosa libre mostró fallos financieros incluso con JSON válido; no se delegan
+los cálculos ni sus conclusiones al modelo.
+
+Alcance confirmado: guías, preguntas del negocio, recomendaciones y archivos propios,
+sin mutaciones ni correo, máximo diez segundos y escalabilidad desde el inicio. La ruta final
+exige nuevo consentimiento para OpenRouter y Cerebras, ZDR, topes compartidos de gasto,
+control por negocio y concurrencia configurable. El presupuesto mensual de producción es cero.
+La clave local y los USD 10 autorizados siguen siendo solo de evaluación.
+
+El sondeo Cerebras tuvo veintiún contratos válidos, p50 3.959 s / máximo 5.364 s; no acredita
+activación. Se valida la arquitectura final sobre 180 casos de consulta por tres repeticiones,
+conservando los 220 casos originales y sus oráculos. Los cuarenta de mutación mantienen su
+gate independiente antes de habilitar esa capacidad. No hay programación diaria.
+
+Bloqueos de activación: evaluación/revisión de pertinencia, QA autenticada de cola/red/UI y
+carga; clave y techo mensual aprobados; y, para documentos, host de ingesta aislado y QA real
+R2/embeddings/ACL. El worker actual de Fly no tiene el daemon Docker requerido por la ingesta.
+No habilitar archivos ni declarar producción lista sin completar ese recorrido.
+Decisión y evidencia: [selección final](research/ASSISTANT-DECISION-2026-10-07.md);
+operación: [asistente](assistant-operations.md).
 
 ## Active product integration (2026-10-05): Expansión POS
 

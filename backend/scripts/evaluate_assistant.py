@@ -35,6 +35,9 @@ def harness_hash():
     for relative in ("scripts/evaluate_assistant.py", "assistant_evaluation/cases.py",
                      "app/assistant/provider.py", "app/assistant/generation.py",
                      "app/assistant/schemas.py", "app/assistant/tools.py",
+                     "app/assistant/knowledge.py", "app/assistant/direct.py",
+                     "app/assistant/grounding.py", "app/assistant/openrouter.py",
+                     "app/assistant/openrouter_budget.py", "app/assistant/deadline.py",
                      "assistant_evaluation/openrouter.py", "scripts/compare_assistant.py"):
         digest.update((ROOT / relative).read_bytes())
     return digest.hexdigest()

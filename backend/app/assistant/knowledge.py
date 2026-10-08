@@ -15,8 +15,8 @@ GUIDES = {
         (
             "En Configuración puedes guardar el nombre comercial, correo y tel"
             "éfono de soporte, y zona horaria. Revisa el nombre y pie del tick"
-            "et, logo y papel de 58 u 80 mm. El asistente propone cambios; tú "
-            "revisas y confirmas."
+            "et, logo y papel de 58 u 80 mm. Revisa los cambios en esa pantalla "
+            "antes de guardar."
         ),
         "/settings/business-profile",
     ),
@@ -222,10 +222,11 @@ websearch_to_tsquery('spanish',:q) LIMIT 20
       ORDER BY s.score DESC,e.id LIMIT 8"""),
         {"tenant": tenant, "uid": user, "vec": json.dumps(vector), "q": query},
     ).all()
+    private_matches = []
     for row in rows:
         if not storage.exists(tenant, row.document_id):
             continue
-        matches.append(
+        private_matches.append(
             {
                 "id": str(row.document_id),
                 "title": row.title,
@@ -235,7 +236,12 @@ websearch_to_tsquery('spanish',:q) LIMIT 20
                 "public": False,
             }
         )
-    return matches[:8]
+    # A user's files must not disappear behind a full page of public guides.
+    # Keep both kinds available, respecting the ACL filter before ranking above.
+    if re.search(r"(?i)\b(manual(?:es)?|documentos?|archivos?)\b|"
+                 r"seg[uú]n.{0,20}cat[aá]logo", query):
+        return (private_matches[:6] + matches[:2])[:8]
+    return (matches[:4] + private_matches[:4])[:8]
 
 
 def valid_sources(db, tenant, user, ids):

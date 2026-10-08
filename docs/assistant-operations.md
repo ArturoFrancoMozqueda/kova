@@ -5,6 +5,57 @@ El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
 
+## Solución de consulta seleccionada — 2026-10-07
+
+Decisión vigente: [GPT-OSS-120B en Cerebras/OpenRouter, con evidencia controlada por Kova](research/ASSISTANT-DECISION-2026-10-07.md).
+La integración está en PR #169; no habilita producción. El modelo escoge lecturas y pasajes
+por identificador; Kova escribe reportes, límites y referencias. Las cifras se conservan en
+las tarjetas existentes. ZDR, recolección denegada, modelo/ruta fijos y máximos de precio se
+incluyen en cada solicitud; no hay fallback, plugins ni reintentos remotos.
+
+Configuración del despliegue aprobado, sin credenciales en comandos ni repositorio:
+
+| Variable | Condición |
+|---|---|
+| `ASSISTANT_GENERATION_PROVIDER` | `openrouter` |
+| `ASSISTANT_OPENROUTER_API_KEY` | Clave distinta a evaluación, provisionada en el almacén de secretos del host. |
+| `ASSISTANT_PROVIDER_VERIFIED` | Capacidad, cuenta y política comprobadas. |
+| `ASSISTANT_OPENROUTER_PRIVACY_VERIFIED` | ZDR/cuenta sin logging ni entrenamiento comprobados. |
+| `ASSISTANT_OPENROUTER_QUALITY_VERIFIED` | Solo después de gates de la arquitectura final, no por el sondeo parcial. |
+| `ASSISTANT_OPENROUTER_MONTHLY_USD` | Techo mensual autorizado de inferencia; predeterminado cero, bloquea llamadas pagadas. |
+| `ASSISTANT_OPENROUTER_DAILY_TOKENS` | Tope aplicativo compartido diario; no describe una cuota del proveedor. |
+| `ASSISTANT_OPENROUTER_TENANT_DAILY_TOKENS` | Tope aplicativo por negocio; comparte presupuesto global. |
+| `ASSISTANT_GLOBAL_CONCURRENCY` / `ASSISTANT_TENANT_CONCURRENCY` | Predeterminados tres/dos; una ejecución por usuario. Aumentar después de carga comprobada. |
+| `ASSISTANT_MUTATIONS_ENABLED` / `ASSISTANT_EMAIL_ENABLED` | `false` para este alcance. |
+| `ASSISTANT_DOCUMENTS_ENABLED` | Solo después de host de ingesta aislado y QA autenticada de archivos. |
+
+Conservar la cohorte y los demás gates de acceso. El consentimiento nombra **OpenRouter y
+Cerebras** y se renueva al cambiar proveedor. Embeddings y objetos mantienen su consentimiento,
+presupuesto y configuración Cloudflare/R2 independientes. Un resultado incierto conserva su
+reserva; retirar documentos/consentimiento o cancelar impide la entrega. La consulta expira
+pasados diez segundos desde que se crea, incluida la cola; no se garantiza recuperar cobros
+remotos cuando se cancela.
+
+La ingesta existente requiere Docker aislado con scanner/OCR; el worker actual de Fly no
+lo proporciona. PDF/DOCX/TXT/MD alimentan conocimiento; CSV/XLSX usa vista previa y confirmación
+del importador. No se activa el flag de archivos para aparentar que ese recorrido está listo.
+
+Evaluación final de consulta, separada de la comparación histórica de prosa libre:
+
+```bash
+cd backend
+python scripts/qualify_grounded_assistant.py --run --account-verified --limit 540
+```
+
+Cuenta/privacidad/saldo dedicados deben estar verificados. Solo carga `.env.evaluation.local`,
+ignorado por Git/Docker. Reutiliza ledger/lock existentes, conserva la comisión USD 0.80 y
+máximo total USD 10; no reintenta errores. Resultados/manifiesto:
+`output/assistant-evaluation/grounded-final/`. Las 540 ejecuciones son los 180 casos de consulta
+originales por tres repeticiones. Los cuarenta de mutación siguen en el corpus y requieren sus
+pruebas antes de activar esa capacidad. Un cambio de código no reutiliza resultados como
+aprobación. Los campos de revisión humana permanecen pendientes hasta revisión real.
+
+
 ## Integración de Groq y respuestas directas — 2026-10-07
 
 Integración entregada en `main` mediante PR #167; activación pendiente. La configuración vigente es
