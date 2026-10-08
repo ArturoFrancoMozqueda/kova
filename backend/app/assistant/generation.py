@@ -182,6 +182,8 @@ def ensure_document_read(content, tool_calls):
             required.extend(("get_sales", "get_top_products", "get_inventory"))
         if re.search(r"\breembolsos?\b", query) and re.search(r"\bventas?\b", query):
             required.append("get_sales")
+        if re.search(r"\b(?:reponer|reposicion|reabastecer)\b", query):
+            required.append("get_inventory")
         if re.search(r"\bcomo\b|\b(?:manual(?:es)?|documentos?|archivos?|catalogos?)\b", query):
             required.append("search_knowledge")
         names = {item.get("function", item).get("name") for item in tool_calls}
