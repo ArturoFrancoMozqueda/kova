@@ -15,6 +15,18 @@ reposiciones, devoluciones y persistencia de evidencia requieren su propia evalu
 La revisión del agente no acredita revisión humana ni archivos/capacidad en producción.
 Modelo y licencia de pesos abiertos Apache 2.0: [documentación de Mistral](https://docs.mistral.ai/models/mistral-small-4-0-26-03).
 
+La batería del código vigente terminó el 2026-10-08: **540/540 identidades únicas**,
+contratos válidos y consumo verificado, mediana 0.9065 s, p95 2.784 s y máximo 4.747 s.
+Harness: `40a7e0b723a66440e558246beca818c3dc5b928564a7b9fd01d7dc5500bd663c`.
+Perfil runtime: `a3b9af8f46ead1e815339ba777dc112f389ff296200865a6dfc47fa10755f0cb`.
+El diagnóstico del agente sustenta resolución en 540/540 y presencia de citas en 168/168
+oportunidades; no firma pertinencia ni revisión humana. Anota 157 respuestas de más de tres
+párrafos y doce abstenciones sin siguiente paso específico para revisión de utilidad.
+Una auditoría adicional de nueve consultas reales, en tres lotes de concurrencia tres,
+pasó contrato/consumo y tuvo máximo 2.227 s. Usa recuperación sintética: no acredita cola,
+API, interfaz, carga ni archivos de producción. El corpus original y resultados previos
+permanecen íntegros. Calidad, revisión humana y QA E2E siguen sin aprobación.
+
 Los sondeos anteriores de GPT-OSS/Groq/Cerebras demostraron respuestas rápidas y contratos válidos, pero también
 saturación y timeout. **No son aprobación final ni prueba de carga.** La evaluación actual usa
 otro hash y conserva todos los fallos. La evidencia de 540 casos de abajo corresponde al perfil
@@ -28,8 +40,8 @@ se conservó su reserva. Esa ruta tampoco acredita capacidad ni una aprobación 
 El motor ahora liga su aprobación al hash de código/perfil; el consentimiento liga los dos
 destinatarios. Hay pausas compartidas, recuperación mensual, citas literales con cifras y aviso
 OCR. La ingesta y el chat tienen capacidad independiente; la publicación no crea host pagado
-y la recuperación pausa archivos/inferencia. Antes de activar siguen pendientes la batería del
-perfil vigente, pertinencia/es-MX, capacidad y QA de los archivos reales con sesión autenticada.
+y la recuperación pausa archivos/inferencia. Antes de activar siguen pendientes
+pertinencia/es-MX humana, credencial permanente, capacidad y QA de archivos reales autenticada.
 
 Estado operativo/comandos: [assistant-operations.md](../assistant-operations.md).
 Los apartados siguientes conservan las decisiones y mediciones históricas, sin reescribirlas.

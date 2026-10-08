@@ -76,7 +76,7 @@ def started_host(identifier, sha, image, run):
     _, ingest = hosts(run)
     if (len(ingest) != 1 or ingest[0]["id"] != identifier
             or ingest[0].get("state") != "started"
-            or ingest[0]["config"].get("image") != image
+            or image_identity(ingest[0]) != image
             or ingest[0]["config"].get("env", {}).get("GIT_SHA") != sha):
         raise RuntimeError("Isolated worker is not running the accepted release")
 
@@ -99,14 +99,30 @@ def hosts(run):
     return machines, ingest
 
 
+def image_identity(machine):
+    # Fly deploy may store a tag while machine update stores tag@digest. Compare
+    # the resolved registry identity and pin that digest, never just the tag.
+    ref = machine.get("image_ref", {})
+    tag, digest = ref.get("tag"), ref.get("digest")
+    if (ref.get("registry") != "registry.fly.io" or ref.get("repository") != APP
+            or not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*", tag)
+            or not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)):
+        raise RuntimeError("Serving image identity is not verified")
+    image = "registry.fly.io/" + APP + ":" + tag
+    pinned = image + "@" + digest
+    if machine.get("config", {}).get("image") not in (image, pinned):
+        raise RuntimeError("Configured image differs from its resolved identity")
+    return pinned
+
+
 def serving_image(machines, sha):
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise RuntimeError("Full release SHA is required")
-    apps = [m["config"] for m in machines
+    apps = [m for m in machines
             if m.get("config", {}).get("metadata", {}).get("fly_process_group") == "app"]
-    if not apps or any(c.get("env", {}).get("GIT_SHA") != sha for c in apps):
+    if not apps or any(m["config"].get("env", {}).get("GIT_SHA") != sha for m in apps):
         raise RuntimeError("API release is not yet consistent; file host was not updated")
-    images = {c.get("image") for c in apps}
+    images = {image_identity(m) for m in apps}
     if len(images) != 1 or not next(iter(images)):
         raise RuntimeError("API image is not consistent")
     image = next(iter(images))
@@ -154,7 +170,7 @@ def provision(sha, monthly_limit, *, run=subprocess.run, sleep=time.sleep):
         _, ingest = hosts(run)
         if len(ingest) != 1:
             raise RuntimeError("Provisioned host metadata did not match the approved shape")
-    elif ingest[0]["config"].get("image") != image:
+    elif image_identity(ingest[0]) != image:
         raise RuntimeError("Update the existing host through the normal release first")
     identifier = ingest[0]["id"]
     return verify(identifier, sha, image, run=run, sleep=sleep)

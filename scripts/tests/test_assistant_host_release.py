@@ -11,11 +11,14 @@ spec = importlib.util.spec_from_file_location(
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 SHA = "a" * 40
+DIGEST = "sha256:" + "c" * 64
 UTC = timezone.utc
 
 
 def machine(group, **kwargs):
-    return {"id": group, "region": "iad", "state": "started", "config": {
+    return {"id": group, "region": "iad", "state": "started", "image_ref": {
+        "registry": "registry.fly.io", "repository": module.APP, "tag": "test", "digest": DIGEST},
+        "config": {
         "metadata": {"fly_process_group": group}, "env": {"GIT_SHA": SHA},
         "image": "registry.fly.io/pos-project-backend:test",
         "guest": {"cpu_kind": "shared", "cpus": 4, "memory_mb": 5120},
@@ -57,10 +60,37 @@ class AssistantHostReleaseTests(unittest.TestCase):
         args = calls[1][0]
         self.assertEqual(args[:4], ["flyctl", "machine", "update", "ingest"])
         self.assertIn("GIT_SHA=" + SHA, args)
-        self.assertIn("registry.fly.io/pos-project-backend:test", args)
+        self.assertIn("registry.fly.io/pos-project-backend:test@" + DIGEST, args)
         self.assertFalse(any(a in args for a in ("deploy", "run", "--vm-memory", "--region")))
         self.assertTrue(any("python scripts/check_assistant_parser.py" in call
                             for call, _ in calls))
+
+    def test_tag_and_digest_qualified_configurations_share_the_same_verified_identity(self):
+        app, ingest = machine("app"), machine("ingest")
+        ingest["config"]["image"] += "@" + DIGEST
+        calls, run = self.runner([app, ingest])
+        self.assertTrue(module.update(SHA, run, sleep=lambda _: None))
+        self.assertIn(app["config"]["image"] + "@" + DIGEST, calls[1][0])
+
+    def test_unverified_or_different_resolved_images_cannot_be_accepted(self):
+        for field, value in (("digest", "sha256:" + "d" * 64), ("digest", "invalid"),
+                             ("registry", "other.example"), ("repository", "other-app")):
+            with self.subTest(field=field, value=value):
+                app, ingest = machine("app"), machine("ingest")
+                ingest["image_ref"][field] = value
+                calls, run = self.runner([app, ingest])
+                with self.assertRaises(RuntimeError):
+                    module.started_host("ingest", SHA, module.image_identity(app), run)
+        for config in ("registry.fly.io/pos-project-backend:other",
+                       "registry.fly.io/pos-project-backend:test@sha256:" + "d" * 64):
+            with self.subTest(config=config), self.assertRaises(RuntimeError):
+                module.image_identity(machine("app", image=config))
+        app = machine("app")
+        app.pop("image_ref")
+        calls, run = self.runner([app, machine("ingest")])
+        with self.assertRaises(RuntimeError):
+            module.update(SHA, run, sleep=lambda _: None)
+        self.assertEqual(len(calls), 1)
 
     def test_normal_release_cannot_accept_a_failed_existing_host(self):
         calls = []

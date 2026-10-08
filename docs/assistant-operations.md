@@ -73,6 +73,14 @@ lo detiene y bloquea aceptación; los archivos permanecen deshabilitados hasta Q
 Fuentes: [paquetes Debian](https://packages.debian.org/trixie/docker.io),
 [implementación de exec](https://github.com/superfly/flyctl/blob/master/internal/command/machine/exec.go).
 
+El release `1c904cd` (`37823757140`) alcanzó el scanner, pero rechazó la identidad del host:
+Fly guarda `tag` en deploy y `tag@digest` en machine update. La recuperación restauró
+`92e7655` y detuvo ingesta. La comprobación corregida exige la misma identidad resuelta
+`image_ref` (registry, repository, tag y digest SHA-256) de todas las máquinas app, actualiza
+ingesta con ese digest fijo y acepta ambos formatos solo si concuerdan con esa identidad.
+Conserva las pruebas reales de parser y la estabilidad del proceso; no activa archivos ni IA.
+Fuente: [identidad de imágenes en Machines](https://docs.fly.io/machines/api/machines-resource).
+
 CI de `f6b7c74` (`37819978726`) pasó las comprobaciones obligatorias pero omitió publicación
 por un ancestro opcional no aplicable. La condición corregida exige explícitamente éxito
 de `CI required`, push con código en main y ausencia de cancelación; conserva recuperación.
@@ -109,6 +117,15 @@ reposición: el servidor exige ventas o inventario cuando corresponden, sin dupl
 Se conserva la evidencia fallida; cada cambio del perfil requiere su propia batería.
 Las respuestas nuevas guardan cifras y fuentes junto al mensaje para conservarlas al reabrir;
 la retirada de documentos/memoria y los controles de usuario/sucursal siguen ocultando evidencia.
+Las tarjetas de productos identifican unidades y venta netas: tanto el rango acotado como
+el histórico descuentan devoluciones, aunque la clave histórica del contrato se llame `gross_sales`.
+
+La batería vigente ya terminó: 540 contratos válidos/identidades únicas, p50 0.9065 s,
+p95 2.784 s y máximo 4.747 s; consumo verificado. El diagnóstico del agente sustenta 540/540
+resoluciones y encuentra citas en 168/168 oportunidades. No sustituye revisión humana.
+La auditoría de proveedor con concurrencia tres pasó nueve consultas (máximo 2.227 s),
+con recuperación sintética; no prueba capacidad de la cola/API/interfaz de producción.
+Hashes, limitaciones y observaciones de concisión están en la decisión vigente.
 
 Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
 una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada
