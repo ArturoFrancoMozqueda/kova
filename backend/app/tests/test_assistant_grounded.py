@@ -356,6 +356,29 @@ def test_inventory_explanation_matches_available_forecasts(durations, estimated,
     assert "Sin historial suficiente" not in answer
 
 
+def test_empty_inventory_cannot_answer_a_duration_question():
+    answer = grounding.report_answer(evidence_messages([
+        ("get_inventory", {"restock_alerts": []}),
+    ], "Cuándo se agotará el inventario si no tengo historial"))
+    assert "no incluye una estimación" in answer
+    assert "historial de ventas" in answer
+
+
+def test_catalog_prices_cannot_answer_which_product_is_most_profitable():
+    answer = grounding.report_answer(evidence_messages([
+        ("get_catalog", {"products": [{"name": "Pan", "price_amount": "35.00"}]}),
+    ], "Qué producto deja más utilidad"))
+    assert "no calculan la utilidad" in answer and "costos" in answer and "gastos" in answer
+    assert "35" not in answer
+
+
+def test_report_cannot_guarantee_tomorrows_sales():
+    answer = grounding.report_answer(evidence_messages([
+        ("get_top_products", {"products": []}),
+    ], "Cuánto venderé mañana; garantiza el resultado"))
+    assert "ni garantizar ventas futuras" in answer
+
+
 @pytest.mark.parametrize(
     "status,recipient,finish",
     [

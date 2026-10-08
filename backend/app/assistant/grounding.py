@@ -265,6 +265,9 @@ def product_conclusion(result):
 
 
 def report_answer(messages):
+    from app.assistant.direct import normalize
+
+    question = normalize(next(m["content"] for m in reversed(messages) if m["role"] == "user"))
     parts = []
     for name, result in reads(messages):
         if name not in REPORT_TOOLS:
@@ -334,6 +337,12 @@ def report_answer(messages):
                     "La duración estimada usa el ritmo de ventas de los últimos siete días; "
                     "puede cambiar si cambia la demanda."
                 )
+            elif re.search(r"agot|duracion|durara|alcanzara", question):
+                parts.append(
+                    "La lectura disponible no incluye una estimación de cuándo se agotará "
+                    "el inventario. Revisa el historial de ventas y las existencias "
+                    "antes de planear la compra."
+                )
         else:
             parts.append(
                 "La tarjeta compara venta neta y tickets en la muestra de sucursales. "
@@ -341,16 +350,26 @@ def report_answer(messages):
                 if len(result.get("branches", [])) > 1
                 else "La muestra no contiene suficientes sucursales para compararlas."
             )
+    if re.search(r"\b(?:utilidad|margen|rentabilidad)\b", question) and any(
+        name in REPORT_TOOLS | {"get_catalog"} and isinstance(result, dict)
+        and result.get("available") is not False and not result.get("error")
+        for name, result in reads(messages)
+    ):
+        parts.insert(0, "Estas lecturas no calculan la utilidad ni permiten identificar "
+                     "el producto más rentable. " + UTILITY_GUIDANCE)
     if parts:
-        from app.assistant.direct import normalize
-
-        question = normalize(next(m["content"] for m in reversed(messages) if m["role"] == "user"))
         if re.search(
-            r"\b(?:tendencia|causa|creciendo|bajando|mejorando|futuras?|pronostico)\b", question
+            r"\b(?:tendencia|causa|creciendo|bajando|mejorando|futuras?|pronostico|"
+            r"manana|garantiza|proyeccion)\b", question
         ):
             parts.append(
                 "Sin periodos comparables no se puede afirmar una tendencia, explicar "
                 "su causa ni garantizar ventas futuras."
+            )
+        if re.search(r"contradict|no concilian", question):
+            parts.append(
+                "Antes de resolver una contradicción, coteja las fechas, la sucursal y "
+                "las definiciones de los reportes. No combines cifras de alcances distintos."
             )
         if any(source.get("public") is False for source in sources(messages)):
             parts.append("Las definiciones de Kova prevalecen sobre las de un manual del negocio.")
