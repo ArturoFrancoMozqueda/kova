@@ -149,7 +149,7 @@ def ensure_document_read(content, tool_calls):
         if (re.search(r"\bventas?\b", query) and re.search(r"\bproductos?\b", query)
                 and re.search(r"\binventario\b", query)):
             required.extend(("get_sales", "get_top_products", "get_inventory"))
-        if re.search(r"\bcomo\b|\b(?:manuales?|documentos?|archivos?|catalogos?)\b", query):
+        if re.search(r"\bcomo\b|\b(?:manual(?:es)?|documentos?|archivos?|catalogos?)\b", query):
             required.append("search_knowledge")
         names = {item.get("function", item).get("name") for item in tool_calls}
         missing = [name for name in required if name not in names]

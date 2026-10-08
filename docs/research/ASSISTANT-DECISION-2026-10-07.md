@@ -84,7 +84,7 @@ aislamiento de presupuestos, liquidación idempotente y concurrencia. El recorri
 combina un reporte real de PostgreSQL con un documento privado y revalida permisos al entregar.
 No utiliza datos de clientes ni llama a un modelo real en esos tests.
 
-Validación local de esta implementación: **218 tests de backend** del asistente y **29 tests
+Validación local de esta implementación: **219 tests de backend** del asistente y **29 tests
 de interfaz**, typecheck, Ruff, contrato crítico de frontend y exportación OpenAPI coherente.
 La integración comprueba además que retirar consentimiento durante la consulta impide entregar
 el documento. Los tests de interfaz no sustituyen QA autenticada ni una prueba de carga.

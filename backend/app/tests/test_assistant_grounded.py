@@ -107,6 +107,7 @@ def test_joint_review_cannot_omit_readings_or_change_the_selected_period(paid):
 @pytest.mark.parametrize("question", [
     "Cómo revisar inventario y reposición", "Necesito ayuda: ¿cómo interpretar mi utilidad?",
     "En Kova, cómo entender mis resultados", "Cómo configurar mi negocio",
+    "Mi manual contradice los reportes, contrástalo con mis ventas actuales",
 ])
 def test_help_question_must_retrieve_a_guide_even_when_planner_omits_it(paid, question):
     calls = [{"function": {"name": "get_configuration", "arguments": "{}"}}]
