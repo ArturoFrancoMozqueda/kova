@@ -78,6 +78,11 @@ Esta corrección invalida el perfil de la evaluación parcial anterior: se conse
 resultados, sin convertirlos en aprobación del código nuevo. La auditoría adicional de
 intención/períodos usa el modelo real y compara los argumentos contra fechas esperadas,
 porque validar el JSON no acredita que se haya elegido el período solicitado.
+La primera auditoría completa tuvo 48/54 selecciones correctas: el modelo calculó mal el
+lunes de «esta semana» en seis consultas. Se conserva ese resultado. El servidor ahora
+calcula hoy/ayer/semanas/meses usando la fecha local del tenant y entrega límites explícitos
+al planificador; no delega aritmética de calendario al modelo. El harness usa ese mismo
+contexto de producción, con pruebas de año nuevo y febrero bisiesto.
 
 Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
 una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada

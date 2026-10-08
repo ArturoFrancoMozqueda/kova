@@ -54,6 +54,24 @@ def evidence_messages(readings, prompt="Explica mi negocio"):
     return messages
 
 
+@pytest.mark.parametrize("today,week_start,previous_month", [
+    ("2026-10-08", "2026-10-05", ("2026-09-01", "2026-09-30")),
+    ("2024-03-01", "2024-02-26", ("2024-02-01", "2024-02-29")),
+    ("2026-01-01", "2025-12-29", ("2025-12-01", "2025-12-31")),
+])
+def test_planning_calendar_uses_local_date_and_real_month_boundaries(
+    today, week_start, previous_month
+):
+    config = {"today": today, "timezone": "America/Mexico_City"}
+    context = json.loads(generation.planning_context(config).split(": ", 1)[1])
+    ranges = context["periodos_calculados"]
+    assert ranges["esta_semana"] == {"start_date": week_start, "end_date": today}
+    assert ranges["mes_pasado"] == {
+        "start_date": previous_month[0], "end_date": previous_month[1],
+    }
+    assert "periodos_calculados" not in config
+
+
 SOURCE = "ce086ca1-91e2-4f10-b9da-52ebdff685f4"
 SOURCES = [
     {
