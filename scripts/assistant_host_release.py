@@ -3,6 +3,7 @@
 import argparse
 import json
 import re
+import shlex
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -11,6 +12,11 @@ from pathlib import Path
 
 APP = "pos-project-backend"
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
+PARSER_CHECKS = {
+    "UTF-8 business text", "DOCX text", "PDF text", "PDF Spanish OCR",
+    "DOCX path traversal", "DOCX external relationship", "DOCX macro",
+    "DOCX expanded part", "malformed PDF", "antivirus EICAR",
+}
 
 
 def command(args, *, run=subprocess.run, **kwargs):
@@ -21,6 +27,58 @@ def command(args, *, run=subprocess.run, **kwargs):
         # configuration and must never be copied into CI diagnostics.
         raise RuntimeError("Assistant host command failed: " + " ".join(args[:2]))
     return result.stdout
+
+
+def remote(identifier, script, *, timeout, run):
+    # flyctl returns zero even when the remote process exits unsuccessfully.
+    # Zero exit_code is omitted in Fly's JSON; require stdout as positive evidence.
+    try:
+        body = json.loads(command(["machine", "exec", identifier, script,
+                                   "--timeout", str(timeout), "--json"], run=run))
+    except (ValueError, TypeError):
+        raise RuntimeError("Invalid isolated host execution result") from None
+    if (not isinstance(body, dict) or type(body.get("exit_code", 0)) is not int
+            or body.get("exit_code", 0) != 0 or not isinstance(body.get("stdout"), str)
+            or not body["stdout"].strip()):
+        raise RuntimeError("Isolated host execution failed")
+    return body["stdout"]
+
+
+def worker_identity(identifier, run):
+    # Read only command tokens and process identity, never /proc/*/environ.
+    script = """import json
+from pathlib import Path
+workers = []
+for path in Path('/proc').glob('[0-9]*/cmdline'):
+    try:
+        args = path.read_bytes().split(b'\\0')
+        if (Path(args[0].decode()).name.startswith('python')
+                and b'scripts/run_assistant_ingest.py' in args):
+            workers.append([int(path.parent.name),
+                            (path.parent / 'stat').read_text().rsplit(')', 1)[1].split()[19]])
+    except (OSError, ValueError, IndexError):
+        continue
+assert len(workers) == 1
+print(json.dumps(workers[0]))
+"""
+    try:
+        value = json.loads(remote(identifier, "/app/.venv/bin/python -c " + shlex.quote(script),
+                                  timeout=20, run=run))
+    except (ValueError, TypeError):
+        raise RuntimeError("Invalid isolated worker identity") from None
+    if (not isinstance(value, list) or len(value) != 2 or type(value[0]) is not int
+            or value[0] <= 0 or not isinstance(value[1], str) or not value[1].isdigit()):
+        raise RuntimeError("Invalid isolated worker identity")
+    return value
+
+
+def started_host(identifier, sha, image, run):
+    _, ingest = hosts(run)
+    if (len(ingest) != 1 or ingest[0]["id"] != identifier
+            or ingest[0].get("state") != "started"
+            or ingest[0]["config"].get("image") != image
+            or ingest[0]["config"].get("env", {}).get("GIT_SHA") != sha):
+        raise RuntimeError("Isolated worker is not running the accepted release")
 
 
 def hosts(run):
@@ -105,16 +163,26 @@ def provision(sha, monthly_limit, *, run=subprocess.run, sleep=time.sleep):
             command(["machine", "start", identifier], run=run)
         for attempt in range(25):
             try:
-                command(["machine", "exec", identifier,
-                         "docker image inspect kova-assistant-parser:1 --format {{.Id}}",
-                         "--timeout", "20"], run=run)
+                digest = remote(identifier,
+                                "docker image inspect kova-assistant-parser:1 --format {{.Id}}",
+                                timeout=20, run=run)
+                if not re.fullmatch(r"sha256:[0-9a-f]{64}\s*", digest):
+                    raise RuntimeError("Isolated scanner image is not ready")
                 break
             except RuntimeError:
                 if attempt == 24:
                     raise
                 sleep(20)
-        command(["machine", "exec", identifier, "python scripts/check_assistant_parser.py",
-                 "--timeout", "240"], run=run)
+        started_host(identifier, sha, image, run)
+        identity = worker_identity(identifier, run)
+        report = remote(identifier, "python scripts/check_assistant_parser.py",
+                        timeout=240, run=run)
+        if set(report.splitlines()) != {"PASS: " + name for name in PARSER_CHECKS}:
+            raise RuntimeError("Isolated parser did not complete every required check")
+        sleep(30)
+        started_host(identifier, sha, image, run)
+        if worker_identity(identifier, run) != identity:
+            raise RuntimeError("Isolated worker restarted during verification")
     except Exception:
         command(["machine", "stop", identifier], run=run)
         raise
