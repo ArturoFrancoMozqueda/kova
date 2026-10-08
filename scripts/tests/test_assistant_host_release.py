@@ -74,6 +74,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
         with self.assertRaises(RuntimeError) as caught:
             module.update(SHA, run)
         self.assertNotIn("private-value", str(caught.exception))
+        self.assertIn("machines list", str(caught.exception))
 
     def test_budget_and_expired_quote_stop_before_allocation(self):
         for limit, date in ((30, datetime(2026, 10, 8, tzinfo=UTC)),

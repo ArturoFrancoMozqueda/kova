@@ -7373,7 +7373,10 @@
           "chat_recipients": {
             "anyOf": [
               {
-                "const": "groq+cerebras",
+                "enum": [
+                  "groq+cerebras",
+                  "mistral"
+                ],
                 "type": "string"
               },
               {

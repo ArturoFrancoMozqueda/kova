@@ -38,6 +38,8 @@ QUERIES = {
     "que producto se vende mas": "get_top_products",
     "que producto es el que mas se vende": "get_top_products",
     "que productos se venden mas": "get_top_products",
+    "cual ha sido mi producto mejor vendido": "get_top_products",
+    "cual es mi producto mas vendido": "get_top_products",
     "cuales son mis productos mas vendidos": "get_top_products",
     "que productos debo reponer": "get_inventory",
     "que productos tienen stock bajo": "get_inventory",
@@ -46,6 +48,8 @@ QUERIES = {
 PERIODS = {"": "hoy", "hoy": "hoy", "ayer": "ayer",
            "esta semana": "esta semana", "este mes": "este mes",
            "de esta semana": "esta semana", "de este mes": "este mes"}
+HISTORY_PERIODS = ("en todo mi historico", "en todo mi historial", "en todo el historico",
+                   "en todo el historial", "de todo mi historial", "historicamente")
 
 
 def normalize(content):
@@ -58,6 +62,10 @@ def match(content):
     query = normalize(content)
     if query in FAQ:
         return "faq", query, None
+    for suffix in HISTORY_PERIODS:
+        for base, tool in QUERIES.items():
+            if tool == "get_top_products" and query == base + " " + suffix:
+                return tool, "historico", None
     for suffix, period in PERIODS.items():
         for base, tool in QUERIES.items():
             if query == base + (" " + suffix if suffix else ""):
@@ -79,12 +87,13 @@ def answer(db, tenant, user, matched):
             start = today - timedelta(days=today.weekday())
         elif key == "este mes":
             start = today.replace(day=1)
-        result = tools.call(db, tenant, user, name, {
+        arguments = {"all_history": True} if key == "historico" else {
             "start_date": start.isoformat(), "end_date": end.isoformat(),
-        })
+        }
+        result = tools.call(db, tenant, user, name, arguments)
         guide = 4 if name == "compare_branches" else 3
         period = {"hoy": "hoy", "ayer": "ayer", "esta semana": "esta semana",
-                  "este mes": "lo que va del mes"}[key]
+                  "este mes": "lo que va del mes", "historico": "todo el histórico"}[key]
         if name == "get_sales":
             metrics = result
             content = f"Estas son tus ventas de {period} en la sucursal activa. "

@@ -47,7 +47,7 @@ export function EvidenceCards({ cards }: { cards: NonNullable<Resource["data"]["
         {card.data.inventory_valuation?.complete === false ? <p className="mt-3 rounded-kova-md bg-kova-mist p-2 text-xs leading-5 text-kova-muted">Faltan costos de {card.data.inventory_valuation.products_without_cost} productos; el valor del inventario está incompleto.</p> : null}
         <a href="/reports" className="mt-2 flex min-h-11 items-center gap-2 text-xs font-medium text-kova-blue hover:underline focus-visible:outline-kova-blue">Revisar inventario y recomendaciones en Análisis<ArrowUpRight size={14} className="shrink-0" /></a>
       </> : null}
-      {card.data.start_date ? card.kind === "compare_branches" ? <p className="mt-3 text-[11px] text-kova-muted">{date(card.data.start_date)} a {date(card.data.end_date)} · Todo el negocio</p> : <Period start={card.data.start_date} end={card.data.end_date} /> : null}
+      {card.data.all_history ? <p className="mt-3 text-[11px] text-kova-muted">Todo el histórico · Sucursal activa · Devoluciones descontadas</p> : card.data.start_date ? card.kind === "compare_branches" ? <p className="mt-3 text-[11px] text-kova-muted">{date(card.data.start_date)} a {date(card.data.end_date)} · Todo el negocio</p> : <Period start={card.data.start_date} end={card.data.end_date} /> : null}
     </section>;
   })}</div>;
 }

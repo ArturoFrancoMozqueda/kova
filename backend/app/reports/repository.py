@@ -27,6 +27,36 @@ def get_business_profile(db: Session, *, tenant_id: UUID) -> BusinessProfile | N
     return db.get(BusinessProfile, tenant_id)
 
 
+def historical_top_products(db: Session, *, tenant_id: UUID, limit: int) -> list:
+    """Aggregate on Postgres; never load an unbounded history into Python.
+
+    ORM branch criteria and tenant RLS still apply to orders and refunds.
+    Net quantities/amounts follow the existing top-products report definition.
+    """
+    refunds = (
+        db.query(RefundItem.order_item_id.label("item_id"),
+                 func.sum(RefundItem.quantity).label("quantity"),
+                 func.sum(RefundItem.line_total_amount).label("amount"))
+        .join(Refund, Refund.id == RefundItem.refund_id)
+        .filter(Refund.tenant_id == tenant_id)
+        .group_by(RefundItem.order_item_id).subquery()
+    )
+    quantity = func.greatest(OrderItem.quantity - func.coalesce(refunds.c.quantity, 0), 0)
+    amount = func.greatest(OrderItem.line_total_amount - func.coalesce(refunds.c.amount, 0), 0)
+    return (
+        db.query(OrderItem.product_id, func.max(OrderItem.product_name).label("product_name"),
+                 func.sum(quantity).label("quantity_sold"),
+                 func.sum(amount).label("gross_sales"))
+        .join(Order, Order.id == OrderItem.order_id)
+        .outerjoin(refunds, refunds.c.item_id == OrderItem.id)
+        .filter(Order.tenant_id == tenant_id, OrderItem.tenant_id == tenant_id,
+                Order.status == "completed", (quantity > 0) | (amount > 0))
+        .group_by(OrderItem.product_id)
+        .order_by(func.sum(quantity).desc(), func.sum(amount).desc(), OrderItem.product_id)
+        .limit(limit).all()
+    )
+
+
 def completed_orders_between(
     db: Session, *, tenant_id: UUID, start: datetime, end: datetime
 ) -> list[Order]:

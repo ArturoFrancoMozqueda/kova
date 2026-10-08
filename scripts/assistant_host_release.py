@@ -17,7 +17,9 @@ def command(args, *, run=subprocess.run, **kwargs):
     result = run(["flyctl", *args, "--app", APP], cwd=BACKEND,
                  capture_output=True, text=True, timeout=360, check=False, **kwargs)
     if result.returncode:
-        raise RuntimeError("Assistant host operation failed; inspect host metadata privately")
+        # The subcommand is public and fixed; stdout/stderr can contain private
+        # configuration and must never be copied into CI diagnostics.
+        raise RuntimeError("Assistant host command failed: " + " ".join(args[:2]))
     return result.stdout
 
 
@@ -145,5 +147,7 @@ if __name__ == "__main__":
             print("One isolated host verified with real parser/OCR/antivirus; files remain gated")
         else:
             print("Existing file host updated" if update(args.sha) else "No file host provisioned")
+    except RuntimeError as exc:
+        raise SystemExit(str(exc) + "; activation remains blocked") from None
     except Exception:
         raise SystemExit("Assistant host release failed; activation remains blocked") from None

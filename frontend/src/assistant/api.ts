@@ -2,7 +2,7 @@ import { csrfHeaders } from "@/lib/csrf";
 
 export type Identity = { tenantId: string; userId: string; branchId: string };
 export type Capabilities = { enabled: boolean; inference_ready: boolean; local_answers_ready?: boolean; provider_name?: string; configuration: boolean; documents: boolean; email: boolean; role: string };
-export type Preferences = { chat_consent: boolean; chat_provider?: "groq" | "cloudflare" | "openrouter"; chat_recipients?: "groq+cerebras" | null; document_consent: boolean; email_opt_in: boolean; frequency: "daily" | "weekly" };
+export type Preferences = { chat_consent: boolean; chat_provider?: "groq" | "cloudflare" | "openrouter"; chat_recipients?: "groq+cerebras" | "mistral" | null; document_consent: boolean; email_opt_in: boolean; frequency: "daily" | "weekly" };
 export type Usage = { tenant_used: number; tenant_limit: number; user_used: number; user_limit: number; reset_at: string; retry_at?: string; unit?: "tokens" | "neurons"; provider?: "groq" | "cloudflare" | "openrouter"; window?: "utc_day" | "rolling_24h"; limit_kind?: "available" | "temporary" | "provider_daily" | "provider_monthly" | "tenant_daily" };
 export type Step = { action: string; resource_id?: string | null; values: Record<string, unknown>; before?: Record<string, unknown> | null; result?: Record<string, unknown> | null };
 export type Resource = {
@@ -13,7 +13,7 @@ export type Resource = {
     retry_at?: string; limit_kind?: string; response_mode?: "direct" | "model" | "grounded";
     fingerprint?: string; steps?: Step[]; filename?: string; purpose?: string;
     source_ids?: string[]; sources?: { id: string; title: string; page: number; path: string }[];
-    cards?: { kind: string; data: { start_date?: string; end_date?: string; total_net_sales?: string; branch_count?: number; branches?: { branch_id: string; branch_name: string; net_sales: string; completed_orders: number }[]; products?: { product_id: string; product_name: string; quantity_sold: number; gross_sales: string }[];
+    cards?: { kind: string; data: { all_history?: boolean; start_date?: string; end_date?: string; total_net_sales?: string; branch_count?: number; branches?: { branch_id: string; branch_name: string; net_sales: string; completed_orders: number }[]; products?: { product_id: string; product_name: string; quantity_sold: number; gross_sales: string }[];
       restock_alerts?: { product_id: string; product_name: string; stock_on_hand: number; low_stock_threshold: number; days_until_out: string | null; severity: "critical" | "warning" }[];
       available_alert_count?: number; inventory_valuation?: { complete: boolean; tracked_products: number; products_without_cost: number };
     } }[];

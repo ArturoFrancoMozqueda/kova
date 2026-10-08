@@ -47,6 +47,7 @@ CANDIDATE = Candidate(
     openrouter.RECIPIENT,
     openrouter.INPUT_NANOUSD,
     openrouter.OUTPUT_NANOUSD,
+    reasoning_enabled=False,
 )
 FILES = (
     "scripts/qualify_grounded_assistant.py",
@@ -67,6 +68,7 @@ FILES = (
     "app/assistant/budget.py",
     "app/assistant/worker.py",
     "app/assistant/direct.py",
+    "app/reports/service.py", "app/reports/repository.py",
     "app/config.py",
     "scripts/run_assistant_worker.py",
     "scripts/run_assistant_ingest.py",
@@ -110,7 +112,7 @@ def evaluate(case, call):
     selected = generation.ensure_document_read(case.prompt, planning["tool_calls"])
     if len(selected) > 8:
         raise EvaluationBlocked("too_many_tools")
-    names = []
+    names, readings = [], []
     for i, item in enumerate(selected):
         function = item.get("function", item)
         name = function["name"]
@@ -120,6 +122,7 @@ def evaluate(case, call):
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
         tools.SCHEMAS[name].model_validate(arguments)
+        readings.append({"name": name, "arguments": arguments})
         result = evaluation.synthetic_result(name, case)
         if name == "search_knowledge":
             result = generation.bounded_sources(result)
@@ -158,6 +161,7 @@ def evaluate(case, call):
     return {
         "answer": answer.model_dump(mode="json"),
         "tools": names,
+        "readings": readings,
         "has_required_citation": bool(answer.source_ids)
         if case.guide or case.private_sources
         else None,
@@ -280,7 +284,7 @@ def run(client, limit, *, case_spacing=3):
                     time.sleep(case_spacing)
                 started = time.monotonic()
                 row = {
-                    "model": "oss120-" + CANDIDATE.provider.lower() + "-grounded",
+                    "model": CANDIDATE.model + "@" + CANDIDATE.route,
                     "case_id": case.id,
                     "capability": case.capability,
                     "repetition": repetition,
@@ -348,32 +352,15 @@ def main():
     parser.add_argument("--account-verified", action="store_true")
     parser.add_argument("--limit", type=int, default=18)
     parser.add_argument("--case-spacing", type=int, choices=range(0, 61), default=3)
-    parser.add_argument("--route", choices=("cerebras/fp16", "groq", "fast-pair", "resilient"),
-                        default=openrouter.ROUTE)
     args = parser.parse_args()
     if not args.run or not args.account_verified or not 1 <= args.limit <= 540:
         raise SystemExit(
             "Usa --run --account-verified y un límite entre uno y quinientos cuarenta."
         )
     key = dotenv_values(ROOT / ".env.evaluation.local").get("OPENROUTER_EVALUATION_API_KEY")
-    if args.route == "groq":
-        openrouter.ROUTE, openrouter.RECIPIENT = "groq", "Groq"
-        openrouter.ROUTES, openrouter.RECIPIENTS = ("groq",), ("Groq",)
-        openrouter.INPUT_NANOUSD, openrouter.OUTPUT_NANOUSD = 150, 600
-    elif args.route == "cerebras/fp16":
-        openrouter.ROUTE, openrouter.RECIPIENT = "cerebras/fp16", "Cerebras"
-        openrouter.ROUTES, openrouter.RECIPIENTS = ("cerebras/fp16",), ("Cerebras",)
-        openrouter.INPUT_NANOUSD, openrouter.OUTPUT_NANOUSD = 350, 750
-    elif args.route == "fast-pair":
-        openrouter.ROUTE, openrouter.RECIPIENT = "fast-pair", "Groq+Cerebras"
-        openrouter.ROUTES = ("groq", "cerebras/fp16")
-        openrouter.RECIPIENTS = ("Groq", "Cerebras")
-    elif args.route == "resilient":
-        openrouter.ROUTE, openrouter.RECIPIENT = "resilient", "Groq+Cerebras+DeepInfra"
-        openrouter.ROUTES = ("groq", "cerebras/fp16", "deepinfra/turbo")
-        openrouter.RECIPIENTS = ("Groq", "Cerebras", "DeepInfra")
     CANDIDATE = Candidate(openrouter.MODEL, openrouter.ROUTE, openrouter.RECIPIENT,
-                          openrouter.INPUT_NANOUSD, openrouter.OUTPUT_NANOUSD)
+                          openrouter.INPUT_NANOUSD, openrouter.OUTPUT_NANOUSD,
+                          reasoning_enabled=False)
     try:
         print(json.dumps(run(Client(key), args.limit, case_spacing=args.case_spacing),
                          ensure_ascii=False))

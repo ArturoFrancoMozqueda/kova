@@ -57,7 +57,8 @@ def test_changed_openrouter_recipients_require_fresh_consent(monkeypatch):
     old = {"chat_consent": True, "chat_provider": "openrouter"}
     assert not provider.chat_consent_valid(old)
     assert not provider.chat_consent_valid(old | {"chat_recipients": "cerebras"})
-    assert provider.chat_consent_valid(old | {"chat_recipients": "groq+cerebras"})
+    assert not provider.chat_consent_valid(old | {"chat_recipients": "groq+cerebras"})
+    assert provider.chat_consent_valid(old | {"chat_recipients": "mistral"})
 
 
 def test_stale_scanner_blocks_processing_and_does_not_retry_downloads(monkeypatch):

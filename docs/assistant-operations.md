@@ -16,13 +16,16 @@ El operador autoriza publicación y gasto recurrente: hasta USD 10/mes de infere
 USD 35/mes para el host de archivos, sin compromiso anual. La autorización no sustituye
 la evaluación ni la comprobación de archivos en producción. No hay automatización agendada.
 
-GPT-OSS-120B se mantiene; los únicos destinos de consulta preparados son **Groq y Cerebras**
-mediante OpenRouter, con Groq primero y fallback dentro de esa lista cerrada. Los sondeos nuevos
-detectaron saturación/HTTP 429 y un timeout; la batería Cerebras histórica de abajo no aprueba
-el perfil nuevo. DeepInfra es solo una alternativa de evaluación; no recibe datos en producción.
+La selección técnica vigente es **Mistral Small 4** (`mistralai/mistral-small-2603`) por
+OpenRouter, ruta fija `mistral/us`, razonamiento deshabilitado y sin fallback a otro procesador.
+GPT-OSS-120B conserva su historial: los sondeos recientes detectaron saturación/HTTP 429 y
+timeout aun con saldo. La evidencia Cerebras histórica de abajo no aprueba el motor nuevo.
+El diagnóstico Mistral completó 540 casos originales de consulta: 540 contratos válidos,
+mediana 0.947 s, p95 2.837 s y máximo 5.816 s. Falta acreditar semántica, código definitivo
+y QA de producción; la revisión del agente nunca se registra como revisión humana.
 
-La aceptación explícita nombra **OpenRouter, Groq y Cerebras** y guarda `chat_recipients`.
-Un consentimiento antiguo para Cerebras requiere renovación. La activación requiere además
+La aceptación explícita nombra **OpenRouter y Mistral** y guarda `chat_recipients=mistral`.
+Cualquier consentimiento antiguo para otros procesadores requiere renovación. La activación requiere además
 `ASSISTANT_OPENROUTER_APPROVED_PROFILE`: SHA-256 del perfil/código evaluado. Cambiar el motor
 invalida esa aprobación. El flag de calidad permanece falso mientras falten las verificaciones.
 Las cuotas/pausas se comparten en PostgreSQL; `retry_at` distingue recuperación mensual o
@@ -52,10 +55,13 @@ de treinta y un días verificada el 2026-10-08 es USD 31.713, dentro del techo U
 Una primera provisión en otra fecha exige actualizar la cotización. No habilita consentimiento
 ni calidad del modelo, y una repetición no crea otra máquina.
 
-El sondeo de Mistral Small 4 en `mistral/us` completó 24 consultas sin error, máximo 2.824 s,
-y todas las llamadas con consumo verificable. Se amplía la batería de ese perfil como
-diagnóstico separado; todavía no se aprueba ni se mezcla con los resultados GPT-OSS-120B.
-Los campos de revisión humana siguen pendientes. Fuente: [modelo y licencia](https://docs.mistral.ai/models/mistral-small-4-0-26-03).
+La consulta de productos distingue rango acotado (predeterminado hoy) de `all_history=true`.
+El histórico completo se agrega en PostgreSQL sin cargar todas las ventas en memoria;
+conserva RLS, la sucursal activa, solo ventas completadas y devoluciones descontadas.
+No admite fechas junto con histórico completo. Las tarjetas nombran el alcance y el asistente
+puede seleccionar esa lectura mediante herramientas, además del atajo de preguntas exactas.
+Se registra también qué argumentos eligió el modelo en cada ejecución para revisar períodos.
+Fuente del candidato: [modelo y licencia](https://docs.mistral.ai/models/mistral-small-4-0-26-03).
 
 Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
 una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada

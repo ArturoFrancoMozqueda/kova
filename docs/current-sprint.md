@@ -21,18 +21,25 @@ historical evidence and are labelled with their period.
 ## Active assistant implementation (2026-10-08): publicación y activación
 
 El operador autoriza despliegue y gasto recurrente (USD 10/mes de inferencia y hasta USD 35/mes
-de ingesta, sin compromiso anual). GPT-OSS-120B usa OpenRouter con destinatarios **Groq y
-Cerebras** exclusivamente; las conclusiones/cifras de reportes las controla Kova. El perfil
-nuevo requiere su propia batería y consentimiento explícito. Los 540 casos Cerebras previos
-son evidencia histórica; los nuevos sondeos registran además saturación/timeout conservados.
+de ingesta, sin compromiso anual). La selección técnica pasa a **Mistral Small 4**, vía
+OpenRouter y exclusivamente `mistral/us`, sin razonamiento extendido ni fallback automático.
+El diagnóstico completó 540 consultas: cero errores de contrato, mediana 0.947 s, p95 2.837 s,
+máximo 5.816 s. No equivale a aprobación de calidad semántica ni activación. GPT-OSS conserva
+su evidencia y fallos de capacidad; las conclusiones/cifras de reportes las controla Kova.
 
-Preparado en PR #169: aprobación ligada al hash del motor, presupuesto y pausas compartidos,
+Publicado en PR #169: aprobación ligada al hash del motor, presupuesto y pausas compartidos,
 recuperación mensual, capacidad independiente de chat/archivos, citas numéricas literales y
 aviso OCR, host de ingesta privado en iad y publicación/rollback sin recursos adicionales.
 Validación local: 263 pruebas de asistente/RLS, 31 de operaciones, 21 de publicación.
 
-Pendientes: CI de este commit, evaluación real del perfil actual y revisión de pertinencia/es-MX;
-credencial permanente mensual y acceso puntual a Fly; host de archivos dentro del total
+PR #170 pasó CI y se integró como `489d79b`; su publicación está en curso. La preparación
+manual del host usa la identidad de CI existente, sin pedir acceso personal adicional a Fly.
+Se corrige además el fallo real: «todo mi histórico» consultaba solo hoy. El histórico de
+productos se agrega en PostgreSQL, descontando devoluciones y conservando tenant/sucursal;
+la regresión incluye una venta de hace cuatrocientos días y otra sucursal excluida.
+
+Pendientes: CI del motor definitivo, evaluación de ese código y revisión de pertinencia/es-MX;
+credencial permanente mensual; host de archivos dentro del total
 autorizado y QA autenticada R2/embeddings/ACL/carga/plazo. La sesión de Kova está disponible.
 No activar el gate de calidad ni presentar archivos como listos antes de cerrar esas pruebas.
 No hay tareas agendadas. [Decisión](research/ASSISTANT-DECISION-2026-10-07.md),

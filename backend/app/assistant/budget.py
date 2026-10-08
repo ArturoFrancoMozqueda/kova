@@ -139,7 +139,9 @@ def reserve(
     background: bool = False,
     window: str | None = None,
 ) -> int:
-    if model == "openai/gpt-oss-120b" and settings.assistant_generation_provider == "openrouter":
+    from app.assistant import openrouter
+
+    if model == openrouter.MODEL and settings.assistant_generation_provider == "openrouter":
         from app.assistant import openrouter_budget
 
         if background:
