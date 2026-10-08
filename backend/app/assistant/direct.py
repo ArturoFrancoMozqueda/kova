@@ -100,13 +100,9 @@ def answer(db, tenant, user, matched):
             content += "Las tarjetas muestran las cifras registradas; vender no equivale a "
             content += "obtener utilidad. Revisa productos e inventario antes de decidir."
         elif name == "get_top_products":
-            content = (f"Estos son los productos más vendidos de {period} en la sucursal "
-                       "activa, ordenados por unidades. Revisa sus existencias antes de "
-                       "preparar una reposición; esta comparación no indica rentabilidad.")
-            if not result.get("products"):
-                content = f"No hay productos vendidos registrados para {period} en esta "
-                content += "sucursal. Revisa el periodo y que las ventas estén completadas "
-                content += "y sincronizadas."
+            from app.assistant.grounding import product_conclusion
+
+            content = product_conclusion(result)
         elif name == "get_inventory":
             content = (f"Estas señales de reposición usan el inventario registrado y las "
                        f"ventas de {period}. Verifica las existencias físicas antes de "

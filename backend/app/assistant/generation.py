@@ -74,6 +74,10 @@ Revisión general: get_sales, get_top_products y get_inventory.
 Manuales o catálogos citados: search_knowledge, aunque también consultes get_catalog.
 Selecciona todas las lecturas necesarias en una sola respuesta de herramientas.
 Resuelve fechas con today y timezone reales. Sin fechas omite el rango: el backend usa hoy.
+Si el usuario indica un período, siempre envía start_date y end_date: omitirlos consulta hoy.
+«Esta semana» va del lunes de la semana actual a today; «este mes» del primer día a today.
+«Ayer» usa el día anterior en ambas fechas; «semana pasada» va de lunes a domingo anteriores.
+Los meses completos usan su primer y último día. Conserva ambos límites de un rango explícito.
 Para productos más vendidos de todo el histórico usa get_top_products con all_history=true,
 sin start_date ni end_date. Nunca sustituyas todo el histórico por hoy.
 Usa las herramientas disponibles; no sustituyas una consulta por instrucciones para que

@@ -32,13 +32,13 @@ Las cuotas/pausas se comparten en PostgreSQL; `retry_at` distingue recuperación
 temporal del reinicio diario. Resultados inciertos conservan su reserva.
 
 Chat e ingesta usan capacidad separada (tres consultas y un archivo globales por defecto).
-Los workers seleccionan exclusivamente su carga. El host de ingesta usa 5 GB/CPU compartida
+Los workers seleccionan exclusivamente su carga. El host de ingesta usa 5 GB/cuatro CPU compartidas
 en **iad**, daemon Docker privado, scanner actualizado cada día y parsers sin red ni secretos.
 Una actualización fallida de firmas bloquea ingesta. Las citas numéricas se copian literalmente
 del archivo; el modelo no redacta esas cifras. Las citas provenientes de OCR advierten que el
 operador debe cotejarlas con el original.
 
-La tarifa nominal publicada para iad es USD 30.69 por treinta días (USD 31.713 por treinta y uno),
+La tarifa nominal publicada para iad es USD 32.78 por treinta días (USD 33.873 por treinta y uno),
 antes de impuestos/transferencias; comprobar el total de la cuenta contra USD 35 antes de crear
 **una** instancia. DFW excede ese límite con este tamaño y no se autoriza. La publicación de
 app/chat no crea un host de ingesta. `scripts/assistant_host_release.py update --sha <SHA>` solo
@@ -51,9 +51,15 @@ personal ni una tarea agendada. Comparte la exclusión de releases, exige SHA ac
 una máquina de nombre fijo sin puertos/volúmenes/spares y prueba scanner/OCR/antivirus dentro
 de ese Fly real. Un fallo detiene el host y conserva archivos deshabilitados. La factura previa
 de la cuenta mostró subtotal/importe iguales, sin cargo adicional de impuestos; la tarifa máxima
-de treinta y un días verificada el 2026-10-08 es USD 31.713, dentro del techo USD 35.
+de treinta y un días verificada el 2026-10-08 es USD 33.873, dentro del techo USD 35.
 Una primera provisión en otra fecha exige actualizar la cotización. No habilita consentimiento
 ni calidad del modelo, y una repetición no crea otra máquina.
+
+El primer intento real de preparación (`37812215551`) falló y Fly conservó las cuatro máquinas
+anteriores. La configuración de una CPU/5 GB era inválida: el límite de Fly es 2048 MiB por
+CPU compartida. Se corrige a cuatro CPU, sin reducir RAM ni aislamiento ni exceder USD 35.
+Fuente: [contrato de tamaños](https://github.com/superfly/fly-go/blob/main/machine_types.go),
+[precios iad](https://fly.io/pricing/) (shared-4x/1 GB USD 8.78 + cuatro GB USD 24).
 
 La consulta de productos distingue rango acotado (predeterminado hoy) de `all_history=true`.
 El histórico completo se agrega en PostgreSQL sin cargar todas las ventas en memoria;
@@ -62,6 +68,16 @@ No admite fechas junto con histórico completo. Las tarjetas nombran el alcance 
 puede seleccionar esa lectura mediante herramientas, además del atajo de preguntas exactas.
 Se registra también qué argumentos eligió el modelo en cada ejecución para revisar períodos.
 Fuente del candidato: [modelo y licencia](https://docs.mistral.ai/models/mistral-small-4-0-26-03).
+
+La explicación identifica al líder por unidades verificadas y distingue empate, lectura vacía
+y alcance histórico/sucursal. Nombres con HTML, URLs, saltos o cifras permanecen solo en la
+tarjeta estructurada. Las advertencias de duración corresponden a las alertas que realmente
+carecen de estimación; las estimaciones disponibles explican su ventana de siete días.
+No se añade una advertencia de tendencias a una pregunta que solo pide un producto.
+Esta corrección invalida el perfil de la evaluación parcial anterior: se conservan sus
+resultados, sin convertirlos en aprobación del código nuevo. La auditoría adicional de
+intención/períodos usa el modelo real y compara los argumentos contra fechas esperadas,
+porque validar el JSON no acredita que se haya elegido el período solicitado.
 
 Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
 una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada

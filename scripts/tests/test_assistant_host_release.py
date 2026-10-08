@@ -18,7 +18,7 @@ def machine(group, **kwargs):
     return {"id": group, "region": "iad", "config": {
         "metadata": {"fly_process_group": group}, "env": {"GIT_SHA": SHA},
         "image": "registry.fly.io/pos-project-backend:test",
-        "guest": {"cpu_kind": "shared", "cpus": 1, "memory_mb": 5120},
+        "guest": {"cpu_kind": "shared", "cpus": 4, "memory_mb": 5120},
         "services": [], **kwargs}}
 
 
@@ -105,6 +105,8 @@ class AssistantHostReleaseTests(unittest.TestCase):
         config = json.loads(create[0][create[0].index("--machine-config") + 1])
         self.assertEqual(config["services"], [])
         self.assertEqual(config["guest"]["memory_mb"], 5120)
+        self.assertEqual(config["guest"]["cpus"], 4)
+        self.assertLessEqual(config["guest"]["memory_mb"], config["guest"]["cpus"] * 2048)
         self.assertEqual(config["metadata"]["fly_process_group"], "ingest")
         self.assertEqual(create[0][create[0].index("--region") + 1], "iad")
         self.assertIn("kova-assistant-ingest", create[0])

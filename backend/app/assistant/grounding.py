@@ -228,6 +228,42 @@ def validate_selected_answer(answer, messages):
         raise HTTPException(422, "La respuesta no coincide con los pasajes autorizados.")
 
 
+def product_conclusion(result):
+    """Name the unit leader only when the server reading supports that conclusion."""
+    products = result.get("products") or []
+    period = "todo el histórico" if result.get("all_history") else "el periodo consultado"
+    if not products:
+        return (
+            f"No hay productos vendidos registrados para {period} en la sucursal activa. "
+            "Revisa el periodo y que las ventas estén completadas y sincronizadas."
+        )
+    quantities = [product.get("quantity_sold") for product in products]
+    if all(type(quantity) is int and quantity >= 0 for quantity in quantities):
+        highest = max(quantities)
+        leaders = [p for p in products if p["quantity_sold"] == highest]
+        if highest > 0:
+            if len(leaders) > 1:
+                return (
+                    f"Hay un empate por unidades vendidas en {period} en la sucursal activa. "
+                    "La tarjeta muestra los productos destacados y sus unidades; "
+                    "el importe vendido puede ser distinto aunque las unidades coincidan."
+                )
+            label = leaders[0].get("product_name")
+            if (isinstance(label, str) and 1 <= len(label.strip()) <= 120
+                    and not re.search(r"https?://|[<>\n\r]|!\[|\d", label)):
+                return (
+                    f"El producto con más unidades vendidas en {period} es «{label.strip()}», "
+                    "en la sucursal activa. Las unidades descuentan devoluciones. "
+                    "Revisa sus existencias para preparar una reposición; "
+                    "ser el más vendido no demuestra que sea el más rentable."
+                )
+    return (
+        f"La tarjeta muestra los productos destacados de {period} en la sucursal activa, "
+        "no todos los vendidos. Las unidades y las ventas no demuestran rentabilidad; "
+        "esta lectura no incluye costos ni gastos. Verifica existencias antes de reponer."
+    )
+
+
 def report_answer(messages):
     parts = []
     for name, result in reads(messages):
@@ -272,15 +308,7 @@ def report_answer(messages):
                 + "Estos datos no calculan utilidad; necesitas evidencia de costos y gastos."
             )
         elif name == "get_top_products":
-            parts.append(
-                "La tarjeta muestra una selección de productos destacados, no todos los vendidos. "
-                "Las unidades y las ventas no demuestran rentabilidad; "
-                "esta lectura no incluye costos ni gastos. Revisa esos registros para estimar "
-                "utilidad y verifica existencias antes de reponer."
-                if result.get("products")
-                else "La lectura no devolvió productos destacados. "
-                "Revisa el periodo y las ventas sincronizadas."
-            )
+            parts.append(product_conclusion(result))
         elif name == "get_inventory":
             parts.append(
                 "La tarjeta muestra alertas calculadas con inventario y ventas registrados. "
@@ -295,7 +323,17 @@ def report_answer(messages):
                 parts.append(
                     "La valuación del inventario está incompleta; revisa los costos faltantes."
                 )
-            parts.append("Sin historial suficiente no hay una estimación confiable de duración.")
+            alerts = result.get("restock_alerts") or []
+            if any(alert.get("days_until_out") is None for alert in alerts):
+                parts.append(
+                    "Algunas alertas no tienen una duración estimada; "
+                    "revisa su historial de ventas antes de planear la compra."
+                )
+            if any(alert.get("days_until_out") is not None for alert in alerts):
+                parts.append(
+                    "La duración estimada usa el ritmo de ventas de los últimos siete días; "
+                    "puede cambiar si cambia la demanda."
+                )
         else:
             parts.append(
                 "La tarjeta compara venta neta y tickets en la muestra de sucursales. "
@@ -304,13 +342,19 @@ def report_answer(messages):
                 else "La muestra no contiene suficientes sucursales para compararlas."
             )
     if parts:
-        parts.append(
-            "Sin periodos comparables no se puede afirmar una tendencia, explicar "
-            "su causa ni garantizar ventas futuras."
-        )
+        from app.assistant.direct import normalize
+
+        question = normalize(next(m["content"] for m in reversed(messages) if m["role"] == "user"))
+        if re.search(
+            r"\b(?:tendencia|causa|creciendo|bajando|mejorando|futuras?|pronostico)\b", question
+        ):
+            parts.append(
+                "Sin periodos comparables no se puede afirmar una tendencia, explicar "
+                "su causa ni garantizar ventas futuras."
+            )
         if any(source.get("public") is False for source in sources(messages)):
             parts.append("Las definiciones de Kova prevalecen sobre las de un manual del negocio.")
         context = fallback_answer(messages)
         if context != UNAVAILABLE_ANSWER:
             parts.append(context)
-    return " ".join(dict.fromkeys(parts))
+    return "\n\n".join(dict.fromkeys(parts))

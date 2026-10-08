@@ -35,7 +35,7 @@ def hosts(run):
         config = machine["config"]
         guest = config.get("guest", {})
         if (machine.get("region") != "iad" or guest.get("cpu_kind") != "shared"
-                or guest.get("cpus") != 1 or guest.get("memory_mb") != 5120
+                or guest.get("cpus") != 4 or guest.get("memory_mb") != 5120
                 or config.get("services")):
             raise RuntimeError("Isolated host differs from its authorized size or region")
     return machines, ingest
@@ -74,14 +74,15 @@ def provision(sha, monthly_limit, *, run=subprocess.run, sleep=time.sleep):
     # requires refreshing that evidence; normal releases never call this mode.
     if datetime.now(timezone.utc).date().isoformat() != "2026-10-08":
         raise RuntimeError("Refresh the host quote before a new paid allocation")
-    if Decimal(str(monthly_limit)) < Decimal("31.713") or Decimal(str(monthly_limit)) > 35:
+    if Decimal(str(monthly_limit)) < Decimal("33.873") or Decimal(str(monthly_limit)) > 35:
         raise RuntimeError("Host quote exceeds the authorized monthly budget")
     machines, ingest = hosts(run)
     image = serving_image(machines, sha)
     if not ingest:
         config = {
             "image": image, "env": {"GIT_SHA": sha},
-            "guest": {"cpu_kind": "shared", "cpus": 1, "memory_mb": 5120},
+            # Fly permits at most 2 GiB per shared CPU; 5 GiB needs the 4x preset.
+            "guest": {"cpu_kind": "shared", "cpus": 4, "memory_mb": 5120},
             "metadata": {"fly_process_group": "ingest"}, "services": [],
             "restart": {"policy": "always"},
             "init": {"exec": ["/usr/local/bin/uv", "run", "python",
