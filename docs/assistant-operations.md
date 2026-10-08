@@ -231,8 +231,9 @@ Referencias: [Mistral Small 4](https://docs.mistral.ai/models/mistral-small-4-0-
 
 ### Comparación autorizada de modelos actuales — 2026-10-07
 
-El operador autorizó comparar **GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4**. Esta lista
-sustituye la shortlist de investigación anterior; GPT-OSS queda como evidencia histórica.
+El operador autorizó comparar **GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4**. La investigación
+añadió **DeepSeek V4.1 Flash** y perfiles de razonamiento/ruta para buscar el equilibrio de
+precisión, rapidez y costo. GPT-OSS queda como evidencia histórica.
 La comparación usa los mismos 220 casos y tres repeticiones por candidato (660 ejecuciones),
 sin modificar oráculos ni reducir gates. Incluye la cobertura de configuración como regresión;
 aprobar esa cobertura no habilita mutaciones ni amplía el lanzamiento solicitado.
@@ -240,30 +241,45 @@ aprobar esa cobertura no habilita mutaciones ni amplía el lanzamiento solicitad
 `backend/scripts/compare_assistant.py` reutiliza el corpus, herramientas, prompts y contrato
 cerrado del evaluador. Su transporte vive exclusivamente en `assistant_evaluation/openrouter.py`;
 no integra OpenRouter al runtime de producción. Los candidatos se intercalan por caso/repetición
-para no consumir primero todo el presupuesto con un solo modelo. El razonamiento es `low` y
-el límite común de salida es 1024 tokens, incluyendo razonamiento. Truncamientos son fallos;
-estas condiciones comparables no demuestran el mejor desempeño posible de cada modelo.
+para no consumir primero todo el presupuesto con un solo modelo. También se intercalan
+capacidades para probar archivos privados y seguridad desde el inicio. El límite común de salida
+es 1024 tokens, incluyendo razonamiento. Cada perfil declara su modo y el catálogo debe admitirlo;
+no se supone que todos acepten `low`. Truncamientos son fallos. Estos perfiles no demuestran el
+mejor desempeño posible de cada modelo ni se mezclan entre versiones para aprobar calidad.
 
 Verificación pública sin inferencia realizada el 2026-10-07:
 
-| Alias | Modelo | Ruta exacta | Techo USD/millón entrada/salida |
-|---|---|---|---|
-| `glm-flash` | `z-ai/glm-5.3-flash` | `fireworks` | 0.15 / 0.50 |
-| `qwen-38` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | 0.20 / 2.50 |
-| `mistral-small` | `mistralai/mistral-small-2603` | `mistral/zdr` | 0.15 / 0.60 |
+| Alias | Modelo | Ruta exacta | Razonamiento | Techo USD/millón entrada/salida |
+|---|---|---|---|---|
+| `glm-flash` | `z-ai/glm-5.3-flash` | `fireworks` | `low` | 0.15 / 0.50 |
+| `glm-deepinfra` | `z-ai/glm-5.3-flash` | `deepinfra/fp4` | `low` | 0.15 / 0.50 |
+| `qwen-38` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | `low` | 0.20 / 2.50 |
+| `qwen-fast` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | Desactivado | 0.20 / 2.50 |
+| `mistral-small` | `mistralai/mistral-small-2603` | `mistral/zdr` | Desactivado | 0.15 / 0.60 |
+| `deepseek-flash` | `deepseek/deepseek-v4.1-flash` | `deepinfra/fp8` | `low` | 0.20 / 0.60 |
+| `deepseek-fast` | `deepseek/deepseek-v4.1-flash` | `deepinfra/fp8` | Desactivado | 0.20 / 0.60 |
 
-Las tres rutas aparecen activas en el catálogo, admiten herramientas y `structured_outputs`,
+Las rutas aparecen activas en el catálogo, admiten herramientas y `structured_outputs`,
 y están en la lista pública de endpoints ZDR. Qwen usa techos sin el descuento temporal
 publicado; no se supone ahorro de caché. Cada ejecución vuelve a comprobar estos requisitos,
 precios y ausencia de recargos/overrides. Cada POST exige la ruta exacta, ZDR, `data_collection=deny`,
 soporte de parámetros, techo de precio y ausencia de fallbacks; no habilita plugins ni red del modelo.
-Esto verifica oferta publicada, no SLA, capacidad pagada de la cuenta ni calidad para Kova.
+Esto verifica oferta publicada, no SLA, capacidad sostenida de la cuenta ni calidad para Kova.
+Los perfiles sin razonamiento exigen además `mandatory=false` en el catálogo y consumo reportado
+de razonamiento exactamente cero en cada respuesta. Mistral publica esfuerzos `high`/`none`;
+las pruebas históricas con `low` no representan este perfil corregido.
 
-**Acceso pendiente:** el operador confirmó que no tiene cuenta OpenRouter. Se abrió el registro;
-no se creó cuenta, aceptaron términos, pagó ni emitió clave en su nombre. No existe credencial
-de evaluación configurada. La cuenta debe tener saldo, autorecarga apagada y logging de
-prompts/respuestas desactivado. Crear una key dedicada de inferencia con techo total sin reset,
-menor o igual al presupuesto de inferencia disponible. No usar una management key.
+**Acceso verificado el 2026-10-07:** el operador creó la cuenta y una clave dedicada, con
+techo total de USD 10, sin reset y vencimiento en siete días. Guardó la credencial en el archivo
+local privado; `GET /key` confirmó autenticación y cuenta pagada. La consola muestra USD 10
+de saldo, autorecarga apagada y logging de prompts/respuestas apagado. Se guardó ZDR para
+estos modelos y se deshabilitó entrenamiento. La clave automática de bienvenida se desactivó
+antes de cualquier uso porque el asistente expuso su valor al leer el ejemplo de código;
+no se utiliza ni se conserva en archivos. El operador confirmó un cargo de USD 10.80:
+USD 10 de créditos y USD 0.80 de comisión. El consumo de inferencia queda acotado a USD 9.20
+menos cualquier cargo previo retenido. La key no puede exceder el máximo total autorizado;
+el ledger reserva la comisión antes de cada POST y aplica el máximo a comisión más consumo.
+No usar una management key.
 `GET /key` comprueba techo y tipo de key; el saldo se verifica en consola porque `/credits`
 requiere privilegios de gestión. Ante errores, incluido saldo insuficiente o rate limit, se detiene
 todo el lote sin reintentos automáticos. La oferta pagada de Groq sigue bloqueada.
@@ -283,27 +299,60 @@ cd backend
 python scripts/compare_assistant.py --preflight
 python scripts/compare_assistant.py --summary
 # Solo tras tener saldo, verificar privacidad/techo y sustituir la comisión por la real:
-python scripts/compare_assistant.py --run --model all --limit 5 \
+python scripts/compare_assistant.py --run --model mistral-small --limit 14 \
   --budget-usd 10 --funding-fee-usd 0.80 --account-verified
 # Tras revisar el smoke, reanudar con el mismo presupuesto/ledger y comisión real:
-python scripts/compare_assistant.py --run --model all --limit 660 \
+python scripts/compare_assistant.py --run --model mistral-small --limit 660 \
   --budget-usd 10 --funding-fee-usd 0.80 --account-verified
 ```
 
-`0.80` es un ejemplo, no una comisión confirmada de esta cuenta. El smoke por defecto empieza
-en los primeros casos del corpus; no sustituye análisis/RAG privado ni el conjunto completo.
+`0.80` es la comisión confirmada por el operador para esta recarga. El smoke intercalado cubre
+capacidades distintas, pero no sustituye el conjunto completo ni la revisión de contenido.
 Resultados: `output/assistant-evaluation/comparison-results.json`; preflight público separado;
 ledger y lock compartidos con Groq. Se conserva la reserva antes de enviar la solicitud, incluso
 si ocurre un fallo/cancelación. Solo se reduce con tokens/costo completos verificados; razonamiento
 no se suma dos veces. La escritura atómica preserva los symlinks del ledger compartido.
-Resultados/versiones previos no se reutilizan como aprobación de un harness modificado.
+Resultados/versiones previos no se reutilizan como aprobación de un harness modificado. Los
+errores guardan códigos y diagnósticos acotados, nunca cuerpos remotos completos. Una interrupción
+del operador se registra y conserva la reserva; no se cuenta como un fallo semántico del modelo.
+Las respuestas sintéticas se conservan para diagnosticar contratos y contenido rechazados.
+Las solicitudes POST nuevas se espacian al menos dos segundos entre comienzos en este evaluador
+serial. La prueba rápida inicial de Mistral respondió al planner con razonamiento cero y rechazó
+la explicación con HTTP 429, sin cuota numérica verificable. El espaciado es un experimento
+conservador, no una cuota atribuida al proveedor ni una prueba de capacidad concurrente; tampoco
+reintenta solicitudes fallidas. Su espera cuenta dentro de la latencia por caso.
 
-Validación local: **150 tests backend del asistente**, Ruff y `git diff --check`; tres preflights
-públicos y cinco rechazos CLI de presupuesto/cuenta/clave sin inferencia. Los tests comprueban
+Validación local: **163 tests backend del asistente**; Ruff, OpenAPI y `git diff --check`.
+Los tests comprueban
 intercalado, persistencia antes de POST, privacidad/ruta/precios, costos inciertos y comisiones,
-cuenta sin reset, consumo razonado y detención global ante error. Las respuestas de esos tests
-son simuladas y nunca entran al archivo de evaluación real. **Cero ejecuciones live de los tres
-candidatos, cero gasto y ninguno aprobado.** Revisión humana, ingesta/ACL/OCR real, carga y QA
+cuenta sin reset, consumo razonado, compatibilidad del modo y detención global ante error. Las
+respuestas de esos tests son simuladas y nunca entran al archivo de evaluación real. Se mantiene
+la prueba de consulta fría con Groq Free; no se aumentó la cuota para acomodar prompts más largos.
+
+**Evidencia live parcial, no aprobación:** GLM/Fireworks quedó detenido por demora; GLM/DeepInfra
+tuvo errores de configuración/contenido y un límite del proveedor. Qwen sin razonamiento completó
+153 ejecuciones con el harness `df40e358…`: 151 contratos válidos, un rechazo de contrato y un
+fallo de transporte. Entre respuestas válidas hubo confusión bruto/neto y costos, una atribución
+inventada al manual y abstenciones por no consultar ventas o el archivo disponible. Sus latencias
+entre contratos válidos fueron p50 4.458 s / p95 8.149 s; formato y rapidez no acreditan utilidad.
+Un diagnóstico separado del agente registra casos concretos en
+`output/assistant-evaluation/comparison-agent-review.json`; no rellena revisión humana.
+
+Antes de la corrección más reciente del planner y de los modos, Mistral y DeepSeek completaron
+14 casos cada uno con el mismo harness `76a4096d…` y contratos válidos. Mistral fue más rápido
+(p50 6.212 s / p95 9.049 s), pero omitió buscar un catálogo privado y parte de su usage no concilió.
+DeepSeek recuperó ambos tipos de archivo y tuvo usage verificable, con p50 13.813 s / p95 24.262 s.
+Son resultados exploratorios pequeños, de versiones anteriores; no se extrapolan a toda la batería.
+
+La revisión detectó una carencia de contexto: se explicita ahora la definición de Kova de venta
+neta (ventas completadas menos reembolsos), se dirige esa consulta a ventas y se evita narrar
+reglas internas en la respuesta. Se repite la cobertura afectada con los mismos oráculos.
+Mistral volvió a responder HTTP 429 en la prueba espaciada, después de una configuración con
+contrato válido; su capacidad sostenida no quedó acreditada. Se compara además DeepSeek con
+razonamiento desactivado, verificando el modo consumido en cada respuesta. El último `GET /key` antes de
+ese lote reportó USD 0.144949813 de inferencia acumulada; las reservas inciertas y la comisión
+permanecen en el ledger. El dato se consulta de nuevo antes de cerrar una evaluación.
+**Ningún modelo está aprobado ni activado.** Revisión humana, ingesta/ACL/OCR real, carga y QA
 autenticada de producción permanecen pendientes; no se cambió ningún flag ni se programó trabajo.
 
 Fuentes: [rutas y precios](https://openrouter.ai/docs/guides/routing/provider-selection),
@@ -311,7 +360,10 @@ Fuentes: [rutas y precios](https://openrouter.ai/docs/guides/routing/provider-se
 [key de inferencia](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-api-key),
 [créditos y privilegios](https://openrouter.ai/docs/api/api-reference/credits/get-credits),
 [GLM y pesos MIT](https://huggingface.co/zai-org/GLM-5.3-Flash),
-[Qwen y pesos Apache 2.0](https://huggingface.co/Qwen/Qwen3.8-27B).
+[Qwen y pesos Apache 2.0](https://huggingface.co/Qwen/Qwen3.8-27B),
+[modos de razonamiento](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens),
+[Mistral Small 4](https://docs.mistral.ai/models/mistral-small-4-0-26-03),
+[DeepSeek V4.1 Flash y pesos MIT](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash).
 
 ## Mejora de interfaz y presentación — 2026-10-07
 

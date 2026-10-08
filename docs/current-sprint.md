@@ -25,10 +25,14 @@ renovado al cambiar destinatario entregada en `main` mediante PR #167. Cuenta Gr
 Global ZDR verificados; calidad comparativa y activación en producción pendientes. La
 corrección posterior de formato y reserva completa está en PR #169. El alcance confirmado incluye
 guías, archivos propios y recomendaciones. La comparación autorizada actual enfrenta
-GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4; el evaluador aislado y sus tres rutas ZDR están
-verificados localmente (150 tests), pero falta cuenta/saldo/clave OpenRouter para inferencia real.
-Ningún candidato tiene aprobación de calidad. Se añaden veinte casos privados a la batería original,
-sin habilitar documentos ni mutaciones en producción. No hay gasto ni programación. La evidencia y los
+GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4, ampliada a DeepSeek V4.1 Flash y perfiles rápidos.
+Cuenta, saldo y clave OpenRouter ya verificados; se ejecutan pruebas live con datos sintéticos,
+rutas ZDR y presupuesto compartido de USD 10, incluida la comisión confirmada de USD 0.80.
+El evaluador aislado tiene 163 tests backend. Qwen rápido mostró fallos de interpretación y
+selección de lecturas; se corrigieron contexto, UUIDs y validación de modos antes de repetir
+la cobertura afectada. Ningún candidato tiene aprobación de calidad. Se conservan los 220 casos
+y sus tres repeticiones requeridas; documentos y mutaciones siguen sin habilitarse en producción.
+No hay programación diaria. La evidencia y los
 gates viven en [operación del asistente](assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
 
 ## Active product integration (2026-10-05): Expansión POS

@@ -10,10 +10,16 @@ import httpx
 
 BASE = "https://openrouter.ai/api/v1"
 MAX_OUTPUT = 1024
+MAX_REQUEST_SECONDS = 60
+MIN_POST_INTERVAL_SECONDS = 2
 
 
 class EvaluationBlocked(Exception):
     """Fixed diagnostic codes only; never copy remote bodies or credentials."""
+
+    def __init__(self, code, *, diagnostics=None):
+        super().__init__(code)
+        self.diagnostics = diagnostics
 
 
 @dataclass(frozen=True)
@@ -23,15 +29,23 @@ class Candidate:
     provider: str
     input_nanousd: int
     output_nanousd: int
+    reasoning_enabled: bool | None = None
 
 
 # Conservative ceilings, without temporary discounts or cache savings.
 # Verified public endpoint catalog and ZDR list on 2026-10-07.
 CANDIDATES = {
     "glm-flash": Candidate("z-ai/glm-5.3-flash", "fireworks", "Fireworks", 150, 500),
+    "glm-deepinfra": Candidate("z-ai/glm-5.3-flash", "deepinfra/fp4", "DeepInfra", 150, 500),
     "qwen-38": Candidate("qwen/qwen3.8-27b", "deepinfra/bf16", "DeepInfra", 200, 2500),
+    "qwen-fast": Candidate("qwen/qwen3.8-27b", "deepinfra/bf16", "DeepInfra", 200, 2500,
+                           reasoning_enabled=False),
     "mistral-small": Candidate("mistralai/mistral-small-2603", "mistral/zdr", "Mistral",
-                               150, 600),
+                               150, 600, reasoning_enabled=False),
+    "deepseek-flash": Candidate("deepseek/deepseek-v4.1-flash", "deepinfra/fp8", "DeepInfra",
+                                200, 600),
+    "deepseek-fast": Candidate("deepseek/deepseek-v4.1-flash", "deepinfra/fp8", "DeepInfra",
+                               200, 600, reasoning_enabled=False),
 }
 
 
@@ -134,18 +148,59 @@ def validate_account(data, budget_nanousd):
 class Client:
     def __init__(self, api_key=None):
         self.api_key = api_key
+        self._last_inference_started = None
 
     def request(self, method, path, body=None, *, authenticated=False):
         if authenticated and not self.api_key:
             raise EvaluationBlocked("missing_evaluation_key")
         headers = {"Authorization": "Bearer " + self.api_key} if authenticated else {}
+        if method == "POST":
+            # Conservative serial probing, not a claim about the vendor's quota.
+            # This spaces new requests; it never retries a failed paid request.
+            if self._last_inference_started is not None:
+                delay = self._last_inference_started + MIN_POST_INTERVAL_SECONDS - time.monotonic()
+                if delay > 0:
+                    time.sleep(delay)
+            self._last_inference_started = time.monotonic()
+        started = time.monotonic()
         try:
             with httpx.Client(timeout=60, follow_redirects=False, trust_env=False) as client:
                 with client.stream(method, BASE + path, json=body, headers=headers) as response:
                     if response.status_code != 200:
-                        raise EvaluationBlocked(f"provider_http_{response.status_code}")
+                        diagnostic = {}
+                        for header in ("retry-after", "x-ratelimit-limit",
+                                       "x-ratelimit-remaining", "x-ratelimit-reset"):
+                            value = response.headers.get(header, "")
+                            if value.isdigit() and len(value) <= 16:
+                                diagnostic[header] = int(value)
+                        payload = bytearray()
+                        for chunk in response.iter_bytes():
+                            payload.extend(chunk)
+                            if len(payload) > 65536:
+                                break
+                        if len(payload) <= 65536:
+                            try:
+                                metadata = json.loads(payload).get("error", {}).get("metadata", {})
+                                for key, allowed in {
+                                    "error_type": {"rate_limit_exceeded"},
+                                    "provider_name": {c.provider for c in CANDIDATES.values()},
+                                    "limit_source": {"openrouter_in_flight_budget",
+                                                     "openrouter_credits", "openrouter_key_limit"},
+                                    "reason": {"in_flight_budget_exhausted",
+                                               "weight_exceeds_budget"},
+                                }.items():
+                                    if (isinstance(metadata.get(key), str)
+                                            and metadata[key] in allowed):
+                                        diagnostic[key] = metadata[key]
+                            except (ValueError, AttributeError):
+                                pass
+                        raise EvaluationBlocked(f"provider_http_{response.status_code}",
+                                                diagnostics=diagnostic)
                     content = bytearray()
                     for chunk in response.iter_bytes():
+                        # Streaming whitespace must not reset the request deadline.
+                        if time.monotonic() - started >= MAX_REQUEST_SECONDS:
+                            raise EvaluationBlocked("provider_response_deadline")
                         content.extend(chunk)
                         if len(content) > (4_000_000 if method == "GET" else 1_000_000):
                             raise EvaluationBlocked("provider_response_too_large")
@@ -159,7 +214,17 @@ class Client:
     def preflight(self, candidate):
         endpoints = self.request("GET", "/models/" + candidate.model + "/endpoints")
         zdr = self.request("GET", "/endpoints/zdr")
-        return validate_endpoint(candidate, endpoints["data"]["endpoints"], zdr["data"])
+        result = validate_endpoint(candidate, endpoints["data"]["endpoints"], zdr["data"])
+        catalog = self.request("GET", "/models")
+        model = next((row for row in catalog["data"] if row.get("id") == candidate.model), {})
+        reasoning = model.get("reasoning", {})
+        if candidate.reasoning_enabled is False:
+            if reasoning.get("mandatory") is not False:
+                raise EvaluationBlocked("reasoning_disable_not_supported")
+        elif "low" not in (reasoning.get("supported_efforts") or []):
+            raise EvaluationBlocked("reasoning_effort_not_supported")
+        result["reasoning_mode"] = "disabled" if candidate.reasoning_enabled is False else "low"
+        return result
 
     def account(self, budget_nanousd):
         key = self.request("GET", "/key", authenticated=True)
@@ -179,6 +244,8 @@ class Client:
                              "require_parameters": True, "data_collection": "deny", "zdr": True,
                              "max_price": {"prompt": candidate.input_nanousd / 1000,
                                            "completion": candidate.output_nanousd / 1000}}}
+        if candidate.reasoning_enabled is False:
+            body["reasoning"] = {"enabled": False, "exclude": True}
         if tools:
             if structured:
                 raise EvaluationBlocked("final_tools_forbidden")
@@ -202,6 +269,12 @@ class Client:
                 or choice.get("finish_reason") not in {"stop", "tool_calls"}):
             raise EvaluationBlocked("incomplete_or_refused_completion")
         content = message.get("content") or ""
+        if candidate.reasoning_enabled is False:
+            usage = result.get("usage") or {}
+            details = usage.get("completion_tokens_details") or {}
+            reasoning = details.get("reasoning_tokens")
+            if type(reasoning) is not int or reasoning != 0:
+                raise EvaluationBlocked("disabled_reasoning_not_verified")
         if structured:
             content = provider._normalize_groq_answer(content)
         return {"content": content, "tool_calls": message.get("tool_calls") or [],

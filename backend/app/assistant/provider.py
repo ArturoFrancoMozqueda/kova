@@ -142,7 +142,8 @@ def groq_response_format(allowed_source_ids: list[str] | None = None) -> dict:
         "required": ["action", "resource_id", "values"],
         "properties": {
             "action": {"type": "string", "enum": actions},
-            "resource_id": {"type": ["string", "null"]},
+            "resource_id": {"type": ["string", "null"],
+                            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"},
             "values": {"type": "array", "items": {
                 "type": "object", "additionalProperties": False,
                 "required": ["key", "value"], "properties": {

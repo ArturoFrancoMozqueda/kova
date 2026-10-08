@@ -708,9 +708,13 @@ candidato. No se reducen umbrales ni repeticiones y no se sustituyen resultados 
 Los fragmentos sintéticos no acreditan extracción, retrieval/ACL, OCR ni ingesta desplegada.
 Escalabilidad, costos y carga se verifican desde el inicio; Free no es una promesa de capacidad
 ilimitada. Tras investigar lanzamientos actuales, el operador autorizó comparar GLM-5.3-Flash,
-Qwen3.8-27B y Mistral Small 4 con el mismo corpus; ninguno está aprobado. El transporte de
-evaluación OpenRouter permanece aislado del runtime, con rutas ZDR verificadas públicamente,
-pero cuenta/saldo/clave e inferencia live pendientes. El máximo total USD 10 incluye comisiones.
+Qwen3.8-27B y Mistral Small 4 con el mismo corpus. La investigación añadió DeepSeek V4.1 Flash
+y perfiles de razonamiento/ruta; ninguno está aprobado. Cuenta, saldo y clave OpenRouter ya
+verificados, con pruebas live parciales y fallos documentados. El transporte de evaluación
+permanece aislado del runtime. Las rutas y sus modos se comprueban contra el catálogo público
+ZDR; los perfiles rápidos verifican razonamiento consumido cero. El máximo total USD 10 incluye
+la comisión real de USD 0.80. Se preservan resultados/versiones y reservas inciertas; las
+correcciones de contexto, UUID y modo requieren repetir cobertura con los mismos oráculos.
 La investigación es inmediata; el operador descartó programación diaria. Procedimiento y evidencia:
 [comparación actual](../assistant-operations.md#comparación-autorizada-de-modelos-actuales--2026-10-07).
 

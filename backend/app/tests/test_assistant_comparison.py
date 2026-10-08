@@ -1,4 +1,5 @@
 import json
+import re
 from decimal import Decimal
 
 import httpx
@@ -8,6 +9,11 @@ from app.config import settings
 from assistant_evaluation import openrouter as router
 from scripts import compare_assistant as comparison
 from scripts import evaluate_assistant as evaluation
+
+
+@pytest.fixture(autouse=True)
+def no_real_wait_for_simulated_requests(monkeypatch):
+    monkeypatch.setattr(router, "MIN_POST_INTERVAL_SECONDS", 0)
 
 
 @pytest.fixture
@@ -137,10 +143,108 @@ def test_transport_never_retries_or_logs_remote_error(candidate, monkeypatch):
     assert str(requests[0].url) == router.BASE + "/chat/completions"
 
 
+def test_decoder_resource_identifiers_match_public_uuid_contract(candidate, monkeypatch):
+    monkeypatch.setattr(settings, "assistant_generation_provider", "groq")
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", True)
+    body = router.Client.body(candidate, [{"role": "system", "content": "Solo evidencia."}],
+                              [], structured=True, allowed_source_ids=[])
+    schema = body["response_format"]["json_schema"]["schema"]
+    resource = schema["properties"]["steps"]["items"]["properties"]["resource_id"]
+    assert "null" in resource["type"]
+    assert re.fullmatch(resource["pattern"], evaluation.RESOURCE)
+    for invalid in ("business", "", "otro-negocio", evaluation.RESOURCE + "-suffix"):
+        assert re.fullmatch(resource["pattern"], invalid) is None
+
+
+@pytest.mark.parametrize("alias", ["qwen-fast", "mistral-small", "deepseek-fast"])
+def test_fast_profile_disables_reasoning_and_rejects_unconfirmed_mode(monkeypatch, alias):
+    selected = router.CANDIDATES[alias]
+    body = router.Client.body(selected, [{"role": "system", "content": "Solo evidencia."}],
+                              [], structured=False)
+    assert body["reasoning"] == {"enabled": False, "exclude": True}
+    response = {"provider": selected.provider, "choices": [{"finish_reason": "stop",
+        "message": {"content": "Sin datos."}}], "usage": {
+        "completion_tokens_details": {"reasoning_tokens": 1}}}
+    monkeypatch.setattr(router.Client, "request", lambda *args, **kwargs: response)
+    with pytest.raises(router.EvaluationBlocked, match="disabled_reasoning_not_verified"):
+        router.Client("test-key").generate(selected, body, structured=False)
+    response["usage"]["completion_tokens_details"]["reasoning_tokens"] = 0
+    assert router.Client("test-key").generate(selected, body, structured=False)["content"]
+
+
+@pytest.mark.parametrize("alias,reasoning,code", [
+    ("qwen-fast", {"mandatory": True}, "reasoning_disable_not_supported"),
+    ("glm-flash", {"supported_efforts": ["high", "none"]}, "reasoning_effort_not_supported"),
+    ("glm-flash", {}, "reasoning_effort_not_supported"),
+])
+def test_preflight_rejects_unsupported_reasoning_mode(monkeypatch, alias, reasoning, code):
+    selected = router.CANDIDATES[alias]
+    row = endpoint(selected)
+
+    def request(self, method, path):
+        if path == "/models":
+            return {"data": [{"id": selected.model, "reasoning": reasoning}]}
+        if path == "/endpoints/zdr":
+            return {"data": [row]}
+        return {"data": {"endpoints": [row]}}
+
+    monkeypatch.setattr(router.Client, "request", request)
+    with pytest.raises(router.EvaluationBlocked, match=code):
+        router.Client().preflight(selected)
+
+
 def test_unexpected_provider_is_rejected(candidate, monkeypatch):
     monkeypatch.setattr(router.Client, "request", lambda *args, **kwargs: {"provider": "Other"})
     with pytest.raises(router.EvaluationBlocked, match="unexpected_provider"):
         router.Client("test-key").generate(candidate, {}, structured=False)
+
+
+def test_request_progress_does_not_extend_deadline(monkeypatch):
+    original = httpx.Client
+    times = iter([0, 61])
+    monkeypatch.setattr(router.time, "monotonic", lambda: next(times))
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: original(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"ok": True})),
+        **kwargs))
+    with pytest.raises(router.EvaluationBlocked, match="^provider_response_deadline$"):
+        router.Client().request("GET", "/models")
+
+
+def test_new_inference_requests_are_spaced_without_retry(monkeypatch):
+    original = httpx.Client
+    clock = [0]
+    requested_at = []
+    monkeypatch.setattr(router, "MIN_POST_INTERVAL_SECONDS", 2)
+    monkeypatch.setattr(router.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(router.time, "sleep", lambda delay: clock.__setitem__(0, clock[0] + delay))
+
+    def handler(request):
+        requested_at.append(clock[0])
+        return httpx.Response(200, json={"ok": True})
+
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: original(
+        transport=httpx.MockTransport(handler), **kwargs))
+    client = router.Client("test-key")
+    for _ in range(2):
+        client.request("POST", "/chat/completions", {}, authenticated=True)
+    assert requested_at == [0, 2]
+
+
+def test_rate_limit_diagnostics_allow_only_fixed_metadata_and_numeric_headers(monkeypatch):
+    original = httpx.Client
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: original(
+        transport=httpx.MockTransport(lambda request: httpx.Response(429,
+            headers={"Retry-After": "30", "X-RateLimit-Remaining": "0"},
+            json={"error": {"message": "private prompt secret", "metadata": {
+                "error_type": "rate_limit_exceeded", "provider_name": "Mistral",
+                "reason": "private prompt secret", "raw": "private prompt secret"}}})),
+        **kwargs))
+    with pytest.raises(router.EvaluationBlocked) as raised:
+        router.Client().request("GET", "/models")
+    assert raised.value.diagnostics == {"retry-after": 30, "x-ratelimit-remaining": 0,
+                                       "error_type": "rate_limit_exceeded",
+                                       "provider_name": "Mistral"}
+    assert "private" not in str(raised.value)
 
 
 def test_atomic_save_preserves_shared_ledger_symlink(tmp_path):
@@ -183,7 +287,20 @@ def test_missing_account_verification_makes_zero_calls(monkeypatch):
                        budget=router.nanousd(Decimal(10)), funding_fee=0, account_verified=False)
 
 
-def test_complete_runner_interleaves_models_and_persists_before_requests(tmp_path, monkeypatch):
+def test_smoke_covers_every_capability_without_changing_corpus():
+    corpus = evaluation.cases()
+    ordered = comparison.interleaved_cases(corpus)
+    capabilities = {case.capability for case in corpus}
+    assert {case.capability for case in ordered[:len(capabilities)]} == capabilities
+    assert len(ordered) == len(corpus)
+    assert {case.id for case in ordered} == {case.id for case in corpus}
+    assert all(case is corpus[corpus.index(case)] for case in ordered)
+
+
+@pytest.mark.parametrize("key_limit", [8, 10])
+def test_complete_runner_interleaves_models_and_persists_before_requests(
+    tmp_path, monkeypatch, key_limit
+):
     monkeypatch.setattr(evaluation, "OUTPUT", tmp_path)
     monkeypatch.setattr(settings, "assistant_enabled", False)
     monkeypatch.setattr(settings, "assistant_documents_enabled", False)
@@ -196,8 +313,13 @@ def test_complete_runner_interleaves_models_and_persists_before_requests(tmp_pat
     def handler(request):
         if request.url.path == "/api/v1/key":
             return httpx.Response(200, json={"data": {"is_free_tier": False,
-                "is_management_key": False, "limit_reset": None, "limit": 8,
-                "limit_remaining": 8}})
+                "is_management_key": False, "limit_reset": None, "limit": key_limit,
+                "limit_remaining": key_limit}})
+        if request.url.path == "/api/v1/models":
+            return httpx.Response(200, json={"data": [
+                {"id": row.model, "reasoning": {"mandatory": False,
+                                                 "supported_efforts": ["low", "none"]}}
+                for row in router.CANDIDATES.values()]})
         if request.method == "GET":
             rows = [endpoint(row) for row in router.CANDIDATES.values()]
             # Public endpoint prices must be checked against each candidate's ceiling.
@@ -216,16 +338,21 @@ def test_complete_runner_interleaves_models_and_persists_before_requests(tmp_pat
         content = "" if "tools" in body else json.dumps({"answer": "Revisa la propuesta.",
             "source_ids": [], "steps": [{"action": "business_profile", "resource_id": None,
                 "values": [{"key": "public_name", "value": "Evaluación A"}]}]})
+        # The explicit non-thinking profile must receive coherent usage; retain
+        # the same total tokens, costs and independent verification assertions.
+        reasoning_tokens = 0 if body["reasoning"].get("enabled") is False else 20
         return httpx.Response(200, json={"provider": selected.provider,
             "choices": [{"finish_reason": "stop", "message": {"content": content}}],
             "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150,
-                "completion_tokens_details": {"reasoning_tokens": 20}, "cost": "0.00004"}})
+                "completion_tokens_details": {"reasoning_tokens": reasoning_tokens},
+                "cost": "0.00004"}})
 
     monkeypatch.setattr(httpx, "Client", lambda **kwargs: original(
         transport=httpx.MockTransport(handler), **kwargs))
-    report = comparison.run(router.Client("test-key"), list(router.CANDIDATES), limit=1,
+    aliases = ["glm-flash", "qwen-38", "mistral-small"]
+    report = comparison.run(router.Client("test-key"), aliases, limit=1,
         budget=10_000_000_000, funding_fee=800_000_000, account_verified=True)
-    assert sent == [c.model for c in router.CANDIDATES.values() for _ in range(2)]
+    assert sent == [router.CANDIDATES[alias].model for alias in aliases for _ in range(2)]
     assert all(r["completed"] == 1 and not r["quality_gate_passed"] for r in report)
     rows = json.loads((tmp_path / "comparison-results.json").read_text())
     assert all(row["contract_ok"] and row["setup_matches"] for row in rows)
@@ -234,7 +361,10 @@ def test_complete_runner_interleaves_models_and_persists_before_requests(tmp_pat
     assert sum(r["charge_nanousd"] for r in ledger) == 800_240_000
 
 
-def test_runner_stops_on_provider_error_and_retains_persisted_reservation(tmp_path, monkeypatch):
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_runner_stops_on_provider_error_and_retains_persisted_reservation(
+    tmp_path, monkeypatch, interrupted
+):
     monkeypatch.setattr(evaluation, "OUTPUT", tmp_path)
     for name in ("assistant_enabled", "assistant_documents_enabled", "assistant_email_enabled",
                  "assistant_mutations_enabled"):
@@ -248,11 +378,14 @@ def test_runner_stops_on_provider_error_and_retains_persisted_reservation(tmp_pa
     def handler(request):
         requests.append(request)
         assert json.loads((tmp_path / "usage-ledger.json").read_text())[-1]["paid"] is True
+        if interrupted:
+            raise KeyboardInterrupt
         return httpx.Response(429, json={"error": "synthetic private text"})
 
     monkeypatch.setattr(httpx, "Client", lambda **kwargs: original(
         transport=httpx.MockTransport(handler), **kwargs))
-    with pytest.raises(router.EvaluationBlocked, match="provider_http_429"):
+    code = "operator_interrupted" if interrupted else "provider_http_429"
+    with pytest.raises(router.EvaluationBlocked, match=code):
         comparison.run(router.Client("test-key"), list(router.CANDIDATES), limit=660,
                        budget=10_000_000_000, funding_fee=0, account_verified=True)
     assert len(requests) == 1

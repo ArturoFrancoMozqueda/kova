@@ -57,6 +57,15 @@ def summary(path, alias):
     return result
 
 
+def interleaved_cases(corpus):
+    """Exercise every capability early without changing any case or oracle."""
+    groups = {}
+    for case in corpus:
+        groups.setdefault(case.capability, []).append(case)
+    return [group[index] for index in range(max(map(len, groups.values()), default=0))
+            for group in groups.values() if index < len(group)]
+
+
 def run(client, aliases, *, limit, budget, funding_fee, account_verified):
     if not account_verified:
         raise EvaluationBlocked("verify_dedicated_account_and_privacy_first")
@@ -82,7 +91,9 @@ def run(client, aliases, *, limit, budget, funding_fee, account_verified):
                    if row.get("kind") == "funding_fee")
         if funding_fee < fees or funding_fee >= budget:
             raise EvaluationBlocked("invalid_funding_fee")
-        account = client.account(budget - funding_fee)
+        # The key is capped by the total authorization. The shared ledger reserves
+        # funding fees before any POST, so inference cannot spend that portion.
+        account = client.account(budget)
         preflight = {alias: client.preflight(CANDIDATES[alias]) for alias in aliases}
         save(output / "comparison-preflight.json", {"checked_at": time.time(),
              "inference_called": False, "account": account, "routes": preflight})
@@ -100,8 +111,8 @@ def run(client, aliases, *, limit, budget, funding_fee, account_verified):
                      and row.get("corpus_hash") == digest}
         counts = dict.fromkeys(aliases, 0)
         # Interleave candidates to avoid exhausting the budget on a single model.
-        for case in corpus:
-            for repetition in range(3):
+        for repetition in range(3):
+            for case in interleaved_cases(corpus):
                 for alias in aliases:
                     if counts[alias] >= limit or (alias, case.id, repetition) in completed:
                         continue
@@ -125,6 +136,10 @@ def run(client, aliases, *, limit, budget, funding_fee, account_verified):
                         try:
                             response = client.generate(selected, body,
                                                        structured=kwargs["structured"])
+                            # This runner uses synthetic cases only. Keep the model's
+                            # answer/tool requests so rejected contracts can be reviewed.
+                            observation["response"] = {key: response.get(key)
+                                                       for key in ("content", "tool_calls")}
                             usage = response.get("usage")
                             verified = reconcile(receipt, usage)
                             save(ledger_path, ledger)
@@ -151,9 +166,20 @@ def run(client, aliases, *, limit, budget, funding_fee, account_verified):
                     except EvaluationBlocked as exc:
                         blocked = exc
                         row["error_code"] = str(exc)
+                        if exc.diagnostics:
+                            row["error_diagnostics"] = exc.diagnostics
+                    except KeyboardInterrupt:
+                        blocked = EvaluationBlocked("operator_interrupted")
+                        row["error_code"] = str(blocked)
                     except Exception as exc:
                         # Remote content and validation messages may contain request data.
                         row["error_type"] = type(exc).__name__
+                        if type(exc).__name__ == "ValidationError":
+                            row["validation_errors"] = [
+                                {"type": error["type"], "loc": error["loc"]}
+                                for error in exc.errors(include_input=False,
+                                                        include_context=False)
+                            ]
                     row.update(calls=calls, latency_seconds=round(time.monotonic() - started, 3))
                     rows.append(row)
                     save(results_path, rows)
