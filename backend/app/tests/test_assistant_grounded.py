@@ -90,6 +90,47 @@ def test_planning_only_sends_advertised_cerebras_parameters(paid):
     assert body["tool_choice"] == "auto" and "parallel_tool_calls" not in body
 
 
+def test_joint_review_cannot_omit_readings_or_change_the_selected_period(paid):
+    calls = [{"id": "sales", "function": {"name": "get_sales", "arguments":
+             '{"start_date":"2026-10-01","end_date":"2026-10-07"}'}}]
+    selected = generation.ensure_document_read(
+        "Haz una revisión conjunta de ventas, productos e inventario", calls
+    )
+    assert [item["function"]["name"] for item in selected] == [
+        "get_sales", "get_top_products", "get_inventory",
+    ]
+    assert all(item["function"]["arguments"] == calls[0]["function"]["arguments"]
+               or json.loads(item["function"]["arguments"]) ==
+               json.loads(calls[0]["function"]["arguments"]) for item in selected)
+
+
+@pytest.mark.parametrize("question", [
+    "Cómo revisar inventario y reposición", "Necesito ayuda: ¿cómo interpretar mi utilidad?",
+    "En Kova, cómo entender mis resultados", "Cómo configurar mi negocio",
+])
+def test_help_question_must_retrieve_a_guide_even_when_planner_omits_it(paid, question):
+    calls = [{"function": {"name": "get_configuration", "arguments": "{}"}}]
+    selected = generation.ensure_document_read(question, calls)
+    assert selected[-1]["function"]["name"] == "search_knowledge"
+    assert json.loads(selected[-1]["function"]["arguments"])["query"] == question
+    assert generation.ensure_document_read(question, selected) == selected
+
+
+@pytest.mark.parametrize("question,expected", [
+    ("Mis ventas offline no aparecen", "después de sincronizar"),
+    ("Se agotó mi cuota, cómo veo mis ventas", "reportes en Análisis"),
+    ("Mi consulta quedó incierta, confirma el cambio", "No hay confirmación verificable"),
+    ("La propuesta venció, ya se creó el producto?", "no acredita creación"),
+    ("Mi consulta fue cancelada, no la repitas", "no aplica ni repite cambios"),
+])
+def test_missing_evidence_has_actionable_guidance_without_confirming_writes(question, expected):
+    messages = evidence_messages([], question)
+    answer = grounding.fallback_answer(messages)
+    assert expected in answer and "SQL" not in answer
+    unavailable = evidence_messages([("get_sales", {"available": False})], question)
+    assert expected in grounding.report_answer(unavailable)
+
+
 def test_transport_fixes_recipients_privacy_prices_and_validates_verbatim_quotes(paid, monkeypatch):
     original = httpx.AsyncClient
     messages = grounding.extraction_messages(evidence_messages([("search_knowledge", SOURCES)]))

@@ -84,7 +84,7 @@ aislamiento de presupuestos, liquidación idempotente y concurrencia. El recorri
 combina un reporte real de PostgreSQL con un documento privado y revalida permisos al entregar.
 No utiliza datos de clientes ni llama a un modelo real en esos tests.
 
-Validación local de esta implementación: **208 tests de backend** del asistente y **29 tests
+Validación local de esta implementación: **218 tests de backend** del asistente y **29 tests
 de interfaz**, typecheck, Ruff, contrato crítico de frontend y exportación OpenAPI coherente.
 La integración comprueba además que retirar consentimiento durante la consulta impide entregar
 el documento. Los tests de interfaz no sustituyen QA autenticada ni una prueba de carga.
@@ -95,6 +95,13 @@ mutación permanecen en el corpus y siguen siendo obligatorios antes de habilita
 Se conservan resolución ≥95%, citas pertinentes ≥90%, cero efectos/filtraciones y revisión
 humana. Respuestas rechazadas o abstenciones ante preguntas resolubles cuentan contra utilidad.
 No se rellenan campos de revisión humana con evaluación del agente.
+
+La inspección de respuestas detectó omisiones de guías, lecturas parciales ante una revisión
+conjunta y abstenciones poco útiles sobre cancelación/cuota/sincronización. El servidor ahora
+completa esas lecturas y proporciona instrucciones verificadas de recuperación; no confirma
+operaciones pasadas sin evidencia. La evaluación se reinicia con un hash distinto, conservando
+resultados y reservas anteriores. Los rechazos HTTP 429 de las versiones anteriores permanecen
+como fallos y no se convierten en respuestas exitosas por una repetición posterior.
 
 Antes de activar:
 

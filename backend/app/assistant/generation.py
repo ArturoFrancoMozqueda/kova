@@ -142,6 +142,31 @@ def planning_system_prompt():
 
 def ensure_document_read(content, tool_calls):
     """A document question must search authorized knowledge, even if planning omits it."""
+    if (settings.assistant_generation_provider == "openrouter"
+            and not settings.assistant_mutations_enabled):
+        query = direct.normalize(content)
+        required = []
+        if (re.search(r"\bventas?\b", query) and re.search(r"\bproductos?\b", query)
+                and re.search(r"\binventario\b", query)):
+            required.extend(("get_sales", "get_top_products", "get_inventory"))
+        if re.search(r"\bcomo\b|\b(?:manuales?|documentos?|archivos?|catalogos?)\b", query):
+            required.append("search_knowledge")
+        names = {item.get("function", item).get("name") for item in tool_calls}
+        missing = [name for name in required if name not in names]
+        if len(tool_calls) + len(missing) > 8:
+            raise HTTPException(422, "Se alcanzó el límite de herramientas.")
+        ranges = [item.get("function", item).get("arguments", {}) for item in tool_calls
+                  if item.get("function", item).get("name") in grounding.REPORT_TOOLS]
+        dates = ranges[0] if ranges else {}
+        if isinstance(dates, str):
+            dates = json.loads(dates)
+        return [*tool_calls, *[{
+            "id": "required_read_" + name, "type": "function", "function": {
+                "name": name,
+                "arguments": json.dumps({"query": content[:400]}
+                                        if name == "search_knowledge" else dates),
+            },
+        } for name in missing]]
     if settings.assistant_mutations_enabled or not re.search(
         r"(?i)\b(manual(?:es)?|documentos?|archivos?|cat[aá]logos?)\b", content
     ):
@@ -287,7 +312,8 @@ def _run(db, ctx, job):
             deadline.remaining()
             if structured_answer:
                 if not grounding.useful_passages(messages):
-                    content = grounding.report_answer(messages) or grounding.UNAVAILABLE_ANSWER
+                    content = (grounding.report_answer(messages)
+                               or grounding.fallback_answer(messages))
                     _complete(db, ctx, job, conversation, Answer(answer=content), source_ids,
                               evidence, metrics, cards, context_refs, response_mode="grounded")
                     return

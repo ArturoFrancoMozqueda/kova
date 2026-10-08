@@ -141,7 +141,7 @@ def evaluate(case, call):
         if report:
             answer.answer = report + "\n\n" + answer.answer
     else:
-        answer = Answer(answer=report or grounding.UNAVAILABLE_ANSWER)
+        answer = Answer(answer=report or grounding.fallback_answer(messages))
     if answer.steps or any(char.isdigit() for char in answer.answer):
         raise EvaluationBlocked("invalid_answer_contract")
     return {
