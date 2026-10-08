@@ -23,12 +23,16 @@ test("a previously serving Vercel artifact is rolled back without rebuilding or 
     env: { VERCEL_TOKEN: "test-only-token", FLY_API_TOKEN: "test-only-fly" },
     run: async (_command, args) => { calls.push(args); },
   });
-  await provider.restoreVercel(artifact.vercelDeployment);
+  await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
   assert.ok(calls[0].includes("rollback"));
   assert.ok(calls[0].includes(artifact.vercelDeployment));
   assert.equal(calls[0].includes("promote"), false);
   assert.equal(calls[0].includes("test-only-token"), false);
   assert.equal(calls[0].includes("build"), false);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1].slice(2, 7), ["alias", "set", artifact.vercelDeployment,
+    "kovasuite.example", "--global-config"]);
+  assert.equal(calls.flat().includes("test-only-token"), false);
 });
 
 test("Fly recovery pauses paid features and cannot create an isolated host", async () => {
@@ -49,7 +53,8 @@ function fakes({ failVercel = false } = {}) {
   return {
     calls,
     provider: {
-      async restoreVercel(value) {
+      async restoreVercel(value, frontendUrl) {
+        assert.equal(frontendUrl, artifact.frontendUrl);
         calls.push(["vercel", value]);
         if (failVercel) throw new Error("fake Vercel failure");
       },

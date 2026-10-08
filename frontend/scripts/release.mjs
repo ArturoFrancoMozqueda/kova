@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import {
-  cliProvider, recoverRelease, resolveNpxCommand, runProviderCommand,
+  cliProvider, productionHostname, recoverRelease, resolveNpxCommand, runProviderCommand,
   validateRollbackArtifact,
 } from "./release-recovery.mjs";
 import { verifyDeployment } from "./verify-deployment.mjs";
@@ -30,7 +30,7 @@ export async function release({ artifact: rawArtifact, sha, provider,
     await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     phase = "promotion";
-    await provider.promote(url);
+    await provider.promote(url, artifact.frontendUrl);
     phase = "acceptance";
     await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
@@ -44,14 +44,14 @@ export async function release({ artifact: rawArtifact, sha, provider,
   }
 }
 
-export function releaseProvider(globalConfig) {
+export function releaseProvider(globalConfig, { run = runProviderCommand, env = process.env } = {}) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const npx = resolveNpxCommand();
-  const vercel = (args, capture = false) => runProviderCommand(npx.command,
+  const vercel = (args, capture = false) => run(npx.command,
     [...npx.prefixArgs, "--yes", "vercel@59.0.0", ...args,
-      "--global-config", globalConfig], { cwd: root, label: "Vercel", capture });
+      "--global-config", globalConfig], { cwd: root, label: "Vercel", capture, env });
   return {
-    ...cliProvider({ globalConfig }),
+    ...cliProvider({ globalConfig, run, env }),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);
       await vercel(["build", "--prod"]);
@@ -73,7 +73,11 @@ export function releaseProvider(globalConfig) {
         [...npx.prefixArgs, "--yes", "wait-on@9.0.1", "https://api.kovasuite.com/health/db",
           "--timeout", "180000"], { label: "Fly health wait" });
     },
-    promote(url) { return vercel(["promote", url, "--yes"]); },
+    async promote(url, frontendUrl) {
+      const hostname = productionHostname(frontendUrl);
+      await vercel(["promote", url, "--yes"]);
+      await vercel(["alias", "set", url, hostname]);
+    },
   };
 }
 

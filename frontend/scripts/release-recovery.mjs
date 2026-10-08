@@ -30,12 +30,22 @@ function requireHttpsUrl(value, label) {
   return parsed.href.replace(/\/$/, "");
 }
 
+export function productionHostname(value) {
+  const parsed = new URL(value);
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.port
+      || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new Error("frontend URL must be an https origin for production alias assignment");
+  }
+  return parsed.hostname;
+}
+
 export function validateRollbackArtifact(input) {
   if (!input || typeof input !== "object") throw new Error("rollback artifact is required");
   const releaseSha = String(input.releaseSha ?? "");
   const flyImage = String(input.flyImage ?? "").trim();
   if (!FULL_SHA.test(releaseSha)) throw new Error("rollback artifact has no valid release SHA");
   if (!flyImage) throw new Error("rollback artifact has no Fly image");
+  productionHostname(String(input.frontendUrl ?? ""));
   return {
     releaseSha,
     flyImage,
@@ -59,7 +69,7 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
     if (phase === "promotion" || phase === "acceptance") {
       // Restore the old frontend first. The newly deployed backend must remain
       // backward compatible during this short interval.
-      await provider.restoreVercel(artifact.vercelDeployment);
+      await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
       restored.push("vercel");
     }
     await provider.restoreFly(artifact.flyImage);
@@ -122,8 +132,11 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
   const flyctl = process.platform === "win32" ? "flyctl.exe" : "flyctl";
   const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../backend");
   return {
-    restoreVercel(deployment) {
-      return run(
+    async restoreVercel(deployment, frontendUrl) {
+      const hostname = productionHostname(frontendUrl);
+      const authArgs = globalConfig ? ["--global-config", globalConfig]
+        : ["--token", env.VERCEL_TOKEN];
+      await run(
         npx.command,
         [
           ...npx.prefixArgs,
@@ -132,11 +145,15 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
           "rollback",
           deployment,
           "--yes",
-          ...(globalConfig ? ["--global-config", globalConfig]
-            : ["--token", env.VERCEL_TOKEN]),
+          ...authArgs,
         ],
         { label: "Vercel restore", env },
       );
+      // Custom domains are intentionally not auto-assigned to candidates.
+      // Rollback must explicitly restore the same public domain as promotion.
+      return run(npx.command, [...npx.prefixArgs, "--yes", "vercel@59.0.0",
+        "alias", "set", deployment, hostname, ...authArgs],
+      { label: "Vercel production domain restore", env });
     },
     async restoreFly(image) {
       await run("python3", ["../scripts/assistant_host_release.py", "pause"],
