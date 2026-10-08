@@ -26,7 +26,10 @@ def command(args, *, run=subprocess.run, **kwargs):
     if result.returncode:
         # The subcommand is public and fixed; stdout/stderr can contain private
         # configuration and must never be copied into CI diagnostics.
-        raise RuntimeError("Assistant host command failed: " + " ".join(args[:2]))
+        stderr = getattr(result, "stderr", "")
+        category = " (deadline)" if isinstance(stderr, str) and re.search(
+            r"(?i)deadline exceeded|timed out|timeout", stderr) else ""
+        raise RuntimeError("Assistant host command failed: " + " ".join(args[:2]) + category)
     return result.stdout
 
 
@@ -210,10 +213,14 @@ def verify(identifier, sha, image, *, run=subprocess.run, sleep=time.sleep):
         print("Isolated scanner image verified", flush=True)
         identity = worker_identity(identifier, run)
         print("Isolated worker identity verified; parser checks starting", flush=True)
-        report = remote(identifier, PARSER_COMMAND,
-                        timeout=240, run=run, stage="parser checks")
-        if set(report.splitlines()) != {"PASS: " + name for name in PARSER_CHECKS}:
-            raise RuntimeError("Isolated parser did not complete every required check")
+        # Keep each exec request bounded; every unchanged case remains mandatory.
+        # A long connection containing the entire suite can fail at the API layer.
+        for name in sorted(PARSER_CHECKS):
+            report = remote(identifier, PARSER_COMMAND + " --check " + shlex.quote(name),
+                            timeout=60, run=run, stage="parser check " + name)
+            if report.splitlines() != ["PASS: " + name]:
+                raise RuntimeError("Isolated parser did not complete required check: " + name)
+            print("Isolated parser verified: " + name, flush=True)
         print("Isolated parser completed every required check", flush=True)
         sleep(30)
         started_host(identifier, sha, image, run)

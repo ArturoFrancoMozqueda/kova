@@ -1,10 +1,17 @@
 """Real isolated-parser smoke gate. Uses only generated, non-customer test files."""
 
+import argparse
 import base64
 import io
 import json
 import subprocess
 import zipfile
+
+CHECKS = (
+    "UTF-8 business text", "DOCX text", "PDF text", "PDF Spanish OCR",
+    "DOCX path traversal", "DOCX external relationship", "DOCX macro",
+    "DOCX expanded part", "malformed PDF", "antivirus EICAR",
+)
 
 
 def package(parts):
@@ -38,7 +45,7 @@ def pdf_document(image=None):
     return bytes(data)
 
 
-def check(name, content, suffix, *, accepted, ocr=False):
+def check_file(name, content, suffix, *, accepted, ocr=False):
     payload = json.dumps({"content": base64.b64encode(content).decode(), "suffix": suffix})
     result = subprocess.run(
         [
@@ -77,7 +84,14 @@ def check(name, content, suffix, *, accepted, ocr=False):
     print(f"PASS: {name}", flush=True)
 
 
-def main():
+def main(selected=None):
+    if selected is not None and selected not in CHECKS:
+        raise ValueError("Unknown parser check")
+
+    def check(name, *args, **kwargs):
+        if selected is None or name == selected:
+            check_file(name, *args, **kwargs)
+
     from assistant_parser_samples import SCAN_HEIGHT, SCAN_RGB_FLATE, SCAN_WIDTH
 
     document = (
@@ -133,4 +147,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", choices=CHECKS)
+    main(parser.parse_args().check)
