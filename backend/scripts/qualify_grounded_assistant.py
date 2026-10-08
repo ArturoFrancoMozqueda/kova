@@ -101,8 +101,7 @@ def evaluate(case, call):
             {
                 "role": "system",
                 "content": generation.planning_system_prompt()
-                + "\nConfiguración real, evidencia: "
-                + json.dumps(config),
+                + generation.planning_context(config),
             },
             *messages[1:],
         ],

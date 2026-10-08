@@ -43,5 +43,5 @@ primary_region = 'dfw'
 [[vm]]
   processes = ['ingest']
   memory = '5gb'
-  cpus = 1
+  cpus = 4
   memory_mb = 5120
