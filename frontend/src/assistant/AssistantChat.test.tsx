@@ -69,6 +69,19 @@ describe("readable and safe assistant answers", () => {
     fireEvent.click(summary);
     expect(screen.getByRole("link", { name: "Guía de ventas · Página 1" })).toHaveAttribute("href", "/help/sales");
   });
+  it.each([false, true])("keeps saved answer evidence after reopening and avoids a duplicate live run: compact=%s", compact => {
+    const saved: Resource = { ...message("saved-answer", "assistant", "Revisa tus resultados."),
+      data: { ...completed.data, role: "assistant", content: "Revisa tus resultados.", run_id: completed.id } };
+    const props = { compact, messages: [saved], busy: false, onCancel: vi.fn(), empty: null };
+    const view = render(<AssistantConversation {...props} run={null} />);
+    expect(screen.getAllByRole("region", { name: "Resultados de ventas" })).toHaveLength(1);
+    expect(screen.getByRole("region", { name: "Resultados de ventas" })).toHaveTextContent("$125.50");
+    fireEvent.click(screen.getByText("Fuentes consultadas · 1"));
+    expect(screen.getByRole("link", { name: "Guía de ventas · Página 1" })).toBeVisible();
+    view.rerender(<AssistantConversation {...props} run={completed} />);
+    expect(screen.getAllByRole("region", { name: "Resultados de ventas" })).toHaveLength(1);
+    expect(screen.getAllByText("Fuentes consultadas · 1")).toHaveLength(1);
+  });
   it("does not present pending evidence as a completed result and can cancel", () => {
     const onCancel = vi.fn();
     render(<AssistantConversation messages={[]} run={{ ...completed, status: "running" }} busy={false} onCancel={onCancel} empty={null} />);
