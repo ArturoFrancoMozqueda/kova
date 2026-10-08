@@ -42,6 +42,13 @@ una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigent
 de archivos siguen siendo gates de publicación/activación. No se considera producción lista
 solo por disponer de saldo. La clave permanente debe tener límite USD 10 y reinicio mensual.
 
+CI del commit `397e1dc` verificó parser/OCR/antivirus, build/interfaz/navegador, integración
+del producto y reproducibilidad de la imagen. La reversibilidad detectó que el test de 0075
+usaba `head` pero esperaba 0075: se fija el destino de esa prueba a su migración original,
+sin cambiar su guardia ni expectativa. Una prueba adicional de 0076 verifica backfill,
+rechazo de downgrade con ingesta activa y conservación de leases al drenar. Ambas pasan
+localmente; el commit corregido debe volver a completar CI antes de publicación.
+
 ## Evidencia histórica de selección — 2026-10-07
 
 Decisión vigente: [GPT-OSS-120B en Cerebras/OpenRouter, con evidencia controlada por Kova](research/ASSISTANT-DECISION-2026-10-07.md).

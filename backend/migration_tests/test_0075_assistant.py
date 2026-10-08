@@ -9,7 +9,8 @@ from migration_tests.test_0068_branches import _database, _migrate
 
 def test_assistant_empty_downgrade_and_populated_guard():
     with _database() as (url, engine):
-        applied = _migrate(url, "upgrade", "head")
+        # This test owns migration 0075 and its exact rollback boundary.
+        applied = _migrate(url, "upgrade", "0075_assistant")
         assert applied.returncode == 0, applied.stderr
         with engine.connect() as conn:
             assert (
@@ -30,7 +31,7 @@ def test_assistant_empty_downgrade_and_populated_guard():
             )
         rolled = _migrate(url, "downgrade", "0074_cfdi_documents")
         assert rolled.returncode == 0, rolled.stderr
-        assert _migrate(url, "upgrade", "head").returncode == 0
+        assert _migrate(url, "upgrade", "0075_assistant").returncode == 0
         tenant, user = uuid4(), uuid4()
         with engine.begin() as conn:
             conn.execute(

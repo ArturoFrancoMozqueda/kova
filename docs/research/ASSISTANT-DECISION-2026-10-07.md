@@ -14,6 +14,10 @@ otro hash y conserva todos los fallos. La evidencia de 540 casos de abajo corres
 anterior. No se mezclan destinatarios/versiones. DeepInfra sigue solo en el runner de evaluación:
 el sondeo multirruta respondió únicamente desde Groq y no acredita al tercer destinatario.
 
+Un diagnóstico posterior fijó solo `deepinfra/turbo`: seis consultas válidas (máximo 3.723 s)
+y un HTTP 429 al séptimo caso. Una llamada completa tampoco devolvió consumo conciliable;
+se conservó su reserva. Esa ruta tampoco acredita capacidad ni una aprobación de producción.
+
 El motor ahora liga su aprobación al hash de código/perfil; el consentimiento liga los dos
 destinatarios. Hay pausas compartidas, recuperación mensual, citas literales con cifras y aviso
 OCR. La ingesta y el chat tienen capacidad independiente; la publicación no crea host pagado
