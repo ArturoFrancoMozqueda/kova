@@ -346,10 +346,16 @@ Son resultados exploratorios pequeños, de versiones anteriores; no se extrapola
 
 La revisión detectó una carencia de contexto: se explicita ahora la definición de Kova de venta
 neta (ventas completadas menos reembolsos), se dirige esa consulta a ventas y se evita narrar
-reglas internas en la respuesta. Se repite la cobertura afectada con los mismos oráculos.
+reglas internas en la respuesta. Se repite la cobertura afectada con los mismos oráculos. El contexto deja de exigir orientación
+hacia pantallas para toda pregunta: un manual privado se resume como procedimiento del negocio,
+sin atribuirle funciones de Kova. Se explicita el rango omitido conforme al backend (hoy).
 Mistral volvió a responder HTTP 429 en la prueba espaciada, después de una configuración con
 contrato válido; su capacidad sostenida no quedó acreditada. Se compara además DeepSeek con
-razonamiento desactivado, verificando el modo consumido en cada respuesta. El último `GET /key` antes de
+razonamiento desactivado, verificando el modo consumido en cada respuesta: el smoke de catorce
+casos tuvo trece contratos válidos, usage verificable y p50 5.735 s / p95 7.863 s, pero omitió
+el catálogo privado y no resolvió el procedimiento del manual. Sigue sin aprobación; estos
+resultados motivaron la corrección de contexto y se conservan como evidencia histórica.
+Se amplía ahora DeepSeek con razonamiento bajo y el contexto corregido. El último `GET /key` antes de
 ese lote reportó USD 0.144949813 de inferencia acumulada; las reservas inciertas y la comisión
 permanecen en el ledger. El dato se consulta de nuevo antes de cerrar una evaluación.
 **Ningún modelo está aprobado ni activado.** Revisión humana, ingesta/ACL/OCR real, carga y QA
