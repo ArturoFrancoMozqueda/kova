@@ -1,14 +1,17 @@
 import importlib.util
 import json
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location(
     "assistant_host_release", Path(__file__).resolve().parents[1] / "assistant_host_release.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 SHA = "a" * 40
+UTC = timezone.utc
 
 
 def machine(group, **kwargs):
@@ -71,3 +74,59 @@ class AssistantHostReleaseTests(unittest.TestCase):
         with self.assertRaises(RuntimeError) as caught:
             module.update(SHA, run)
         self.assertNotIn("private-value", str(caught.exception))
+
+    def test_budget_and_expired_quote_stop_before_allocation(self):
+        for limit, date in ((30, datetime(2026, 10, 8, tzinfo=UTC)),
+                            (36, datetime(2026, 10, 8, tzinfo=UTC)),
+                            (35, datetime(2026, 10, 9, tzinfo=UTC))):
+            with self.subTest(limit=limit, date=date), patch.object(module, "datetime") as clock:
+                clock.now.return_value = date
+                calls, run = self.runner([machine("app")])
+                with self.assertRaises(RuntimeError):
+                    module.provision(SHA, limit, run=run, sleep=lambda _: None)
+                self.assertEqual(calls, [])
+
+    def test_provision_is_one_private_named_host_using_the_accepted_image(self):
+        calls, created = [], [False]
+
+        def run(args, **kwargs):
+            calls.append(args)
+            if args[1:3] == ["machine", "run"]:
+                created[0] = True
+            machines = [machine("app"), *([machine("ingest")] if created[0] else [])]
+            return SimpleNamespace(returncode=0, stdout=json.dumps(machines))
+
+        with patch.object(module, "datetime") as clock:
+            clock.now.return_value = datetime(2026, 10, 8, tzinfo=UTC)
+            self.assertEqual(module.provision(SHA, 35, run=run, sleep=lambda _: None), "ingest")
+        create = [args for args in calls if args[1:3] == ["machine", "run"]]
+        self.assertEqual(len(create), 1)
+        config = json.loads(create[0][create[0].index("--machine-config") + 1])
+        self.assertEqual(config["services"], [])
+        self.assertEqual(config["guest"]["memory_mb"], 5120)
+        self.assertEqual(config["metadata"]["fly_process_group"], "ingest")
+        self.assertEqual(create[0][create[0].index("--region") + 1], "iad")
+        self.assertIn("kova-assistant-ingest", create[0])
+        self.assertEqual(calls[-1][4], "python scripts/check_assistant_parser.py")
+
+    def test_existing_host_cannot_be_duplicated_on_rerun(self):
+        calls, run = self.runner([machine("app"), machine("ingest")])
+        with patch.object(module, "datetime") as clock:
+            clock.now.return_value = datetime(2026, 10, 8, tzinfo=UTC)
+            module.provision(SHA, 35, run=run, sleep=lambda _: None)
+        self.assertFalse(any(args[1:3] == ["machine", "run"] for args, _ in calls))
+
+    def test_failed_parser_verification_stops_the_known_host_and_preserves_the_gate(self):
+        calls = []
+
+        def run(args, **kwargs):
+            calls.append(args)
+            return SimpleNamespace(returncode=int("python scripts/check_assistant_parser.py" in args),
+                                   stdout=json.dumps([machine("app"), machine("ingest")]))
+
+        with patch.object(module, "datetime") as clock:
+            clock.now.return_value = datetime(2026, 10, 8, tzinfo=UTC)
+            with self.assertRaises(RuntimeError):
+                module.provision(SHA, 35, run=run, sleep=lambda _: None)
+        self.assertEqual(calls[-1][1:4], ["machine", "stop", "ingest"])
+        self.assertFalse(any("secrets" in args for args in calls))
