@@ -1,0 +1,3105 @@
+{
+  "version": 1,
+  "anchor": "2026-10-08",
+  "timezone": "America/Mexico_City",
+  "catalog": {
+    "100": {
+      "price": 95,
+      "cost": 52,
+      "threshold": 4
+    },
+    "250": {
+      "price": 195,
+      "cost": 110,
+      "threshold": 8
+    },
+    "500": {
+      "price": 365,
+      "cost": 215,
+      "threshold": 3
+    }
+  },
+  "branches": {
+    "central": "Almacén central",
+    "centro": "Barra Centro",
+    "norte": "Barra Norte"
+  },
+  "lots": {
+    "100-A": {
+      "sku": "100",
+      "manufactured_on": "2026-09-04",
+      "rotation_days": 45,
+      "rotation_on": "2026-10-19",
+      "expires_on": null,
+      "rotation_label": "fecha_objetivo",
+      "received": 60
+    },
+    "250-A": {
+      "sku": "250",
+      "manufactured_on": "2026-09-04",
+      "rotation_days": 45,
+      "rotation_on": "2026-10-19",
+      "expires_on": null,
+      "rotation_label": "fecha_objetivo",
+      "received": 100
+    },
+    "500-A": {
+      "sku": "500",
+      "manufactured_on": "2026-09-04",
+      "rotation_days": 45,
+      "rotation_on": "2026-10-19",
+      "expires_on": null,
+      "rotation_label": "fecha_objetivo",
+      "received": 24
+    },
+    "250-B": {
+      "sku": "250",
+      "manufactured_on": "2026-09-19",
+      "rotation_days": 21,
+      "rotation_on": "2026-10-10",
+      "expires_on": null,
+      "rotation_label": "fecha_objetivo",
+      "received": 60
+    },
+    "250-C": {
+      "sku": "250",
+      "manufactured_on": "2026-10-04",
+      "rotation_days": 21,
+      "rotation_on": "2026-10-25",
+      "expires_on": null,
+      "rotation_label": "fecha_objetivo",
+      "received": 70
+    }
+  },
+  "events": [
+    {
+      "key": "cc-v1-0001",
+      "kind": "receive",
+      "at": "2026-09-04T07:00:00-06:00",
+      "lot": "100-A",
+      "quantity": 60,
+      "branch": "central"
+    },
+    {
+      "key": "cc-v1-0002",
+      "kind": "receive",
+      "at": "2026-09-04T07:00:00-06:00",
+      "lot": "250-A",
+      "quantity": 100,
+      "branch": "central"
+    },
+    {
+      "key": "cc-v1-0003",
+      "kind": "receive",
+      "at": "2026-09-04T07:00:00-06:00",
+      "lot": "500-A",
+      "quantity": 24,
+      "branch": "central"
+    },
+    {
+      "key": "cc-v1-0004",
+      "kind": "transfer",
+      "at": "2026-09-04T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0005",
+      "kind": "transfer",
+      "at": "2026-09-04T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0006",
+      "kind": "transfer",
+      "at": "2026-09-04T08:00:00-06:00",
+      "lot": "500-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0010",
+      "kind": "transfer",
+      "at": "2026-09-04T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0011",
+      "kind": "transfer",
+      "at": "2026-09-04T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0007",
+      "kind": "open",
+      "at": "2026-09-04T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0012",
+      "kind": "open",
+      "at": "2026-09-04T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0008",
+      "kind": "sale",
+      "at": "2026-09-04T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        },
+        {
+          "sku": "500",
+          "parts": {
+            "500-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0013",
+      "kind": "sale",
+      "at": "2026-09-04T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0009",
+      "kind": "close",
+      "at": "2026-09-04T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0014",
+      "kind": "close",
+      "at": "2026-09-04T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0015",
+      "kind": "open",
+      "at": "2026-09-05T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0018",
+      "kind": "open",
+      "at": "2026-09-05T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0016",
+      "kind": "sale",
+      "at": "2026-09-05T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0019",
+      "kind": "sale",
+      "at": "2026-09-05T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0017",
+      "kind": "close",
+      "at": "2026-09-05T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0020",
+      "kind": "close",
+      "at": "2026-09-05T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0021",
+      "kind": "open",
+      "at": "2026-09-06T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0024",
+      "kind": "open",
+      "at": "2026-09-06T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0022",
+      "kind": "sale",
+      "at": "2026-09-06T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0025",
+      "kind": "sale",
+      "at": "2026-09-06T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0023",
+      "kind": "close",
+      "at": "2026-09-06T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0026",
+      "kind": "close",
+      "at": "2026-09-06T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0027",
+      "kind": "open",
+      "at": "2026-09-07T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0030",
+      "kind": "open",
+      "at": "2026-09-07T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0028",
+      "kind": "sale",
+      "at": "2026-09-07T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0031",
+      "kind": "sale",
+      "at": "2026-09-07T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0029",
+      "kind": "close",
+      "at": "2026-09-07T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0032",
+      "kind": "close",
+      "at": "2026-09-07T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0033",
+      "kind": "transfer",
+      "at": "2026-09-08T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0034",
+      "kind": "open",
+      "at": "2026-09-08T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0037",
+      "kind": "open",
+      "at": "2026-09-08T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0035",
+      "kind": "sale",
+      "at": "2026-09-08T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0038",
+      "kind": "sale",
+      "at": "2026-09-08T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0036",
+      "kind": "close",
+      "at": "2026-09-08T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0039",
+      "kind": "close",
+      "at": "2026-09-08T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0043",
+      "kind": "transfer",
+      "at": "2026-09-09T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0040",
+      "kind": "open",
+      "at": "2026-09-09T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0044",
+      "kind": "open",
+      "at": "2026-09-09T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0041",
+      "kind": "sale",
+      "at": "2026-09-09T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0045",
+      "kind": "sale",
+      "at": "2026-09-09T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0042",
+      "kind": "close",
+      "at": "2026-09-09T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0046",
+      "kind": "close",
+      "at": "2026-09-09T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0047",
+      "kind": "transfer",
+      "at": "2026-09-10T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0048",
+      "kind": "open",
+      "at": "2026-09-10T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0051",
+      "kind": "open",
+      "at": "2026-09-10T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0049",
+      "kind": "sale",
+      "at": "2026-09-10T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0052",
+      "kind": "sale",
+      "at": "2026-09-10T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0050",
+      "kind": "close",
+      "at": "2026-09-10T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0053",
+      "kind": "close",
+      "at": "2026-09-10T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0054",
+      "kind": "transfer",
+      "at": "2026-09-11T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0055",
+      "kind": "open",
+      "at": "2026-09-11T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0058",
+      "kind": "open",
+      "at": "2026-09-11T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0056",
+      "kind": "sale",
+      "at": "2026-09-11T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        },
+        {
+          "sku": "500",
+          "parts": {
+            "500-A": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0059",
+      "kind": "sale",
+      "at": "2026-09-11T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0057",
+      "kind": "close",
+      "at": "2026-09-11T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0060",
+      "kind": "close",
+      "at": "2026-09-11T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0061",
+      "kind": "open",
+      "at": "2026-09-12T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0064",
+      "kind": "open",
+      "at": "2026-09-12T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0062",
+      "kind": "sale",
+      "at": "2026-09-12T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0065",
+      "kind": "sale",
+      "at": "2026-09-12T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0063",
+      "kind": "close",
+      "at": "2026-09-12T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0066",
+      "kind": "close",
+      "at": "2026-09-12T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0067",
+      "kind": "open",
+      "at": "2026-09-13T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0070",
+      "kind": "open",
+      "at": "2026-09-13T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0068",
+      "kind": "sale",
+      "at": "2026-09-13T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0071",
+      "kind": "sale",
+      "at": "2026-09-13T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0069",
+      "kind": "close",
+      "at": "2026-09-13T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0072",
+      "kind": "close",
+      "at": "2026-09-13T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0076",
+      "kind": "transfer",
+      "at": "2026-09-14T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0073",
+      "kind": "open",
+      "at": "2026-09-14T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0077",
+      "kind": "open",
+      "at": "2026-09-14T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0074",
+      "kind": "sale",
+      "at": "2026-09-14T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0078",
+      "kind": "sale",
+      "at": "2026-09-14T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0075",
+      "kind": "close",
+      "at": "2026-09-14T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0079",
+      "kind": "close",
+      "at": "2026-09-14T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0080",
+      "kind": "transfer",
+      "at": "2026-09-15T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0081",
+      "kind": "open",
+      "at": "2026-09-15T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0084",
+      "kind": "open",
+      "at": "2026-09-15T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0082",
+      "kind": "sale",
+      "at": "2026-09-15T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0085",
+      "kind": "sale",
+      "at": "2026-09-15T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0083",
+      "kind": "close",
+      "at": "2026-09-15T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0086",
+      "kind": "close",
+      "at": "2026-09-15T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0087",
+      "kind": "transfer",
+      "at": "2026-09-16T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0091",
+      "kind": "transfer",
+      "at": "2026-09-16T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0088",
+      "kind": "open",
+      "at": "2026-09-16T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0092",
+      "kind": "open",
+      "at": "2026-09-16T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0089",
+      "kind": "sale",
+      "at": "2026-09-16T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0093",
+      "kind": "sale",
+      "at": "2026-09-16T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0090",
+      "kind": "close",
+      "at": "2026-09-16T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0094",
+      "kind": "close",
+      "at": "2026-09-16T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0095",
+      "kind": "open",
+      "at": "2026-09-17T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0098",
+      "kind": "open",
+      "at": "2026-09-17T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0096",
+      "kind": "sale",
+      "at": "2026-09-17T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0099",
+      "kind": "sale",
+      "at": "2026-09-17T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0097",
+      "kind": "close",
+      "at": "2026-09-17T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0100",
+      "kind": "close",
+      "at": "2026-09-17T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0101",
+      "kind": "transfer",
+      "at": "2026-09-18T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0102",
+      "kind": "open",
+      "at": "2026-09-18T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0105",
+      "kind": "open",
+      "at": "2026-09-18T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0103",
+      "kind": "sale",
+      "at": "2026-09-18T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        },
+        {
+          "sku": "500",
+          "parts": {
+            "500-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0106",
+      "kind": "sale",
+      "at": "2026-09-18T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0104",
+      "kind": "close",
+      "at": "2026-09-18T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0107",
+      "kind": "close",
+      "at": "2026-09-18T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0108",
+      "kind": "receive",
+      "at": "2026-09-19T07:00:00-06:00",
+      "lot": "250-B",
+      "quantity": 60,
+      "branch": "central"
+    },
+    {
+      "key": "cc-v1-0112",
+      "kind": "transfer",
+      "at": "2026-09-19T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0109",
+      "kind": "open",
+      "at": "2026-09-19T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0113",
+      "kind": "open",
+      "at": "2026-09-19T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0110",
+      "kind": "sale",
+      "at": "2026-09-19T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0114",
+      "kind": "sale",
+      "at": "2026-09-19T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0111",
+      "kind": "close",
+      "at": "2026-09-19T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0115",
+      "kind": "close",
+      "at": "2026-09-19T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0116",
+      "kind": "transfer",
+      "at": "2026-09-20T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0120",
+      "kind": "transfer",
+      "at": "2026-09-20T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0117",
+      "kind": "open",
+      "at": "2026-09-20T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0121",
+      "kind": "open",
+      "at": "2026-09-20T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0118",
+      "kind": "sale",
+      "at": "2026-09-20T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0122",
+      "kind": "sale",
+      "at": "2026-09-20T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0119",
+      "kind": "close",
+      "at": "2026-09-20T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0123",
+      "kind": "close",
+      "at": "2026-09-20T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0124",
+      "kind": "open",
+      "at": "2026-09-21T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0127",
+      "kind": "open",
+      "at": "2026-09-21T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0125",
+      "kind": "sale",
+      "at": "2026-09-21T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0128",
+      "kind": "sale",
+      "at": "2026-09-21T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0126",
+      "kind": "close",
+      "at": "2026-09-21T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0129",
+      "kind": "close",
+      "at": "2026-09-21T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0130",
+      "kind": "transfer",
+      "at": "2026-09-22T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0131",
+      "kind": "transfer",
+      "at": "2026-09-22T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0132",
+      "kind": "open",
+      "at": "2026-09-22T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0135",
+      "kind": "open",
+      "at": "2026-09-22T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0133",
+      "kind": "sale",
+      "at": "2026-09-22T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0136",
+      "kind": "sale",
+      "at": "2026-09-22T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0134",
+      "kind": "close",
+      "at": "2026-09-22T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0137",
+      "kind": "close",
+      "at": "2026-09-22T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0138",
+      "kind": "open",
+      "at": "2026-09-23T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0141",
+      "kind": "open",
+      "at": "2026-09-23T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0139",
+      "kind": "sale",
+      "at": "2026-09-23T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0142",
+      "kind": "sale",
+      "at": "2026-09-23T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0140",
+      "kind": "close",
+      "at": "2026-09-23T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0143",
+      "kind": "close",
+      "at": "2026-09-23T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0144",
+      "kind": "transfer",
+      "at": "2026-09-24T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0148",
+      "kind": "transfer",
+      "at": "2026-09-24T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0145",
+      "kind": "open",
+      "at": "2026-09-24T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0149",
+      "kind": "open",
+      "at": "2026-09-24T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0146",
+      "kind": "sale",
+      "at": "2026-09-24T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0150",
+      "kind": "sale",
+      "at": "2026-09-24T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0147",
+      "kind": "close",
+      "at": "2026-09-24T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0151",
+      "kind": "close",
+      "at": "2026-09-24T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0152",
+      "kind": "open",
+      "at": "2026-09-25T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0155",
+      "kind": "open",
+      "at": "2026-09-25T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0153",
+      "kind": "sale",
+      "at": "2026-09-25T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        },
+        {
+          "sku": "500",
+          "parts": {
+            "500-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0156",
+      "kind": "sale",
+      "at": "2026-09-25T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0154",
+      "kind": "close",
+      "at": "2026-09-25T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0157",
+      "kind": "close",
+      "at": "2026-09-25T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0158",
+      "kind": "transfer",
+      "at": "2026-09-26T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0159",
+      "kind": "open",
+      "at": "2026-09-26T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0162",
+      "kind": "open",
+      "at": "2026-09-26T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0160",
+      "kind": "sale",
+      "at": "2026-09-26T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 2
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0163",
+      "kind": "sale",
+      "at": "2026-09-26T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0161",
+      "kind": "close",
+      "at": "2026-09-26T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0164",
+      "kind": "close",
+      "at": "2026-09-26T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0165",
+      "kind": "transfer",
+      "at": "2026-09-27T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0169",
+      "kind": "transfer",
+      "at": "2026-09-27T08:00:00-06:00",
+      "lot": "500-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0166",
+      "kind": "open",
+      "at": "2026-09-27T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0170",
+      "kind": "open",
+      "at": "2026-09-27T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0167",
+      "kind": "sale",
+      "at": "2026-09-27T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0171",
+      "kind": "sale",
+      "at": "2026-09-27T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        },
+        {
+          "sku": "500",
+          "parts": {
+            "500-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0168",
+      "kind": "close",
+      "at": "2026-09-27T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0172",
+      "kind": "close",
+      "at": "2026-09-27T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0173",
+      "kind": "transfer",
+      "at": "2026-09-28T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0177",
+      "kind": "transfer",
+      "at": "2026-09-28T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0174",
+      "kind": "open",
+      "at": "2026-09-28T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0178",
+      "kind": "open",
+      "at": "2026-09-28T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0175",
+      "kind": "sale",
+      "at": "2026-09-28T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 3
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0179",
+      "kind": "sale",
+      "at": "2026-09-28T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0176",
+      "kind": "close",
+      "at": "2026-09-28T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0180",
+      "kind": "close",
+      "at": "2026-09-28T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0181",
+      "kind": "transfer",
+      "at": "2026-09-29T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0185",
+      "kind": "transfer",
+      "at": "2026-09-29T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0182",
+      "kind": "open",
+      "at": "2026-09-29T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0186",
+      "kind": "open",
+      "at": "2026-09-29T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0183",
+      "kind": "sale",
+      "at": "2026-09-29T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0187",
+      "kind": "sale",
+      "at": "2026-09-29T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0184",
+      "kind": "close",
+      "at": "2026-09-29T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0188",
+      "kind": "close",
+      "at": "2026-09-29T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0189",
+      "kind": "open",
+      "at": "2026-09-30T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0192",
+      "kind": "open",
+      "at": "2026-09-30T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0190",
+      "kind": "sale",
+      "at": "2026-09-30T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 2
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0193",
+      "kind": "sale",
+      "at": "2026-09-30T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0191",
+      "kind": "close",
+      "at": "2026-09-30T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0194",
+      "kind": "close",
+      "at": "2026-09-30T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0195",
+      "kind": "transfer",
+      "at": "2026-10-01T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0196",
+      "kind": "open",
+      "at": "2026-10-01T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0199",
+      "kind": "open",
+      "at": "2026-10-01T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0197",
+      "kind": "sale",
+      "at": "2026-10-01T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 2
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0200",
+      "kind": "sale",
+      "at": "2026-10-01T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0198",
+      "kind": "close",
+      "at": "2026-10-01T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0201",
+      "kind": "close",
+      "at": "2026-10-01T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0202",
+      "kind": "transfer",
+      "at": "2026-10-02T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0206",
+      "kind": "transfer",
+      "at": "2026-10-02T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0203",
+      "kind": "open",
+      "at": "2026-10-02T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0207",
+      "kind": "open",
+      "at": "2026-10-02T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0204",
+      "kind": "sale",
+      "at": "2026-10-02T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 3
+          }
+        },
+        {
+          "sku": "500",
+          "parts": {
+            "500-A": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0208",
+      "kind": "sale",
+      "at": "2026-10-02T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1,
+            "250-B": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0205",
+      "kind": "close",
+      "at": "2026-10-02T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0209",
+      "kind": "close",
+      "at": "2026-10-02T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0210",
+      "kind": "transfer",
+      "at": "2026-10-03T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0211",
+      "kind": "open",
+      "at": "2026-10-03T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0214",
+      "kind": "open",
+      "at": "2026-10-03T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0212",
+      "kind": "sale",
+      "at": "2026-10-03T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 2
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0215",
+      "kind": "sale",
+      "at": "2026-10-03T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0213",
+      "kind": "close",
+      "at": "2026-10-03T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0216",
+      "kind": "close",
+      "at": "2026-10-03T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0217",
+      "kind": "receive",
+      "at": "2026-10-04T07:00:00-06:00",
+      "lot": "250-C",
+      "quantity": 70,
+      "branch": "central"
+    },
+    {
+      "key": "cc-v1-0218",
+      "kind": "transfer",
+      "at": "2026-10-04T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0219",
+      "kind": "transfer",
+      "at": "2026-10-04T08:00:00-06:00",
+      "lot": "250-C",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0223",
+      "kind": "transfer",
+      "at": "2026-10-04T08:00:00-06:00",
+      "lot": "250-C",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0220",
+      "kind": "open",
+      "at": "2026-10-04T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0224",
+      "kind": "open",
+      "at": "2026-10-04T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0221",
+      "kind": "sale",
+      "at": "2026-10-04T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 1,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 20
+    },
+    {
+      "key": "cc-v1-0225",
+      "kind": "sale",
+      "at": "2026-10-04T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-B": 1,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0222",
+      "kind": "close",
+      "at": "2026-10-04T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0226",
+      "kind": "close",
+      "at": "2026-10-04T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0230",
+      "kind": "transfer",
+      "at": "2026-10-05T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0227",
+      "kind": "open",
+      "at": "2026-10-05T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0231",
+      "kind": "open",
+      "at": "2026-10-05T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0228",
+      "kind": "sale",
+      "at": "2026-10-05T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 2
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-B": 1,
+            "250-C": 2
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0232",
+      "kind": "sale",
+      "at": "2026-10-05T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0229",
+      "kind": "close",
+      "at": "2026-10-05T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0233",
+      "kind": "close",
+      "at": "2026-10-05T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0234",
+      "kind": "open",
+      "at": "2026-10-06T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0237",
+      "kind": "open",
+      "at": "2026-10-06T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0235",
+      "kind": "sale",
+      "at": "2026-10-06T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-B": 2,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0238",
+      "kind": "sale",
+      "at": "2026-10-06T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-B": 1,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "bank_transfer",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0236",
+      "kind": "close",
+      "at": "2026-10-06T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0239",
+      "kind": "close",
+      "at": "2026-10-06T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0240",
+      "kind": "transfer",
+      "at": "2026-10-07T08:00:00-06:00",
+      "lot": "100-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0241",
+      "kind": "open",
+      "at": "2026-10-07T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0244",
+      "kind": "open",
+      "at": "2026-10-07T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0242",
+      "kind": "sale",
+      "at": "2026-10-07T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 2
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-B": 1,
+            "250-C": 2
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0245",
+      "kind": "sale",
+      "at": "2026-10-07T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "250",
+          "parts": {
+            "250-A": 2,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "cash",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0243",
+      "kind": "close",
+      "at": "2026-10-07T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0246",
+      "kind": "close",
+      "at": "2026-10-07T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0247",
+      "kind": "transfer",
+      "at": "2026-10-08T08:00:00-06:00",
+      "lot": "250-C",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0254",
+      "kind": "transfer",
+      "at": "2026-10-08T08:00:00-06:00",
+      "lot": "250-C",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 6
+    },
+    {
+      "key": "cc-v1-0258",
+      "kind": "transfer",
+      "at": "2026-10-08T08:00:00-06:00",
+      "lot": "250-A",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 2
+    },
+    {
+      "key": "cc-v1-0259",
+      "kind": "transfer",
+      "at": "2026-10-08T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 5
+    },
+    {
+      "key": "cc-v1-0260",
+      "kind": "transfer",
+      "at": "2026-10-08T08:00:00-06:00",
+      "lot": "250-B",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 3
+    },
+    {
+      "key": "cc-v1-0261",
+      "kind": "transfer",
+      "at": "2026-10-08T08:00:00-06:00",
+      "lot": "250-C",
+      "source": "central",
+      "branch": "centro",
+      "quantity": 5
+    },
+    {
+      "key": "cc-v1-0262",
+      "kind": "transfer",
+      "at": "2026-10-08T08:00:00-06:00",
+      "lot": "250-C",
+      "source": "central",
+      "branch": "norte",
+      "quantity": 1
+    },
+    {
+      "key": "cc-v1-0248",
+      "kind": "open",
+      "at": "2026-10-08T09:00:00-06:00",
+      "branch": "centro",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0255",
+      "kind": "open",
+      "at": "2026-10-08T09:00:00-06:00",
+      "branch": "norte",
+      "opening_cash": 500
+    },
+    {
+      "key": "cc-v1-0249",
+      "kind": "sale",
+      "at": "2026-10-08T12:00:00-06:00",
+      "branch": "centro",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-B": 1,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0256",
+      "kind": "sale",
+      "at": "2026-10-08T12:00:00-06:00",
+      "branch": "norte",
+      "items": [
+        {
+          "sku": "100",
+          "parts": {
+            "100-A": 1
+          }
+        },
+        {
+          "sku": "250",
+          "parts": {
+            "250-B": 1,
+            "250-C": 1
+          }
+        }
+      ],
+      "method": "manual_card",
+      "discount": 0
+    },
+    {
+      "key": "cc-v1-0250",
+      "kind": "exception",
+      "at": "2026-10-08T13:00:00-06:00",
+      "branch": "centro",
+      "action": "refund",
+      "lot": "250-C"
+    },
+    {
+      "key": "cc-v1-0251",
+      "kind": "exception",
+      "at": "2026-10-08T13:00:00-06:00",
+      "branch": "centro",
+      "action": "void_no_delivery",
+      "lot": "250-C"
+    },
+    {
+      "key": "cc-v1-0252",
+      "kind": "exception",
+      "at": "2026-10-08T13:00:00-06:00",
+      "branch": "centro",
+      "action": "void_delivered",
+      "lot": "250-C"
+    },
+    {
+      "key": "cc-v1-0253",
+      "kind": "close",
+      "at": "2026-10-08T16:00:00-06:00",
+      "branch": "centro"
+    },
+    {
+      "key": "cc-v1-0257",
+      "kind": "close",
+      "at": "2026-10-08T16:00:00-06:00",
+      "branch": "norte"
+    },
+    {
+      "key": "cc-v1-0263",
+      "kind": "waste",
+      "at": "2026-10-08T16:00:00-06:00",
+      "branch": "central",
+      "lot": "250-B",
+      "quantity": 2
+    },
+    {
+      "key": "cc-v1-0264",
+      "kind": "reserve",
+      "at": "2026-10-08T16:00:00-06:00",
+      "branch": "centro",
+      "sku": "250",
+      "quantity": 3,
+      "lot": "250-B"
+    }
+  ],
+  "expected": [
+    {
+      "branch": "central",
+      "lot": "100-A",
+      "sku": "100",
+      "physical": 0,
+      "reserved": 0,
+      "available": 0
+    },
+    {
+      "branch": "central",
+      "lot": "250-A",
+      "sku": "250",
+      "physical": 2,
+      "reserved": 0,
+      "available": 2
+    },
+    {
+      "branch": "central",
+      "lot": "250-B",
+      "sku": "250",
+      "physical": 8,
+      "reserved": 0,
+      "available": 8
+    },
+    {
+      "branch": "central",
+      "lot": "250-C",
+      "sku": "250",
+      "physical": 40,
+      "reserved": 0,
+      "available": 40
+    },
+    {
+      "branch": "central",
+      "lot": "500-A",
+      "sku": "500",
+      "physical": 12,
+      "reserved": 0,
+      "available": 12
+    },
+    {
+      "branch": "centro",
+      "lot": "100-A",
+      "sku": "100",
+      "physical": 3,
+      "reserved": 0,
+      "available": 3
+    },
+    {
+      "branch": "centro",
+      "lot": "250-A",
+      "sku": "250",
+      "physical": 2,
+      "reserved": 0,
+      "available": 2
+    },
+    {
+      "branch": "centro",
+      "lot": "250-B",
+      "sku": "250",
+      "physical": 5,
+      "reserved": 3,
+      "available": 2
+    },
+    {
+      "branch": "centro",
+      "lot": "250-C",
+      "sku": "250",
+      "physical": 8,
+      "reserved": 0,
+      "available": 8
+    },
+    {
+      "branch": "centro",
+      "lot": "500-A",
+      "sku": "500",
+      "physical": 1,
+      "reserved": 0,
+      "available": 1
+    },
+    {
+      "branch": "norte",
+      "lot": "100-A",
+      "sku": "100",
+      "physical": 0,
+      "reserved": 0,
+      "available": 0
+    },
+    {
+      "branch": "norte",
+      "lot": "250-A",
+      "sku": "250",
+      "physical": 2,
+      "reserved": 0,
+      "available": 2
+    },
+    {
+      "branch": "norte",
+      "lot": "250-B",
+      "sku": "250",
+      "physical": 5,
+      "reserved": 0,
+      "available": 5
+    },
+    {
+      "branch": "norte",
+      "lot": "250-C",
+      "sku": "250",
+      "physical": 8,
+      "reserved": 0,
+      "available": 8
+    },
+    {
+      "branch": "norte",
+      "lot": "500-A",
+      "sku": "500",
+      "physical": 5,
+      "reserved": 0,
+      "available": 5
+    }
+  ],
+  "browser_scenario": {
+    "transfer": {
+      "lot": "250-B",
+      "quantity": 2,
+      "source": "central",
+      "branch": "centro"
+    },
+    "sale": {
+      "lot": "250-C",
+      "quantity": 1,
+      "branch": "centro"
+    }
+  }
+}
