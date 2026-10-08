@@ -14,6 +14,12 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.11@sha256:8101ad825250a114e7bef89eefaa73c31
 
 WORKDIR /app
 
+# Only the dedicated ingestion process starts this daemon. API/chat machines
+# expose no Docker socket; child parsers receive neither network nor secrets.
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io \
+    && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log \
+        /var/log/alternatives.log /var/cache/ldconfig/aux-cache
+
 COPY pyproject.toml uv.lock ./
 RUN /usr/local/bin/uv sync --frozen --no-cache --no-dev --no-install-project
 

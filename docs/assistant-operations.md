@@ -5,11 +5,114 @@ El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
 
+## Preparación vigente — 2026-10-08
+
+El operador autoriza publicación y gasto recurrente: hasta USD 10/mes de inferencia y
+USD 35/mes para el host de archivos, sin compromiso anual. La autorización no sustituye
+la evaluación ni la comprobación de archivos en producción. No hay automatización agendada.
+
+GPT-OSS-120B se mantiene; los únicos destinos de consulta preparados son **Groq y Cerebras**
+mediante OpenRouter, con Groq primero y fallback dentro de esa lista cerrada. Los sondeos nuevos
+detectaron saturación/HTTP 429 y un timeout; la batería Cerebras histórica de abajo no aprueba
+el perfil nuevo. DeepInfra es solo una alternativa de evaluación; no recibe datos en producción.
+
+La aceptación explícita nombra **OpenRouter, Groq y Cerebras** y guarda `chat_recipients`.
+Un consentimiento antiguo para Cerebras requiere renovación. La activación requiere además
+`ASSISTANT_OPENROUTER_APPROVED_PROFILE`: SHA-256 del perfil/código evaluado. Cambiar el motor
+invalida esa aprobación. El flag de calidad permanece falso mientras falten las verificaciones.
+Las cuotas/pausas se comparten en PostgreSQL; `retry_at` distingue recuperación mensual o
+temporal del reinicio diario. Resultados inciertos conservan su reserva.
+
+Chat e ingesta usan capacidad separada (tres consultas y un archivo globales por defecto).
+Los workers seleccionan exclusivamente su carga. El host de ingesta usa 5 GB/CPU compartida
+en **iad**, daemon Docker privado, scanner actualizado cada día y parsers sin red ni secretos.
+Una actualización fallida de firmas bloquea ingesta. Las citas numéricas se copian literalmente
+del archivo; el modelo no redacta esas cifras. Las citas provenientes de OCR advierten que el
+operador debe cotejarlas con el original.
+
+La tarifa nominal publicada para iad es USD 30.69 por treinta días (USD 31.713 por treinta y uno),
+antes de impuestos/transferencias; comprobar el total de la cuenta contra USD 35 antes de crear
+**una** instancia. DFW excede ese límite con este tamaño y no se autoriza. La publicación de
+app/chat no crea un host de ingesta. `scripts/assistant_host_release.py update --sha <SHA>` solo
+actualiza uno existente del tamaño/región aprobados, reutilizando la imagen validada de app.
+La recuperación pausa IA pagada y archivos, detiene ingesta y restaura app/chat sin crear recursos.
+
+Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
+una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada
+de archivos siguen siendo gates de publicación/activación. No se considera producción lista
+solo por disponer de saldo. La clave permanente debe tener límite USD 10 y reinicio mensual.
+
+CI del commit `397e1dc` verificó parser/OCR/antivirus, build/interfaz/navegador, integración
+del producto y reproducibilidad de la imagen. La reversibilidad detectó que el test de 0075
+usaba `head` pero esperaba 0075: se fija el destino de esa prueba a su migración original,
+sin cambiar su guardia ni expectativa. Una prueba adicional de 0076 verifica backfill,
+rechazo de downgrade con ingesta activa y conservación de leases al drenar. Ambas pasan
+localmente; el commit corregido debe volver a completar CI antes de publicación.
+
+## Evidencia histórica de selección — 2026-10-07
+
+Decisión vigente: [GPT-OSS-120B en Cerebras/OpenRouter, con evidencia controlada por Kova](research/ASSISTANT-DECISION-2026-10-07.md).
+La integración está en PR #169; no habilita producción. El modelo escoge lecturas y pasajes
+por identificador; Kova escribe reportes, límites y referencias. Las cifras se conservan en
+las tarjetas existentes. ZDR, recolección denegada, modelo/ruta fijos y máximos de precio se
+incluyen en cada solicitud; no hay fallback, plugins ni reintentos remotos.
+
+Cierre real al 2026-10-08: 540 consultas de la arquitectura final, 539 contratos válidos,
+mediana 2.1345 s y p95 4.179 s. Se conservan un timeout y una abstención innecesaria; no se
+confunde contrato válido con calidad semántica ni se firma el gate de activación. La
+[decisión](research/ASSISTANT-DECISION-2026-10-07.md#cierre-de-la-evaluación-real--2026-10-08)
+registra denominadores, costo, versión, límites y pendientes. Validación local: 219 tests de
+backend del asistente, 29 de interfaz; CI del código completo pasó, incluido parser/antivirus.
+
+Configuración del despliegue aprobado, sin credenciales en comandos ni repositorio:
+
+| Variable | Condición |
+|---|---|
+| `ASSISTANT_GENERATION_PROVIDER` | `openrouter` |
+| `ASSISTANT_OPENROUTER_API_KEY` | Clave distinta a evaluación, provisionada en el almacén de secretos del host. |
+| `ASSISTANT_PROVIDER_VERIFIED` | Capacidad, cuenta y política comprobadas. |
+| `ASSISTANT_OPENROUTER_PRIVACY_VERIFIED` | ZDR/cuenta sin logging ni entrenamiento comprobados. |
+| `ASSISTANT_OPENROUTER_QUALITY_VERIFIED` | Solo después de gates de la arquitectura final, no por el sondeo parcial. |
+| `ASSISTANT_OPENROUTER_MONTHLY_USD` | Techo mensual autorizado de inferencia; predeterminado cero, bloquea llamadas pagadas. |
+| `ASSISTANT_OPENROUTER_DAILY_TOKENS` | Tope aplicativo compartido diario; no describe una cuota del proveedor. |
+| `ASSISTANT_OPENROUTER_TENANT_DAILY_TOKENS` | Tope aplicativo por negocio; comparte presupuesto global. |
+| `ASSISTANT_GLOBAL_CONCURRENCY` / `ASSISTANT_TENANT_CONCURRENCY` | Predeterminados tres/dos; una ejecución por usuario. Aumentar después de carga comprobada. |
+| `ASSISTANT_MUTATIONS_ENABLED` / `ASSISTANT_EMAIL_ENABLED` | `false` para este alcance. |
+| `ASSISTANT_DOCUMENTS_ENABLED` | Solo después de host de ingesta aislado y QA autenticada de archivos. |
+
+Conservar la cohorte y los demás gates de acceso. El consentimiento nombra **OpenRouter y
+Cerebras** y se renueva al cambiar proveedor. Embeddings y objetos mantienen su consentimiento,
+presupuesto y configuración Cloudflare/R2 independientes. Un resultado incierto conserva su
+reserva; retirar documentos/consentimiento o cancelar impide la entrega. La consulta expira
+pasados diez segundos desde que se crea, incluida la cola; no se garantiza recuperar cobros
+remotos cuando se cancela.
+
+La ingesta existente requiere Docker aislado con scanner/OCR; el worker actual de Fly no
+lo proporciona. PDF/DOCX/TXT/MD alimentan conocimiento; CSV/XLSX usa vista previa y confirmación
+del importador. No se activa el flag de archivos para aparentar que ese recorrido está listo.
+
+Evaluación final de consulta, separada de la comparación histórica de prosa libre:
+
+```bash
+cd backend
+python scripts/qualify_grounded_assistant.py --run --account-verified --limit 540
+```
+
+Cuenta/privacidad/saldo dedicados deben estar verificados. Solo carga `.env.evaluation.local`,
+ignorado por Git/Docker. Reutiliza ledger/lock existentes, conserva la comisión USD 0.80 y
+máximo total USD 10; no reintenta errores. Resultados/manifiesto:
+`output/assistant-evaluation/grounded-final/`. Las 540 ejecuciones son los 180 casos de consulta
+originales por tres repeticiones. Los cuarenta de mutación siguen en el corpus y requieren sus
+pruebas antes de activar esa capacidad. Un cambio de código no reutiliza resultados como
+aprobación. Los campos de revisión humana permanecen pendientes hasta revisión real.
+
+
 ## Integración de Groq y respuestas directas — 2026-10-07
 
-Implementación local pendiente de integración y activación. El candidato principal es
-`openai/gpt-oss-20b` en Groq Free, con razonamiento `low` y salida máxima de 1024 tokens.
-GPT-OSS-120B se permite únicamente como comparador en entorno local; no hay fallback de
+Integración entregada en `main` mediante PR #167; activación pendiente. La configuración vigente es
+`openai/gpt-oss-20b` en Groq Free, con razonamiento `low` y salida máxima de 1024 tokens;
+no está aprobado por calidad. GPT-OSS-120B es ahora el comparador prioritario y se permite
+únicamente en entorno local; no hay fallback de
 pago ni cambio automático de modelo. Cloudflare conserva embeddings y su piloto actual
 hasta completar los gates. No se amplían cohorte, documentos, mutaciones ni correo.
 
@@ -62,13 +165,14 @@ Evaluación reproducible desde `backend/`:
 .venv/bin/python scripts/evaluate_assistant.py --model groq-20b --summary
 ```
 
-El corpus tiene 200 casos y tres repeticiones por candidato. El runner reanuda lotes,
+El corpus conserva los 200 casos originales y añade veinte de archivos privados solicitados
+para el lanzamiento: 220 casos y tres repeticiones por candidato. El runner reanuda lotes,
 conserva un ledger local compartido entre modelos Groq y se detiene antes de superar
 sus límites. `--capability` permite focalizar una categoría. Solo usa datos sintéticos;
 Cloudflare requiere su propia credencial gratuita, no reutiliza la de Groq. Resultados y
 revisiones viven en `output/assistant-evaluation/`, ignorado por Git. La revisión registra
 resolución correcta/abstención justificada, citas pertinentes, español útil y comportamiento
-seguro. Exigir 600 ejecuciones distintas del mismo código por candidato, resolución ≥95%,
+seguro. Exigir 660 ejecuciones distintas del mismo código por candidato, resolución ≥95%,
 citas ≥90% y ninguna acción no autorizada/filtración en la batería. Las pruebas de contrato
 no sustituyen revisión semántica ni integración E2E.
 
@@ -88,6 +192,325 @@ La suite completa local registró 1037 pruebas correctas y una diferencia de zon
 en gastos ajena al cambio: el Postgres aislado heredaba la zona del equipo. Al fijar ese
 Postgres a UTC, gastos y asistente pasaron juntos (112 pruebas), sin modificar gastos ni sus
 expectativas. CI debe confirmar la suite completa con su Postgres en UTC.
+
+### Corrección de formato y reserva completa — 2026-10-07
+
+El operador solicitó completar la preparación de Groq. Se reprodujeron tres rechazos
+`json_validate_failed` en la guía de configuración: GPT-OSS-20B copiaba medidas de papel
+en `answer`, aunque el esquema remoto y el prompt prohibían dígitos. Se refuerza esa
+instrucción junto a la evidencia de la llamada final y se mantiene el rechazo determinista
+de prosa inválida. También se aclara que preparar una propuesta no equivale a aplicarla
+y que una comparación sin referencia no permite calificar ventas como altas o bajas.
+
+La reserva de producción y el evaluador ahora cuentan las mismas instrucciones finales
+que recibe Groq. Antes, el adaptador añadía instrucciones después de medir el contexto.
+Se compactaron esas instrucciones conservando campos, esquema y validación: las
+solicitudes mínimas de los cuarenta escenarios de configuración caben individualmente
+en el techo de un minuto. Esto no garantiza que un historial o resultado más extenso
+quepa, ni elimina la espera entre consultas o la cuota compartida.
+
+Validación local previa: 117 pruebas del asistente con Postgres/pgvector real en UTC, Ruff,
+contrato OpenAPI y `git diff --check` correctos. Las regresiones nuevas verifican
+rechazo antes de guardar prosa con dígitos ASCII/Unicode, enlaces o HTML; correspondencia
+exacta entre reserva y mensajes/esquema enviados; y capacidad mínima de configuración.
+Una primera versión de la corrección pasó las tres repeticiones live de la guía
+con GPT-OSS-20B y citas recuperadas. La ampliación encontró un rechazo de validación
+en configuración y una explicación de ventas que inventaba comparaciones y costos,
+aunque esta última pasaba el contrato JSON. La instrucción de papel se limita ahora
+a la guía recuperada de configuración; se aclara que faltan referencias para comparar
+periodos y que utilidad no calculable no significa pérdidas. Dos regresiones adicionales
+impiden incorporar instrucciones de impresión a una explicación de ventas. La nueva
+versión requiere sus propios resultados; ninguna prueba anterior acredita los seiscientos
+resultados revisados ni calidad general. El código se integró con `origin/main` de PR #168;
+CI de esa versión pasó todos los checks requeridos en PR #169; publicación y QA
+autenticada de producción permanecen pendientes.
+
+La evaluación usa el ledger previo compartido sin reiniciar consumo. Las credenciales
+permanecen en el archivo privado existente; no se incluyeron en este checkout ni se
+transfirieron a Fly. La sesión local de Fly no pasó `auth whoami`. Las comprobaciones
+públicas de API y DB respondieron HTTP 200, con release
+`9275d4327e2c753318c14942d536fc30984ad209`; no verifican el proveedor activo ni una
+conversación autenticada. La batería completa, revisión humana, comparación y release
+protegido siguen siendo requisitos de activación. Ningún flag de producción se cambió.
+
+### Alcance confirmado y selección de modelo — 2026-10-07
+
+El operador confirmó guías de transición a Kova, archivos propios del negocio (catálogos y
+manuales), preguntas sobre datos reales y recomendaciones, con equilibrio de precisión/rapidez
+y escalabilidad desde el inicio. La configuración mediante propuestas no es necesaria para este
+lanzamiento y conserva su gate separado. Un plan pagado debe justificar su diferencia; no hay
+autorización de gasto operativo ni ampliación de infraestructura. El operador autorizó un máximo
+total de **USD 10 exclusivamente para evaluación**; activar Developer y verificar sus límites
+sigue pendiente. La investigación continúa en
+este chat; la programación diaria fue eliminada por petición del operador.
+
+Para lectura, el prompt ya no incluye el contrato de mutaciones. Se reproduce con Postgres real
+una consulta fría de dos etapas y consumo observado: las reservas conservadoras ahora permiten
+terminar esa consulta dentro del mismo minuto. No garantiza capacidad con historial extenso ni
+concurrencia. Las consultas sin documentos recuperados exigen `source_ids` vacío también en el
+esquema enviado a Groq; antes podía inventar un identificador rechazado posteriormente por Kova.
+Se mantienen todos los controles de prosa, ACL, consentimiento y presupuesto.
+
+Los veinte casos adicionales conservan los doscientos originales y sus oráculos: manual operativo,
+catálogo sin costos, contradicción entre manual y ventas actuales, inyección en documento y archivo
+no disponible. Simulan fragmentos autorizados; no acreditan carga, extracción, OCR o retrieval real.
+La aceptación completa pasa a 660 ejecuciones por candidato del mismo corpus/código, con los
+mismos umbrales de calidad, seguridad y revisión humana. No se modifican resultados fallidos.
+
+La API de modelos de la cuenta expone GPT-OSS-20B y GPT-OSS-120B. Qwen3.8 está en preview y
+Llama 3.3 70B requiere Enterprise según el catálogo vigente; este último no aparece en la cuenta.
+Por disponibilidad, estabilidad y soporte de JSON estricto, se prioriza evaluar GPT-OSS-120B.
+Referencias: [modelos](https://console.groq.com/docs/models),
+[salidas estructuradas](https://console.groq.com/docs/structured-outputs).
+
+El diagnóstico histórico de este checkout contiene once ejecuciones de 20B (cinco con contrato
+válido) y seis de 120B (cinco válidas), con prompts de distintas versiones y sin revisión humana:
+no es una comparación controlada ni una tasa de calidad. Las medianas observadas por llamada
+fueron 0.46 s y 0.719 s, respectivamente, sin incluir espera de cuota. En 120B también hubo
+comparaciones sin referencia y sugerencias de pantallas incorrectas. El último smoke de ventas
+pasó el contrato después de cerrar las citas vacías, pero no prueba utilidad general.
+Un diagnóstico adicional con manual privado e inyección recuperó la cita correcta y el horario,
+pero inventó pantallas de horarios/auditoría. Pasar JSON y rechazar instrucciones maliciosas no
+garantiza orientar correctamente sobre capacidades de Kova. El diagnóstico final-only no se
+cuenta como ejecución completa del corpus.
+**Ningún modelo está aprobado todavía.** La versión con corpus ampliado requiere sus propios
+resultados. El ledger compartido agotó la capacidad suficiente para iniciar otro caso; se conservó
+todo el consumo y no se cambió el plan gratuito.
+
+Pagar el mismo modelo aporta capacidad según los límites contratados; no corrige alucinaciones.
+Las tarifas publicadas de 120B son USD 0.15/0.60 por millón de tokens de entrada/salida; 20B cuesta
+la mitad. Una consulta sintética observada de dos llamadas sumó 1599 tokens de entrada y 310
+de salida (incluido razonamiento): aproximadamente USD 0.43 por mil consultas equivalentes con
+120B, solo inferencia. No es una previsión de producción: historial, archivos, razonamiento y
+errores cambian el consumo; embeddings, almacenamiento y parser se cobran aparte.
+Referencia: [tarifas y capacidad](https://console.groq.com/docs/models).
+
+Para escalar hay que verificar límites del plan, separar cola de chat e ingesta, conservar reservas
+atómicas y equidad por negocio, medir carga/p95 y operar cortes de gasto. El runtime actual está
+limitado deliberadamente a Free: contratar Developer sin revisar esos límites no amplía Kova.
+La ingesta requiere su host aislado (parser/antivirus/OCR), bucket privado, embeddings, retirada
+y QA autenticada de archivos/ACL; el worker de Fly actual no tiene daemon Docker. CSV/XLSX usa
+la importación existente con vista previa y confirmación; un archivo no debe modificar el catálogo
+automáticamente. PDF/DOCX/TXT/MD alimenta conocimiento privado. No se habilita documentación
+privada con un flag antes de demostrar esa ruta completa.
+
+El evaluador admite un presupuesto pagado explícito con `--paid-budget-usd 10` y
+`--paid-account-verified`, únicamente tras verificar Developer, ZDR, tarifas y límites de la
+cuenta. Exige TPM/RPM/TPD/RPD reales mediante `--paid-tpm`, `--paid-rpm`, `--paid-tpd` y
+`--paid-rpd`; cero diario significa ausencia de techo verificada, nunca un valor supuesto.
+No cambia los límites Free de producción. Antes de cada llamada reserva el costo máximo en
+nanodólares, con tarifas sin descuentos y margen de entrada; el mismo ledger conserva el gasto
+total entre modelos, días y cambios de prompt. Solo libera costo con usage completo verificado;
+errores y resultados inciertos conservan la reserva. El corte local es independiente del contador
+de Groq, cuyo dashboard tiene un retraso publicado de diez a quince minutos.
+Referencias: [facturación](https://console.groq.com/docs/billing-faqs),
+[límites de gasto](https://console.groq.com/docs/spend-limits).
+
+Validación de esta ampliación: **123 tests backend del asistente**, Postgres/pgvector real,
+Ruff, OpenAPI y `git diff --check`; manifiesto de 220 casos y cinco rechazos CLI de parámetros
+pagados incompletos/incorrectos sin llamadas remotas. Los tests nuevos comprueban consulta
+fría con consumo observado, citas vacías/recuperadas, cobertura privada aditiva, costo total
+persistente entre candidatos/días, conservación del ledger Free y límites del plan verificado.
+No se ejecutó inferencia pagada ni QA autenticada de documentos/producción en esta ampliación.
+
+**Bloqueo comercial confirmado en la sesión del operador:** Billing → Plans muestra Free como
+plan actual y el aviso de suspensión temporal de upgrades Developer por alta demanda, sin botón
+para actualizar. No se habilitó pago y el presupuesto autorizado sigue sin consumirse. La FAQ
+de facturación describe el upgrade, pero no acredita disponibilidad en esa cuenta. No eludir el
+bloqueo de la interfaz. La suspensión impide verificar hoy la capacidad pagada de Groq directo.
+
+El operador pidió investigar otros modelos abiertos. Shortlist de investigación: Mistral Small 4
+(`mistral-small-2603`, GA, Apache 2.0, tools/JSON, USD 0.15/0.60 por millón); Qwen3.5-35B-A3B
+(Apache 2.0), cuya calidad es-MX, proveedor, privacidad y tarifa por endpoint requieren evaluación;
+y GPT-OSS-120B como referencia con Groq. El catálogo público de OpenRouter ofrece rutas Groq para
+ambos GPT-OSS y una ruta `mistral/zdr` para Small 4, con tools y structured outputs. Esto acredita
+oferta publicada, no uso autenticado, capacidad garantizada ni calidad de Kova. Usar intermediario
+añade otro destinatario/facturación y requiere autorización; no se ha integrado ni enviado datos.
+Referencias: [Mistral Small 4](https://docs.mistral.ai/models/mistral-small-4-0-26-03),
+[Qwen oficial](https://huggingface.co/Qwen/Qwen3.5-35B-A3B),
+[rutas OpenRouter](https://openrouter.ai/docs/guides/routing/provider-selection),
+[datos](https://openrouter.ai/docs/guides/privacy/data-collection).
+
+### Comparación autorizada de modelos actuales — 2026-10-07
+
+El operador autorizó comparar **GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4**. La investigación
+añadió **DeepSeek V4.1 Flash** y perfiles de razonamiento/ruta para buscar el equilibrio de
+precisión, rapidez y costo. GPT-OSS queda como evidencia histórica.
+La comparación usa los mismos 220 casos y tres repeticiones por candidato (660 ejecuciones),
+sin modificar oráculos ni reducir gates. Incluye la cobertura de configuración como regresión;
+aprobar esa cobertura no habilita mutaciones ni amplía el lanzamiento solicitado.
+
+`backend/scripts/compare_assistant.py` reutiliza el corpus, herramientas, prompts y contrato
+cerrado del evaluador. Su transporte vive exclusivamente en `assistant_evaluation/openrouter.py`;
+no integra OpenRouter al runtime de producción. Los candidatos se intercalan por caso/repetición
+para no consumir primero todo el presupuesto con un solo modelo. También se intercalan
+capacidades para probar archivos privados y seguridad desde el inicio. El límite común de salida
+es 1024 tokens, incluyendo razonamiento. Cada perfil declara su modo y el catálogo debe admitirlo;
+no se supone que todos acepten `low`. Truncamientos son fallos. Estos perfiles no demuestran el
+mejor desempeño posible de cada modelo ni se mezclan entre versiones para aprobar calidad.
+
+Verificación pública sin inferencia realizada el 2026-10-07:
+
+| Alias | Modelo | Ruta exacta | Razonamiento | Techo USD/millón entrada/salida |
+|---|---|---|---|---|
+| `glm-flash` | `z-ai/glm-5.3-flash` | `fireworks` | `low` | 0.15 / 0.50 |
+| `glm-deepinfra` | `z-ai/glm-5.3-flash` | `deepinfra/fp4` | `low` | 0.15 / 0.50 |
+| `qwen-38` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | `low` | 0.20 / 2.50 |
+| `qwen-fast` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | Desactivado | 0.20 / 2.50 |
+| `qwen-coreweave-fast` | `qwen/qwen3.8-27b` | `coreweave/fp8` | Desactivado | 0.40 / 3.00 |
+| `mistral-small` | `mistralai/mistral-small-2603` | `mistral/zdr` | Desactivado | 0.15 / 0.60 |
+| `mistral-us` | `mistralai/mistral-small-2603` | `mistral/us` | Desactivado | 0.165 / 0.66 |
+| `deepseek-flash` | `deepseek/deepseek-v4.1-flash` | `deepinfra/fp8` | `low` | 0.20 / 0.60 |
+| `deepseek-fast` | `deepseek/deepseek-v4.1-flash` | `deepinfra/fp8` | Desactivado | 0.20 / 0.60 |
+
+Las rutas aparecen activas en el catálogo, admiten herramientas y `structured_outputs`,
+y están en la lista pública de endpoints ZDR. Qwen usa techos sin el descuento temporal
+publicado; no se supone ahorro de caché. Cada ejecución vuelve a comprobar estos requisitos,
+precios y ausencia de recargos/overrides. Cada POST exige la ruta exacta, ZDR, `data_collection=deny`,
+soporte de parámetros, techo de precio y ausencia de fallbacks; no habilita plugins ni red del modelo.
+Esto verifica oferta publicada, no SLA, capacidad sostenida de la cuenta ni calidad para Kova.
+Los perfiles sin razonamiento exigen además `mandatory=false` en el catálogo y consumo reportado
+de razonamiento exactamente cero en cada respuesta. Mistral publica esfuerzos `high`/`none`;
+las pruebas históricas con `low` no representan este perfil corregido.
+
+**Acceso verificado el 2026-10-07:** el operador creó la cuenta y una clave dedicada, con
+techo total de USD 10, sin reset y vencimiento en siete días. Guardó la credencial en el archivo
+local privado; `GET /key` confirmó autenticación y cuenta pagada. La consola muestra USD 10
+de saldo, autorecarga apagada y logging de prompts/respuestas apagado. Se guardó ZDR para
+estos modelos y se deshabilitó entrenamiento. La clave automática de bienvenida se desactivó
+antes de cualquier uso porque el asistente expuso su valor al leer el ejemplo de código;
+no se utiliza ni se conserva en archivos. El operador confirmó un cargo de USD 10.80:
+USD 10 de créditos y USD 0.80 de comisión. El consumo de inferencia queda acotado a USD 9.20
+menos cualquier cargo previo retenido. La key no puede exceder el máximo total autorizado;
+el ledger reserva la comisión antes de cada POST y aplica el máximo a comisión más consumo.
+No usar una management key.
+`GET /key` comprueba techo y tipo de key; el saldo se verifica en consola porque `/credits`
+requiere privilegios de gestión. Ante errores, incluido saldo insuficiente o rate limit, se detiene
+todo el lote sin reintentos automáticos. La oferta pagada de Groq sigue bloqueada.
+
+El máximo autorizado **USD 10 total** se conserva entre proveedores y días en el ledger existente.
+Las comisiones reales acumuladas de recarga se indican con `--funding-fee-usd` y cuentan dentro
+del corte; comprar créditos no autoriza otra recarga ni exceder USD 10 con comisiones. Verificar
+el total final de checkout antes de pagar. Una recarga inicial de USD 5–8 puede dejar margen,
+pero no se promete completar el corpus con un importe determinado.
+
+Guardar la credencial únicamente en `backend/.env.evaluation.local` (permisos 0600), bajo
+`OPENROUTER_EVALUATION_API_KEY`, o en esa variable del proceso. Git y Docker excluyen ese archivo;
+no pegar la clave en chat ni comandos visibles. El evaluador nunca carga un `.env` de producción.
+
+```bash
+cd backend
+python scripts/compare_assistant.py --preflight
+python scripts/compare_assistant.py --summary
+# Solo tras tener saldo, verificar privacidad/techo y sustituir la comisión por la real:
+python scripts/compare_assistant.py --run --model mistral-small --limit 14 \
+  --budget-usd 10 --funding-fee-usd 0.80 --account-verified
+# Tras revisar el smoke, reanudar con el mismo presupuesto/ledger y comisión real:
+python scripts/compare_assistant.py --run --model mistral-small --limit 660 \
+  --budget-usd 10 --funding-fee-usd 0.80 --account-verified
+```
+
+`0.80` es la comisión confirmada por el operador para esta recarga. El smoke intercalado cubre
+capacidades distintas, pero no sustituye el conjunto completo ni la revisión de contenido.
+Resultados: `output/assistant-evaluation/comparison-results.json`; preflight público separado;
+ledger y lock compartidos con Groq. Se conserva la reserva antes de enviar la solicitud, incluso
+si ocurre un fallo/cancelación. Solo se reduce con tokens/costo completos verificados; razonamiento
+no se suma dos veces. La escritura atómica preserva los symlinks del ledger compartido.
+Resultados/versiones previos no se reutilizan como aprobación de un harness modificado. Los
+errores guardan códigos y diagnósticos acotados, nunca cuerpos remotos completos. Una interrupción
+del operador se registra y conserva la reserva; no se cuenta como un fallo semántico del modelo.
+Las respuestas sintéticas se conservan para diagnosticar contratos y contenido rechazados.
+Las solicitudes POST nuevas se espacian al menos dos segundos entre comienzos en este evaluador
+serial. La prueba rápida inicial de Mistral respondió al planner con razonamiento cero y rechazó
+la explicación con HTTP 429, sin cuota numérica verificable. El espaciado es un experimento
+conservador, no una cuota atribuida al proveedor ni una prueba de capacidad concurrente; tampoco
+reintenta solicitudes fallidas. Su espera cuenta dentro de la latencia por caso.
+
+Validación local: **177 tests backend del asistente**; Ruff, OpenAPI y `git diff --check`.
+Los tests comprueban
+intercalado, persistencia antes de POST, privacidad/ruta/precios, costos inciertos y comisiones,
+cuenta sin reset, consumo razonado, compatibilidad del modo y detención global ante error. Las
+respuestas de esos tests son simuladas y nunca entran al archivo de evaluación real. Se mantiene
+la prueba de consulta fría con Groq Free; no se aumentó la cuota para acomodar prompts más largos.
+
+**Evidencia live parcial, no aprobación:** GLM/Fireworks quedó detenido por demora; GLM/DeepInfra
+tuvo errores de configuración/contenido y un límite del proveedor. Qwen sin razonamiento completó
+153 ejecuciones con el harness `df40e358…`: 151 contratos válidos, un rechazo de contrato y un
+fallo de transporte. Entre respuestas válidas hubo confusión bruto/neto y costos, una atribución
+inventada al manual y abstenciones por no consultar ventas o el archivo disponible. Sus latencias
+entre contratos válidos fueron p50 4.458 s / p95 8.149 s; formato y rapidez no acreditan utilidad.
+Un diagnóstico separado del agente registra casos concretos en
+`output/assistant-evaluation/comparison-agent-review.json`; no rellena revisión humana.
+
+Antes de la corrección más reciente del planner y de los modos, Mistral y DeepSeek completaron
+14 casos cada uno con el mismo harness `76a4096d…` y contratos válidos. Mistral fue más rápido
+(p50 6.212 s / p95 9.049 s), pero omitió buscar un catálogo privado y parte de su usage no concilió.
+DeepSeek recuperó ambos tipos de archivo y tuvo usage verificable, con p50 13.813 s / p95 24.262 s.
+Son resultados exploratorios pequeños, de versiones anteriores; no se extrapolan a toda la batería.
+
+La revisión detectó una carencia de contexto: se explicita ahora la definición de Kova de venta
+neta (ventas completadas menos reembolsos), se dirige esa consulta a ventas y se evita narrar
+reglas internas en la respuesta. Se repite la cobertura afectada con los mismos oráculos. El contexto deja de exigir orientación
+hacia pantallas para toda pregunta: un manual privado se resume como procedimiento del negocio,
+sin atribuirle funciones de Kova. Se explicita el rango omitido conforme al backend (hoy).
+Mistral volvió a responder HTTP 429 en la prueba espaciada, después de una configuración con
+contrato válido; su capacidad sostenida no quedó acreditada. Se compara además DeepSeek con
+razonamiento desactivado, verificando el modo consumido en cada respuesta: el smoke de catorce
+casos tuvo trece contratos válidos, usage verificable y p50 5.735 s / p95 7.863 s, pero omitió
+el catálogo privado y no resolvió el procedimiento del manual. Sigue sin aprobación; estos
+resultados motivaron la corrección de contexto y se conservan como evidencia histórica.
+El resumen de documentos se pide solo cuando la pregunta trata sobre ellos. Se amplía ahora
+la comparación de perfiles rápidos con este contexto corregido. El operador fijó espera máxima
+de **diez segundos por respuesta completa**. El resumen registra la latencia máxima observada y
+no aprueba si algún caso supera ese límite, además de los gates previos; la medición sintética
+no demuestra aún la espera total de cola/red/UI en producción. DeepSeek con razonamiento bajo
+queda fuera como principal por demora. Se prueba Mistral/US por separado, con precio diez por
+ciento mayor al endpoint ZDR global; no es un fallback automático ni prueba de capacidad sostenida.
+El último `GET /key` antes de
+ese lote reportó USD 0.160578681 de inferencia acumulada; las reservas inciertas y la comisión
+permanecen en el ledger. El dato se consulta de nuevo antes de cerrar una evaluación.
+**Ningún modelo está aprobado ni activado.** Revisión humana, ingesta/ACL/OCR real, carga y QA
+autenticada de producción permanecen pendientes; no se cambió ningún flag ni se programó trabajo.
+
+**Diagnóstico posterior de rutas y documentos:** Qwen sin razonamiento completó siete casos
+por ruta en Wafer y CoreWeave con contratos y usage verificables; p50 3.991 / 4.344 s,
+máximos 4.380 / 4.710 s. La revisión detectó respuestas que confundían productos destacados
+con todos los vendidos y omisiones de archivos. En un lote separado de veinte casos privados
+por ruta, Wafer omitió buscar el catálogo en sus cuatro variantes y CoreWeave en dos; hubo
+12/16 y 14/16 citas presentes donde había una fuente disponible. Estas cuentas miden presencia,
+no pertinencia ni calidad aprobada.
+
+Se corrigió el runtime de lectura: una pregunta que menciona manuales, documentos, archivos o
+catálogos añade `search_knowledge` si el planner la omite. Conserva las lecturas seleccionadas,
+el máximo de ocho herramientas, consultas de hasta cuatrocientos caracteres y la búsqueda
+existente con consentimiento/tenant/propiedad. Reautoriza la sesión y verifica cancelación
+después del planner y antes de ejecutar lecturas. No habilita documentos ni prepara cambios.
+El evaluador reutiliza esta misma corrección; conserva los casos/oráculos originales.
+
+La repetición diagnóstica posterior en CoreWeave completó veinte casos privados: contratos
+válidos, 16/16 citas presentes donde había fuente, usage verificado, p50 4.123 s / p95 4.687 s
+y máximo 4.975 s. Es una única repetición con fragmentos sintéticos; no acredita el retrieval
+real, los gastos en embeddings ni el tiempo de cola/red/UI. Wafer respondió HTTP 404 al iniciar
+la repetición corregida, después de pasar preflight. Se retuvo su reserva y se detuvo ese lote;
+el experimento nuevo en CoreWeave tuvo su propio manifiesto, sin fallback automático.
+
+Los sondeos están separados en `output/assistant-evaluation/endpoint-probe`,
+`private-file-probe` y `private-file-coreweave`; sus manifiestos declaran que no cuentan para
+aprobar producción, identifican la versión y comparten ledger/lock. Se amplía ahora el perfil
+CoreWeave en el comparador normal de 220 casos y tres repeticiones; no se importan los sondeos
+como aprobación. Las nueve regresiones nuevas prueban búsqueda omitida, límites, no duplicación,
+conservación de propuestas apagadas y bloqueo ante consentimiento retirado/cancelación;
+se amplió también la verificación del modo rápido al nuevo perfil.
+
+Fuentes: [rutas y precios](https://openrouter.ai/docs/guides/routing/provider-selection),
+[ZDR](https://openrouter.ai/docs/guides/features/zdr),
+[key de inferencia](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-api-key),
+[créditos y privilegios](https://openrouter.ai/docs/api/api-reference/credits/get-credits),
+[GLM y pesos MIT](https://huggingface.co/zai-org/GLM-5.3-Flash),
+[Qwen y pesos Apache 2.0](https://huggingface.co/Qwen/Qwen3.8-27B),
+[modos de razonamiento](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens),
+[Mistral Small 4](https://docs.mistral.ai/models/mistral-small-4-0-26-03),
+[DeepSeek V4.1 Flash y pesos MIT](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash).
 
 ## Mejora de interfaz y presentación — 2026-10-07
 

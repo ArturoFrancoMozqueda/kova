@@ -15,7 +15,30 @@ def package(parts):
     return buffer.getvalue()
 
 
-def check(name, content, suffix, *, accepted):
+def pdf_document(image=None):
+    resources = b"/Font << /F1 5 0 R >>" if image is None else b"/XObject << /Im0 5 0 R >>"
+    stream = (b"BT /F1 24 Tf 35 100 Td (Horario de atencion: lunes a viernes) Tj ET"
+              if image is None else b"q 600 0 0 200 0 0 cm /Im0 Do Q")
+    objects = [b"<< /Type /Catalog /Pages 2 0 R >>",
+               b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+               b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 200] /Resources << "
+               + resources + b" >> /Contents 4 0 R >>",
+               b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n"
+               + stream + b"\nendstream", image or
+               b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    data, offsets = bytearray(b"%PDF-1.4\n"), [0]
+    for index, obj in enumerate(objects, 1):
+        offsets.append(len(data))
+        data.extend(f"{index} 0 obj\n".encode() + obj + b"\nendobj\n")
+    start = len(data)
+    data.extend(b"xref\n0 6\n0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        data.extend(f"{offset:010d} 00000 n \n".encode())
+    data.extend(f"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n{start}\n%%EOF\n".encode())
+    return bytes(data)
+
+
+def check(name, content, suffix, *, accepted, ocr=False):
     payload = json.dumps({"content": base64.b64encode(content).decode(), "suffix": suffix})
     result = subprocess.run(
         [
@@ -48,13 +71,15 @@ def check(name, content, suffix, *, accepted):
     body = json.loads(result.stdout)
     if accepted:
         assert result.returncode == 0 and not body.get("error"), name
-        assert "Horario" in " ".join(body["pages"]) and not body["ocr"], name
+        assert "Horario" in " ".join(body["pages"]) and body["ocr"] is ocr, name
     else:
         assert result.returncode != 0 and body == {"error": "file_rejected"}, name
     print(f"PASS: {name}", flush=True)
 
 
 def main():
+    from assistant_parser_samples import SCAN_HEIGHT, SCAN_RGB_FLATE, SCAN_WIDTH
+
     document = (
         b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
         b"<w:body><w:p><w:r><w:t>Horario de atencion</w:t></w:r></w:p></w:body></w:document>"
@@ -66,6 +91,12 @@ def main():
         accepted=True,
     )
     check("DOCX text", package({"word/document.xml": document}), ".docx", accepted=True)
+    check("PDF text", pdf_document(), ".pdf", accepted=True)
+    image = (f"<< /Type /XObject /Subtype /Image /Width {SCAN_WIDTH} /Height {SCAN_HEIGHT} "
+             f"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode "
+             f"/Length {len(SCAN_RGB_FLATE)} >>\nstream\n").encode()
+    image += SCAN_RGB_FLATE + b"\nendstream"
+    check("PDF Spanish OCR", pdf_document(image), ".pdf", accepted=True, ocr=True)
     check(
         "DOCX path traversal",
         package({"word/document.xml": document, "../escape.txt": b"reject"}),

@@ -139,6 +139,13 @@ def reserve(
     background: bool = False,
     window: str | None = None,
 ) -> int:
+    if model == "openai/gpt-oss-120b" and settings.assistant_generation_provider == "openrouter":
+        from app.assistant import openrouter_budget
+
+        if background:
+            raise HTTPException(503, "Modelo o consumo no verificable.")
+        return openrouter_budget.reserve(db, tenant, user, input_tokens, output_tokens,
+                                        window or datetime.now(UTC).date().isoformat())
     if model in {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}:
         from app.assistant import groq_budget
 
@@ -185,6 +192,13 @@ def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, repo
     if not receipt or receipt["id"] != reservation_id:
         return 0
     retained = receipt["amount"]
+    if receipt.get("provider") == "openrouter":
+        from app.assistant import openrouter_budget
+
+        released = openrouter_budget.refund(db, tenant, user, receipt, reported)
+        repo.update(job, remote_started=False, pending_reservation=None,
+                    reserved=job.data["reserved"] - released)
+        return released
     if receipt["model"] in {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}:
         from app.assistant import groq_budget
 
@@ -229,6 +243,10 @@ def settle(db, tenant: UUID, user: UUID, job_id: UUID, reservation_id: str, repo
 
 
 def usage(db, tenant: UUID, user: UUID) -> dict:
+    if settings.assistant_generation_provider == "openrouter":
+        from app.assistant import openrouter_budget
+
+        return openrouter_budget.usage(db, tenant, user)
     if settings.assistant_generation_provider == "groq":
         from app.assistant import groq_budget
 

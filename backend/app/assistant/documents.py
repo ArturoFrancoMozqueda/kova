@@ -142,6 +142,7 @@ def authorize_document(db, ctx, identifier):
         or not user.is_active
         or not member.is_active
         or member.role not in {"owner", "manager"}
+        or member.allowed_branch_id is not None
         or not pref
         or not pref.data.get("document_consent")
         or not get_billing_access_status(db, tenant_id=member.tenant_id).allowed
@@ -172,12 +173,15 @@ def ingest(db, ctx, doc):
         payload = json.dumps(
             {"suffix": "." + doc.data["format"], "content": base64.b64encode(content).decode()}
         ).encode()
+        container = "kova-assistant-parser-" + str(identifier)
         try:
             result = subprocess.run(
                 [
                     "docker",
                     "run",
                     "--rm",
+                    "--name",
+                    container,
                     "--network",
                     "none",
                     "--read-only",
@@ -242,6 +246,18 @@ def ingest(db, ctx, doc):
             raise HTTPException(
                 422, "Archivo rechazado o analizador no disponible; no se envió a IA."
             ) from None
+        finally:
+            # Killing the Docker CLI on timeout does not terminate its container.
+            # Release CPU/memory before another document can acquire this lane.
+            try:
+                subprocess.run(
+                    ["docker", "rm", "--force", container],
+                    env={"PATH": "/usr/local/bin:/usr/bin:/bin"},
+                    capture_output=True, timeout=10, check=False,
+                )
+            except (OSError, subprocess.SubprocessError):
+                # The daemon/container may already have stopped. No private logs.
+                pass
     while True:
         doc = authorize_document(db, ctx, identifier)
         pending = (

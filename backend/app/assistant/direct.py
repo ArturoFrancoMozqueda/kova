@@ -44,7 +44,8 @@ QUERIES = {
     "que sucursal vende mas": "compare_branches",
 }
 PERIODS = {"": "hoy", "hoy": "hoy", "ayer": "ayer",
-           "esta semana": "esta semana", "este mes": "este mes"}
+           "esta semana": "esta semana", "este mes": "este mes",
+           "de esta semana": "esta semana", "de este mes": "este mes"}
 
 
 def normalize(content):

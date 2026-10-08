@@ -138,7 +138,9 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
         { label: "Vercel restore", env },
       );
     },
-    restoreFly(image) {
+    async restoreFly(image) {
+      await run("python3", ["../scripts/assistant_host_release.py", "pause"],
+        { cwd: backendDirectory, label: "Assistant recovery pause", env });
       return run(
         flyctl,
         [
@@ -150,6 +152,9 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
           "rolling",
           "--wait-timeout",
           "5m",
+          "--process-groups",
+          "app,assistant",
+          "--ha=false",
         ],
         { cwd: backendDirectory, label: "Fly restore", env },
       );

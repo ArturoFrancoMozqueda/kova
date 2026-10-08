@@ -7359,7 +7359,8 @@
               {
                 "enum": [
                   "cloudflare",
-                  "groq"
+                  "groq",
+                  "openrouter"
                 ],
                 "type": "string"
               },
@@ -7368,6 +7369,18 @@
               }
             ],
             "title": "Chat Provider"
+          },
+          "chat_recipients": {
+            "anyOf": [
+              {
+                "const": "groq+cerebras",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Recipients"
           },
           "document_consent": {
             "default": false,

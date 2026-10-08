@@ -19,7 +19,15 @@ def chat_consent_valid(data: dict) -> bool:
     # Historical consent was collected for Cloudflare. Switching the recipient
     # requires a fresh acceptance; neither a deployment nor a flag grants it.
     return bool(data.get("chat_consent") and data.get("chat_provider", "cloudflare")
-                == settings.assistant_generation_provider)
+                == settings.assistant_generation_provider
+                and (settings.assistant_generation_provider != "openrouter"
+                     or data.get("chat_recipients") == consent_recipients()))
+
+
+def consent_recipients():
+    from app.assistant.openrouter import CONSENT_RECIPIENTS
+
+    return CONSENT_RECIPIENTS if settings.assistant_generation_provider == "openrouter" else None
 
 
 def cloudflare_ready() -> bool:
@@ -31,6 +39,10 @@ def cloudflare_ready() -> bool:
 
 
 def ready() -> bool:
+    if settings.assistant_generation_provider == "openrouter":
+        from app.assistant import openrouter
+
+        return openrouter.ready()
     if settings.assistant_generation_provider == "groq":
         return bool(
             settings.assistant_provider_verified
@@ -49,7 +61,7 @@ def groq_models() -> set[str]:
 
 
 def planning_tools(tools):
-    if settings.assistant_generation_provider != "groq":
+    if settings.assistant_generation_provider not in {"groq", "openrouter"}:
         return tools
 
     def compact(schema):
@@ -142,7 +154,8 @@ def groq_response_format(allowed_source_ids: list[str] | None = None) -> dict:
         "required": ["action", "resource_id", "values"],
         "properties": {
             "action": {"type": "string", "enum": actions},
-            "resource_id": {"type": ["string", "null"]},
+            "resource_id": {"type": ["string", "null"],
+                            "pattern": "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"},
             "values": {"type": "array", "items": {
                 "type": "object", "additionalProperties": False,
                 "required": ["key", "value"], "properties": {
@@ -171,6 +184,10 @@ def groq_response_format(allowed_source_ids: list[str] | None = None) -> dict:
         # is rejected by Groq's decoder; Kova restores its public empty steps.
         del schema["properties"]["steps"]
         schema["required"].remove("steps")
+    if allowed_source_ids is not None and not allowed_source_ids:
+        # Numerical tools have cards, not document source IDs. Never invite the
+        # decoder to invent a citation when retrieval produced no sources.
+        schema["properties"]["source_ids"]["maxItems"] = 0
     # Semantics, lengths, UUIDs, citation ACLs and disabled actions are still
     # validated by Kova. Strict JSON is not an authorization boundary.
     return {"type": "json_schema", "json_schema": {
@@ -192,21 +209,29 @@ def _normalize_groq_answer(content: str) -> str:
     return json.dumps(answer, ensure_ascii=False)
 
 
+def generation_messages(messages, *, structured: bool):
+    """Use the same provider instructions for reservation and transport."""
+    messages = [dict(message) for message in messages]
+    if structured and settings.assistant_generation_provider == "groq":
+        output_instruction = (
+            "En steps, values usa pares {key,value} solo para campos solicitados; "
+            "importes como cadenas."
+            if settings.assistant_mutations_enabled else
+            "Devuelve solo answer y source_ids; sin steps ni propuestas."
+        )
+        messages[0] = {**messages[0], "content": messages[0]["content"] + (
+            "\n" + output_instruction + " Cita solo fuentes recuperadas en source_ids. "
+            "answer no lleva dígitos ni medidas; remite cifras a tarjetas."
+        )}
+    return messages
+
+
 def _generate_groq(messages, tools, *, model, structured, allowed_source_ids):
     if model not in groq_models() or model != settings.assistant_groq_model:
         raise HTTPException(503, "Modelo de generación no permitido.")
     if structured and tools:
         raise HTTPException(422, "La explicación final no admite herramientas.")
-    messages = [dict(message) for message in messages]
-    if structured:
-        messages[0] = {**messages[0], "content": messages[0]["content"] + (
-            "\nEn steps, values es una lista de pares {key,value} del esquema recibido. "
-            "Incluye solo campos solicitados expresamente; no rellenes valores faltantes. "
-            "source_ids solo puede contener fuentes recuperadas. "
-            + ("Configuración deshabilitada: devuelve solo answer y source_ids; "
-               "Kova incorpora steps vacío. No incluyas propuestas."
-               if not settings.assistant_mutations_enabled else "")
-        )}
+    messages = generation_messages(messages, structured=structured)
     body = {
         "model": model, "messages": messages, "stream": False,
         "reasoning_effort": "low", "include_reasoning": False,
@@ -238,6 +263,18 @@ def _call(model: str, body: dict, *, chat=False) -> dict:
     if chat:
         body = {**body, "model": model}
     assert settings.assistant_cloudflare_token is not None
+    if settings.assistant_generation_provider == "openrouter":
+        # Document embeddings share the interactive request's remaining deadline.
+        # This preserves their separate Cloudflare consent and neuron accounting.
+        import asyncio
+
+        from app.assistant import openrouter
+
+        data = asyncio.run(openrouter.request(url, body, "Bearer "
+                       + settings.assistant_cloudflare_token.get_secret_value()))
+        if not data.get("success") or not isinstance(data.get("result"), dict):
+            raise HTTPException(503, "Respuesta de IA no verificable.")
+        return data["result"]
     try:
         with httpx.Client(timeout=30, follow_redirects=False, trust_env=False) as client:
             with client.stream(
@@ -305,6 +342,11 @@ def generate(
     messages: list[dict], tools: list[dict], *, model: str, structured: bool = False,
     allowed_source_ids: list[str] | None = None,
 ) -> dict:
+    if settings.assistant_generation_provider == "openrouter":
+        from app.assistant import openrouter
+
+        return openrouter.generate(messages, tools, model=model, structured=structured,
+                                   allowed_source_ids=allowed_source_ids)
     if settings.assistant_generation_provider == "groq":
         return _generate_groq(
             messages, tools, model=model, structured=structured,

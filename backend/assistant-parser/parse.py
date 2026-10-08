@@ -4,6 +4,7 @@ import base64
 import io
 import json
 import os
+import resource
 import subprocess
 import sys
 import tempfile
@@ -96,6 +97,9 @@ def parse(content, suffix):
 
 if __name__ == "__main__":
     try:
+        # Bound a malicious extraction even if the parent/daemon becomes
+        # unavailable before it can remove a timed-out container.
+        resource.setrlimit(resource.RLIMIT_CPU, (580, 590))
         raw = sys.stdin.buffer.read(28 * 1024 * 1024 + 1)
         if len(raw) > 28 * 1024 * 1024:
             raise ValueError("size")

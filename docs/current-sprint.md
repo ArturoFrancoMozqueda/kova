@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-10-06
+Last updated: 2026-10-08
 
 ## Source Of Truth
 
@@ -18,12 +18,55 @@ historical evidence and are labelled with their period.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
 
-## Active assistant implementation (2026-10-07): Groq y eficiencia
+## Active assistant implementation (2026-10-08): publicación y activación
 
-Implementación local de GPT-OSS-20B, ayuda/reportes directos, cuotas por proveedor y
-consentimiento renovado al cambiar destinatario. Cuenta Groq Free y Global ZDR verificados;
-calidad comparativa, integración y activación en producción pendientes. La evidencia y los
-gates viven en [operación del asistente](assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
+El operador autoriza despliegue y gasto recurrente (USD 10/mes de inferencia y hasta USD 35/mes
+de ingesta, sin compromiso anual). GPT-OSS-120B usa OpenRouter con destinatarios **Groq y
+Cerebras** exclusivamente; las conclusiones/cifras de reportes las controla Kova. El perfil
+nuevo requiere su propia batería y consentimiento explícito. Los 540 casos Cerebras previos
+son evidencia histórica; los nuevos sondeos registran además saturación/timeout conservados.
+
+Preparado en PR #169: aprobación ligada al hash del motor, presupuesto y pausas compartidos,
+recuperación mensual, capacidad independiente de chat/archivos, citas numéricas literales y
+aviso OCR, host de ingesta privado en iad y publicación/rollback sin recursos adicionales.
+Validación local: 263 pruebas de asistente/RLS, 31 de operaciones, 21 de publicación.
+
+Pendientes: CI de este commit, evaluación real del perfil actual y revisión de pertinencia/es-MX;
+credencial permanente mensual y acceso puntual a Fly; host de archivos dentro del total
+autorizado y QA autenticada R2/embeddings/ACL/carga/plazo. La sesión de Kova está disponible.
+No activar el gate de calidad ni presentar archivos como listos antes de cerrar esas pruebas.
+No hay tareas agendadas. [Decisión](research/ASSISTANT-DECISION-2026-10-07.md),
+[operación](assistant-operations.md).
+
+## Historical assistant status (2026-10-07): solución de consulta
+
+**Selección técnica cerrada:** GPT-OSS-120B por Cerebras/OpenRouter, con reportes redactados
+por Kova y pasajes de documentos seleccionados por identificador. Implementación en PR #169;
+no está activada en producción. La integración Groq anterior se entregó mediante PR #167,
+pero Groq Free no pasó calidad y la ruta Groq pagada por OpenRouter tuvo un HTTP 429.
+La comparación de prosa libre mostró fallos financieros incluso con JSON válido; no se delegan
+los cálculos ni sus conclusiones al modelo.
+
+Alcance confirmado: guías, preguntas del negocio, recomendaciones y archivos propios,
+sin mutaciones ni correo, máximo diez segundos y escalabilidad desde el inicio. La ruta final
+exige nuevo consentimiento para OpenRouter y Cerebras, ZDR, topes compartidos de gasto,
+control por negocio y concurrencia configurable. El presupuesto mensual de producción es cero.
+La clave local y los USD 10 autorizados siguen siendo solo de evaluación.
+
+La arquitectura final cerró 540 consultas al 2026-10-08: 539 contratos válidos, mediana
+2.1345 s / p95 4.179 s, un timeout y una abstención innecesaria. Los campos de revisión humana
+siguen pendientes; no acredita activación ni tiempo real de cola/red/UI. Conserva los 220 casos
+originales y sus oráculos. Los cuarenta de mutación mantienen su gate independiente antes de
+habilitar esa capacidad. No hay programación diaria.
+
+Bloqueos de activación: cierre formal de hallazgos/revisión de pertinencia, QA autenticada de cola/red/UI y
+carga; clave y techo mensual aprobados; y, para documentos, host de ingesta aislado y QA real
+R2/embeddings/ACL. El worker actual de Fly no tiene el daemon Docker requerido por la ingesta.
+Se requiere además separar selección de trabajos de chat/ingesta y comprobar capacidad interactiva
+durante procesamiento de archivos.
+No habilitar archivos ni declarar producción lista sin completar ese recorrido.
+Decisión y evidencia: [selección final](research/ASSISTANT-DECISION-2026-10-07.md);
+operación: [asistente](assistant-operations.md).
 
 ## Active product integration (2026-10-05): Expansión POS
 

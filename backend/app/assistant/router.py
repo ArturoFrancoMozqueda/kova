@@ -7,7 +7,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.concurrency import run_in_threadpool
 
-from app.assistant import budget, direct, documents, executor, knowledge, provider, storage
+from app.assistant import (
+    budget,
+    deadline,
+    direct,
+    documents,
+    executor,
+    knowledge,
+    provider,
+    storage,
+)
 from app.assistant import repository as repo
 from app.assistant.access import enabled, principal, require_enabled, scope
 from app.assistant.models import now
@@ -45,7 +54,8 @@ def capabilities(db=Depends(get_db), ctx=Depends(principal)):
         "enabled": enabled(ctx[1].tenant_id),
         "inference_ready": provider.ready(),
         "local_answers_ready": enabled(ctx[1].tenant_id),
-        "provider_name": "Groq" if settings.assistant_generation_provider == "groq"
+        "provider_name": "OpenRouter, Groq y Cerebras" if settings.assistant_generation_provider
+        == "openrouter" else "Groq" if settings.assistant_generation_provider == "groq"
         else "Cloudflare",
         "configuration": settings.assistant_mutations_enabled and enabled(ctx[1].tenant_id),
         "documents": settings.assistant_documents_enabled
@@ -173,6 +183,13 @@ def run_get(identifier: UUID, db=Depends(get_db), ctx=Depends(require_enabled)):
     row = repo.get(db, tenant, user, "run", identifier)
     if row.branch_id != branch:
         raise HTTPException(409, "La sucursal cambió.")
+    if settings.assistant_generation_provider == "openrouter" and deadline.expired(row):
+        row = repo.get(db, tenant, user, "run", identifier, lock=True)
+        if row.status in {"queued", "running"}:
+            row.status = "failed"
+            repo.update(row, error="La consulta alcanzó su tiempo límite. Acota la pregunta.",
+                        error_code=503)
+            db.commit()
     return repo.view(db, tenant, user, row)
 
 
@@ -245,7 +262,8 @@ def preferences(db=Depends(get_db), ctx=Depends(principal)):
     row = repo.records(db, tenant, user, "preferences").first()
     data = {k: v for k, v in row.data.items() if k in PreferenceWrite.model_fields} if row else {}
     data.update(chat_consent=bool(row and provider.chat_consent_valid(row.data)),
-                chat_provider=settings.assistant_generation_provider)
+                chat_provider=settings.assistant_generation_provider,
+                chat_recipients=provider.consent_recipients())
     return PreferenceWrite.model_validate(data)
 
 
@@ -257,6 +275,9 @@ def preferences_write(body: PreferenceWrite, db=Depends(get_db), ctx=Depends(pri
     ):
         raise HTTPException(409, "El proveedor cambió. Revisa y acepta el permiso actualizado.")
     body.chat_provider = settings.assistant_generation_provider
+    if body.chat_consent and body.chat_recipients != provider.consent_recipients():
+        raise HTTPException(409, "Los destinatarios cambiaron. Revisa y acepta el nuevo permiso.")
+    body.chat_recipients = provider.consent_recipients()
     if body.email_opt_in and not ctx[0].is_email_verified:
         raise HTTPException(422, "Verifica tu correo antes de activar avisos.")
     row = (
