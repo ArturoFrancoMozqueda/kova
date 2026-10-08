@@ -110,8 +110,12 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "invoice_requests": {"SELECT", "INSERT"},
     "cfdi_connections": {"SELECT", "INSERT"},
     "cfdi_documents": {"SELECT", "INSERT"},
+    "inventory_lots": {"SELECT", "INSERT"},
+    "inventory_lot_allocations": {"SELECT", "INSERT"},
+    "inventory_lot_reservations": {"SELECT", "INSERT", "DELETE"},
 }
-_CFDI_RUNTIME_UPDATE_COLUMNS = {
+_RUNTIME_UPDATE_COLUMNS = {
+    "inventory_lots": {"code", "manufactured_on", "rotation_on", "expires_on"},
     "cfdi_connections": {
         "organization_id", "encrypted_api_key", "issuer_rfc", "production_ready",
         "certificate_expires_at", "refreshed_at",
@@ -203,6 +207,7 @@ _SEMANTIC_INSERT_ORDER = (
     "webhook_events",
     "orders",
     "products",
+    "inventory_lots",
     "purchase_orders",
     "purchase_order_items",
     "inventory_transfers",
@@ -213,6 +218,7 @@ _SEMANTIC_INSERT_ORDER = (
     "cash_movements",
     "customer_orders",
     "inventory_movements",
+    "inventory_lot_allocations",
     "order_items",
     "payments",
     "product_image_files",
@@ -221,6 +227,7 @@ _SEMANTIC_INSERT_ORDER = (
     "voids",
     "customer_order_items",
     "inventory_reservations",
+    "inventory_lot_reservations",
     "order_fiscal_snapshots",
     "fiscal_global_draft_batches",
     "fiscal_global_draft_orders",
@@ -286,6 +293,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "processing_status": "received",
         "refund_payment_method": "cash",
         "role": "owner",
+        "rotation_label": "consumo_preferente" if variant == 0 else "fecha_objetivo",
         "source_channel": "counter",
         "state": "prepared" if table.name == "cfdi_documents" else "active",
         "status": {
@@ -779,7 +787,7 @@ def test_fresh_upgrade_and_reprovision_keep_internal_tables_private() -> None:
                         )
             # Full-table UPDATE remains denied; verify the complete per-column
             # exception list, including no column access for the public API roles.
-            for table, writable_columns in _CFDI_RUNTIME_UPDATE_COLUMNS.items():
+            for table, writable_columns in _RUNTIME_UPDATE_COLUMNS.items():
                 columns = conn.execute(
                     text("SELECT column_name FROM information_schema.columns "
                          "WHERE table_schema='public' AND table_name=:table"),
@@ -1226,7 +1234,7 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
             for table_name in sorted(protected):
                 expected = _RUNTIME_TABLE_PRIVILEGES.get(table_name, set())
 
-                if table_name in _CFDI_RUNTIME_UPDATE_COLUMNS:
+                if table_name in _RUNTIME_UPDATE_COLUMNS:
                     table = metadata.tables[table_name]
                     with runtime.begin() as conn:
                         conn.execute(
@@ -1235,7 +1243,7 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                         )
                         # Every granted operational column executes against actual
                         # A/B rows; self-assignment preserves journal evidence.
-                        for column in sorted(_CFDI_RUNTIME_UPDATE_COLUMNS[table_name]):
+                        for column in sorted(_RUNTIME_UPDATE_COLUMNS[table_name]):
                             statement = table.update().values({column: table.c[column]})
                             assert conn.execute(
                                 statement.where(table.c.tenant_id == TENANT_A)

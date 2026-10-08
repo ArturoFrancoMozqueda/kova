@@ -97,6 +97,11 @@ se rechaza: cualquier rollback debe conservar esquema y usar una aplicación com
   comprobaciones del contrato OpenAPI pasaron.
 - La migración completa y el ciclo `0077 → 0076 → 0077` pasaron en una base vacía.
   No se ejecutó migración, publicación ni QA en producción o dispositivos físicos.
+- Las 15 pruebas de migraciones pasaron. La matriz global de permisos incluye
+  las tres tablas nuevas y prueba operaciones reales con dos negocios, además de
+  negar cambios a identidad/asignaciones y limitar la corrección a columnas de
+  identificación y fechas. Se amplió el grafo de datos de prueba para este esquema;
+  las comprobaciones de los permisos existentes se conservaron.
 
 Los cambios se concentran en `backend/app/inventory/{lots,lot_router,lot_schemas,models}.py`,
 la migración `0077_inventory_lots.py`, los servicios de catálogo, ventas, pedidos,
