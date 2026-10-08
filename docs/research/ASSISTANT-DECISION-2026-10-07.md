@@ -3,12 +3,19 @@
 ## Actualización vigente — 2026-10-08
 
 El operador autoriza despliegue y gasto recurrente: USD 10/mes de inferencia y hasta USD 35/mes
-para ingesta, sin compromiso anual. Se mantiene **GPT-OSS-120B** con selección de lecturas/pasajes;
-OpenRouter limita los destinatarios a **Groq y Cerebras**, con Groq primero, ZDR y recolección
-denegada. Las consultas directas y los reportes siguen redactados por Kova. La ruta única de
-Cerebras presentó nuevos HTTP 429 del proveedor; una sola ruta no basta como decisión operativa.
+para ingesta, sin compromiso anual. La selección técnica vigente es **Mistral Small 4**
+(`mistralai/mistral-small-2603`), ruta fija `mistral/us` de OpenRouter, sin razonamiento ni
+fallback. ZDR y recolección denegada son obligatorios. El consentimiento debe nombrar
+**OpenRouter y Mistral**; aceptar otros destinatarios no autoriza esta ruta. Las consultas
+directas y los reportes siguen redactados por Kova con cifras reales del backend.
 
-Los sondeos de la pareja demostraron respuestas rápidas y contratos válidos, pero también
+El diagnóstico anterior de Mistral completó 540 contratos válidos, mediana 0.947 s,
+p95 2.837 s y máximo 5.816 s. Es evidencia parcial: los cambios posteriores de períodos,
+reposiciones, devoluciones y persistencia de evidencia requieren su propia evaluación.
+La revisión del agente no acredita revisión humana ni archivos/capacidad en producción.
+Modelo y licencia de pesos abiertos Apache 2.0: [documentación de Mistral](https://docs.mistral.ai/models/mistral-small-4-0-26-03).
+
+Los sondeos anteriores de GPT-OSS/Groq/Cerebras demostraron respuestas rápidas y contratos válidos, pero también
 saturación y timeout. **No son aprobación final ni prueba de carga.** La evaluación actual usa
 otro hash y conserva todos los fallos. La evidencia de 540 casos de abajo corresponde al perfil
 anterior. No se mezclan destinatarios/versiones. DeepInfra sigue solo en el runner de evaluación:

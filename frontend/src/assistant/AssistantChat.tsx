@@ -27,7 +27,15 @@ export function AssistantWelcome({ onSuggestion, disabled, compact = false, sugg
   </div>;
 }
 
-function Message({ message }: { message: Resource }) {
+function AnswerEvidence({ data, compact }: { data: Resource["data"]; compact: boolean }) {
+  return <div className="space-y-3">
+    {data.metrics ? <SalesEvidence metrics={data.metrics} compact={compact} /> : null}
+    {data.cards ? <EvidenceCards cards={data.cards} /> : null}
+    {data.sources?.length ? <details className="rounded-kova-lg border border-kova-border bg-kova-mist/40 px-3"><summary className="min-h-11 cursor-pointer py-3 text-xs font-medium focus-visible:outline-kova-blue">Fuentes consultadas · {data.sources.length}</summary><div className="space-y-1 border-t border-kova-border py-2">{data.sources.map((source, index) => <a key={`${source.id}:${index}`} href={source.path} className="flex min-h-11 items-center gap-2 rounded-kova-md p-2 text-sm text-kova-blue hover:bg-white focus-visible:outline-kova-blue"><FileText size={16} className="shrink-0" /><span className="min-w-0 break-words">{source.title} · Página {source.page}</span><ArrowUpRight size={14} className="ml-auto shrink-0" /></a>)}</div></details> : null}
+  </div>;
+}
+
+function Message({ message, compact }: { message: Resource; compact: boolean }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const timeout = useRef<ReturnType<typeof setTimeout>>();
   const mounted = useRef(true);
@@ -44,6 +52,7 @@ function Message({ message }: { message: Resource }) {
     <div className="mb-3 flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-kova-blue/10 text-kova-blue"><LogoMark size={20} /></span><p className="text-xs font-semibold">Asistente Kova</p></div>
     <Suspense fallback={<p className="whitespace-pre-wrap break-words text-sm leading-7">{content}</p>}><AnswerContent content={content} /></Suspense>
     <div className="mt-2 flex items-center gap-2"><Button variant="ghost" className="px-2 text-xs text-kova-muted" aria-label={copyState === "copied" ? "Respuesta copiada" : "Copiar respuesta"} onClick={() => void copy()}>{copyState === "copied" ? <Check /> : <Copy />}{copyState === "copied" ? "Copiada" : "Copiar"}</Button><span role="status" className="text-xs text-kova-muted">{copyState === "failed" ? "No pudimos copiar. Selecciona el texto para copiarlo." : copyState === "copied" ? "Respuesta copiada" : ""}</span></div>
+    <AnswerEvidence data={message.data} compact={compact} />
   </article>;
 }
 
@@ -88,12 +97,10 @@ export function AssistantConversation({ messages, run, busy, onCancel, empty, co
       setShowLatest(!nearBottom.current);
     }} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain", compact ? "px-4 py-4" : "px-4 py-5 sm:px-8")}>
       <div className="mx-auto max-w-2xl space-y-6">
-        {messages.length === 0 ? empty : messages.map(message => <Message key={message.id} message={message} />)}
+        {messages.length === 0 ? empty : messages.map(message => <Message key={message.id} message={message} compact={compact} />)}
         {run && !generating ? <div className="space-y-3">
           {run.data.error ? <p role="alert" className="rounded-kova-md bg-kova-danger/5 p-3 text-sm text-kova-danger">{run.data.error}</p> : null}
-          {run.data.metrics ? <SalesEvidence metrics={run.data.metrics} compact={compact} /> : null}
-          {run.data.cards ? <EvidenceCards cards={run.data.cards} /> : null}
-          {run.data.sources?.length ? <details className="rounded-kova-lg border border-kova-border bg-kova-mist/40 px-3"><summary className="min-h-11 cursor-pointer py-3 text-xs font-medium focus-visible:outline-kova-blue">Fuentes consultadas · {run.data.sources.length}</summary><div className="space-y-1 border-t border-kova-border py-2">{run.data.sources.map((source, index) => <a key={`${source.id}:${index}`} href={source.path} className="flex min-h-11 items-center gap-2 rounded-kova-md p-2 text-sm text-kova-blue hover:bg-white focus-visible:outline-kova-blue"><FileText size={16} className="shrink-0" /><span className="min-w-0 break-words">{source.title} · Página {source.page}</span><ArrowUpRight size={14} className="ml-auto shrink-0" /></a>)}</div></details> : null}
+          {!messages.some(message => message.data.run_id === run.id) ? <AnswerEvidence data={run.data} compact={compact} /> : null}
         </div> : null}
         {generating ? <div role="status" className="flex items-center gap-3 rounded-kova-lg bg-kova-mist/60 px-3 py-2"><Loader2 size={16} className="shrink-0 animate-spin text-kova-blue motion-reduce:animate-none" /><p className="flex-1 text-sm text-kova-muted">{run?.status === "queued" ? "Preparando tu consulta…" : "Consultando los datos de tu negocio…"}</p><Button variant="ghost" disabled={busy} className="px-2 text-xs" onClick={onCancel}>Cancelar</Button></div> : null}
         {run?.status === "failed" && run.data.limit_kind && run.data.retry_at ? <p role="status" className="rounded-kova-lg bg-kova-mist p-3 text-xs leading-5 text-kova-muted">Puedes volver a consultar con IA después de {new Date(run.data.retry_at).toLocaleString("es-MX", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}. Mientras tanto, pregunta cuánto vendiste hoy, qué productos se venden más o cómo importar tu catálogo.</p> : null}

@@ -182,6 +182,8 @@ def ensure_document_read(content, tool_calls):
             required.extend(("get_sales", "get_top_products", "get_inventory"))
         if re.search(r"\breembolsos?\b", query) and re.search(r"\bventas?\b", query):
             required.append("get_sales")
+        if re.search(r"\b(?:reponer|reposicion|reabastecer)\b", query):
+            required.append("get_inventory")
         if re.search(r"\bcomo\b|\b(?:manual(?:es)?|documentos?|archivos?|catalogos?)\b", query):
             required.append("search_knowledge")
         names = {item.get("function", item).get("name") for item in tool_calls}
@@ -564,6 +566,11 @@ def _complete(db, ctx, job, conversation, answer, source_ids, evidence, metrics,
         {
             "role": "assistant",
             "content": answer.answer,
+            "run_id": str(job.id),
+            "metrics": metrics,
+            "cards": cards,
+            "sources": data["sources"],
+            "generated_at": data["generated_at"],
             "source_ids": data["source_ids"],
             "evidence_ids": data["evidence_ids"],
             "context_refs": context_refs,

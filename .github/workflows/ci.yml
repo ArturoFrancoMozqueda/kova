@@ -341,7 +341,9 @@ jobs:
   release:
     name: publish and verify release
     needs: [changes, required]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
+    # Planned optional skips must not suppress a successful aggregate gate.
+    # Failed/cancelled/missing gates still block all production effects.
+    if: always() && !cancelled() && needs.required.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.code == 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     environment: production

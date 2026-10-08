@@ -83,6 +83,16 @@ def test_historical_answer_uses_old_sales_refunds_and_only_authorized_branch(
                                   "quantity_sold": 2, "gross_sales": "24.00"}]
     assert "todo el histórico" in job.data["answer"]
     assert job.data["proposal_id"] is None
+    reopened = client.get(f"/api/v1/assistant/conversations/{job.parent_id}")
+    assert reopened.status_code == 200, reopened.text
+    answer = next(message["data"] for message in reopened.json()["messages"]
+                  if message["data"].get("run_id") == str(job.id))
+    assert answer["cards"] == job.data["cards"]
+    assert answer["sources"] == job.data["sources"]
+    assert answer["generated_at"] == job.data["generated_at"]
+    denied = client.get(f"/api/v1/assistant/conversations/{job.parent_id}",
+                        headers={"X-Kova-Branch": branch})
+    assert denied.status_code == 409
 
     # Even an explicit tenant ID cannot read a different business's history.
     assert tools.call(db, uuid4(), ctx[0].id, "get_top_products", {"all_history": True})["products"] == []

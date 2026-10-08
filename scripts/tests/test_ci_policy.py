@@ -60,6 +60,17 @@ class PolicyTests(unittest.TestCase):
                 needs[job] = {"result": result}
                 self.assertTrue(POLICY.gate_errors(policy, needs), (job, result))
 
+    def test_code_gate_accepts_optional_supply_skip_but_not_failed_required_suites(self):
+        policy = POLICY.classify(["backend/app/assistant/generation.py"], main=True)
+        needs = {job: {"result": "success"} for job in
+                 ["changes", "repository", "security", "backend-integration", "frontend",
+                  "frontend-unit", "integration", "migrations", "assistant-parser"]}
+        needs["supply-chain"] = {"result": "skipped"}
+        self.assertEqual(POLICY.gate_errors(policy, needs), [])
+        for result in ("failure", "cancelled", "skipped", None):
+            needs["backend-integration"] = {"result": result}
+            self.assertTrue(POLICY.gate_errors(policy, needs))
+
     def test_invalid_policy_cannot_succeed(self):
         self.assertTrue(POLICY.gate_errors({}, {}))
 

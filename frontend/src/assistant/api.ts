@@ -9,7 +9,7 @@ export type Resource = {
   id: string; kind: string; status: string; shared: boolean; branch_id: string; can_edit: boolean;
   created_at: string; updated_at: string;
   data: {
-    title?: string; content?: string; role?: string; answer?: string; error?: string;
+    title?: string; content?: string; role?: string; answer?: string; error?: string; run_id?: string;
     retry_at?: string; limit_kind?: string; response_mode?: "direct" | "model" | "grounded";
     fingerprint?: string; steps?: Step[]; filename?: string; purpose?: string;
     source_ids?: string[]; sources?: { id: string; title: string; page: number; path: string }[];

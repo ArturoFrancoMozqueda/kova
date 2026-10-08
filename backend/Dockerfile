@@ -16,7 +16,8 @@ WORKDIR /app
 
 # Only the dedicated ingestion process starts this daemon. API/chat machines
 # expose no Docker socket; child parsers receive neither network nor secrets.
-RUN apt-get update && apt-get install -y --no-install-recommends docker.io \
+RUN apt-get update && apt-get install -y --no-install-recommends docker.io docker-cli \
+    && docker --version && dockerd --version \
     && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log \
         /var/log/alternatives.log /var/cache/ldconfig/aux-cache
 

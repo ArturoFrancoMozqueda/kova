@@ -156,6 +156,20 @@ def test_joint_review_cannot_omit_readings_or_change_the_selected_period(paid):
 
 
 @pytest.mark.parametrize("question", [
+    "Por favor, recomienda qué revisar antes de reponer inventario",
+    "Qué productos necesitan reposición", "Ayúdame a reabastecer mi negocio",
+])
+def test_restock_advice_requires_actual_inventory_even_when_planner_omits_it(paid, question):
+    calls = [{"function": {"name": "get_top_products", "arguments":
+             '{"all_history":true}'}}]
+    selected = generation.ensure_document_read(question, calls)
+    inventory = [item for item in selected if item["function"]["name"] == "get_inventory"]
+    assert len(inventory) == 1
+    assert json.loads(inventory[0]["function"]["arguments"]) == {}
+    assert generation.ensure_document_read(question, selected) == selected
+
+
+@pytest.mark.parametrize("question", [
     "Cómo revisar inventario y reposición", "Necesito ayuda: ¿cómo interpretar mi utilidad?",
     "En Kova, cómo entender mis resultados", "Cómo configurar mi negocio",
     "Mi manual contradice los reportes, contrástalo con mis ventas actuales",
