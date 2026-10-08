@@ -73,6 +73,14 @@ lo detiene y bloquea aceptación; los archivos permanecen deshabilitados hasta Q
 Fuentes: [paquetes Debian](https://packages.debian.org/trixie/docker.io),
 [implementación de exec](https://github.com/superfly/flyctl/blob/master/internal/command/machine/exec.go).
 
+El release `1c904cd` (`37823757140`) alcanzó el scanner, pero rechazó la identidad del host:
+Fly guarda `tag` en deploy y `tag@digest` en machine update. La recuperación restauró
+`92e7655` y detuvo ingesta. La comprobación corregida exige la misma identidad resuelta
+`image_ref` (registry, repository, tag y digest SHA-256) de todas las máquinas app, actualiza
+ingesta con ese digest fijo y acepta ambos formatos solo si concuerdan con esa identidad.
+Conserva las pruebas reales de parser y la estabilidad del proceso; no activa archivos ni IA.
+Fuente: [identidad de imágenes en Machines](https://docs.fly.io/machines/api/machines-resource).
+
 CI de `f6b7c74` (`37819978726`) pasó las comprobaciones obligatorias pero omitió publicación
 por un ancestro opcional no aplicable. La condición corregida exige explícitamente éxito
 de `CI required`, push con código en main y ausencia de cancelación; conserva recuperación.
