@@ -156,7 +156,8 @@ def test_decoder_resource_identifiers_match_public_uuid_contract(candidate, monk
         assert re.fullmatch(resource["pattern"], invalid) is None
 
 
-@pytest.mark.parametrize("alias", ["qwen-fast", "mistral-small", "mistral-us", "deepseek-fast"])
+@pytest.mark.parametrize("alias", ["qwen-fast", "qwen-coreweave-fast", "mistral-small",
+                                   "mistral-us", "deepseek-fast"])
 def test_fast_profile_disables_reasoning_and_rejects_unconfirmed_mode(monkeypatch, alias):
     selected = router.CANDIDATES[alias]
     body = router.Client.body(selected, [{"role": "system", "content": "Solo evidencia."}],

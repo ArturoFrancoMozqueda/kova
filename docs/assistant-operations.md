@@ -255,6 +255,7 @@ Verificación pública sin inferencia realizada el 2026-10-07:
 | `glm-deepinfra` | `z-ai/glm-5.3-flash` | `deepinfra/fp4` | `low` | 0.15 / 0.50 |
 | `qwen-38` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | `low` | 0.20 / 2.50 |
 | `qwen-fast` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | Desactivado | 0.20 / 2.50 |
+| `qwen-coreweave-fast` | `qwen/qwen3.8-27b` | `coreweave/fp8` | Desactivado | 0.40 / 3.00 |
 | `mistral-small` | `mistralai/mistral-small-2603` | `mistral/zdr` | Desactivado | 0.15 / 0.60 |
 | `mistral-us` | `mistralai/mistral-small-2603` | `mistral/us` | Desactivado | 0.165 / 0.66 |
 | `deepseek-flash` | `deepseek/deepseek-v4.1-flash` | `deepinfra/fp8` | `low` | 0.20 / 0.60 |
@@ -323,7 +324,7 @@ la explicación con HTTP 429, sin cuota numérica verificable. El espaciado es u
 conservador, no una cuota atribuida al proveedor ni una prueba de capacidad concurrente; tampoco
 reintenta solicitudes fallidas. Su espera cuenta dentro de la latencia por caso.
 
-Validación local: **167 tests backend del asistente**; Ruff, OpenAPI y `git diff --check`.
+Validación local: **177 tests backend del asistente**; Ruff, OpenAPI y `git diff --check`.
 Los tests comprueban
 intercalado, persistencia antes de POST, privacidad/ruta/precios, costos inciertos y comisiones,
 cuenta sin reset, consumo razonado, compatibilidad del modo y detención global ante error. Las
@@ -368,6 +369,36 @@ ese lote reportó USD 0.160578681 de inferencia acumulada; las reservas incierta
 permanecen en el ledger. El dato se consulta de nuevo antes de cerrar una evaluación.
 **Ningún modelo está aprobado ni activado.** Revisión humana, ingesta/ACL/OCR real, carga y QA
 autenticada de producción permanecen pendientes; no se cambió ningún flag ni se programó trabajo.
+
+**Diagnóstico posterior de rutas y documentos:** Qwen sin razonamiento completó siete casos
+por ruta en Wafer y CoreWeave con contratos y usage verificables; p50 3.991 / 4.344 s,
+máximos 4.380 / 4.710 s. La revisión detectó respuestas que confundían productos destacados
+con todos los vendidos y omisiones de archivos. En un lote separado de veinte casos privados
+por ruta, Wafer omitió buscar el catálogo en sus cuatro variantes y CoreWeave en dos; hubo
+12/16 y 14/16 citas presentes donde había una fuente disponible. Estas cuentas miden presencia,
+no pertinencia ni calidad aprobada.
+
+Se corrigió el runtime de lectura: una pregunta que menciona manuales, documentos, archivos o
+catálogos añade `search_knowledge` si el planner la omite. Conserva las lecturas seleccionadas,
+el máximo de ocho herramientas, consultas de hasta cuatrocientos caracteres y la búsqueda
+existente con consentimiento/tenant/propiedad. Reautoriza la sesión y verifica cancelación
+después del planner y antes de ejecutar lecturas. No habilita documentos ni prepara cambios.
+El evaluador reutiliza esta misma corrección; conserva los casos/oráculos originales.
+
+La repetición diagnóstica posterior en CoreWeave completó veinte casos privados: contratos
+válidos, 16/16 citas presentes donde había fuente, usage verificado, p50 4.123 s / p95 4.687 s
+y máximo 4.975 s. Es una única repetición con fragmentos sintéticos; no acredita el retrieval
+real, los gastos en embeddings ni el tiempo de cola/red/UI. Wafer respondió HTTP 404 al iniciar
+la repetición corregida, después de pasar preflight. Se retuvo su reserva y se detuvo ese lote;
+el experimento nuevo en CoreWeave tuvo su propio manifiesto, sin fallback automático.
+
+Los sondeos están separados en `output/assistant-evaluation/endpoint-probe`,
+`private-file-probe` y `private-file-coreweave`; sus manifiestos declaran que no cuentan para
+aprobar producción, identifican la versión y comparten ledger/lock. Se amplía ahora el perfil
+CoreWeave en el comparador normal de 220 casos y tres repeticiones; no se importan los sondeos
+como aprobación. Las nueve regresiones nuevas prueban búsqueda omitida, límites, no duplicación,
+conservación de propuestas apagadas y bloqueo ante consentimiento retirado/cancelación;
+se amplió también la verificación del modo rápido al nuevo perfil.
 
 Fuentes: [rutas y precios](https://openrouter.ai/docs/guides/routing/provider-selection),
 [ZDR](https://openrouter.ai/docs/guides/features/zdr),

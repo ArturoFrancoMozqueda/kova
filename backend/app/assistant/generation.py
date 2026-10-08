@@ -130,6 +130,22 @@ def planning_system_prompt():
     )
 
 
+def ensure_document_read(content, tool_calls):
+    """A document question must search authorized knowledge, even if planning omits it."""
+    if settings.assistant_mutations_enabled or not re.search(
+        r"(?i)\b(manual(?:es)?|documentos?|archivos?|cat[aá]logos?)\b", content
+    ):
+        return tool_calls
+    if any(item.get("function", item).get("name") == "search_knowledge"
+           for item in tool_calls):
+        return tool_calls
+    if len(tool_calls) >= 8:
+        raise HTTPException(422, "Se alcanzó el límite de herramientas.")
+    return [*tool_calls, {"id": "required_document_read", "type": "function", "function": {
+        "name": "search_knowledge", "arguments": json.dumps({"query": content[:400]}),
+    }}]
+
+
 def explanation_messages(messages):
     """A completed read is evidence, not another function-calling turn."""
     results = [json.loads(m["content"]) for m in messages if m["role"] == "tool"]
@@ -289,9 +305,16 @@ def run(db, ctx, job):
             raise
         budget.settle(db, member.tenant_id, user.id, job.id, reservation_id, response.get("usage"))
         db.commit()
+        if not structured_answer:
+            response["tool_calls"] = ensure_document_read(job.data["content"],
+                                                          response["tool_calls"])
         if response["tool_calls"]:
             if structured_answer:
                 raise HTTPException(422, "La explicación final no admite nuevas herramientas.")
+            db.refresh(job)
+            if job.status != "running":
+                raise HTTPException(409, "La consulta fue cancelada.")
+            authorize(db, ctx)
             normalized = []
             for i, item in enumerate(response["tool_calls"]):
                 function = item.get("function", item)

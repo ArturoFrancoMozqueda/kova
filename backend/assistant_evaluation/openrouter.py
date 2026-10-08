@@ -40,6 +40,8 @@ CANDIDATES = {
     "qwen-38": Candidate("qwen/qwen3.8-27b", "deepinfra/bf16", "DeepInfra", 200, 2500),
     "qwen-fast": Candidate("qwen/qwen3.8-27b", "deepinfra/bf16", "DeepInfra", 200, 2500,
                            reasoning_enabled=False),
+    "qwen-coreweave-fast": Candidate("qwen/qwen3.8-27b", "coreweave/fp8", "CoreWeave",
+                                    400, 3000, reasoning_enabled=False),
     "mistral-small": Candidate("mistralai/mistral-small-2603", "mistral/zdr", "Mistral",
                                150, 600, reasoning_enabled=False),
     "mistral-us": Candidate("mistralai/mistral-small-2603", "mistral/us", "Mistral",

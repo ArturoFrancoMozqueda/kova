@@ -715,6 +715,11 @@ permanece aislado del runtime. Las rutas y sus modos se comprueban contra el cat
 ZDR; los perfiles rápidos verifican razonamiento consumido cero. El máximo total USD 10 incluye
 la comisión real de USD 0.80. Se preservan resultados/versiones y reservas inciertas; las
 correcciones de contexto, UUID y modo requieren repetir cobertura con los mismos oráculos.
+Una corrección posterior asegura búsqueda de conocimiento cuando una consulta de lectura
+menciona manuales, archivos, documentos o catálogos y el planner la omite; reautoriza antes
+de ejecutar lecturas. El sondeo de CoreWeave con veinte casos privados fue más rápido que
+el límite, con fuentes presentes donde había documento; no sustituye la batería completa
+ni la revisión de contenido. Se compara esa ruta también en el evaluador normal.
 La investigación es inmediata; el operador descartó programación diaria. Procedimiento y evidencia:
 [comparación actual](../assistant-operations.md#comparación-autorizada-de-modelos-actuales--2026-10-07).
 

@@ -142,6 +142,8 @@ def evaluate(case, model, call):
     ) else messages
     planning = call(planning_messages, provider.planning_tools(tools.TOOLS),
                     model=model, structured=False)
+    planning["tool_calls"] = generation.ensure_document_read(case.prompt,
+                                                             planning["tool_calls"])
     source_ids = []
     reads = []
     if len(planning["tool_calls"]) > 8:

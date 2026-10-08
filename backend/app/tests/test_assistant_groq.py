@@ -486,6 +486,105 @@ def test_evaluation_adds_private_documents_without_removing_original_cases():
         assert bool(sources) is (case.limitation != "document_unavailable")
 
 
+@pytest.mark.parametrize("content", [
+    "Según mi catálogo, qué debo revisar para conocer la utilidad del té",
+    "Resume los documentos de mi negocio",
+    "Qué indica mi manual sobre devoluciones",
+    "Qué horario aparece en el archivo cargado",
+])
+def test_read_only_document_lookup_does_not_depend_on_model_selection(monkeypatch, content):
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    selected = [{"name": "get_catalog", "arguments": {"query": "té"}}]
+    completed = generation.ensure_document_read(content, selected)
+    assert selected == [{"name": "get_catalog", "arguments": {"query": "té"}}]
+    assert completed[:-1] == selected
+    assert completed[-1]["function"]["name"] == "search_knowledge"
+    assert json.loads(completed[-1]["function"]["arguments"]) == {"query": content}
+
+
+def test_required_document_read_preserves_bounds_and_existing_lookup(monkeypatch):
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    selected = [{"function": {"name": "search_knowledge", "arguments": '{"query":"té"}'}}]
+    assert generation.ensure_document_read("Según mi catálogo", selected) is selected
+    assert generation.ensure_document_read("Analiza mis ventas", []) == []
+    added = generation.ensure_document_read("mi manual " + "a" * 600, [])
+    assert len(json.loads(added[0]["function"]["arguments"])["query"]) == 400
+    with pytest.raises(HTTPException) as exc:
+        generation.ensure_document_read("mi manual", [{"name": "get_catalog"}] * 8)
+    assert exc.value.status_code == 422
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", True)
+    assert generation.ensure_document_read("Prepara un catálogo", []) == []
+
+
+@pytest.mark.parametrize("initial_reads", [[], [{"name": "get_catalog", "arguments": {}}]])
+def test_generation_searches_documents_before_explaining_when_planner_omits_lookup(
+    groq, enabled_client, monkeypatch, initial_reads
+):
+    from app.assistant import knowledge
+
+    _, db, tenant, _ = enabled_client
+    prompt = "Según mi catálogo, qué debo revisar para conocer la utilidad del té"
+    ctx, job = running_job(db, tenant, prompt)
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    source_id, (title, content, path) = next(iter(knowledge.GUIDES.items()))
+    calls = []
+
+    def lookup(active_db, active_tenant, active_user, query):
+        calls.append((active_db, active_tenant, active_user, query))
+        return [{"id": source_id, "title": title, "content": content, "path": path,
+                 "page": 1, "public": True}]
+
+    def respond(messages, tools, **kw):
+        usage = {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120,
+                 "completion_tokens_details": {"reasoning_tokens": 0}}
+        if not kw["structured"]:
+            return {"content": "", "tool_calls": initial_reads, "usage": usage}
+        assert calls == [(db, tenant, ctx[0].id, prompt)]
+        assert kw["allowed_source_ids"] == [source_id]
+        assert source_id in messages[-1]["content"]
+        return {"content": json.dumps({"answer": "Revisa la documentación recuperada.",
+                "source_ids": [source_id]}), "tool_calls": [], "usage": usage}
+
+    monkeypatch.setattr(knowledge, "search", lookup)
+    monkeypatch.setattr(provider, "generate", respond)
+    generation.run(db, ctx, job)
+    assert job.status == "completed"
+    assert job.data["source_ids"] == [source_id]
+    assert job.data["proposal_id"] is None
+
+
+@pytest.mark.parametrize("interruption,status", [("consent", 403), ("cancel", 409)])
+def test_required_document_lookup_rechecks_access_after_planning(
+    groq, enabled_client, monkeypatch, interruption, status
+):
+    from app.assistant import knowledge
+
+    _, db, tenant, _ = enabled_client
+    ctx, job = running_job(db, tenant, "Resume mi manual")
+    monkeypatch.setattr(settings, "assistant_mutations_enabled", False)
+    lookups = []
+
+    def respond(*args, **kwargs):
+        if interruption == "consent":
+            preference = repo.records(db, tenant, ctx[0].id, "preferences").one()
+            repo.update(preference, chat_consent=False)
+        else:
+            job.status = "cancelled"
+        db.commit()
+        return {"content": "", "tool_calls": [], "usage": {
+            "prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120,
+            "completion_tokens_details": {"reasoning_tokens": 0},
+        }}
+
+    monkeypatch.setattr(provider, "generate", respond)
+    monkeypatch.setattr(knowledge, "search", lambda *args: lookups.append(args) or [])
+    with pytest.raises(HTTPException) as exc:
+        generation.run(db, ctx, job)
+    assert exc.value.status_code == status
+    assert not lookups
+    assert job.status != "completed"
+
+
 def test_paid_evaluation_preserves_free_ledger_and_enforces_total_spend(monkeypatch):
     from scripts import evaluate_assistant as evaluation
 

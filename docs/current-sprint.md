@@ -28,12 +28,15 @@ guías, archivos propios y recomendaciones. La comparación autorizada actual en
 GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4, ampliada a DeepSeek V4.1 Flash y perfiles rápidos.
 Cuenta, saldo y clave OpenRouter ya verificados; se ejecutan pruebas live con datos sintéticos,
 rutas ZDR y presupuesto compartido de USD 10, incluida la comisión confirmada de USD 0.80.
-El evaluador aislado tiene 167 tests backend. El operador fijó espera máxima de diez segundos
+El evaluador y el runtime tienen 177 tests backend focalizados. El operador fijó espera máxima de diez segundos
 por respuesta completa; DeepSeek con razonamiento bajo queda fuera como principal. Se comparan
 perfiles rápidos y la ruta regional Mistral/US, con privacidad/precio comprobados por separado.
 Qwen rápido mostró fallos de interpretación y
 selección de lecturas; se corrigieron contexto, UUIDs y validación de modos antes de repetir
-la cobertura afectada. Ningún candidato tiene aprobación de calidad. Se conservan los 220 casos
+la cobertura afectada. Los sondeos de CoreWeave completaron veinte casos privados en p50 4.123 s,
+máximo 4.975 s; se corrigió la búsqueda omitida de archivos y se reautoriza antes de leer.
+Se amplía ese perfil en la batería normal; los sondeos no cuentan como aprobación.
+Ningún candidato tiene aprobación de calidad. Se conservan los 220 casos
 y sus tres repeticiones requeridas; documentos y mutaciones siguen sin habilitarse en producción.
 No hay programación diaria. La evidencia y los
 gates viven en [operación del asistente](assistant-operations.md#integración-de-groq-y-respuestas-directas--2026-10-07).
