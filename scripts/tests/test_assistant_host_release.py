@@ -1,5 +1,9 @@
 import importlib.util
 import json
+import shlex
+import subprocess
+import sys
+import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,7 +35,7 @@ def output(args, machines):
     script = args[4]
     if script.startswith("docker image inspect"):
         stdout = "sha256:" + "b" * 64 + "\n"
-    elif script == "python scripts/check_assistant_parser.py":
+    elif script == module.PARSER_COMMAND:
         stdout = "\n".join("PASS: " + name for name in module.PARSER_CHECKS)
     else:
         stdout = json.dumps([123, "10000"])
@@ -62,7 +66,9 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertIn("GIT_SHA=" + SHA, args)
         self.assertIn("registry.fly.io/pos-project-backend:test@" + DIGEST, args)
         self.assertFalse(any(a in args for a in ("deploy", "run", "--vm-memory", "--region")))
-        self.assertTrue(any("python scripts/check_assistant_parser.py" in call
+        self.assertEqual(module.PARSER_COMMAND,
+                         "/app/.venv/bin/python /app/scripts/check_assistant_parser.py")
+        self.assertTrue(any(module.PARSER_COMMAND in call
                             for call, _ in calls))
 
     def test_tag_and_digest_qualified_configurations_share_the_same_verified_identity(self):
@@ -97,7 +103,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
         def run(args, **kwargs):
             calls.append(args)
             stdout = (json.dumps({"exit_code": 1, "stdout": "private-value"})
-                      if "python scripts/check_assistant_parser.py" in args
+                      if module.PARSER_COMMAND in args
                       else output(args, [machine("app"), machine("ingest")]))
             return SimpleNamespace(returncode=0, stdout=stdout)
         with self.assertRaises(RuntimeError):
@@ -168,7 +174,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertEqual(config["metadata"]["fly_process_group"], "ingest")
         self.assertEqual(create[0][create[0].index("--region") + 1], "iad")
         self.assertIn("kova-assistant-ingest", create[0])
-        self.assertTrue(any(args[4] == "python scripts/check_assistant_parser.py"
+        self.assertTrue(any(args[4] == module.PARSER_COMMAND
                             for args in calls if args[1:3] == ["machine", "exec"]))
         self.assertTrue(all("--json" in args for args in calls
                             if args[1:3] == ["machine", "exec"]))
@@ -185,7 +191,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
 
         def run(args, **kwargs):
             calls.append(args)
-            return SimpleNamespace(returncode=int("python scripts/check_assistant_parser.py" in args),
+            return SimpleNamespace(returncode=int(module.PARSER_COMMAND in args),
                                    stdout=output(args, [machine("app"), machine("ingest")]))
 
         with patch.object(module, "datetime") as clock:
@@ -207,13 +213,48 @@ class AssistantHostReleaseTests(unittest.TestCase):
                 self.assertNotIn("private-value", str(caught.exception))
                 self.assertNotIn("secret", str(caught.exception))
 
+    def test_remote_failure_identifies_only_the_fixed_stage_and_exception_type(self):
+        def run(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps({
+                "exit_code": 1, "stdout": "private-value",
+                "stderr": "private-value\nSyntaxError: secret-message\n"}))
+        with self.assertRaisesRegex(RuntimeError, "worker identity probe failed: SyntaxError") as exc:
+            module.remote("ingest", "fixed-probe", timeout=20, run=run,
+                          stage="worker identity probe")
+        self.assertNotIn("private-value", str(exc.exception))
+        self.assertNotIn("secret-message", str(exc.exception))
+
+    def test_worker_probe_executes_and_accepts_only_the_two_deployed_script_paths(self):
+        for script_path in ("scripts/run_assistant_ingest.py", "/app/scripts/run_assistant_ingest.py",
+                            "/other/scripts/run_assistant_ingest.py"):
+            with self.subTest(script_path=script_path), tempfile.TemporaryDirectory() as temp:
+                proc = Path(temp) / "123"
+                proc.mkdir()
+                (proc / "cmdline").write_bytes(
+                    b"/app/.venv/bin/python\0" + script_path.encode() + b"\0--workload\0ingest\0")
+                (proc / "stat").write_text("123 (python) " + " ".join(["0"] * 19 + ["10000"]))
+                def run(args, **kwargs):
+                    argv = shlex.split(args[4])
+                    self.assertEqual(len(argv), 3)
+                    source = argv[2].replace("Path('/proc')", "Path(" + repr(temp) + ")")
+                    result = subprocess.run([sys.executable, "-c", source],
+                                            capture_output=True, text=True, check=False)
+                    return SimpleNamespace(returncode=0, stdout=json.dumps({
+                        "stdout": result.stdout, "stderr": result.stderr,
+                        "exit_code": result.returncode}))
+                if script_path.startswith("/other"):
+                    with self.assertRaises(RuntimeError):
+                        module.worker_identity("ingest", run)
+                else:
+                    self.assertEqual(module.worker_identity("ingest", run), [123, "10000"])
+
     def test_remote_parser_exit_and_incomplete_pass_list_stop_existing_host(self):
         for body in ({"exit_code": 1, "stdout": "PASS: PDF text"},
                      {"stdout": "PASS: PDF text"}):
             calls = []
             def run(args, **kwargs):
                 calls.append(args)
-                stdout = (json.dumps(body) if "python scripts/check_assistant_parser.py" in args
+                stdout = (json.dumps(body) if module.PARSER_COMMAND in args
                           else output(args, [machine("app"), machine("ingest")]))
                 return SimpleNamespace(returncode=0, stdout=stdout)
             with self.subTest(body=body), patch.object(module, "datetime") as clock:

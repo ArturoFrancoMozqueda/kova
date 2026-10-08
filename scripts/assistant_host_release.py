@@ -12,6 +12,7 @@ from pathlib import Path
 
 APP = "pos-project-backend"
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
+PARSER_COMMAND = "/app/.venv/bin/python /app/scripts/check_assistant_parser.py"
 PARSER_CHECKS = {
     "UTF-8 business text", "DOCX text", "PDF text", "PDF Spanish OCR",
     "DOCX path traversal", "DOCX external relationship", "DOCX macro",
@@ -29,7 +30,7 @@ def command(args, *, run=subprocess.run, **kwargs):
     return result.stdout
 
 
-def remote(identifier, script, *, timeout, run):
+def remote(identifier, script, *, timeout, run, stage="remote probe"):
     # flyctl returns zero even when the remote process exits unsuccessfully.
     # Zero exit_code is omitted in Fly's JSON; require stdout as positive evidence.
     try:
@@ -40,7 +41,14 @@ def remote(identifier, script, *, timeout, run):
     if (not isinstance(body, dict) or type(body.get("exit_code", 0)) is not int
             or body.get("exit_code", 0) != 0 or not isinstance(body.get("stdout"), str)
             or not body["stdout"].strip()):
-        raise RuntimeError("Isolated host execution failed")
+        # Only fixed exception types from a trusted probe may enter diagnostics;
+        # provider output, private content and traceback messages stay suppressed.
+        stderr = body.get("stderr", "") if isinstance(body, dict) else ""
+        kinds = re.findall(r"(?m)^(AssertionError|SyntaxError|JSONDecodeError|"
+                           r"FileNotFoundError|PermissionError|RuntimeError)\b", stderr) \
+            if isinstance(stderr, str) else []
+        suffix = ": " + kinds[-1] if kinds else ""
+        raise RuntimeError("Isolated host " + stage + " failed" + suffix)
     return body["stdout"]
 
 
@@ -53,7 +61,8 @@ for path in Path('/proc').glob('[0-9]*/cmdline'):
     try:
         args = path.read_bytes().split(b'\\0')
         if (Path(args[0].decode()).name.startswith('python')
-                and b'scripts/run_assistant_ingest.py' in args):
+                and len(args) > 1 and args[1] in
+                (b'scripts/run_assistant_ingest.py', b'/app/scripts/run_assistant_ingest.py')):
             workers.append([int(path.parent.name),
                             (path.parent / 'stat').read_text().rsplit(')', 1)[1].split()[19]])
     except (OSError, ValueError, IndexError):
@@ -63,7 +72,7 @@ print(json.dumps(workers[0]))
 """
     try:
         value = json.loads(remote(identifier, "/app/.venv/bin/python -c " + shlex.quote(script),
-                                  timeout=20, run=run))
+                                  timeout=20, run=run, stage="worker identity probe"))
     except (ValueError, TypeError):
         raise RuntimeError("Invalid isolated worker identity") from None
     if (not isinstance(value, list) or len(value) != 2 or type(value[0]) is not int
@@ -198,11 +207,14 @@ def verify(identifier, sha, image, *, run=subprocess.run, sleep=time.sleep):
                     raise
                 sleep(20)
         started_host(identifier, sha, image, run)
+        print("Isolated scanner image verified", flush=True)
         identity = worker_identity(identifier, run)
-        report = remote(identifier, "python scripts/check_assistant_parser.py",
-                        timeout=240, run=run)
+        print("Isolated worker identity verified; parser checks starting", flush=True)
+        report = remote(identifier, PARSER_COMMAND,
+                        timeout=240, run=run, stage="parser checks")
         if set(report.splitlines()) != {"PASS: " + name for name in PARSER_CHECKS}:
             raise RuntimeError("Isolated parser did not complete every required check")
+        print("Isolated parser completed every required check", flush=True)
         sleep(30)
         started_host(identifier, sha, image, run)
         if worker_identity(identifier, run) != identity:
