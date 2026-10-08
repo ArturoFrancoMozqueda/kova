@@ -35,8 +35,8 @@ def output(args, machines):
     script = args[4]
     if script.startswith("docker image inspect"):
         stdout = "sha256:" + "b" * 64 + "\n"
-    elif script == module.PARSER_COMMAND:
-        stdout = "\n".join("PASS: " + name for name in module.PARSER_CHECKS)
+    elif script.startswith(module.PARSER_COMMAND + " --check "):
+        stdout = "PASS: " + shlex.split(script)[-1]
     else:
         stdout = json.dumps([123, "10000"])
     # Fly omits exit_code on successful execution.
@@ -68,8 +68,11 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertFalse(any(a in args for a in ("deploy", "run", "--vm-memory", "--region")))
         self.assertEqual(module.PARSER_COMMAND,
                          "/app/.venv/bin/python /app/scripts/check_assistant_parser.py")
-        self.assertTrue(any(module.PARSER_COMMAND in call
-                            for call, _ in calls))
+        parser_calls = [call for call, _ in calls if call[1:3] == ["machine", "exec"]
+                        and call[4].startswith(module.PARSER_COMMAND)]
+        self.assertEqual(len(parser_calls), 10)
+        self.assertEqual({shlex.split(call[4])[-1] for call in parser_calls}, module.PARSER_CHECKS)
+        self.assertTrue(all(call[call.index("--timeout") + 1] == "60" for call in parser_calls))
 
     def test_tag_and_digest_qualified_configurations_share_the_same_verified_identity(self):
         app, ingest = machine("app"), machine("ingest")
@@ -103,7 +106,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
         def run(args, **kwargs):
             calls.append(args)
             stdout = (json.dumps({"exit_code": 1, "stdout": "private-value"})
-                      if module.PARSER_COMMAND in args
+                      if args[1:3] == ["machine", "exec"] and args[4].startswith(module.PARSER_COMMAND)
                       else output(args, [machine("app"), machine("ingest")]))
             return SimpleNamespace(returncode=0, stdout=stdout)
         with self.assertRaises(RuntimeError):
@@ -174,7 +177,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertEqual(config["metadata"]["fly_process_group"], "ingest")
         self.assertEqual(create[0][create[0].index("--region") + 1], "iad")
         self.assertIn("kova-assistant-ingest", create[0])
-        self.assertTrue(any(args[4] == module.PARSER_COMMAND
+        self.assertTrue(any(args[4].startswith(module.PARSER_COMMAND)
                             for args in calls if args[1:3] == ["machine", "exec"]))
         self.assertTrue(all("--json" in args for args in calls
                             if args[1:3] == ["machine", "exec"]))
@@ -191,7 +194,8 @@ class AssistantHostReleaseTests(unittest.TestCase):
 
         def run(args, **kwargs):
             calls.append(args)
-            return SimpleNamespace(returncode=int(module.PARSER_COMMAND in args),
+            failed = args[1:3] == ["machine", "exec"] and args[4].startswith(module.PARSER_COMMAND)
+            return SimpleNamespace(returncode=int(failed),
                                    stdout=output(args, [machine("app"), machine("ingest")]))
 
         with patch.object(module, "datetime") as clock:
@@ -254,7 +258,8 @@ class AssistantHostReleaseTests(unittest.TestCase):
             calls = []
             def run(args, **kwargs):
                 calls.append(args)
-                stdout = (json.dumps(body) if module.PARSER_COMMAND in args
+                stdout = (json.dumps(body) if args[1:3] == ["machine", "exec"]
+                          and args[4].startswith(module.PARSER_COMMAND)
                           else output(args, [machine("app"), machine("ingest")]))
                 return SimpleNamespace(returncode=0, stdout=stdout)
             with self.subTest(body=body), patch.object(module, "datetime") as clock:
@@ -286,3 +291,11 @@ class AssistantHostReleaseTests(unittest.TestCase):
         dockerfile = (module.BACKEND / "Dockerfile").read_text()
         self.assertIn("--no-install-recommends docker.io docker-cli", dockerfile)
         self.assertIn("docker --version && dockerd --version", dockerfile)
+
+    def test_cli_deadline_failure_exposes_no_remote_diagnostics(self):
+        def run(*args, **kwargs):
+            return SimpleNamespace(returncode=1, stdout="private-value",
+                                   stderr="context deadline exceeded: private-value")
+        with self.assertRaisesRegex(RuntimeError, r"machine exec \(deadline\)") as exc:
+            module.command(["machine", "exec", "ingest", "fixed-probe"], run=run)
+        self.assertNotIn("private-value", str(exc.exception))
