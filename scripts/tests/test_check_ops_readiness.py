@@ -183,6 +183,16 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("release debe depender del resultado CI required", errors)
         self.assertIn("release no puede ignorar fallos", errors)
 
+    def test_release_requires_explicit_success_after_planned_skips_and_blocks_cancellation(self):
+        for clause in ("always() && ", "!cancelled() && ",
+                       "needs.required.result == 'success' && "):
+            with self.subTest(clause=clause), tempfile.TemporaryDirectory() as directory:
+                workflows = self._workflows(directory)
+                ci = workflows / "ci.yml"
+                ci.write_text(ci.read_text().replace(clause, ""))
+                errors = OPS.workflow_contract_errors(workflows)
+                self.assertTrue(any("if: always() && !cancelled()" in error for error in errors))
+
     def test_rejects_provider_drill_without_cleanup_or_with_automatic_trigger(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             workflows = self._workflows(directory)

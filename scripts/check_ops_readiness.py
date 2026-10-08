@@ -72,6 +72,7 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
     ):
         errors.append("release debe depender del resultado CI required")
     release_markers = (
+        "if: always() && !cancelled() && needs.required.result == 'success' &&",
         "github.event_name == 'push'", "github.ref == 'refs/heads/main'",
         "needs.changes.outputs.code == 'true'", "release-rollback-",
         "if-no-files-found: error", ".autoAssignCustomDomains",
