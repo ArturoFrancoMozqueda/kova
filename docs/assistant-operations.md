@@ -10,7 +10,8 @@ los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue
 PR #169 se integró y publicó como `fff84d086b8ccd64f5f4ccf0f767afd4a0f8c03f`.
 CI completo y aceptación pública de frontend/API/proxy/DB correctos. Se preservó el piloto:
 IA pagada y archivos no se activan por publicar este código. La QA autenticada confirmó
-la guía de importación y su fuente. El host nuevo todavía debe provisionarse y verificarse.
+la guía de importación y su fuente. Los releases siguientes corrigieron consultas históricas,
+conclusiones y períodos. El host creado todavía debe pasar su verificación real.
 
 El operador autoriza publicación y gasto recurrente: hasta USD 10/mes de inferencia y
 USD 35/mes para el host de archivos, sin compromiso anual. La autorización no sustituye
@@ -61,6 +62,21 @@ CPU compartida. Se corrige a cuatro CPU, sin reducir RAM ni aislamiento ni exced
 Fuente: [contrato de tamaños](https://github.com/superfly/fly-go/blob/main/machine_types.go),
 [precios iad](https://fly.io/pricing/) (shared-4x/1 GB USD 8.78 + cuatro GB USD 24).
 
+El segundo intento (`37818832393`) creó una máquina, pero su éxito declarado era incorrecto:
+el proceso reinició con `FileNotFoundError` por ausencia del cliente Docker. Debian separa
+`docker-cli` del daemon `docker.io` y se instalaron paquetes sin recomendaciones. La imagen
+corregida instala y comprueba ambos binarios. Además, `flyctl machine exec` puede terminar
+con cero aunque el proceso remoto falle: la verificación exige JSON remoto exitoso, los
+diez resultados de parser/OCR/antivirus y el mismo proceso vivo después de treinta segundos.
+Esta condición se aplica también al actualizar el host durante releases normales. Un fallo
+lo detiene y bloquea aceptación; los archivos permanecen deshabilitados hasta QA real.
+Fuentes: [paquetes Debian](https://packages.debian.org/trixie/docker.io),
+[implementación de exec](https://github.com/superfly/flyctl/blob/master/internal/command/machine/exec.go).
+
+CI de `f6b7c74` (`37819978726`) pasó las comprobaciones obligatorias pero omitió publicación
+por un ancestro opcional no aplicable. La condición corregida exige explícitamente éxito
+de `CI required`, push con código en main y ausencia de cancelación; conserva recuperación.
+
 La consulta de productos distingue rango acotado (predeterminado hoy) de `all_history=true`.
 El histórico completo se agrega en PostgreSQL sin cargar todas las ventas en memoria;
 conserva RLS, la sucursal activa, solo ventas completadas y devoluciones descontadas.
@@ -84,6 +100,16 @@ calcula hoy/ayer/semanas/meses usando la fecha local del tenant y entrega límit
 al planificador; no delega aritmética de calendario al modelo. El harness usa ese mismo
 contexto de producción, con pruebas de año nuevo y febrero bisiesto.
 
+La auditoría de períodos pasó 54/54 consultas tras ese cálculo del servidor. La QA autenticada
+del release `92e7655` respondió al histórico real con Latte mediano y 489 unidades netas,
+con alcance de sucursal activo; la respuesta completa medida tardó 8.988 s. Es un atajo
+determinista y no acredita la latencia de Mistral ni carga concurrente.
+La evaluación semántica posterior detectó omisiones de lecturas para devoluciones y
+reposición: el servidor exige ventas o inventario cuando corresponden, sin duplicar tools.
+Se conserva la evidencia fallida; cada cambio del perfil requiere su propia batería.
+Las respuestas nuevas guardan cifras y fuentes junto al mensaje para conservarlas al reabrir;
+la retirada de documentos/memoria y los controles de usuario/sucursal siguen ocultando evidencia.
+
 Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
 una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada
 de archivos siguen siendo gates de publicación/activación. No se considera producción lista
@@ -98,7 +124,7 @@ localmente; el commit corregido debe volver a completar CI antes de publicación
 
 ## Evidencia histórica de selección — 2026-10-07
 
-Decisión vigente: [GPT-OSS-120B en Cerebras/OpenRouter, con evidencia controlada por Kova](research/ASSISTANT-DECISION-2026-10-07.md).
+Decisión y evidencia histórica: [selección del modelo, con evidencia controlada por Kova](research/ASSISTANT-DECISION-2026-10-07.md).
 La integración está en PR #169; no habilita producción. El modelo escoge lecturas y pasajes
 por identificador; Kova escribe reportes, límites y referencias. Las cifras se conservan en
 las tarjetas existentes. ZDR, recolección denegada, modelo/ruta fijos y máximos de precio se
