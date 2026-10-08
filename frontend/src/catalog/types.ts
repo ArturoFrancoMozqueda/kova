@@ -40,6 +40,10 @@ export type Product = {
   // Optional for compatibility with catalog rows cached by older PWA bundles.
   // The API returns null when cost is unknown or hidden for the current role.
   cost_price?: string | null;
+  track_lots?: boolean;
+  rotation_label?: "consumo_preferente" | "fecha_objetivo";
+  rotation_days?: number | null;
+  expiry_days?: number | null;
   track_inventory: boolean;
   low_stock_threshold: number | null;
   image_url: string | null;
@@ -71,6 +75,10 @@ export type ProductCreate = {
   price_amount: string;
   cost_price?: string | null;
   category_id?: string | null;
+  track_lots?: boolean;
+  rotation_label?: "consumo_preferente" | "fecha_objetivo";
+  rotation_days?: number | null;
+  expiry_days?: number | null;
   track_inventory?: boolean;
   low_stock_threshold?: number | null;
   image_position_x?: number;
@@ -86,6 +94,10 @@ export type ProductUpdate = {
   price_amount?: string;
   cost_price?: string | null;
   category_id?: string | null;
+  track_lots?: boolean;
+  rotation_label?: "consumo_preferente" | "fecha_objetivo";
+  rotation_days?: number | null;
+  expiry_days?: number | null;
   track_inventory?: boolean;
   low_stock_threshold?: number | null;
   image_position_x?: number;

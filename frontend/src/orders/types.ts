@@ -5,6 +5,8 @@ export type OrderItemModifier = {
 };
 
 export type OrderItem = {
+  lot_tracked?: boolean;
+  lot_allocations?: (import("@/inventory/lots").LotAllocation & { code?: string })[];
   id: string;
   product_id: string;
   product_name: string;

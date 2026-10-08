@@ -48,11 +48,12 @@ export function adjustStock(
   reason: string,
   reasonCode?: string | null,
   idempotencyKey: string = crypto.randomUUID(),
+  lotAllocations?: import("./lots").LotAllocation[],
 ): Promise<MovementResponse> {
   return requestJson<MovementResponse>(`/api/v1/inventory/products/${productId}/adjustments`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
-    body: JSON.stringify({ quantity_delta: quantityDelta, reason, reason_code: reasonCode }),
+    body: JSON.stringify({ quantity_delta: quantityDelta, reason, reason_code: reasonCode, ...(lotAllocations ? { lot_allocations: lotAllocations } : {}) }),
   });
 }
 
@@ -61,11 +62,12 @@ export function recordStockTake(
   countedQuantity: number,
   reason: string,
   idempotencyKey: string = crypto.randomUUID(),
+  lotCounts?: { lot_id: string; counted_quantity: number }[],
 ): Promise<MovementResponse> {
   return requestJson<MovementResponse>(`/api/v1/inventory/products/${productId}/stock-take`, {
     method: "POST",
     headers: { "Idempotency-Key": idempotencyKey },
-    body: JSON.stringify({ counted_quantity: countedQuantity, reason }),
+    body: JSON.stringify({ counted_quantity: countedQuantity, reason, ...(lotCounts ? { lot_counts: lotCounts } : {}) }),
   });
 }
 

@@ -121,11 +121,11 @@ export default function OrderDetail() {
     }
   };
 
-  const submitVoid = async (reason: string) => {
+  const submitVoid = async (reason: string, notDelivered?: boolean) => {
     if (!orderId) return;
     setOperationPending(true);
     try {
-      await createVoid(orderId, reason);
+      await createVoid(orderId, reason, notDelivered);
       setActiveModal(null);
       toast(copy.orderDetail.voidSuccess, "success");
       await load();
@@ -272,6 +272,7 @@ export default function OrderDetail() {
                 <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border p-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{item.product_name}</p>
+                    {item.lot_allocations?.length ? <p className="text-xs text-muted-foreground">Lotes entregados: {item.lot_allocations.map(part => `${part.code ?? "Lote registrado"} · ${part.quantity} unidades`).join(", ")}</p> : null}
                     {item.modifiers?.map((m) => (
                       <p key={`${m.modifier_group_name}-${m.modifier_option_name}`} className="text-xs text-muted-foreground mt-0.5 pl-2">
                         + {m.modifier_option_name}
@@ -337,6 +338,7 @@ export default function OrderDetail() {
             </CardContent>
           </Card>
 
+          {order.items.some(item => item.lot_tracked) && <p className="rounded-lg border p-3 text-sm">Los reembolsos de productos con lotes no reponen inventario. Al anular, confirma si hubo entrega para determinar la reposición.</p>}
           <ReceiptDisplay order={order} receipt={receipt} />
         </div>
       </div>
@@ -356,6 +358,7 @@ export default function OrderDetail() {
       )}
       {activeModal === "void" && (
         <VoidModal
+          hasLots={order.items.some(item => item.lot_tracked)}
           disabled={operationPending}
           onCancel={() => setActiveModal(null)}
           onSubmit={submitVoid}

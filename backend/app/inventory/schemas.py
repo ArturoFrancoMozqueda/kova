@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.inventory.lot_schemas import LotAllocation, LotCount, LotHistoryAllocation
 from app.shared.validation import INTEGER_MAX, INTEGER_MIN, StrictModel
 
 InventoryReasonCode = Literal["merma", "caducidad", "robo", "daño", "autoconsumo", "otro"]
@@ -15,6 +16,7 @@ class InventoryStockItem(BaseModel):
     product_name: str
     sku: str | None
     track_inventory: bool
+    track_lots: bool = False
     stock_on_hand: int
     reserved_quantity: int
     available_quantity: int
@@ -33,6 +35,7 @@ class InventoryMovementResponse(BaseModel):
 
 
 class InventoryAdjustmentCreate(StrictModel):
+    lot_allocations: list[LotAllocation] | None = Field(default=None, max_length=100)
     quantity_delta: int = Field(ge=INTEGER_MIN, le=INTEGER_MAX)
     reason: str = Field(min_length=1, max_length=255)
     reason_code: InventoryReasonCode | None = None
@@ -46,6 +49,7 @@ class InventoryAdjustmentCreate(StrictModel):
 
 
 class StockTakeCreate(StrictModel):
+    lot_counts: list[LotCount] | None = Field(default=None, max_length=1000)
     counted_quantity: int = Field(ge=0, le=INTEGER_MAX)
     reason: str = Field(min_length=1, max_length=255)
 
@@ -55,6 +59,7 @@ class LowStockThresholdUpdate(StrictModel):
 
 
 class MovementHistoryItem(BaseModel):
+    lot_allocations: list[LotHistoryAllocation] = Field(default_factory=list)
     id: UUID
     movement_type: str
     quantity_delta: int

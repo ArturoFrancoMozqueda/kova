@@ -1,3 +1,6 @@
+import { LotPicker } from "@/inventory/LotControls";
+import { allocationValid, proposeLots, type LotAllocation } from "@/inventory/lots";
+import { LotQueueError, availableLots, readLocalLots, refreshLocalLots, type CachedLotStock } from "@/offline/lotStock";
 import { calculateSalePricing, cachedTaxRate, cacheTaxRate } from "./pricing";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -172,6 +175,10 @@ function RegularRegisterView() {
   useDocumentTitle(copy.documentTitles.register);
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
+  const [lotCache, setLotCache] = useState<CachedLotStock | undefined>();
+  const [lotSelections, setLotSelections] = useState<Record<string, LotAllocation[]>>({});
+  const [lotError, setLotError] = useState("");
+  const [lotRefresh, setLotRefresh] = useState(0);
   const tenantId = state.status === "authenticated" ? state.tenantId : null;
   const [paperWidthMm, setPaperWidthMm] = useState<ReceiptPaperWidth>(() =>
     tenantId ? readCachedReceiptPaperWidth(tenantId) : 80,
@@ -221,6 +228,22 @@ function RegularRegisterView() {
 
   const [modifierTarget, setModifierTarget] = useState<Product | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const lotBranchId = tenantId ? getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : "") : null;
+  const usesLots = loadState.status === "ready" && loadState.products.some(product => product.track_lots);
+  useEffect(() => {
+    let alive = true;
+    setLotCache(undefined); setLotError("");
+    if (!tenantId || !lotBranchId || !usesLots) return;
+    const load = async () => {
+      const cached = await readLocalLots(tenantId, lotBranchId);
+      if (alive) setLotCache(cached);
+      if (!navigator.onLine) return;
+      try { const fresh = await refreshLocalLots(tenantId, lotBranchId); if (alive) setLotCache(fresh); }
+      catch (err) { if (alive) setLotError(err instanceof Error ? err.message : "No pudimos actualizar los lotes."); }
+    };
+    void load();
+    return () => { alive = false; };
+  }, [tenantId, lotBranchId, usesLots, lotRefresh]);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
   // undefined = state unknown (fetch pending/failed/offline), null = no open
   // shift, Shift = open. Unknown blocks only cash so sales cannot be omitted
@@ -310,6 +333,8 @@ function RegularRegisterView() {
     if (submittingRef.current) return;
     cartGenerationRef.current += 1;
     setCart({});
+    setLotSelections({});
+    setLotRefresh(value => value + 1);
     setDiscount("0.00");
     setCustomerId("");
     setCustomerQuery("");
@@ -944,6 +969,25 @@ function RegularRegisterView() {
       return;
     }
 
+    const lotPools: Record<string, LotAllocation[]> = {};
+    for (const item of cartItems) {
+      if (!item.product.track_lots || lotPools[item.product.id]) continue;
+      const quantity = quantityInCart(item.product.id);
+      const rows = lotCache && lotCache.tenant_id === tenantId && lotCache.branch_id === lotBranchId ? availableLots(lotCache).filter(lot => lot.product_id === item.product.id) : [];
+      const parts = lotSelections[item.product.id] ?? proposeLots(rows, quantity);
+      if (!allocationValid(parts, quantity)) { toast("Carga los lotes y asigna todas las unidades antes de cobrar.", "error"); return; }
+      lotPools[item.product.id] = parts.map(part => ({ ...part }));
+    }
+    const takeLots = (productId: string, quantity: number) => {
+      const result: LotAllocation[] = [];
+      const pool = lotPools[productId];
+      while (quantity > 0 && pool?.length) {
+        const take = Math.min(quantity, pool[0].quantity);
+        result.push({ lot_id: pool[0].lot_id, quantity: take }); quantity -= take; pool[0].quantity -= take;
+        if (!pool[0].quantity) pool.shift();
+      }
+      return result;
+    };
     submittingRef.current = true;
     setSubmitting(true);
     clearSkuSearch();
@@ -955,6 +999,7 @@ function RegularRegisterView() {
       ...(customerId ? { customer_id: customerId } : {}),
       items: cartItems.map((item) => ({
         product_id: item.product.id,
+        ...(item.product.track_lots ? { lot_allocations: takeLots(item.product.id, item.quantity) } : {}),
         unit_price_amount: item.effectiveUnitPrice,
         quantity: item.quantity,
         modifier_option_ids: item.selectedModifiers.map((m) => m.optionId),
@@ -1026,8 +1071,9 @@ function RegularRegisterView() {
     try {
       if (!tenantId) throw new Error("Authenticated tenant required");
       queueItem = await queueOfflineSale(tenantId, sale, openShift?.id, receiptSnapshot, getActiveBranchId(tenantId, state.status === "authenticated" ? state.user.id : ""));
-    } catch {
-      toast(copy.register.saleError, "error");
+    } catch (err) {
+      toast(err instanceof LotQueueError ? err.message : copy.register.saleError, "error");
+      setLotRefresh(value => value + 1);
       submittingRef.current = false;
       setSubmitting(false);
       return;
@@ -1068,8 +1114,13 @@ function RegularRegisterView() {
           activeSaleClientUuidRef.current = null;
           setPendingReceipt(null);
           setCompletedOrder(null);
-          setCart(submittedCart);
-          adjustKnownStockForCart(submittedCart, 1);
+          if (submittedCart && Object.values(submittedCart).some(item => item.product.track_lots)) {
+            toast("La venta cobrada conserva sus lotes en Sincronización. Concilia el conflicto y reintenta desde ahí.", "warning");
+          } else {
+            setCart(submittedCart);
+            adjustKnownStockForCart(submittedCart, 1);
+          }
+          setLotRefresh(value => value + 1);
           toast(copy.register.saleRejected, "error");
           void refreshStock();
         }
@@ -1505,6 +1556,17 @@ function RegularRegisterView() {
                   })}
                 </div>
               )}
+              {[...new Map(cartItems.filter(item => item.product.track_lots).map(item => [item.product.id, item.product])).values()].map(product => {
+                const quantity = quantityInCart(product.id);
+                const rows = lotCache && lotCache.tenant_id === tenantId && lotCache.branch_id === lotBranchId ? availableLots(lotCache).filter(lot => lot.product_id === product.id) : [];
+                return <div key={product.id} className="mt-3"><p className="text-sm font-semibold">{product.name} · lotes</p>
+                  {lotError && <p role="alert" className="text-sm text-destructive">{lotError}</p>}
+                  {!lotCache && <p className="text-sm">Conéctate para cargar los lotes de esta sucursal.</p>}
+                  {lotCache && <p className="text-xs text-muted-foreground">Existencias guardadas: {new Date(lotCache.snapshot.captured_at).toLocaleString("es-MX")}.</p>}
+                  <LotPicker rows={rows} quantity={quantity} value={lotSelections[product.id] ?? proposeLots(rows, quantity)} onChange={parts => setLotSelections(previous => ({ ...previous, [product.id]: parts }))} />
+                  <Button type="button" variant="outline" onClick={() => setLotRefresh(value => value + 1)}>Actualizar lotes</Button>
+                </div>;
+              })}
             </CardContent>
           </Card>
 

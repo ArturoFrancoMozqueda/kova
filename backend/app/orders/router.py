@@ -160,6 +160,7 @@ def create_void(
         user_id=user.id,
         order_id=order_id,
         reason=body.reason,
+        not_delivered=body.not_delivered,
         idempotency_key=idempotency_key,
     )
     response.status_code = status_code

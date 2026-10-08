@@ -1589,6 +1589,27 @@
       "CustomerOrderCheckout": {
         "additionalProperties": false,
         "properties": {
+          "lot_allocations": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "$ref": "#/components/schemas/LotAllocation"
+                  },
+                  "type": "array"
+                },
+                "maxProperties": 200,
+                "propertyNames": {
+                  "format": "uuid"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Allocations"
+          },
           "payments": {
             "items": {
               "$ref": "#/components/schemas/PaymentCreate"
@@ -2232,6 +2253,19 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "lot_reservations": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/LotAllocation"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Lot Reservations",
+            "type": "object"
           },
           "note": {
             "anyOf": [
@@ -4485,6 +4519,21 @@
       "InventoryAdjustmentCreate": {
         "additionalProperties": false,
         "properties": {
+          "lot_allocations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LotAllocation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Allocations"
+          },
           "quantity_delta": {
             "maximum": 2147483647.0,
             "minimum": -2147483648.0,
@@ -4641,6 +4690,11 @@
           },
           "track_inventory": {
             "title": "Track Inventory",
+            "type": "boolean"
+          },
+          "track_lots": {
+            "default": false,
+            "title": "Track Lots",
             "type": "boolean"
           }
         },
@@ -5118,6 +5172,322 @@
           "logo_url"
         ],
         "title": "LogoUploadResponse",
+        "type": "object"
+      },
+      "LotAllocation": {
+        "additionalProperties": false,
+        "properties": {
+          "lot_id": {
+            "format": "uuid",
+            "title": "Lot Id",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "lot_id",
+          "quantity"
+        ],
+        "title": "LotAllocation",
+        "type": "object"
+      },
+      "LotCount": {
+        "additionalProperties": false,
+        "properties": {
+          "counted_quantity": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Counted Quantity",
+            "type": "integer"
+          },
+          "lot_id": {
+            "format": "uuid",
+            "title": "Lot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lot_id",
+          "counted_quantity"
+        ],
+        "title": "LotCount",
+        "type": "object"
+      },
+      "LotHistoryAllocation": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "lot_id": {
+            "format": "uuid",
+            "title": "Lot Id",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "lot_id",
+          "quantity",
+          "code"
+        ],
+        "title": "LotHistoryAllocation",
+        "type": "object"
+      },
+      "LotReclassify": {
+        "additionalProperties": false,
+        "properties": {
+          "destination_lot_id": {
+            "format": "uuid",
+            "title": "Destination Lot Id",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_lot_id": {
+            "format": "uuid",
+            "title": "Source Lot Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_lot_id",
+          "destination_lot_id",
+          "quantity",
+          "reason"
+        ],
+        "title": "LotReclassify",
+        "type": "object"
+      },
+      "LotResponse": {
+        "properties": {
+          "available_quantity": {
+            "title": "Available Quantity",
+            "type": "integer"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "date_status": {
+            "enum": [
+              "sin_fecha",
+              "vigente",
+              "proximo",
+              "vencido"
+            ],
+            "title": "Date Status",
+            "type": "string"
+          },
+          "expires_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires On"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_unknown": {
+            "title": "Is Unknown",
+            "type": "boolean"
+          },
+          "manufactured_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufactured On"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "reserved_quantity": {
+            "title": "Reserved Quantity",
+            "type": "integer"
+          },
+          "rotation_label": {
+            "enum": [
+              "consumo_preferente",
+              "fecha_objetivo"
+            ],
+            "title": "Rotation Label",
+            "type": "string"
+          },
+          "rotation_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation On"
+          },
+          "stock_conflict": {
+            "title": "Stock Conflict",
+            "type": "boolean"
+          },
+          "stock_on_hand": {
+            "title": "Stock On Hand",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "code",
+          "is_unknown",
+          "manufactured_on",
+          "rotation_on",
+          "expires_on",
+          "rotation_label",
+          "stock_on_hand",
+          "reserved_quantity",
+          "available_quantity",
+          "stock_conflict",
+          "date_status"
+        ],
+        "title": "LotResponse",
+        "type": "object"
+      },
+      "LotSnapshot": {
+        "properties": {
+          "applied_client_uuids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Applied Client Uuids",
+            "type": "array"
+          },
+          "branch_id": {
+            "format": "uuid",
+            "title": "Branch Id",
+            "type": "string"
+          },
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/LotResponse"
+            },
+            "title": "Lots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "branch_id",
+          "captured_at",
+          "lots"
+        ],
+        "title": "LotSnapshot",
+        "type": "object"
+      },
+      "LotSnapshotRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_uuids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Client Uuids",
+            "type": "array"
+          }
+        },
+        "title": "LotSnapshotRequest",
+        "type": "object"
+      },
+      "LotWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires On"
+          },
+          "manufactured_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufactured On"
+          },
+          "rotation_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation On"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "LotWrite",
         "type": "object"
       },
       "LowStockThresholdUpdate": {
@@ -5854,6 +6224,13 @@
             "title": "Id",
             "type": "string"
           },
+          "lot_allocations": {
+            "items": {
+              "$ref": "#/components/schemas/LotHistoryAllocation"
+            },
+            "title": "Lot Allocations",
+            "type": "array"
+          },
           "movement_type": {
             "title": "Movement Type",
             "type": "string"
@@ -5966,6 +6343,27 @@
             "title": "Client Uuid",
             "type": "string"
           },
+          "lot_reconciliation": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "$ref": "#/components/schemas/LotAllocation"
+                  },
+                  "type": "array"
+                },
+                "maxProperties": 200,
+                "propertyNames": {
+                  "format": "uuid"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Reconciliation"
+          },
           "occurred_at": {
             "anyOf": [
               {
@@ -6052,6 +6450,17 @@
               }
             ],
             "title": "Error"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
           },
           "order": {
             "anyOf": [
@@ -6727,6 +7136,21 @@
       },
       "OrderItemCreate": {
         "properties": {
+          "lot_allocations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LotAllocation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Allocations"
+          },
           "modifier_option_ids": {
             "items": {
               "format": "uuid",
@@ -6805,6 +7229,18 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Line Total Amount",
             "type": "string"
+          },
+          "lot_allocations": {
+            "items": {
+              "$ref": "#/components/schemas/LotHistoryAllocation"
+            },
+            "title": "Lot Allocations",
+            "type": "array"
+          },
+          "lot_tracked": {
+            "default": false,
+            "title": "Lot Tracked",
+            "type": "boolean"
           },
           "modifiers": {
             "items": {
@@ -7660,6 +8096,19 @@
             ],
             "title": "Description"
           },
+          "expiry_days": {
+            "anyOf": [
+              {
+                "maximum": 36500.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Days"
+          },
           "image_position_x": {
             "default": 50,
             "maximum": 100.0,
@@ -7713,6 +8162,28 @@
             ],
             "title": "Price Amount"
           },
+          "rotation_days": {
+            "anyOf": [
+              {
+                "maximum": 36500.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Days"
+          },
+          "rotation_label": {
+            "default": "consumo_preferente",
+            "enum": [
+              "consumo_preferente",
+              "fecha_objetivo"
+            ],
+            "title": "Rotation Label",
+            "type": "string"
+          },
           "sku": {
             "anyOf": [
               {
@@ -7728,6 +8199,11 @@
           "track_inventory": {
             "default": false,
             "title": "Track Inventory",
+            "type": "boolean"
+          },
+          "track_lots": {
+            "default": false,
+            "title": "Track Lots",
             "type": "boolean"
           }
         },
@@ -7819,6 +8295,17 @@
             ],
             "title": "Description"
           },
+          "expiry_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Days"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -7879,6 +8366,26 @@
             "title": "Price Amount",
             "type": "string"
           },
+          "rotation_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Days"
+          },
+          "rotation_label": {
+            "default": "consumo_preferente",
+            "enum": [
+              "consumo_preferente",
+              "fecha_objetivo"
+            ],
+            "title": "Rotation Label",
+            "type": "string"
+          },
           "sku": {
             "anyOf": [
               {
@@ -7897,6 +8404,11 @@
           },
           "track_inventory": {
             "title": "Track Inventory",
+            "type": "boolean"
+          },
+          "track_lots": {
+            "default": false,
+            "title": "Track Lots",
             "type": "boolean"
           }
         },
@@ -8067,6 +8579,19 @@
             ],
             "title": "Description"
           },
+          "expiry_days": {
+            "anyOf": [
+              {
+                "maximum": 36500.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Days"
+          },
           "image_position_x": {
             "maximum": 100.0,
             "minimum": 0.0,
@@ -8121,6 +8646,27 @@
             ],
             "title": "Price Amount"
           },
+          "rotation_days": {
+            "anyOf": [
+              {
+                "maximum": 36500.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Days"
+          },
+          "rotation_label": {
+            "enum": [
+              "consumo_preferente",
+              "fecha_objetivo"
+            ],
+            "title": "Rotation Label",
+            "type": "string"
+          },
           "sku": {
             "anyOf": [
               {
@@ -8135,6 +8681,10 @@
           },
           "track_inventory": {
             "title": "Track Inventory",
+            "type": "boolean"
+          },
+          "track_lots": {
+            "title": "Track Lots",
             "type": "boolean"
           }
         },
@@ -8909,6 +9459,21 @@
             "format": "uuid",
             "title": "Item Id",
             "type": "string"
+          },
+          "lot_allocations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LotAllocation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Allocations"
           },
           "quantity": {
             "exclusiveMinimum": 0.0,
@@ -9778,6 +10343,21 @@
             "minimum": 0.0,
             "title": "Counted Quantity",
             "type": "integer"
+          },
+          "lot_counts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LotCount"
+                },
+                "maxItems": 1000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Counts"
           },
           "reason": {
             "maxLength": 255,
@@ -10737,6 +11317,21 @@
             "title": "Id",
             "type": "string"
           },
+          "lot_allocations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LotAllocation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Allocations"
+          },
           "product_id": {
             "format": "uuid",
             "title": "Product Id",
@@ -10784,6 +11379,21 @@
             "format": "uuid",
             "title": "Destination Branch Id",
             "type": "string"
+          },
+          "lot_allocations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LotAllocation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Allocations"
           },
           "product_id": {
             "format": "uuid",
@@ -11009,6 +11619,17 @@
       },
       "VoidCreate": {
         "properties": {
+          "not_delivered": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Delivered"
+          },
           "reason": {
             "pattern": "^(operator_error|wrong_product|system_issue|other)$",
             "title": "Reason",
@@ -18254,6 +18875,93 @@
         ]
       }
     },
+    "/api/v1/inventory/lots/snapshot": {
+      "get": {
+        "operationId": "snapshot_api_v1_inventory_lots_snapshot_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "client_uuid",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "maxItems": 1000,
+              "title": "Client Uuid",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Snapshot",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "post": {
+        "operationId": "snapshot_post_api_v1_inventory_lots_snapshot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotSnapshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Snapshot Post",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
     "/api/v1/inventory/low-stock": {
       "get": {
         "operationId": "list_low_stock_api_v1_inventory_low_stock_get",
@@ -18343,6 +19051,317 @@
           }
         },
         "summary": "Adjust Stock",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/products/{product_id}/lots": {
+      "get": {
+        "operationId": "list_product_lots_api_v1_inventory_products__product_id__lots_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LotResponse"
+                  },
+                  "title": "Response List Product Lots Api V1 Inventory Products  Product Id  Lots Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Product Lots",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "post": {
+        "operationId": "create_lot_api_v1_inventory_products__product_id__lots_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Lot",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/products/{product_id}/lots/reclassify": {
+      "post": {
+        "operationId": "reclassify_api_v1_inventory_products__product_id__lots_reclassify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotReclassify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reclassify",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/products/{product_id}/lots/suggestions": {
+      "get": {
+        "operationId": "date_suggestions_api_v1_inventory_products__product_id__lots_suggestions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "manufactured_on",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Manufactured On",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Date Suggestions",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/products/{product_id}/lots/{lot_id}": {
+      "put": {
+        "operationId": "update_lot_api_v1_inventory_products__product_id__lots__lot_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lot Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Lot",
         "tags": [
           "inventory"
         ]

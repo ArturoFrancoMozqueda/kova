@@ -1,3 +1,5 @@
+import { LotAllocationEditor, LotsPanel } from "./LotControls";
+import { allocationValid, listLots, type Lot, type LotAllocation } from "./lots";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { INVENTORY_ADJUST_PERMISSION, usePermission } from "../auth/permissions";
@@ -133,7 +135,7 @@ export default function InventoryView() {
     });
   }, [loadState, stockFilter, stockSearch, stockSort, focusedProductId]);
 
-  const submitModal = async (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null }) => {
+  const submitModal = async (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null; lotAllocations?: LotAllocation[]; lotCounts?: { lot_id: string; counted_quantity: number }[] }) => {
     if (!modal || submissionPending.current) return;
     submissionPending.current = true;
     const payload = JSON.stringify({ productId: modal.item.product_id, type: modal.type, ...values });
@@ -143,11 +145,13 @@ export default function InventoryView() {
     setPending(true);
     try {
       if (modal.type === "adjust") {
-        await adjustStock(modal.item.product_id, values.amount, values.reason, values.reasonCode, idempotencyKey);
+        if (values.lotAllocations) await adjustStock(modal.item.product_id, values.amount, values.reason, values.reasonCode, idempotencyKey, values.lotAllocations);
+        else await adjustStock(modal.item.product_id, values.amount, values.reason, values.reasonCode, idempotencyKey);
         toast(copy.inventoryView.adjustmentSuccess, "success");
       }
       if (modal.type === "stockTake") {
-        await recordStockTake(modal.item.product_id, values.amount, values.reason, idempotencyKey);
+        if (values.lotCounts) await recordStockTake(modal.item.product_id, values.amount, values.reason, idempotencyKey, values.lotCounts);
+        else await recordStockTake(modal.item.product_id, values.amount, values.reason, idempotencyKey);
         toast(copy.inventoryView.stockTakeSuccess, "success");
       }
       if (modal.type === "threshold") {
@@ -568,6 +572,7 @@ function StockCard({
           </Button>
         </div>
 
+        {item.track_lots && <div className="lg:col-span-full"><LotsPanel productId={item.product_id} canAdjust={canAdjust} /></div>}
         {historyOpen && (
           <div className="mt-3 border-t pt-3 animate-fade-in lg:col-span-full">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
@@ -602,6 +607,7 @@ function StockCard({
                         {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
                       </span>
                       <span className="text-muted-foreground truncate">{movementTypeLabel(m.movement_type)}</span>
+                      {m.lot_allocations?.length ? <span className="text-xs text-muted-foreground">{m.lot_allocations.map(part => `${part.code ?? "Lote registrado"}: ${part.quantity}`).join(", ")}</span> : null}
                       {m.reason_code ? <Badge variant="secondary">{reasonCodeLabel(m.reason_code)}</Badge> : null}
                     </div>
                     <div className="shrink-0 text-right">
@@ -627,10 +633,20 @@ type InventoryModalProps = {
   modal: Exclude<ModalState, null>;
   pending: boolean;
   onCancel: () => void;
-  onSubmit: (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null }) => Promise<void>;
+  onSubmit: (values: { amount: number; reason: string; reasonCode: InventoryReasonCode | null; lotAllocations?: LotAllocation[]; lotCounts?: { lot_id: string; counted_quantity: number }[] }) => Promise<void>;
 };
 
 function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalProps) {
+  const [lotAllocations, setLotAllocations] = useState<LotAllocation[]>([]);
+  const [countRows, setCountRows] = useState<Lot[]>([]);
+  const [lotCounts, setLotCounts] = useState<Record<string, number>>({});
+  const [lotError, setLotError] = useState("");
+  useEffect(() => {
+    if (!modal.item.track_lots || modal.type !== "stockTake") return;
+    let alive = true;
+    void listLots(modal.item.product_id).then(rows => { if (alive) { setCountRows(rows); setLotCounts(Object.fromEntries(rows.map(lot => [lot.id, lot.stock_on_hand]))); } }).catch(err => { if (alive) setLotError(err instanceof Error ? err.message : "No pudimos cargar los lotes."); });
+    return () => { alive = false; };
+  }, [modal.item.product_id, modal.item.track_lots, modal.type]);
   const [amount, setAmount] = useState(
     modal.type === "threshold" ? String(modal.item.low_stock_threshold ?? "") : "0",
   );
@@ -652,7 +668,7 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   // Explain *why* the action is blocked instead of only disabling the button:
   // an empty/NaN amount, a stock-take/threshold that went negative, or an
   // adjustment that would drive stock below zero.
-  const numeric = Number(amount);
+  const numeric = modal.item.track_lots && modal.type === "stockTake" ? Object.values(lotCounts).reduce((sum, q) => sum + q, 0) : Number(amount);
   const amountMissing = amount.trim() === "" || !Number.isFinite(numeric);
   let validationError: string | null = null;
   if (amountMissing) {
@@ -674,6 +690,8 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
   } else if (modal.type === "threshold" && numeric < 0) {
     validationError = copy.inventoryModal.negativeThreshold;
   }
+  if (modal.item.track_lots && modal.type === "adjust" && !allocationValid(lotAllocations, Math.abs(numeric))) validationError = "La cantidad debe estar asignada a sus lotes.";
+  if (modal.item.track_lots && modal.type === "stockTake" && (!countRows.length || Object.values(lotCounts).reduce((sum, q) => sum + q, 0) !== numeric)) validationError = "El total debe coincidir con el conteo de todos los lotes.";
   const reasonError = modal.type !== "threshold" && !reason.trim()
     ? "Escribe el motivo del movimiento."
     : null;
@@ -685,6 +703,8 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
       amount: numeric,
       reason: modal.type === "threshold" ? "threshold_update" : reason.trim(),
       reasonCode: modal.type === "adjust" && numeric < 0 ? reasonCode || null : null,
+      ...(modal.item.track_lots && modal.type === "adjust" ? { lotAllocations } : {}),
+      ...(modal.item.track_lots && modal.type === "stockTake" ? { lotCounts: Object.entries(lotCounts).map(([lot_id, counted_quantity]) => ({ lot_id, counted_quantity })) } : {}),
     });
   };
 
@@ -705,7 +725,8 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
             min={modal.type === "adjust" ? Math.max(INVENTORY_QUANTITY_MIN, -modal.item.stock_on_hand) : 0}
             max={modal.type === "adjust" ? Math.min(INVENTORY_QUANTITY_MAX, INVENTORY_QUANTITY_MAX - modal.item.stock_on_hand) : INVENTORY_QUANTITY_MAX}
             disabled={pending}
-            value={amount}
+            value={modal.item.track_lots && modal.type === "stockTake" ? Object.values(lotCounts).reduce((sum, q) => sum + q, 0) : amount}
+              readOnly={Boolean(modal.item.track_lots && modal.type === "stockTake")}
             onChange={(event) => setAmount(event.target.value)}
             aria-invalid={validationError ? true : undefined}
             aria-describedby={
@@ -741,6 +762,8 @@ function InventoryModal({ modal, pending, onCancel, onSubmit }: InventoryModalPr
                 </Select>
               </div>
             ) : null}
+            {modal.item.track_lots && modal.type === "adjust" && <LotAllocationEditor productId={modal.item.product_id} quantity={Math.abs(numeric)} value={lotAllocations} onChange={setLotAllocations} incoming={numeric > 0} physical={numeric < 0} canCreate />}
+            {modal.item.track_lots && modal.type === "stockTake" && <fieldset className="space-y-2"><legend>Conteo físico por lote</legend>{lotError && <p role="alert">{lotError}</p>}{countRows.map(lot => <div key={lot.id}><Label htmlFor={`count-${lot.id}`}>{lot.code}</Label><Input id={`count-${lot.id}`} type="number" min={0} step={1} value={lotCounts[lot.id] ?? 0} onChange={e => setLotCounts(previous => ({ ...previous, [lot.id]: Number(e.target.value) }))} /></div>)}</fieldset>}
             <div className="space-y-2">
               <Label htmlFor="inv-reason">{copy.inventoryModal.reason}</Label>
               <Input

@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
@@ -145,6 +146,9 @@ class CustomerOrderItemModifier(Base):
 class InventoryReservation(BranchScoped, Base):
     __tablename__ = "inventory_reservations"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "branch_id", "product_id", "id", name="uq_inventory_reservations_lot_owner"
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "branch_id"],
             ["branches.tenant_id", "branches.id"],
@@ -174,6 +178,9 @@ class InventoryReservation(BranchScoped, Base):
     customer_order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     product_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    lot_tracked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(

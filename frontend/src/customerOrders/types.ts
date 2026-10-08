@@ -40,6 +40,7 @@ export type CustomerOrderItem = {
 };
 
 export type CustomerOrder = {
+  lot_reservations?: Record<string, import("@/inventory/lots").LotAllocation[]>;
   id: string;
   tenant_id: string;
   folio: string;

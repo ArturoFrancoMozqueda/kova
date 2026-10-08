@@ -5,7 +5,7 @@ from app.auth.models import Membership, User, UserSession
 from app.billing.access import require_commercial_access
 from app.db import get_db
 from app.middleware.rate_limit import rate_limit
-from app.rbac.permissions import Permission
+from app.rbac.permissions import Permission, has_permission
 from app.sync import service
 from app.sync.schemas import OfflineSaleSyncRequest, OfflineSaleSyncResponse
 
@@ -31,5 +31,6 @@ def sync_offline_sales(
             tenant_id=membership.tenant_id,
             user_id=user.id,
             sales=body.sales,
+            can_reconcile_lots=has_permission(membership.role, Permission.INVENTORY_ADJUST),
         )
     )

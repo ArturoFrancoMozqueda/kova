@@ -1,3 +1,4 @@
+import type { LotAllocation } from "@/inventory/lots";
 export type OfflineSaleStatus = "pending" | "syncing" | "synced" | "failed" | "quarantined";
 
 export type OfflinePaymentDraft = {
@@ -13,6 +14,7 @@ export type OfflineSaleDraft = {
   tax_rate?: string;
   items: Array<{
     product_id: string;
+    lot_allocations?: LotAllocation[];
     unit_price_amount?: string;
     quantity: number;
     modifier_option_ids?: string[];
@@ -49,6 +51,7 @@ export type OfflineReceiptSnapshot = {
 };
 
 export type OfflineSaleQueueItem = {
+  lot_reconciliation?: Record<string, LotAllocation[]>;
   client_uuid: string;
   /**
    * Authenticated session tenant that owned the register when the sale was rung.
@@ -72,6 +75,7 @@ export type OfflineSaleQueueItem = {
   lease_id?: string;
   sync_started_at?: string;
   last_error?: string;
+  last_error_code?: string;
   synced_order_id?: string;
   created_at: string;
   updated_at: string;

@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKeyConstraint,
@@ -109,6 +110,9 @@ class OrderItem(Base):
     order_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     product_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     product_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    lot_tracked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
@@ -145,6 +149,14 @@ class Payment(Base):
 class InventoryMovement(BranchScoped, Base):
     __tablename__ = "inventory_movements"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "branch_id", "product_id", "id", name="uq_inventory_movements_lot_owner"
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "order_item_id"],
+            ["order_items.tenant_id", "order_items.id"],
+            name="fk_movement_order_item",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "branch_id"],
             ["branches.tenant_id", "branches.id"],
@@ -172,6 +184,10 @@ class InventoryMovement(BranchScoped, Base):
     product_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     order_id: Mapped[UUID | None] = mapped_column(nullable=True, index=True)
     movement_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    lot_tracked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    order_item_id: Mapped[UUID | None] = mapped_column(nullable=True)
     quantity_delta: Mapped[int] = mapped_column(Integer, nullable=False)
     stock_on_hand_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)

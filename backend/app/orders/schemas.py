@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.inventory.lot_schemas import LotAllocation, LotHistoryAllocation
 from app.shared.validation import (
     MAX_MODIFIER_OPTIONS,
     MAX_ORDER_ITEMS,
@@ -19,6 +20,7 @@ from app.shared.validation import (
 
 
 class OrderItemCreate(BaseModel):
+    lot_allocations: list[LotAllocation] | None = Field(default=None, max_length=100)
     unit_price_amount: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     product_id: UUID
     quantity: int = Field(gt=0)
@@ -47,6 +49,8 @@ class OrderItemModifierResponse(BaseModel):
 
 
 class OrderItemResponse(BaseModel):
+    lot_tracked: bool = False
+    lot_allocations: list[LotHistoryAllocation] = Field(default_factory=list)
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -194,6 +198,7 @@ class RefundResponse(BaseModel):
 
 
 class VoidCreate(BaseModel):
+    not_delivered: bool | None = None
     reason: str = Field(pattern="^(operator_error|wrong_product|system_issue|other)$")
 
 

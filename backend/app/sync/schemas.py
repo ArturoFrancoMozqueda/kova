@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.inventory.lot_schemas import LotAllocation
 from app.orders.schemas import OrderCreate
 from app.shared.validation import MAX_OFFLINE_SALES_BATCH
 
@@ -12,6 +13,7 @@ from app.shared.validation import MAX_OFFLINE_SALES_BATCH
 
 
 class OfflineSaleSyncItem(BaseModel):
+    lot_reconciliation: dict[UUID, list[LotAllocation]] | None = Field(default=None, max_length=200)
     client_uuid: UUID
     branch_id: UUID | None = None
     order: OrderCreate
@@ -29,6 +31,7 @@ class OfflineSaleSyncRequest(BaseModel):
 
 
 class OfflineSaleSyncResult(BaseModel):
+    error_code: str | None = None
     client_uuid: UUID
     status: str
     order_id: UUID | None = None

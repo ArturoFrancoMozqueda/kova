@@ -29,6 +29,7 @@ from app.fiscal.router import router as fiscal_router
 from app.health.router import router as health_router
 from app.imports.router import router as imports_router
 from app.integrations.router import router as integrations_router
+from app.inventory.lot_router import router as inventory_lot_router
 from app.inventory.router import router as inventory_router
 from app.middleware.body_size import BodySizeLimitMiddleware
 from app.middleware.csrf import csrf_middleware
@@ -222,6 +223,7 @@ def create_app() -> FastAPI:
     app.include_router(fiscal_router)
     app.include_router(modifiers_router)
     app.include_router(inventory_router)
+    app.include_router(inventory_lot_router)
     app.include_router(imports_router)
     app.include_router(onboarding_router)
     app.include_router(ops_router)

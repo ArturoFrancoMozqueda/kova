@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.audit import service as audit
 from app.catalog.models import Product
+from app.inventory import lots
 from app.inventory import repository as inventory
 from app.inventory.service import _store_response, _stored_response, _validate_movement_range
 from app.purchasing.models import PurchaseOrder, PurchaseOrderItem, Supplier
@@ -89,6 +90,9 @@ def _finish(db, tenant_id, user_id, key, payload, body, action, resource_id, sta
 
 def create_supplier(db: Session, *, tenant_id: UUID, user_id: UUID, body: SupplierCreate, key: str):
     payload = {"operation": "purchasing.supplier.create", **body.model_dump(mode="json")}
+    for part in payload.get("items", []):
+        if part.get("lot_allocations") is None:
+            part.pop("lot_allocations", None)
     existing = _stored_response(db, tenant_id=tenant_id, idempotency_key=key, payload=payload)
     if existing:
         return existing
@@ -120,6 +124,9 @@ def create_supplier(db: Session, *, tenant_id: UUID, user_id: UUID, body: Suppli
 
 def create_order(db: Session, *, tenant_id: UUID, user_id: UUID, body: PurchaseCreate, key: str):
     payload = {"operation": "purchasing.order.create", **body.model_dump(mode="json")}
+    for part in payload.get("items", []):
+        if part.get("lot_allocations") is None:
+            part.pop("lot_allocations", None)
     existing = _stored_response(db, tenant_id=tenant_id, idempotency_key=key, payload=payload)
     if existing:
         return existing
@@ -182,6 +189,9 @@ def receive(
         "order_id": str(order_id),
         **body.model_dump(mode="json"),
     }
+    for part in payload.get("items", []):
+        if part.get("lot_allocations") is None:
+            part.pop("lot_allocations", None)
     existing = _stored_response(db, tenant_id=tenant_id, idempotency_key=key, payload=payload)
     if existing:
         return existing
@@ -235,15 +245,18 @@ def receive(
         _validate_movement_range(
             quantity_delta=incoming.quantity, stock_on_hand=stock + incoming.quantity
         )
+        parts = lots.choose(db, product, incoming.quantity, incoming.lot_allocations, incoming=True)
         movement = inventory.create_movement(
             db,
             tenant_id=tenant_id,
             product_id=product.id,
             user_id=user_id,
             movement_type="purchase",
+            lot_tracked=product.track_lots,
             quantity_delta=incoming.quantity,
             reason=f"Compra {order.id}; partida {item.id}",
         )
+        lots.attach(db, movement, parts, required=product.track_lots)
         old_cost = product.cost_price
         if body.update_catalog_cost:
             product.cost_price = item.unit_cost
@@ -286,6 +299,9 @@ def receive(
 
 def cancel(db: Session, *, tenant_id: UUID, user_id: UUID, order_id: UUID, key: str):
     payload = {"operation": "purchasing.order.cancel", "order_id": str(order_id)}
+    for part in payload.get("items", []):
+        if part.get("lot_allocations") is None:
+            part.pop("lot_allocations", None)
     existing = _stored_response(db, tenant_id=tenant_id, idempotency_key=key, payload=payload)
     if existing:
         return existing

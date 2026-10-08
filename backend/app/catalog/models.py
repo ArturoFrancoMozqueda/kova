@@ -58,6 +58,17 @@ class Product(Base):
     price_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     cost_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     track_inventory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    track_lots: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    rotation_label: Mapped[str] = mapped_column(
+        String(24),
+        nullable=False,
+        default="consumo_preferente",
+        server_default="consumo_preferente",
+    )
+    rotation_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expiry_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     low_stock_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     image_position_x: Mapped[int] = mapped_column(Integer, nullable=False, default=50)

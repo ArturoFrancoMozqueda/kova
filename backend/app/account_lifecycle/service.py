@@ -52,6 +52,21 @@ def _columns(value: str) -> tuple[str, ...]:
 
 _EXPORT_TABLES = (
     ExportTable(
+        "inventory_lots",
+        _columns(
+            "id tenant_id product_id code is_unknown manufactured_on "
+            "rotation_on expires_on rotation_label created_at"
+        ),
+    ),
+    ExportTable(
+        "inventory_lot_allocations",
+        _columns("id tenant_id branch_id product_id movement_id lot_id quantity_delta"),
+    ),
+    ExportTable(
+        "inventory_lot_reservations",
+        _columns("id tenant_id branch_id product_id reservation_id lot_id quantity"),
+    ),
+    ExportTable(
         "cfdi_connections",
         _columns(
             "id tenant_id environment organization_id issuer_rfc production_ready "
@@ -69,15 +84,11 @@ _EXPORT_TABLES = (
     ),
     ExportTable(
         "customers",
-        _columns(
-            "id tenant_id name email phone is_active created_at updated_at"
-        ),
+        _columns("id tenant_id name email phone is_active created_at updated_at"),
     ),
     ExportTable(
         "suppliers",
-        _columns(
-            "id tenant_id name contact is_active created_at"
-        ),
+        _columns("id tenant_id name contact is_active created_at"),
     ),
     ExportTable(
         "purchase_orders",
@@ -102,9 +113,7 @@ _EXPORT_TABLES = (
     ),
     ExportTable(
         "fiscal_issuer_profiles",
-        _columns(
-            "tenant_id fiscal_data"
-        ),
+        _columns("tenant_id fiscal_data"),
     ),
     ExportTable(
         "invoice_requests",
@@ -122,7 +131,8 @@ _EXPORT_TABLES = (
         "products",
         _columns(
             "id tenant_id category_id name description sku barcode price_amount cost_price "
-            "track_inventory low_stock_threshold is_active image_url image_position_x "
+            "track_inventory track_lots rotation_label rotation_days expiry_days "
+            "low_stock_threshold is_active image_url image_position_x "
             "image_position_y image_zoom created_at updated_at"
         ),
     ),
@@ -158,7 +168,8 @@ _EXPORT_TABLES = (
     ExportTable(
         "order_items",
         _columns(
-            "id tenant_id order_id product_id product_name quantity unit_price_amount unit_cost "
+            "id tenant_id order_id product_id lot_tracked product_name quantity "
+            "unit_price_amount unit_cost "
             "line_total_amount discount_amount tax_amount"
         ),
     ),
@@ -179,7 +190,8 @@ _EXPORT_TABLES = (
     ExportTable(
         "inventory_movements",
         _columns(
-            "id tenant_id branch_id product_id order_id movement_type quantity_delta "
+            "id tenant_id branch_id product_id order_id order_item_id "
+            "lot_tracked movement_type quantity_delta "
             "stock_on_hand_after "
             "reason reason_code created_by_user_id created_at"
         ),
@@ -244,7 +256,7 @@ _EXPORT_TABLES = (
     ExportTable(
         "inventory_reservations",
         _columns(
-            "id tenant_id branch_id customer_order_id product_id quantity status "
+            "id tenant_id branch_id customer_order_id product_id lot_tracked quantity status "
             "created_at updated_at"
         ),
     ),
@@ -383,6 +395,9 @@ _TENANT_DELETE_ORDER = (
     "cfdi_connections",
     "invoice_requests",
     "fiscal_issuer_profiles",
+    "inventory_lot_reservations",
+    "inventory_lot_allocations",
+    "inventory_lots",
     "inventory_transfers",
     "purchase_order_items",
     "purchase_orders",

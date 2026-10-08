@@ -21,5 +21,5 @@ export const listSuppliers = () => request<Supplier[]>("suppliers");
 export const listPurchases = (offset = 0) => request<Purchase[]>(`orders?limit=100&offset=${offset}`);
 export const createSupplier = (name: string, contact: string, key: string) => request<Supplier>("suppliers", { name, contact: contact.trim() || null }, key);
 export const createPurchase = (supplier_id: string, notes: string, items: { product_id: string; quantity: number; unit_cost: string }[], key: string) => request<Purchase>("orders", { supplier_id, notes: notes.trim() || null, items }, key);
-export const receivePurchase = (id: string, items: { item_id: string; quantity: number }[], update_catalog_cost: boolean, key: string) => request<Purchase>(`orders/${id}/receive`, { items, update_catalog_cost }, key);
+export const receivePurchase = (id: string, items: { item_id: string; quantity: number; lot_allocations?: import("@/inventory/lots").LotAllocation[] }[], update_catalog_cost: boolean, key: string) => request<Purchase>(`orders/${id}/receive`, { items, update_catalog_cost }, key);
 export const cancelPurchase = (id: string, key: string) => request<Purchase>(`orders/${id}/cancel`, {}, key);

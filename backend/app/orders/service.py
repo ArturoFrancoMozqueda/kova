@@ -14,7 +14,10 @@ from app.business_settings import repository as business_settings_repo
 from app.catalog.models import Product
 from app.fiscal import repository as fiscal_repo
 from app.idempotency import service as idempotency_service
+from app.inventory import lots
 from app.inventory import repository as inventory_repo
+from app.inventory.lot_schemas import LotAllocation
+from app.inventory.service import _validate_movement_range
 from app.modifiers import service as modifier_service
 from app.modifiers.models import OrderItemModifier
 from app.orders import repository as repo
@@ -136,6 +139,10 @@ def _order_body(db: Session, *, tenant_id: UUID, order: Order) -> dict[str, Any]
                 "product_id": str(item.product_id),
                 "product_name": item.product_name,
                 "quantity": item.quantity,
+                "lot_tracked": item.lot_tracked,
+                "lot_allocations": lots.sale_history_parts(db, tenant_id, item.id)
+                if item.lot_tracked
+                else [],
                 "unit_price_amount": str(item.unit_price_amount),
                 "line_total_amount": str(item.line_total_amount),
                 "modifiers": _modifier_bodies(modifiers[item.id]),
@@ -159,6 +166,7 @@ class PricedOrderLine:
     unit_price: Decimal
     line_total: Decimal
     modifier_snapshots: list[dict[str, Any]]
+    lot_allocations: list[LotAllocation] | None = None
 
 
 def _validate_payments(
@@ -241,13 +249,22 @@ def persist_completed_order(
                 )
             )
         if line.product.track_inventory:
-            repo.create_inventory_movement(
+            # Customer-order allocations were checked excluding their own reservation.
+            parts = line.lot_allocations or []
+            if not line.product.track_lots and parts:
+                raise lots.lot_error("El control de lotes cambió; revisa la venta pendiente")
+            if line.product.track_lots and line.lot_allocations is None:
+                raise lots.lot_error("Selecciona los lotes de la venta", "LOT_SELECTION_REQUIRED")
+            movement = repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
                 product_id=line.product.id,
                 order_id=order.id,
                 quantity_delta=-line.quantity,
+                order_item_id=order_item.id,
+                lot_tracked=line.product.track_lots,
             )
+            lots.attach(db, movement, parts, required=line.product.track_lots)
 
     for payment_entry, (amount, tendered, change_due) in zip(
         payments, validated_payments, strict=True
@@ -281,6 +298,8 @@ def create_order(
     # Exclude newly defaulted fields to retain old idempotency hashes.
     payload = body.model_dump(mode="json", exclude={"customer_id", "discount_amount", "tax_rate"})
     for item_payload in payload["items"]:
+        if item_payload.get("lot_allocations") is None:
+            item_payload.pop("lot_allocations", None)
         if item_payload.get("unit_price_amount") is None:
             item_payload.pop("unit_price_amount", None)
     if body.customer_id is not None:
@@ -366,6 +385,7 @@ def create_order(
                 unit_price=effective_price,
                 line_total=line_total,
                 modifier_snapshots=modifier_snapshots,
+                lot_allocations=item.lot_allocations,
             )
         )
         if product.track_inventory:
@@ -467,13 +487,17 @@ def create_order(
                 )
             )
         if line.product.track_inventory:
-            repo.create_inventory_movement(
+            parts = lots.choose(db, line.product, line.quantity, line.lot_allocations)
+            movement = repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
                 product_id=line.product.id,
                 order_id=order.id,
                 quantity_delta=-line.quantity,
+                lot_tracked=line.product.track_lots,
+                order_item_id=order_item.id,
             )
+            lots.attach(db, movement, parts, required=line.product.track_lots)
 
     for payment_entry, (amount, tendered, change_due) in zip(
         body.payments, validated_payments, strict=True
@@ -631,6 +655,16 @@ def create_refund(
         raise bad_request("Cannot refund a voided order")
 
     all_items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
+    reversal_products = {
+        p.id: p
+        for p in db.query(Product)
+        .filter(
+            Product.tenant_id == tenant_id, Product.id.in_({item.product_id for item in all_items})
+        )
+        .order_by(Product.id)
+        .with_for_update()
+        .all()
+    }
     items_by_id = {item.id: item for item in all_items}
 
     refund_lines = []
@@ -740,15 +774,35 @@ def create_refund(
             order_id=order_id,
             product_id=order_item.product_id,
         )
-        quantity_to_restore = min(quantity, restorable_quantity)
+        quantity_to_restore = 0 if order_item.lot_tracked else min(quantity, restorable_quantity)
         if quantity_to_restore:
-            repo.create_inventory_movement(
+            product = reversal_products[order_item.product_id]
+            _validate_movement_range(
+                quantity_delta=quantity_to_restore,
+                stock_on_hand=inventory_repo.stock_on_hand(
+                    db, tenant_id=tenant_id, product_id=product.id
+                )
+                + quantity_to_restore,
+            )
+            movement = repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
                 product_id=order_item.product_id,
                 order_id=order_id,
                 quantity_delta=quantity_to_restore,
+                order_item_id=order_item.id,
+                lot_tracked=product.track_lots,
             )
+            parts = (
+                [
+                    LotAllocation(
+                        lot_id=lots.unknown_lot(db, product).id, quantity=quantity_to_restore
+                    )
+                ]
+                if product.track_lots
+                else []
+            )
+            lots.attach(db, movement, parts, required=product.track_lots)
 
     refund_items = repo.list_refund_items(db, refund_id=refund.id)
     response_body = {
@@ -875,9 +929,12 @@ def create_void(
     user_id: UUID,
     order_id: UUID,
     reason: str,
+    not_delivered: bool | None = None,
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     payload = {"order_id": str(order_id), "reason": reason}
+    if not_delivered is not None:
+        payload["not_delivered"] = not_delivered
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
     )
@@ -902,6 +959,17 @@ def create_void(
     if existing_void:
         raise bad_request("Order is already voided")
 
+    items = repo.list_order_items(db, tenant_id=tenant_id, order_id=order_id)
+    reversal_products = {
+        p.id: p
+        for p in db.query(Product)
+        .filter(Product.tenant_id == tenant_id, Product.id.in_({item.product_id for item in items}))
+        .order_by(Product.id)
+        .with_for_update()
+        .all()
+    }
+    if any(item.lot_tracked for item in items) and not_delivered is None:
+        raise bad_request("Confirma si el producto se entregó antes de anular la venta")
     void = repo.create_void(
         db,
         tenant_id=tenant_id,
@@ -921,15 +989,47 @@ def create_void(
             order_id=order_id,
             product_id=item.product_id,
         )
-        quantity_to_restore = min(item.quantity, restorable_quantity)
+        quantity_to_restore = (
+            0 if item.lot_tracked and not not_delivered else min(item.quantity, restorable_quantity)
+        )
         if quantity_to_restore:
-            repo.create_inventory_movement(
+            product = reversal_products[item.product_id]
+            if item.lot_tracked and not product.track_lots:
+                raise lots.lot_error(
+                    "Reactiva los lotes del producto antes de reponer una venta anulada"
+                )
+            parts = (
+                lots.original_parts(db, tenant_id, item.id)
+                if item.lot_tracked
+                else (
+                    [
+                        LotAllocation(
+                            lot_id=lots.unknown_lot(db, product).id, quantity=quantity_to_restore
+                        )
+                    ]
+                    if product.track_lots
+                    else []
+                )
+            )
+            if item.lot_tracked:
+                parts = lots.split(parts, quantity_to_restore)
+            _validate_movement_range(
+                quantity_delta=quantity_to_restore,
+                stock_on_hand=inventory_repo.stock_on_hand(
+                    db, tenant_id=tenant_id, product_id=product.id
+                )
+                + quantity_to_restore,
+            )
+            movement = repo.create_inventory_movement(
                 db,
                 tenant_id=tenant_id,
                 product_id=item.product_id,
                 order_id=order_id,
                 quantity_delta=quantity_to_restore,
+                order_item_id=item.id,
+                lot_tracked=product.track_lots,
             )
+            lots.attach(db, movement, parts, required=product.track_lots)
 
     response_body = {
         "id": str(void.id),

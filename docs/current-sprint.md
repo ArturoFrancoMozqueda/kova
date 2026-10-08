@@ -18,6 +18,19 @@ historical evidence and are labelled with their period.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
 
+## Active product implementation (2026-10-08): Lotes y fechas
+
+El propietario aprobó una función completa, opcional por producto, en una rama nueva.
+Implementación en `codex/inventory-lots`, basada en `main` actualizado; comportamiento
+acordado, contratos, seguridad, aceptación y publicación en
+[`specs/inventory/lots.md`](../specs/inventory/lots.md).
+
+Incluye reglas de fechas confirmadas, entradas/compras, ventas, reservas, traspasos,
+mermas, conteos y recuperación offline. Las fechas vencidas solo advierten; los
+reembolsos de ventas con lotes no reponen unidades; la anulación solicita confirmar
+que no hubo entrega. La autorización actual cubre implementación y verificación
+local; no publicación en producción. La evidencia final se registra en la spec.
+
 ## Active assistant implementation (2026-10-08): publicación y activación
 
 El operador autoriza despliegue y gasto recurrente (USD 10/mes de inferencia y hasta USD 35/mes

@@ -114,9 +114,11 @@ export function checkoutCustomerOrder(
   version: number,
   payments: CustomerOrderPayments,
   idempotencyKey?: string,
+  lotAllocations?: Record<string, import("@/inventory/lots").LotAllocation[]>,
 ): Promise<CustomerOrderCheckoutResponse> {
   return mutation<CustomerOrderCheckoutResponse>(`/api/v1/customer-orders/${id}/checkout`, {
     version,
     payments,
+    ...(lotAllocations ? { lot_allocations: lotAllocations } : {}),
   }, "POST", idempotencyKey);
 }

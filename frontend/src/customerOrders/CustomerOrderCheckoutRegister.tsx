@@ -1,3 +1,5 @@
+import { LotAllocationEditor } from "@/inventory/LotControls";
+import { allocationValid, type LotAllocation } from "@/inventory/lots";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, Banknote, Building2, CheckCircle2, CreditCard, Loader2, Plus, Printer, SplitSquareHorizontal, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -35,6 +37,7 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const logoUrl = state.status === "authenticated" ? state.tenantLogoUrl ?? undefined : undefined;
   const [order, setOrder] = useState<CustomerOrder | null>(null);
+  const [lotParts, setLotParts] = useState<Record<string, LotAllocation[]>>({});
   const [payments, setPayments] = useState<DraftPayment[]>([
     { id: crypto.randomUUID(), method: "cash", amount: "", tendered: "", reference: "" },
   ]);
@@ -107,6 +110,7 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
 
   const submit = async () => {
     if (!order || !valid || submittingRef.current) return;
+    if (Object.entries(order.lot_reservations ?? {}).some(([productId, original]) => !allocationValid(lotParts[productId] ?? original, order.items.filter(item => item.product_id === productId).reduce((sum, item) => sum + item.quantity, 0)))) { setError("Completa la asignación de lotes antes de cobrar."); return; }
     submittingRef.current = true;
     setSubmitting(true);
     setError(null);
@@ -118,7 +122,8 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
     const idempotencyKey = checkoutKeyRef.current ?? crypto.randomUUID();
     checkoutKeyRef.current = idempotencyKey;
     try {
-      const result = await checkoutCustomerOrder(order.id, order.version, payload, idempotencyKey);
+      const result = await checkoutCustomerOrder(order.id, order.version, payload, idempotencyKey,
+        Object.keys(order.lot_reservations ?? {}).length ? { ...order.lot_reservations, ...lotParts } : undefined);
       setOrder(result.customer_order);
       setCompletedSaleOrderId(result.sale_order.id);
       checkoutKeyRef.current = null;
@@ -199,6 +204,10 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
         <Card><CardHeader><CardTitle>Pedido listo para cobrar</CardTitle></CardHeader><CardContent className="divide-y p-0">{order.items.map((item) => <div key={item.id} className="grid grid-cols-[auto_1fr_auto] gap-3 px-5 py-4"><span className="font-semibold">{item.quantity}×</span><div><p className="font-medium">{item.product_name}</p>{item.modifiers.length ? <p className="text-xs text-muted-foreground">{item.modifiers.map((modifier) => modifier.modifier_option_name).join(" · ")}</p> : null}</div><span className="font-semibold tabular-nums">{formatMoney(item.line_total_amount)}</span></div>)}<div className="flex justify-between px-5 py-5 text-xl font-bold"><span>Total</span><span>{formatMoney(order.total_amount)}</span></div></CardContent></Card>
 
         <Card><CardHeader><CardTitle>Pago</CardTitle></CardHeader><CardContent className="space-y-5">
+          {Object.entries(order.lot_reservations ?? {}).map(([productId, original]) => {
+            const quantity = order.items.filter(item => item.product_id === productId).reduce((sum, item) => sum + item.quantity, 0);
+            return <div key={productId}><p className="font-semibold">{order.items.find(item => item.product_id === productId)?.product_name} · lotes reservados</p><LotAllocationEditor productId={productId} quantity={quantity} reservedParts={original} value={lotParts[productId] ?? original} onChange={parts => { setLotParts(previous => ({ ...previous, [productId]: parts })); checkoutKeyRef.current = null; }} /></div>;
+          })}
           {!split ? <RegisterPaymentMethodSelector value={payments[0].method} options={paymentOptions.map((option) => ({ ...option, disabled: option.value === "cash" && openShift !== true }))} onChange={(method) => updatePayment(payments[0].id, { method, tendered: "", reference: "" })} label="Método de pago" /> : null}
           <Button variant="ghost" className="w-full" onClick={() => {
             checkoutKeyRef.current = null;
