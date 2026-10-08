@@ -379,6 +379,33 @@ def test_report_cannot_guarantee_tomorrows_sales():
     assert "ni garantizar ventas futuras" in answer
 
 
+@pytest.mark.parametrize("initial", [[], [{
+    "name": "search_knowledge", "arguments": {"query": "reembolsos y ventas netas"},
+}]])
+def test_refund_explanation_reads_real_sales_when_planner_omits_them(paid, initial):
+    selected = generation.ensure_document_read(
+        "Explica el efecto de los reembolsos sobre las ventas netas", initial
+    )
+    sales = [r.get("function", r) for r in selected
+             if r.get("function", r)["name"] == "get_sales"]
+    assert len(sales) == 1 and json.loads(sales[0]["arguments"]) == {}
+
+
+def test_required_sales_keep_dates_without_product_only_history_argument(paid):
+    selected = generation.ensure_document_read(
+        "Revisa ventas, productos, inventario y reembolsos", [{
+            "name": "get_top_products", "arguments": {
+                "start_date": "2026-10-01", "end_date": "2026-10-07", "all_history": False,
+            },
+        }],
+    )
+    sales = [r["function"] for r in selected if r.get("function", {}).get("name") == "get_sales"]
+    assert len(sales) == 1
+    assert json.loads(sales[0]["arguments"]) == {
+        "start_date": "2026-10-01", "end_date": "2026-10-07",
+    }
+
+
 @pytest.mark.parametrize(
     "status,recipient,finish",
     [

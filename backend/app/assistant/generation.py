@@ -180,10 +180,12 @@ def ensure_document_read(content, tool_calls):
         if (re.search(r"\bventas?\b", query) and re.search(r"\bproductos?\b", query)
                 and re.search(r"\binventario\b", query)):
             required.extend(("get_sales", "get_top_products", "get_inventory"))
+        if re.search(r"\breembolsos?\b", query) and re.search(r"\bventas?\b", query):
+            required.append("get_sales")
         if re.search(r"\bcomo\b|\b(?:manual(?:es)?|documentos?|archivos?|catalogos?)\b", query):
             required.append("search_knowledge")
         names = {item.get("function", item).get("name") for item in tool_calls}
-        missing = [name for name in required if name not in names]
+        missing = [name for name in dict.fromkeys(required) if name not in names]
         if len(tool_calls) + len(missing) > 8:
             raise HTTPException(422, "Se alcanzó el límite de herramientas.")
         ranges = [item.get("function", item).get("arguments", {}) for item in tool_calls
@@ -191,6 +193,8 @@ def ensure_document_read(content, tool_calls):
         dates = ranges[0] if ranges else {}
         if isinstance(dates, str):
             dates = json.loads(dates)
+        dates = {key: value for key, value in dates.items()
+                 if key in {"start_date", "end_date"}}
         return [*tool_calls, *[{
             "id": "required_read_" + name, "type": "function", "function": {
                 "name": name,
