@@ -12,6 +12,7 @@ from pathlib import Path
 
 APP = "pos-project-backend"
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
+PARSER_COMMAND = "/app/.venv/bin/python /app/scripts/check_assistant_parser.py"
 PARSER_CHECKS = {
     "UTF-8 business text", "DOCX text", "PDF text", "PDF Spanish OCR",
     "DOCX path traversal", "DOCX external relationship", "DOCX macro",
@@ -209,7 +210,7 @@ def verify(identifier, sha, image, *, run=subprocess.run, sleep=time.sleep):
         print("Isolated scanner image verified", flush=True)
         identity = worker_identity(identifier, run)
         print("Isolated worker identity verified; parser checks starting", flush=True)
-        report = remote(identifier, "python scripts/check_assistant_parser.py",
+        report = remote(identifier, PARSER_COMMAND,
                         timeout=240, run=run, stage="parser checks")
         if set(report.splitlines()) != {"PASS: " + name for name in PARSER_CHECKS}:
             raise RuntimeError("Isolated parser did not complete every required check")

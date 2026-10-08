@@ -35,7 +35,7 @@ def output(args, machines):
     script = args[4]
     if script.startswith("docker image inspect"):
         stdout = "sha256:" + "b" * 64 + "\n"
-    elif script == "python scripts/check_assistant_parser.py":
+    elif script == module.PARSER_COMMAND:
         stdout = "\n".join("PASS: " + name for name in module.PARSER_CHECKS)
     else:
         stdout = json.dumps([123, "10000"])
@@ -66,7 +66,9 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertIn("GIT_SHA=" + SHA, args)
         self.assertIn("registry.fly.io/pos-project-backend:test@" + DIGEST, args)
         self.assertFalse(any(a in args for a in ("deploy", "run", "--vm-memory", "--region")))
-        self.assertTrue(any("python scripts/check_assistant_parser.py" in call
+        self.assertEqual(module.PARSER_COMMAND,
+                         "/app/.venv/bin/python /app/scripts/check_assistant_parser.py")
+        self.assertTrue(any(module.PARSER_COMMAND in call
                             for call, _ in calls))
 
     def test_tag_and_digest_qualified_configurations_share_the_same_verified_identity(self):
@@ -101,7 +103,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
         def run(args, **kwargs):
             calls.append(args)
             stdout = (json.dumps({"exit_code": 1, "stdout": "private-value"})
-                      if "python scripts/check_assistant_parser.py" in args
+                      if module.PARSER_COMMAND in args
                       else output(args, [machine("app"), machine("ingest")]))
             return SimpleNamespace(returncode=0, stdout=stdout)
         with self.assertRaises(RuntimeError):
@@ -172,7 +174,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertEqual(config["metadata"]["fly_process_group"], "ingest")
         self.assertEqual(create[0][create[0].index("--region") + 1], "iad")
         self.assertIn("kova-assistant-ingest", create[0])
-        self.assertTrue(any(args[4] == "python scripts/check_assistant_parser.py"
+        self.assertTrue(any(args[4] == module.PARSER_COMMAND
                             for args in calls if args[1:3] == ["machine", "exec"]))
         self.assertTrue(all("--json" in args for args in calls
                             if args[1:3] == ["machine", "exec"]))
@@ -189,7 +191,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
 
         def run(args, **kwargs):
             calls.append(args)
-            return SimpleNamespace(returncode=int("python scripts/check_assistant_parser.py" in args),
+            return SimpleNamespace(returncode=int(module.PARSER_COMMAND in args),
                                    stdout=output(args, [machine("app"), machine("ingest")]))
 
         with patch.object(module, "datetime") as clock:
@@ -252,7 +254,7 @@ class AssistantHostReleaseTests(unittest.TestCase):
             calls = []
             def run(args, **kwargs):
                 calls.append(args)
-                stdout = (json.dumps(body) if "python scripts/check_assistant_parser.py" in args
+                stdout = (json.dumps(body) if module.PARSER_COMMAND in args
                           else output(args, [machine("app"), machine("ingest")]))
                 return SimpleNamespace(returncode=0, stdout=stdout)
             with self.subTest(body=body), patch.object(module, "datetime") as clock:
