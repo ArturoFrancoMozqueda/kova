@@ -1,4 +1,4 @@
-"""Fixed model and two verified recipients, ZDR, strict output and bounded routing."""
+"""Fixed Mistral model/US recipient, ZDR, strict output and bounded inference."""
 
 import asyncio
 import hashlib
@@ -15,12 +15,12 @@ from fastapi import HTTPException
 from app.assistant import deadline
 from app.config import settings
 
-MODEL = "openai/gpt-oss-120b"
-ROUTE = "fast-pair"
-RECIPIENT = "Groq+Cerebras"
-ROUTES = ("groq", "cerebras/fp16")
-RECIPIENTS = ("Groq", "Cerebras")
-CONSENT_RECIPIENTS = "groq+cerebras"
+MODEL = "mistralai/mistral-small-2603"
+ROUTE = "mistral/us"
+RECIPIENT = "Mistral"
+ROUTES = (ROUTE,)
+RECIPIENTS = (RECIPIENT,)
+CONSENT_RECIPIENTS = "mistral"
 INPUT_NANOUSD = 350
 OUTPUT_NANOUSD = 750
 MAX_OUTPUT = 1024
@@ -31,6 +31,7 @@ PROFILE_FILES = (
     "app/assistant/schemas.py", "app/assistant/knowledge.py", "app/assistant/direct.py",
     "app/assistant/deadline.py", "app/assistant/openrouter_budget.py", "app/assistant/budget.py",
     "app/assistant/router.py",
+    "app/reports/service.py", "app/reports/repository.py",
 )
 
 
@@ -128,7 +129,7 @@ def body(messages, tools, *, structured, allowed_source_ids):
         "messages": messages,
         "stream": False,
         "max_tokens": MAX_OUTPUT,
-        "reasoning": {"effort": "low", "exclude": True},
+        "reasoning": {"enabled": False, "exclude": True},
         "provider": {
             "only": list(ROUTES),
             "allow_fallbacks": len(ROUTES) > 1,

@@ -54,7 +54,7 @@ def capabilities(db=Depends(get_db), ctx=Depends(principal)):
         "enabled": enabled(ctx[1].tenant_id),
         "inference_ready": provider.ready(),
         "local_answers_ready": enabled(ctx[1].tenant_id),
-        "provider_name": "OpenRouter, Groq y Cerebras" if settings.assistant_generation_provider
+        "provider_name": "OpenRouter y Mistral" if settings.assistant_generation_provider
         == "openrouter" else "Groq" if settings.assistant_generation_provider == "groq"
         else "Cloudflare",
         "configuration": settings.assistant_mutations_enabled and enabled(ctx[1].tenant_id),

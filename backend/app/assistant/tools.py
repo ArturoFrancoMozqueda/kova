@@ -27,6 +27,10 @@ class Range(StrictModel):
     end_date: date | None = None
 
 
+class ProductRange(Range):
+    all_history: bool = False
+
+
 class Query(StrictModel):
     query: str = Field(min_length=1, max_length=400)
 
@@ -40,7 +44,7 @@ SCHEMAS = {
     "get_sales": Range,
     "get_inventory": Range,
     "get_catalog": CatalogQuery,
-    "get_top_products": Range,
+    "get_top_products": ProductRange,
     "compare_branches": Range,
     "search_knowledge": Query,
     "get_memory": Empty,
@@ -50,7 +54,9 @@ DESCRIPTIONS = {
     "get_sales": "Lee métricas exactas del periodo y sucursal activos; máximo 92 días.",
     "get_inventory": "Lee señales de inventario y reposición calculadas por Kova.",
     "get_catalog": "Busca por nombre hasta diez productos y categorías del negocio.",
-    "get_top_products": "Lee cinco productos más vendidos con métricas exactas de Kova.",
+    "get_top_products": "Lee cinco productos más vendidos por unidades, descontando devoluciones. "
+                        "Para todo el histórico usa all_history=true sin fechas; "
+                        "sin fechas ni all_history consulta solo hoy. Sucursal activa.",
     "compare_branches": "Compara hasta cinco sucursales por venta neta; incluye total del negocio.",
     "search_knowledge": "Busca guías públicas y documentos privados autorizados con fuentes.",
     "get_memory": "Lee preferencias y objetivos que el usuario guardó explícitamente.",
@@ -106,7 +112,12 @@ def call(db, tenant, user, name, arguments):
     if name == "get_sales":
         return reports.sales_summary(db, tenant_id=tenant, **body.model_dump())
     if name == "get_top_products":
-        return reports.top_products(db, tenant_id=tenant, limit=5, **body.model_dump())
+        if body.all_history:
+            if body.start_date or body.end_date:
+                raise HTTPException(422, "El histórico completo no admite un rango de fechas.")
+            return reports.historical_top_products(db, tenant_id=tenant, limit=5)
+        return reports.top_products(db, tenant_id=tenant, limit=5,
+                                    **body.model_dump(exclude={"all_history"}))
     if name == "compare_branches":
         result = compare_branches(db, tenant_id=tenant, **body.model_dump()).model_dump(mode="json")
         branches = sorted(result["branches"], key=lambda row: float(row["net_sales"]), reverse=True)

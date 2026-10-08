@@ -165,7 +165,7 @@ def test_missing_evidence_has_actionable_guidance_without_confirming_writes(ques
     assert expected in grounding.report_answer(unavailable)
 
 
-@pytest.mark.parametrize("recipient", ["Groq", "Cerebras"])
+@pytest.mark.parametrize("recipient", ["Mistral"])
 def test_transport_fixes_recipients_privacy_prices_and_validates_verbatim_quotes(
     paid, monkeypatch, recipient
 ):
@@ -181,15 +181,15 @@ def test_transport_fixes_recipients_privacy_prices_and_validates_verbatim_quotes
             request.url.host == "openrouter.ai" and request.url.path == "/api/v1/chat/completions"
         )
         assert body["provider"] == {
-            "only": ["groq", "cerebras/fp16"],
-            "order": ["groq", "cerebras/fp16"],
-            "allow_fallbacks": True,
+            "only": ["mistral/us"],
+            "allow_fallbacks": False,
             "require_parameters": True,
             "zdr": True,
             "data_collection": "deny",
             "max_price": {"prompt": 0.35, "completion": 0.75},
         }
-        assert body["reasoning"] == {"effort": "low", "exclude": True}
+        assert body["model"] == "mistralai/mistral-small-2603"
+        assert body["reasoning"] == {"enabled": False, "exclude": True}
         assert "tools" not in body and "plugins" not in body
         assert body["response_format"]["json_schema"]["name"] == "kova_passages"
         return httpx.Response(
@@ -299,11 +299,13 @@ def test_non_reconciling_report_is_never_interpreted_as_real_sales():
 @pytest.mark.parametrize(
     "status,recipient,finish",
     [
-        (302, "Cerebras", "stop"),
-        (429, "Cerebras", "stop"),
-        (500, "Cerebras", "stop"),
+        (302, "Mistral", "stop"),
+        (429, "Mistral", "stop"),
+        (500, "Mistral", "stop"),
         (200, "DeepInfra", "stop"),
-        (200, "Cerebras", "length"),
+        (200, "Groq", "stop"),
+        (200, "Cerebras", "stop"),
+        (200, "Mistral", "length"),
     ],
 )
 def test_paid_route_does_not_retry_redirect_switch_or_deliver_partial(
@@ -429,7 +431,7 @@ def test_runtime_combines_real_report_and_private_passage_with_delivery_acl(
         return httpx.Response(
             200,
             json={
-                "provider": "Cerebras",
+                "provider": "Mistral",
                 "choices": [
                     {
                         "finish_reason": "tool_calls" if "tools" in body else "stop",
@@ -479,7 +481,7 @@ def test_expired_queue_never_starts_inference(paid, enabled_client, monkeypatch)
     assert "pending_reservation" not in response.json()["data"]
 
 
-def test_recipient_change_requires_new_consent_for_both_processors(
+def test_recipient_change_requires_new_consent_for_current_processors(
     paid, enabled_client, monkeypatch
 ):
     client, db, tenant, _ = enabled_client
@@ -490,7 +492,7 @@ def test_recipient_change_requires_new_consent_for_both_processors(
     db.commit()
     assert (
         client.get("/api/v1/assistant/capabilities").json()["provider_name"]
-        == "OpenRouter, Groq y Cerebras"
+        == "OpenRouter y Mistral"
     )
     fresh = client.get("/api/v1/assistant/preferences").json()
     assert fresh["chat_consent"] is False and fresh["chat_provider"] == "openrouter"

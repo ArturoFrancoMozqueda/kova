@@ -241,6 +241,18 @@ def payment_breakdown(
     }
 
 
+def historical_top_products(db: Session, *, tenant_id: UUID, limit: int) -> dict:
+    if limit < 1 or limit > 50:
+        raise bad_request("Limit must be between 1 and 50")
+    rows = repository.historical_top_products(db, tenant_id=tenant_id, limit=limit)
+    return {
+        "all_history": True,
+        "products": [{"product_id": row.product_id, "product_name": row.product_name,
+                      "quantity_sold": int(row.quantity_sold),
+                      "gross_sales": calculator.money(row.gross_sales)} for row in rows],
+    }
+
+
 def top_products(
     db: Session,
     *,

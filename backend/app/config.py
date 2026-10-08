@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     assistant_help_model: str = "@cf/qwen/qwen3-30b-a3b-fp8"
     # Preserve deployed Cloudflare configuration until Groq passes the pilot gates.
     assistant_generation_provider: Literal["cloudflare", "groq", "openrouter"] = "cloudflare"
-    # Fixed OpenRouter -> Cerebras route. Evaluation credentials never load here.
+    # Fixed OpenRouter -> Mistral US route. Evaluation credentials never load here.
     assistant_openrouter_api_key: SecretStr | None = None
     assistant_openrouter_privacy_verified: bool = False
     assistant_openrouter_quality_verified: bool = False
