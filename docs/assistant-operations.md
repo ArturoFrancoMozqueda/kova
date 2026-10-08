@@ -13,6 +13,13 @@ por identificador; Kova escribe reportes, límites y referencias. Las cifras se 
 las tarjetas existentes. ZDR, recolección denegada, modelo/ruta fijos y máximos de precio se
 incluyen en cada solicitud; no hay fallback, plugins ni reintentos remotos.
 
+Cierre real al 2026-10-08: 540 consultas de la arquitectura final, 539 contratos válidos,
+mediana 2.1345 s y p95 4.179 s. Se conservan un timeout y una abstención innecesaria; no se
+confunde contrato válido con calidad semántica ni se firma el gate de activación. La
+[decisión](research/ASSISTANT-DECISION-2026-10-07.md#cierre-de-la-evaluación-real--2026-10-08)
+registra denominadores, costo, versión, límites y pendientes. Validación local: 219 tests de
+backend del asistente, 29 de interfaz; CI del código completo pasó, incluido parser/antivirus.
+
 Configuración del despliegue aprobado, sin credenciales en comandos ni repositorio:
 
 | Variable | Condición |

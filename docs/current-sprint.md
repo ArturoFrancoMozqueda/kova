@@ -33,14 +33,17 @@ exige nuevo consentimiento para OpenRouter y Cerebras, ZDR, topes compartidos de
 control por negocio y concurrencia configurable. El presupuesto mensual de producción es cero.
 La clave local y los USD 10 autorizados siguen siendo solo de evaluación.
 
-El sondeo Cerebras tuvo veintiún contratos válidos, p50 3.959 s / máximo 5.364 s; no acredita
-activación. Se valida la arquitectura final sobre 180 casos de consulta por tres repeticiones,
-conservando los 220 casos originales y sus oráculos. Los cuarenta de mutación mantienen su
-gate independiente antes de habilitar esa capacidad. No hay programación diaria.
+La arquitectura final cerró 540 consultas al 2026-10-08: 539 contratos válidos, mediana
+2.1345 s / p95 4.179 s, un timeout y una abstención innecesaria. Los campos de revisión humana
+siguen pendientes; no acredita activación ni tiempo real de cola/red/UI. Conserva los 220 casos
+originales y sus oráculos. Los cuarenta de mutación mantienen su gate independiente antes de
+habilitar esa capacidad. No hay programación diaria.
 
-Bloqueos de activación: evaluación/revisión de pertinencia, QA autenticada de cola/red/UI y
+Bloqueos de activación: cierre formal de hallazgos/revisión de pertinencia, QA autenticada de cola/red/UI y
 carga; clave y techo mensual aprobados; y, para documentos, host de ingesta aislado y QA real
 R2/embeddings/ACL. El worker actual de Fly no tiene el daemon Docker requerido por la ingesta.
+Se requiere además separar selección de trabajos de chat/ingesta y comprobar capacidad interactiva
+durante procesamiento de archivos.
 No habilitar archivos ni declarar producción lista sin completar ese recorrido.
 Decisión y evidencia: [selección final](research/ASSISTANT-DECISION-2026-10-07.md);
 operación: [asistente](assistant-operations.md).

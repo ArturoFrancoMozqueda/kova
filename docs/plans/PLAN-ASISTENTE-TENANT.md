@@ -706,6 +706,11 @@ por el servidor; no se confunde con aprobar prosa financiera libre ni con QA de 
 La clave, el ledger y el techo total de evaluación siguen compartidos; ninguna revisión del
 agente se registra como humana. La comparación histórica siguiente se conserva para auditoría.
 
+Cierre al 2026-10-08: 540 consultas, 539 contratos válidos, mediana 2.1345 s / p95 4.179 s,
+un timeout y una abstención innecesaria. El gate formal sigue sin pasar; no se eliminan esos
+hallazgos ni se firma calidad/producción mediante el evaluador. Versión, costo, denominadores
+y pendientes: [decisión final](../research/ASSISTANT-DECISION-2026-10-07.md#cierre-de-la-evaluación-real--2026-10-08).
+
 Construir 200 casos con datos sintéticos aislados, nunca copiar datos de producción o secretos:
 40 de configuración, 40 de análisis, 40 de RAG, 30 de evidencia insuficiente/contradictoria,
 30 de ataques/permiso y 20 de fallos/recuperación. Ejecutar tres repeticiones por candidato,
