@@ -1,5 +1,9 @@
 import importlib.util
 import json
+import shlex
+import subprocess
+import sys
+import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -206,6 +210,41 @@ class AssistantHostReleaseTests(unittest.TestCase):
                     module.remote("ingest", "fixed-probe", timeout=20, run=run)
                 self.assertNotIn("private-value", str(caught.exception))
                 self.assertNotIn("secret", str(caught.exception))
+
+    def test_remote_failure_identifies_only_the_fixed_stage_and_exception_type(self):
+        def run(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps({
+                "exit_code": 1, "stdout": "private-value",
+                "stderr": "private-value\nSyntaxError: secret-message\n"}))
+        with self.assertRaisesRegex(RuntimeError, "worker identity probe failed: SyntaxError") as exc:
+            module.remote("ingest", "fixed-probe", timeout=20, run=run,
+                          stage="worker identity probe")
+        self.assertNotIn("private-value", str(exc.exception))
+        self.assertNotIn("secret-message", str(exc.exception))
+
+    def test_worker_probe_executes_and_accepts_only_the_two_deployed_script_paths(self):
+        for script_path in ("scripts/run_assistant_ingest.py", "/app/scripts/run_assistant_ingest.py",
+                            "/other/scripts/run_assistant_ingest.py"):
+            with self.subTest(script_path=script_path), tempfile.TemporaryDirectory() as temp:
+                proc = Path(temp) / "123"
+                proc.mkdir()
+                (proc / "cmdline").write_bytes(
+                    b"/app/.venv/bin/python\0" + script_path.encode() + b"\0--workload\0ingest\0")
+                (proc / "stat").write_text("123 (python) " + " ".join(["0"] * 19 + ["10000"]))
+                def run(args, **kwargs):
+                    argv = shlex.split(args[4])
+                    self.assertEqual(len(argv), 3)
+                    source = argv[2].replace("Path('/proc')", "Path(" + repr(temp) + ")")
+                    result = subprocess.run([sys.executable, "-c", source],
+                                            capture_output=True, text=True, check=False)
+                    return SimpleNamespace(returncode=0, stdout=json.dumps({
+                        "stdout": result.stdout, "stderr": result.stderr,
+                        "exit_code": result.returncode}))
+                if script_path.startswith("/other"):
+                    with self.assertRaises(RuntimeError):
+                        module.worker_identity("ingest", run)
+                else:
+                    self.assertEqual(module.worker_identity("ingest", run), [123, "10000"])
 
     def test_remote_parser_exit_and_incomplete_pass_list_stop_existing_host(self):
         for body in ({"exit_code": 1, "stdout": "PASS: PDF text"},
