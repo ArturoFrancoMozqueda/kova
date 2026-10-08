@@ -126,7 +126,8 @@ class Seed:
                 tenant = Tenant(name="Café Cortés — Demo", slug=SLUG)
                 db.add(tenant)
                 db.flush()
-                db.add(Branch(id=tenant.id, tenant_id=tenant.id, name="Almacén central"))
+                # Migration 0068 creates the principal branch through a trigger.
+                # Rename that branch through the native API after committing.
             self.tid = tenant.id
             self.report["tenant_id"] = str(self.tid)
             for membership in db.query(Membership).filter_by(user_id=owner_id, is_active=True):
@@ -193,6 +194,12 @@ class Seed:
             },
         )
         self.branches["central"] = str(self.tid)
+        self.api.call(
+            "PATCH",
+            f"/branches/{self.tid}",
+            {"name": "Almacén central", "address": "Ubicación ficticia · Demo"},
+            key="cc-v1-branch-central",
+        )
         for branch in ("centro", "norte"):
             row = self.api.call(
                 "POST",
@@ -729,6 +736,8 @@ class Seed:
         self.save()
 
     def cleanup(self):
+        if not self.temp_users:
+            return
         with Session(self.engine) as db:
             for uid in self.temp_users:
                 db.query(User).filter_by(id=uid).update({"is_active": False})
@@ -772,8 +781,17 @@ def main():
         seed.report["stage"] = "complete"
         seed.save()
         print(f"Demo ready: {seed.tid}; {len(seed.report['checks'])} checks passed")
-    except (AssertionError, RuntimeError) as exc:
-        seed.report["failure"] = str(exc)[:500]
+    except Exception as exc:
+        seed.report["failure_type"] = type(exc).__name__
+        if isinstance(exc, (AssertionError, RuntimeError)):
+            seed.report["failure"] = str(exc)[:500]
+        diag = getattr(getattr(exc, "orig", None), "diag", None)
+        if diag:
+            seed.report["database_diagnostic"] = {
+                "sqlstate": diag.sqlstate,
+                "constraint": diag.constraint_name,
+                "table": diag.table_name,
+            }
         seed.save()
         raise
     finally:
