@@ -706,10 +706,22 @@ por el servidor; no se confunde con aprobar prosa financiera libre ni con QA de 
 La clave, el ledger y el techo total de evaluación siguen compartidos; ninguna revisión del
 agente se registra como humana. La comparación histórica siguiente se conserva para auditoría.
 
-Cierre al 2026-10-08: 540 consultas, 539 contratos válidos, mediana 2.1345 s / p95 4.179 s,
+Cierre histórico al 2026-10-08: 540 consultas, 539 contratos válidos, mediana 2.1345 s / p95 4.179 s,
 un timeout y una abstención innecesaria. El gate formal sigue sin pasar; no se eliminan esos
 hallazgos ni se firma calidad/producción mediante el evaluador. Versión, costo, denominadores
 y pendientes: [decisión final](../research/ASSISTANT-DECISION-2026-10-07.md#cierre-de-la-evaluación-real--2026-10-08).
+
+La batería posterior del código vigente completó 540/540 identidades únicas, contratos válidos
+y consumo verificado: mediana 0.9065 s, p95 2.784 s y máximo 4.747 s. Harness
+`40a7e0b723a66440e558246beca818c3dc5b928564a7b9fd01d7dc5500bd663c`, perfil
+`a3b9af8f46ead1e815339ba777dc112f389ff296200865a6dfc47fa10755f0cb`.
+El diagnóstico del agente sustenta 540/540 resoluciones y presencia de citas en 168/168
+oportunidades; no acredita revisión humana ni pertinencia aprobada por una persona.
+La auditoría de períodos con el esquema compacto de producción pasó 54/54 (máximo 2.176 s).
+Nueve consultas del proveedor con concurrencia tres pasaron (máximo 2.227 s); no equivalen
+a carga de la cola/API/interfaz. Se conservan todas las baterías anteriores y sus fallos.
+La clave permanente, revisión humana y QA autenticada de archivos/carga siguen pendientes;
+calidad, inferencia pagada y documentos no se habilitan con estos resultados parciales.
 
 Construir 200 casos con datos sintéticos aislados, nunca copiar datos de producción o secretos:
 40 de configuración, 40 de análisis, 40 de RAG, 30 de evidencia insuficiente/contradictoria,
