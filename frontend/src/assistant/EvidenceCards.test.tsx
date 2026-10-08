@@ -11,8 +11,20 @@ describe("inventory evidence", () => {
     } }]} />);
     expect(screen.getByText("Pan histórico")).toBeVisible();
     expect(screen.getByText("2 unidades")).toBeVisible();
+    expect(screen.getByText("Unidades netas · Venta neta")).toBeVisible();
     expect(screen.getByText("Todo el histórico · Sucursal activa · Devoluciones descontadas")).toBeVisible();
     expect(screen.queryByText(/Sin fecha|No hay ventas/)).not.toBeInTheDocument();
+  });
+
+  it("labels the bounded product ranking using its refund-adjusted backend definition", () => {
+    render(<EvidenceCards cards={[{ kind: "get_top_products", data: {
+      start_date: "2026-10-01", end_date: "2026-10-08",
+      products: [{ product_id: "p1", product_name: "Pan", quantity_sold: 2,
+        gross_sales: "24.00" }],
+    } }]} />);
+    expect(screen.getByText("Unidades netas · Venta neta")).toBeVisible();
+    expect(screen.queryByText(/Venta bruta/)).not.toBeInTheDocument();
+    expect(screen.getByText("2 unidades")).toBeVisible();
   });
 
   it("shows real zero stock, an unknown forecast, missing costs and the sample size", () => {

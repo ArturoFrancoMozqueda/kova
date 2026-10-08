@@ -117,6 +117,15 @@ reposición: el servidor exige ventas o inventario cuando corresponden, sin dupl
 Se conserva la evidencia fallida; cada cambio del perfil requiere su propia batería.
 Las respuestas nuevas guardan cifras y fuentes junto al mensaje para conservarlas al reabrir;
 la retirada de documentos/memoria y los controles de usuario/sucursal siguen ocultando evidencia.
+Las tarjetas de productos identifican unidades y venta netas: tanto el rango acotado como
+el histórico descuentan devoluciones, aunque la clave histórica del contrato se llame `gross_sales`.
+
+La batería vigente ya terminó: 540 contratos válidos/identidades únicas, p50 0.9065 s,
+p95 2.784 s y máximo 4.747 s; consumo verificado. El diagnóstico del agente sustenta 540/540
+resoluciones y encuentra citas en 168/168 oportunidades. No sustituye revisión humana.
+La auditoría de proveedor con concurrencia tres pasó nueve consultas (máximo 2.227 s),
+con recuperación sintética; no prueba capacidad de la cola/API/interfaz de producción.
+Hashes, limitaciones y observaciones de concisión están en la decisión vigente.
 
 Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
 una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada
