@@ -1,4 +1,4 @@
-"""Compare three open models on Kova's unchanged synthetic corpus; no production data."""
+"""Compare open models on Kova's unchanged synthetic corpus; no production data."""
 
 import argparse
 import fcntl
@@ -26,6 +26,8 @@ from assistant_evaluation.openrouter import (  # noqa: E402
 )
 from scripts import evaluate_assistant as evaluation  # noqa: E402
 
+MAX_CASE_SECONDS = 10  # Operator's maximum acceptable complete-answer wait.
+
 
 def save(path, value):
     # Resolve the existing shared ledger symlink before an atomic replacement.
@@ -48,12 +50,16 @@ def summary(path, alias):
     rows = [row for row in rows if row["model"] == alias
             and row.get("harness_hash") == evaluation.harness_hash()]
     calls = [call for row in rows for call in row.get("calls", [])]
+    maximum = max((row["latency_seconds"] for row in rows), default=None)
     result.update(route=CANDIDATES[alias].route,
                   usage_verified=bool(calls) and all(call["usage_verified"] for call in calls),
                   retained_cost_usd=str(Decimal(sum(call["charge_nanousd"] for call in calls))
                                         / 1_000_000_000),
-                  provider_seconds=sum(call["latency_seconds"] for call in calls))
-    result["quality_gate_passed"] &= result["usage_verified"]
+                  provider_seconds=sum(call["latency_seconds"] for call in calls),
+                  maximum_case_seconds=maximum, latency_limit_seconds=MAX_CASE_SECONDS,
+                  observed_latency_within_limit=maximum is not None and maximum <= MAX_CASE_SECONDS)
+    result["quality_gate_passed"] &= (result["usage_verified"]
+                                     and result["observed_latency_within_limit"])
     return result
 
 

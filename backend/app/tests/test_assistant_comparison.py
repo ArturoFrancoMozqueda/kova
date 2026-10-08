@@ -156,7 +156,7 @@ def test_decoder_resource_identifiers_match_public_uuid_contract(candidate, monk
         assert re.fullmatch(resource["pattern"], invalid) is None
 
 
-@pytest.mark.parametrize("alias", ["qwen-fast", "mistral-small", "deepseek-fast"])
+@pytest.mark.parametrize("alias", ["qwen-fast", "mistral-small", "mistral-us", "deepseek-fast"])
 def test_fast_profile_disables_reasoning_and_rejects_unconfirmed_mode(monkeypatch, alias):
     selected = router.CANDIDATES[alias]
     body = router.Client.body(selected, [{"role": "system", "content": "Solo evidencia."}],
@@ -275,6 +275,23 @@ def test_comparison_does_not_approve_unreviewed_or_unverified_answers(tmp_path):
     report = comparison.summary(path, "glm-flash")
     assert report["quality_gate_passed"] is False and report["human_reviewed"] == 0
     assert report["usage_verified"] is False and report["required"] == 660
+
+
+@pytest.mark.parametrize("seconds,accepted", [(9.9, True), (10, True), (10.01, False)])
+def test_quality_approval_also_requires_complete_answer_within_ten_seconds(
+    tmp_path, monkeypatch, seconds, accepted
+):
+    path = tmp_path / "results.json"
+    path.write_text(json.dumps([{"model": "qwen-fast", "case_id": "analysis-0-0",
+        "repetition": 0, "harness_hash": evaluation.harness_hash(), "latency_seconds": seconds,
+        "calls": [{"usage_verified": True, "charge_nanousd": 500, "latency_seconds": 1}]}]))
+    # Isolate the new latency prerequisite; this simulated report is not live
+    # evidence and does not replace the independent full-corpus/review tests.
+    monkeypatch.setattr(evaluation, "summarize", lambda *args: {"quality_gate_passed": True})
+    report = comparison.summary(path, "qwen-fast")
+    assert report["latency_limit_seconds"] == 10
+    assert report["maximum_case_seconds"] == seconds
+    assert report["quality_gate_passed"] is accepted
 
 
 def test_missing_account_verification_makes_zero_calls(monkeypatch):

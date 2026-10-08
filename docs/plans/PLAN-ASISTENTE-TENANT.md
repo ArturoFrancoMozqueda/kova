@@ -724,6 +724,10 @@ mutaciones y correo apagados. Requiere contratos live sintéticos y verificació
 capacidades/respuesta real; no sustituye esta batería ni autoriza ampliar tenants o
 capacidades antes de completar sus gates. Detalles en la guía de operación.
 
+El operador fijó el 2026-10-07 espera máxima de diez segundos por respuesta completa. La
+comparación informa el máximo observado y no aprueba un perfil que lo exceda; la espera
+completa de cola/red/UI debe verificarse también antes de producción.
+
 Medir por capacidad: corrección, abstención apropiada, citas pertinentes, consumo total incluyendo
 razonamiento, llamadas/herramientas, latencia p50/p95 y recuperación. Validar importes y métricas
 contra resultados exactos del backend; visibilidad y efectos contra DB/API. Revisión humana para

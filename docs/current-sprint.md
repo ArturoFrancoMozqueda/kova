@@ -28,7 +28,10 @@ guías, archivos propios y recomendaciones. La comparación autorizada actual en
 GLM-5.3-Flash, Qwen3.8-27B y Mistral Small 4, ampliada a DeepSeek V4.1 Flash y perfiles rápidos.
 Cuenta, saldo y clave OpenRouter ya verificados; se ejecutan pruebas live con datos sintéticos,
 rutas ZDR y presupuesto compartido de USD 10, incluida la comisión confirmada de USD 0.80.
-El evaluador aislado tiene 163 tests backend. Qwen rápido mostró fallos de interpretación y
+El evaluador aislado tiene 167 tests backend. El operador fijó espera máxima de diez segundos
+por respuesta completa; DeepSeek con razonamiento bajo queda fuera como principal. Se comparan
+perfiles rápidos y la ruta regional Mistral/US, con privacidad/precio comprobados por separado.
+Qwen rápido mostró fallos de interpretación y
 selección de lecturas; se corrigieron contexto, UUIDs y validación de modos antes de repetir
 la cobertura afectada. Ningún candidato tiene aprobación de calidad. Se conservan los 220 casos
 y sus tres repeticiones requeridas; documentos y mutaciones siguen sin habilitarse en producción.

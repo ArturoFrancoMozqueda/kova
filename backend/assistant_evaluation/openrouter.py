@@ -42,6 +42,8 @@ CANDIDATES = {
                            reasoning_enabled=False),
     "mistral-small": Candidate("mistralai/mistral-small-2603", "mistral/zdr", "Mistral",
                                150, 600, reasoning_enabled=False),
+    "mistral-us": Candidate("mistralai/mistral-small-2603", "mistral/us", "Mistral",
+                            165, 660, reasoning_enabled=False),
     "deepseek-flash": Candidate("deepseek/deepseek-v4.1-flash", "deepinfra/fp8", "DeepInfra",
                                 200, 600),
     "deepseek-fast": Candidate("deepseek/deepseek-v4.1-flash", "deepinfra/fp8", "DeepInfra",

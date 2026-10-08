@@ -256,6 +256,7 @@ Verificación pública sin inferencia realizada el 2026-10-07:
 | `qwen-38` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | `low` | 0.20 / 2.50 |
 | `qwen-fast` | `qwen/qwen3.8-27b` | `deepinfra/bf16` | Desactivado | 0.20 / 2.50 |
 | `mistral-small` | `mistralai/mistral-small-2603` | `mistral/zdr` | Desactivado | 0.15 / 0.60 |
+| `mistral-us` | `mistralai/mistral-small-2603` | `mistral/us` | Desactivado | 0.165 / 0.66 |
 | `deepseek-flash` | `deepseek/deepseek-v4.1-flash` | `deepinfra/fp8` | `low` | 0.20 / 0.60 |
 | `deepseek-fast` | `deepseek/deepseek-v4.1-flash` | `deepinfra/fp8` | Desactivado | 0.20 / 0.60 |
 
@@ -322,7 +323,7 @@ la explicación con HTTP 429, sin cuota numérica verificable. El espaciado es u
 conservador, no una cuota atribuida al proveedor ni una prueba de capacidad concurrente; tampoco
 reintenta solicitudes fallidas. Su espera cuenta dentro de la latencia por caso.
 
-Validación local: **163 tests backend del asistente**; Ruff, OpenAPI y `git diff --check`.
+Validación local: **167 tests backend del asistente**; Ruff, OpenAPI y `git diff --check`.
 Los tests comprueban
 intercalado, persistencia antes de POST, privacidad/ruta/precios, costos inciertos y comisiones,
 cuenta sin reset, consumo razonado, compatibilidad del modo y detención global ante error. Las
@@ -355,8 +356,15 @@ razonamiento desactivado, verificando el modo consumido en cada respuesta: el sm
 casos tuvo trece contratos válidos, usage verificable y p50 5.735 s / p95 7.863 s, pero omitió
 el catálogo privado y no resolvió el procedimiento del manual. Sigue sin aprobación; estos
 resultados motivaron la corrección de contexto y se conservan como evidencia histórica.
-Se amplía ahora DeepSeek con razonamiento bajo y el contexto corregido. El último `GET /key` antes de
-ese lote reportó USD 0.144949813 de inferencia acumulada; las reservas inciertas y la comisión
+El resumen de documentos se pide solo cuando la pregunta trata sobre ellos. Se amplía ahora
+la comparación de perfiles rápidos con este contexto corregido. El operador fijó espera máxima
+de **diez segundos por respuesta completa**. El resumen registra la latencia máxima observada y
+no aprueba si algún caso supera ese límite, además de los gates previos; la medición sintética
+no demuestra aún la espera total de cola/red/UI en producción. DeepSeek con razonamiento bajo
+queda fuera como principal por demora. Se prueba Mistral/US por separado, con precio diez por
+ciento mayor al endpoint ZDR global; no es un fallback automático ni prueba de capacidad sostenida.
+El último `GET /key` antes de
+ese lote reportó USD 0.160578681 de inferencia acumulada; las reservas inciertas y la comisión
 permanecen en el ledger. El dato se consulta de nuevo antes de cerrar una evaluación.
 **Ningún modelo está aprobado ni activado.** Revisión humana, ingesta/ACL/OCR real, carga y QA
 autenticada de producción permanecen pendientes; no se cambió ningún flag ni se programó trabajo.
