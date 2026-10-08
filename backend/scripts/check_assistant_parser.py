@@ -18,7 +18,10 @@ def package(parts):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name, content in parts.items():
-            archive.writestr(name, content)
+            # Whole-suite and individual probes must generate identical bytes,
+            # including ZIP metadata when the wall clock crosses a second.
+            entry = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            archive.writestr(entry, content, compress_type=zipfile.ZIP_DEFLATED)
     return buffer.getvalue()
 
 

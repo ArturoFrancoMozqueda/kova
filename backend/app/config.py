@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -108,7 +108,11 @@ class Settings(BaseSettings):
     # Preserve deployed Cloudflare configuration until Groq passes the pilot gates.
     assistant_generation_provider: Literal["cloudflare", "groq", "openrouter"] = "cloudflare"
     # Fixed OpenRouter -> Mistral US route. Evaluation credentials never load here.
-    assistant_openrouter_api_key: SecretStr | None = None
+    # Accept the existing production secret name; the canonical name wins.
+    assistant_openrouter_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("assistant_openrouter_api_key", "ASSISTANT_OPEN_ROUTE"),
+    )
     assistant_openrouter_privacy_verified: bool = False
     assistant_openrouter_quality_verified: bool = False
     assistant_openrouter_approved_profile: str = Field(default="", pattern=r"^(?:[a-f0-9]{64})?$")

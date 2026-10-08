@@ -7,6 +7,15 @@ los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue
 
 ## Preparación vigente — 2026-10-08
 
+El operador autorizó desplegar el estado evaluado sin esperar la revisión detallada
+de las diez respuestas. Esa instrucción no se registra como revisión humana realizada.
+La clave permanente que Fly conserva se llama `ASSISTANT_OPEN_ROUTE`: el backend admite
+ese nombre como alternativa a `ASSISTANT_OPENROUTER_API_KEY`, que tiene precedencia.
+Ambos nombres alimentan el mismo `SecretStr`; no cambian proveedor, cuotas, consentimiento
+ni flags predeterminados. La aceptación del despliegue exige comprobar el recorrido real.
+En el panel de Fly, comprobar la persistencia tras recargar: una fila transitoria no acredita
+que el secreto haya quedado guardado. La entrada por teclado del formulario sí se conservó.
+
 PR #169 se integró y publicó como `fff84d086b8ccd64f5f4ccf0f767afd4a0f8c03f`.
 CI completo y aceptación pública de frontend/API/proxy/DB correctos. Se preservó el piloto:
 IA pagada y archivos no se activan por publicar este código. La QA autenticada confirmó
