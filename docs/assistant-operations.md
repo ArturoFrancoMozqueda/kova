@@ -11,7 +11,22 @@ PR #169 se integró y publicó como `fff84d086b8ccd64f5f4ccf0f767afd4a0f8c03f`.
 CI completo y aceptación pública de frontend/API/proxy/DB correctos. Se preservó el piloto:
 IA pagada y archivos no se activan por publicar este código. La QA autenticada confirmó
 la guía de importación y su fuente. Los releases siguientes corrigieron consultas históricas,
-conclusiones y períodos. El host creado todavía debe pasar su verificación real.
+conclusiones y períodos. El host pasó los diez casos reales de parser/OCR/antivirus y
+la estabilidad del proceso en el release `f5e7279` (`37835628579`). La aceptación pública
+falló porque el dominio conservó el frontend anterior; recuperación restauró `92e7655`
+y detuvo ingesta. PR #178 exige asignar explícitamente el dominio tras promover y al
+restaurar, conservando `autoAssignCustomDomains=false` y aceptación por SHA exacto.
+
+Release `3a49c75417af6c1f39468b560adc83893b4e1678` (`37839937359`) pasó CI y aceptación
+pública de frontend/API/proxy/DB. El host repitió los diez casos y la estabilidad correctamente;
+la asignación explícita del dominio corrigió la publicación. La QA autenticada del histórico
+respondió Latte mediano/489 unidades netas en 8.673 s desde una conversación vacía hasta
+explicación y cifras completas. Al reabrir desde historial sin `run` y recargar se conservaron
+explicación, tarjetas y fuentes. Móvil 390×844, tableta 768×1024 y escritorio conservaron
+el acceso a las cifras sin desbordamiento horizontal de la página.
+Esta QA usa el atajo determinista y no acredita Mistral, ingesta de archivos de usuario ni
+carga de producción. Clave permanente, revisión humana, consentimiento vigente y esos
+recorridos completos siguen pendientes; los flags de IA pagada y documentos permanecen falsos.
 
 El operador autoriza publicación y gasto recurrente: hasta USD 10/mes de inferencia y
 USD 35/mes para el host de archivos, sin compromiso anual. La autorización no sustituye
@@ -21,9 +36,11 @@ La selección técnica vigente es **Mistral Small 4** (`mistralai/mistral-small-
 OpenRouter, ruta fija `mistral/us`, razonamiento deshabilitado y sin fallback a otro procesador.
 GPT-OSS-120B conserva su historial: los sondeos recientes detectaron saturación/HTTP 429 y
 timeout aun con saldo. La evidencia Cerebras histórica de abajo no aprueba el motor nuevo.
-El diagnóstico Mistral completó 540 casos originales de consulta: 540 contratos válidos,
-mediana 0.947 s, p95 2.837 s y máximo 5.816 s. Falta acreditar semántica, código definitivo
-y QA de producción; la revisión del agente nunca se registra como revisión humana.
+La batería vigente completó 540 casos originales de consulta: 540 contratos válidos,
+mediana 0.9065 s, p95 2.784 s y máximo 4.747 s. El diagnóstico semántico del agente y la
+auditoría de períodos están completos; revisión humana y QA de producción siguen pendientes.
+La revisión del agente nunca se registra como revisión humana. Los perfiles anteriores y sus
+fallos se conservan en la decisión y el ledger de evaluación.
 
 La aceptación explícita nombra **OpenRouter y Mistral** y guarda `chat_recipients=mistral`.
 Cualquier consentimiento antiguo para otros procesadores requiere renovación. La activación requiere además
