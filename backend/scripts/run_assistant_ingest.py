@@ -32,9 +32,18 @@ class Scanner:
             raise RuntimeError("scanner refresh paused")
         # Freshclam runs only while building a trusted image, before accepting a
         # file. The file parser itself always runs with --network none.
-        self.retry_at = time.monotonic() + 300
-        command(["docker", "build", "--network", "host", "--no-cache",
-                 "--tag", "kova-assistant-parser:1", str(PARSER)], timeout=900)
+        # Failed/daily builds must not accumulate layers on the Machine disk.
+        # The currently tagged scanner remains available until a fresh build succeeds.
+        try:
+            command(["docker", "builder", "prune", "--all", "--force"], timeout=120)
+            command(["docker", "image", "prune", "--force"], timeout=120)
+            command(["docker", "build", "--network", "host", "--no-cache",
+                     "--tag", "kova-assistant-parser:1", str(PARSER)], timeout=900)
+            command(["docker", "builder", "prune", "--all", "--force"], timeout=120)
+            command(["docker", "image", "prune", "--force"], timeout=120)
+        except Exception:
+            self.retry_at = time.monotonic() + 300
+            raise
         self.refreshed_at = time.monotonic()
         logging.getLogger(__name__).info("Isolated scanner image refreshed")
 

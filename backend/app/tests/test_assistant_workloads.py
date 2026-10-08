@@ -63,26 +63,34 @@ def test_changed_openrouter_recipients_require_fresh_consent(monkeypatch):
 def test_stale_scanner_blocks_processing_and_does_not_retry_downloads(monkeypatch):
     from scripts import run_assistant_ingest as host
 
-    clock, calls = [0], []
+    clock, calls, builds = [0], [], [0]
     monkeypatch.setattr(host.time, "monotonic", lambda: clock[0])
 
     def build(*args, **kwargs):
-        calls.append(args)
-        if len(calls) == 2:
-            raise RuntimeError("unavailable")
+        calls.append(args[0])
+        if args[0][1] == "build":
+            builds[0] += 1
+            if builds[0] == 2:
+                clock[0] += 900
+                raise RuntimeError("unavailable")
 
     monkeypatch.setattr(host, "command", build)
     scanner = host.Scanner()
     scanner.refresh()
     clock[0] = 86399
     scanner.refresh()
-    assert len(calls) == 1
+    assert builds[0] == 1
+    assert ["docker", "builder", "prune", "--all", "--force"] in calls
+    assert ["docker", "image", "prune", "--force"] in calls
+    assert not any(args[:3] == ["docker", "image", "prune"] and "--all" in args
+                   for args in calls)
     clock[0] = 86400
     with pytest.raises(RuntimeError):
         scanner.refresh()
     with pytest.raises(RuntimeError, match="paused"):
         scanner.refresh()
-    assert len(calls) == 2
+    assert builds[0] == 2
+    assert scanner.retry_at == clock[0] + 300
 
 
 def test_docker_initialization_never_inherits_application_secrets(monkeypatch):
