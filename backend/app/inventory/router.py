@@ -8,6 +8,7 @@ from app.billing.access import require_commercial_access
 from app.db import get_db
 from app.inventory import repository as repo
 from app.inventory import service
+from app.inventory.models import InventoryLot, InventoryLotAllocation
 from app.inventory.schemas import (
     InventoryAdjustmentCreate,
     InventoryMovementResponse,
@@ -126,6 +127,19 @@ def list_movements(
         db, tenant_id=membership.tenant_id, product_id=product_id, limit=limit, offset=offset
     )
     total = repo.count_movements(db, tenant_id=membership.tenant_id, product_id=product_id)
+    allocation_map = {}
+    for part, code in (
+        db.query(InventoryLotAllocation, InventoryLot.code)
+        .join(InventoryLot, InventoryLot.id == InventoryLotAllocation.lot_id)
+        .filter(
+            InventoryLotAllocation.tenant_id == membership.tenant_id,
+            InventoryLotAllocation.movement_id.in_([m.id for m in items]),
+        )
+        .all()
+    ):
+        allocation_map.setdefault(part.movement_id, []).append(
+            {"lot_id": part.lot_id, "quantity": abs(part.quantity_delta), "code": code}
+        )
     return MovementHistoryResponse(
         items=[
             {
@@ -137,6 +151,7 @@ def list_movements(
                 "reason_code": m.reason_code,
                 "created_by_user_id": m.created_by_user_id,
                 "created_at": m.created_at,
+                "lot_allocations": allocation_map.get(m.id, []),
             }
             for m in items
         ],

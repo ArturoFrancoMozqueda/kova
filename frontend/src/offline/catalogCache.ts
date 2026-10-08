@@ -57,4 +57,5 @@ export async function readCatalogCache(tenantId: string): Promise<CachedCatalog 
 /** Wipe every tenant's cached catalog — call on logout / tenant switch. */
 export async function clearCatalogCache(): Promise<void> {
   await offlineDb.catalog_cache.clear();
+  await offlineDb.lot_stock.clear();
 }

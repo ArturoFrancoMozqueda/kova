@@ -1377,6 +1377,10 @@ type ProductFormValues = {
   price_amount: string;
   cost_price: string | null;
   category_id: string | null;
+  track_lots: boolean;
+  rotation_label: "consumo_preferente" | "fecha_objetivo";
+  rotation_days: number | null;
+  expiry_days: number | null;
   track_inventory: boolean;
   low_stock_threshold: number | null;
   modifier_group_ids: string[];
@@ -1424,6 +1428,10 @@ export function ProductForm({
   const [categoryId, setCategoryId] = useState(
     initial?.category_id ?? defaultCategoryId ?? "",
   );
+  const [trackLots, setTrackLots] = useState(initial?.track_lots ?? false);
+  const [rotationLabel, setRotationLabel] = useState<"consumo_preferente" | "fecha_objetivo">(initial?.rotation_label ?? "consumo_preferente");
+  const [rotationDays, setRotationDays] = useState(initial?.rotation_days != null ? String(initial.rotation_days) : "");
+  const [expiryDays, setExpiryDays] = useState(initial?.expiry_days != null ? String(initial.expiry_days) : "");
   const [trackInventory, setTrackInventory] = useState(initial?.track_inventory ?? defaultTrackInventory);
   const [threshold, setThreshold] = useState(
     initial?.low_stock_threshold != null ? String(initial.low_stock_threshold) : defaultTrackInventory ? "5" : "",
@@ -1507,6 +1515,10 @@ export function ProductForm({
       cost_price: cost.trim() || null,
       category_id: categoryId || null,
       track_inventory: trackInventory,
+      track_lots: trackLots && trackInventory,
+      rotation_label: rotationLabel,
+      rotation_days: rotationDays ? Number(rotationDays) : null,
+      expiry_days: expiryDays ? Number(expiryDays) : null,
       low_stock_threshold: trackInventory && threshold ? Number(threshold) : null,
       modifier_group_ids: selectedGroupIds,
       image_file: imageFile,
@@ -1703,6 +1715,18 @@ export function ProductForm({
           </div>
         )}
       </div>
+
+      {trackInventory && <fieldset className="space-y-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-semibold">Lotes y fechas</legend>
+        <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={trackLots} onChange={e => setTrackLots(e.target.checked)} />Controlar por lotes</label>
+        <p className="text-xs text-muted-foreground">Las unidades actuales se conservarán como lote y fecha desconocidos. Para desactivar, todas las sucursales deben estar en cero y sin reservas.</p>
+        {trackLots && <>
+          <Label htmlFor="prod-rotation-label">Fecha de rotación</Label><Select id="prod-rotation-label" value={rotationLabel} onChange={e => setRotationLabel(e.target.value as "consumo_preferente" | "fecha_objetivo")}><option value="consumo_preferente">Consumo preferente</option><option value="fecha_objetivo">Fecha objetivo</option></Select>
+          <Label htmlFor="prod-rotation-days">Días desde elaboración para sugerir esa fecha</Label><Input id="prod-rotation-days" type="number" min={1} max={36500} step={1} value={rotationDays} onChange={e => setRotationDays(e.target.value)} />
+          <Label htmlFor="prod-expiry-days">Días desde elaboración para sugerir caducidad</Label><Input id="prod-expiry-days" type="number" min={1} max={36500} step={1} value={expiryDays} onChange={e => setExpiryDays(e.target.value)} />
+          <p className="text-xs text-muted-foreground">Deja una duración vacía si no aplica. Kova sugerirá fechas para nuevos lotes y podrás confirmarlas o cambiarlas. Las fechas vencidas generan avisos; no bloquean la venta.</p>
+        </>}
+      </fieldset>}
 
       {/* Modifier groups */}
       {availableModifierGroups.length > 0 && (

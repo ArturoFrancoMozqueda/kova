@@ -8,13 +8,16 @@ import { Ban, AlertTriangle } from "lucide-react";
 
 type VoidModalProps = {
   disabled: boolean;
+  hasLots?: boolean;
   onCancel: () => void;
-  onSubmit: (reason: string) => Promise<void>;
+  onSubmit: (reason: string, notDelivered?: boolean) => Promise<void>;
 };
 
 const voidReasons = ["operator_error", "wrong_product", "system_issue", "other"];
 
-export function VoidModal({ disabled, onCancel, onSubmit }: VoidModalProps) {
+export function VoidModal({ disabled, onCancel, onSubmit, hasLots }: VoidModalProps) {
+  const [delivery, setDelivery] = useState("");
+  const deliveryId = useId();
   const [reason, setReason] = useState(voidReasons[0]);
   const [confirmed, setConfirmed] = useState(false);
   const reasonId = useId();
@@ -46,6 +49,7 @@ export function VoidModal({ disabled, onCancel, onSubmit }: VoidModalProps) {
           </Select>
         </div>
 
+        {hasLots && <div className="space-y-2"><Label htmlFor={deliveryId}>¿El producto se entregó?</Label><Select id={deliveryId} value={delivery} onChange={e => setDelivery(e.target.value)}><option value="">Selecciona una respuesta</option><option value="no">No se entregó: reponer los lotes originales</option><option value="yes">Sí se entregó: conservar la salida de inventario</option></Select><p className="text-xs text-muted-foreground">Una devolución de productos con lotes nunca repone existencias.</p></div>}
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -61,8 +65,8 @@ export function VoidModal({ disabled, onCancel, onSubmit }: VoidModalProps) {
         <Button variant="outline" onClick={onCancel}>{copy.voidModal.cancel}</Button>
         <Button
           variant="destructive"
-          disabled={!confirmed || disabled}
-          onClick={() => onSubmit(reason)}
+          disabled={!confirmed || disabled || Boolean(hasLots && !delivery)}
+          onClick={() => onSubmit(reason, hasLots ? delivery === "no" : undefined)}
         >
           <Ban className="h-4 w-4" />
           {copy.voidModal.submit}

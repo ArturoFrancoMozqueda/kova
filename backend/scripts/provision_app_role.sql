@@ -155,6 +155,9 @@ BEGIN
             ('subscriptions', 'SELECT, INSERT, UPDATE'),
             ('audit_logs', 'INSERT'),
             ('cash_movements', 'SELECT, INSERT'),
+            ('inventory_lots', 'SELECT, INSERT'),
+            ('inventory_lot_allocations', 'SELECT, INSERT'),
+            ('inventory_lot_reservations', 'SELECT, INSERT, DELETE'),
             ('inventory_movements', 'SELECT, INSERT'),
             ('order_item_modifiers', 'SELECT, INSERT'),
             ('order_items', 'SELECT, INSERT'),
@@ -204,6 +207,9 @@ END
 $$;
 
 DO $$ BEGIN
+    IF to_regclass('public.inventory_lots') IS NOT NULL THEN
+        GRANT UPDATE (code, manufactured_on, rotation_on, expires_on) ON inventory_lots TO kova_app;
+    END IF;
     IF to_regclass('public.purchase_orders') IS NOT NULL THEN
         GRANT UPDATE (status) ON TABLE purchase_orders TO kova_app;
         GRANT UPDATE (received_quantity) ON TABLE purchase_order_items TO kova_app;

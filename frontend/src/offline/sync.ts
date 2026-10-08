@@ -15,6 +15,7 @@ type ApiSyncResult = {
   order_id: string | null;
   order: Order | null;
   error: string | null;
+  error_code?: string | null;
 };
 
 export type SyncItemResult = {
@@ -23,6 +24,7 @@ export type SyncItemResult = {
   order_id: string | null;
   order: Order | null;
   error: string | null;
+  error_code?: string | null;
 };
 
 /**
@@ -130,6 +132,7 @@ export async function syncOfflineSales(
             client_uuid: item.client_uuid,
             ...(item.branch_id ? { branch_id: item.branch_id } : {}),
             order: item.sale,
+            ...(item.lot_reconciliation ? { lot_reconciliation: item.lot_reconciliation } : {}),
             ...(item.shift_id ? { shift_id: item.shift_id } : {}),
             ...(item.created_at ? { occurred_at: item.created_at } : {}),
           })),
@@ -201,7 +204,8 @@ export async function syncOfflineSales(
     } else {
       const item = items.find((candidate) => candidate.client_uuid === result.client_uuid);
       if (!item) continue;
-      await markOfflineSaleFailed(tenantId, result.client_uuid, item.lease_id!, result.error ?? "Sync failed");
+      if (result.error_code) await markOfflineSaleFailed(tenantId, result.client_uuid, item.lease_id!, result.error ?? "Sync failed", result.error_code);
+      else await markOfflineSaleFailed(tenantId, result.client_uuid, item.lease_id!, result.error ?? "Sync failed");
       results.push({ ...result, status: "failed", order_id: null, order: null });
     }
   }

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.inventory.lot_schemas import LotAllocation
 from app.orders.schemas import OrderResponse, PaymentCreate
 from app.shared.validation import MAX_MODIFIER_OPTIONS, MAX_ORDER_ITEMS, StrictModel, reject_html
 
@@ -98,6 +99,7 @@ class CustomerOrderCancel(VersionedAction):
 
 
 class CustomerOrderCheckout(VersionedAction):
+    lot_allocations: dict[UUID, list[LotAllocation]] | None = Field(default=None, max_length=200)
     payments: list[PaymentCreate] = Field(min_length=1, max_length=10)
 
 
@@ -123,6 +125,7 @@ class CustomerOrderItemResponse(BaseModel):
 
 
 class CustomerOrderResponse(BaseModel):
+    lot_reservations: dict[UUID, list[LotAllocation]] = Field(default_factory=dict)
     id: UUID
     tenant_id: UUID
     folio: str

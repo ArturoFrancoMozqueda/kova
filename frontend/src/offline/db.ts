@@ -1,9 +1,11 @@
+import type { CachedLotStock } from "./lotStock";
 import Dexie, { type EntityTable } from "dexie";
 import type { CachedCatalog } from "./catalogCache";
 import type { CachedCustomerOrders } from "@/customerOrders/cache";
 import type { OfflineAccessSnapshot, StoredOfflineSaleQueueItem } from "./types";
 
 export const offlineDb = new Dexie("pos_offline") as Dexie & {
+  lot_stock: EntityTable<CachedLotStock, "key">;
   offline_sales: EntityTable<StoredOfflineSaleQueueItem, "client_uuid">;
   catalog_cache: EntityTable<CachedCatalog, "tenant_id">;
   customer_orders_cache: EntityTable<CachedCustomerOrders, "tenant_id">;
@@ -59,3 +61,6 @@ offlineDb.version(5).stores({
   customer_orders_cache: "tenant_id,cached_at",
   offline_access: "id,tenant_id,expires_at",
 });
+
+// Lot snapshots and local debits are committed atomically with queued sales.
+offlineDb.version(6).stores({ lot_stock: "key,tenant_id,[tenant_id+branch_id]" });

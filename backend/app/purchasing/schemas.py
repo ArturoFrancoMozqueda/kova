@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.inventory.lot_schemas import LotAllocation
 from app.shared.validation import INTEGER_MAX, StrictModel, reject_html
 
 
@@ -47,6 +48,7 @@ class PurchaseCreate(StrictModel):
 
 
 class ReceiveItem(StrictModel):
+    lot_allocations: list[LotAllocation] | None = Field(default=None, max_length=100)
     item_id: UUID
     quantity: int = Field(gt=0, le=INTEGER_MAX)
 

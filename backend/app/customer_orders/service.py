@@ -27,7 +27,9 @@ from app.customer_orders.schemas import (
     VersionedAction,
 )
 from app.idempotency import service as idempotency_service
+from app.inventory import lots
 from app.inventory import repository as inventory_repo
+from app.inventory.models import InventoryLotReservation
 from app.modifiers import service as modifier_service
 from app.orders import service as order_service
 from app.pricing import calculator
@@ -51,6 +53,7 @@ def _observe(event: str, *, order: CustomerOrder, **dimensions: object) -> None:
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
+    payload = {k: v for k, v in payload.items() if k != "lot_allocations" or v is not None}
     encoded = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
     return hashlib.sha256(encoded.encode()).hexdigest()
 
@@ -127,9 +130,7 @@ def _stock_conflicts_for_orders(
     db: Session, *, tenant_id: UUID, orders: list[CustomerOrder]
 ) -> set[UUID]:
     eligible = [
-        order
-        for order in orders
-        if order.status in _ACTIVE_STATUSES and not order.sale_order_id
+        order for order in orders if order.status in _ACTIVE_STATUSES and not order.sale_order_id
     ]
     reservations = repo.active_reservations_for_orders(
         db, tenant_id=tenant_id, order_ids=[order.id for order in eligible]
@@ -138,13 +139,25 @@ def _stock_conflicts_for_orders(
     stock = inventory_repo.stock_on_hand_for_products(
         db, tenant_id=tenant_id, product_ids=product_ids
     )
-    reserved = repo.active_reserved_for_products(
-        db, tenant_id=tenant_id, product_ids=product_ids
+    reserved = repo.active_reserved_for_products(db, tenant_id=tenant_id, product_ids=product_ids)
+    conflicting_lots = (
+        {UUID(row["id"]) for row in lots.list_lots(db, tenant_id) if row["stock_conflict"]}
+        if product_ids
+        else set()
     )
+    affected = {
+        row[0]
+        for row in db.query(InventoryLotReservation.reservation_id)
+        .filter(
+            InventoryLotReservation.tenant_id == tenant_id,
+            InventoryLotReservation.lot_id.in_(conflicting_lots),
+        )
+        .all()
+    }
     return {
         row.customer_order_id
         for row in reservations
-        if reserved.get(row.product_id, 0) > stock.get(row.product_id, 0)
+        if row.id in affected or reserved.get(row.product_id, 0) > stock.get(row.product_id, 0)
     }
 
 
@@ -196,6 +209,13 @@ def serialize_customer_order(db: Session, *, order: CustomerOrder) -> dict[str, 
         "version": order.version,
         "stock_conflict": _stock_conflict(db, order=order),
         "items": item_bodies,
+        "lot_reservations": {
+            str(r.product_id): [p.model_dump(mode="json") for p in lots.reservation_parts(db, r)]
+            for r in db.query(InventoryReservation)
+            .filter_by(tenant_id=order.tenant_id, customer_order_id=order.id)
+            .all()
+            if r.lot_tracked
+        },
         "confirmed_at": order.confirmed_at.isoformat() if order.confirmed_at else None,
         "ready_at": order.ready_at.isoformat() if order.ready_at else None,
         "fulfilled_at": order.fulfilled_at.isoformat() if order.fulfilled_at else None,
@@ -357,9 +377,7 @@ def _reserve_inventory(db: Session, *, order: CustomerOrder) -> None:
     tracked = {product.id for product in products.values() if product.track_inventory}
 
     desired = {
-        product_id: quantity
-        for product_id, quantity in desired.items()
-        if product_id in tracked
+        product_id: quantity for product_id, quantity in desired.items() if product_id in tracked
     }
 
     existing = {
@@ -404,15 +422,22 @@ def _reserve_inventory(db: Session, *, order: CustomerOrder) -> None:
             reservation.quantity = quantity
             reservation.status = "active"
         else:
-            db.add(
-                InventoryReservation(
-                    tenant_id=order.tenant_id,
-                    customer_order_id=order.id,
-                    product_id=product_id,
-                    quantity=quantity,
-                    status="active",
-                )
+            reservation = InventoryReservation(
+                tenant_id=order.tenant_id,
+                customer_order_id=order.id,
+                product_id=product_id,
+                quantity=quantity,
+                status="active",
             )
+            db.add(reservation)
+            db.flush()
+        product = products[product_id]
+        parts = (
+            lots.suggest(db, product, quantity, excluding_reservation=reservation.id)
+            if product.track_lots
+            else []
+        )
+        lots.assign_reservation(db, product, reservation, parts)
     for product_id, reservation in existing.items():
         if product_id not in desired and reservation.status == "active":
             reservation.status = "released"
@@ -844,7 +869,7 @@ def checkout_customer_order(
         raise _error(409, "ALREADY_PAID", "Este pedido ya tiene una venta vinculada.")
     if order.status not in _ACTIVE_STATUSES:
         raise _error(409, "INVALID_TRANSITION", "Confirma el pedido antes de cobrarlo.")
-    if _stock_conflict(db, order=order):
+    if _stock_conflict(db, order=order) and not body.lot_allocations:
         _observe("checkout_stock_conflict", order=order)
         raise _error(
             422, "OUT_OF_STOCK", "El inventario reservado ya no alcanza para cobrar este pedido."
@@ -869,6 +894,23 @@ def checkout_customer_order(
         db, tenant_id=tenant_id, item_ids=[item.id for item in items]
     )
 
+    if body.lot_allocations and set(body.lot_allocations) - set(reservations):
+        raise bad_request("La selección contiene un producto que no está reservado en este pedido")
+    allocation_pools = {}
+    for product_id, reservation in reservations.items():
+        product = products[product_id]
+        parts = (
+            body.lot_allocations.get(product_id, lots.reservation_parts(db, reservation))
+            if body.lot_allocations
+            else lots.reservation_parts(db, reservation)
+        )
+        if product.track_lots:
+            parts = lots.choose(
+                db, product, reservation.quantity, parts, excluding_reservation=reservation.id
+            )
+        if body.lot_allocations and product_id in body.lot_allocations:
+            lots.assign_reservation(db, product, reservation, parts)
+        allocation_pools[product_id] = parts
     for item in items:
         product = products[item.product_id]
         modifiers = modifiers_by_item[item.id]
@@ -890,6 +932,9 @@ def checkout_customer_order(
                 unit_price=item.unit_price_amount,
                 line_total=item.line_total_amount,
                 modifier_snapshots=snapshots,
+                lot_allocations=lots.split(allocation_pools[product.id], item.quantity)
+                if product.track_lots
+                else None,
             )
         )
         if product.track_inventory:

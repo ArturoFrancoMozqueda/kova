@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.catalog.models import Product
 from app.idempotency import service as idempotency_service
+from app.inventory import lots
 from app.inventory import repository as repo
+from app.inventory.lot_schemas import LotAllocation
 from app.inventory.schemas import (
     InventoryAdjustmentCreate,
     LowStockThresholdUpdate,
@@ -84,6 +86,7 @@ def _stock_body(
         "product_name": product.name,
         "sku": product.sku,
         "track_inventory": product.track_inventory,
+        "track_lots": product.track_lots,
         "stock_on_hand": stock,
         "reserved_quantity": reserved,
         "available_quantity": available,
@@ -223,6 +226,9 @@ def adjust_stock(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
+    for field in ("lot_allocations", "lot_counts"):
+        if payload.get(field) is None:
+            payload.pop(field, None)
     payload["product_id"] = str(product_id)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
@@ -251,16 +257,26 @@ def adjust_stock(
             },
         )
     _validate_movement_range(quantity_delta=body.quantity_delta, stock_on_hand=resulting_stock)
+    parts = lots.choose(
+        db,
+        product,
+        abs(body.quantity_delta),
+        body.lot_allocations,
+        incoming=body.quantity_delta > 0,
+        physical_loss=True,
+    )
     movement = repo.create_movement(
         db,
         tenant_id=tenant_id,
         product_id=product.id,
         user_id=user_id,
         movement_type="adjustment",
+        lot_tracked=product.track_lots,
         quantity_delta=body.quantity_delta,
         reason=body.reason,
         reason_code=body.reason_code,
     )
+    lots.attach(db, movement, parts, required=product.track_lots)
     response_body = {
         "id": str(movement.id),
         "product_id": str(product.id),
@@ -301,6 +317,9 @@ def stock_take(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
+    for field in ("lot_allocations", "lot_counts"):
+        if payload.get(field) is None:
+            payload.pop(field, None)
     payload["product_id"] = str(product_id)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
@@ -313,16 +332,47 @@ def stock_take(
     delta = body.counted_quantity - current_stock
     _validate_movement_range(quantity_delta=delta, stock_on_hand=body.counted_quantity)
     movement = None
-    if delta != 0:
-        movement = repo.create_movement(
-            db,
-            tenant_id=tenant_id,
-            product_id=product.id,
-            user_id=user_id,
-            movement_type="stock_take",
-            quantity_delta=delta,
-            reason=body.reason,
-        )
+    if product.track_lots:
+        if body.lot_counts is None:
+            raise lots.lot_error("Cuenta las unidades de cada lote", "LOT_SELECTION_REQUIRED")
+        counted = {part.lot_id: part.counted_quantity for part in body.lot_counts}
+        if len(counted) != len(body.lot_counts) or sum(counted.values()) != body.counted_quantity:
+            raise bad_request("El conteo por lotes debe coincidir con el total y no repetir lotes")
+        rows = {UUID(row["id"]): row for row in lots.list_lots(db, tenant_id, product.id)}
+        if set(counted) != set(rows):
+            raise bad_request("El conteo debe incluir todos los lotes de este producto")
+        for lot_id, quantity in counted.items():
+            difference = quantity - rows[lot_id]["stock_on_hand"]
+            if difference:
+                movement = repo.create_movement(
+                    db,
+                    tenant_id=tenant_id,
+                    product_id=product.id,
+                    user_id=user_id,
+                    movement_type="stock_take",
+                    lot_tracked=True,
+                    quantity_delta=difference,
+                    reason=body.reason,
+                )
+                lots.attach(
+                    db,
+                    movement,
+                    [LotAllocation(lot_id=lot_id, quantity=abs(difference))],
+                    required=True,
+                )
+    else:
+        if body.lot_counts:
+            raise bad_request("El producto no tiene control por lotes")
+        if delta != 0:
+            movement = repo.create_movement(
+                db,
+                tenant_id=tenant_id,
+                product_id=product.id,
+                user_id=user_id,
+                movement_type="stock_take",
+                quantity_delta=delta,
+                reason=body.reason,
+            )
     response_body = {
         "id": str(movement.id) if movement else None,
         "product_id": str(product.id),
@@ -362,6 +412,9 @@ def update_low_stock_threshold(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
+    for field in ("lot_allocations", "lot_counts"):
+        if payload.get(field) is None:
+            payload.pop(field, None)
     payload["product_id"] = str(product_id)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload

@@ -3,6 +3,7 @@ export type StockItem = {
   product_name: string;
   sku: string | null;
   track_inventory: boolean;
+  track_lots?: boolean;
   stock_on_hand: number;
   reserved_quantity: number;
   available_quantity: number;
@@ -13,6 +14,7 @@ export type StockItem = {
 export type MovementResponse = {
   id: string | null;
   product_id: string;
+  lot_allocations?: (import("./lots").LotAllocation & { code?: string })[];
   movement_type: string;
   quantity_delta: number;
   stock_on_hand: number;
@@ -24,6 +26,7 @@ export type InventoryReasonCode = "merma" | "caducidad" | "robo" | "daño" | "au
 
 export type MovementHistoryItem = {
   id: string;
+  lot_allocations?: (import("./lots").LotAllocation & { code?: string })[];
   movement_type: string;
   quantity_delta: number;
   stock_on_hand_after: number | null;

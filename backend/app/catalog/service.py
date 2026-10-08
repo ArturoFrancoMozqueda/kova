@@ -12,6 +12,7 @@ from app.catalog import repository as repo
 from app.catalog.models import Category, Product
 from app.catalog.schemas import CategoryCreate, CategoryUpdate, ProductCreate, ProductUpdate
 from app.idempotency import service as idempotency_service
+from app.inventory import lots as lot_service
 from app.shared.exceptions import bad_request, not_found
 from app.tenants.repository import lock_by_id
 
@@ -99,6 +100,10 @@ def _product_body(product: Product) -> dict[str, Any]:
         "price_amount": str(product.price_amount),
         "cost_price": str(product.cost_price) if product.cost_price is not None else None,
         "track_inventory": product.track_inventory,
+        "track_lots": product.track_lots,
+        "rotation_label": product.rotation_label,
+        "rotation_days": product.rotation_days,
+        "expiry_days": product.expiry_days,
         "low_stock_threshold": product.low_stock_threshold,
         "image_url": product.image_url,
         "image_position_x": product.image_position_x,
@@ -278,6 +283,9 @@ def create_product(
     commit: bool = True,
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
+    for field in ("track_lots", "rotation_label", "rotation_days", "expiry_days"):
+        if field not in body.model_fields_set:
+            payload.pop(field, None)
     stored = _stored_response(
         db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
     )
@@ -292,6 +300,8 @@ def create_product(
     sku = body.sku
     if not sku or not sku.strip():
         sku = _generate_sku(db, tenant_id=tenant_id, category_id=body.category_id)
+    if body.track_lots and not body.track_inventory:
+        raise bad_request("El control por lotes requiere control de inventario")
     product = repo.create_product(
         db,
         tenant_id=tenant_id,
@@ -308,6 +318,12 @@ def create_product(
         image_position_y=body.image_position_y,
         image_zoom=body.image_zoom,
     )
+    product.rotation_label = body.rotation_label
+    product.rotation_days = body.rotation_days
+    product.expiry_days = body.expiry_days
+    if body.track_lots:
+        lot_service.configure(db, product, True)
+    db.flush()
     response_body = _product_body(product)
     audit_service.log(
         db,
@@ -351,7 +367,9 @@ def update_product(
         return stored
     if "barcode" in body.model_fields_set:
         lock_by_id(db, tenant_id)
-    product = repo.get_product(db, tenant_id=tenant_id, product_id=product_id)
+    product = (
+        db.query(Product).filter_by(tenant_id=tenant_id, id=product_id).with_for_update().first()
+    )
     if not product:
         raise not_found("Product not found")
     if "category_id" in body.model_fields_set:
@@ -365,6 +383,21 @@ def update_product(
     if "barcode" in body.model_fields_set:
         _ensure_barcode(db, tenant_id=tenant_id, barcode=body.barcode, product_id=product.id)
         product.barcode = body.barcode
+    desired_lots = body.track_lots if "track_lots" in body.model_fields_set else product.track_lots
+    desired_inventory = (
+        body.track_inventory
+        if "track_inventory" in body.model_fields_set
+        else product.track_inventory
+    )
+    if desired_lots and not desired_inventory:
+        raise bad_request("Desactiva lotes antes de desactivar el inventario")
+    # Configuration is atomic with activation/backfill across every branch.
+    for field in ("rotation_label", "rotation_days", "expiry_days"):
+        if field in body.model_fields_set:
+            setattr(product, field, getattr(body, field))
+    if desired_inventory:
+        product.track_inventory = True
+    lot_service.configure(db, product, bool(desired_lots))
     for field in (
         "name",
         "description",

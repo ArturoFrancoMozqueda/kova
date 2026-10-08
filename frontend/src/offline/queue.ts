@@ -1,3 +1,4 @@
+import { LotQueueError, availableLots, lotStockKey, readLocalLots } from "./lotStock";
 import { offlineDb } from "./db";
 import type {
   OfflineReceiptSnapshot,
@@ -51,7 +52,23 @@ export async function queueOfflineSale(
   const item = makeQueuedSale(tenantId, sale, undefined, shiftId, receiptSnapshot, branchId);
   // `add` fails closed on the astronomically unlikely UUID collision instead
   // of overwriting a sale owned by another tenant.
-  await offlineDb.offline_sales.add(item);
+  const parts = sale.items.flatMap(line => line.lot_allocations ?? []);
+  if (parts.length) {
+    await offlineDb.transaction("rw", offlineDb.offline_sales, offlineDb.lot_stock, async () => {
+      const cache = await readLocalLots(tenantId, branchId ?? tenantId);
+      if (!cache) throw new LotQueueError("Conéctate para cargar los lotes de esta sucursal antes de cobrar.");
+      const wanted = new Map<string, number>();
+      parts.forEach(part => wanted.set(part.lot_id, (wanted.get(part.lot_id) ?? 0) + part.quantity));
+      const available = new Map(availableLots(cache).map(lot => [lot.id, lot.available_quantity]));
+      for (const [lotId, quantity] of wanted) {
+        if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > (available.get(lotId) ?? 0)) throw new LotQueueError("Las unidades del lote cambiaron en este dispositivo. Revisa los lotes antes de cobrar.");
+      }
+      await offlineDb.offline_sales.add(item);
+      await offlineDb.lot_stock.put({ ...cache, key: lotStockKey(tenantId, branchId ?? tenantId), debits: [...cache.debits, { client_uuid: item.client_uuid, allocations: parts }] });
+    });
+  } else {
+    await offlineDb.offline_sales.add(item);
+  }
   return item;
 }
 
@@ -122,13 +139,9 @@ export async function markOfflineSaleSynced(
   }));
 }
 
-export async function markOfflineSaleFailed(
-  tenantId: string,
-  clientUuid: string,
-  leaseId: string,
-  error: string,
-) {
-  return markOfflineSaleStatus(tenantId, clientUuid, leaseId, "failed", error);
+export async function markOfflineSaleFailed(tenantId: string, clientUuid: string, leaseId: string, error: string, errorCode?: string) {
+  return updateClaimedSale(tenantId, clientUuid, leaseId, existing => ({ ...existing, status: "failed", last_error: error, last_error_code: errorCode,
+    sync_owner: undefined, lease_id: undefined, sync_started_at: undefined, updated_at: nowIso() }));
 }
 
 export async function retryDeadLetter(tenantId: string, clientUuid: string) {
@@ -258,5 +271,19 @@ export async function claimOfflineSale(
     };
     await offlineDb.offline_sales.put(updated);
     return updated;
+  });
+}
+
+/** An explicit review supplements legacy sales; it never rewrites the original. */
+export async function reconcileLegacyLots(tenantId: string, clientUuid: string, parts: Record<string, import("@/inventory/lots").LotAllocation[]>) {
+  return offlineDb.transaction("rw", offlineDb.offline_sales, async () => {
+    const row = await offlineDb.offline_sales.get(clientUuid);
+    if (!isOwnedRow(row, tenantId) || row.status !== "failed") throw new Error("La venta cambió. Actualiza la cola antes de conciliar.");
+    for (const [productId, allocations] of Object.entries(parts)) {
+      const lines = row.sale.items.filter(item => item.product_id === productId);
+      if (!lines.length || lines.some(item => item.lot_allocations !== undefined)) throw new Error("Los lotes cobrados no pueden sustituirse.");
+      if (allocations.reduce((sum, part) => sum + part.quantity, 0) !== lines.reduce((sum, item) => sum + item.quantity, 0)) throw new Error("Asigna exactamente las unidades cobradas.");
+    }
+    await offlineDb.offline_sales.put({ ...row, lot_reconciliation: parts, updated_at: nowIso() });
   });
 }

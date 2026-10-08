@@ -78,10 +78,10 @@ export function createRefund(
   });
 }
 
-export function createVoid(orderId: string, reason: string): Promise<ReceiptVoid> {
+export function createVoid(orderId: string, reason: string, notDelivered?: boolean): Promise<ReceiptVoid> {
   return requestJson<ReceiptVoid>(`/api/v1/orders/${orderId}/void`, {
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ reason, ...(notDelivered !== undefined ? { not_delivered: notDelivered } : {}) }),
   });
 }

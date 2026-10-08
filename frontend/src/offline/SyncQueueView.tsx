@@ -1,3 +1,4 @@
+import { LotConflictRecovery } from "./LotConflictRecovery";
 import { useEffect, useState } from "react";
 import { copy } from "../i18n/messages";
 import { formatDateTime } from "../orders/format";
@@ -196,6 +197,7 @@ export default function SyncQueueView() {
                         }`)
                         .join(", ")}
                     </p>
+                    {tenantId && (entry.sale.items.some(item => item.lot_allocations) || entry.last_error_code?.startsWith("LOT_") || entry.last_error?.includes("LOT_")) && <LotConflictRecovery row={entry} tenantId={tenantId} onRetry={() => retryDeadLetter(entry.client_uuid).then(() => syncNow())} />}
                     <details className="mt-1 text-[11px] text-muted-foreground/70">
                       <summary className="cursor-pointer select-none">{copy.syncQueue.technicalDetail}</summary>
                       <p className="mt-1 tabular-nums">

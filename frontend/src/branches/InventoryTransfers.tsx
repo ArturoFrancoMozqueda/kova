@@ -1,3 +1,5 @@
+import { LotAllocationEditor } from "@/inventory/LotControls";
+import { allocationValid, type LotAllocation } from "@/inventory/lots";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +13,7 @@ type Stock = {
   product_id: string;
   product_name: string;
   available_quantity: number;
+  track_lots?: boolean;
 };
 type Transfer = {
   id: string;
@@ -42,6 +45,7 @@ export function InventoryTransfers() {
   const [history, setHistory] = useState<Transfer[]>([]);
   const [source, setSource] = useState("");
   const [destination, setDestination] = useState("");
+  const [parts, setParts] = useState<LotAllocation[]>([]);
   const [product, setProduct] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
@@ -109,6 +113,7 @@ export function InventoryTransfers() {
       setError("Conéctate a internet para registrar un traspaso.");
       return;
     }
+    if (stock.find(item => item.product_id === product)?.track_lots && !allocationValid(parts, Number(quantity))) { setError("Asigna todas las unidades a sus lotes de origen."); return; }
     setBusy(true);
     setError("");
     setSuccess("");
@@ -118,6 +123,7 @@ export function InventoryTransfers() {
       product_id: product,
       quantity: Number(quantity),
       reason: reason.trim(),
+      ...(stock.find(item => item.product_id === product)?.track_lots ? { lot_allocations: parts } : {}),
     });
     if (attempt.current?.payload !== payload)
       attempt.current = { payload, key: crypto.randomUUID() };
@@ -218,7 +224,7 @@ export function InventoryTransfers() {
                 required
                 disabled={busy || loadingStock || !source}
                 value={product}
-                onChange={(event) => setProduct(event.target.value)}
+                onChange={(event) => { setProduct(event.target.value); setParts([]); }}
               >
                 <option value="">
                   {loadingStock
@@ -247,6 +253,7 @@ export function InventoryTransfers() {
               />
             </div>
             <div>
+              {stock.find(item => item.product_id === product)?.track_lots && <LotAllocationEditor key={`${source}:${product}`} productId={product} branchId={source} quantity={Number(quantity)} value={parts} onChange={setParts} />}
               <Label htmlFor="transfer-reason">Motivo</Label>
               <Input
                 id="transfer-reason"

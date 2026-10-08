@@ -18,6 +18,8 @@ from app.catalog.models import Product
 from app.customer_orders.models import InventoryReservation
 from app.db import Base, get_db
 from app.idempotency import service as idempotency
+from app.inventory import lots
+from app.inventory.lot_schemas import LotAllocation
 from app.orders.models import InventoryMovement
 from app.rbac.permissions import Permission
 from app.shared.exceptions import bad_request, forbidden, not_found
@@ -52,6 +54,7 @@ class InventoryTransfer(Base):
 
 
 class TransferWrite(BaseModel):
+    lot_allocations: list[LotAllocation] | None = Field(default=None, max_length=100)
     model_config = ConfigDict(extra="forbid")
     source_branch_id: UUID
     destination_branch_id: UUID
@@ -84,9 +87,10 @@ def transfer_stock(
     # assigned to one store must never move stock out of another location.
     if membership.allowed_branch_id is not None:
         raise forbidden("Los traspasos requieren acceso a todas las sucursales")
-    fingerprint = hashlib.sha256(
-        f"inventory.transfer:{body.model_dump_json()}".encode()
-    ).hexdigest()
+    encoded_body = body.model_dump_json(
+        exclude={"lot_allocations"} if body.lot_allocations is None else set()
+    )
+    fingerprint = hashlib.sha256(f"inventory.transfer:{encoded_body}".encode()).hexdigest()
     tenant_id = membership.tenant_id
     with transfer_branches(db, {body.source_branch_id, body.destination_branch_id}):
         existing = idempotency.claim(
@@ -150,11 +154,14 @@ def transfer_stock(
             )
         if destination + body.quantity > INTEGER_MAX:
             raise bad_request("Las existencias de destino superarían el límite permitido")
+        parts = lots.choose(
+            db, product, body.quantity, body.lot_allocations, branch_id=body.source_branch_id
+        )
         transfer = InventoryTransfer(
             tenant_id=tenant_id,
             created_by_user_id=user_id,
             product_name=product.name,
-            **body.model_dump(),
+            **body.model_dump(exclude={"lot_allocations"}),
         )
         db.add(transfer)
         db.flush()
@@ -162,20 +169,23 @@ def transfer_stock(
             (body.source_branch_id, -body.quantity, source - body.quantity, "transfer_out"),
             (body.destination_branch_id, body.quantity, destination + body.quantity, "transfer_in"),
         ]:
-            db.add(
-                InventoryMovement(
-                    tenant_id=tenant_id,
-                    branch_id=branch_id,
-                    product_id=product.id,
-                    quantity_delta=delta,
-                    stock_on_hand_after=after,
-                    movement_type=kind,
-                    reason=f"Traspaso {transfer.id}: {body.reason}",
-                    created_by_user_id=user_id,
-                )
+            movement = InventoryMovement(
+                tenant_id=tenant_id,
+                branch_id=branch_id,
+                product_id=product.id,
+                quantity_delta=delta,
+                stock_on_hand_after=after,
+                movement_type=kind,
+                lot_tracked=product.track_lots,
+                reason=f"Traspaso {transfer.id}: {body.reason}",
+                created_by_user_id=user_id,
             )
+            db.add(movement)
+            db.flush()
+            lots.attach(db, movement, parts, required=product.track_lots)
         db.flush()
         result = TransferResponse.model_validate(transfer).model_dump(mode="json")
+        result["lot_allocations"] = [p.model_dump(mode="json") for p in parts]
         audit.log(
             db,
             tenant_id=tenant_id,

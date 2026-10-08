@@ -137,7 +137,7 @@ def _provision_kova_app() -> None:
             ),
             "SELECT, INSERT, DELETE": (
                 "customer_order_item_modifiers customer_order_items "
-                "product_modifier_groups"
+                "product_modifier_groups inventory_lot_reservations"
             ),
             "SELECT, INSERT, UPDATE": (
                 "account_deletion_requests categories customer_orders customers idempotency_keys "
@@ -149,7 +149,7 @@ def _provision_kova_app() -> None:
                 "memberships sessions"
             ),
             "SELECT, INSERT": (
-                "cash_movements inventory_movements inventory_transfers suppliers purchase_orders "
+                "inventory_lots inventory_lot_allocations cash_movements inventory_movements inventory_transfers suppliers purchase_orders "
                 "purchase_order_items fiscal_issuer_profiles invoice_requests "
                 "cfdi_connections cfdi_documents "
                 "order_item_modifiers order_items payments "
@@ -171,6 +171,7 @@ def _provision_kova_app() -> None:
         conn.execute(
             text("GRANT SELECT, INSERT, UPDATE ON fiscal_global_draft_settings TO kova_app")
         )
+        conn.execute(text("GRANT UPDATE (code, manufactured_on, rotation_on, expires_on) ON inventory_lots TO kova_app"))
         conn.execute(text("GRANT UPDATE (status) ON purchase_orders TO kova_app"))
         conn.execute(text("GRANT UPDATE (received_quantity) ON purchase_order_items TO kova_app"))
         conn.execute(text("GRANT UPDATE (fiscal_data) ON fiscal_issuer_profiles TO kova_app"))

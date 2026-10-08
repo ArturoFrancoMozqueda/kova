@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -69,6 +70,10 @@ class ProductCreate(StrictModel):
     price_amount: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
+    track_lots: bool = False
+    rotation_label: Literal["consumo_preferente", "fecha_objetivo"] = "consumo_preferente"
+    rotation_days: int | None = Field(default=None, ge=1, le=36500)
+    expiry_days: int | None = Field(default=None, ge=1, le=36500)
     track_inventory: bool = False
     low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int = Field(default=50, ge=0, le=100)
@@ -103,6 +108,12 @@ class ProductUpdate(StrictModel):
     )
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=2)
     category_id: UUID | None = None
+    track_lots: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
+    rotation_label: Literal["consumo_preferente", "fecha_objetivo"] | None = Field(
+        default=None, json_schema_extra=non_nullable_patch_schema
+    )
+    rotation_days: int | None = Field(default=None, ge=1, le=36500)
+    expiry_days: int | None = Field(default=None, ge=1, le=36500)
     track_inventory: bool | None = Field(default=None, json_schema_extra=non_nullable_patch_schema)
     low_stock_threshold: int | None = Field(default=None, ge=0, le=INTEGER_MAX)
     image_position_x: int | None = Field(
@@ -120,6 +131,8 @@ class ProductUpdate(StrictModel):
         "name",
         "price_amount",
         "track_inventory",
+        "track_lots",
+        "rotation_label",
         "image_position_x",
         "image_position_y",
         "image_zoom",
@@ -145,6 +158,10 @@ class ProductResponse(BaseModel):
     barcode: str | None = None
     price_amount: Decimal
     cost_price: Decimal | None
+    track_lots: bool = False
+    rotation_label: Literal["consumo_preferente", "fecha_objetivo"] = "consumo_preferente"
+    rotation_days: int | None = None
+    expiry_days: int | None = None
     track_inventory: bool
     low_stock_threshold: int | None
     image_url: str | None = None

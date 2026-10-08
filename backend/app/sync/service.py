@@ -5,9 +5,12 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.audit import service as audit
 from app.branches.scope import active_branch_id, bind_branch
+from app.inventory import lots
 from app.orders import repository as orders_repo
 from app.orders import service as order_service
+from app.shared.exceptions import bad_request, forbidden
 from app.shifts import repository as shifts_repo
 from app.sync.schemas import OfflineSaleSyncItem, OfflineSaleSyncResult
 
@@ -20,6 +23,7 @@ def sync_offline_sales(
     tenant_id: UUID,
     user_id: UUID,
     sales: list[OfflineSaleSyncItem],
+    can_reconcile_lots: bool = False,
 ) -> list[OfflineSaleSyncResult]:
     results: list[OfflineSaleSyncResult] = []
     # Batch counters for observability (no PII): a spike in failed/replayed is a
@@ -42,11 +46,65 @@ def sync_offline_sales(
                 if shift:
                     verified_shift_id = shift.id
 
+            order_body = sale.order
+            if sale.lot_reconciliation:
+                if not can_reconcile_lots:
+                    raise forbidden(
+                        "La conciliación de lotes requiere permiso para ajustar inventario"
+                    )
+                product_ids = {item.product_id for item in sale.order.items}
+                if set(sale.lot_reconciliation) - product_ids:
+                    raise bad_request("La conciliación contiene productos ajenos a la venta")
+                pools = {pid: list(parts) for pid, parts in sale.lot_reconciliation.items()}
+                updated = []
+                for item in sale.order.items:
+                    if item.product_id in pools:
+                        if item.lot_allocations is not None:
+                            raise bad_request(
+                                "Los lotes cobrados no pueden sustituirse durante sincronización"
+                            )
+                        updated.append(
+                            item.model_copy(
+                                update={
+                                    "lot_allocations": lots.split(
+                                        pools[item.product_id], item.quantity
+                                    )
+                                }
+                            )
+                        )
+                    else:
+                        updated.append(item)
+                if any(pools.values()):
+                    raise bad_request("La conciliación excede las unidades cobradas")
+                order_body = sale.order.model_copy(update={"items": updated})
+                if (
+                    orders_repo.get_order_by_client_uuid(
+                        db, tenant_id=tenant_id, client_uuid=sale.client_uuid
+                    )
+                    is None
+                ):
+                    audit.log(
+                        db,
+                        tenant_id=tenant_id,
+                        user_id=user_id,
+                        action="offline.lot_reconciliation",
+                        resource_type="offline_sale",
+                        resource_id=sale.client_uuid,
+                        changes={
+                            "original_hash": order_service._hash_payload(
+                                sale.order.model_dump(mode="json")
+                            ),
+                            "allocations": {
+                                str(pid): [p.model_dump(mode="json") for p in parts]
+                                for pid, parts in sale.lot_reconciliation.items()
+                            },
+                        },
+                    )
             _, order = order_service.create_order(
                 db,
                 tenant_id=tenant_id,
                 user_id=user_id,
-                body=sale.order,
+                body=order_body,
                 idempotency_key=str(sale.client_uuid),
                 client_uuid=sale.client_uuid,
                 # Never link to the *current* drawer: by sync time it may be a
@@ -68,11 +126,17 @@ def sync_offline_sales(
             # Business rejection (e.g. product not found, out of stock). Fail
             # only this sale; the rest of the batch continues.
             db.rollback()
+            lot_conflict = isinstance(exc.detail, dict) and str(
+                exc.detail.get("code", "")
+            ).startswith("LOT_")
             results.append(
                 OfflineSaleSyncResult(
                     client_uuid=sale.client_uuid,
                     status="failed",
-                    error=str(exc.detail),
+                    error=exc.detail.get("message", str(exc.detail))
+                    if lot_conflict
+                    else str(exc.detail),
+                    error_code=exc.detail.get("code") if isinstance(exc.detail, dict) else None,
                 )
             )
             failed += 1

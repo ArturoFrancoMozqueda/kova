@@ -120,6 +120,7 @@ def create_order_item(
             unit_price_amount if unit_price_amount is not None else product.price_amount
         ),
         unit_cost=product.cost_price,
+        lot_tracked=product.track_lots,
         discount_amount=discount_amount,
         tax_amount=tax_amount,
         line_total_amount=line_total_amount,
@@ -164,12 +165,16 @@ def create_inventory_movement(
     movement_type: str = "sale",
     reason: str | None = None,
     user_id: UUID | None = None,
+    lot_tracked: bool = False,
+    order_item_id: UUID | None = None,
 ) -> InventoryMovement:
     movement = InventoryMovement(
         tenant_id=tenant_id,
         product_id=product_id,
         order_id=order_id,
         movement_type=movement_type,
+        order_item_id=order_item_id,
+        lot_tracked=lot_tracked,
         quantity_delta=quantity_delta,
         reason=reason,
         created_by_user_id=user_id,
