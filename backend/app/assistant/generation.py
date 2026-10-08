@@ -374,6 +374,11 @@ def _run(db, ctx, job):
             if settings.assistant_generation_provider == "groq" and exc.status_code == 429:
                 groq_budget.cooldown(db, (exc.headers or {}).get("Retry-After", "60"))
                 db.commit()
+            elif settings.assistant_generation_provider == "openrouter" and exc.status_code == 429:
+                from app.assistant import openrouter_budget
+
+                openrouter_budget.cooldown(db, (exc.headers or {}).get("Retry-After", "60"))
+                db.commit()
             raise
         budget.settle(db, member.tenant_id, user.id, job.id, reservation_id, response.get("usage"))
         db.commit()
@@ -463,7 +468,9 @@ def _run(db, ctx, job):
             # Preserve the read-only pilot contract: unsolicited proposal steps
             # are discarded and can never reach the executor.
             answer.steps = []
-        if re.search(r"https?://|<[^>]+>|!\[|\d", answer.answer):
+        if settings.assistant_generation_provider == "openrouter":
+            grounding.validate_selected_answer(answer, provider_messages)
+        elif re.search(r"https?://|<[^>]+>|!\[|\d", answer.answer):
             raise HTTPException(422, "La respuesta no cumplió el contrato de evidencia.")
         if not {str(x) for x in answer.source_ids} <= source_ids:
             raise HTTPException(422, "La respuesta citó una fuente no recuperada.")

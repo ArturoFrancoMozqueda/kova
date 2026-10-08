@@ -7370,6 +7370,18 @@
             ],
             "title": "Chat Provider"
           },
+          "chat_recipients": {
+            "anyOf": [
+              {
+                "const": "groq+cerebras",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Recipients"
+          },
           "document_consent": {
             "default": false,
             "title": "Document Consent",

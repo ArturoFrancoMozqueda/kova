@@ -24,18 +24,62 @@ def cost_window():
     return datetime.now(UTC).strftime("%Y-%m-01")
 
 
+def monthly_reset_at():
+    current = datetime.now(UTC)
+    return current.replace(year=current.year + (current.month == 12),
+                           month=current.month % 12 + 1, day=1,
+                           hour=0, minute=0, second=0, microsecond=0)
+
+
+def pause_until(db):
+    return db.execute(text(
+        "SELECT coalesce(max(used),0) FROM assistant_control.budgets WHERE bucket='or:pause'"
+    )).scalar_one()
+
+
+def cooldown(db, seconds):
+    try:
+        delay = max(1, min(3600, int(seconds)))
+    except (ValueError, TypeError):
+        delay = 60
+    db.execute(text("SELECT pg_advisory_xact_lock(69850425)"))
+    recovery = math.ceil(datetime.now(UTC).timestamp()) + delay
+    db.execute(text("""INSERT INTO assistant_control.budgets(period_key,bucket,used)
+        VALUES (:period,'or:pause',:recovery) ON CONFLICT (period_key,bucket)
+        DO UPDATE SET used=greatest(assistant_control.budgets.used,excluded.used)"""),
+               {"period": cost_window(), "recovery": recovery})
+
+
+def require_available(db):
+    wait = math.ceil(pause_until(db) - datetime.now(UTC).timestamp())
+    if wait > 0:
+        raise HTTPException(429, "La IA tiene una pausa temporal. "
+                            "La ayuda y los reportes directos siguen disponibles.",
+                            headers={"Retry-After": str(wait),
+                                     "X-Kova-Assistant-Limit": "temporary"})
+
+
 def reserve(db, tenant, user, input_tokens, output_tokens, window):
+    db.execute(text("SELECT pg_advisory_xact_lock(69850425)"))
+    require_available(db)
     tokens, cost = estimate(input_tokens, output_tokens)
     fixed = budget.allocation(db, initialize=True, window=window)
     if str(tenant) not in fixed["tenants"] or settings.assistant_openrouter_monthly_usd <= 0:
         raise HTTPException(503, "El presupuesto de inferencia no está habilitado.")
     share = settings.assistant_openrouter_tenant_daily_tokens
-    budget.charge(
-        db,
-        [("or:usd", cost, settings.assistant_openrouter_monthly_usd * 1_000_000_000)],
-        window=window[:7] + "-01",
-        detail="Se alcanzó la capacidad mensual de IA.",
-    )
+    try:
+        budget.charge(
+            db,
+            [("or:usd", cost, settings.assistant_openrouter_monthly_usd * 1_000_000_000)],
+            window=window[:7] + "-01",
+            detail="Se alcanzó la capacidad mensual de IA.",
+            retry_after=max(1, math.ceil((monthly_reset_at()
+                                         - datetime.now(UTC)).total_seconds())),
+        )
+    except HTTPException as exc:
+        if exc.status_code == 429:
+            exc.headers = {**(exc.headers or {}), "X-Kova-Assistant-Limit": "provider_monthly"}
+        raise
     budget.charge(
         db,
         [
@@ -128,17 +172,26 @@ def usage(db, tenant, user):
         ).all()
     )
     cap = settings.assistant_openrouter_tenant_daily_tokens
+    pause = pause_until(db)
+    paused = pause > datetime.now(UTC).timestamp()
+    monthly_used = db.execute(text("SELECT used FROM assistant_control.budgets "
+                                   "WHERE period_key=:period AND bucket='or:usd'"),
+                             {"period": cost_window()}).scalar() or 0
+    monthly_exhausted = monthly_used >= settings.assistant_openrouter_monthly_usd * 1_000_000_000
     return {
         "tenant_used": used.get(keys[1], 0),
         "tenant_limit": cap,
         "user_used": used.get(keys[2], 0),
         "user_limit": cap,
         "reset_at": budget.reset_at().isoformat(),
+        "retry_at": (datetime.fromtimestamp(pause, UTC).isoformat() if paused
+                     else monthly_reset_at().isoformat() if monthly_exhausted
+                     else budget.reset_at().isoformat()),
         "unit": "tokens",
         "provider": "openrouter",
         "window": "utc_day",
         "limit_kind": (
-            "provider_daily"
+            "temporary" if paused else "provider_monthly" if monthly_exhausted else "provider_daily"
             if used.get(keys[0], 0) >= settings.assistant_openrouter_daily_tokens
             else "tenant_daily"
             if used.get(keys[1], 0) >= cap

@@ -111,6 +111,7 @@ class Settings(BaseSettings):
     assistant_openrouter_api_key: SecretStr | None = None
     assistant_openrouter_privacy_verified: bool = False
     assistant_openrouter_quality_verified: bool = False
+    assistant_openrouter_approved_profile: str = Field(default="", pattern=r"^(?:[a-f0-9]{64})?$")
     # Application spend controls, not claims about the provider's account quotas.
     # Zero blocks paid production calls until the operator authorizes a monthly cap.
     assistant_openrouter_monthly_usd: int = Field(default=0, ge=0, le=1000)
@@ -118,6 +119,7 @@ class Settings(BaseSettings):
     assistant_openrouter_tenant_daily_tokens: int = Field(default=50000, ge=1, le=1000000)
     assistant_global_concurrency: int = Field(default=3, ge=1, le=100)
     assistant_tenant_concurrency: int = Field(default=2, ge=1, le=10)
+    assistant_ingest_global_concurrency: int = Field(default=1, ge=1, le=8)
     assistant_groq_api_key: SecretStr | None = None
     assistant_groq_model: str = "openai/gpt-oss-20b"
     assistant_groq_free_verified: bool = False

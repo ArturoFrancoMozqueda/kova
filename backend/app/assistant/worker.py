@@ -22,25 +22,30 @@ from app.db import SessionLocal, set_tenant_context
 def acquire(db, job):
     db.execute(text("SELECT pg_advisory_xact_lock(69850425)"))
     db.execute(text("DELETE FROM assistant_control.slots WHERE expires_at<now()"))
+    workload = "ingest" if job.kind == "document" else "chat"
     counts = db.execute(
         text("""SELECT count(*),count(*) FILTER (WHERE tenant_key=:tenant),
-        count(*) FILTER (WHERE user_key=:user) FROM assistant_control.slots"""),
-        {"tenant": job.tenant_id, "user": job.owner_user_id},
+        count(*) FILTER (WHERE user_key=:user) FROM assistant_control.slots
+        WHERE workload=:workload"""),
+        {"tenant": job.tenant_id, "user": job.owner_user_id, "workload": workload},
     ).one()
-    if (counts[0] >= settings.assistant_global_concurrency
-            or counts[1] >= settings.assistant_tenant_concurrency or counts[2] >= 1):
+    global_limit = (settings.assistant_ingest_global_concurrency if workload == "ingest"
+                    else settings.assistant_global_concurrency)
+    tenant_limit = 1 if workload == "ingest" else settings.assistant_tenant_concurrency
+    if counts[0] >= global_limit or counts[1] >= tenant_limit or counts[2] >= 1:
         return False
-    db.execute(
-        text("""INSERT INTO assistant_control.slots(id,tenant_key,user_key,expires_at)
-        VALUES (:id,:tenant,:user,:expiry) ON CONFLICT DO NOTHING"""),
+    inserted = db.execute(
+        text("""INSERT INTO assistant_control.slots(id,tenant_key,user_key,expires_at,workload)
+        VALUES (:id,:tenant,:user,:expiry,:workload) ON CONFLICT DO NOTHING"""),
         {
             "id": job.id,
             "tenant": job.tenant_id,
             "user": job.owner_user_id,
             "expiry": now() + timedelta(minutes=11),
+            "workload": workload,
         },
     )
-    return True
+    return inserted.rowcount == 1
 
 
 def release(db, identifier):
@@ -119,7 +124,11 @@ def cleanup(db, tenant, user):
     db.commit()
 
 
-def process_once() -> int:
+def process_once(*, workload="all") -> int:
+    if workload not in {"all", "chat", "ingest"}:
+        raise ValueError("invalid assistant workload")
+    kinds = (("run", "document") if workload == "all"
+             else ("document",) if workload == "ingest" else ("run",))
     processed = 0
     # Only shared quota metadata, never tenant content, is maintained globally.
     with SessionLocal() as control:
@@ -155,7 +164,7 @@ def process_once() -> int:
                     or member.allowed_branch_id is not None
                 ):
                     continue
-                for kind in ("run", "document"):
+                for kind in kinds:
                     for stale in repo.records(db, tenant, user.id, kind).filter(
                         AssistantRecord.status.in_(["running", "indexing"]),
                         AssistantRecord.updated_at < now() - timedelta(minutes=11),
@@ -166,31 +175,29 @@ def process_once() -> int:
                         )
                 for deferred in repo.records(db, tenant, user.id, "document").filter_by(
                     status="deferred"
-                ):
+                ) if "document" in kinds else ():
                     if deferred.data.get("retry_at", reset_at().isoformat()) <= now().isoformat():
                         deferred.status = "queued"
                 db.commit()
-                jobs = (
-                    repo.records(db, tenant, user.id, "run")
-                    .filter_by(status="queued")
-                    .order_by(AssistantRecord.created_at)
-                    .limit(3)
-                    .all()
-                )
-                jobs += (
-                    repo.records(db, tenant, user.id, "document")
-                    .filter_by(status="queued")
-                    .order_by(AssistantRecord.created_at)
-                    .limit(1)
-                    .all()
-                )
+                jobs = []
+                for kind in kinds:
+                    jobs += (
+                        repo.records(db, tenant, user.id, kind)
+                        .filter_by(status="queued")
+                        .order_by(AssistantRecord.created_at)
+                        .limit(3 if kind == "run" else 1)
+                        .all()
+                    )
                 for job in jobs:
                     local = job.kind == "run" and direct.match(job.data.get("content", ""))
-                    if not (provider.ready() or local) or (
-                        job.kind == "document" and not settings.assistant_documents_enabled
-                    ):
+                    ready = ((provider.ready() or local) if job.kind == "run" else
+                             (provider.cloudflare_ready() and storage.ready()
+                              and settings.assistant_documents_enabled))
+                    if not ready:
                         continue
                     processed += int(process_job(db, user, member, job))
+                if workload == "ingest":
+                    continue
                 pref = repo.records(db, tenant, user.id, "preferences").populate_existing().first()
                 if not pref:
                     continue

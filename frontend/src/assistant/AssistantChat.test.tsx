@@ -22,6 +22,14 @@ describe("provider-aware assistant quota", () => {
     expect(screen.getByText(/9,000 unidades/)).toBeInTheDocument();
     expect(screen.getByText(/89% de la cuota diaria/)).toBeInTheDocument();
   });
+  it("distinguishes the shared monthly pause from a business daily allowance", () => {
+    render(<AssistantUsage usage={{ tenant_used: 200, tenant_limit: 60000, user_used: 200,
+      user_limit: 60000, reset_at: "2026-10-09T00:00:00Z", retry_at: "2026-11-01T00:00:00Z",
+      unit: "tokens", provider: "openrouter", window: "utc_day", limit_kind: "provider_monthly" }} />);
+    expect(screen.getByText("La capacidad mensual compartida de IA se agotó")).toBeInTheDocument();
+    expect(screen.getByText(/Cuota diaria compartida: 200/)).toBeInTheDocument();
+    expect(screen.getByText("La ayuda y los reportes directos siguen disponibles.")).toBeInTheDocument();
+  });
 });
 
 describe("readable and safe assistant answers", () => {

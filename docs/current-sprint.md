@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ## Source Of Truth
 
@@ -18,7 +18,27 @@ historical evidence and are labelled with their period.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
 
-## Active assistant implementation (2026-10-07): solución de consulta
+## Active assistant implementation (2026-10-08): publicación y activación
+
+El operador autoriza despliegue y gasto recurrente (USD 10/mes de inferencia y hasta USD 35/mes
+de ingesta, sin compromiso anual). GPT-OSS-120B usa OpenRouter con destinatarios **Groq y
+Cerebras** exclusivamente; las conclusiones/cifras de reportes las controla Kova. El perfil
+nuevo requiere su propia batería y consentimiento explícito. Los 540 casos Cerebras previos
+son evidencia histórica; los nuevos sondeos registran además saturación/timeout conservados.
+
+Preparado en PR #169: aprobación ligada al hash del motor, presupuesto y pausas compartidos,
+recuperación mensual, capacidad independiente de chat/archivos, citas numéricas literales y
+aviso OCR, host de ingesta privado en iad y publicación/rollback sin recursos adicionales.
+Validación local: 263 pruebas de asistente/RLS, 31 de operaciones, 21 de publicación.
+
+Pendientes: CI de este commit, evaluación real del perfil actual y revisión de pertinencia/es-MX;
+credencial permanente mensual y acceso puntual a Fly; host de archivos dentro del total
+autorizado y QA autenticada R2/embeddings/ACL/carga/plazo. La sesión de Kova está disponible.
+No activar el gate de calidad ni presentar archivos como listos antes de cerrar esas pruebas.
+No hay tareas agendadas. [Decisión](research/ASSISTANT-DECISION-2026-10-07.md),
+[operación](assistant-operations.md).
+
+## Historical assistant status (2026-10-07): solución de consulta
 
 **Selección técnica cerrada:** GPT-OSS-120B por Cerebras/OpenRouter, con reportes redactados
 por Kova y pasajes de documentos seleccionados por identificador. Implementación en PR #169;

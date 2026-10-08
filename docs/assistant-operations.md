@@ -5,7 +5,44 @@ El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
 
-## Solución de consulta seleccionada — 2026-10-07
+## Preparación vigente — 2026-10-08
+
+El operador autoriza publicación y gasto recurrente: hasta USD 10/mes de inferencia y
+USD 35/mes para el host de archivos, sin compromiso anual. La autorización no sustituye
+la evaluación ni la comprobación de archivos en producción. No hay automatización agendada.
+
+GPT-OSS-120B se mantiene; los únicos destinos de consulta preparados son **Groq y Cerebras**
+mediante OpenRouter, con Groq primero y fallback dentro de esa lista cerrada. Los sondeos nuevos
+detectaron saturación/HTTP 429 y un timeout; la batería Cerebras histórica de abajo no aprueba
+el perfil nuevo. DeepInfra es solo una alternativa de evaluación; no recibe datos en producción.
+
+La aceptación explícita nombra **OpenRouter, Groq y Cerebras** y guarda `chat_recipients`.
+Un consentimiento antiguo para Cerebras requiere renovación. La activación requiere además
+`ASSISTANT_OPENROUTER_APPROVED_PROFILE`: SHA-256 del perfil/código evaluado. Cambiar el motor
+invalida esa aprobación. El flag de calidad permanece falso mientras falten las verificaciones.
+Las cuotas/pausas se comparten en PostgreSQL; `retry_at` distingue recuperación mensual o
+temporal del reinicio diario. Resultados inciertos conservan su reserva.
+
+Chat e ingesta usan capacidad separada (tres consultas y un archivo globales por defecto).
+Los workers seleccionan exclusivamente su carga. El host de ingesta usa 5 GB/CPU compartida
+en **iad**, daemon Docker privado, scanner actualizado cada día y parsers sin red ni secretos.
+Una actualización fallida de firmas bloquea ingesta. Las citas numéricas se copian literalmente
+del archivo; el modelo no redacta esas cifras. Las citas provenientes de OCR advierten que el
+operador debe cotejarlas con el original.
+
+La tarifa nominal publicada para iad es USD 30.69 por treinta días (USD 31.713 por treinta y uno),
+antes de impuestos/transferencias; comprobar el total de la cuenta contra USD 35 antes de crear
+**una** instancia. DFW excede ese límite con este tamaño y no se autoriza. La publicación de
+app/chat no crea un host de ingesta. `scripts/assistant_host_release.py update --sha <SHA>` solo
+actualiza uno existente del tamaño/región aprobados, reutilizando la imagen validada de app.
+La recuperación pausa IA pagada y archivos, detiene ingesta y restaura app/chat sin crear recursos.
+
+Validación local vigente: 263 pruebas de asistente/RLS, 31 de operaciones y 21 de publicación;
+una prueba de Windows no aplica en macOS. CI, la batería real del perfil vigente y QA autenticada
+de archivos siguen siendo gates de publicación/activación. No se considera producción lista
+solo por disponer de saldo. La clave permanente debe tener límite USD 10 y reinicio mensual.
+
+## Evidencia histórica de selección — 2026-10-07
 
 Decisión vigente: [GPT-OSS-120B en Cerebras/OpenRouter, con evidencia controlada por Kova](research/ASSISTANT-DECISION-2026-10-07.md).
 La integración está en PR #169; no habilita producción. El modelo escoge lecturas y pasajes

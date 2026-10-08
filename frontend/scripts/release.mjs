@@ -63,8 +63,12 @@ export function releaseProvider(globalConfig) {
         { cwd: path.join(root, "backend"), label: "Fiscal encryption preflight" });
       await runProviderCommand(process.platform === "win32" ? "flyctl.exe" : "flyctl",
         ["deploy", "--remote-only", "--build-arg", `KOVA_RELEASE_SHA=${sha}`,
-          "--env", `GIT_SHA=${sha}`, "--strategy", "rolling", "--wait-timeout", "5m"],
+          "--env", `GIT_SHA=${sha}`, "--strategy", "rolling", "--wait-timeout", "5m",
+          "--process-groups", "app,assistant", "--ha=false"],
         { cwd: path.join(root, "backend"), label: "Fly deploy" });
+      await runProviderCommand("python3", ["../scripts/assistant_host_release.py",
+        "update", "--sha", sha],
+        { cwd: path.join(root, "backend"), label: "Existing assistant file host" });
       await runProviderCommand(npx.command,
         [...npx.prefixArgs, "--yes", "wait-on@9.0.1", "https://api.kovasuite.com/health/db",
           "--timeout", "180000"], { label: "Fly health wait" });

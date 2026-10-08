@@ -1,5 +1,30 @@
 # Decisión del asistente de Kova — 2026-10-07
 
+## Actualización vigente — 2026-10-08
+
+El operador autoriza despliegue y gasto recurrente: USD 10/mes de inferencia y hasta USD 35/mes
+para ingesta, sin compromiso anual. Se mantiene **GPT-OSS-120B** con selección de lecturas/pasajes;
+OpenRouter limita los destinatarios a **Groq y Cerebras**, con Groq primero, ZDR y recolección
+denegada. Las consultas directas y los reportes siguen redactados por Kova. La ruta única de
+Cerebras presentó nuevos HTTP 429 del proveedor; una sola ruta no basta como decisión operativa.
+
+Los sondeos de la pareja demostraron respuestas rápidas y contratos válidos, pero también
+saturación y timeout. **No son aprobación final ni prueba de carga.** La evaluación actual usa
+otro hash y conserva todos los fallos. La evidencia de 540 casos de abajo corresponde al perfil
+anterior. No se mezclan destinatarios/versiones. DeepInfra sigue solo en el runner de evaluación:
+el sondeo multirruta respondió únicamente desde Groq y no acredita al tercer destinatario.
+
+El motor ahora liga su aprobación al hash de código/perfil; el consentimiento liga los dos
+destinatarios. Hay pausas compartidas, recuperación mensual, citas literales con cifras y aviso
+OCR. La ingesta y el chat tienen capacidad independiente; la publicación no crea host pagado
+y la recuperación pausa archivos/inferencia. Antes de activar siguen pendientes la batería del
+perfil vigente, pertinencia/es-MX, capacidad y QA de los archivos reales con sesión autenticada.
+
+Estado operativo/comandos: [assistant-operations.md](../assistant-operations.md).
+Los apartados siguientes conservan las decisiones y mediciones históricas, sin reescribirlas.
+
+## Selección histórica del perfil Cerebras
+
 **Solución elegida:** GPT-OSS-120B, razonamiento bajo, en la ruta fija
 `cerebras/fp16` de OpenRouter. Kova redacta las conclusiones de reportes; el modelo selecciona
 lecturas y pasajes de documentos. Esta selección técnica no acredita todavía activación de

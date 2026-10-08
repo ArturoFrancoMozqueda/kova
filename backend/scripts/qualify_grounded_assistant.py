@@ -60,6 +60,7 @@ FILES = (
     "app/assistant/deadline.py",
     "app/assistant/tools.py",
     "app/assistant/provider.py",
+    "app/assistant/router.py",
     "app/assistant/schemas.py",
     "app/assistant/knowledge.py",
     "app/assistant/openrouter_budget.py",
@@ -67,11 +68,20 @@ FILES = (
     "app/assistant/worker.py",
     "app/assistant/direct.py",
     "app/config.py",
+    "scripts/run_assistant_worker.py",
+    "scripts/run_assistant_ingest.py",
+    "app/assistant/documents.py",
+    "assistant-parser/parse.py",
+    "assistant-parser/Dockerfile",
+    "Dockerfile",
+    "fly.toml",
 )
 
 
 def version():
     digest = hashlib.sha256()
+    # A different recipient is a different qualification, even with the same code.
+    digest.update(json.dumps(asdict(CANDIDATE), sort_keys=True).encode())
     for relative in FILES:
         digest.update(relative.encode())
         digest.update((ROOT / relative).read_bytes())
@@ -138,11 +148,12 @@ def evaluate(case, call):
             allowed_source_ids=sorted({source["id"] for source in sources}),
         )
         answer = Answer.model_validate_json(final["content"])
+        grounding.validate_selected_answer(answer, grounding.extraction_messages(messages))
         if report:
             answer.answer = report + "\n\n" + answer.answer
     else:
         answer = Answer(answer=report or grounding.fallback_answer(messages))
-    if answer.steps or any(char.isdigit() for char in answer.answer):
+    if answer.steps:
         raise EvaluationBlocked("invalid_answer_contract")
     return {
         "answer": answer.model_dump(mode="json"),
@@ -154,7 +165,7 @@ def evaluate(case, call):
     }
 
 
-def run(client, limit):
+def run(client, limit, *, case_spacing=3):
     settings.assistant_generation_provider = "openrouter"
     settings.assistant_mutations_enabled = False
     OUTPUT.mkdir(parents=True, exist_ok=True)
@@ -172,7 +183,12 @@ def run(client, limit):
         if fees != nanousd("0.80"):
             raise EvaluationBlocked("funding_fee_mismatch")
         account = client.account(nanousd(10))
-        preflight = client.preflight(CANDIDATE)
+        preflight = (
+            [client.preflight(Candidate(openrouter.MODEL, route, recipient,
+                                       CANDIDATE.input_nanousd, CANDIDATE.output_nanousd))
+             for route, recipient in zip(openrouter.ROUTES, openrouter.RECIPIENTS, strict=True)]
+            if len(openrouter.ROUTES) > 1 else client.preflight(CANDIDATE)
+        )
         all_cases = evaluation.cases()
         corpus = [case for case in all_cases if case.capability != "configuration"]
         digest = hashlib.sha256(
@@ -183,6 +199,7 @@ def run(client, limit):
             OUTPUT / "manifest.json",
             {
                 "harness_hash": source_version,
+                "runtime_profile_hash": openrouter.profile_hash(),
                 "corpus_hash": digest,
                 "profile": asdict(CANDIDATE),
                 "all_original_cases": len(all_cases),
@@ -190,11 +207,14 @@ def run(client, limit):
                 "required": len(corpus) * 3,
                 "excluded_capability": "configuration",
                 "original_oracles_unchanged": True,
+                "answer_contract": "server_copied_document_numbers_verified_verbatim",
                 "budget_usd": 10,
                 "funding_fee_usd": "0.80",
                 "account": account,
                 "preflight": preflight,
                 "human_review_required": True,
+                "case_spacing_seconds": case_spacing,
+                "sampling": "serial_quality_evaluation_not_load_test",
                 "e2e_verified": False,
             },
         )
@@ -245,6 +265,7 @@ def run(client, limit):
                         verified = reconcile(receipt, result.get("usage"))
                         call_log.append(
                             {
+                                "recipient": result.get("provider"),
                                 "usage_verified": verified,
                                 "charge_nanousd": receipt["charge_nanousd"],
                             }
@@ -253,9 +274,13 @@ def run(client, limit):
                     finally:
                         save(ledger_path, ledger)
 
+                # Space consultations outside the interactive measurement. The
+                # quality battery must not masquerade as production load testing.
+                if executed:
+                    time.sleep(case_spacing)
                 started = time.monotonic()
                 row = {
-                    "model": "oss120-cerebras-grounded",
+                    "model": "oss120-" + CANDIDATE.provider.lower() + "-grounded",
                     "case_id": case.id,
                     "capability": case.capability,
                     "repetition": repetition,
@@ -317,18 +342,41 @@ def run(client, limit):
 
 
 def main():
+    global CANDIDATE
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--account-verified", action="store_true")
     parser.add_argument("--limit", type=int, default=18)
+    parser.add_argument("--case-spacing", type=int, choices=range(0, 61), default=3)
+    parser.add_argument("--route", choices=("cerebras/fp16", "groq", "fast-pair", "resilient"),
+                        default=openrouter.ROUTE)
     args = parser.parse_args()
     if not args.run or not args.account_verified or not 1 <= args.limit <= 540:
         raise SystemExit(
             "Usa --run --account-verified y un límite entre uno y quinientos cuarenta."
         )
     key = dotenv_values(ROOT / ".env.evaluation.local").get("OPENROUTER_EVALUATION_API_KEY")
+    if args.route == "groq":
+        openrouter.ROUTE, openrouter.RECIPIENT = "groq", "Groq"
+        openrouter.ROUTES, openrouter.RECIPIENTS = ("groq",), ("Groq",)
+        openrouter.INPUT_NANOUSD, openrouter.OUTPUT_NANOUSD = 150, 600
+    elif args.route == "cerebras/fp16":
+        openrouter.ROUTE, openrouter.RECIPIENT = "cerebras/fp16", "Cerebras"
+        openrouter.ROUTES, openrouter.RECIPIENTS = ("cerebras/fp16",), ("Cerebras",)
+        openrouter.INPUT_NANOUSD, openrouter.OUTPUT_NANOUSD = 350, 750
+    elif args.route == "fast-pair":
+        openrouter.ROUTE, openrouter.RECIPIENT = "fast-pair", "Groq+Cerebras"
+        openrouter.ROUTES = ("groq", "cerebras/fp16")
+        openrouter.RECIPIENTS = ("Groq", "Cerebras")
+    elif args.route == "resilient":
+        openrouter.ROUTE, openrouter.RECIPIENT = "resilient", "Groq+Cerebras+DeepInfra"
+        openrouter.ROUTES = ("groq", "cerebras/fp16", "deepinfra/turbo")
+        openrouter.RECIPIENTS = ("Groq", "Cerebras", "DeepInfra")
+    CANDIDATE = Candidate(openrouter.MODEL, openrouter.ROUTE, openrouter.RECIPIENT,
+                          openrouter.INPUT_NANOUSD, openrouter.OUTPUT_NANOUSD)
     try:
-        print(json.dumps(run(Client(key), args.limit), ensure_ascii=False))
+        print(json.dumps(run(Client(key), args.limit, case_spacing=args.case_spacing),
+                         ensure_ascii=False))
     except (EvaluationBlocked, BlockingIOError) as exc:
         print(
             "Evaluación detenida: "

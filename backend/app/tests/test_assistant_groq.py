@@ -21,7 +21,8 @@ from app.tests.test_assistant import running_job as existing_running_job
 def running_job(db, tenant, *args):
     ctx, job = existing_running_job(db, tenant, *args)
     preference = repo.records(db, tenant, ctx[0].id, "preferences").first()
-    repo.update(preference, chat_provider=settings.assistant_generation_provider)
+    repo.update(preference, chat_provider=settings.assistant_generation_provider,
+                chat_recipients=provider.consent_recipients())
     db.commit()
     return ctx, job
 

@@ -19,7 +19,15 @@ def chat_consent_valid(data: dict) -> bool:
     # Historical consent was collected for Cloudflare. Switching the recipient
     # requires a fresh acceptance; neither a deployment nor a flag grants it.
     return bool(data.get("chat_consent") and data.get("chat_provider", "cloudflare")
-                == settings.assistant_generation_provider)
+                == settings.assistant_generation_provider
+                and (settings.assistant_generation_provider != "openrouter"
+                     or data.get("chat_recipients") == consent_recipients()))
+
+
+def consent_recipients():
+    from app.assistant.openrouter import CONSENT_RECIPIENTS
+
+    return CONSENT_RECIPIENTS if settings.assistant_generation_provider == "openrouter" else None
 
 
 def cloudflare_ready() -> bool:

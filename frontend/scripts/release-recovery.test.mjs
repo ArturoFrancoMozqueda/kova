@@ -31,6 +31,19 @@ test("a previously serving Vercel artifact is rolled back without rebuilding or 
   assert.equal(calls[0].includes("build"), false);
 });
 
+test("Fly recovery pauses paid features and cannot create an isolated host", async () => {
+  const calls = [];
+  const provider = cliProvider({
+    env: { VERCEL_TOKEN: "test-only-token", FLY_API_TOKEN: "test-only-fly" },
+    run: async (command, args) => { calls.push({ command, args }); },
+  });
+  await provider.restoreFly(artifact.flyImage);
+  assert.deepEqual(calls[0].args, ["../scripts/assistant_host_release.py", "pause"]);
+  assert.equal(calls[1].args[calls[1].args.indexOf("--process-groups") + 1], "app,assistant");
+  assert.ok(calls[1].args.includes("--ha=false"));
+  assert.ok(calls[1].args.includes("--skip-release-command"));
+});
+
 function fakes({ failVercel = false } = {}) {
   const calls = [];
   return {

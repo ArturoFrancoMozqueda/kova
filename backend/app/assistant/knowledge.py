@@ -198,7 +198,8 @@ def search(db, tenant, user, query: str) -> list[dict]:
     vector = provider.embed([safe_text(query)])[0]
     rows = db.execute(
         text("""WITH eligible AS MATERIALIZED (
-        SELECT c.id,c.document_id,c.page,c.content,c.embedding,r.data->>'filename' AS title
+        SELECT c.id,c.document_id,c.page,c.content,c.embedding,r.data->>'filename' AS title,
+        coalesce((r.data->>'ocr')='true',false) AS ocr
         FROM assistant_chunks c JOIN assistant_records r ON r.id=c.document_id AND
 r.tenant_id=c.tenant_id
         WHERE c.tenant_id=:tenant AND r.kind='document' AND r.status='ready'
@@ -218,7 +219,7 @@ websearch_to_tsquery('spanish',:q) LIMIT 20
             SELECT id,1.0/(60+rank) AS score FROM semantic UNION ALL
             SELECT id,1.0/(60+rank) AS score FROM lexical
         ) s GROUP BY id
-    ) SELECT e.document_id,e.page,e.content,e.title FROM eligible e JOIN scored s USING(id)
+    ) SELECT e.document_id,e.page,e.content,e.title,e.ocr FROM eligible e JOIN scored s USING(id)
       ORDER BY s.score DESC,e.id LIMIT 8"""),
         {"tenant": tenant, "uid": user, "vec": json.dumps(vector), "q": query},
     ).all()
@@ -234,6 +235,7 @@ websearch_to_tsquery('spanish',:q) LIMIT 20
                 "content": safe_text(row.content[:1200]),
                 "path": f"/api/v1/assistant/documents/{row.document_id}/source",
                 "public": False,
+                "ocr": row.ocr,
             }
         )
     # A user's files must not disappear behind a full page of public guides.

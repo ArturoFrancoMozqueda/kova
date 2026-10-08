@@ -32,6 +32,7 @@ def paid(monkeypatch):
         "assistant_openrouter_api_key": SecretStr("test-only-mock-token"),
         "assistant_openrouter_privacy_verified": True,
         "assistant_openrouter_quality_verified": True,
+        "assistant_openrouter_approved_profile": openrouter.profile_hash(),
         "assistant_openrouter_monthly_usd": 1,
         "assistant_mutations_enabled": False,
     }.items():
@@ -72,6 +73,8 @@ SOURCES = [
         ("assistant_provider_verified", False),
         ("assistant_openrouter_privacy_verified", False),
         ("assistant_openrouter_quality_verified", False),
+        ("assistant_openrouter_approved_profile", ""),
+        ("assistant_openrouter_approved_profile", "0" * 64),
         ("assistant_openrouter_api_key", None),
         ("assistant_openrouter_monthly_usd", 0),
         ("assistant_mutations_enabled", True),
@@ -83,7 +86,37 @@ def test_paid_inference_requires_all_gates(paid, monkeypatch, gate, value):
     assert not provider.ready()
 
 
-def test_planning_only_sends_advertised_cerebras_parameters(paid):
+@pytest.mark.parametrize("month,next_year,next_month", [(10, 2026, 11), (12, 2027, 1)])
+def test_monthly_spend_cap_reports_monthly_recovery_without_changing_daily_usage(
+    paid, enabled_client, monkeypatch, month, next_year, next_month
+):
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, month, 8, 12, tzinfo=UTC)
+
+    monkeypatch.setattr(paid_budget, "datetime", Clock)
+    monkeypatch.setattr(budget, "datetime", Clock)
+    _, db, tenant, _ = enabled_client
+    period = paid_budget.cost_window()
+    db.execute(text("""INSERT INTO assistant_control.budgets(period_key,bucket,used)
+        VALUES (:period,'or:usd',:cap) ON CONFLICT (period_key,bucket)
+        DO UPDATE SET used=excluded.used"""),
+               {"period": period, "cap": settings.assistant_openrouter_monthly_usd * 1_000_000_000})
+    with pytest.raises(HTTPException) as exc:
+        paid_budget.reserve(db, tenant, tenant, 100, 1024, Clock.now(UTC).date().isoformat())
+    assert exc.value.status_code == 429
+    assert exc.value.headers["X-Kova-Assistant-Limit"] == "provider_monthly"
+    assert int(exc.value.headers["Retry-After"]) > 86400
+    usage = paid_budget.usage(db, tenant, tenant)
+    assert usage["limit_kind"] == "provider_monthly"
+    assert datetime.fromisoformat(usage["retry_at"]).day == 1
+    assert datetime.fromisoformat(usage["retry_at"]).year == next_year
+    assert datetime.fromisoformat(usage["retry_at"]).month == next_month
+    assert usage["reset_at"] != usage["retry_at"]
+
+
+def test_planning_only_sends_advertised_fast_provider_parameters(paid):
     from app.assistant import tools
 
     body = openrouter.body([], tools.TOOLS, structured=False, allowed_source_ids=None)
@@ -132,7 +165,10 @@ def test_missing_evidence_has_actionable_guidance_without_confirming_writes(ques
     assert expected in grounding.report_answer(unavailable)
 
 
-def test_transport_fixes_recipients_privacy_prices_and_validates_verbatim_quotes(paid, monkeypatch):
+@pytest.mark.parametrize("recipient", ["Groq", "Cerebras"])
+def test_transport_fixes_recipients_privacy_prices_and_validates_verbatim_quotes(
+    paid, monkeypatch, recipient
+):
     original = httpx.AsyncClient
     messages = grounding.extraction_messages(evidence_messages([("search_knowledge", SOURCES)]))
     quote = "Solicita el comprobante y verifica la venta registrada."
@@ -145,8 +181,9 @@ def test_transport_fixes_recipients_privacy_prices_and_validates_verbatim_quotes
             request.url.host == "openrouter.ai" and request.url.path == "/api/v1/chat/completions"
         )
         assert body["provider"] == {
-            "only": ["cerebras/fp16"],
-            "allow_fallbacks": False,
+            "only": ["groq", "cerebras/fp16"],
+            "order": ["groq", "cerebras/fp16"],
+            "allow_fallbacks": True,
             "require_parameters": True,
             "zdr": True,
             "data_collection": "deny",
@@ -158,7 +195,7 @@ def test_transport_fixes_recipients_privacy_prices_and_validates_verbatim_quotes
         return httpx.Response(
             200,
             json={
-                "provider": "Cerebras",
+                "provider": recipient,
                 "choices": [
                     {
                         "finish_reason": "stop",
@@ -265,7 +302,7 @@ def test_non_reconciling_report_is_never_interpreted_as_real_sales():
         (302, "Cerebras", "stop"),
         (429, "Cerebras", "stop"),
         (500, "Cerebras", "stop"),
-        (200, "Groq", "stop"),
+        (200, "DeepInfra", "stop"),
         (200, "Cerebras", "length"),
     ],
 )
@@ -453,7 +490,7 @@ def test_recipient_change_requires_new_consent_for_both_processors(
     db.commit()
     assert (
         client.get("/api/v1/assistant/capabilities").json()["provider_name"]
-        == "OpenRouter y Cerebras"
+        == "OpenRouter, Groq y Cerebras"
     )
     fresh = client.get("/api/v1/assistant/preferences").json()
     assert fresh["chat_consent"] is False and fresh["chat_provider"] == "openrouter"
@@ -593,6 +630,7 @@ def test_private_manual_not_starved_by_public_guides(enabled_client, monkeypatch
                         page=1,
                         content="Solicita el comprobante.",
                         title="Manual",
+                        ocr=False,
                     )
                 ]
             )
