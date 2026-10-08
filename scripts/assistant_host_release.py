@@ -115,7 +115,7 @@ def serving_image(machines, sha):
     return image
 
 
-def update(sha, run=subprocess.run):
+def update(sha, run=subprocess.run, *, sleep=time.sleep):
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise RuntimeError("Full release SHA is required")
     machines, ingest = hosts(run)
@@ -124,6 +124,7 @@ def update(sha, run=subprocess.run):
     image = serving_image(machines, sha)
     command(["machine", "update", ingest[0]["id"], "--image", image,
              "--env", f"GIT_SHA={sha}", "--yes"], run=run)
+    verify(ingest[0]["id"], sha, image, run=run, sleep=sleep)
     return True
 
 
@@ -156,9 +157,16 @@ def provision(sha, monthly_limit, *, run=subprocess.run, sleep=time.sleep):
     elif ingest[0]["config"].get("image") != image:
         raise RuntimeError("Update the existing host through the normal release first")
     identifier = ingest[0]["id"]
+    return verify(identifier, sha, image, run=run, sleep=sleep)
+
+
+def verify(identifier, sha, image, *, run=subprocess.run, sleep=time.sleep):
     # Scanner creation is asynchronous at boot. Probe metadata only, never env
     # or application secrets. A failed probe does not create another host.
     try:
+        _, ingest = hosts(run)
+        if len(ingest) != 1 or ingest[0]["id"] != identifier:
+            raise RuntimeError("The known isolated host is no longer present")
         if ingest[0].get("state") == "stopped":
             command(["machine", "start", identifier], run=run)
         for attempt in range(25):

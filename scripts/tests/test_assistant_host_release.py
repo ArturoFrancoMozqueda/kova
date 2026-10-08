@@ -53,12 +53,26 @@ class AssistantHostReleaseTests(unittest.TestCase):
 
     def test_update_preserves_size_region_and_only_reuses_serving_image(self):
         calls, run = self.runner([machine("app"), machine("ingest")])
-        self.assertTrue(module.update(SHA, run))
+        self.assertTrue(module.update(SHA, run, sleep=lambda _: None))
         args = calls[1][0]
         self.assertEqual(args[:4], ["flyctl", "machine", "update", "ingest"])
         self.assertIn("GIT_SHA=" + SHA, args)
         self.assertIn("registry.fly.io/pos-project-backend:test", args)
         self.assertFalse(any(a in args for a in ("deploy", "run", "--vm-memory", "--region")))
+        self.assertTrue(any("python scripts/check_assistant_parser.py" in call
+                            for call, _ in calls))
+
+    def test_normal_release_cannot_accept_a_failed_existing_host(self):
+        calls = []
+        def run(args, **kwargs):
+            calls.append(args)
+            stdout = (json.dumps({"exit_code": 1, "stdout": "private-value"})
+                      if "python scripts/check_assistant_parser.py" in args
+                      else output(args, [machine("app"), machine("ingest")]))
+            return SimpleNamespace(returncode=0, stdout=stdout)
+        with self.assertRaises(RuntimeError):
+            module.update(SHA, run, sleep=lambda _: None)
+        self.assertEqual(calls[-1][1:4], ["machine", "stop", "ingest"])
 
     def test_unapproved_host_or_inconsistent_api_stops_before_mutation(self):
         bad = machine("ingest")
