@@ -129,6 +129,7 @@ class Seed:
                 # Migration 0068 creates the principal branch through a trigger.
                 # Rename that branch through the native API after committing.
             self.tid = tenant.id
+            assert db.query(Branch.id).filter_by(id=self.tid, tenant_id=self.tid).scalar() == self.tid
             self.report["tenant_id"] = str(self.tid)
             for membership in db.query(Membership).filter_by(user_id=owner_id, is_active=True):
                 if membership.tenant_id != self.tid:
