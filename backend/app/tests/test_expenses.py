@@ -166,3 +166,20 @@ def test_expense_update_rejects_null_required_fields_and_allows_note_clear(clien
     assert updated["note"] is None
     for field in ("category", "amount", "expense_date"):
         assert updated[field] == expense[field]
+
+
+def test_expense_timestamps_remain_identical_with_mexico_database_timezone(client, db):
+    from sqlalchemy import text
+
+    _signup_verify_login(client, "expenses-timezone@example.com")
+    db.execute(text("SET LOCAL TIME ZONE 'America/Mexico_City'"))
+    payload = {
+        "category": "servicios", "amount": "425.50", "expense_date": "2026-07-10",
+        "note": "Timezone regression",
+    }
+    headers = {"Idempotency-Key": "expense-timezone-regression"}
+    created = client.post("/api/v1/expenses", headers=headers, json=payload)
+    assert created.status_code == 201
+    assert client.get("/api/v1/expenses").json() == [created.json()]
+    assert client.post("/api/v1/expenses", headers=headers, json=payload).json() == created.json()
+    assert created.json()["created_at"].endswith("Z")

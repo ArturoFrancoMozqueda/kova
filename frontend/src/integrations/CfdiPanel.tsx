@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/orders/format";
-import type { InvoiceRequest } from "./api";
+import type { FiscalIdentity, InvoiceRequest } from "./api";
 import { liveCfdiReady } from "./cfdiReadiness";
-import { CfdiConnectionPanel } from "./CfdiConnectionPanel";
+import { ManagedCfdiSetupPanel } from "./ManagedCfdiSetupPanel";
 import { CfdiDocumentsPanel } from "./CfdiDocumentsPanel";
 import { CfdiPreparationPanel } from "./CfdiPreparationPanel";
 import {
@@ -17,10 +17,12 @@ import {
 export function CfdiPanel({
   requests,
   issuerRfc,
+  issuer,
   onConnectionLabel,
 }: {
   requests: InvoiceRequest[];
   issuerRfc?: string;
+  issuer?: FiscalIdentity;
   onConnectionLabel: (label: string) => void;
 }) {
   const [status, setStatus] = useState<CfdiStatus | null>(null);
@@ -30,7 +32,9 @@ export function CfdiPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const mounted = useRef(false);
   useEffect(() => {
+    mounted.current = true;
     let active = true;
     Promise.all([getCfdiStatus(), listCfdiDocuments()])
       .then(([publicStatus, items]) => {
@@ -52,6 +56,7 @@ export function CfdiPanel({
       });
     return () => {
       active = false;
+      mounted.current = false;
     };
   }, []);
   const connection = status?.connections.find(
@@ -88,6 +93,7 @@ export function CfdiPanel({
       getCfdiStatus(),
       listCfdiDocuments(),
     ]);
+    if (!mounted.current) return;
     setStatus(next);
     setDocuments(items);
     setError("");
@@ -136,8 +142,8 @@ export function CfdiPanel({
       )}
       {status && (
         <>
-          <CfdiConnectionPanel
-            status={status}
+          <ManagedCfdiSetupPanel
+            issuer={issuer}
             environment={environment}
             onEnvironment={(value) => {
               if (!busy) {
@@ -145,8 +151,8 @@ export function CfdiPanel({
                 setSelected(null);
               }
             }}
-            onStatus={setStatus}
-            issuerRfc={issuerRfc}
+            onChange={refresh}
+            onBusy={setBusy}
             locked={busy}
           />
           <section className="rounded-2xl border border-border p-5 space-y-3">

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit
 from app.branches.scope import active_branch_id, tenant_wide_branches
 from app.cfdi import credentials, pricing
-from app.cfdi.models import ACTIVE_STATES, CfdiConnection, CfdiDocument
+from app.cfdi.models import ACTIVE_STATES, CfdiConnection, CfdiDocument, CfdiEnrollment
 from app.cfdi.provider import FacturapiProvider, ProviderError
 from app.cfdi.schemas import (
     ConnectionInput,
@@ -137,6 +137,8 @@ def _normalized(value):
 
 
 def connect(db: Session, tenant_id: UUID, user_id: UUID, body: ConnectionInput):
+    if db.query(CfdiEnrollment).filter_by(tenant_id=tenant_id).first():
+        raise conflict("Kova administra la conexión fiscal de este negocio")
     if not credentials.storage_available():
         raise bad_request("El almacenamiento seguro de CFDI no está disponible")
     key = body.api_key.get_secret_value()
@@ -159,6 +161,8 @@ def connect(db: Session, tenant_id: UUID, user_id: UUID, body: ConnectionInput):
     # Serialize connection creation/rotation; organization changes cannot orphan
     # a journal that still needs the old organization to reconcile/cancel.
     db.query(Tenant).filter_by(id=tenant_id).with_for_update().one()
+    if db.query(CfdiEnrollment).filter_by(tenant_id=tenant_id).first():
+        raise conflict("Kova administra la conexión fiscal de este negocio")
     row = (
         db.query(CfdiConnection)
         .filter_by(tenant_id=tenant_id, environment=body.environment)
@@ -414,6 +418,9 @@ def create_document(db, tenant_id, user_id, body, key):
         existing = replay()
         if existing:
             return public(existing)
+        enrollment = db.query(CfdiEnrollment).filter_by(tenant_id=tenant_id).first()
+        if enrollment and enrollment.operation_id:
+            raise conflict("La configuración fiscal está en curso; espera antes de emitir")
         request, order = _request_order(db, tenant_id, body.request_id, lock=True)
         connection = (
             db.query(CfdiConnection)

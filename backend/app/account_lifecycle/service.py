@@ -74,6 +74,12 @@ _EXPORT_TABLES = (
         ),
     ),
     ExportTable(
+        "cfdi_enrollments",
+        _columns(
+            "tenant_id organization_id issuer_snapshot state last_error_code created_at updated_at"
+        ),
+    ),
+    ExportTable(
         "cfdi_documents",
         _columns(
             "id tenant_id branch_id order_id request_id connection_id environment organization_id "
@@ -393,6 +399,7 @@ _TENANT_DELETE_ORDER = (
     "assistant_records",
     "cfdi_documents",
     "cfdi_connections",
+    "cfdi_enrollments",
     "invoice_requests",
     "fiscal_issuer_profiles",
     "inventory_lot_reservations",

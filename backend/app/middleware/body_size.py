@@ -29,6 +29,8 @@ class BodySizeLimitMiddleware:
         limit = MAX_REQUEST_BYTES
         if scope.get("path") == "/api/v1/assistant/documents" and scope.get("method") == "POST":
             limit = 20 * 1024 * 1024
+        if scope.get("path") == "/api/v1/integrations/cfdi/setup/certificate":
+            limit = 150 * 1024
         headers = dict(scope.get("headers", []))
         content_length = headers.get(b"content-length")
         if content_length is not None:

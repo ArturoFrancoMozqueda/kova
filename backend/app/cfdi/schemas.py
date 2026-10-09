@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
-from app.integrations.schemas import InvoiceRecipient
+from app.integrations.schemas import FiscalIdentity, InvoiceRecipient
 
 Environment = Literal["test", "live"]
 TaxKind = Literal["iva16", "iva8", "iva0", "exempt", "not_subject"]
@@ -142,3 +142,21 @@ class PreviewResponse(BaseModel):
     tax_amount: Decimal
     total_amount: Decimal
     lines: list[PreviewLine]
+
+
+class SetupInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    issuer: FiscalIdentity
+
+
+class SetupResponse(BaseModel):
+    available: bool
+    state: Literal["not_started", "creating", "unknown", "configured", "error", "legacy"]
+    issuer: FiscalIdentity | None
+    organization_created: bool
+    test_connected: bool
+    live_connected: bool
+    production_ready: bool
+    certificate_expires_at: datetime | None
+    last_error_code: str | None
+    manifest_url: Literal["https://www.facturapi.io/embedded/manifiesto"] | None

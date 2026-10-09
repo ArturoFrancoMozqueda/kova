@@ -183,8 +183,9 @@ export function IntegrationContents({
             Facturación CFDI · {connectionLabel}
           </h2>
           <p className="mt-2 text-sm">
-            Un PAC es la empresa autorizada por el SAT que certifica las
-            facturas. Kova necesita una integración contratada para emitirlas.
+            Activa la facturación desde Kova con los datos fiscales y el
+            certificado de sello digital de tu negocio. Kova administra la
+            conexión con el proveedor que certifica tus facturas.
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             No generan un CFDI ni un folio fiscal por sí solas. La emisión
@@ -250,6 +251,14 @@ export function IntegrationContents({
               </p>
             )}
           </section>
+          {canManage && (
+            <CfdiPanel
+              requests={requests}
+              issuerRfc={saved ? issuer.rfc : undefined}
+              issuer={saved ? issuer : undefined}
+              onConnectionLabel={updateConnectionLabel}
+            />
+          )}
           {canManage && (
             <section className="rounded-2xl border border-border p-5">
               <h2 className="mb-3 font-semibold">
@@ -360,13 +369,6 @@ export function IntegrationContents({
                 </button>
               </form>
             </section>
-          )}
-          {canManage && (
-            <CfdiPanel
-              requests={requests}
-              issuerRfc={saved ? issuer.rfc : undefined}
-              onConnectionLabel={updateConnectionLabel}
-            />
           )}
           {canManage && (
             <section className="rounded-2xl border border-border p-5">

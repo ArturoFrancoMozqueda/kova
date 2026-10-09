@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
@@ -79,3 +79,10 @@ class ExpenseResponse(StrictModel):
     created_by_user_id: UUID | None
     created_at: datetime
     updated_at: datetime
+
+
+    @field_validator("created_at", "updated_at")
+    @classmethod
+    def utc_timestamp(cls, value: datetime) -> datetime:
+        # PostgreSQL returns the connection timezone; API responses are canonical UTC.
+        return value.astimezone(UTC) if value.tzinfo is not None else value

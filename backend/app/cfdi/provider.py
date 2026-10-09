@@ -100,9 +100,17 @@ class FacturapiProvider:
             or not re.fullmatch(rf"sk_{environment}_[\x21-\x7e]+", api_key)
         ):
             raise ProviderError("provider_invalid_credentials")
+        self.environment = environment
+        self._initialize_client(api_key, timeout_seconds, transport)
+
+    def _initialize_client(
+        self,
+        api_key: str,
+        timeout_seconds: float,
+        transport: httpx.BaseTransport | None,
+    ) -> None:
         if not isinstance(timeout_seconds, int | float) or not 1 <= timeout_seconds <= 60:
             raise ProviderError("provider_invalid_timeout")
-        self.environment = environment
         self._client = httpx.Client(
             headers={
                 "Authorization": f"Bearer {api_key}",
@@ -134,8 +142,19 @@ class FacturapiProvider:
         payload: dict[str, Any] | None = None,
         limit: int = MAX_JSON_BYTES,
         accept: str = "application/json",
+        files: dict[str, tuple[str, bytes, str]] | None = None,
+        form: dict[str, str] | None = None,
     ) -> tuple[int, bytes]:
-        content = _decimal_json(payload).encode("utf-8") if payload is not None else None
+        headers = {"Accept": accept}
+        if files is not None:
+            if payload is not None:
+                raise ProviderError("provider_invalid_payload")
+            # Encode only bounded bytes in memory; let httpx supply the boundary.
+            multipart = httpx.Request(method, API_BASE + path, files=files, data=form)
+            content = multipart.read()
+            headers["Content-Type"] = multipart.headers["Content-Type"]
+        else:
+            content = _decimal_json(payload).encode("utf-8") if payload is not None else None
         if content is not None and len(content) > MAX_REQUEST_BYTES:
             raise ProviderError("provider_payload_too_large")
         try:
@@ -144,7 +163,7 @@ class FacturapiProvider:
                 API_BASE + path,
                 params=params,
                 content=content,
-                headers={"Accept": accept},
+                headers=headers,
             ) as response:
                 status = response.status_code
                 response_limit = limit if status in (200, 201, 202) else min(limit, MAX_ERROR_BYTES)

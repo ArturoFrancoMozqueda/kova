@@ -1,6 +1,6 @@
 # Current Sprint
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 
 ## Source Of Truth
 
@@ -17,6 +17,16 @@ historical evidence and are labelled with their period.
   section instead.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
+
+## Active fiscal onboarding (2026-10-09): facturación administrada por Kova
+
+El propietario solicitó que el negocio active facturación dentro de Kova sin configurar
+cuentas ni llaves de Facturapi. Implementación en `codex/managed-fiscal-onboarding`: alta
+por tenant, CSD efímeros, autorización embebida, Test/Live separados y journal de recuperación.
+Contrato en [CFDI](../specs/integrations/cfdi-contract.md) y operación en
+[alta fiscal administrada](runbooks/managed-fiscal-onboarding.md). Las conexiones previas
+se conservan. La activación externa exige cuenta/llave de plataforma y requisitos fiscales
+reales; no declarar emisión validada sólo por compilar o mostrar el formulario.
 
 ## Active branch integration (2026-10-08): correcciones de auditoría
 

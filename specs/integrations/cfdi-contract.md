@@ -1,11 +1,18 @@
 # CFDI 4.0: contrato de integración (2026-10-06)
 
-Decisión: adaptador Facturapi v2, con una organización por negocio y conexiones
-Test/Live separadas. La llave de organización se introduce una vez por el dueño,
-se comprueba con GET /organizations/me y se cifra con una raíz exclusiva del
-servidor. No se recibe ni guarda CSD/e.firma: se configuran directamente en el
-proveedor. La API permite también organizaciones pertenecientes a una cuenta
-multi-RFC de Kova. No se obliga al dueño a exponer una User Key.
+Decisión vigente (2026-10-09): Kova administra el alta de organizaciones Facturapi v2
+con una cuenta de plataforma, una organización por tenant y llaves Test/Live separadas.
+El cliente completa sus datos fiscales, carga sus CSD y firma el manifiesto desde Kova;
+no necesita una cuenta del proveedor ni copiar llaves API. Las conexiones manuales previas
+se preservan y requieren migración asistida para cambiar de organización.
+
+`KOVA_FACTURAPI_USER_KEY` es una credencial exclusiva del servidor para administrar
+organizaciones. Las llaves de organización se obtienen internamente y se cifran con
+`KOVA_CFDI_CREDENTIALS_KEY`, con binding autenticado a tenant, ambiente y organización.
+Los archivos CSD y su contraseña sólo se procesan en memoria para su envío al proveedor;
+no se guardan en archivos temporales, base de datos, logs ni almacenamiento del navegador.
+La e.firma para firmar el manifiesto se procesa en el módulo del proveedor, en un iframe
+con URL fija; cerrar el iframe no confirma autorización ni activa la emisión.
 
 Primera entrega: facturas individuales de ingreso PUE, ventas MXN completadas sin
 devolución, clasificación SAT explícita por concepto, revisión de importes,
@@ -16,6 +23,20 @@ requieren contratos de producto propios y se rechazan o permanecen sin emisión.
 
 ## API autenticada bajo /api/v1/integrations/cfdi
 
+- GET /setup: disponibilidad de la plataforma, estado durable, emisor y pasos confirmados.
+- POST /setup: `{issuer: FiscalIdentity}`; crea o recupera una organización del tenant,
+  configura datos fiscales y obtiene llaves internas. No cambia suscripción ni precio de Kova.
+- POST /setup/refresh: recupera intentos y vuelve a comprobar el proveedor; sin cuerpo.
+- POST /setup/certificate: multipart `cer`, `key`, `password`; archivos DER <=64 KiB cada uno,
+  contraseña <=256 caracteres/1024 bytes UTF-8 y cuerpo <=150 KiB. Preflight de vigencia,
+  RFC propio en sujeto, usos de firma, keypair y costo KDF acotado antes del envío. La validación
+  SAT definitiva sigue a cargo del proveedor; no se presume válida una cadena autofirmada.
+  Todos estos endpoints requieren cookie/CSRF, FISCAL_MANAGE (owner) y acceso comercial.
+  Mutaciones limitadas por rate limit. Respuestas jamás incluyen secretos o certificados.
+  SetupResponse = `{available, state:not_started|creating|unknown|configured|error|legacy,
+  issuer, organization_created, test_connected, live_connected, production_ready,
+  certificate_expires_at, last_error_code, manifest_url}`.
+  `configured` significa conexión preparada; sólo `production_ready` confirma emisión Live.
 - GET /status: `{storage_available, connections: [{environment, organization_id,
   connected, issuer_rfc, production_ready, certificate_expires_at}], provider:"facturapi"}`.
 - PUT /connection: `{environment:"test"|"live", api_key}`. Devuelve estado público,
@@ -75,3 +96,13 @@ sin validez fiscal; sólo LIVE confirmado aporta evento confirmed al ledger.
   KOVA_CFDI_ENABLED (default true, disponibilidad condicionada a raíz y conexión),
   KOVA_CFDI_TIMEOUT_SECONDS=20. Raíz estable provisionada una vez por pipeline Fly,
   fuera de BD; nunca se regenera por deployment. Rotación documentada separadamente.
+
+## Alta administrada: persistencia
+
+La migración `e9f2d5d835e6` añade `cfdi_enrollments`: tenant PK, organización globalmente
+única, snapshot del emisor, operación con lease y rechazo de creación probado por separado
+(`creation_rejected`). Un error de consulta nunca convierte una creación incierta en permiso
+para otra creación. FORCE RLS, permisos de columnas, inventario de tablas protegidas al inicio,
+exportación y purge incluyen la nueva tabla. El lock del tenant excluye cambios de alta/CSD
+mientras haya emisión/cancelación Live pendiente; nuevas emisiones no pueden reservarse
+durante cambios de configuración. Reconciliación y replays existentes permanecen disponibles.
