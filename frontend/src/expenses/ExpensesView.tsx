@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BarChart3, CalendarDays, Pencil, Plus, ReceiptText, Trash2, WalletCards } from "lucide-react";
 
 import { useFeature } from "@/auth/useFeature";
@@ -15,32 +15,30 @@ import { useToast } from "@/components/ui/toast";
 import { ViewEmpty, ViewError, ViewPermissionDenied } from "@/components/ui/view-states";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { useTenantTimezone } from "@/hooks/useTenantTimezone";
+import { currentMonthStartInTimezone, todayInTimezone } from "@/i18n/date";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
 import { createExpense, deleteExpense, listExpenses, updateExpense } from "./api";
 import type { Expense, ExpenseCategory, ExpensePayload } from "./types";
 
-function dateInputValue(value = new Date()): string {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function monthStart(): string {
-  const value = new Date();
-  value.setDate(1);
-  return dateInputValue(value);
-}
-
 export default function ExpensesView() {
   useDocumentTitle(copy.expenses.title);
   const enabled = useFeature("margin_reports");
   const canManage = usePermission(EXPENSES_MANAGE_PERMISSION);
   const { toast } = useToast();
-  const [startDate, setStartDate] = useState(monthStart);
-  const [endDate, setEndDate] = useState(dateInputValue);
+  const { timezone, isResolved: timezoneResolved } = useTenantTimezone();
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const rangeSeeded = useRef(false);
+
+  useEffect(() => {
+    if (!timezoneResolved || rangeSeeded.current) return;
+    rangeSeeded.current = true;
+    setStartDate(currentMonthStartInTimezone(timezone));
+    setEndDate(todayInTimezone(timezone));
+  }, [timezone, timezoneResolved]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -49,6 +47,7 @@ export default function ExpensesView() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    if (!startDate || !endDate) return;
     setLoading(true);
     setError(false);
     try {
@@ -120,14 +119,14 @@ export default function ExpensesView() {
       <ViewHeader
         eyebrow={copy.expenses.eyebrow}
         title={copy.expenses.title}
-        actions={<Button onClick={() => setEditing("new")}><Plus className="mr-2 h-4 w-4" />{copy.expenses.add}</Button>}
+        actions={<Button disabled={!timezoneResolved} onClick={() => setEditing("new")}><Plus className="mr-2 h-4 w-4" />{copy.expenses.add}</Button>}
         meta={copy.expenses.meta}
       />
 
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div className="space-y-2"><Label htmlFor="expense-start">{copy.expenses.startDate}</Label><Input id="expense-start" type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="expense-end">{copy.expenses.endDate}</Label><Input id="expense-end" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} /></div>
-        <Button variant="outline" onClick={() => void load()}>{copy.expenses.apply}</Button>
+        <Button variant="outline" disabled={!startDate || !endDate} onClick={() => void load()}>{copy.expenses.apply}</Button>
       </div>
 
       <Card className="overflow-hidden border-kova-blue/20 bg-kova-blue/[0.03]">
@@ -152,16 +151,16 @@ export default function ExpensesView() {
         </div>
       )}
 
-      {editing ? <ExpenseDialog expense={editing === "new" ? null : editing} busy={busy} onCancel={() => setEditing(null)} onSave={save} /> : null}
+      {editing ? <ExpenseDialog timezone={timezone} expense={editing === "new" ? null : editing} busy={busy} onCancel={() => setEditing(null)} onSave={save} /> : null}
       <ConfirmDialog open={deleting !== null} title={copy.expenses.deleteTitle} description={copy.expenses.deleteBody} confirmLabel={copy.expenses.deleteConfirm} busy={busy} onCancel={() => setDeleting(null)} onConfirm={() => void remove()} />
     </ViewLayout>
   );
 }
 
-function ExpenseDialog({ expense, busy, onCancel, onSave }: { expense: Expense | null; busy: boolean; onCancel: () => void; onSave: (payload: ExpensePayload) => Promise<void> }) {
+function ExpenseDialog({ timezone, expense, busy, onCancel, onSave }: { timezone: string; expense: Expense | null; busy: boolean; onCancel: () => void; onSave: (payload: ExpensePayload) => Promise<void> }) {
   const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? "servicios");
   const [amount, setAmount] = useState(expense?.amount ?? "");
-  const [expenseDate, setExpenseDate] = useState(expense?.expense_date ?? dateInputValue());
+  const [expenseDate, setExpenseDate] = useState(expense?.expense_date ?? todayInTimezone(timezone));
   const [note, setNote] = useState(expense?.note ?? "");
   const valid = Number(amount) > 0 && expenseDate !== "";
   const submit = (event: FormEvent) => {
