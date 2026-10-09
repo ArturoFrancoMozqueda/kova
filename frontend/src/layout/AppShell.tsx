@@ -1,6 +1,6 @@
 import { BranchSelector } from "@/branches/BranchSelector";
 import { AssistantCompanion } from "@/assistant/AssistantCompanion";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
@@ -51,6 +51,7 @@ import { flushFunnelEvents } from "@/telemetry/funnel";
 import { ShellRouteFallback } from "@/components/ui/route-fallback";
 import { SupportDialog } from "@/support/SupportDialog";
 import { useToast } from "@/components/ui/toast";
+import { trapTabKey } from "@/lib/focusTrap";
 
 type NavItem = {
   to: string;
@@ -114,6 +115,9 @@ export default function AppShell() {
   const location = useLocation();
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia?.("(min-width: 1280px)").matches ?? false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
   const [assistantEnabled, setAssistantEnabled] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -223,7 +227,44 @@ export default function AppShell() {
   const operationNavItems = filteredNavItems.filter((item) => item.group === "operation");
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
 
-  const closeSidebar = () => setSidebarOpen(false);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const drawerOpen = sidebarOpen && !isDesktop;
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(min-width: 1280px)");
+    if (!media) return;
+    const update = () => {
+      setIsDesktop(media.matches);
+      if (media.matches) setSidebarOpen(false);
+    };
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    drawerTriggerRef.current = trigger;
+    const sidebar = sidebarRef.current;
+    sidebar?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSidebar();
+      } else if (sidebar) {
+        trapTabKey(event, sidebar);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      // Another dialog (such as support) may already have taken focus.
+      if (trigger?.isConnected && (sidebar?.contains(document.activeElement) || document.activeElement === document.body)) {
+        trigger.focus();
+      }
+    };
+  }, [drawerOpen, closeSidebar]);
   // The drawer slides for 280ms; without this the backdrop used to blink out of
   // existence on the first frame, which was the shell's most visible motion bug.
   const backdrop = usePresence(sidebarOpen);
@@ -346,7 +387,10 @@ export default function AppShell() {
         {!sidebarCollapsed && <OfflineIndicator />}
         <button
           type="button"
-          onClick={() => setSupportOpen(true)}
+          onClick={() => {
+            closeSidebar();
+            setSupportOpen(true);
+          }}
           aria-label={copy.app.support}
           title={sidebarCollapsed ? copy.app.support : undefined}
           className={cn(
@@ -411,6 +455,7 @@ export default function AppShell() {
     <div className="flex h-[100dvh] overflow-hidden bg-kova-mist">
       <a
         href="#contenido-principal"
+        {...(drawerOpen ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLAnchorElement>) : {})}
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-kova-ink focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-kova-on-ink focus:shadow-kova-card"
       >
         {copy.app.skipToContent}
@@ -429,6 +474,13 @@ export default function AppShell() {
 
       {/* Sidebar — fixed on mobile, static on desktop */}
       <aside
+        ref={sidebarRef}
+        id="menu-de-navegacion"
+        tabIndex={-1}
+        role={drawerOpen ? "dialog" : undefined}
+        aria-label={drawerOpen ? copy.auth.accountNavigation : undefined}
+        aria-modal={drawerOpen ? true : undefined}
+        {...(!isDesktop && !sidebarOpen ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLElement>) : {})}
         className={cn(
           // Mobile off-canvas is transform-only: cheap, and ease-entrance rather
           // than ease-in-out because an ease-in start delays the moment the user
@@ -452,7 +504,10 @@ export default function AppShell() {
       </aside>
 
       {/* Main content */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+      <div
+        {...(drawerOpen ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLDivElement>) : {})}
+        className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
+      >
         {/* Mobile top bar */}
         <header className="flex items-center gap-2 border-b bg-background px-3 py-3 xl:hidden shrink-0">
           <button
@@ -460,6 +515,7 @@ export default function AppShell() {
             onClick={() => setSidebarOpen(true)}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
+            aria-controls="menu-de-navegacion"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
           >
             <Menu className="h-5 w-5" />
@@ -516,7 +572,6 @@ export default function AppShell() {
           </Suspense>
         </div>
         <FirstUseTour />
-        <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} />
         <AssistantCompanion enabled={assistantEnabled} suspended={sidebarOpen || supportOpen} />
 
         {/* Bottom navigation — mobile only */}
@@ -549,6 +604,8 @@ export default function AppShell() {
             type="button"
             onClick={() => setSidebarOpen(true)}
             aria-label={copy.app.openMenu}
+            aria-expanded={sidebarOpen}
+            aria-controls="menu-de-navegacion"
             className="flex h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-kova-muted hover:text-kova-ink transition-colors"
           >
             <Menu className="h-5 w-5" />
@@ -556,6 +613,10 @@ export default function AppShell() {
           </button>
         </nav>
       </div>
+      <SupportDialog open={supportOpen} onClose={() => {
+        setSupportOpen(false);
+        if (!isDesktop) drawerTriggerRef.current?.focus();
+      }} />
     </div>
   );
 
