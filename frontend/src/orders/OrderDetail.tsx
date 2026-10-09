@@ -308,7 +308,7 @@ export default function OrderDetail() {
               </Button>
               {canShowCorrectionActions ? (
                 <>
-                  {canRefund && (
+                  {canRefund && refundState !== "full" && (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -347,7 +347,12 @@ export default function OrderDetail() {
         <RefundModal
           disabled={operationPending}
           fieldsLocked={refundIntentLocked}
-          items={order.items}
+          items={order.items
+            .map((item) => ({
+              ...item,
+              quantity: Math.max(0, item.quantity - (refundedQtyByItem.get(item.id) ?? 0)),
+            }))
+            .filter((item) => item.quantity > 0)}
           onCancel={() => {
             refundIntentRef.current = null;
             setRefundIntentLocked(false);
