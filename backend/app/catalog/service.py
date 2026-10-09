@@ -45,7 +45,13 @@ def _hash_payload(payload: dict[str, Any]) -> str:
 
 
 def _stored_response(
-    db: Session, *, tenant_id: UUID, idempotency_key: str, payload: dict[str, Any]
+    db: Session,
+    *,
+    tenant_id: UUID,
+    idempotency_key: str,
+    payload: dict[str, Any],
+    response_field: str,
+    resource_id: UUID | None = None,
 ) -> tuple[int, dict[str, Any]] | None:
     existing = idempotency_service.claim(
         db,
@@ -55,7 +61,17 @@ def _stored_response(
     )
     if not existing:
         return None
-    return existing.response_status or 200, existing.response_body or {}
+    response = existing.response_body or {}
+    # Legacy hashes contain only the body. Validate the saved target while the
+    # key is locked, preserving old legitimate replays without accepting a key
+    # from another product/category or from a create request as an update.
+    if (
+        response_field not in response
+        or (resource_id is not None and response.get("id") != str(resource_id))
+        or existing.response_status != (200 if resource_id is not None else 201)
+    ):
+        raise bad_request("Idempotency key reused for a different catalog resource")
+    return existing.response_status, response
 
 
 def _store_response(
@@ -128,7 +144,11 @@ def create_category(
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json")
     stored = _stored_response(
-        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        response_field="sort_order",
     )
     if stored:
         return stored
@@ -178,7 +198,12 @@ def update_category(
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json", exclude_unset=True)
     stored = _stored_response(
-        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        response_field="sort_order",
+        resource_id=category_id,
     )
     if stored:
         return stored
@@ -230,7 +255,12 @@ def deactivate_category(
 ) -> tuple[int, dict[str, Any]]:
     payload = {"is_active": False}
     stored = _stored_response(
-        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        response_field="sort_order",
+        resource_id=category_id,
     )
     if stored:
         return stored
@@ -287,7 +317,11 @@ def create_product(
         if field not in body.model_fields_set:
             payload.pop(field, None)
     stored = _stored_response(
-        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        response_field="price_amount",
     )
     if stored:
         return stored
@@ -361,7 +395,12 @@ def update_product(
 ) -> tuple[int, dict[str, Any]]:
     payload = body.model_dump(mode="json", exclude_unset=True)
     stored = _stored_response(
-        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        response_field="price_amount",
+        resource_id=product_id,
     )
     if stored:
         return stored
@@ -448,7 +487,12 @@ def deactivate_product(
 ) -> tuple[int, dict[str, Any]]:
     payload = {"is_active": False}
     stored = _stored_response(
-        db, tenant_id=tenant_id, idempotency_key=idempotency_key, payload=payload
+        db,
+        tenant_id=tenant_id,
+        idempotency_key=idempotency_key,
+        payload=payload,
+        response_field="price_amount",
+        resource_id=product_id,
     )
     if stored:
         return stored
