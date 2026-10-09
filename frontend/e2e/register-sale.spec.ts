@@ -61,6 +61,44 @@ async function expectRegisterReady(page: Page) {
   await expect(page.getByRole("heading", { name: /^catálogo$/i })).toBeVisible();
 }
 
+for (const completionKey of ["Enter", "Space", "Control+Enter"]) {
+  test(`editing sale fields never charges implicitly; ${completionKey} explicitly completes it`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await markFirstUseToursSeen(page);
+    await page.route("**/api/v1/auth/session", (route) => route.fulfill({ json: CASHIER_SESSION }));
+    await page.route("**/api/v1/catalog/products", (route) => route.fulfill({ json: CATALOG }));
+    await page.route("**/api/v1/catalog/categories", (route) => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/shifts/current", (route) => route.fulfill({ json: OPEN_SHIFT }));
+    let submittedSales = 0;
+    await page.route("**/api/v1/sync/offline-sales", async (route) => {
+      submittedSales += 1;
+      const body = route.request().postDataJSON() as { sales: Array<{ client_uuid: string }> };
+      await route.fulfill({ json: makeSyncResponse(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000099", "18.50") });
+    });
+    await page.goto("/register");
+    await expectRegisterReady(page);
+    await page.getByRole("button", { name: "Agregar Concha" }).click();
+    await page.getByLabel(/efectivo recibido/i).fill("20.00");
+    await page.getByText("Cliente, descuento e impuesto", { exact: true }).click();
+    const collect = page.getByRole("button", { name: /^cobrar$/i });
+    await expect(collect).toBeEnabled();
+    for (const name of ["Buscar cliente", "Descuento de la venta (MXN)", "Impuesto adicional al precio (%)", "Efectivo recibido"]) {
+      await page.getByLabel(name, { exact: true }).press("Enter");
+      await expect(collect).toBeEnabled();
+      await expect(page.getByRole("button", { name: "Agregar Concha" })).toBeEnabled();
+      expect(submittedSales).toBe(0);
+    }
+    if (completionKey === "Control+Enter") {
+      await collect.focus();
+      await page.keyboard.press(completionKey);
+    } else {
+      await collect.press(completionKey);
+    }
+    await expect(page.getByRole("status")).toHaveText(/venta completada\.?/i);
+    expect(submittedSales).toBe(1);
+  });
+}
+
 for (const width of [390, 1100, 1440]) {
   test(`sale confirmation and receipt remain accessible at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });

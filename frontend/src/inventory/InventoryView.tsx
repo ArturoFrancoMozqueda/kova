@@ -592,7 +592,10 @@ function StockCard({
               <p className="text-xs text-muted-foreground">{copy.inventoryView.movementHistoryEmpty}</p>
             )}
             {!historyLoading && history.length > 0 && (
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              // Keyboard users must focus this named overflow region to scroll its movements.
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+              <div role="region" aria-label={`Movimientos de ${item.product_name}`} tabIndex={0}
+                className="space-y-1.5 max-h-48 overflow-y-auto rounded-kova-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue">
                 {history.map((m) => (
                   <div key={m.id} className="flex items-center justify-between text-xs gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
@@ -600,8 +603,8 @@ function StockCard({
                         className={cn(
                           "shrink-0 rounded-full px-1.5 py-0.5 font-medium text-[10px] uppercase",
                           m.quantity_delta > 0
-                            ? "bg-kova-growth/10 text-kova-growth"
-                            : "bg-destructive/10 text-destructive",
+                            ? "bg-kova-growth/10 text-emerald-700"
+                            : "bg-destructive/10 text-red-700",
                         )}
                       >
                         {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}

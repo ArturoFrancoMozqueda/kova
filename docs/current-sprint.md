@@ -36,7 +36,18 @@ El propietario autorizó evaluación autenticada integral, tres equipos e implem
 hallazgos. Correcciones en `codex/production-comprehensive-fixes`; alcance, QA real, pruebas y
 límites en [la evidencia de producción](audits/KOVA-PRODUCTION-AUDIT-2026-10-08.md).
 No se registraron operaciones financieras ni ajustes de inventario durante la evaluación.
-Los arreglos adicionales deben pasar CI y verificación de publicación antes de marcarse publicados.
+Publicado mediante PR #183: CI y publicación aprobadas; frontend, API, proxy y base de datos
+verificados con SHA `fb47b342489c0a32aad34bee0ad53c5538fcc4f2`.
+
+## Active real-flow evaluation V2 (2026-10-08): segunda pasada con equipos
+
+El propietario solicitó otra evaluación con tres agentes navegando la aplicación real y
+resolviendo defectos. Trabajo en `codex/real-flow-evaluation-v2`, con entornos separados para
+caja/pedidos, operaciones/reportes y acceso/configuración. La QA productiva conserva los datos
+del negocio; las escrituras y los casos adversos se verifican en bases locales desechables.
+Hallazgos, archivos, regresiones y límites en
+[la evaluación V2](audits/KOVA-REAL-FLOW-EVALUATION-V2-2026-10-08.md).
+Los cambios de esta segunda pasada deben aprobar CI y publicación antes de marcarse publicados.
 
 ## Active product implementation (2026-10-08): Lotes y fechas
 

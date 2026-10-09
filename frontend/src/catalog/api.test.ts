@@ -89,6 +89,31 @@ describe("catalog api product payloads", () => {
     expect(body.cost_price).toBe("8.50");
   });
 
+  it.each(["create", "update"] as const)("%s preserves confirmed lot configuration", async (operation) => {
+    const fetchMock = vi.fn(async () => mockProductResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const configuration = {
+      track_inventory: true, track_lots: true,
+      rotation_label: "fecha_objetivo" as const,
+      rotation_days: 14, expiry_days: 30,
+    };
+    const body = { ...POLLUTED, ...configuration };
+    if (operation === "create") await createProduct(body);
+    else await updateProduct("product-1", body);
+    expect(sentBody(fetchMock)).toMatchObject(configuration);
+    expect(sentBody(fetchMock)).not.toHaveProperty("image_file");
+  });
+
+  it("sends an explicit lot disable and clears durations without changing omitted configuration", async () => {
+    const fetchMock = vi.fn(async () => mockProductResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    await updateProduct("product-1", { track_lots: false, rotation_days: null, expiry_days: null });
+    expect(sentBody(fetchMock)).toEqual({ track_lots: false, rotation_days: null, expiry_days: null });
+    fetchMock.mockClear();
+    await updateProduct("product-1", { cost_price: "9.00" });
+    expect(sentBody(fetchMock)).toEqual({ cost_price: "9.00" });
+  });
+
   it("setProductModifierGroups skips blank ids and compacts sort order", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

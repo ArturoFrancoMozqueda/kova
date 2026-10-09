@@ -757,6 +757,13 @@ function RegularRegisterView() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // Enter finishes editing a sale field; only explicit button activation
+      // or the documented shortcut should submit the financial operation.
+      if (event.key === "Enter" && event.target instanceof HTMLInputElement
+          && formRef.current?.contains(event.target)) {
+        event.preventDefault();
+        return;
+      }
       if (submittingRef.current || modifierTarget || saleResultVisible || isEditableTarget(event.target)) return;
       if (event.key === "/" && !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();

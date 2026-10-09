@@ -1,4 +1,7 @@
 import { type Page, expect, test } from "./fixtures";
+import { createRequire } from "node:module";
+
+const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 
 async function mockAuthAs(page: Page, role: string) {
   await page.route("**/api/v1/auth/session", async (route) => {
@@ -52,6 +55,40 @@ const stockItems = [
     is_low_stock: false,
   },
 ];
+
+test("inventory movement history supports keyboard scrolling and readable signed quantities", async ({ page }) => {
+  await mockAuthAs(page, "owner");
+  await page.route("**/api/v1/inventory/stock", route => route.fulfill({ json: [stockItem] }));
+  await page.route("**/api/v1/inventory/low-stock", route => route.fulfill({ json: [stockItem] }));
+  await page.route("**/api/v1/inventory/velocity", route => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/inventory/products/product-1/movements?*", route => route.fulfill({ json: {
+    items: Array.from({ length: 20 }, (_, index) => ({
+      id: `movement-${index}`, movement_type: index % 2 ? "adjustment" : "sale",
+      quantity_delta: index % 2 ? 5 : -1, stock_on_hand_after: null,
+      reason: null, created_by_user_id: null, created_at: "2026-10-08T12:00:00Z",
+    })), total: 20, limit: 20, offset: 0,
+  } }));
+  await page.goto("/inventory");
+  await page.getByRole("button", { name: "Historial", exact: true }).click();
+  await expect(page.getByText("+5", { exact: true }).first()).toBeVisible();
+  await page.getByText("+5", { exact: true }).first().scrollIntoViewIfNeeded();
+  await page.evaluate(async () => {
+    await Promise.all(document.getAnimations().filter(animation =>
+      animation.effect?.getComputedTiming().endTime !== Infinity
+    ).map(animation => animation.finished.catch(() => undefined)));
+  });
+  await page.addScriptTag({ path: axePath });
+  const violations = await page.evaluate(async () => {
+    const axe = (window as typeof window & { axe: { run: (context: Document, options: object) => Promise<{ violations: unknown[] }> } }).axe;
+    return (await axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } })).violations;
+  });
+  expect(violations).toEqual([]);
+  const region = page.getByRole("region", { name: "Movimientos de Concha" });
+  await region.focus();
+  await expect(region).toBeFocused();
+  await page.keyboard.press("End");
+  await expect.poll(() => region.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+});
 
 test("inventory marks zero or negative tracked stock as sold out", async ({ page }) => {
   await mockAuthAs(page, "owner");

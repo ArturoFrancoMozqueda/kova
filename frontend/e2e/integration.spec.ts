@@ -9,6 +9,44 @@ import {
 test.describe("stack efímero sin mocks", () => {
   test.skip(!integrationEnabled(), "Requiere docker-compose.test.yml");
 
+  test("catálogo conserva lotes y sugerencias de fechas al crear y editar desde la UI", async ({ page }) => {
+    await createTenantThroughUi(page, "real-lot-settings");
+    const session = await (await page.request.get("/api/v1/auth/session")).json();
+    await markFirstUseToursSeen(page, session.tenant_id);
+    const name = `Producto con lotes ${Date.now()}`;
+    await page.goto("/catalog");
+    await page.getByRole("button", { name: "Nuevo producto", exact: true }).first().click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Nombre del producto", { exact: true }).fill(name);
+    await dialog.getByLabel("Precio", { exact: true }).fill("25.00");
+    await dialog.getByLabel("Controlar inventario", { exact: true }).check();
+    await dialog.getByLabel("Controlar por lotes", { exact: true }).check();
+    await dialog.getByLabel("Fecha de rotación", { exact: true }).selectOption("fecha_objetivo");
+    await dialog.getByLabel("Días desde elaboración para sugerir esa fecha", { exact: true }).fill("14");
+    await dialog.getByLabel("Días desde elaboración para sugerir caducidad", { exact: true }).fill("30");
+    await dialog.getByRole("button", { name: "Guardar producto", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    const readProducts = async () => {
+      const response = await page.request.get("/api/v1/catalog/products");
+      expect(response.ok()).toBe(true);
+      return await response.json() as Array<{ id: string; name: string; track_lots: boolean; rotation_label: string; rotation_days: number | null; expiry_days: number | null }>;
+    };
+    const created = (await readProducts()).find(item => item.name === name);
+    expect(created).toMatchObject({ track_lots: true, rotation_label: "fecha_objetivo", rotation_days: 14, expiry_days: 30 });
+    await page.reload();
+    await page.getByRole("button", { name: `Editar ${name}`, exact: true }).click();
+    await expect(dialog.getByLabel("Controlar por lotes", { exact: true })).toBeChecked();
+    await expect(dialog.getByLabel("Días desde elaboración para sugerir esa fecha", { exact: true })).toHaveValue("14");
+    await dialog.getByLabel("Días desde elaboración para sugerir esa fecha", { exact: true }).fill("7");
+    await dialog.getByLabel("Días desde elaboración para sugerir caducidad", { exact: true }).clear();
+    await dialog.getByRole("button", { name: "Guardar producto", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    expect((await readProducts()).find(item => item.id === created!.id)).toMatchObject({ track_lots: true, rotation_days: 7, expiry_days: null });
+    const dates = await page.request.get(`/api/v1/inventory/products/${created!.id}/lots/suggestions?manufactured_on=2026-10-01`);
+    expect(dates.ok()).toBe(true);
+    expect(await dates.json()).toMatchObject({ rotation_on: "2026-10-08", expires_on: null });
+  });
+
   test("abrir turno y cobrar persiste la venta y descuenta inventario real", async ({ page }) => {
     await createTenantThroughUi(page, "real-sale");
     const session = await (await page.request.get("/api/v1/auth/session")).json();

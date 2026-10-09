@@ -1,5 +1,5 @@
 import { getActiveBranchId } from "@/branches/activeBranch";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { AlertTriangle, ArrowLeft, Banknote, ChevronLeft, ChevronRight, MapPin, Pencil, Phone, Printer, Store, XCircle } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -42,6 +42,8 @@ export default function CustomerOrderDetailView() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<"customer_request" | "out_of_stock" | "duplicate" | "other">("customer_request");
   const [cancelNote, setCancelNote] = useState("");
+  const cancelReasonId = useId();
+  const cancelNoteId = useId();
   useDocumentTitle(order?.folio ?? "Detalle de pedido");
 
   const load = useCallback(async () => {
@@ -78,18 +80,26 @@ export default function CustomerOrderDetailView() {
 
   if (!enabled) return <Navigate to="/register" replace />;
   if (loading) return <ViewLayout width="focused"><div className="h-96 animate-pulse rounded-xl bg-muted" /></ViewLayout>;
-  if (!order || error) return <ViewLayout width="focused"><ViewError message={error ?? "Pedido no encontrado"} onRetry={() => void load()} retryLabel="Reintentar" /></ViewLayout>;
+  if (!order) return <ViewLayout width="focused"><ViewError message={error ?? "Pedido no encontrado"} onRetry={() => void load()} retryLabel="Reintentar" /></ViewLayout>;
+
+  const writable = isOnline && !cachedAt;
+  const canCancel = !["fulfilled", "cancelled"].includes(order.status)
+    && (order.payment_status === "unpaid"
+      || (isManager && ["refunded", "voided"].includes(order.payment_status)));
 
   const applyMutation = async (mutation: () => Promise<CustomerOrder>) => {
+    if (!writable || mutating) return false;
     setMutating(true);
     setError(null);
     try {
       const updated = await mutation();
       setOrder(updated);
       await saveCustomerOrderDetail(tenantId, updated, branchId);
+      return true;
     } catch (caught) {
       const api = caught as { detail?: { detail?: { message?: string } } };
       setError(api.detail?.detail?.message ?? "No se pudo actualizar el pedido.");
+      return false;
     } finally {
       setMutating(false);
     }
@@ -107,7 +117,7 @@ export default function CustomerOrderDetailView() {
           eyebrow={<Link to="/pedidos" className="inline-flex items-center text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Pedidos</Link>}
           title={order.folio}
           meta={`Creado ${formatDateTime(order.created_at)} · ${channelLabels[order.source_channel]}`}
-          actions={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimir</Button>{editable && isOnline ? <Link to={`/pedidos/${order.id}/editar`} className={buttonVariants({ variant: "outline" })}><Pencil className="mr-2 h-4 w-4" /> Editar</Link> : null}</div>}
+          actions={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" /> Imprimir</Button>{editable && writable ? <Link to={`/pedidos/${order.id}/editar`} className={buttonVariants({ variant: "outline" })}><Pencil className="mr-2 h-4 w-4" /> Editar</Link> : null}</div>}
         />
       </div>
 
@@ -117,7 +127,7 @@ export default function CustomerOrderDetailView() {
       </div>
 
       {cachedAt ? <div className="my-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground print:hidden">Solo lectura · actualizado {formatDateTime(cachedAt)}.</div> : null}
-      {error ? <div className="my-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive print:hidden" role="alert">{error}</div> : null}
+      {error && !cancelOpen ? <div className="my-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive print:hidden"><p role="alert">{error}</p><Button variant="outline" className="mt-2" onClick={() => void load()}>Actualizar pedido</Button></div> : null}
 
       <Card className="mt-5 print:border-0 print:shadow-none">
         <CardContent className="p-5"><CustomerOrderStatusTracker status={order.status} /></CardContent>
@@ -158,22 +168,23 @@ export default function CustomerOrderDetailView() {
         </CardContent>
       </Card>
 
-      {isOnline && !["fulfilled", "cancelled"].includes(order.status) ? (
+      {writable && !["fulfilled", "cancelled"].includes(order.status) ? (
         <Card className="mt-4 print:hidden">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap">
             {order.status === "new" ? <Button disabled={mutating} onClick={() => void applyMutation(() => confirmCustomerOrder(order.id, order.version))}>Confirmar y reservar</Button> : null}
             {canCheckout ? <Button disabled={mutating || order.stock_conflict} onClick={() => navigate(`/register?customerOrderId=${order.id}`)}><Banknote className="mr-2 h-4 w-4" /> Cobrar en Caja</Button> : null}
             {isManager && previous ? <Button variant="outline" disabled={mutating} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, previous))}><ChevronLeft className="mr-2 h-4 w-4" /> Corregir a {statusLabels[previous]}</Button> : null}
             {following && following !== "confirmed" ? <Button variant="secondary" disabled={mutating || (following === "fulfilled" && order.payment_status !== "paid")} onClick={() => void applyMutation(() => changeCustomerOrderStatus(order.id, order.version, following))}><ChevronRight className="mr-2 h-4 w-4" /> Marcar {statusLabels[following].toLocaleLowerCase("es-MX")}</Button> : null}
-            <Button variant="ghost" className="sm:ml-auto text-destructive" disabled={mutating} onClick={() => setCancelOpen(true)}><XCircle className="mr-2 h-4 w-4" /> Cancelar pedido</Button>
+            <Button variant="ghost" className="sm:ml-auto text-destructive" disabled={mutating || !canCancel} onClick={() => setCancelOpen(true)}><XCircle className="mr-2 h-4 w-4" /> Cancelar pedido</Button>
           </CardContent>
         </Card>
       ) : null}
 
-      <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)}>
+      <Dialog open={cancelOpen && writable} onClose={() => setCancelOpen(false)}>
         <DialogHeader><DialogTitle>Cancelar {order.folio}</DialogTitle><DialogDescription>Se liberará el inventario reservado. Si ya fue cobrado, primero deberá revertirse la venta.</DialogDescription></DialogHeader>
-        <div className="space-y-3"><div><Label>Motivo</Label><Select value={cancelReason} onChange={(event) => setCancelReason(event.target.value as typeof cancelReason)}><option value="customer_request">Solicitud del cliente</option><option value="out_of_stock">Sin existencias</option><option value="duplicate">Duplicado</option><option value="other">Otro</option></Select></div><div><Label>Nota opcional</Label><Input value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} maxLength={300} /></div></div>
-        <DialogFooter><Button variant="outline" onClick={() => setCancelOpen(false)}>Volver</Button><Button variant="destructive" disabled={mutating} onClick={() => { void applyMutation(() => cancelCustomerOrder(order.id, order.version, cancelReason, cancelNote)).then(() => setCancelOpen(false)); }}>Cancelar pedido</Button></DialogFooter>
+        {error ? <div className="mb-3"><p role="alert" className="text-sm text-destructive">{error}</p><Button variant="outline" className="mt-2" onClick={() => void load()}>Actualizar pedido</Button></div> : null}
+        <div className="space-y-3"><div><Label htmlFor={cancelReasonId}>Motivo</Label><Select id={cancelReasonId} value={cancelReason} onChange={(event) => setCancelReason(event.target.value as typeof cancelReason)}><option value="customer_request">Solicitud del cliente</option><option value="out_of_stock">Sin existencias</option><option value="duplicate">Duplicado</option><option value="other">Otro</option></Select></div><div><Label htmlFor={cancelNoteId}>Nota opcional</Label><Input id={cancelNoteId} value={cancelNote} onChange={(event) => setCancelNote(event.target.value)} maxLength={300} /></div></div>
+        <DialogFooter><Button variant="outline" onClick={() => setCancelOpen(false)}>Volver</Button><Button variant="destructive" disabled={mutating || !canCancel || !writable} onClick={() => { if (!canCancel) return; void applyMutation(() => cancelCustomerOrder(order.id, order.version, cancelReason, cancelNote)).then((succeeded) => { if (succeeded) setCancelOpen(false); }); }}>Cancelar pedido</Button></DialogFooter>
       </Dialog>
     </ViewLayout>
   );

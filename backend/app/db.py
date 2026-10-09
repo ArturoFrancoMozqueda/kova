@@ -1,6 +1,10 @@
+import asyncio
 import logging
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
+from weakref import WeakKeyDictionary
 
+from anyio import CapacityLimiter
+from fastapi import Depends
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -233,7 +237,38 @@ privileged_engine = create_engine(
 PrivilegedSessionLocal = sessionmaker(bind=privileged_engine, autoflush=False, autocommit=False)
 
 
-def get_db() -> Generator[Session, None, None]:
+# Wait before entering FastAPI's shared sync worker pool. Otherwise requests
+# waiting for SQLAlchemy connections can occupy every worker while requests
+# already holding connections wait for a worker to execute their endpoint.
+# ASGI runs one event loop per worker. Weak loop keys also support sequential
+# TestClient loops without retaining closed loops or sharing asyncio waiters.
+_request_admission: WeakKeyDictionary[asyncio.AbstractEventLoop, dict[str, CapacityLimiter]] = (
+    WeakKeyDictionary()
+)
+
+
+def _request_limiter(name: str, capacity: int) -> CapacityLimiter:
+    limiters = _request_admission.setdefault(asyncio.get_running_loop(), {})
+    if name not in limiters:
+        limiters[name] = CapacityLimiter(capacity)
+    return limiters[name]
+
+
+async def _runtime_request_admission() -> AsyncGenerator[None, None]:
+    capacity = max(1, settings.database_pool_size + max(0, settings.database_max_overflow))
+    async with _request_limiter("runtime", capacity):
+        yield
+
+
+async def _privileged_request_admission() -> AsyncGenerator[None, None]:
+    # Mirrors the deliberately small privileged engine's size=2/overflow=2.
+    async with _request_limiter("privileged", 4):
+        yield
+
+
+def get_db(
+    _admission: None = Depends(_runtime_request_admission),
+) -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
@@ -245,7 +280,9 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def get_privileged_db() -> Generator[Session, None, None]:
+def get_privileged_db(
+    _admission: None = Depends(_privileged_request_admission),
+) -> Generator[Session, None, None]:
     """RLS-bypassing session for tenant-agnostic paths only. See privileged_engine."""
     db = PrivilegedSessionLocal()
     try:

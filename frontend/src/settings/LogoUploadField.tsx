@@ -37,6 +37,7 @@ export function LogoUploadField({
   setReceipt: Dispatch<SetStateAction<ReceiptDraft>>;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [selection, setSelection] = useState<{ file: File; previewUrl: string } | null>(null);
@@ -45,6 +46,14 @@ export function LogoUploadField({
   const [zoom, setZoom] = useState(1);
   const { toast } = useToast();
   const { setTenantLogoUrl } = useAuth();
+
+  useEffect(() => {
+    const active = activeRef;
+    active.current = true;
+    // Settings unmounts this field when the loaded business changes. Pending
+    // uploads must not update its surviving parent or the new session's logo.
+    return () => { active.current = false; };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -77,19 +86,23 @@ export function LogoUploadField({
     setIsPending(true);
     try {
       let prepared = await cropImageToSquare(selection.file, { positionX, positionY, zoom });
+      if (!activeRef.current) return;
       try {
         prepared = await compressImage(prepared);
       } catch {
         // fall back to original; backend still enforces a size cap
       }
+      if (!activeRef.current) return;
       if (prepared.size > MAX_BYTES) {
         toast(copy.settings.logoTooLarge, "error");
         return;
       }
       const response = await uploadReceiptLogo(prepared);
+      if (!activeRef.current) return;
       setTenantLogoUrl(response.logo_url);
       setReceipt((current) => ({ ...current, logo_url: response.logo_url }));
       const refreshed = await getReceiptSettings();
+      if (!activeRef.current) return;
       setReceipt((current) => ({
         ...current,
         receipt_business_name: refreshed.receipt_business_name,
@@ -100,9 +113,9 @@ export function LogoUploadField({
       toast(copy.settings.logoUploaded, "success");
       setSelection(null);
     } catch {
-      toast(copy.settings.logoUploadError, "error");
+      if (activeRef.current) toast(copy.settings.logoUploadError, "error");
     } finally {
-      setIsPending(false);
+      if (activeRef.current) setIsPending(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
@@ -122,9 +135,11 @@ export function LogoUploadField({
     setIsPending(true);
     try {
       await deleteReceiptLogo();
+      if (!activeRef.current) return;
       setTenantLogoUrl(null);
       setReceipt((current) => ({ ...current, logo_url: "" }));
       const refreshed = await getReceiptSettings();
+      if (!activeRef.current) return;
       setReceipt((current) => ({
         ...current,
         receipt_business_name: refreshed.receipt_business_name,
@@ -134,9 +149,9 @@ export function LogoUploadField({
       }));
       toast(copy.settings.logoRemoved, "success");
     } catch {
-      toast(copy.settings.logoRemoveError, "error");
+      if (activeRef.current) toast(copy.settings.logoRemoveError, "error");
     } finally {
-      setIsPending(false);
+      if (activeRef.current) setIsPending(false);
     }
   };
 
