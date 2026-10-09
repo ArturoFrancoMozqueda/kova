@@ -311,13 +311,36 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
 
   let syncCallCount = 0;
   let capturedClientUuid: string | null = null;
+  const sentSales: Array<Record<string, unknown> & { client_uuid: string }> = [];
+  const readStoredSales = () => page.evaluate(() => new Promise<Array<{
+    client_uuid: string;
+    status: string;
+    synced_order_id?: string;
+  }>>((resolve, reject) => {
+    const opening = indexedDB.open("pos_offline");
+    opening.onerror = () => reject(opening.error);
+    opening.onsuccess = () => {
+      const db = opening.result;
+      const request = db.transaction("offline_sales", "readonly").objectStore("offline_sales").getAll();
+      request.onerror = () => { db.close(); reject(request.error); };
+      request.onsuccess = () => {
+        db.close();
+        resolve(request.result.map((row) => ({
+          client_uuid: row.client_uuid,
+          status: row.status,
+          synced_order_id: row.synced_order_id,
+        })));
+      };
+    };
+  }));
 
   await page.route("**/api/v1/sync/offline-sales", async (route) => {
     syncCallCount += 1;
     const body = route.request().postDataJSON() as {
-      sales: Array<{ client_uuid: string }>;
+      sales: Array<Record<string, unknown> & { client_uuid: string }>;
     };
-    capturedClientUuid = body.sales[0].client_uuid;
+    sentSales.push(body.sales[0]);
+    capturedClientUuid ??= body.sales[0].client_uuid;
 
     if (syncCallCount === 1) {
       // Server rejects the sale (e.g., invalid product)
@@ -325,7 +348,7 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
         json: syncFailure(capturedClientUuid, "Product not found"),
       });
     } else {
-      await route.fulfill({ json: syncSuccess(capturedClientUuid, "10000000-0000-4000-8000-000000000008") });
+      await route.fulfill({ json: syncSuccess(body.sales[0].client_uuid, "10000000-0000-4000-8000-000000000008") });
     }
   });
 
@@ -334,8 +357,20 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
   await page.getByRole("button", { name: "Agregar Concha" }).click();
   await page.getByLabel(/efectivo recibido/i).fill("20.00");
   await page.getByRole("button", { name: /^cobrar$/i }).click();
-  // A definitive server rejection is announced assertively and restores the cart.
-  await expect(page.getByRole("alert")).toHaveText(/la venta fue rechazada y no se registró/i);
+  // The payment remains a durable queued sale. Recovery must retry that UUID,
+  // rather than restore a cart that can record the same paid sale again.
+  await expect(page.getByRole("alert")).toHaveText(/la venta sigue guardada en este dispositivo y requiere revisión/i);
+  await expect(page.getByRole("paragraph").filter({ hasText: "Venta guardada en este dispositivo" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /ver cola/i }).first()).toHaveAttribute("href", "/sync-queue");
+  await expect.poll(readStoredSales).toEqual([{
+    client_uuid: capturedClientUuid,
+    status: "failed",
+    synced_order_id: undefined,
+  }]);
+  await page.getByRole("button", { name: /nueva venta/i }).first().click();
+  await expect(page.getByRole("button", { name: "Quitar Concha" })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: /^cobrar$/i })).toBeDisabled();
+  expect(syncCallCount).toBe(1);
 
   // Navigate to sync queue — should show Failed section
   await page.goto("/sync-queue");
@@ -347,6 +382,13 @@ test("server-error sale appears in dead letter and succeeds on retry", async ({ 
 
   // Failed section disappears
   await expect(page.getByRole("heading", { name: /^fallidas$/i })).not.toBeVisible({ timeout: 5000 });
+  await expect.poll(() => syncCallCount).toBe(2);
+  expect(sentSales[1]).toEqual(sentSales[0]);
+  await expect.poll(readStoredSales).toEqual([{
+    client_uuid: capturedClientUuid,
+    status: "synced",
+    synced_order_id: "10000000-0000-4000-8000-000000000008",
+  }]);
 });
 
 test("cold offline: register renders catalog from IndexedDB cache and queues a sale", async ({
