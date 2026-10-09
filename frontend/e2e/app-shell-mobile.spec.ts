@@ -74,3 +74,19 @@ test("support opened from the drawer receives focus and returns to the menu trig
   await expect(support).toHaveCount(0);
   await expect(trigger).toBeFocused();
 });
+
+test("desktop collapse preference does not hide labels in the mobile drawer", async ({ page }) => {
+  await openShell(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.getByRole("button", { name: "Contraer menú" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Abrir menú de navegación" }).first().click();
+  const drawer = page.getByRole("dialog");
+  const label = drawer.locator('a[href="/catalog"] span').filter({ hasText: "Catálogo" });
+  await expect(label).toHaveAttribute("aria-hidden", "false");
+  await expect(label).toHaveCSS("opacity", "1");
+  await expect(drawer.getByText("Mi negocio", { exact: true })).toBeVisible();
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(page.getByRole("button", { name: "Expandir menú" })).toBeVisible();
+});
