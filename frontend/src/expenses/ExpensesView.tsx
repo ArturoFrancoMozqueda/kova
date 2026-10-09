@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BarChart3, CalendarDays, Pencil, Plus, ReceiptText, Trash2, WalletCards } from "lucide-react";
 
 import { useFeature } from "@/auth/useFeature";
@@ -47,21 +47,25 @@ export default function ExpensesView() {
   const [editing, setEditing] = useState<Expense | null | "new">(null);
   const [deleting, setDeleting] = useState<Expense | null>(null);
   const [busy, setBusy] = useState(false);
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(false);
     try {
-      setExpenses(await listExpenses(startDate, endDate));
+      const rows = await listExpenses(startDate, endDate);
+      if (requestId === requestIdRef.current) setExpenses(rows);
     } catch {
-      setError(true);
+      if (requestId === requestIdRef.current) setError(true);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [endDate, startDate]);
 
   useEffect(() => {
     if (enabled && canManage) void load();
+    return () => { requestIdRef.current += 1; };
   }, [canManage, enabled, load]);
 
   const total = useMemo(
