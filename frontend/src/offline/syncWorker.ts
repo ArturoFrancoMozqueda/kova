@@ -15,6 +15,7 @@ const workerId = crypto.randomUUID();
 let syncingTenant: string | null = null;
 let retryTimer: ReturnType<typeof window.setTimeout> | null = null;
 let retryTenant: string | null = null;
+let retryDeadline: number | null = null;
 let activationTimer: ReturnType<typeof window.setTimeout> | null = null;
 
 export function stopOfflineSync() {
@@ -22,6 +23,7 @@ export function stopOfflineSync() {
   if (activationTimer) window.clearTimeout(activationTimer);
   retryTimer = null;
   retryTenant = null;
+  retryDeadline = null;
   activationTimer = null;
 }
 
@@ -44,12 +46,17 @@ onActiveOfflineTenantChange((tenantId) => {
 });
 
 function scheduleRetryIn(tenantId: string, delayMs: number) {
+  const deadline = Date.now() + delayMs;
+  // Concurrent foreground failures can extend a cooldown, never shorten it.
+  if (retryTimer && retryTenant === tenantId && retryDeadline !== null && retryDeadline >= deadline) return;
   stopOfflineSync();
   retryTenant = tenantId;
+  retryDeadline = deadline;
   retryTimer = window.setTimeout(() => {
     retryTimer = null;
     const scheduledTenant = retryTenant;
     retryTenant = null;
+    retryDeadline = null;
     if (scheduledTenant && getActiveOfflineTenant() === scheduledTenant) {
       void triggerSync(scheduledTenant);
     }
@@ -58,6 +65,13 @@ function scheduleRetryIn(tenantId: string, delayMs: number) {
 
 function scheduleRetry(tenantId: string, minAttemptCount: number) {
   scheduleRetryIn(tenantId, BACKOFF_MS[Math.min(minAttemptCount, BACKOFF_MS.length - 1)]);
+}
+
+/** Foreground checkout also uses leased sync, so transient failures must hand
+ * its durable pending sale back to the worker even if the browser stays online. */
+export function scheduleOfflineSyncRetry(tenantId: string, error: unknown) {
+  if (!tenantId || getActiveOfflineTenant() !== tenantId) return;
+  scheduleRetryIn(tenantId, error instanceof RateLimitError ? error.retryAfterMs : BACKOFF_MS[0]);
 }
 
 export async function triggerSync(tenantId: string): Promise<void> {

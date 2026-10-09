@@ -24,7 +24,7 @@ import { TicketPaper } from "@/components/ui/ticket";
 import type { Order, Receipt } from "../orders/types";
 import { claimOfflineSale, queueOfflineSale } from "../offline/queue";
 import { syncOfflineSales } from "../offline/sync";
-import { triggerSync } from "../offline/syncWorker";
+import { scheduleOfflineSyncRetry, triggerSync } from "../offline/syncWorker";
 import { readCatalogCache, saveCatalogCache } from "../offline/catalogCache";
 import type { OfflineReceiptSnapshot, OfflineSaleQueueItem } from "../offline/types";
 import { ModifierSelectionModal } from "./ModifierSelectionModal";
@@ -1125,7 +1125,8 @@ function RegularRegisterView() {
           void refreshStock();
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        if (tenantId) scheduleOfflineSyncRetry(tenantId, error);
         if (activeSaleClientUuidRef.current === queueItem.client_uuid) {
           toast(copy.register.saleQueued, "warning");
         }
