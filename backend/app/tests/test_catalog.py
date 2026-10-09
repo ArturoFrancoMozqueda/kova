@@ -446,3 +446,69 @@ def test_product_image_position_rejects_out_of_range_values(client):
     )
 
     assert create.status_code == 422
+
+
+@pytest.mark.parametrize("resource", ["categories", "products"])
+@pytest.mark.parametrize("method,payload", [("patch", {"description": "Actualizado"}), ("delete", None)])
+def test_catalog_replay_rejects_different_target(client, resource, method, payload):
+    _signup_verify_login(client, f"target-{resource}-{method}@example.com", "Replay Target")
+    created = []
+    for index in range(2):
+        body = {"name": f"Target {index}"}
+        if resource == "products":
+            body["price_amount"] = "10.00"
+        response = client.post(
+            f"/api/v1/catalog/{resource}",
+            headers={"Idempotency-Key": f"target-create-{index}"},
+            json=body,
+        )
+        assert response.status_code == 201, response.text
+        created.append(response.json())
+    headers = {"Idempotency-Key": "shared-target-key"}
+    kwargs = {"headers": headers}
+    if payload is not None:
+        kwargs["json"] = payload
+    request = getattr(client, method)
+    first = request(f"/api/v1/catalog/{resource}/{created[0]['id']}", **kwargs)
+    assert first.status_code == 200, first.text
+    replay = request(f"/api/v1/catalog/{resource}/{created[0]['id']}", **kwargs)
+    assert replay.status_code == first.status_code
+    assert replay.json() == first.json()
+    rejected = request(f"/api/v1/catalog/{resource}/{created[1]['id']}", **kwargs)
+    assert rejected.status_code == 400, rejected.text
+    rows = client.get(f"/api/v1/catalog/{resource}").json()
+    unchanged = next(row for row in rows if row["id"] == created[1]["id"])
+    assert unchanged == created[1]
+
+
+def test_catalog_replay_rejects_different_resource_kind(client):
+    _signup_verify_login(client, "target-kind@example.com", "Replay Kind")
+    category = client.post(
+        "/api/v1/catalog/categories", headers={"Idempotency-Key": "kind-category"},
+        json={"name": "Category"},
+    ).json()
+    product = client.post(
+        "/api/v1/catalog/products", headers={"Idempotency-Key": "kind-product"},
+        json={"name": "Product", "price_amount": "10.00"},
+    ).json()
+    headers = {"Idempotency-Key": "shared-kind-key"}
+    first = client.delete(f"/api/v1/catalog/categories/{category['id']}", headers=headers)
+    assert first.status_code == 200, first.text
+    rejected = client.delete(f"/api/v1/catalog/products/{product['id']}", headers=headers)
+    assert rejected.status_code == 400, rejected.text
+    assert client.get("/api/v1/catalog/products").json() == [product]
+
+
+
+def test_catalog_create_key_cannot_replay_as_update(client):
+    _signup_verify_login(client, "target-create@example.com", "Replay Create")
+    headers = {"Idempotency-Key": "create-versus-update"}
+    body = {"name": "Category", "description": None, "sort_order": 0}
+    created = client.post("/api/v1/catalog/categories", headers=headers, json=body)
+    assert created.status_code == 201, created.text
+    replay = client.post("/api/v1/catalog/categories", headers=headers, json=body)
+    assert replay.json() == created.json()
+    rejected = client.patch(
+        f"/api/v1/catalog/categories/{created.json()['id']}", headers=headers, json=body,
+    )
+    assert rejected.status_code == 400, rejected.text
