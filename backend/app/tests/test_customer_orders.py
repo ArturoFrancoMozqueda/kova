@@ -296,3 +296,40 @@ def test_list_supports_search_filters_counts_and_pagination(client, db: Session)
     assert body["items"][0]["id"] == first["id"]
     assert body["status_counts"]["new"] == 1
     assert body["status_counts"]["confirmed"] == 1
+
+
+
+def test_zero_total_order_is_paid_and_can_be_fulfilled(client, db: Session) -> None:
+    tenant_id = _signup_login(client, prefix="zero-total")
+    _enable_customer_orders(db, tenant_id)
+    product = _product(client, price="0.00")
+    _seed(client, product["id"], 1)
+    created = _create(client, product["id"], quantity=1)
+    assert created.status_code == 201, created.text
+    confirmed = _confirm(client, created.json())
+    assert confirmed.status_code == 200, confirmed.text
+    checkout = client.post(
+        f"/api/v1/customer-orders/{confirmed.json()['id']}/checkout",
+        headers={"Idempotency-Key": "zero-total-checkout"},
+        json={"version": confirmed.json()["version"],
+              "payments": [{"method": "bank_transfer", "amount": "0.00"}]},
+    )
+    assert checkout.status_code == 201, checkout.text
+    order = checkout.json()["customer_order"]
+    assert order["payment_status"] == "paid"
+    detail = client.get(f"/api/v1/customer-orders/{order['id']}")
+    assert detail.json()["payment_status"] == "paid"
+    paid_list = client.get("/api/v1/customer-orders", params={"payment_status": "paid"})
+    assert [item["id"] for item in paid_list.json()["items"]] == [order["id"]]
+    refunded_list = client.get("/api/v1/customer-orders", params={"payment_status": "refunded"})
+    assert refunded_list.json()["items"] == []
+    for status in ["in_progress", "ready", "fulfilled"]:
+        response = client.post(
+            f"/api/v1/customer-orders/{order['id']}/status",
+            headers={"Idempotency-Key": f"zero-total-{status}"},
+            json={"version": order["version"], "status": status},
+        )
+        assert response.status_code == 200, response.text
+        order = response.json()
+    assert order["status"] == "fulfilled"
+    assert order["payment_status"] == "paid"

@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import case, func, or_
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import Session
 
 from app.customer_orders.models import (
@@ -19,7 +19,7 @@ def payment_status_expression():
     return case(
         (CustomerOrder.sale_order_id.is_(None), "unpaid"),
         (Order.status == "voided", "voided"),
-        (refund_totals >= CustomerOrder.total_amount, "refunded"),
+        (and_(refund_totals > 0, refund_totals >= CustomerOrder.total_amount), "refunded"),
         (refund_totals > 0, "partially_refunded"),
         else_="paid",
     )
@@ -322,7 +322,7 @@ def payment_status(db: Session, *, order: CustomerOrder) -> str:
         .scalar()
     )
     amount = Decimal(refunded or 0)
-    if amount >= order.total_amount:
+    if amount > 0 and amount >= order.total_amount:
         return "refunded"
     if amount > 0:
         return "partially_refunded"
