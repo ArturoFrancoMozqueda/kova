@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { AuthLayout } from "./AuthLayout";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { hasPasswordByteLimitError, passwordExceedsByteLimit } from "./passwordRules";
 
 type State = "idle" | "submitting" | "success" | "error" | "invalid";
 
@@ -36,9 +37,12 @@ function ResetPasswordForm({ token }: { token: string }) {
 
   const mismatch = confirmation.length > 0 && password !== confirmation;
   const tooShort = password.length > 0 && password.length < 8;
+  const tooLong = passwordExceedsByteLimit(password);
   const weakPassword =
     password.length >= 8 && (!/[A-Za-z]/.test(password) || !/\d/.test(password));
-  const passwordHint = tooShort
+  const passwordHint = tooLong
+    ? copy.auth.signupPasswordTooLong
+    : tooShort
     ? copy.auth.resetPasswordTooShort
     : weakPassword
       ? copy.auth.resetPasswordWeak
@@ -46,6 +50,7 @@ function ResetPasswordForm({ token }: { token: string }) {
   const canSubmit =
     token.length > 0 &&
     password.length >= 8 &&
+    !tooLong &&
     !weakPassword &&
     password === confirmation &&
     state !== "submitting" && state !== "invalid";
@@ -63,7 +68,8 @@ function ResetPasswordForm({ token }: { token: string }) {
         setState("invalid");
         return;
       } else if (err instanceof ApiError && err.status === 422) {
-        setErrorMessage(copy.auth.resetPasswordWeak);
+        setErrorMessage(hasPasswordByteLimitError(err.message)
+          ? copy.auth.signupPasswordTooLong : copy.auth.resetPasswordWeak);
       } else {
         setErrorMessage(copy.auth.operationError);
       }

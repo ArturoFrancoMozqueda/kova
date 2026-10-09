@@ -9,6 +9,8 @@ import { AuthLayout } from "./AuthLayout";
 import { copy } from "@/i18n/messages";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { csrfHeaders } from "@/lib/csrf";
+import { ApiError } from "./api";
+import { hasPasswordByteLimitError, passwordExceedsByteLimit } from "./passwordRules";
 
 type Preview = {
   email: string;
@@ -42,7 +44,7 @@ async function postAccept(token: string, password: string | null): Promise<void>
     body: JSON.stringify({ token, password }),
   });
   if (!response.ok) {
-    throw new Error(String(response.status));
+    throw new ApiError(await response.text(), response.status);
   }
 }
 
@@ -56,6 +58,7 @@ export default function AcceptInviteView() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -76,11 +79,14 @@ export default function AcceptInviteView() {
   }, [token]);
 
   const tooShort = preview?.requires_password && password.length > 0 && password.length < 8;
+  const tooLong = preview?.requires_password && passwordExceedsByteLimit(password);
+  const passwordHint = tooLong ? copy.auth.signupPasswordTooLong
+    : tooShort ? copy.auth.resetPasswordTooShort : passwordError;
   const mismatch =
     preview?.requires_password && confirmation.length > 0 && password !== confirmation;
   const passwordOk =
     !preview?.requires_password ||
-    (password.length >= 8 && password === confirmation);
+    (password.length >= 8 && !tooLong && password === confirmation);
   const canSubmit = (phase === "ready" || phase === "submitting") && passwordOk;
 
   const submit = async (event: FormEvent) => {
@@ -91,7 +97,12 @@ export default function AcceptInviteView() {
       await postAccept(token, preview.requires_password ? password : null);
       setPhase("success");
       window.setTimeout(() => navigate("/login", { replace: true }), 2500);
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422 && hasPasswordByteLimitError(err.message)) {
+        setPasswordError(copy.auth.signupPasswordTooLong);
+        setPhase("ready");
+        return;
+      }
       setPhase("invalid");
     }
   };
@@ -167,11 +178,12 @@ export default function AcceptInviteView() {
                 autoComplete="new-password"
                 placeholder={copy.auth.resetPasswordPlaceholder}
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                aria-invalid={tooShort ? "true" : undefined}
+                onChange={(event) => { setPassword(event.target.value); setPasswordError(null); }}
+                aria-invalid={passwordHint ? "true" : undefined}
+                aria-describedby={passwordHint ? "password-hint" : undefined}
               />
-              {tooShort && (
-                <p className="text-xs text-destructive">{copy.auth.resetPasswordTooShort}</p>
+              {passwordHint && (
+                <p id="password-hint" className="text-xs text-destructive">{passwordHint}</p>
               )}
             </div>
             <div className="space-y-2">

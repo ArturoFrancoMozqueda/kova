@@ -27,6 +27,35 @@ afterEach(() => {
 });
 
 describe("ResetPasswordView", () => {
+  it("blocks oversized accented passwords and allows correction without expiring the link", async () => {
+    const fetchMock = mockFetch(() => new Response(JSON.stringify({ message: "Password updated." }), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    renderAt("/reset-password?token=reset-token");
+    const password = "A1" + "ñ".repeat(36);
+    fireEvent.change(screen.getByLabelText(/Nueva contraseña/i), { target: { value: password } });
+    fireEvent.change(screen.getByLabelText(/Confirma la contraseña/i), { target: { value: password } });
+    expect(screen.getByText(/La contraseña es demasiado larga/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Guardar contraseña/i })).toBeDisabled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText(/Nueva contraseña/i), { target: { value: "Abc12345" } });
+    fireEvent.change(screen.getByLabelText(/Confirma la contraseña/i), { target: { value: "Abc12345" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/i }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/Tu contraseña se actualizó/i);
+  });
+
+  it("shows the server byte-limit error without calling the link invalid", async () => {
+    mockFetch(() => new Response(JSON.stringify({ detail: [{ type: "password_too_long" }] }), {
+      status: 422, headers: { "content-type": "application/json" },
+    }));
+    renderAt("/reset-password?token=reset-token");
+    fireEvent.change(screen.getByLabelText(/Nueva contraseña/i), { target: { value: "Abc12345" } });
+    fireEvent.change(screen.getByLabelText(/Confirma la contraseña/i), { target: { value: "Abc12345" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/La contraseña es demasiado larga/i);
+    expect(screen.getByRole("button", { name: /Guardar contraseña/i })).toBeEnabled();
+  });
+
   it("opens a new token as a fresh form after a previous link expired", async () => {
     const fetchMock = mockFetch((_input, init) => {
       const valid = JSON.parse(String(init?.body)).token === "new-token";

@@ -41,6 +41,40 @@ afterEach(() => {
 });
 
 describe("AuthView signup recovery flows", () => {
+  it.each(["A1" + "x".repeat(71), "A1" + "ñ".repeat(36)])("blocks passwords above the byte limit before signup", async (password) => {
+    const fetchMock = mockFetch(() => new Response(JSON.stringify({ authenticated: false }), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    renderAt("/signup");
+    fireEvent.change(await screen.findByLabelText(/Nombre del negocio/i), { target: { value: "Byte limit" } });
+    fireEvent.change(screen.getByLabelText(/Correo/i), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: password } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+    expect(await screen.findByText(/La contraseña es demasiado larga/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Contraseña/i)).toHaveFocus();
+    expect(telemetry.trackSignupValidationFailed).toHaveBeenCalledWith("password", "too_long");
+    expect(fetchMock.mock.calls.some(([input, init]) => input.toString().includes("/auth/signup") && init?.method === "POST")).toBe(false);
+  });
+
+  it("maps a server byte-limit error to length instead of password strength", async () => {
+    mockFetch((input) => new Response(JSON.stringify(input.toString().includes("/auth/signup")
+      ? { detail: [{ loc: ["body", "password"], type: "password_too_long" }] }
+      : { authenticated: false }), {
+      status: input.toString().includes("/auth/signup") ? 422 : 200,
+      headers: { "content-type": "application/json" },
+    }));
+    renderAt("/signup");
+    fireEvent.change(await screen.findByLabelText(/Nombre del negocio/i), { target: { value: "Byte limit" } });
+    fireEvent.change(screen.getByLabelText(/Correo/i), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText(/Contraseña/i), { target: { value: "Abc12345" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("button", { name: /Crear cuenta/i }));
+    expect(await screen.findByText(/La contraseña es demasiado larga/i)).toBeInTheDocument();
+    expect(telemetry.trackSignupValidationFailed).toHaveBeenCalledWith("password", "too_long");
+    expect(telemetry.trackSignupValidationFailed).not.toHaveBeenCalledWith("password", "weak_password");
+  });
+
   // Behaviour change (2026-08): the browser used to fire `signup_completed`
   // itself. Production accumulated ~48 of those events against 2 accounts
   // actually created, because the anonymous endpoint accepts anything shaped
