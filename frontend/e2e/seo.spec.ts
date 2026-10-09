@@ -44,8 +44,14 @@ test.describe("technical SEO (prerendered build only)", () => {
     expect(html).not.toContain('rel="modulepreload"');
     // La captura de HeroProductFrame es el LCP en todos los viewports: va
     // preloaded una sola vez, sin media query, con fetchpriority alto.
-    expect(html).toMatch(
-      /<link rel="preload" as="image" href="\/showcase\/register\.png" fetchpriority="high">/,
+    const heroImage = html.match(/<img\b[^>]*class="lp-hero-product-capture"[^>]*>/)?.[0];
+    const heroSource = heroImage?.match(/\bsrc="([^"]+)"/)?.[1];
+    expect(heroSource).toBe("/showcase/kova-laptop-mobile.webp");
+    expect(html).toContain(
+      `<link rel="preload" as="image" href="${heroSource}" fetchpriority="high">`,
+    );
+    expect(html).not.toContain(
+      '<link rel="preload" as="image" href="/showcase/register.png"',
     );
     // El video narrativo vive debajo del fold, por lo que sus assets pueden
     // estar en el HTML pero ninguno debe competir como preload de alta prioridad.

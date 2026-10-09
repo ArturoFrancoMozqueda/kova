@@ -72,7 +72,7 @@ const ROUTES = [
     // HeroProductFrame's capture is the LCP on every viewport: it is the only
     // image in the first fold and renders eagerly at a single source (no
     // <picture>, no media variants), so one unconditional preload is exact.
-    preloadImages: [{ href: "/showcase/register.png" }],
+    preloadImages: [{ href: "/showcase/kova-laptop-mobile.webp" }],
   },
   {
     path: "/privacy",
