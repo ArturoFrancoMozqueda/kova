@@ -47,12 +47,14 @@ def _apply_filters(
     promised_to: datetime | None,
 ):
     if search:
-        pattern = f"%{search.strip()}%"
+        pattern = (
+            "%" + search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        )
         query = query.filter(
             or_(
-                CustomerOrder.folio.ilike(pattern),
-                CustomerOrder.customer_name.ilike(pattern),
-                CustomerOrder.customer_phone.ilike(pattern),
+                CustomerOrder.folio.ilike(pattern, escape="\\"),
+                CustomerOrder.customer_name.ilike(pattern, escape="\\"),
+                CustomerOrder.customer_phone.ilike(pattern, escape="\\"),
             )
         )
     if status:
