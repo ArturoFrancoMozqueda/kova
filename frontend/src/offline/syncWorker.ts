@@ -73,29 +73,26 @@ export async function triggerSync(tenantId: string): Promise<void> {
         .toArray();
       if (candidates.length === 0) return;
 
-      const exceeded = candidates.filter((entry) => entry.attempt_count >= MAX_ATTEMPTS);
-      // Max-attempt rows are leased before transitioning so every mutation is
-      // protected by the same tenant + lease ownership rule.
-      if (exceeded.length > 0) {
-        const claimed = await claimPendingOfflineSales(tenantId, workerId, SYNC_CHUNK_SIZE);
-        for (const entry of claimed) {
-          if (entry.attempt_count > MAX_ATTEMPTS) {
-            await markOfflineSaleFailed(
-              tenantId,
-              entry.client_uuid,
-              entry.lease_id!,
-              "Max sync attempts exceeded",
-            );
-          } else {
-            await syncOfflineSales(tenantId, [entry]);
-          }
-        }
-        continue;
-      }
-
       const claimed = await claimPendingOfflineSales(tenantId, workerId, SYNC_CHUNK_SIZE);
       if (claimed.length === 0) return;
-      await syncOfflineSales(tenantId, claimed);
+      // Transition exhausted rows before sending the remaining batch together.
+      // Sending leased rows one at a time strands the unsent rows in `syncing`
+      // when an earlier request throws, preventing the retry timer from finding
+      // them. syncOfflineSales releases every lease in the batch on failure.
+      const retryable = [];
+      for (const entry of claimed) {
+        if (entry.attempt_count > MAX_ATTEMPTS) {
+          await markOfflineSaleFailed(
+            tenantId,
+            entry.client_uuid,
+            entry.lease_id!,
+            "Max sync attempts exceeded",
+          );
+        } else {
+          retryable.push(entry);
+        }
+      }
+      if (retryable.length > 0) await syncOfflineSales(tenantId, retryable);
     }
   } catch (err) {
     if (getActiveOfflineTenant() !== tenantId) return;
