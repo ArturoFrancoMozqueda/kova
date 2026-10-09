@@ -149,8 +149,8 @@ export default function OrderListView() {
           ariaLabel={copy.orderList.periodLabel}
           options={[
             { value: "today", label: "Hoy" },
-            { value: "week", label: "Semana" },
-            { value: "month", label: "Mes" },
+            { value: "week", label: "7 días" },
+            { value: "month", label: "30 días" },
           ] as const}
           value={periodPreset}
           onValueChange={selectPeriod}

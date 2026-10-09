@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/ui/toast";
@@ -116,5 +116,39 @@ describe("LogoUploadField tenant branding", () => {
     expect(await screen.findByRole("img", { name: copy.settings.logoEditorFrameLabel })).toBeInTheDocument();
     expect(screen.getByText(copy.settings.logoEditorPreview)).toBeInTheDocument();
     expect(mocks.uploadReceiptLogo).not.toHaveBeenCalled();
+  });
+
+  it.each(["upload", "delete"])("ignores a pending %s after changing route or business", async (operation) => {
+    let resolve!: (value?: { logo_url: string }) => void;
+    const pending = new Promise((done) => { resolve = done; });
+    if (operation === "upload") mocks.uploadReceiptLogo.mockReturnValueOnce(pending);
+    else mocks.deleteReceiptLogo.mockReturnValueOnce(pending);
+    const setReceipt = vi.fn();
+    const view = render(<ToastProvider><LogoUploadField logoUrl={refreshedSettings.logo_url} setReceipt={setReceipt} /></ToastProvider>);
+    if (operation === "upload") {
+      fireEvent.change(view.container.querySelector("input[type=file]")!, {
+        target: { files: [new File(["logo"], "logo.png", { type: "image/png" })] },
+      });
+      fireEvent.click(await screen.findByRole("button", { name: copy.settings.logoEditorSave }));
+      await waitFor(() => expect(mocks.uploadReceiptLogo).toHaveBeenCalledOnce());
+    } else fireEvent.click(screen.getByRole("button", { name: copy.settings.logoRemoveButton }));
+    view.unmount();
+    await act(async () => resolve({ logo_url: "/old-business-logo" }));
+    expect(mocks.setTenantLogoUrl).not.toHaveBeenCalled();
+    expect(setReceipt).not.toHaveBeenCalled();
+    expect(mocks.getReceiptSettings).not.toHaveBeenCalled();
+  });
+
+  it("ignores a pending receipt refresh after the logo field unmounts", async () => {
+    let resolve!: (value: typeof refreshedSettings) => void;
+    mocks.getReceiptSettings.mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    const setReceipt = vi.fn();
+    const view = render(<ToastProvider><LogoUploadField logoUrl={refreshedSettings.logo_url} setReceipt={setReceipt} /></ToastProvider>);
+    fireEvent.click(screen.getByRole("button", { name: copy.settings.logoRemoveButton }));
+    await waitFor(() => expect(mocks.getReceiptSettings).toHaveBeenCalledOnce());
+    setReceipt.mockClear();
+    view.unmount();
+    await act(async () => resolve(refreshedSettings));
+    expect(setReceipt).not.toHaveBeenCalled();
   });
 });

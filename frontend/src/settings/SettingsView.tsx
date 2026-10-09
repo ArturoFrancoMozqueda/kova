@@ -1,5 +1,5 @@
 import { BranchesSettings } from "@/branches/BranchesSettings";
-import { FormEvent, useCallback, useEffect, useId, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -140,6 +140,8 @@ export default function SettingsView() {
   const tenantName = state.status === "authenticated" ? state.tenantName : "";
   const tenantId = state.status === "authenticated" ? state.tenantId : "";
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
+  const loadGenerationRef = useRef(0);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [business, setBusiness] = useState({
@@ -169,6 +171,9 @@ export default function SettingsView() {
     run: () => Promise<void>;
   } | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const actionBusyRef = useRef(false);
+  const [formBusy, setFormBusy] = useState(false);
+  const formBusyRef = useRef(false);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [deletionStatus, setDeletionStatus] = useState<AccountDeletionStatus | null>(null);
   const [deletionConfirmation, setDeletionConfirmation] = useState({
@@ -182,29 +187,56 @@ export default function SettingsView() {
     state.status === "authenticated" &&
     state.featureFlags.fiscal_global_drafts &&
     (userRole === "owner" || userRole === "manager");
-  const visibleSettingsTabs = settingsTabs.filter((tab) => tab.id !== "fiscal" || canViewFiscal);
-  const visibleActiveTab = activeTab === "fiscal" && !canViewFiscal ? "profile" : activeTab;
+  const visibleSettingsTabs = settingsTabs.filter((tab) =>
+    (tab.id !== "fiscal" || canViewFiscal) && (tab.id !== "employees" || isOwner),
+  );
+  const visibleActiveTab = (activeTab === "fiscal" && !canViewFiscal) ||
+    (activeTab === "employees" && !isOwner) ? "profile" : activeTab;
+  const independentSection = visibleActiveTab === "branches" || visibleActiveTab === "fiscal";
+  const loadScope = `${tenantId}:${isOwner}:${visibleActiveTab}`;
+  const loadScopeRef = useRef(loadScope);
+  useEffect(() => {
+    loadScopeRef.current = loadScope;
+    setPendingAction(null);
+    actionBusyRef.current = false;
+    setActionBusy(false);
+  }, [loadScope]);
 
   const runPendingAction = useCallback(async () => {
-    if (!pendingAction) return;
+    if (!pendingAction || actionBusyRef.current) return;
+    actionBusyRef.current = true;
     setActionBusy(true);
+    const scope = loadScope;
     try {
       await pendingAction.run();
+      if (loadScopeRef.current === scope) setPendingAction(null);
+    } catch {
+      if (loadScopeRef.current === scope) toast(copy.settings.saveError, "error");
     } finally {
-      setActionBusy(false);
-      setPendingAction(null);
+      if (loadScopeRef.current === scope) {
+        actionBusyRef.current = false;
+        setActionBusy(false);
+      }
     }
-  }, [pendingAction]);
+  }, [loadScope, pendingAction, toast]);
 
   const load = useCallback(async () => {
+    // A save started in another business must not launch its old loader after
+    // the user changes the shared session while that save is still pending.
+    if (loadScopeRef.current !== loadScope) return;
+    const generation = ++loadGenerationRef.current;
+    setLoadedScope(loadScope);
     setLoadState("loading");
     try {
+      // Sucursales and fiscal own their data loaders. Unrelated settings reads
+      // must not block them; editable settings still require confirmed data.
       const [profile, receiptSettings, employeeRows, invitationRows] = await Promise.all([
-        getBusinessProfile().catch(() => null),
-        getReceiptSettings().catch(() => null),
-        listEmployees(),
-        listInvitations(),
+        independentSection ? Promise.resolve(null) : getBusinessProfile(),
+        independentSection ? Promise.resolve(null) : getReceiptSettings(),
+        isOwner && !independentSection ? listEmployees() : Promise.resolve([]),
+        isOwner && !independentSection ? listInvitations() : Promise.resolve([]),
       ]);
+      if (generation !== loadGenerationRef.current || loadScopeRef.current !== loadScope) return;
       if (profile) {
         setBusiness({
           public_name: profile.public_name,
@@ -233,12 +265,14 @@ export default function SettingsView() {
       setInvitations(invitationRows);
       setLoadState("ready");
     } catch {
-      setLoadState("error");
+      if (generation === loadGenerationRef.current && loadScopeRef.current === loadScope) setLoadState("error");
     }
-  }, [tenantId]);
+  }, [independentSection, isOwner, loadScope, tenantId]);
 
   useEffect(() => {
+    const requests = loadGenerationRef;
     void load();
+    return () => { ++requests.current; };
   }, [load]);
 
   useEffect(() => {
@@ -291,6 +325,9 @@ export default function SettingsView() {
 
   async function submitBusiness(event: FormEvent) {
     event.preventDefault();
+    if (formBusyRef.current || loadState !== "ready" || loadedScope !== loadScope) return;
+    formBusyRef.current = true;
+    setFormBusy(true);
     try {
       await saveBusinessProfile({
         ...business,
@@ -302,11 +339,17 @@ export default function SettingsView() {
       void refresh();
     } catch {
       toast(copy.settings.saveError, "error");
+    } finally {
+      formBusyRef.current = false;
+      setFormBusy(false);
     }
   }
 
   async function submitReceipt(event: FormEvent) {
     event.preventDefault();
+    if (formBusyRef.current || loadState !== "ready" || loadedScope !== loadScope) return;
+    formBusyRef.current = true;
+    setFormBusy(true);
     try {
       const saved = await saveReceiptSettings({
         ...receipt,
@@ -320,11 +363,17 @@ export default function SettingsView() {
       void load();
     } catch {
       toast(copy.settings.saveError, "error");
+    } finally {
+      formBusyRef.current = false;
+      setFormBusy(false);
     }
   }
 
   async function submitInvite(event: FormEvent) {
     event.preventDefault();
+    if (formBusyRef.current || loadState !== "ready" || loadedScope !== loadScope || !isOwner) return;
+    formBusyRef.current = true;
+    setFormBusy(true);
     try {
       await inviteEmployee(invite);
       setInvite({ email: "", role: "cashier" });
@@ -332,10 +381,29 @@ export default function SettingsView() {
       void load();
     } catch {
       toast(copy.settings.saveError, "error");
+    } finally {
+      formBusyRef.current = false;
+      setFormBusy(false);
     }
   }
 
-  if (loadState === "loading") {
+  async function resendEmployeeInvitation(invitation: Invitation) {
+    if (formBusyRef.current || loadState !== "ready" || loadedScope !== loadScope || !isOwner) return;
+    formBusyRef.current = true;
+    setFormBusy(true);
+    try {
+      await resendInvitation(invitation);
+      toast(copy.settings.resendInviteSuccess, "success");
+      void load();
+    } catch {
+      toast(copy.settings.saveError, "error");
+    } finally {
+      formBusyRef.current = false;
+      setFormBusy(false);
+    }
+  }
+
+  if (loadState === "loading" || loadedScope !== loadScope) {
     return (
       <ViewLayout width="focused" className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -349,7 +417,7 @@ export default function SettingsView() {
       <ViewLayout width="focused">
         <Card>
           <CardContent className="p-6">
-            <p className="font-medium">{copy.settings.loadError}</p>
+            <p role="alert" className="font-medium">{copy.settings.loadError}</p>
             <Button className="mt-4" onClick={() => void load()}>{copy.dashboard.retry}</Button>
           </CardContent>
         </Card>
@@ -388,11 +456,13 @@ export default function SettingsView() {
         <CardHeader><CardTitle>{copy.settings.businessProfile}</CardTitle></CardHeader>
         <CardContent>
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitBusiness}>
+            <fieldset disabled={formBusy} className="contents">
             <Field label={copy.settings.publicName} value={business.public_name} onChange={(value) => setBusiness((x) => ({ ...x, public_name: value }))} required />
             <Field label={copy.settings.supportEmail} value={business.support_email} onChange={(value) => setBusiness((x) => ({ ...x, support_email: value }))} />
             <Field label={copy.settings.supportPhone} value={business.support_phone} onChange={(value) => setBusiness((x) => ({ ...x, support_phone: value }))} />
             <LogoUploadField logoUrl={receipt.logo_url} setReceipt={setReceipt} />
             <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveBusiness}</Button>
+            </fieldset>
           </form>
         </CardContent>
       </Card>
@@ -405,6 +475,7 @@ export default function SettingsView() {
         <CardContent>
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
             <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitReceipt}>
+              <fieldset disabled={formBusy} className="contents">
               <Field label={copy.settings.receiptName} value={receipt.receipt_business_name} onChange={(value) => setReceipt((x) => ({ ...x, receipt_business_name: value }))} required />
               <Field label={copy.settings.receiptFooter} value={receipt.footer} onChange={(value) => setReceipt((x) => ({ ...x, footer: value }))} />
               <Field label="Impuesto adicional predeterminado (%)" value={defaultTaxRate} onChange={setDefaultTaxRate} />
@@ -428,6 +499,7 @@ export default function SettingsView() {
                 </p>
               </div>
               <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveReceipt}</Button>
+              </fieldset>
             </form>
             <ReceiptPreview receipt={receipt} />
           </div>
@@ -452,6 +524,7 @@ export default function SettingsView() {
           </div>
 
           <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-start" onSubmit={submitInvite}>
+            <fieldset disabled={formBusy} className="contents">
             <div className="flex-1">
               <Label htmlFor="employee-invite-email">{copy.settings.employeeEmail}</Label>
               <Input id="employee-invite-email" type="email" value={invite.email} onChange={(e) => setInvite((x) => ({ ...x, email: e.target.value }))} required />
@@ -468,6 +541,7 @@ export default function SettingsView() {
               </p>
             </div>
             <Button className="sm:mt-6" type="submit">{copy.settings.invite}</Button>
+            </fieldset>
           </form>
 
           <div className="space-y-2">
@@ -547,12 +621,8 @@ export default function SettingsView() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                              void resendInvitation(row).then(() => {
-                                toast(copy.settings.resendInviteSuccess, "success");
-                                return load();
-                              })
-                            }
+                            disabled={formBusy}
+                            onClick={() => void resendEmployeeInvitation(row)}
                           >
                             {copy.settings.resendInvite}
                           </Button>
@@ -594,6 +664,7 @@ export default function SettingsView() {
           </CardHeader>
           <CardContent>
             <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitBusiness}>
+              <fieldset disabled={formBusy} className="contents">
               <SelectField
                 label={copy.settings.timezone}
                 value={business.timezone}
@@ -616,6 +687,7 @@ export default function SettingsView() {
                 {copy.settings.advancedHint}
               </p>
               <Button className="sm:col-span-2 justify-self-start" type="submit">{copy.settings.saveBusiness}</Button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
