@@ -4,6 +4,10 @@ Esta matriz valida el soporte de navegador de Kova para papel de 58 mm y 80 mm. 
 impresión silenciosa, corte automático ni apertura de cajón. El operador siempre confirma el
 diálogo de impresión del navegador y debe elegir en el driver el mismo ancho configurado en Kova.
 
+La integración opcional de apertura por conector ESC/POS de red se verifica por separado en
+[`cash_drawer.md`](../specs/shifts/cash_drawer.md). Su implementación local no certifica los
+modelos de esta matriz ni cambia el diálogo de impresión de tickets.
+
 ## Registro de dispositivos
 
 | Ancho | Impresora / modelo | Conexión | SO | Navegador / versión | Driver | Resultado | Evidencia / notas |

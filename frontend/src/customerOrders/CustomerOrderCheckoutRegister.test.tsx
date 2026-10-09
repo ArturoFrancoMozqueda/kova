@@ -8,6 +8,10 @@ const api = vi.hoisted(() => ({
   checkoutCustomerOrder: vi.fn(),
   getReceipt: vi.fn(),
   getOpenShift: vi.fn(),
+  openDrawer: vi.fn(),
+}));
+vi.mock("@/hardware/useCashDrawer", () => ({
+  useCashDrawer: () => ({ device: null, busy: false, message: "", open: api.openDrawer }),
 }));
 
 vi.mock("./api", async () => {
@@ -78,6 +82,7 @@ function renderCheckout() {
 
 describe("CustomerOrderCheckoutRegister", () => {
   beforeEach(() => {
+    api.openDrawer.mockReset().mockResolvedValue(undefined);
     api.getCustomerOrder.mockReset().mockResolvedValue(order);
     api.checkoutCustomerOrder.mockReset();
     api.getReceipt.mockReset();
@@ -129,6 +134,7 @@ describe("CustomerOrderCheckoutRegister", () => {
     fireEvent.click(charge);
 
     expect(await screen.findByRole("heading", { name: "Pedido cobrado" })).toBeVisible();
+    expect(api.openDrawer).toHaveBeenCalledWith("sale", "", "sale-1");
     expect(screen.getByText(/el cobro se completó, pero el recibo no pudo cargarse/i)).toBeVisible();
     expect(screen.queryByRole("button", { name: /cobrar/i })).not.toBeInTheDocument();
   });

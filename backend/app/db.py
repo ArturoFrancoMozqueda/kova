@@ -22,6 +22,8 @@ TENANT_SCOPED_TABLES = (
     "assistant_chunks",
     "branches",
     "cash_movements",
+    "drawer_devices",
+    "drawer_commands",
     "categories",
     "customer_order_item_modifiers",
     "customer_order_items",

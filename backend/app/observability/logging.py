@@ -27,9 +27,12 @@ _CREDENTIAL_URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _SECRET_ASSIGNMENT_PATTERN = re.compile(
-    r"(?P<key>\b(?:token|password|secret|api[_-]?key|authorization|cookie)\b)"
+    r"(?P<key>\b(?:token|password|secret|api[_-]?key|device[_-]?key|pairing[_-]?code|authorization|cookie|x-kova-device-key)\b)"
     r"(?P<separator>\s*[:=]\s*)[^\s,;&]+",
     re.IGNORECASE,
+)
+_DRAWER_CREDENTIAL_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_-])[0-9a-fA-F-]{36}\.[0-9a-fA-F-]{36}\.[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])"
 )
 
 
@@ -41,6 +44,7 @@ def redact_sensitive_text(value: str) -> str:
     """
     redacted = _EMAIL_PATTERN.sub("[redacted-email]", value)
     redacted = _CREDENTIAL_URL_PATTERN.sub(r"\g<scheme>[redacted]@", redacted)
+    redacted = _DRAWER_CREDENTIAL_PATTERN.sub("[redacted-device-key]", redacted)
     return _SECRET_ASSIGNMENT_PATTERN.sub(
         lambda match: f"{match.group('key')}{match.group('separator')}[redacted]",
         redacted,

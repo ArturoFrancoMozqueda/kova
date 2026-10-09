@@ -133,6 +133,8 @@ BEGIN
             ('cfdi_connections', 'SELECT, INSERT'),
             ('cfdi_enrollments', 'SELECT, INSERT'),
             ('cfdi_documents', 'SELECT, INSERT'),
+            ('drawer_devices', 'SELECT, INSERT, UPDATE'),
+            ('drawer_commands', 'SELECT, INSERT, UPDATE'),
             ('customer_order_item_modifiers', 'SELECT, INSERT, DELETE'),
             ('customer_order_items', 'SELECT, INSERT, DELETE'),
             ('customer_orders', 'SELECT, INSERT, UPDATE'),

@@ -17,6 +17,11 @@ _SENSITIVE_EVENT_KEYS = {
     "secret",
     "subject",
     "token",
+    "x-kova-device-key",
+    "device_key",
+    "pairing_code",
+    "key_hash",
+    "pairing_hash",
     "vars",
 }
 

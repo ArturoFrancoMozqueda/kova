@@ -5,6 +5,8 @@ import { AlertCircle, ArrowLeft, Banknote, Building2, CheckCircle2, CreditCard, 
 import { Link } from "react-router-dom";
 
 import { useAuth } from "@/auth/useAuth";
+import { useCashDrawer } from "@/hardware/useCashDrawer";
+import { DrawerActions } from "@/hardware/DrawerActions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,8 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
 
 function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
   const { state } = useAuth();
+  const drawer = useCashDrawer();
+  const canOpenDrawer = state.status === "authenticated" && ["owner", "manager", "cashier"].includes(state.user?.role);
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const logoUrl = state.status === "authenticated" ? state.tenantLogoUrl ?? undefined : undefined;
   const [order, setOrder] = useState<CustomerOrder | null>(null);
@@ -133,6 +137,9 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
       setOrder(result.customer_order);
       setCompletedSaleOrderId(result.sale_order.id);
       checkoutKeyRef.current = null;
+      if (payload.some(payment => payment.method === "cash" && moneyToCents(payment.amount) > 0)) {
+        void drawer.open("sale", "", result.sale_order.id);
+      }
       try {
         setReceipt(await getReceipt(result.sale_order.id));
       } catch {
@@ -156,6 +163,7 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
   if (completedSaleOrderId) {
     return (
       <ViewLayout width="focused" className="animate-fade-in">
+        <DrawerActions drawer={drawer} canOpen={openShift === true && canOpenDrawer} />
         <Card className="print:hidden">
           <CardContent className="flex flex-col items-center p-8 text-center">
             <CheckCircle2 className="h-12 w-12 text-kova-growth" />
@@ -194,6 +202,7 @@ function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
 
   return (
     <ViewLayout width="wide" className="animate-fade-in">
+      <DrawerActions drawer={drawer} canOpen={openShift === true && canOpenDrawer} />
       <ViewHeader
         eyebrow={<Link to={`/pedidos/${order.id}`} className="inline-flex items-center text-muted-foreground hover:text-foreground"><ArrowLeft className="mr-1 h-4 w-4" /> Volver al pedido</Link>}
         title={`Caja · ${order.folio}`}

@@ -57,6 +57,11 @@ async def security_headers_middleware(
         response.headers["CDN-Cache-Control"] = "no-store"
         response.headers["Vercel-CDN-Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
+    if (
+        request.url.path.startswith("/api/v1/hardware/")
+        and not request.url.path.endswith("/download")
+    ):
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
     if settings.app_env == "production":
         response.headers["Strict-Transport-Security"] = (
             "max-age=63072000; includeSubDomains; preload"

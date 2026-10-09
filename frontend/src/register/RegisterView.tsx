@@ -3,12 +3,15 @@ import { allocationValid, proposeLots, type LotAllocation } from "@/inventory/lo
 import { LotQueueError, availableLots, readLocalLots, refreshLocalLots, type CachedLotStock } from "@/offline/lotStock";
 import { calculateSalePricing, cachedTaxRate, cacheTaxRate } from "./pricing";
 import { getActiveBranchId } from "@/branches/activeBranch";
+import { useCashDrawer } from "@/hardware/useCashDrawer";
+import { DrawerActions } from "@/hardware/DrawerActions";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CustomerOrderCheckoutRegister } from "@/customerOrders/CustomerOrderCheckoutRegister";
 import {
   CATALOG_CREATE_PERMISSION,
   ORDER_CREATE_PERMISSION,
+  SHIFT_OPEN_PERMISSION,
   usePermission,
 } from "../auth/permissions";
 import { useAuth } from "../auth/useAuth";
@@ -174,6 +177,7 @@ const paymentMethodOptions: { value: PaymentMethod; label: string; icon: React.R
 function RegularRegisterView() {
   useDocumentTitle(copy.documentTitles.register);
   const { state } = useAuth();
+  const drawer = useCashDrawer();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const [lotCache, setLotCache] = useState<CachedLotStock | undefined>();
   const [lotSelections, setLotSelections] = useState<Record<string, LotAllocation[]>>({});
@@ -185,6 +189,7 @@ function RegularRegisterView() {
   );
   const canManageCatalog = usePermission(CATALOG_CREATE_PERMISSION);
   const canCreateOrders = usePermission(ORDER_CREATE_PERMISSION);
+  const canOpenDrawer = usePermission(SHIFT_OPEN_PERMISSION);
   const { toast } = useToast();
 
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
@@ -1000,6 +1005,7 @@ function RegularRegisterView() {
     setSubmitting(true);
     clearSkuSearch();
     const submittedCart = cart;
+    const drawerRequestedAt = Date.now();
 
     const sale = {
       discount_amount: centsToMoney(pricing.discount),
@@ -1113,6 +1119,9 @@ function RegularRegisterView() {
           if (activeSaleClientUuidRef.current !== queueItem.client_uuid) return;
           setPendingReceipt(null);
           setCompletedOrder(result.order as Order);
+          if (Date.now() - drawerRequestedAt < 10000 && navigator.onLine && sale.payments.some(payment => payment.method === "cash" && moneyToCents(payment.amount) > 0)) {
+            void drawer.open("sale", "", result.order.id);
+          }
           void refreshStock();
           // Toast is retained as the accessible status announcement
           // (aria-live region) for screen readers — visual de-duplication with
@@ -1185,6 +1194,7 @@ function RegularRegisterView() {
       <div className="mb-6">
         <ViewHeader title={copy.register.title} />
       </div>
+      <DrawerActions drawer={drawer} canOpen={hasOpenShift === true && canOpenDrawer} />
       {loadState.status === "ready" && loadState.fromCache && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-kova-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground sm:text-sm">
           <AlertCircle className="h-4 w-4 shrink-0" />

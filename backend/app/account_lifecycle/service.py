@@ -51,6 +51,13 @@ def _columns(value: str) -> tuple[str, ...]:
 
 
 _EXPORT_TABLES = (
+    ExportTable("drawer_devices", _columns(
+        "id tenant_id branch_id name pin auto_open last_seen_at revoked_at created_at"
+    )),
+    ExportTable("drawer_commands", _columns(
+        "id tenant_id branch_id device_id request_key kind order_id requested_by_user_id "
+        "reason status created_at expires_at acknowledged_at"
+    )),
     ExportTable(
         "inventory_lots",
         _columns(
@@ -395,6 +402,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "drawer_commands",
+    "drawer_devices",
     "assistant_chunks",
     "assistant_records",
     "cfdi_documents",

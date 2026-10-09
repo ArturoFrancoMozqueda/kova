@@ -11,6 +11,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -36,10 +38,13 @@ UPDATE_COLUMNS = {
 
 
 def test_fresh_database_upgrade_to_head_installs_private_enrollment_journal():
+    # Later product migrations may advance head without changing enrollment's
+    # contract. Check the current chain tip and retain all enrollment assertions.
+    head = ScriptDirectory.from_config(Config(str(BACKEND_ROOT / "alembic.ini"))).get_current_head()
     with _temporary_database() as (url, engine):
         _run_alembic(url, "head")
         with engine.connect() as connection:
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == REVISION
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == head
             assert connection.scalar(text("SELECT count(*) FROM cfdi_enrollments")) == 0
             assert connection.execute(
                 text("SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='cfdi_enrollments'")

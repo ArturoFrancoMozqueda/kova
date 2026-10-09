@@ -2,6 +2,17 @@
 
 Last updated: 2026-10-09
 
+## Active implementation (2026-10-09): Cajón de dinero
+
+El propietario pidió apertura de cajón desde cualquier equipo. Implementación local de un
+conector por sucursal, compatible con impresoras ESC/POS de red; Kova puede solicitar aperturas
+desde navegador de computadora, Android o iPad. Contrato, limitaciones, seguridad y QA en
+[`specs/shifts/cash_drawer.md`](../specs/shifts/cash_drawer.md).
+
+Verificación local: 73 pruebas de backend/RLS, 45 de frontend y 12 de navegador; build, lint,
+TypeScript y contrato OpenAPI pasan. Publicación y pruebas físicas pendientes; no se certifica hardware
+USB/Bluetooth ni apertura remota offline. No modifica cobros, cortes ni sesiones por cookies.
+
 ## Source Of Truth
 
 The dated section at the top is the active execution board. Older sections below are retained as
