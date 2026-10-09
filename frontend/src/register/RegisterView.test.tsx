@@ -25,6 +25,7 @@ const telemetry = vi.hoisted(() => ({
   trackSaleValidationBlocked: vi.fn(),
 }));
 const inventoryApi = vi.hoisted(() => ({ listStock: vi.fn() }));
+const scheduleOfflineSyncRetry = vi.hoisted(() => vi.fn());
 
 vi.mock("@/shifts/api", () => ({ getOpenShift: () => getOpenShift() }));
 vi.mock("../offline/queue", () => ({
@@ -34,7 +35,7 @@ vi.mock("../offline/queue", () => ({
 vi.mock("../offline/sync", () => ({
   syncOfflineSales: (...args: unknown[]) => syncOfflineSales(...args),
 }));
-vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn(), stopOfflineSync: vi.fn() }));
+vi.mock("../offline/syncWorker", () => ({ triggerSync: vi.fn(), stopOfflineSync: vi.fn(), scheduleOfflineSyncRetry }));
 vi.mock("../orders/api", () => ({ getReceipt: (...args: unknown[]) => getReceipt(...args) }));
 vi.mock("@/telemetry/funnel", () => telemetry);
 vi.mock("../inventory/api", () => ({ listStock: (...args: unknown[]) => inventoryApi.listStock(...args) }));
@@ -721,6 +722,23 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(printSpy).toHaveBeenCalledTimes(1);
 
     vi.unstubAllGlobals();
+  });
+
+  it("schedules recovery when foreground sync fails while the browser stays online", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "pending-sale" });
+    const failure = new Error("Sync failed with status 503");
+    syncOfflineSales.mockRejectedValue(failure);
+    renderRegister();
+
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+
+    await waitFor(() => expect(scheduleOfflineSyncRetry).toHaveBeenCalledWith("tenant-1", failure));
+    expect(queueOfflineSale).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("button", { name: copy.register.removeItem(product.name) })).not.toBeInTheDocument(), { timeout: 5_000 });
+    expect(screen.getAllByText(copy.register.offlineSaleSavedTitle).length).toBeGreaterThan(0);
   });
 
   it("preserves the original failed sale instead of restoring a cart that creates a second identity", async () => {
