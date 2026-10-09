@@ -155,13 +155,12 @@ def _is_test_mode_webhook_secret(value: str | None) -> bool:
 
 
 def validate_webhook_secret_mode() -> None:
-    """Boot guard: a live deployment must not verify webhooks with a test-mode
-    signing secret.
+    """Reject explicit test-secret configuration markers at boot.
 
-    Without this, Stripe *test*-mode events would pass signature verification in
-    production and mutate real subscription state. Mirrors the live/test guard
-    already applied to the Stripe secret key. Skipped when test mode is
-    explicitly allowed in production (``stripe_allow_test_mode_in_production``).
+    Real Stripe signing secrets use opaque `whsec_` values in both modes, so
+    this prefix guard cannot identify their environment. The signed Event's
+    `livemode` is enforced in process_stripe_webhook before any writes. Both
+    guards honor the explicit stripe_allow_test_mode_in_production opt-in.
     """
     if _requires_live_stripe() and _is_test_mode_webhook_secret(
         settings.stripe_webhook_secret
@@ -201,9 +200,13 @@ def verify_stripe_signature(
     timestamp, signatures = _parse_signature_header(signature_header)
     if abs(time.time() - timestamp) > WEBHOOK_TOLERANCE_SECONDS:
         raise bad_request("Invalid Stripe signature")
-    signed_payload = f"{timestamp}.{payload.decode()}".encode()
+    # Sign the raw body bytes, as Stripe does. Malformed UTF-8 must be rejected
+    # as a bad request instead of raising before signature verification.
+    signed_payload = str(timestamp).encode() + b"." + payload
     expected = hmac.new(secret.encode(), signed_payload, hashlib.sha256).hexdigest()
-    if not any(hmac.compare_digest(expected, signature) for signature in signatures):
+    if not any(
+        hmac.compare_digest(expected.encode(), signature.encode()) for signature in signatures
+    ):
         raise bad_request("Invalid Stripe signature")
 
 
@@ -1111,8 +1114,16 @@ def process_stripe_webhook(db: Session, *, payload: bytes, signature_header: str
     verify_stripe_signature(payload=payload, signature_header=signature_header)
     try:
         event_payload = json.loads(payload)
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise bad_request("Invalid Stripe webhook payload") from exc
+
+    if not isinstance(event_payload, dict):
+        raise bad_request("Invalid Stripe webhook payload")
+    # Test and live signing secrets share the opaque `whsec_` prefix. The
+    # verified Event's required boolean, not a guessed secret prefix, proves
+    # its environment. Fail closed before persisting any event or subscription.
+    if _requires_live_stripe() and event_payload.get("livemode") is not True:
+        raise bad_request("Stripe test-mode events are not allowed in live production")
 
     stripe_event_id = event_payload.get("id")
     event_type = event_payload.get("type")

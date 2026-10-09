@@ -76,6 +76,28 @@ describe("ExpensesView", () => {
     expect(screen.getByText(/Recibo de luz/)).toBeInTheDocument();
   });
 
+  it("does not present an unknown total as zero while expenses are loading", () => {
+    (listExpenses as Mock).mockReturnValue(new Promise(() => {}));
+    renderView();
+    expect(screen.queryByText(copy.expenses.periodTotal)).not.toBeInTheDocument();
+    expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
+  });
+
+  it("does not retain the previous period total after the next period fails", async () => {
+    (listExpenses as Mock).mockResolvedValueOnce([{
+      id: "expense-1", category: "servicios", amount: "425.50",
+      expense_date: "2026-07-10", note: "Luz",
+      created_by_user_id: "user-1", created_at: "2026-07-10T12:00:00Z",
+      updated_at: "2026-07-10T12:00:00Z",
+    }]).mockRejectedValueOnce(new Error("Network unavailable"));
+    renderView();
+    expect(await screen.findAllByText("$425.50")).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText(copy.expenses.endDate), { target: { value: "2026-07-20" } });
+    expect(await screen.findByText(copy.expenses.loadError)).toBeVisible();
+    expect(screen.queryByText(copy.expenses.periodTotal)).not.toBeInTheDocument();
+    expect(screen.queryByText("$425.50")).not.toBeInTheDocument();
+  });
+
   it("creates an expense from the accessible mobile dialog", async () => {
     (listExpenses as Mock).mockResolvedValue([]);
     (createExpense as Mock).mockResolvedValue({});

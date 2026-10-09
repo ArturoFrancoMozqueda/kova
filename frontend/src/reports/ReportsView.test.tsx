@@ -57,9 +57,41 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe("ReportsView", () => {
+  it("labels the trailing 30-day window without changing its cross-month range", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-08T18:00:00Z"));
+    (getBusinessStory as Mock).mockImplementation((start: string, end: string) => Promise.resolve(makeStory({
+      summary: { ...makeStory().summary, start_date: start, end_date: end },
+    })));
+    renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+    fireEvent.click(screen.getByRole("button", { name: "30 días" }));
+    await waitFor(() => expect(getBusinessStory).toHaveBeenCalledWith("2026-09-09", "2026-10-08"));
+    expect(await screen.findByText(/Últimos 30 días/)).toBeInTheDocument();
+    expect(screen.getByText(/Del 9 de septiembre al 8 de octubre/)).toBeInTheDocument();
+    expect(screen.queryByText(/Este mes/)).not.toBeInTheDocument();
+  });
+
+  it("does not call a historical custom 30-day range the last 30 days", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-08T18:00:00Z"));
+    (getBusinessStory as Mock).mockImplementation((start: string, end: string) => Promise.resolve(makeStory({
+      summary: { ...makeStory().summary, start_date: start, end_date: end },
+    })));
+    renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.customRange }));
+    fireEvent.change(screen.getByLabelText(copy.reportsView.startDate), { target: { value: "2026-06-01" } });
+    fireEvent.change(screen.getByLabelText(copy.reportsView.endDate), { target: { value: "2026-06-30" } });
+    fireEvent.click(screen.getByRole("button", { name: copy.reportsView.apply }));
+    await waitFor(() => expect(getBusinessStory).toHaveBeenCalledWith("2026-06-01", "2026-06-30"));
+    expect(await screen.findByText(/Este periodo/)).toBeInTheDocument();
+    expect(screen.queryByText(/Últimos 30 días/)).not.toBeInTheDocument();
+  });
   it("hides loaded report data and reloads when the authenticated tenant changes", async () => {
     (getBusinessStory as Mock).mockResolvedValue(makeStory());
     const view = renderView();

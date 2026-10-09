@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.orm import Session
 
-from app.customer_orders.models import InventoryReservation
+from app.customer_orders.models import CustomerOrder, InventoryReservation
 from app.orders.models import InventoryMovement, Order, OrderItem
 from app.tenants.models import Tenant
 
@@ -140,6 +140,35 @@ def test_confirmation_reserves_stock_and_blocks_immediate_sale(client, db: Sessi
     )
     assert sale.status_code == 422, sale.text
     assert sale.json()["detail"]["code"] == "OUT_OF_STOCK"
+
+
+def test_replaying_save_and_confirmation_keeps_one_order_and_reservation(client, db: Session) -> None:
+    tenant_id = _signup_login(client, prefix="confirmation-replay")
+    _enable_customer_orders(db, tenant_id)
+    product = _product(client)
+    _seed(client, product["id"], 3)
+    create_key, confirm_key = f"create-{uuid4()}", f"confirm-{uuid4()}"
+    created = _create(client, product["id"], quantity=2, key=create_key)
+    assert created.status_code == 201, created.text
+    confirmed = _confirm(client, created.json(), key=confirm_key)
+    assert confirmed.status_code == 200, confirmed.text
+
+    # Simulate a lost confirmation response: the form retries its save/confirm
+    # sequence using the original payload, keys and pre-confirmation version.
+    replayed_create = _create(client, product["id"], quantity=2, key=create_key)
+    assert replayed_create.status_code == 201, replayed_create.text
+    assert replayed_create.json() == created.json()
+    replayed_confirm = _confirm(client, replayed_create.json(), key=confirm_key)
+    assert replayed_confirm.status_code == 200, replayed_confirm.text
+    assert replayed_confirm.json() == confirmed.json()
+    assert db.query(CustomerOrder).filter_by(tenant_id=tenant_id).count() == 1
+    reservations = db.query(InventoryReservation).filter_by(tenant_id=tenant_id, status="active").all()
+    assert len(reservations) == 1
+    assert reservations[0].quantity == 2
+    stock = client.get("/api/v1/inventory/stock").json()
+    row = next(item for item in stock if item["product_id"] == product["id"])
+    assert row["reserved_quantity"] == 2
+    assert row["available_quantity"] == 1
 
 
 def test_version_conflict_and_cancel_release_reservation(client, db: Session) -> None:

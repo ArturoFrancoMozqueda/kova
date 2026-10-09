@@ -130,6 +130,19 @@ describe("landing telemetry (PLAN-UX-03)", () => {
     expect(container.querySelector(".lp-hero-copy")).toBeVisible();
   });
 
+  it("restores the public page title after returning from another screen", () => {
+    document.title = "Iniciar sesión · Kova";
+    renderHome();
+    expect(document.title).toBe("Kova | Punto de venta e inventario para negocios en México");
+  });
+
+  it("makes the skip link destination focusable without adding a tab stop", () => {
+    renderHome();
+    expect(screen.getByRole("link", { name: "Ir al contenido" })).toHaveAttribute("href", "#contenido-principal");
+    expect(screen.getByRole("main")).toHaveAttribute("id", "contenido-principal");
+    expect(screen.getByRole("main")).toHaveAttribute("tabindex", "-1");
+  });
+
   it("renders the conversion narrative in the intended order with one h1", () => {
     const { container } = renderHome();
     const sections = Array.from(container.querySelectorAll("main > section"));

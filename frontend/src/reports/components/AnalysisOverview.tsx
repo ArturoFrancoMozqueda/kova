@@ -12,7 +12,7 @@ import type { AnalysisHelpfulness } from "@/telemetry/funnel";
 import { formatHourRange, topHoursByNetSales } from "../hours";
 import type { BusinessStoryReport, SalesByHourRow } from "../types";
 import { MIN_MONEY_BASE, calculateSafeGrowth } from "../utils/calculations";
-import { addDays, daysBetweenInclusive } from "../utils/dateRange";
+import { activePreset, addDays, daysBetweenInclusive } from "../utils/dateRange";
 import { formatSignedPercent } from "../utils/format";
 import type { Recommendation } from "../utils/recommendations";
 import { PartialFailureNote } from "./ReportSection";
@@ -31,10 +31,7 @@ function weekdayLabel(date: string): string {
 
 function chartPoints(story: BusinessStoryReport): WeeklyKpiPoint[] {
   const byDate = new Map(story.sales_by_day.map((row) => [row.date, row]));
-  const days = Math.min(
-    31,
-    daysBetweenInclusive(story.summary.start_date, story.summary.end_date),
-  );
+  const days = daysBetweenInclusive(story.summary.start_date, story.summary.end_date);
   const points: WeeklyKpiPoint[] = [];
   let cursor = story.summary.start_date;
   for (let index = 0; index < days; index += 1) {
@@ -52,10 +49,11 @@ function chartPoints(story: BusinessStoryReport): WeeklyKpiPoint[] {
   return points;
 }
 
-function periodLabel(rangeDays: number): string {
-  if (rangeDays === 1) return copy.reportsView.overviewPeriodToday;
-  if (rangeDays === 7) return copy.reportsView.overviewPeriodWeek;
-  if (rangeDays >= 28 && rangeDays <= 31) return copy.reportsView.overviewPeriodMonth;
+function periodLabel(story: BusinessStoryReport): string {
+  const preset = activePreset(story.summary.start_date, story.summary.end_date, story.summary.timezone);
+  if (preset === "today") return copy.reportsView.overviewPeriodToday;
+  if (preset === "seven_days") return copy.reportsView.overviewPeriodWeek;
+  if (preset === "month") return copy.reportsView.overviewPeriodMonth;
   return copy.reportsView.overviewPeriodCustom;
 }
 
@@ -255,7 +253,7 @@ export function AnalysisOverview({
         <CardContent className="p-5 sm:p-7">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-kova-tertiary">
             <span>{copy.reportsView.kpiNetSalesLabel}</span>
-            <span> · {periodLabel(rangeDays)}</span>
+            <span> · {periodLabel(story)}</span>
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <p className="text-4xl font-bold tracking-[-0.045em] text-kova-ink sm:text-5xl">

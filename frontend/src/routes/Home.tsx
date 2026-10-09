@@ -593,6 +593,9 @@ const footerLinkStyle: CSSProperties = { color: "var(--text-tertiary)", textDeco
 
 /* ─── Home ───────────────────────────────────────────────────────────────── */
 export default function Home(): ReactNode {
+  useEffect(() => {
+    document.title = "Kova | Punto de venta e inventario para negocios en México";
+  }, []);
   const { state } = useAuth();
   const isAuthenticated = state.status === "authenticated";
   const primaryTarget = isAuthenticated ? "/dashboard" : "/signup";
@@ -711,7 +714,7 @@ export default function Home(): ReactNode {
         onCtaClick={onCtaClick}
         onLoginClick={onLoginClick}
       />
-      <main id="contenido-principal">
+      <main id="contenido-principal" tabIndex={-1}>
         <Hero
           primaryTarget={primaryTarget}
           onCtaClick={onCtaClick}

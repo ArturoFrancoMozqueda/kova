@@ -30,6 +30,11 @@ describe("Clientes", () => {
     vi.mocked(listCustomers).mockResolvedValue([customer]);
     vi.mocked(saveCustomer).mockResolvedValue(customer);
   });
+  it("exposes the page content landmark and its browser title", () => {
+    render(<CustomersView />);
+    expect(screen.getByRole("main")).toContainElement(screen.getByRole("heading", { name: "Clientes" }));
+    expect(document.title).toBe("Clientes · Kova");
+  });
   it("crea un cliente con datos opcionales y recarga la lista", async () => {
     render(<CustomersView />);
     fireEvent.click(screen.getByRole("button", { name: "Nuevo cliente" }));

@@ -12,7 +12,7 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-kova-mist text-kova-ink",
         destructive: "border-transparent bg-kova-danger text-kova-danger-foreground",
         outline: "text-kova-ink border-kova-border",
-        success: "border-transparent bg-kova-growth/15 text-kova-growth",
+        success: "border-transparent bg-kova-growth/15 text-emerald-700",
         warning: "border-transparent bg-warning/20 text-warning-foreground",
       },
     },

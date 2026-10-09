@@ -484,6 +484,7 @@ export default function SettingsView() {
                 </div>
                 <Select
                   className="sm:w-44"
+                  aria-label={copy.settings.employeeRoleLabel(employee.email)}
                   value={employee.role}
                   disabled={!employee.is_active}
                   onChange={(e) => {

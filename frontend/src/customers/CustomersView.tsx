@@ -7,6 +7,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ViewLayout } from "@/components/ui/view-layout";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   customerHistory,
   listCustomers,
@@ -20,6 +22,7 @@ const money = (amount: string) =>
     Number(amount),
   );
 export function CustomersView() {
+  useDocumentTitle("Clientes");
   const canManage = usePermission(CUSTOMERS_MANAGE_PERMISSION);
   const canHistory = usePermission(CUSTOMERS_HISTORY_PERMISSION);
   const [q, setQ] = useState("");
@@ -132,7 +135,7 @@ export function CustomersView() {
     }
   };
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
+    <ViewLayout className="max-w-5xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Clientes</h1>
@@ -380,6 +383,6 @@ export function CustomersView() {
           </div>
         </section>
       )}
-    </div>
+    </ViewLayout>
   );
 }

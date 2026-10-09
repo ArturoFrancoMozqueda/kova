@@ -19,13 +19,18 @@ const DialogTitleContext = createContext<string | undefined>(undefined);
 export function Dialog({ open, onClose, children, className }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
   const titleId = useId();
-  // Keeps the panel in the DOM through its exit animation instead of snapping it
-  // away. Focus and the Escape handler stay tied to `open`, not to `mounted`.
+  // Keep the panel through its exit animation. Focus waits for the first actual
+  // mount, then returns to the trigger as soon as `open` becomes false.
   const { mounted, exiting } = usePresence(open, MOTION_MS.modalExit);
 
   useEffect(() => {
-    if (!open) return;
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open || !mounted) return;
     // Remember where focus was so we can restore it when the dialog closes.
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
@@ -37,7 +42,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        closeRef.current();
         return;
       }
       if (!panel) return;
@@ -59,7 +64,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
         previouslyFocused.focus();
       }
     };
-  }, [open, onClose]);
+  }, [open, mounted]);
 
   // Scroll lock follows `mounted`, so the page doesn't reflow underneath a
   // dialog that is still visibly animating out.

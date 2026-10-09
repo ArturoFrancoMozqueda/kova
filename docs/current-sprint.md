@@ -26,7 +26,17 @@ Las 24 ramas `codex/audit-*` se reúnen desde `codex/audit-verified` en
 para no afirmar activación tras un rechazo de Checkout sin estado confirmado.
 Alcance, validación repetida y límites en
 [`audits/KOVA-BRANCH-INTEGRATION-2026-10-08.md`](audits/KOVA-BRANCH-INTEGRATION-2026-10-08.md).
-La publicación queda pendiente de CI y aprobación explícita; no se desplegó esta rama.
+Publicado con autorización explícita mediante PR #182: CI y publicación aprobadas.
+Frontend, proxy y base de datos verificados con SHA
+`f9d875c103b090c9f08a888db7464b3a2321bbd1`.
+
+## Active production audit (2026-10-08): flujo real y equipos
+
+El propietario autorizó evaluación autenticada integral, tres equipos e implementación de los
+hallazgos. Correcciones en `codex/production-comprehensive-fixes`; alcance, QA real, pruebas y
+límites en [la evidencia de producción](audits/KOVA-PRODUCTION-AUDIT-2026-10-08.md).
+No se registraron operaciones financieras ni ajustes de inventario durante la evaluación.
+Los arreglos adicionales deben pasar CI y verificación de publicación antes de marcarse publicados.
 
 ## Active product implementation (2026-10-08): Lotes y fechas
 

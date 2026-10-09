@@ -1,5 +1,6 @@
 import { type Page, expect, test } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
+import axe, { type AxeResults } from "axe-core";
 
 async function mockAuthAs(page: Page, role: string, marginReports = false) {
   await page.route("**/api/v1/auth/session", async (route) => {
@@ -268,6 +269,27 @@ async function mockReports(
   });
   await page.route("**/api/v1/inventory/velocity", async (route) => {
     await route.fulfill({ json: options.velocity ?? [] });
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`populated reports remain accessible at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await markFirstUseToursSeen(page);
+    await mockAuthAs(page, "owner", true);
+    await mockReports(page);
+    await page.goto("/reports");
+    await expect(page.getByText("Ventas netas", { exact: true }).first()).toBeVisible();
+    await expect(page.getByTestId("margin-analysis")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await page.addScriptTag({ content: axe.source });
+    const violations = await page.evaluate(async () => {
+      const engine = (window as unknown as { axe: { run: (context: string, options: object) => Promise<AxeResults> } }).axe;
+      const result = await engine.run("main", { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
+      return result.violations.map(({ id, impact, nodes }) => ({ id, impact, nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })) }));
+    });
+    expect(violations).toEqual([]);
   });
 }
 

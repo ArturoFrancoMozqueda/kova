@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Brain, FileText, LockKeyhole, MessageCircle, Plus, Settings2, ShieldCheck, Target, Trash2 } from "lucide-react";
 import { useAuth } from "@/auth/useAuth";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { getActiveBranchId } from "@/branches/activeBranch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,6 +52,7 @@ function ChangeList({ steps }: { steps: Step[] }) {
 }
 
 export default function AssistantView() {
+  useDocumentTitle("Asistente");
   const { state } = useAuth();
   if (state.status !== "authenticated") return null;
   if (!["owner", "manager"].includes(state.user.role)) return <p className="p-6">El asistente está disponible para administradores.</p>;

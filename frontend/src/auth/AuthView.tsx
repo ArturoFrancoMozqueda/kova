@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { AuthLayout } from "./AuthLayout";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   queueFunnelEvent,
   trackSignupValidationFailed,
@@ -113,6 +114,7 @@ function signupValidationFailures(error: ApiError): SignupValidationFailure[] {
 }
 
 export default function AuthView({ mode }: { mode: AuthMode }) {
+  useDocumentTitle(mode === "login" ? copy.auth.loginTitle : copy.auth.signupTitle);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { refresh } = useAuth();

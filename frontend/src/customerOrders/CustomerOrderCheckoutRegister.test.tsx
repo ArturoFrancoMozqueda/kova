@@ -154,4 +154,25 @@ describe("CustomerOrderCheckoutRegister", () => {
 
     expect(api.checkoutCustomerOrder.mock.calls[0][3]).toBe(api.checkoutCustomerOrder.mock.calls[1][3]);
   });
+
+  it("clears a completed checkout when navigating to another order", async () => {
+    api.checkoutCustomerOrder.mockResolvedValue({
+      customer_order: { ...order, payment_status: "paid", sale_order_id: "sale-1", version: 2 },
+      sale_order: { id: "sale-1", total_amount: "50.00" },
+    });
+    api.getReceipt.mockRejectedValue(new Error("receipt unavailable"));
+    const view = renderCheckout();
+    fireEvent.change(await screen.findByLabelText("Efectivo recibido"), { target: { value: "50.00" } });
+    fireEvent.click(screen.getByRole("button", { name: /cobrar \$50\.00/i }));
+    await screen.findByRole("heading", { name: "Pedido cobrado" });
+    await screen.findByText(/el cobro se completó, pero el recibo no pudo cargarse/i);
+
+    const next = { ...order, id: "customer-order-2", folio: "PED-SECOND", total_amount: "70.00" };
+    api.getCustomerOrder.mockResolvedValue(next);
+    view.rerender(<MemoryRouter><CustomerOrderCheckoutRegister orderId={next.id} /></MemoryRouter>);
+
+    expect(await screen.findByRole("button", { name: /cobrar \$70\.00/i })).toBeDisabled();
+    expect(screen.queryByRole("heading", { name: "Pedido cobrado" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Efectivo recibido")).toHaveValue(null);
+  });
 });

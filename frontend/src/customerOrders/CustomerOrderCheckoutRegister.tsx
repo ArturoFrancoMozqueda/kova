@@ -33,6 +33,11 @@ const paymentOptions = [
 ];
 
 export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) {
+  // Each pedido owns its payments, confirmation and durable retry identity.
+  return <CustomerOrderCheckoutSession key={orderId} orderId={orderId} />;
+}
+
+function CustomerOrderCheckoutSession({ orderId }: { orderId: string }) {
   const { state } = useAuth();
   const tenantName = formatTenantName(state.status === "authenticated" ? state.tenantName : "");
   const logoUrl = state.status === "authenticated" ? state.tenantLogoUrl ?? undefined : undefined;

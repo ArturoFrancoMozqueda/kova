@@ -28,8 +28,14 @@ async def security_headers_middleware(
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     if request.url.path not in _DOCS_PATHS:
         response.headers["Content-Security-Policy"] = _API_CSP
-    if request.url.path.startswith("/api/v1/internal/ops"):
+    # API responses include identity, private business data and token/cookie
+    # issuance. Explicitly exclude them from browsers and shared caches even
+    # when an unauthenticated probe or an error has no Set-Cookie header.
+    # Public documents and hashed frontend assets use their separate policy.
+    if request.url.path.startswith("/api/v1/"):
         response.headers["Cache-Control"] = "private, no-store, max-age=0"
+        response.headers["CDN-Cache-Control"] = "no-store"
+        response.headers["Vercel-CDN-Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
     if settings.app_env == "production":
         response.headers["Strict-Transport-Security"] = (
