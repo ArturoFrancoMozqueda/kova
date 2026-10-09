@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
@@ -86,5 +86,44 @@ describe("ExpensesView", () => {
       expense_date: "2026-07-10",
       note: "Local",
     }));
+  });
+});
+
+
+describe("expense period request ordering", () => {
+  const expense = (note: string, amount: string) => ({
+    id: note, category: "servicios", amount, expense_date: "2026-07-10",
+    note, created_by_user_id: "user-1",
+    created_at: "2026-07-10T12:00:00Z", updated_at: "2026-07-10T12:00:00Z",
+  });
+
+  it("keeps the newest period when an earlier response arrives last", async () => {
+    let finishOld!: (rows: ReturnType<typeof expense>[]) => void;
+    (listExpenses as Mock).mockImplementationOnce(() => new Promise((resolve) => {
+      finishOld = resolve;
+    })).mockResolvedValue([expense("Periodo nuevo", "125.00")]);
+    renderView();
+    fireEvent.change(screen.getByLabelText(copy.expenses.endDate), {
+      target: { value: "2026-07-20" },
+    });
+    expect(await screen.findByText(/Periodo nuevo/)).toBeVisible();
+    await act(async () => { finishOld([expense("Periodo anterior", "900.00")]); });
+    expect(screen.queryByText(/Periodo anterior/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("$125.00")).toHaveLength(2);
+  });
+
+  it("ignores an old failure after the latest period loaded successfully", async () => {
+    let failOld!: (error: Error) => void;
+    (listExpenses as Mock).mockImplementationOnce(() => new Promise((_, reject) => {
+      failOld = reject;
+    })).mockResolvedValue([expense("Periodo nuevo", "125.00")]);
+    renderView();
+    fireEvent.change(screen.getByLabelText(copy.expenses.endDate), {
+      target: { value: "2026-07-20" },
+    });
+    expect(await screen.findByText(/Periodo nuevo/)).toBeVisible();
+    await act(async () => { failOld(new Error("old request failed")); });
+    expect(screen.queryByText(copy.expenses.loadError)).not.toBeInTheDocument();
+    expect(screen.getByText(/Periodo nuevo/)).toBeVisible();
   });
 });
