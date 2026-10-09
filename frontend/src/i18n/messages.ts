@@ -2139,7 +2139,7 @@ export const copy = {
     cashShortfall: "Faltan",
     splitTotalMismatch: "Los pagos divididos deben igualar el total de la orden.",
     saleError: "No se pudo completar la venta.",
-    saleRejected: "La venta fue rechazada y no se registró. Revisa el carrito e inténtalo de nuevo.",
+    saleRejected: "La venta sigue guardada en este dispositivo y requiere revisión. Abre la cola de sincronización para corregirla y reintentar su registro.",
     saleComplete: "Venta completada.",
     saleQueued: "Venta en cola. Se sincronizará cuando vuelva la conexión.",
     offlineSaleSavedTitle: "Venta guardada en este dispositivo",
