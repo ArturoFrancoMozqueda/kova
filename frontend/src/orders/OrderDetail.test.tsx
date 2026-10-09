@@ -149,6 +149,38 @@ beforeAll(async () => {
 });
 
 describe("OrderDetail", () => {
+  it("offers only quantities that remain after earlier partial refunds", async () => {
+    mockInitialLoad({
+      ...receipt,
+      refunds: [{
+        id: "refund-1", reason: "customer_return", refunded_amount: "25.00", created_at: receipt.created_at,
+        items: [{ order_item_id: "item-1", quantity: 1, unit_price_amount: "25.00", line_total_amount: "25.00" }],
+      }],
+    }, "manager");
+    window.history.pushState(null, "", "/orders/order-1");
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Devolver" }, { timeout: 5_000 }));
+
+    expect(screen.queryByRole("spinbutton", { name: /Concha/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: /Roll/ })).toHaveAttribute("max", "1");
+  });
+
+  it("does not offer another refund when all units have been returned", async () => {
+    mockInitialLoad({
+      ...receipt,
+      refunds: [{
+        id: "refund-1", reason: "customer_return", refunded_amount: "50.00", created_at: receipt.created_at,
+        items: order.items.map((item) => ({ order_item_id: item.id, quantity: item.quantity, unit_price_amount: item.unit_price_amount, line_total_amount: item.line_total_amount })),
+      }],
+    }, "manager");
+    window.history.pushState(null, "", "/orders/order-1");
+    render(<App />);
+
+    await screen.findByRole("heading", { name: /detalle de la venta/i });
+    expect(screen.queryByRole("button", { name: "Devolver" })).not.toBeInTheDocument();
+  });
+
   it("offers owner invoice preparation from a completed ticket without mutating the sale", async () => {
     const fetchMock = mockInitialLoad(receipt, "owner");
     window.history.pushState(null, "", "/orders/order-1");
