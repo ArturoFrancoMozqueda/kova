@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
@@ -55,6 +56,11 @@ def get_current_session(
     session = auth_repo.get_session_by_id(db, UUID(session_id))
     if not session or session.revoked_at:
         raise unauthorized("Session revoked")
+    expires_at = session.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if expires_at <= datetime.now(UTC):
+        raise unauthorized("Session expired")
 
     user = auth_repo.get_user_by_id(db, UUID(user_id))
     if not user or not user.is_active:
