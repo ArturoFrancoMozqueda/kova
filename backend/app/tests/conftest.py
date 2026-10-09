@@ -140,7 +140,7 @@ def _provision_kova_app() -> None:
                 "product_modifier_groups inventory_lot_reservations"
             ),
             "SELECT, INSERT, UPDATE": (
-                "account_deletion_requests categories customer_orders customers idempotency_keys "
+                "drawer_devices drawer_commands account_deletion_requests categories customer_orders customers idempotency_keys "
                 "inventory_reservations membership_invitations modifier_groups "
                 "modifier_options orders products shifts subscriptions "
                 "tenant_business_profiles tenant_onboarding_state tenant_receipt_settings"

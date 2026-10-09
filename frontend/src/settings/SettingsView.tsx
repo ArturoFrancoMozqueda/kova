@@ -1,4 +1,5 @@
 import { BranchesSettings } from "@/branches/BranchesSettings";
+import { DrawerSettings } from "@/hardware/DrawerSettings";
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
@@ -450,6 +451,8 @@ export default function SettingsView() {
         ))}
       </nav>
       <section className="min-w-0 space-y-6">
+
+      {visibleActiveTab === "receipt" && (userRole === "owner" || userRole === "manager") ? <DrawerSettings key={tenantId} /> : null}
 
       {visibleActiveTab === "profile" && (
       <Card>

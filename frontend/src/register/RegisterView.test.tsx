@@ -25,6 +25,10 @@ const telemetry = vi.hoisted(() => ({
   trackSaleValidationBlocked: vi.fn(),
 }));
 const inventoryApi = vi.hoisted(() => ({ listStock: vi.fn() }));
+const cashDrawer = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock("@/hardware/useCashDrawer", () => ({
+  useCashDrawer: () => ({ device: null, busy: false, message: "", open: cashDrawer.open }),
+}));
 const scheduleOfflineSyncRetry = vi.hoisted(() => vi.fn());
 
 vi.mock("@/shifts/api", () => ({ getOpenShift: () => getOpenShift() }));
@@ -105,6 +109,7 @@ const cashLabel = copy.register.cash;
 
 describe("RegisterView cash-without-shift guard", () => {
   beforeEach(() => {
+    cashDrawer.open.mockReset().mockResolvedValue(undefined);
     getOpenShift.mockReset();
     queueOfflineSale.mockReset();
     claimOfflineSale.mockReset();
@@ -129,6 +134,60 @@ describe("RegisterView cash-without-shift guard", () => {
     });
     fireEvent.click(addButton);
   }
+
+  it("opens the drawer only after the current cash sale is acknowledged by the server", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "drawer-sale" });
+    syncOfflineSales.mockResolvedValue([{ status: "synced", order: { id: "cash-order", total_amount: "50.00" } }]);
+    renderRegister();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    await waitFor(() => expect(cashDrawer.open).toHaveBeenCalledWith("sale", "", "cash-order"));
+    expect(cashDrawer.open).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not open the drawer for a queued offline sale", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "pending-drawer-sale" });
+    syncOfflineSales.mockResolvedValue([]);
+    renderRegister();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    await waitFor(() => expect(syncOfflineSales).toHaveBeenCalled());
+    expect(cashDrawer.open).not.toHaveBeenCalled();
+  });
+
+  it("does not open the drawer when confirmation arrives more than ten seconds after checkout", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "slow-drawer-sale" });
+    let completeSync: (value: unknown) => void = () => undefined;
+    syncOfflineSales.mockImplementation(() => new Promise(resolve => { completeSync = resolve; }));
+    renderRegister();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    await waitFor(() => expect(syncOfflineSales).toHaveBeenCalled());
+    const time = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 11000);
+    try {
+      completeSync([{ status: "synced", order: { id: "late-order", total_amount: "50.00" } }]);
+      await waitFor(() => expect(getReceipt).toHaveBeenCalledWith("late-order"));
+      expect(cashDrawer.open).not.toHaveBeenCalled();
+    } finally { time.mockRestore(); }
+  });
+
+  it("does not open the drawer for a card-only sale", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    queueOfflineSale.mockResolvedValue({ client_uuid: "card-drawer-sale" });
+    syncOfflineSales.mockResolvedValue([{ status: "synced", order: { id: "card-order", total_amount: "50.00" } }]);
+    renderRegister();
+    await addProductToCart();
+    fireEvent.click(screen.getByRole("radio", { name: copy.register.manualCard }));
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    await waitFor(() => expect(syncOfflineSales).toHaveBeenCalled());
+    expect(cashDrawer.open).not.toHaveBeenCalled();
+  });
 
   it("uses one Caja h1 with Catálogo and Carrito as section headings", async () => {
     getOpenShift.mockResolvedValue(openShift);

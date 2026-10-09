@@ -46,6 +46,12 @@ export const test = base.extend<GuardFixtures>({
             await route.fulfill({ json: [] });
             return;
           }
+          // Register/settings discover an optional drawer. Hardware scenarios
+          // override this exact route; other stories exercise the disabled default.
+          if (request.method() === "GET" && pathname === "/api/v1/hardware/drawer") {
+            await route.fulfill({ json: { configured: false, online: false, auto_open: false } });
+            return;
+          }
           // The shell now discovers the server-controlled assistant cohort.
           // Other scenarios keep the production default (all capabilities off);
           // assistant scenarios override this exact route with explicit gates.

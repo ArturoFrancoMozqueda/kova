@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "Acknowledge": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "sent",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Acknowledge",
+        "type": "object"
+      },
       "AnonymousTelemetryEventCreate": {
         "additionalProperties": false,
         "description": "Body for the unauthenticated pre-auth telemetry path.\n\nStrictly validated: the event type must be on :data:`ANONYMOUS_EVENT_NAMES`,\nno tenant/user identifiers are accepted (``StrictModel`` forbids unknown\ntop-level fields, and ``properties`` rejects identity/PII keys), and the\nmetadata blob is bounded like the authenticated schema.",
@@ -2748,6 +2766,36 @@
           "status"
         ],
         "title": "DeletionStatusResponse",
+        "type": "object"
+      },
+      "DeviceSetup": {
+        "additionalProperties": false,
+        "properties": {
+          "auto_open": {
+            "default": false,
+            "title": "Auto Open",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "pin": {
+            "default": 0,
+            "enum": [
+              0,
+              1
+            ],
+            "title": "Pin",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DeviceSetup",
         "type": "object"
       },
       "DocumentResponse": {
@@ -6557,6 +6605,49 @@
         "title": "OnboardingStepResponse",
         "type": "object"
       },
+      "OpenDrawer": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "sale",
+              "manual",
+              "test"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Reason",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "kind"
+        ],
+        "title": "OpenDrawer",
+        "type": "object"
+      },
       "OperatingExpenseCategoryRow": {
         "properties": {
           "amount": {
@@ -7505,6 +7596,22 @@
           "operations"
         ],
         "title": "OverviewResponse",
+        "type": "object"
+      },
+      "PairDevice": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 150,
+            "minLength": 100,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "PairDevice",
         "type": "object"
       },
       "PasswordResetConfirmBody": {
@@ -17300,6 +17407,372 @@
         "summary": "Put Global Draft Settings",
         "tags": [
           "fiscal"
+        ]
+      }
+    },
+    "/api/v1/hardware/connector/commands/{command_id}/ack": {
+      "post": {
+        "operationId": "ack_api_v1_hardware_connector_commands__command_id__ack_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Command Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Kova-Device-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 150,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kova-Device-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Acknowledge"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ack",
+        "tags": [
+          "hardware"
+        ]
+      }
+    },
+    "/api/v1/hardware/connector/download": {
+      "get": {
+        "operationId": "download_api_v1_hardware_connector_download_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Download",
+        "tags": [
+          "hardware"
+        ]
+      }
+    },
+    "/api/v1/hardware/connector/pair": {
+      "post": {
+        "operationId": "pair_api_v1_hardware_connector_pair_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairDevice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pair",
+        "tags": [
+          "hardware"
+        ]
+      }
+    },
+    "/api/v1/hardware/connector/poll": {
+      "post": {
+        "operationId": "poll_api_v1_hardware_connector_poll_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Kova-Device-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 150,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Kova-Device-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Poll",
+        "tags": [
+          "hardware"
+        ]
+      }
+    },
+    "/api/v1/hardware/drawer": {
+      "delete": {
+        "operationId": "revoke_api_v1_hardware_drawer_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revoke",
+        "tags": [
+          "hardware"
+        ]
+      },
+      "get": {
+        "operationId": "status_api_v1_hardware_drawer_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "hardware"
+        ]
+      },
+      "patch": {
+        "operationId": "update_settings_api_v1_hardware_drawer_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceSetup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Settings",
+        "tags": [
+          "hardware"
+        ]
+      }
+    },
+    "/api/v1/hardware/drawer/commands/{command_id}": {
+      "get": {
+        "operationId": "command_status_api_v1_hardware_drawer_commands__command_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Command Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Command Status",
+        "tags": [
+          "hardware"
+        ]
+      }
+    },
+    "/api/v1/hardware/drawer/open": {
+      "post": {
+        "operationId": "open_drawer_api_v1_hardware_drawer_open_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenDrawer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Open Drawer",
+        "tags": [
+          "hardware"
+        ]
+      }
+    },
+    "/api/v1/hardware/drawer/setup": {
+      "post": {
+        "operationId": "setup_api_v1_hardware_drawer_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceSetup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Setup",
+        "tags": [
+          "hardware"
         ]
       }
     },

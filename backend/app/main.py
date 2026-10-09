@@ -27,6 +27,7 @@ from app.db import assert_rls_active
 from app.employees.router import router as employees_router
 from app.expenses.router import router as expenses_router
 from app.fiscal.router import router as fiscal_router
+from app.hardware.router import router as hardware_router
 from app.health.router import router as health_router
 from app.imports.router import router as imports_router
 from app.integrations.router import router as integrations_router
@@ -219,6 +220,7 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
     app.include_router(health_router)
+    app.include_router(hardware_router)
     app.include_router(account_lifecycle_router)
     app.include_router(auth_router)
     app.include_router(assistant_router)
