@@ -37,6 +37,13 @@ INTEGER_MIN = -(2**31)
 INTEGER_MAX = 2**31 - 1
 
 
+def validate_password_byte_length(value: str) -> str:
+    """bcrypt accepts at most 72 UTF-8 bytes, including multibyte characters."""
+    if len(value.encode("utf-8")) > 72:
+        raise ValueError("La contraseña debe ocupar como máximo 72 bytes en UTF-8")
+    return value
+
+
 def reject_null(value: object) -> object:
     """Reject explicit null for PATCH fields backed by NOT NULL columns.
 

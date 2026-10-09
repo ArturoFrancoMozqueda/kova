@@ -15,6 +15,7 @@ from app.auth.schemas import MeResponse, UserResponse
 from app.config import settings
 from app.email import service as email_service
 from app.shared.exceptions import bad_request, forbidden, unauthorized
+from app.shared.validation import validate_password_byte_length
 from app.tenants import repository as tenant_repo
 from app.tenants.feature_flags import resolve_feature_flags
 
@@ -24,11 +25,21 @@ _BCRYPT_ROUNDS = 12
 
 
 def hash_password(password: str) -> str:
+    try:
+        validate_password_byte_length(password)
+    except ValueError as exc:
+        raise bad_request(str(exc)) from exc
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    encoded = plain.encode()
+    if len(encoded) > 72:
+        # Invalid input still pays the bcrypt cost for both known and unknown
+        # accounts, preserving the generic login response and timing defense.
+        bcrypt.checkpw(b"", hashed.encode())
+        return False
+    return bcrypt.checkpw(encoded, hashed.encode())
 
 
 # A throwaway hash used to equalize login timing when the email is unknown. Verifying
