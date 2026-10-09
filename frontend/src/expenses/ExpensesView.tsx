@@ -133,12 +133,12 @@ export default function ExpensesView() {
         <Button variant="outline" disabled={!startDate || !endDate} onClick={() => void load()}>{copy.expenses.apply}</Button>
       </div>
 
-      <Card className="overflow-hidden border-kova-blue/20 bg-kova-blue/[0.03]">
+      {!loading && !error ? <Card className="overflow-hidden border-kova-blue/20 bg-kova-blue/[0.03]">
         <CardContent className="flex items-center gap-4 p-5">
           <div className="flex h-11 w-11 items-center justify-center rounded-kova-md bg-kova-blue/10 text-kova-blue"><WalletCards className="h-5 w-5" /></div>
           <div><p className="text-xs font-medium uppercase tracking-wide text-kova-tertiary">{copy.expenses.periodTotal}</p><p className="text-2xl font-bold tabular-nums text-kova-ink">{formatMoney(total)}</p><p className="text-xs text-kova-muted">{copy.expenses.records(expenses.length)}</p></div>
         </CardContent>
-      </Card>
+      </Card> : null}
 
       {loading ? <ExpenseSkeleton /> : error ? <ViewError message={copy.expenses.loadError} onRetry={() => void load()} retryLabel={copy.expenses.retry} /> : expenses.length === 0 ? (
         <ViewEmpty icon={<ReceiptText className="h-6 w-6" />} title={copy.expenses.emptyTitle} body={copy.expenses.emptyBody} primaryCta={{ label: copy.expenses.add, onClick: () => setEditing("new") }} />

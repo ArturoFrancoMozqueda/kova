@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/auth/AuthContext";
 import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { getOrder, listOrders } from "@/orders/api";
 import { formatDateTime, formatMoney } from "@/orders/format";
 import type { Order, OrderListItem } from "@/orders/types";
@@ -404,6 +405,7 @@ export function IntegrationContents({
 }
 
 export function IntegrationsPage() {
+  useDocumentTitle("Facturación e integraciones");
   const [searchParams] = useSearchParams();
   const linkedOrder = searchParams.get("order_id") ?? "";
   const initialOrderId =

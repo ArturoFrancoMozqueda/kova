@@ -41,6 +41,17 @@ afterEach(() => {
 });
 
 describe("AuthView signup recovery flows", () => {
+  it.each([
+    ["/login", "Iniciar sesión · Kova"],
+    ["/signup", "Crear cuenta de negocio · Kova"],
+  ])("names the %s browser tab for the current auth screen", async (path, title) => {
+    mockFetch(() => new Response(JSON.stringify({ authenticated: false }), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    renderAt(path);
+    await waitFor(() => expect(document.title).toBe(title));
+  });
+
   it.each(["A1" + "x".repeat(71), "A1" + "ñ".repeat(36)])("blocks passwords above the byte limit before signup", async (password) => {
     const fetchMock = mockFetch(() => new Response(JSON.stringify({ authenticated: false }), {
       status: 200, headers: { "content-type": "application/json" },

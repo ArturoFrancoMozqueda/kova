@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -188,6 +189,20 @@ def create_app() -> FastAPI:
     app.add_middleware(BodySizeLimitMiddleware)
 
     _error_logger = logging.getLogger("app.errors")
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        # FastAPI's default response echoes `input` (including entire bodies
+        # for model errors) and validator context. Preserve the documented
+        # loc/msg/type contract without reflecting passwords, tokens, provider
+        # keys, or customer data into response logs and error reporting.
+        errors = [
+            {"loc": error["loc"], "msg": error["msg"], "type": error["type"]}
+            for error in exc.errors()
+        ]
+        return JSONResponse(status_code=422, content={"detail": errors})
 
     @app.exception_handler(SQLAlchemyError)
     async def _sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:

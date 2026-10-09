@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Minus, Plus, Save, ShoppingBag, Trash2 } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -53,9 +53,14 @@ function localDateTime(value: string | null): string {
 }
 
 export default function CustomerOrderFormView() {
+  const { orderId } = useParams();
+  return <CustomerOrderFormSession key={orderId ?? "new"} orderId={orderId} />;
+}
+
+function CustomerOrderFormSession({ orderId }: { orderId?: string }) {
+  const formId = useId();
   useDocumentTitle("Nuevo pedido");
   const enabled = useFeature("customer_orders");
-  const { orderId } = useParams();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [stock, setStock] = useState<Record<string, number>>({});
@@ -73,6 +78,10 @@ export default function CustomerOrderFormView() {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  // A response may be lost after the server commits. Replay each unchanged
+  // mutation with its original identity, including the save/confirm sequence.
+  const mutationKeys = useRef(new Map<string, string>());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -85,15 +94,19 @@ export default function CustomerOrderFormView() {
         if (!orderId) return;
         const order = await getCustomerOrder(orderId);
         if (cancelled) return;
-        setStock((current) => ({
-          ...current,
-          ...Object.fromEntries(
-            order.items.map((item) => [
-              item.product_id,
-              (current[item.product_id] ?? 0) + item.quantity,
-            ]),
-          ),
-        }));
+        if (order.payment_status === "unpaid" && ["confirmed", "in_progress", "ready"].includes(order.status)) {
+          const ownReserved = new Map<string, number>();
+          for (const item of order.items) {
+            ownReserved.set(item.product_id, (ownReserved.get(item.product_id) ?? 0) + item.quantity);
+          }
+          // Drafts have no reservations. For active pedidos, aggregate all
+          // their lines and keep other pedidos' reservations deducted even
+          // when physical stock has fallen below the total reserved quantity.
+          setStock(Object.fromEntries(stockRows.map((item) => [
+            item.product_id,
+            Math.max(0, item.stock_on_hand - Math.max(0, item.reserved_quantity - (ownReserved.get(item.product_id) ?? 0))),
+          ])));
+        }
         setExisting(order);
         setFulfillmentType(order.fulfillment_type);
         setSourceChannel(order.source_channel);
@@ -158,7 +171,9 @@ export default function CustomerOrderFormView() {
     const modifierCents = modifiers.reduce((sum, modifier) => sum + moneyToCents(modifier.priceDelta), 0);
     const unitPrice = centsToMoney(moneyToCents(product.price_amount) + modifierCents);
     setLines((current) => {
-      const found = current.find((line) => line.key === key && !line.existingId);
+      const found = current.find((line) =>
+        !line.existingId && !line.note && lineKey(line.productId, line.modifiers) === key,
+      );
       if (found) {
         return current.map((line) => line.key === found.key ? { ...line, quantity: line.quantity + 1 } : line);
       }
@@ -200,6 +215,7 @@ export default function CustomerOrderFormView() {
   });
 
   const persist = async (action: "save" | "confirm" | "checkout") => {
+    if (submittingRef.current) return;
     setError(null);
     if (lines.length === 0) {
       setError("Agrega al menos un producto.");
@@ -209,13 +225,23 @@ export default function CustomerOrderFormView() {
       setError("Para entrega indica el nombre y la dirección del cliente.");
       return;
     }
+    const keyFor = (operation: string, body: unknown) => {
+      const signature = JSON.stringify([operation, body]);
+      const key = mutationKeys.current.get(signature) ?? crypto.randomUUID();
+      mutationKeys.current.set(signature, key);
+      return key;
+    };
+    submittingRef.current = true;
     setSubmitting(true);
     try {
+      const body = payload();
       let saved = existing
-        ? await updateCustomerOrder(existing.id, { ...payload(), version: existing.version })
-        : await createCustomerOrder(payload());
+        ? await updateCustomerOrder(existing.id, { ...body, version: existing.version },
+          keyFor(`update:${existing.id}`, { ...body, version: existing.version }))
+        : await createCustomerOrder(body, keyFor("create", body));
       if ((action === "confirm" || action === "checkout") && saved.status === "new") {
-        saved = await confirmCustomerOrder(saved.id, saved.version);
+        saved = await confirmCustomerOrder(saved.id, saved.version,
+          keyFor(`confirm:${saved.id}`, { version: saved.version }));
       }
       if (action === "checkout") {
         navigate(`/register?customerOrderId=${saved.id}`);
@@ -226,6 +252,7 @@ export default function CustomerOrderFormView() {
       const body = caught as { detail?: { detail?: { message?: string } } };
       setError(body.detail?.detail?.message ?? "No se pudo guardar el pedido. Revisa los datos e intenta de nuevo.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -246,7 +273,8 @@ export default function CustomerOrderFormView() {
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_420px]">
         <div className="space-y-4">
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar producto o SKU" />
+          <Label htmlFor={`${formId}-search`} className="sr-only">Buscar producto o SKU</Label>
+          <Input id={`${formId}-search`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar producto o SKU" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.map((product) => {
               const available = product.track_inventory ? stock[product.id] : undefined;
@@ -274,16 +302,17 @@ export default function CustomerOrderFormView() {
               {lines.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Selecciona productos del catálogo.</p> : lines.map((line) => (
                 <div key={line.key} className="rounded-lg border p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0"><p className="font-medium">{line.productName}</p><p className="text-xs text-muted-foreground">{line.modifiers.map((modifier) => modifier.optionName).join(" · ") || "Sin modificadores"}</p></div>
+                    <div className="min-w-0"><p id={`${formId}-${line.key}-product`} className="font-medium">{line.productName}</p><p className="text-xs text-muted-foreground">{line.modifiers.map((modifier) => modifier.optionName).join(" · ") || "Sin modificadores"}</p></div>
                     <p className="font-semibold tabular-nums">{formatMoney(centsToMoney(moneyToCents(line.unitPrice) * line.quantity))}</p>
                   </div>
                   <div className="mt-3 flex items-center gap-2">
-                    <Button type="button" size="icon" variant="outline" aria-label="Quitar una unidad" onClick={() => line.quantity === 1 ? setLines((current) => current.filter((item) => item.key !== line.key)) : updateLine(line.key, { quantity: line.quantity - 1 })}><Minus className="h-3.5 w-3.5" /></Button>
+                    <Button type="button" size="icon" variant="outline" aria-label="Quitar una unidad" aria-describedby={`${formId}-${line.key}-product`} onClick={() => line.quantity === 1 ? setLines((current) => current.filter((item) => item.key !== line.key)) : updateLine(line.key, { quantity: line.quantity - 1 })}><Minus className="h-3.5 w-3.5" /></Button>
                     <span className="w-8 text-center font-semibold tabular-nums">{line.quantity}</span>
-                    <Button type="button" size="icon" variant="outline" aria-label="Agregar una unidad" disabled={stock[line.productId] !== undefined && lines.filter((item) => item.productId === line.productId).reduce((sum, item) => sum + item.quantity, 0) >= stock[line.productId]} onClick={() => updateLine(line.key, { quantity: line.quantity + 1 })}><Plus className="h-3.5 w-3.5" /></Button>
-                    <Button type="button" size="icon" variant="ghost" className="ml-auto text-destructive" aria-label="Eliminar artículo" onClick={() => setLines((current) => current.filter((item) => item.key !== line.key))}><Trash2 className="h-4 w-4" /></Button>
+                    <Button type="button" size="icon" variant="outline" aria-label="Agregar una unidad" aria-describedby={`${formId}-${line.key}-product`} disabled={stock[line.productId] !== undefined && lines.filter((item) => item.productId === line.productId).reduce((sum, item) => sum + item.quantity, 0) >= stock[line.productId]} onClick={() => updateLine(line.key, { quantity: line.quantity + 1 })}><Plus className="h-3.5 w-3.5" /></Button>
+                    <Button type="button" size="icon" variant="ghost" className="ml-auto text-destructive" aria-label="Eliminar artículo" aria-describedby={`${formId}-${line.key}-product`} onClick={() => setLines((current) => current.filter((item) => item.key !== line.key))}><Trash2 className="h-4 w-4" /></Button>
                   </div>
-                  <Input className="mt-3" value={line.note} maxLength={200} onChange={(event) => updateLine(line.key, { note: event.target.value })} placeholder="Nota del artículo (opcional)" />
+                  <Label htmlFor={`${formId}-${line.key}-note`} className="sr-only">Nota de {line.productName} (opcional)</Label>
+                  <Input id={`${formId}-${line.key}-note`} className="mt-3" value={line.note} maxLength={200} onChange={(event) => updateLine(line.key, { note: event.target.value })} placeholder="Nota del artículo (opcional)" />
                 </div>
               ))}
               <div className="flex items-center justify-between border-t pt-3 text-lg font-bold"><span>Total</span><span className="tabular-nums">{formatMoney(centsToMoney(totalCents))}</span></div>
@@ -293,12 +322,12 @@ export default function CustomerOrderFormView() {
           <Card>
             <CardHeader><CardTitle>Entrega y cliente</CardTitle></CardHeader>
             <CardContent className="grid gap-3">
-              <div><Label>Modalidad</Label><Select value={fulfillmentType} onChange={(event) => setFulfillmentType(event.target.value as FulfillmentType)}><option value="pickup">{fulfillmentLabels.pickup}</option><option value="delivery">{fulfillmentLabels.delivery}</option></Select></div>
-              <div><Label>Canal</Label><Select value={sourceChannel} onChange={(event) => setSourceChannel(event.target.value as SourceChannel)}><option value="counter">{channelLabels.counter}</option><option value="phone_whatsapp">{channelLabels.phone_whatsapp}</option><option value="other">{channelLabels.other}</option></Select></div>
-              <div className="grid gap-3 sm:grid-cols-2"><div><Label>Nombre</Label><Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} maxLength={160} /></div><div><Label>Teléfono</Label><Input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} inputMode="tel" maxLength={32} /></div></div>
-              {fulfillmentType === "delivery" ? <><div><Label>Dirección</Label><Input value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} maxLength={300} /></div><div><Label>Referencia</Label><Input value={deliveryReference} onChange={(event) => setDeliveryReference(event.target.value)} maxLength={200} /></div></> : null}
-              <div><Label>Prometido para</Label><Input type="datetime-local" value={promisedAt} onChange={(event) => setPromisedAt(event.target.value)} /></div>
-              <div><Label>Nota general</Label><textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
+              <div><Label htmlFor={`${formId}-fulfillment`}>Modalidad</Label><Select id={`${formId}-fulfillment`} value={fulfillmentType} onChange={(event) => setFulfillmentType(event.target.value as FulfillmentType)}><option value="pickup">{fulfillmentLabels.pickup}</option><option value="delivery">{fulfillmentLabels.delivery}</option></Select></div>
+              <div><Label htmlFor={`${formId}-channel`}>Canal</Label><Select id={`${formId}-channel`} value={sourceChannel} onChange={(event) => setSourceChannel(event.target.value as SourceChannel)}><option value="counter">{channelLabels.counter}</option><option value="phone_whatsapp">{channelLabels.phone_whatsapp}</option><option value="other">{channelLabels.other}</option></Select></div>
+              <div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor={`${formId}-customer-name`}>Nombre</Label><Input id={`${formId}-customer-name`} value={customerName} onChange={(event) => setCustomerName(event.target.value)} maxLength={160} /></div><div><Label htmlFor={`${formId}-customer-phone`}>Teléfono</Label><Input id={`${formId}-customer-phone`} value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} inputMode="tel" maxLength={32} /></div></div>
+              {fulfillmentType === "delivery" ? <><div><Label htmlFor={`${formId}-address`}>Dirección</Label><Input id={`${formId}-address`} value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} maxLength={300} /></div><div><Label htmlFor={`${formId}-reference`}>Referencia</Label><Input id={`${formId}-reference`} value={deliveryReference} onChange={(event) => setDeliveryReference(event.target.value)} maxLength={200} /></div></> : null}
+              <div><Label htmlFor={`${formId}-promised-at`}>Prometido para</Label><Input id={`${formId}-promised-at`} type="datetime-local" value={promisedAt} onChange={(event) => setPromisedAt(event.target.value)} /></div>
+              <div><Label htmlFor={`${formId}-note`}>Nota general</Label><textarea id={`${formId}-note`} value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /></div>
             </CardContent>
           </Card>
 

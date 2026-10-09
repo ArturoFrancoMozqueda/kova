@@ -24,6 +24,7 @@ describe("tenant assistant review and privacy", () => {
   });
   it("does not transmit a query or grant consent on opening", async () => {
     mount();
+    expect(document.title).toBe("Asistente · Kova");
     await screen.findByRole("button", { name: "Aceptar y habilitar consultas" });
     expect(vi.mocked(fetch).mock.calls.every(([,init]) => init?.method === "GET")).toBe(true);
     expect(window.localStorage.getItem("assistant-conversation")).toBeNull();

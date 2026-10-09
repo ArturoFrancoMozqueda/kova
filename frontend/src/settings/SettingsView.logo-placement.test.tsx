@@ -13,6 +13,7 @@ import {
   listEmployees,
   listInvitations,
   saveReceiptSettings,
+  updateEmployeeRole,
 } from "./api";
 
 const authMocks = vi.hoisted(() => ({
@@ -106,6 +107,22 @@ describe("SettingsView business logo placement", () => {
       "accept",
       "image/png,image/jpeg,image/webp",
     );
+  });
+
+  it("names each employee role selector and confirms a named role change", async () => {
+    vi.mocked(updateEmployeeRole).mockReset();
+    vi.mocked(listEmployees).mockResolvedValue([{
+      membership_id: "membership-cashier", user_id: "cashier-1", email: "caja@example.com",
+      role: "cashier", is_active: true,
+      created_at: "2026-10-08T12:00:00Z",
+    }]);
+    renderSettings("/settings/employees");
+    const role = await screen.findByRole("combobox", { name: "Rol de caja@example.com" });
+    expect(role).toHaveValue("cashier");
+    expect(screen.getByRole("combobox", { name: "Rol" })).toBeInTheDocument();
+    fireEvent.change(role, { target: { value: "manager" } });
+    expect(await screen.findByRole("dialog", { name: copy.settings.roleChangeConfirmTitle })).toBeInTheDocument();
+    expect(updateEmployeeRole).not.toHaveBeenCalled();
   });
 
   it("does not show the upload control in Recibo", async () => {

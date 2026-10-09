@@ -59,7 +59,12 @@ export function LotForm({ productId, initial, onSaved, onCancel }: { productId: 
     {(["manufactured_on", "rotation_on", "expires_on"] as const).map((field, index) => <div key={field}>
       <Label htmlFor={`${id}-${field}`}>{["Elaboración", "Consumo preferente o fecha objetivo", "Caducidad"][index]}</Label>
       <Input id={`${id}-${field}`} type="date" value={body[field] ?? ""} disabled={pending}
-        onChange={e => field === "manufactured_on" ? void elaboration(e.target.value) : setBody({ ...body, [field]: e.target.value || null })} />
+        onChange={e => {
+          if (field === "manufactured_on") { void elaboration(e.target.value); return; }
+          // Manual dates take precedence over an earlier network suggestion.
+          suggestionRequest.current += 1;
+          setBody(previous => ({ ...previous, [field]: e.target.value || null }));
+        }} />
     </div>)}
     <p className="text-xs text-muted-foreground">Revisa las sugerencias antes de guardar. Crear un lote no agrega existencias; registra después las unidades recibidas.</p>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -116,7 +121,7 @@ export function LotsPanel({ productId, canAdjust }: { productId: string; canAdju
       {lot.stock_conflict && <p role="alert" className="text-sm text-destructive">Faltan unidades reservadas. Revisa el pedido antes de cobrar.</p>}
       {canAdjust && !lot.is_unknown && <Button type="button" variant="outline" onClick={() => setEditing(lot)}>Corregir fechas</Button>}
     </div>)}</div>
-    {canAdjust && <div className="mt-3 space-y-3">{editing ? <LotForm productId={productId} initial={editing === "new" ? undefined : editing} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); setRefresh(refresh + 1); }} /> : <Button type="button" variant="outline" onClick={() => setEditing("new")}>Nuevo lote</Button>}
+    {canAdjust && <div className="mt-3 space-y-3">{editing ? <LotForm key={`${productId}:${editing === "new" ? "new" : editing.id}`} productId={productId} initial={editing === "new" ? undefined : editing} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); setRefresh(refresh + 1); }} /> : <Button type="button" variant="outline" onClick={() => setEditing("new")}>Nuevo lote</Button>}
       <form onSubmit={event => void classify(event)} className="space-y-2"><p className="text-sm font-medium">Clasificar unidades libres sin cambiar el total</p>
         <Label htmlFor={`${id}-source`}>Lote de origen</Label><Select id={`${id}-source`} value={source} onChange={e => setSource(e.target.value)} required><option value="">Selecciona</option>{rows.map(lot => <option key={lot.id} value={lot.id}>{lot.code}</option>)}</Select>
         <Label htmlFor={`${id}-dest`}>Lote identificado</Label><Select id={`${id}-dest`} value={destination} onChange={e => setDestination(e.target.value)} required><option value="">Selecciona</option>{rows.filter(lot => lot.id !== source).map(lot => <option key={lot.id} value={lot.id}>{lot.code}</option>)}</Select>

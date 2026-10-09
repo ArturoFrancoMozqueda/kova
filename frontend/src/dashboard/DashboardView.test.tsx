@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 
 import { copy } from "@/i18n/messages";
 import { makeStory } from "@/reports/__fixtures__/story";
@@ -26,14 +27,38 @@ vi.mock("./InsightStrip", () => ({ InsightStrip: () => null }));
 
 import { getBusinessStory, getSalesByHour, getSalesSummary } from "@/reports/api";
 import DashboardView from "./DashboardView";
+import { summaryFromStory } from "./storyAdapters";
 
 beforeEach(() => {
   vi.mocked(getBusinessStory).mockReset();
   vi.mocked(getSalesByHour).mockResolvedValue([]);
   vi.mocked(getSalesSummary).mockResolvedValue(null as never);
 });
+afterEach(() => vi.useRealTimers());
 
 describe("DashboardView period changes", () => {
+  it("describes and compares trailing 30-day ranges with their real dates", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-08T18:00:00Z"));
+    vi.mocked(getBusinessStory).mockResolvedValue(makeStory());
+    vi.mocked(getSalesSummary).mockResolvedValue(summaryFromStory(makeStory({
+      summary: { ...makeStory().summary, net_sales: "5000.00" },
+    })));
+    render(<MemoryRouter><DashboardView /></MemoryRouter>);
+    await screen.findByTestId("net-sales");
+    fireEvent.click(screen.getByRole("radio", { name: "30 días" }));
+    await waitFor(() => expect(getBusinessStory).toHaveBeenCalledWith("2026-09-09", "2026-10-08"));
+    expect(getSalesSummary).toHaveBeenCalledWith("2026-08-10", "2026-09-08");
+    expect(screen.getByText("Esto es lo que pasó en los últimos 30 días.")).toBeInTheDocument();
+    expect(await screen.findByText(/vs 30 días anteriores/)).toBeInTheDocument();
+  });
+  it("groups metric terms and descriptions with valid definition-list semantics", async () => {
+    vi.mocked(getBusinessStory).mockResolvedValue(makeStory());
+    const { container } = render(<MemoryRouter><DashboardView /></MemoryRouter>);
+    await screen.findByTestId("net-sales");
+    const result = await axe(container, { runOnly: { type: "rule", values: ["definition-list", "dlitem"] } });
+    expect(result.violations).toEqual([]);
+  });
   it.each(["success", "failure"])("keeps the latest period when the previous request finishes with %s", async (outcome) => {
     let resolveOld!: (story: BusinessStoryReport) => void;
     let rejectOld!: (error: Error) => void;

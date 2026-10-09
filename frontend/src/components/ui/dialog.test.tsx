@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Dialog, DialogHeader, DialogTitle } from "./dialog";
 
 function OpenDialog() {
@@ -42,6 +42,45 @@ describe("Dialog focus management", () => {
   it("moves focus into the dialog on open", () => {
     render(<OpenDialog />);
     expect(screen.getByRole("dialog")).toHaveFocus();
+  });
+
+  it("keeps input focus across rerenders and restores the original trigger", async () => {
+    function EditingDialog() {
+      const [open, setOpen] = useState(false);
+      const [value, setValue] = useState("");
+      return <>
+        <button onClick={() => setOpen(true)}>Editar</button>
+        <Dialog open={open} onClose={() => setOpen(false)}>
+          <DialogTitle>Editar nota</DialogTitle>
+          <input aria-label="Nota" value={value} onChange={event => setValue(event.target.value)} />
+        </Dialog>
+      </>;
+    }
+    render(<EditingDialog />);
+    const trigger = screen.getByRole("button", { name: "Editar" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog")).toHaveFocus();
+    const input = screen.getByRole("textbox", { name: "Nota" });
+    input.focus();
+    fireEvent.change(input, { target: { value: "Recibo de luz" } });
+    expect(input).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(trigger).toHaveFocus();
+    await waitFor(() => expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument());
+  });
+
+  it("uses the latest close handler without restarting focus management", () => {
+    const before = vi.fn();
+    const after = vi.fn();
+    const view = render(<Dialog open onClose={before}><DialogTitle>Editar</DialogTitle><input aria-label="Nota" /></Dialog>);
+    const input = screen.getByRole("textbox", { name: "Nota" });
+    input.focus();
+    view.rerender(<Dialog open onClose={after}><DialogTitle>Editar</DialogTitle><input aria-label="Nota" /></Dialog>);
+    expect(input).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(before).not.toHaveBeenCalled();
+    expect(after).toHaveBeenCalledOnce();
   });
 
   it("traps Tab from the last control back to the first", () => {

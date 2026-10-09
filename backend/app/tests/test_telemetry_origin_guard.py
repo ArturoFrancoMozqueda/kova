@@ -133,6 +133,17 @@ def test_rejects_events_from_a_foreign_origin(db):
     assert _stored(db, "landing:foreign") is None
 
 
+@pytest.mark.parametrize("header", ["origin", "referer"])
+@pytest.mark.parametrize("value", ["https://[", "https://[not-an-ipv6-address]"])
+def test_rejects_malformed_origin_headers_without_server_error(db, header, value):
+    response = _raw_client().post(
+        ANON_SESSION_URL,
+        json={"client_id": "visitor-malformed-origin"},
+        headers={header: value},
+    )
+    assert response.status_code == 403
+
+
 def test_falls_back_to_referer_when_origin_is_absent(db):
     # Referrer-Policy variations can strip Origin on some navigations; the host
     # of a same-site Referer is still evidence of a real page.

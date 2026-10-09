@@ -77,6 +77,7 @@ describe("IntegrationsPage", () => {
         <IntegrationsPage />
       </MemoryRouter>,
     );
+    expect(document.title).toBe("Facturación e integraciones · Kova");
     expect(
       await screen.findByRole("heading", {
         name: "Facturación CFDI · Conectada en Live",

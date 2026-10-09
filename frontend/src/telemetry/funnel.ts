@@ -407,6 +407,9 @@ async function postAnonymousEvent(
     keepalive: true,
     body: JSON.stringify(body),
   });
+  // Even a fire-and-forget event must finish reading its acknowledgement.
+  // With no-store, an unread fetch body can leave the transport pending.
+  await response.text();
   if (response.status === 401 && allowTokenRefresh) {
     clearAnonymousSession();
     await postAnonymousEvent(body, expectedClientId, false);
@@ -529,6 +532,7 @@ async function sendEvent(event: FunnelEvent): Promise<EventDelivery> {
       keepalive: true,
       body: JSON.stringify(event),
     });
+    await response.text();
     if (response.ok) return "sent";
     if (
       response.status === 401 ||

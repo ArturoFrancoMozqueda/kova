@@ -206,7 +206,11 @@ def logout(
 def logout_all(
     request: Request,
     response: Response,
-    db: Session = Depends(get_db),
+    # Identity is still validated on the runtime connection below. Revocation
+    # spans this user's memberships: runtime tenant RLS would otherwise leave
+    # their sessions in other businesses alive. The service only targets the
+    # authenticated user's id, never a client-supplied identity or tenant.
+    db: Session = Depends(get_privileged_db),
     ctx=Depends(get_current_session),
 ):
     user, membership, _ = ctx

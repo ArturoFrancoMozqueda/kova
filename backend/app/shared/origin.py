@@ -34,7 +34,12 @@ def _normalize_origin(value: str | None) -> str | None:
     """Return ``scheme://host[:port]`` for ``value``, or ``None`` if unusable."""
     if not value:
         return None
-    parts = urlsplit(value.strip())
+    try:
+        parts = urlsplit(value.strip())
+    except ValueError:
+        # Browser headers are untrusted. Invalid brackets/IPv6 authorities
+        # must fail the origin check instead of producing an HTTP 500.
+        return None
     if not parts.scheme or not parts.netloc:
         return None
     return f"{parts.scheme}://{parts.netloc}".lower()

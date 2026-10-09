@@ -397,10 +397,10 @@ function DashboardExecutiveSummary({
         <dl className="divide-y divide-kova-border">
           {secondaryMetrics.map((metric) => (
             <div key={metric.label} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
-              <div>
-                <dt className="text-sm text-kova-muted">{metric.label}</dt>
-                <dd className="mt-0.5 text-xs text-kova-tertiary">{metric.detail}</dd>
-              </div>
+              <dt>
+                <span className="block text-sm text-kova-muted">{metric.label}</span>
+                <span className="mt-0.5 block text-xs text-kova-tertiary">{metric.detail}</span>
+              </dt>
               <dd className="shrink-0 text-xl font-semibold tracking-tight text-kova-ink tabular-nums">{metric.value}</dd>
             </div>
           ))}

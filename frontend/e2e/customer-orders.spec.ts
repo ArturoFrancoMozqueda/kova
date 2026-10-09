@@ -1,5 +1,8 @@
 import { type Page, expect, test } from "./fixtures";
+import { createRequire } from "node:module";
 import { markFirstUseToursSeen } from "./helpers";
+
+const axePath = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 
 const customerOrder = {
   id: "customer-order-1",
@@ -80,6 +83,42 @@ async function mockShell(page: Page) {
     }),
   );
 }
+
+test("Pedido fields have accessible names and pass axe on desktop and mobile", async ({ page }) => {
+  await markFirstUseToursSeen(page);
+  await mockShell(page);
+  await page.route("**/api/v1/catalog/products", route => route.fulfill({ json: [{
+    id: "product-1", tenant_id: "tenant-1", category_id: null, name: "Pastel por encargo",
+    description: null, sku: null, price_amount: "50.00", track_inventory: false,
+    low_stock_threshold: null, image_url: null, image_position_x: 50,
+    image_position_y: 50, image_zoom: 1, is_active: true, modifier_groups: [],
+  }] }));
+  await page.route("**/api/v1/inventory/stock", route => route.fulfill({ json: [] }));
+  await page.goto("/pedidos/nuevo");
+  await page.getByRole("button", { name: "Agregar Pastel por encargo" }).click();
+  await page.addScriptTag({ path: axePath });
+
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const mode of ["pickup", "delivery"]) {
+      await page.getByRole("combobox", { name: "Modalidad" }).selectOption(mode);
+      for (const label of ["Buscar producto o SKU", "Canal", "Nombre", "Teléfono", "Prometido para", "Nota general", "Nota de Pastel por encargo (opcional)", ...(mode === "delivery" ? ["Dirección", "Referencia"] : [])]) {
+        await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+      }
+      const violations = await page.evaluate(async () => {
+        const axe = (window as typeof window & {
+          axe: { run: (context: Element, options: object) => Promise<{ violations: Array<{ id: string; impact: string | null; nodes: Array<{ target: string[] }> }> }> };
+        }).axe;
+        const result = await axe.run(document.querySelector("main")!, {
+          runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] },
+          resultTypes: ["violations"],
+        });
+        return result.violations.filter(item => item.impact === "critical" || item.impact === "serious");
+      });
+      expect(violations, `Pedido ${mode} at ${width}px: ${JSON.stringify(violations)}`).toEqual([]);
+    }
+  }
+});
 
 test("Pedidos is separate from Ventas and opens its operational detail", async ({ page }) => {
   await markFirstUseToursSeen(page);

@@ -73,19 +73,20 @@ export function getCustomerOrder(id: string): Promise<CustomerOrder> {
   return requestJson<CustomerOrder>(`/api/v1/customer-orders/${id}`);
 }
 
-export function createCustomerOrder(body: CustomerOrderInput): Promise<CustomerOrder> {
-  return mutation<CustomerOrder>("/api/v1/customer-orders", body);
+export function createCustomerOrder(body: CustomerOrderInput, idempotencyKey?: string): Promise<CustomerOrder> {
+  return mutation<CustomerOrder>("/api/v1/customer-orders", body, "POST", idempotencyKey);
 }
 
 export function updateCustomerOrder(
   id: string,
   body: CustomerOrderInput & { version: number },
+  idempotencyKey?: string,
 ): Promise<CustomerOrder> {
-  return mutation<CustomerOrder>(`/api/v1/customer-orders/${id}`, body, "PATCH");
+  return mutation<CustomerOrder>(`/api/v1/customer-orders/${id}`, body, "PATCH", idempotencyKey);
 }
 
-export function confirmCustomerOrder(id: string, version: number): Promise<CustomerOrder> {
-  return mutation<CustomerOrder>(`/api/v1/customer-orders/${id}/confirm`, { version });
+export function confirmCustomerOrder(id: string, version: number, idempotencyKey?: string): Promise<CustomerOrder> {
+  return mutation<CustomerOrder>(`/api/v1/customer-orders/${id}/confirm`, { version }, "POST", idempotencyKey);
 }
 
 export function changeCustomerOrderStatus(
