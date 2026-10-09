@@ -266,13 +266,16 @@ export default function BillingView() {
       if (error instanceof ApiError && error.status === 400) {
         invalidateBillingSubscription();
         const billing = await load();
-        toast(
-          billing && needsPaymentRecovery(billing)
-            ? copy.billingView.paymentRecoveryBody
-            : copy.billingView.checkoutAlreadyActive,
-          billing && needsPaymentRecovery(billing) ? "warning" : "info",
-        );
-        setActionState("idle");
+        if (billing && needsPaymentRecovery(billing)) {
+          toast(copy.billingView.paymentRecoveryBody, "warning");
+          setActionState("idle");
+        } else if (billing && hasCheckoutBlockingSubscription(billing)) {
+          toast(copy.billingView.checkoutAlreadyActive, "info");
+          setActionState("idle");
+        } else {
+          toast(copy.billingView.operationError, "error");
+          setActionState("error");
+        }
         return;
       }
       setActionState("error");

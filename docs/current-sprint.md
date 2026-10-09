@@ -18,6 +18,16 @@ historical evidence and are labelled with their period.
 - Setup, test commands, architecture and operational entry points live in
   [`engineering-operations-index.md`](engineering-operations-index.md).
 
+## Active branch integration (2026-10-08): correcciones de auditoría
+
+El propietario solicitó implementar correctamente las ramas de mejoras y correcciones.
+Las 24 ramas `codex/audit-*` se reúnen desde `codex/audit-verified` en
+`codex/integrate-audit-fixes`, con revisión de solapamientos y una corrección adicional
+para no afirmar activación tras un rechazo de Checkout sin estado confirmado.
+Alcance, validación repetida y límites en
+[`audits/KOVA-BRANCH-INTEGRATION-2026-10-08.md`](audits/KOVA-BRANCH-INTEGRATION-2026-10-08.md).
+La publicación queda pendiente de CI y aprobación explícita; no se desplegó esta rama.
+
 ## Active product implementation (2026-10-08): Lotes y fechas
 
 El propietario aprobó una función completa, opcional por producto, en una rama nueva.

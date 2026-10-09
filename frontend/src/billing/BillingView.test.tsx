@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
+import { copy } from "@/i18n/messages";
 import type { BillingSubscription } from "./types";
 
 // Mock the billing API so we can assert the reconcile call and drive state.
@@ -270,4 +271,30 @@ it("does not claim activation if checkout rejects an existing pending-payment su
   await waitFor(() => expect(invalidateBillingSubscription).toHaveBeenCalled());
   expect(await screen.findAllByText(/Tu suscripción tiene un pago pendiente/)).toHaveLength(2);
   expect(screen.queryByText("Tu suscripción ya está activa. Actualizamos su estado.")).not.toBeInTheDocument();
+});
+
+it.each([null, "canceled", "incomplete"])("does not claim activation after checkout rejection with refreshed status %s", async (status) => {
+  getBillingSubscription.mockResolvedValueOnce(billing(null)).mockResolvedValue(billing(status ? { status } : null));
+  startCheckout.mockRejectedValue(new ApiError("Checkout rejected", 400));
+  renderBilling();
+  fireEvent.click(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" }));
+  expect(await screen.findByText(copy.billingView.operationError)).toBeVisible();
+  expect(screen.queryByText("Tu suscripción ya está activa. Actualizamos su estado.")).not.toBeInTheDocument();
+});
+
+it("does not claim activation when subscription refresh fails after checkout rejection", async () => {
+  getBillingSubscription.mockResolvedValueOnce(billing(null)).mockRejectedValue(new Error("Service unavailable"));
+  startCheckout.mockRejectedValue(new ApiError("Checkout rejected", 400));
+  renderBilling();
+  fireEvent.click(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" }));
+  expect(await screen.findByText(copy.billingView.operationError)).toBeVisible();
+  expect(screen.queryByText("Tu suscripción ya está activa. Actualizamos su estado.")).not.toBeInTheDocument();
+});
+
+it.each(["active", "trialing"])("confirms an existing subscription only with refreshed status %s", async (status) => {
+  getBillingSubscription.mockResolvedValueOnce(billing(null)).mockResolvedValue(billing({ status }));
+  startCheckout.mockRejectedValue(new ApiError("Subscription already exists", 400));
+  renderBilling();
+  fireEvent.click(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" }));
+  expect(await screen.findByText("Tu suscripción ya está activa. Actualizamos su estado.")).toBeVisible();
 });
