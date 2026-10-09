@@ -82,6 +82,27 @@ describe("anonymous funnel path", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("consumes the no-store acknowledgement of an anonymous event", async () => {
+    const response = new Response('{"accepted":true}', {
+      status: 202, headers: { "Cache-Control": "no-store" },
+    });
+    const originalFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((url: string) => url === "/api/v1/telemetry/events/anonymous"
+      ? Promise.resolve(response) : originalFetch(url));
+    await trackAnonymousEvent("landing_viewed");
+    expect(response.bodyUsed).toBe(true);
+  });
+
+  it("consumes the no-store acknowledgement of an authenticated event", async () => {
+    window.history.replaceState({}, "", "/register");
+    const response = new Response('{"accepted":true}', {
+      status: 202, headers: { "Cache-Control": "private, no-store" },
+    });
+    fetchMock.mockResolvedValueOnce(response);
+    await trackFunnelEvent("register_viewed");
+    expect(response.bodyUsed).toBe(true);
+  });
+
   it("sends signup failures with categorical metadata only", async () => {
     await trackSignupValidationFailed("password", "weak_password");
 

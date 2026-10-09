@@ -148,7 +148,7 @@ test("settings employees explains role permissions before inviting staff", async
   await expect(page.getByText(/uso diario/i).first()).toBeVisible();
   await expect(page.getByText("cashier@bakery.com")).toBeVisible();
   await expect(page.getByLabel("Correo del empleado")).toBeVisible();
-  await expect(page.getByLabel("Rol")).toBeVisible();
+  await expect(page.getByLabel("Rol", { exact: true })).toBeVisible();
 });
 
 test("settings employees invite role change and deactivate work at mobile width", async ({ page }) => {
@@ -246,7 +246,7 @@ test("settings employees invite role change and deactivate work at mobile width"
   await page.goto("/settings/employees");
 
   await page.getByLabel("Correo del empleado").fill("barista@bakery.com");
-  await page.getByLabel("Rol").selectOption("manager");
+  await page.getByLabel("Rol", { exact: true }).selectOption("manager");
   await page.getByRole("button", { name: /invitar/i }).click();
   await expect(page.getByText(/invitaci[oó]n de empleado creada/i)).toBeVisible();
   // The pending invitation renders as a structured row (T2.5): email, role, and

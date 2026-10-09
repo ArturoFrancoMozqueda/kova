@@ -60,17 +60,19 @@ contraseñas, cookies, tokens, estados autenticados ni trazas del navegador en a
 | Respuestas autenticadas marcadas como públicas | No excluían explícitamente almacenamiento HTTP | Backend API y proxy con private/no-store y directivas de CDN; no se reprodujo fuga de datos. |
 | Selector de rol de empleado sin nombre accesible | Axe critical select-name | Identifica el rol de cada empleado y conserva confirmación antes de escribir. |
 | Gráfica personalizada truncada a 31 días | Omitía ventas posteriores aunque API admite 92 días | Representa el rango completo; regresión de 45 días incluye el último día. |
+| Telemetría no consumía confirmaciones HTTP | Con no-store dejaba transportes pendientes en Chrome | Lee la confirmación antes de resolver; dos regresiones y recorrido real de cinco pantallas. |
 
 Las últimas tres correcciones se identificaron durante la segunda pasada y tienen regresiones
 propias; no requieren migraciones ni cambios de contratos o definiciones financieras.
 
 ## Verificación del conjunto integrado
 
-- Backend completo: 1268 pruebas aprobadas, PostgreSQL desechable UTC y pruebas RLS con rol sin bypass;
-  después, las 40 pruebas de seguridad pertinentes aprueban también la corrección final de caché.
-- Frontend completo final: 892 pruebas aprobadas en 154 archivos, incluidas caché/empleados/gráfica.
+- Backend completo final: 1277 pruebas aprobadas, PostgreSQL desechable UTC y pruebas RLS con rol sin bypass.
+- Frontend completo final: 894 pruebas aprobadas en 154 archivos, incluidas caché/empleados/gráfica/telemetría.
 - Chromium con mocks: 178 pruebas aprobadas; 13 skips deliberados de suites que exigen otro entorno.
-- Preview del artefacto compilado: 23 recorridos relevantes aprobados.
+- Preview completo del artefacto compilado final: 187 recorridos aprobados y 4 skips de integración/producción.
+- Stack real final, sin mocks: 4 pruebas aprobadas; venta persistida/relectura y descuento de stock,
+  aislamiento entre dos negocios, axe en cinco pantallas y modal financiero.
 - Contratos de repositorio: 50 pruebas; publicación/recuperación: 24 aprobadas y un skip Windows.
 - Ruff, ESLint, TypeScript/build, compatibilidad OpenAPI, prerender y escaneo de secretos del bundle aprobados.
 - Cada equipo reprodujo fallos antes del arreglo y verificó regresiones. Detalle de seguridad en
@@ -78,6 +80,16 @@ propias; no requieren migraciones ni cambios de contratos o definiciones financi
   [PRODUCTION-UX-2026-10-08.md](evidence/PRODUCTION-UX-2026-10-08.md).
 - La CI del PR y la publicación deben validar el conjunto final y volver a verificar el SHA público
   antes de declarar los arreglos adicionales publicados.
+
+La primera CI detectó cabeceras específicas que la política general sobrescribía. La implementación
+conserva ahora el `no-store` explícito de exportaciones y la caché pública de los dos endpoints de
+imágenes intencionalmente anónimos; las respuestas privadas y los errores conservan protección de
+CDN. Las pruebas de exportaciones/logos originales no se alteraron. También se hicieron exactos dos
+selectores E2E de «Rol»: el nuevo nombre accesible del rol de un empleado hacía ambiguo su antiguo
+substring. No se cambió la expectativa de invitación, confirmación ni permisos.
+El bloqueo de networkidle se reprodujo localmente: cuatro respuestas de telemetría quedaban sin
+consumir. Después de arreglar la implementación, el recorrido original completo pasa en 5.9 s;
+no se aumentó el timeout ni se eliminaron esperas o comprobaciones de accesibilidad.
 
 ## Límites explícitos de cobertura
 

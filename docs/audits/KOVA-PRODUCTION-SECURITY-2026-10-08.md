@@ -66,13 +66,18 @@ must-revalidate`, sin exclusión explícita de almacenamiento. No se reprodujo n
 se afirma fuga entre usuarios. La revisión confirmó que el backend solo declaraba
 `no-store` para ops y Vercel no tenía una política específica para `/api/`.
 
-Corrección: todas las respuestas backend de `/api/v1/`, incluyendo identidad,
+Corrección: las respuestas privadas backend de `/api/v1/`, incluyendo identidad,
 datos del negocio, emisión de tokens/cookies y errores de ruta, incluyen
 `Cache-Control: private, no-store, max-age=0`, `CDN-Cache-Control: no-store`,
 `Vercel-CDN-Cache-Control: no-store` y `Pragma: no-cache`. El proxy Vercel añade
 las tres directivas de caché exclusivamente bajo `/api/(.*)`; landing, documentos
 y assets mantienen sus políticas previas. La caché de la aplicación/offline no
 cambia. El endpoint `/health` directo al backend conserva su política anterior.
+La integración conserva además el `no-store` explícito de exportaciones y las
+cabeceras públicas originales de las dos rutas anónimas de imágenes (logo del
+recibo e imagen de producto), verificadas por ruta, tipo de contenido y estado
+200. No se admite como excepción una respuesta JSON con caché pública. La suite
+backend completa final conserva esos contratos y pasa sus 1277 pruebas.
 
 La precedencia y consumo de cabeceras se verificaron en la
 [documentación oficial Vercel](https://vercel.com/docs/caching/cache-control-headers).
