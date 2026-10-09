@@ -2,9 +2,9 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
-from app.shared.validation import StrictModel
+from app.shared.validation import StrictModel, validate_password_byte_length
 
 EmployeeRole = Literal["owner", "manager", "cashier"]
 
@@ -48,6 +48,11 @@ class InvitationPreview(BaseModel):
 class InvitationAccept(StrictModel):
     token: str
     password: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def _password_byte_length(cls, value: str | None) -> str | None:
+        return validate_password_byte_length(value) if value is not None else None
 
 
 class EmployeeBranchUpdate(StrictModel):

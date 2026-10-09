@@ -7,20 +7,24 @@ invitation acceptance behavior changes.
 
 ## Problem
 
-The product needs employee setup as part of POS configuration. Owners and managers must understand
+The product needs employee setup as part of POS configuration. Owners must understand
 what each role can do before inviting staff, because assigning the wrong role can expose billing,
 reports, configuration, or employee management to the wrong person.
 
 ## Target Users
 
 - Tenant owners
-- Tenant managers
+
+Employee management requires `users.manage`, which the current role matrix grants only to
+owners. Managers may use other settings but cannot list, invite, change roles or deactivate
+employees. This reflects `backend/app/rbac/permissions.py`, the permission gates in
+`backend/app/employees/router.py`, and `backend/app/tests/test_employee_rbac.py`.
 
 ## Functional Requirements
 
 - Owner can invite an employee by email.
-- Owner or manager can list active members.
-- Owner or manager can deactivate a member.
+- Owner can list active members.
+- Owner can deactivate a member.
 - Roles remain limited to existing supported roles.
 - Custom roles UI remains deferred.
 - The employee settings screen explains each role in business language before invitation.
@@ -64,7 +68,7 @@ Write endpoint requirements:
 ## Acceptance Criteria
 
 - Employee setup is not shown as a fake completed setup step until these APIs exist.
-- Cashiers cannot invite or deactivate employees.
+- Managers, cashiers and staff cannot access employee management endpoints.
 - Tenant isolation tests prove one business cannot see another business's members.
-- Owner/manager sees localized role labels: Propietario, Gerente, Cajero.
-- Owner/manager sees role descriptions before sending an invitation.
+- Owner sees localized role labels: Propietario, Gerente, Cajero.
+- Owner sees role descriptions before sending an invitation.

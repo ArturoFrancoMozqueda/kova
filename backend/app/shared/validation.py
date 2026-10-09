@@ -9,6 +9,7 @@ plain-text rendering; the HTML check here is defense-in-depth, not a sanitizer.
 import re
 
 from pydantic import BaseModel, ConfigDict
+from pydantic_core import PydanticCustomError
 
 from app.shared.exceptions import bad_request
 
@@ -35,6 +36,15 @@ MAX_MODIFIER_GROUP_ASSIGNMENTS = 50
 # Bounds of the existing PostgreSQL INTEGER columns used for counts and order.
 INTEGER_MIN = -(2**31)
 INTEGER_MAX = 2**31 - 1
+
+
+def validate_password_byte_length(value: str) -> str:
+    """bcrypt accepts at most 72 UTF-8 bytes, including multibyte characters."""
+    if len(value.encode("utf-8")) > 72:
+        raise PydanticCustomError(
+            "password_too_long", "La contraseña debe ocupar como máximo 72 bytes en UTF-8"
+        )
+    return value
 
 
 def reject_null(value: object) -> object:

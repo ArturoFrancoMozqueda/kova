@@ -97,7 +97,8 @@ export function CustomerOrderCheckoutRegister({ orderId }: { orderId: string }) 
       !cashBlocked &&
       assignedCents === totalCents &&
       payments.every((payment) =>
-        moneyToCents(payment.amount) > 0 &&
+        (moneyToCents(payment.amount) > 0 ||
+          (totalCents === 0 && payments.length === 1 && moneyToCents(payment.amount) === 0)) &&
         (payment.method !== "cash" || moneyToCents(payment.tendered) >= moneyToCents(payment.amount)),
       ),
     [assignedCents, cashBlocked, payments, totalCents],

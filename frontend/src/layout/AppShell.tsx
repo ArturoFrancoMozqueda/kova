@@ -1,6 +1,6 @@
 import { BranchSelector } from "@/branches/BranchSelector";
 import { AssistantCompanion } from "@/assistant/AssistantCompanion";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { copy } from "@/i18n/messages";
 import { useAuth } from "@/auth/useAuth";
@@ -51,6 +51,7 @@ import { flushFunnelEvents } from "@/telemetry/funnel";
 import { ShellRouteFallback } from "@/components/ui/route-fallback";
 import { SupportDialog } from "@/support/SupportDialog";
 import { useToast } from "@/components/ui/toast";
+import { trapTabKey } from "@/lib/focusTrap";
 
 type NavItem = {
   to: string;
@@ -114,6 +115,9 @@ export default function AppShell() {
   const location = useLocation();
   const { state, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia?.("(min-width: 1280px)").matches ?? false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
   const [assistantEnabled, setAssistantEnabled] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -223,7 +227,44 @@ export default function AppShell() {
   const operationNavItems = filteredNavItems.filter((item) => item.group === "operation");
   const businessNavItems = filteredNavItems.filter((item) => item.group === "business");
 
-  const closeSidebar = () => setSidebarOpen(false);
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const drawerOpen = sidebarOpen && !isDesktop;
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(min-width: 1280px)");
+    if (!media) return;
+    const update = () => {
+      setIsDesktop(media.matches);
+      if (media.matches) setSidebarOpen(false);
+    };
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    drawerTriggerRef.current = trigger;
+    const sidebar = sidebarRef.current;
+    sidebar?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSidebar();
+      } else if (sidebar) {
+        trapTabKey(event, sidebar);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      // Another dialog (such as support) may already have taken focus.
+      if (trigger?.isConnected && (sidebar?.contains(document.activeElement) || document.activeElement === document.body)) {
+        trigger.focus();
+      }
+    };
+  }, [drawerOpen, closeSidebar]);
   // The drawer slides for 280ms; without this the backdrop used to blink out of
   // existence on the first frame, which was the shell's most visible motion bug.
   const backdrop = usePresence(sidebarOpen);
@@ -234,12 +275,15 @@ export default function AppShell() {
     }
   }, [state.status]);
 
+  // The saved collapse preference applies only to the desktop rail.
+  const sidebarCompact = isDesktop && sidebarCollapsed;
+
   const SidebarContent = (
     <>
       {/* Brand */}
       <div className={cn(
         "relative flex items-center border-b border-sidebar-border",
-        sidebarCollapsed ? "justify-center px-0 py-5" : "gap-3 px-5 py-5",
+        sidebarCompact ? "justify-center px-0 py-5" : "gap-3 px-5 py-5",
       )}>
         <TenantBrandMark
           logoUrl={tenantLogoUrl}
@@ -248,10 +292,10 @@ export default function AppShell() {
           fallbackCircuitColor="var(--kova-on-ink)"
         />
         <div
-          aria-hidden={sidebarCollapsed}
+          aria-hidden={sidebarCompact}
           className={cn(
             "absolute left-16 right-14 min-w-0 transition-[opacity,transform] duration-panel ease-standard",
-            sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+            sidebarCompact ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
           )}
         >
           <p className="text-[10px] text-sidebar-muted tracking-[0.14em] uppercase">kova</p>
@@ -270,13 +314,13 @@ export default function AppShell() {
         <button
           type="button"
           onClick={toggleSidebarCollapsed}
-          aria-label={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
+          aria-label={sidebarCompact ? "Expandir menú" : "Contraer menú"}
           className={cn(
             "hidden xl:flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors shrink-0",
-            sidebarCollapsed ? "mt-0" : "ml-auto",
+            sidebarCompact ? "mt-0" : "ml-auto",
           )}
         >
-          {sidebarCollapsed
+          {sidebarCompact
             ? <ChevronsRight className="h-4 w-4" />
             : <ChevronsLeft className="h-4 w-4" />
           }
@@ -285,7 +329,7 @@ export default function AppShell() {
 
       {/* Nav */}
       <nav
-        className={cn("flex-1 overflow-y-auto py-4", sidebarCollapsed ? "px-2" : "px-3")}
+        className={cn("flex-1 overflow-y-auto py-4", sidebarCompact ? "px-2" : "px-3")}
         aria-label={copy.auth.accountNavigation}
       >
         {[
@@ -293,7 +337,7 @@ export default function AppShell() {
           { id: "business", label: "Negocio", items: businessNavItems },
         ].map((section) => section.items.length > 0 ? (
           <div key={section.id} className={cn("space-y-1", section.id === "business" && "mt-5")}>
-            {!sidebarCollapsed && (
+            {!sidebarCompact && (
               <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sidebar-muted">
                 {section.label}
               </p>
@@ -303,11 +347,11 @@ export default function AppShell() {
                 key={item.to}
                 to={item.to}
                 onClick={closeSidebar}
-                title={sidebarCollapsed ? item.label : undefined}
+                title={sidebarCompact ? item.label : undefined}
                 className={({ isActive }) =>
                   cn(
                     "group relative flex h-10 items-center overflow-hidden rounded-kova-md text-sm font-medium transition-[background-color,color,box-shadow] duration-hover ease-standard before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:origin-center before:-translate-y-1/2 before:rounded-full before:bg-kova-blue-light before:transition-transform before:duration-quick before:ease-entrance",
-                    sidebarCollapsed ? "justify-center px-2.5" : "px-2.5",
+                    sidebarCompact ? "justify-center px-2.5" : "px-2.5",
                     isActive
                       ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm before:scale-y-100"
                       : "text-sidebar-foreground/80 before:scale-y-0 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
@@ -318,10 +362,10 @@ export default function AppShell() {
                   <>
                     <span className={cn("relative z-10 shrink-0", isActive && "text-kova-blue-light")}>{item.icon}</span>
                     <span
-                      aria-hidden={sidebarCollapsed}
+                      aria-hidden={sidebarCompact}
                       className={cn(
                         "absolute left-[42px] right-8 truncate transition-[opacity,transform] duration-panel ease-standard",
-                        sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+                        sidebarCompact ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
                       )}
                     >
                       {item.label}
@@ -330,7 +374,7 @@ export default function AppShell() {
                       aria-hidden
                       className={cn(
                         "absolute right-3 h-3.5 w-3.5 transition-opacity duration-quick",
-                        sidebarCollapsed ? "opacity-0" : "opacity-0 group-hover:opacity-60",
+                        sidebarCompact ? "opacity-0" : "opacity-0 group-hover:opacity-60",
                       )}
                     />
                   </>
@@ -342,37 +386,40 @@ export default function AppShell() {
       </nav>
 
       {/* Footer */}
-      <div className={cn("border-t border-sidebar-border space-y-3", sidebarCollapsed ? "p-2" : "p-4")}>
-        {!sidebarCollapsed && <OfflineIndicator />}
+      <div className={cn("border-t border-sidebar-border space-y-3", sidebarCompact ? "p-2" : "p-4")}>
+        {!sidebarCompact && <OfflineIndicator />}
         <button
           type="button"
-          onClick={() => setSupportOpen(true)}
+          onClick={() => {
+            closeSidebar();
+            setSupportOpen(true);
+          }}
           aria-label={copy.app.support}
-          title={sidebarCollapsed ? copy.app.support : undefined}
+          title={sidebarCompact ? copy.app.support : undefined}
           className={cn(
             "relative flex h-10 w-full items-center rounded-kova-md text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue-light",
-            sidebarCollapsed ? "justify-center px-2" : "gap-3 px-2.5",
+            sidebarCompact ? "justify-center px-2" : "gap-3 px-2.5",
           )}
         >
           <CircleHelp className="h-4 w-4 shrink-0" />
-          {!sidebarCollapsed ? <span>{copy.app.support}</span> : null}
+          {!sidebarCompact ? <span>{copy.app.support}</span> : null}
         </button>
         <div
           data-capture-account
-          className={cn("relative flex items-center", sidebarCollapsed ? "justify-center" : "gap-3")}
+          className={cn("relative flex items-center", sidebarCompact ? "justify-center" : "gap-3")}
         >
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold uppercase text-white shrink-0"
             style={{ background: userEmail ? avatarColorFor(userEmail) : undefined }}
-            title={sidebarCollapsed ? userEmail : undefined}
+            title={sidebarCompact ? userEmail : undefined}
           >
             {userEmail.charAt(0)}
           </div>
           <div
-            aria-hidden={sidebarCollapsed}
+            aria-hidden={sidebarCompact}
             className={cn(
               "absolute left-11 right-0 min-w-0 transition-[opacity,transform] duration-panel ease-standard",
-              sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+              sidebarCompact ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
             )}
           >
             <p data-capture-email className="text-xs text-sidebar-muted truncate">{userEmail}</p>
@@ -381,19 +428,19 @@ export default function AppShell() {
         </div>
         <button
           onClick={() => void handleLogout()}
-          title={sidebarCollapsed ? copy.register.logout : undefined}
+          title={sidebarCompact ? copy.register.logout : undefined}
           className={cn(
             "relative flex w-full items-center justify-start rounded-lg border border-sidebar-border bg-sidebar-accent/30 px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            sidebarCollapsed && "px-2",
+            sidebarCompact && "px-2",
           )}
           type="button"
         >
-          <LogOut className={cn("h-4 w-4 shrink-0", sidebarCollapsed && "mx-auto")} />
+          <LogOut className={cn("h-4 w-4 shrink-0", sidebarCompact && "mx-auto")} />
           <span
-            aria-hidden={sidebarCollapsed}
+            aria-hidden={sidebarCompact}
             className={cn(
               "absolute left-9 whitespace-nowrap transition-[opacity,transform] duration-panel ease-standard",
-              sidebarCollapsed ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+              sidebarCompact ? "pointer-events-none translate-x-1 opacity-0" : "translate-x-0 opacity-100",
             )}
           >
             {copy.register.logout}
@@ -411,6 +458,7 @@ export default function AppShell() {
     <div className="flex h-[100dvh] overflow-hidden bg-kova-mist">
       <a
         href="#contenido-principal"
+        {...(drawerOpen ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLAnchorElement>) : {})}
         className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-kova-ink focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-kova-on-ink focus:shadow-kova-card"
       >
         {copy.app.skipToContent}
@@ -429,6 +477,13 @@ export default function AppShell() {
 
       {/* Sidebar — fixed on mobile, static on desktop */}
       <aside
+        ref={sidebarRef}
+        id="menu-de-navegacion"
+        tabIndex={-1}
+        role={drawerOpen ? "dialog" : undefined}
+        aria-label={drawerOpen ? copy.auth.accountNavigation : undefined}
+        aria-modal={drawerOpen ? true : undefined}
+        {...(!isDesktop && !sidebarOpen ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLElement>) : {})}
         className={cn(
           // Mobile off-canvas is transform-only: cheap, and ease-entrance rather
           // than ease-in-out because an ease-in start delays the moment the user
@@ -452,7 +507,10 @@ export default function AppShell() {
       </aside>
 
       {/* Main content */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+      <div
+        {...(drawerOpen ? ({ "aria-hidden": true, inert: "" } as React.HTMLAttributes<HTMLDivElement>) : {})}
+        className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background"
+      >
         {/* Mobile top bar */}
         <header className="flex items-center gap-2 border-b bg-background px-3 py-3 xl:hidden shrink-0">
           <button
@@ -460,6 +518,7 @@ export default function AppShell() {
             onClick={() => setSidebarOpen(true)}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
+            aria-controls="menu-de-navegacion"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border hover:bg-muted transition-colors"
           >
             <Menu className="h-5 w-5" />
@@ -516,7 +575,6 @@ export default function AppShell() {
           </Suspense>
         </div>
         <FirstUseTour />
-        <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} />
         <AssistantCompanion enabled={assistantEnabled} suspended={sidebarOpen || supportOpen} />
 
         {/* Bottom navigation — mobile only */}
@@ -549,6 +607,8 @@ export default function AppShell() {
             type="button"
             onClick={() => setSidebarOpen(true)}
             aria-label={copy.app.openMenu}
+            aria-expanded={sidebarOpen}
+            aria-controls="menu-de-navegacion"
             className="flex h-14 flex-col items-center justify-center gap-1 text-xs font-medium text-kova-muted hover:text-kova-ink transition-colors"
           >
             <Menu className="h-5 w-5" />
@@ -556,6 +616,10 @@ export default function AppShell() {
           </button>
         </nav>
       </div>
+      <SupportDialog open={supportOpen} onClose={() => {
+        setSupportOpen(false);
+        if (!isDesktop) drawerTriggerRef.current?.focus();
+      }} />
     </div>
   );
 

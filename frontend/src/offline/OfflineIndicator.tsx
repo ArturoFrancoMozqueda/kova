@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Wifi, WifiOff, CloudUpload, ShieldAlert } from "lucide-react";
+import { Wifi, WifiOff, CloudUpload, ShieldAlert, AlertCircle } from "lucide-react";
 import { copy } from "../i18n/messages";
 import { useIsOnline, useSyncQueue } from "./useSyncQueue";
 import { useAuth } from "@/auth/useAuth";
@@ -14,7 +14,9 @@ export function OfflineIndicator({
   const networkOnline = useIsOnline();
   const { state } = useAuth();
   const isOnline = networkOnline && !(state.status === "authenticated" && state.sessionMode === "offline");
-  const { pendingCount, quarantinedCount } = useSyncQueue();
+  const { pendingCount, failedEntries, quarantinedCount } = useSyncQueue();
+  const failedCount = failedEntries.length;
+  const needsReview = pendingCount > 0 || failedCount > 0 || quarantinedCount > 0;
 
   // Compact variant for the mobile top bar (light surface): connection state is
   // always visible so offline/queue status persists during POS, where the
@@ -26,7 +28,7 @@ export function OfflineIndicator({
         {isOnline ? (
           <span className="flex items-center gap-1.5 rounded-full bg-kova-growth/10 px-2.5 py-1.5 font-medium text-kova-growth" title={copy.register.online}>
             <Wifi className="h-4 w-4" aria-label={copy.register.online} />
-            {showOnlineLabel ? <span>Sincronizado</span> : null}
+            {showOnlineLabel ? <span>{needsReview ? "Conectado" : "Sincronizado"}</span> : null}
           </span>
         ) : (
           <span className="flex items-center gap-1 font-medium text-warning-strong">
@@ -42,6 +44,16 @@ export function OfflineIndicator({
           >
             <CloudUpload className="h-3.5 w-3.5" />
             <span className="tabular-nums">{pendingCount}</span>
+          </Link>
+        )}
+        {failedCount > 0 && (
+          <Link
+            to="/sync-queue"
+            aria-label={`${copy.syncQueue.failed}: ${failedCount}`}
+            className="flex items-center gap-1 rounded-md bg-destructive/10 px-1.5 py-0.5 font-medium text-destructive"
+          >
+            <AlertCircle className="h-3.5 w-3.5" />
+            <span className="tabular-nums">{failedCount}</span>
           </Link>
         )}
         {quarantinedCount > 0 && (
@@ -78,6 +90,16 @@ export function OfflineIndicator({
         >
           <CloudUpload className="h-3 w-3" />
           {copy.register.pendingSales(pendingCount)}
+        </Link>
+      )}
+      {failedCount > 0 && (
+        <Link
+          to="/sync-queue"
+          aria-label={`${copy.syncQueue.failed}: ${failedCount}`}
+          className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2 py-1 text-destructive hover:text-sidebar-foreground transition-colors"
+        >
+          <AlertCircle className="h-3 w-3" />
+          {copy.syncQueue.failed}: {failedCount}
         </Link>
       )}
       {quarantinedCount > 0 && (

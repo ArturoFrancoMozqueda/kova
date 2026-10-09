@@ -1,0 +1,509 @@
+{
+  "date": "2026-10-08",
+  "timezone": "America/Mexico_City",
+  "repository": "https://github.com/ArturoFrancoMozqueda/kova",
+  "baseline": "a18ba1e6b59752c73ed73b43bb3a1bb6b4ba2ef5",
+  "integration_branch": "codex/audit-verified",
+  "implementation_commit": "05798c492eba077a54cdfd53c3c4a514ea15bc4f",
+  "agents": 6,
+  "remediation_branches": [
+    {
+      "branch": "codex/audit-assistant-local-suggestions",
+      "tip": "3ece7c2b3c03844be785a0bd73be4a53e6da8eed",
+      "commits": [
+        "3ece7c2b3c03844be785a0bd73be4a53e6da8eed"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-assistant-local-suggestions"
+    },
+    {
+      "branch": "codex/audit-auth-expired-session",
+      "tip": "871be126573b1b00ba00cb001050039c3ed3b568",
+      "commits": [
+        "871be126573b1b00ba00cb001050039c3ed3b568"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-auth-expired-session"
+    },
+    {
+      "branch": "codex/audit-auth-password-byte-limit",
+      "tip": "856b1162541526430c0e35db26992914b41996d4",
+      "commits": [
+        "14829d57064c41485e1e1bf92622a5e93c929dd6",
+        "856b1162541526430c0e35db26992914b41996d4"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-auth-password-byte-limit"
+    },
+    {
+      "branch": "codex/audit-auth-refresh-race",
+      "tip": "7908f8febf9471497fa866c9865f336f9f1fac1e",
+      "commits": [
+        "7908f8febf9471497fa866c9865f336f9f1fac1e"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-auth-refresh-race"
+    },
+    {
+      "branch": "codex/audit-billing-payment-recovery",
+      "tip": "7a750e29a35fc20aa214e945a7c2d7f36e87170f",
+      "commits": [
+        "71c0df1d432a9eaa7468c55c6cad9627110f4db7",
+        "7a750e29a35fc20aa214e945a7c2d7f36e87170f"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-billing-payment-recovery"
+    },
+    {
+      "branch": "codex/audit-catalog-idempotency-target",
+      "tip": "115b09518ce4cc76655aa72d76c14f0a69112269",
+      "commits": [
+        "115b09518ce4cc76655aa72d76c14f0a69112269"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-catalog-idempotency-target"
+    },
+    {
+      "branch": "codex/audit-checkout-preserve-failed-sale-identity",
+      "tip": "82446406a330ae732064eac69dbd6658d7bdf0b8",
+      "commits": [
+        "b7c96dd405eec5b943927637858c40a221a9afee",
+        "82446406a330ae732064eac69dbd6658d7bdf0b8"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-checkout-preserve-failed-sale-identity"
+    },
+    {
+      "branch": "codex/audit-checkout-transient-sync-retry",
+      "tip": "6f31cb05091683ca3f6ac6ea76796cf34cf8d225",
+      "commits": [
+        "6f31cb05091683ca3f6ac6ea76796cf34cf8d225"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-checkout-transient-sync-retry"
+    },
+    {
+      "branch": "codex/audit-customer-orders-literal-search",
+      "tip": "e30f8a66620be30caf9f351a64f266086b2c30ec",
+      "commits": [
+        "e30f8a66620be30caf9f351a64f266086b2c30ec"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-customer-orders-literal-search"
+    },
+    {
+      "branch": "codex/audit-customer-orders-zero-total",
+      "tip": "c626096482e0b79235b3c04823d106ae24cebe79",
+      "commits": [
+        "c626096482e0b79235b3c04823d106ae24cebe79"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-customer-orders-zero-total"
+    },
+    {
+      "branch": "codex/audit-dev-dependency-patches",
+      "tip": "93f8a049efb008c3a46c7c21e6ccd4c2276fe3de",
+      "commits": [
+        "56c89210e555db21dc00633a1cd3e3f2cceec3e3",
+        "93f8a049efb008c3a46c7c21e6ccd4c2276fe3de"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-dev-dependency-patches"
+    },
+    {
+      "branch": "codex/audit-employee-permission-docs",
+      "tip": "d0fc286a8f0692cdc026ffcb8f020bcd41cae167",
+      "commits": [
+        "d0fc286a8f0692cdc026ffcb8f020bcd41cae167"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-employee-permission-docs"
+    },
+    {
+      "branch": "codex/audit-expense-business-dates",
+      "tip": "97a23a2cb3f2da8719225b725fe0154c0627011c",
+      "commits": [
+        "97a23a2cb3f2da8719225b725fe0154c0627011c"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-expense-business-dates"
+    },
+    {
+      "branch": "codex/audit-expense-period-race",
+      "tip": "695a5e0fdab0162e1e32023c3407b11a0e0980bc",
+      "commits": [
+        "695a5e0fdab0162e1e32023c3407b11a0e0980bc"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-expense-period-race"
+    },
+    {
+      "branch": "codex/audit-fast-uri-parser",
+      "tip": "56c89210e555db21dc00633a1cd3e3f2cceec3e3",
+      "commits": [
+        "56c89210e555db21dc00633a1cd3e3f2cceec3e3"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-fast-uri-parser"
+    },
+    {
+      "branch": "codex/audit-invitation-transient-recovery",
+      "tip": "c9b40ae8409133180e6f6615194342c8de99d868",
+      "commits": [
+        "c9b40ae8409133180e6f6615194342c8de99d868"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-invitation-transient-recovery"
+    },
+    {
+      "branch": "codex/audit-landing-lcp-preload",
+      "tip": "b17ebd97874b80ad1353b0c8da255b924332dd5c",
+      "commits": [
+        "b17ebd97874b80ad1353b0c8da255b924332dd5c"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-landing-lcp-preload"
+    },
+    {
+      "branch": "codex/audit-mobile-navigation",
+      "tip": "de163597c9b8afeec6eb02bec10a5b73fa1b26d6",
+      "commits": [
+        "de163597c9b8afeec6eb02bec10a5b73fa1b26d6"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-mobile-navigation"
+    },
+    {
+      "branch": "codex/audit-offline-batch-lease-recovery",
+      "tip": "7686c574707aefd9cfd0b1ef9efb47a312a4d3cc",
+      "commits": [
+        "7686c574707aefd9cfd0b1ef9efb47a312a4d3cc"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-offline-batch-lease-recovery"
+    },
+    {
+      "branch": "codex/audit-offline-failed-sale-indicator",
+      "tip": "047b33dcfaac994cb7c764572e944be60b6bdc20",
+      "commits": [
+        "047b33dcfaac994cb7c764572e944be60b6bdc20"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-offline-failed-sale-indicator"
+    },
+    {
+      "branch": "codex/audit-pwa-marketing-precache",
+      "tip": "f4be3cd4a2dee69520108c5dfedcdd7c5e38c3f4",
+      "commits": [
+        "f4be3cd4a2dee69520108c5dfedcdd7c5e38c3f4"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-pwa-marketing-precache"
+    },
+    {
+      "branch": "codex/audit-refund-integer-quantities",
+      "tip": "eefa74155932988b53367e7d73daff1600683442",
+      "commits": [
+        "eefa74155932988b53367e7d73daff1600683442"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-refund-integer-quantities"
+    },
+    {
+      "branch": "codex/audit-refund-remaining-quantities",
+      "tip": "c5fed719fd55cfba0e72865adcd8b187ed527bdb",
+      "commits": [
+        "c5fed719fd55cfba0e72865adcd8b187ed527bdb"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-refund-remaining-quantities"
+    },
+    {
+      "branch": "codex/audit-responsive-sidebar",
+      "tip": "67118795fb7ca7213faa3e67e4c73aa34c2c6ca5",
+      "commits": [
+        "de163597c9b8afeec6eb02bec10a5b73fa1b26d6",
+        "67118795fb7ca7213faa3e67e4c73aa34c2c6ca5"
+      ],
+      "url": "https://github.com/ArturoFrancoMozqueda/kova/tree/codex%2Faudit-responsive-sidebar"
+    }
+  ],
+  "production": {
+    "target": "https://kovasuite.com/",
+    "status": "blocked_by_environment_network_policy",
+    "connect_tunnel_status": 403,
+    "credentials_used": false,
+    "production_data_modified": false,
+    "production_deployed": false
+  },
+  "validation": {
+    "baseline_backend": {
+      "passed": 1214,
+      "duration_seconds": 662.86
+    },
+    "baseline_frontend": {
+      "passed": 802,
+      "failed": 2,
+      "total": 804,
+      "unchanged_isolated_rerun_passed": 18
+    },
+    "baseline_mocked_browser": {
+      "passed": 161,
+      "failed": 1,
+      "skipped": 12,
+      "unchanged_isolated_rerun_passed": 1
+    },
+    "final_frontend": {
+      "passed": 859,
+      "failed": 0,
+      "files": 150,
+      "clean_final_lock": true
+    },
+    "integrated_backend": {
+      "passed": 110,
+      "failed": 0
+    },
+    "integrated_mocked_browser": {
+      "passed": 48,
+      "failed": 0
+    },
+    "built_preview_browser": {
+      "passed": 14,
+      "failed": 0
+    },
+    "real_local_stack_with_rls": {
+      "passed": 4,
+      "failed": 0,
+      "runtime_tables_verified": 60
+    },
+    "typecheck": "passed",
+    "eslint": "passed",
+    "ruff_changed_files": "passed",
+    "build_ssr_prerender": "passed",
+    "openapi_export_check": "passed",
+    "frontend_api_contract": "passed",
+    "e2e_import_guard": "passed",
+    "release_contract": {
+      "passed": 24,
+      "skipped_windows_only": 1,
+      "failed": 0
+    },
+    "repository_contracts": {
+      "passed": 50,
+      "failed": 0
+    },
+    "bundle_secret_patterns": {
+      "files": 99,
+      "hits": 0
+    }
+  },
+  "dependencies": {
+    "runtime_findings": 0,
+    "total_before": 16,
+    "total_after": 10,
+    "all_remaining_dev_only": true,
+    "remaining_metadata": {
+      "branch": "codex/audit-dev-dependency-patches",
+      "parent": "56c89210e555db21dc00633a1cd3e3f2cceec3e3",
+      "before_count": 15,
+      "after_count": 10,
+      "runtime_count": 0,
+      "compatible_updates_only": true,
+      "force_used": false,
+      "exposure": "Development build/lint/test dependency tree; no observed production exploitation. Remaining fixes recommended by npm cross Vitest/Tailwind majors, outside this bounded patch.",
+      "remaining": [
+        {
+          "name": "@vitest/mocker",
+          "severity": "moderate",
+          "installed_versions": [
+            "3.2.7"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "vitest",
+            "version": "5.0.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [
+            {
+              "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
+              "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
+              "range": ">=2.1.0 <4.1.11"
+            }
+          ],
+          "propagated_from": []
+        },
+        {
+          "name": "braces",
+          "severity": "high",
+          "installed_versions": [
+            "3.0.3"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "tailwindcss",
+            "version": "4.3.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [
+            {
+              "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+              "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+              "range": "<=3.0.3"
+            }
+          ],
+          "propagated_from": []
+        },
+        {
+          "name": "chokidar",
+          "severity": "high",
+          "installed_versions": [
+            "3.6.0"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "tailwindcss",
+            "version": "4.3.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [],
+          "propagated_from": [
+            "braces"
+          ]
+        },
+        {
+          "name": "fast-glob",
+          "severity": "high",
+          "installed_versions": [
+            "3.3.3"
+          ],
+          "all_dev_only": true,
+          "fix": true,
+          "advisories": [],
+          "propagated_from": [
+            "micromatch"
+          ]
+        },
+        {
+          "name": "micromatch",
+          "severity": "high",
+          "installed_versions": [
+            "4.0.8"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "tailwindcss",
+            "version": "4.3.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [],
+          "propagated_from": [
+            "braces"
+          ]
+        },
+        {
+          "name": "postcss-nested",
+          "severity": "moderate",
+          "installed_versions": [
+            "6.2.0"
+          ],
+          "all_dev_only": true,
+          "fix": true,
+          "advisories": [],
+          "propagated_from": [
+            "postcss-selector-parser"
+          ]
+        },
+        {
+          "name": "postcss-selector-parser",
+          "severity": "moderate",
+          "installed_versions": [
+            "6.1.3"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "tailwindcss",
+            "version": "4.3.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [
+            {
+              "title": "PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion",
+              "url": "https://github.com/advisories/GHSA-rj75-hqrm-r3gf",
+              "range": "<7.1.6"
+            }
+          ],
+          "propagated_from": []
+        },
+        {
+          "name": "tailwindcss",
+          "severity": "high",
+          "installed_versions": [
+            "3.4.19"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "tailwindcss",
+            "version": "4.3.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [],
+          "propagated_from": [
+            "chokidar",
+            "fast-glob",
+            "micromatch",
+            "postcss-nested",
+            "postcss-selector-parser"
+          ]
+        },
+        {
+          "name": "tinypool",
+          "severity": "critical",
+          "installed_versions": [
+            "1.1.1"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "vitest",
+            "version": "5.0.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [
+            {
+              "title": "Tinypool: Prototype Pollution gadget in worker options leads to Remote Code Execution",
+              "url": "https://github.com/advisories/GHSA-5gmw-xhrv-c9v3",
+              "range": "<=2.1.0"
+            },
+            {
+              "title": "Tinypool: Prototype Pollution Gadget to RCE in run() options",
+              "url": "https://github.com/advisories/GHSA-85c8-ppgw-ccpr",
+              "range": "<2.1.2"
+            }
+          ],
+          "propagated_from": []
+        },
+        {
+          "name": "vitest",
+          "severity": "critical",
+          "installed_versions": [
+            "3.2.7"
+          ],
+          "all_dev_only": true,
+          "fix": {
+            "name": "vitest",
+            "version": "5.0.3",
+            "isSemVerMajor": true
+          },
+          "advisories": [
+            {
+              "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
+              "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
+              "range": ">=2.1.0 <4.1.11"
+            }
+          ],
+          "propagated_from": [
+            "@vitest/mocker",
+            "tinypool"
+          ]
+        }
+      ]
+    }
+  },
+  "open_items": [
+    {
+      "issue": "Production authenticated QA",
+      "blocker": "Environment denies kovasuite.com; allowlist change requested and pending."
+    },
+    {
+      "issue": "Split-payment refund contract",
+      "reproduction": "One item50 paid cash30+transfer20 cannot be refunded under single-method refund API and per-method caps; requires split-refund design."
+    },
+    {
+      "issue": "Remaining dev advisories",
+      "blocker": "Ten remaining package advisories/propagated findings; compatible patches applied, major Vitest/Tailwind migrations require compatibility work."
+    },
+    {
+      "issue": "External and device validation",
+      "scope": "No real Stripe purchase/cancellation, PAC/CFDI emission, inbox deliverability, paid inference/document services, physical terminals, iOS Safari, screen readers or production load/CDN measurements."
+    }
+  ],
+  "evidence_directory": "/workspace/kova-audit-evidence",
+  "note": "Suites overlap; counts must not be added to claim a unique total. Baseline timeouts and changed browser expectations are documented in the paired Markdown report."
+}

@@ -86,6 +86,20 @@ describe("floating Kova companion", () => {
     expect(screen.getByLabelText("Ubicación")).toHaveTextContent("/catalog?search=private-name");
     expect(window.localStorage.getItem("assistant-conversation")).toBeNull();
   });
+  it("offers and submits a supported catalog question without inference", async () => {
+    consent = true; localReady = true;
+    render(<Host />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir asistente Kova" }));
+    const question = await screen.findByRole("button", { name: "¿Cómo importar mi catálogo?" });
+    fireEvent.click(question);
+    expect(screen.getByRole("textbox", { name: "Tu pregunta" })).toHaveValue("¿Cómo importar mi catálogo?");
+    expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.method === "GET")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pregunta" }));
+    await waitFor(() => {
+      const request = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith("/messages"));
+      expect(JSON.parse(String(request?.[1]?.body))).toEqual({ content: "¿Cómo importar mi catálogo?" });
+    });
+  });
   it("allows direct questions when inference is unavailable", async () => {
     consent = true; localReady = true;
     render(<Host />);

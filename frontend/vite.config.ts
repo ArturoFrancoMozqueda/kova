@@ -120,6 +120,9 @@ export default defineConfig({
           "**/*greek*.woff2",
           "**/*vietnamese*.woff2",
           "**/og-image*.png",
+          // Landing-only screenshots and demo product photos do not support
+          // offline POS. Avoid downloading them on every app install/update.
+          "**/showcase/**",
         ],
         // The SPA navigation fallback is the EMPTY app-shell, not the
         // prerendered index.html (which is now the landing). app-shell.html is

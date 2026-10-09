@@ -1,11 +1,15 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { ToastProvider } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
 
-const access = vi.hoisted(() => ({ featureEnabled: true }));
+const access = vi.hoisted(() => ({ featureEnabled: true, timezone: "America/Mexico_City", timezoneResolved: true }));
+
+vi.mock("@/hooks/useTenantTimezone", () => ({
+  useTenantTimezone: () => ({ timezone: access.timezone, isResolved: access.timezoneResolved }),
+}));
 
 vi.mock("@/hooks/useDocumentTitle", () => ({ useDocumentTitle: () => {} }));
 vi.mock("@/auth/useFeature", () => ({ useFeature: () => access.featureEnabled }));
@@ -36,6 +40,8 @@ function renderView() {
 beforeEach(() => {
   vi.clearAllMocks();
   access.featureEnabled = true;
+  access.timezone = "America/Mexico_City";
+  access.timezoneResolved = true;
 });
 
 describe("ExpensesView", () => {
@@ -86,5 +92,80 @@ describe("ExpensesView", () => {
       expense_date: "2026-07-10",
       note: "Local",
     }));
+  });
+});
+
+
+describe("expense period request ordering", () => {
+  const expense = (note: string, amount: string) => ({
+    id: note, category: "servicios", amount, expense_date: "2026-07-10",
+    note, created_by_user_id: "user-1",
+    created_at: "2026-07-10T12:00:00Z", updated_at: "2026-07-10T12:00:00Z",
+  });
+
+  it("keeps the newest period when an earlier response arrives last", async () => {
+    let finishOld!: (rows: ReturnType<typeof expense>[]) => void;
+    (listExpenses as Mock).mockImplementationOnce(() => new Promise((resolve) => {
+      finishOld = resolve;
+    })).mockResolvedValue([expense("Periodo nuevo", "125.00")]);
+    renderView();
+    fireEvent.change(screen.getByLabelText(copy.expenses.endDate), {
+      target: { value: "2026-07-20" },
+    });
+    expect(await screen.findByText(/Periodo nuevo/)).toBeVisible();
+    await act(async () => { finishOld([expense("Periodo anterior", "900.00")]); });
+    expect(screen.queryByText(/Periodo anterior/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("$125.00")).toHaveLength(2);
+  });
+
+  it("ignores an old failure after the latest period loaded successfully", async () => {
+    let failOld!: (error: Error) => void;
+    (listExpenses as Mock).mockImplementationOnce(() => new Promise((_, reject) => {
+      failOld = reject;
+    })).mockResolvedValue([expense("Periodo nuevo", "125.00")]);
+    renderView();
+    fireEvent.change(screen.getByLabelText(copy.expenses.endDate), {
+      target: { value: "2026-07-20" },
+    });
+    expect(await screen.findByText(/Periodo nuevo/)).toBeVisible();
+    await act(async () => { failOld(new Error("old request failed")); });
+    expect(screen.queryByText(copy.expenses.loadError)).not.toBeInTheDocument();
+    expect(screen.getByText(/Periodo nuevo/)).toBeVisible();
+  });
+});
+
+afterEach(() => { vi.useRealTimers(); });
+
+describe("expense business dates", () => {
+  it.each([
+    ["America/Mexico_City", "2026-07-31", "2026-07-01"],
+    ["America/Tijuana", "2026-07-31", "2026-07-01"],
+    ["America/Cancun", "2026-08-01", "2026-08-01"],
+  ])("uses %s for the month filter and new expense date", async (timezone, today, monthStart) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-01T05:30:00Z"));
+    access.timezone = timezone;
+    (listExpenses as Mock).mockResolvedValue([]);
+    renderView();
+    await waitFor(() => expect(listExpenses).toHaveBeenCalledWith(monthStart, today));
+    expect(screen.getByLabelText(copy.expenses.startDate)).toHaveValue(monthStart);
+    expect(screen.getByLabelText(copy.expenses.endDate)).toHaveValue(today);
+    fireEvent.click(screen.getAllByRole("button", { name: /registrar gasto/i })[0]);
+    expect(screen.getByLabelText("Fecha del gasto")).toHaveValue(today);
+  });
+
+  it("waits for the configured timezone before fetching and preserves manual ranges", async () => {
+    access.timezoneResolved = false;
+    (listExpenses as Mock).mockResolvedValue([]);
+    const view = renderView();
+    expect(listExpenses).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /registrar gasto/i })).toBeDisabled();
+    access.timezoneResolved = true;
+    view.rerender(<MemoryRouter><ToastProvider><ExpensesView /></ToastProvider></MemoryRouter>);
+    await waitFor(() => expect(listExpenses).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText(copy.expenses.endDate), { target: { value: "2026-07-20" } });
+    view.rerender(<MemoryRouter><ToastProvider><ExpensesView /></ToastProvider></MemoryRouter>);
+    await waitFor(() => expect(listExpenses).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText(copy.expenses.endDate)).toHaveValue("2026-07-20");
   });
 });

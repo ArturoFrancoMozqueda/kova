@@ -84,6 +84,27 @@ describe("CustomerOrderCheckoutRegister", () => {
     api.getOpenShift.mockReset().mockResolvedValue({ id: "shift-1", status: "open" });
   });
 
+  it("allows checkout for an order whose total is zero", async () => {
+    api.getCustomerOrder.mockResolvedValue({ ...order, total_amount: "0.00", subtotal_amount: "0.00" });
+    api.getOpenShift.mockResolvedValue(null);
+    api.checkoutCustomerOrder.mockResolvedValue({
+      customer_order: { ...order, total_amount: "0.00", payment_status: "paid", sale_order_id: "sale-0", version: 2 },
+      sale_order: { id: "sale-0", total_amount: "0.00" },
+    });
+    api.getReceipt.mockRejectedValue(new Error("receipt unavailable"));
+    renderCheckout();
+
+    const charge = await screen.findByRole("button", { name: /cobrar \$0\.00/i });
+    await waitFor(() => expect(charge).toBeEnabled());
+    fireEvent.click(charge);
+    expect(await screen.findByRole("heading", { name: "Pedido cobrado" })).toBeVisible();
+    expect(api.checkoutCustomerOrder).toHaveBeenCalledWith(
+      order.id, order.version,
+      [expect.objectContaining({ method: "bank_transfer", amount: "0.00" })],
+      expect.any(String), undefined,
+    );
+  });
+
   it("blocks cash before submit when there is no open shift", async () => {
     api.getOpenShift.mockResolvedValue(null);
     renderCheckout();

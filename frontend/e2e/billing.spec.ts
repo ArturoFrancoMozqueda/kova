@@ -199,10 +199,18 @@ test("billing page shows past due recovery and return states", async ({ page }) 
 
   await expect(page.getByText(/estamos confirmando tu suscripci[óo]n/i).first()).toBeVisible();
   await expect(page.getByText(/no repitas el pago/i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
-    "href",
-    "mailto:posprojectsupport@gmail.com",
+  // A delayed checkout return and an existing unpaid subscription each need
+  // their own recovery contact. Both links intentionally coexist here.
+  const delayedConfirmation = page.getByText(/no repitas el pago/i);
+  const paymentRecovery = page.getByText(/tu suscripción tiene un pago pendiente/i).locator("..");
+  await expect(delayedConfirmation.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
+    "href", "mailto:posprojectsupport@gmail.com",
   );
+  await expect(paymentRecovery.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
+    "href", "mailto:posprojectsupport@gmail.com",
+  );
+  await expect(page.getByRole("link", { name: /contactar soporte/i })).toHaveCount(2);
+  await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
   await expect(page.getByText(/pago vencido\. recupera la suscripci[óo]n para mantener acceso sin interrupciones/i)).toBeVisible();
   await expect(page.getByText(/fin del periodo de gracia/i)).toBeVisible();
 });
@@ -244,3 +252,34 @@ test("billing page hides data without billing permission", async ({ page }) => {
   await expect(page.getByText(/suscripci[óo]n no disponible para tu rol/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Standard Plan" })).toHaveCount(0);
 });
+
+
+for (const status of ["past_due", "unpaid"] as const) {
+  test(`billing recovers the existing ${status} subscription without new checkout`, async ({ page }) => {
+    await mockAuthAs(page, "owner");
+    await page.route("**/api/v1/billing/subscription", async (route) => {
+      await route.fulfill({ json: {
+        plan,
+        subscription: { ...activeSubscription, status },
+        access: { ...activeAccess, allowed: false, reason: status },
+      } });
+    });
+    let checkoutRequests = 0;
+    await page.route("**/api/v1/billing/checkout", async (route) => {
+      checkoutRequests += 1;
+      await route.fulfill({ status: 400, json: { detail: "Existing live subscription" } });
+    });
+
+    await page.goto("/settings/billing");
+
+    const paymentRecovery = page.getByText(/tu suscripción tiene un pago pendiente/i).locator("..");
+    await expect(paymentRecovery).toBeVisible();
+    await expect(paymentRecovery.getByRole("link", { name: /contactar soporte/i })).toHaveAttribute(
+      "href", "mailto:posprojectsupport@gmail.com",
+    );
+    await expect(page.getByText(status === "past_due" ? "Vencido" : "Sin pagar", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /activar por/i })).toHaveCount(0);
+    await expect(page.getByText(/tu suscripción está activa/i)).toHaveCount(0);
+    expect(checkoutRequests).toBe(0);
+  });
+}

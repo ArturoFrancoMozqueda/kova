@@ -101,7 +101,7 @@ export function RefundModal({ items, disabled, fieldsLocked = false, onCancel, o
                   value={quantities[item.id] ?? 0}
                   onChange={(event) => {
                     const raw = Number(event.target.value);
-                    const clamped = Math.max(0, Math.min(item.quantity, Number.isFinite(raw) ? raw : 0));
+                    const clamped = Math.max(0, Math.min(item.quantity, Number.isFinite(raw) ? Math.floor(raw) : 0));
                     setQuantities((current) => ({
                       ...current,
                       [item.id]: clamped,

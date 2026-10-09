@@ -12,15 +12,15 @@ import { AssistantComposer, AssistantConversation, AssistantUsage, AssistantWelc
 // Only presentation uses the route. Never send DOM, URLs, query parameters or
 // unseen page data as model context. Suggestions are explicit user questions.
 const surfaces = [
-  { paths: ["/register", "/caja"], title: "Caja", suggestion: "¿Cómo preparo mi negocio para registrar una venta?" },
-  { paths: ["/catalog", "/catalogo"], title: "Catálogo", suggestion: "Ayúdame a organizar mis productos y categorías" },
-  { paths: ["/inventory", "/inventario"], title: "Inventario", suggestion: "¿Qué productos necesitan mi atención?" },
-  { paths: ["/reports", "/reportes"], title: "Análisis", suggestion: "Revisa mis ventas de este mes" },
-  { paths: ["/settings"], title: "Configuración", suggestion: "Ayúdame a configurar el perfil y ticket de mi negocio" },
-  { paths: ["/orders", "/ventas", "/ordenes"], title: "Ventas", suggestion: "¿Cómo puedo revisar los resultados de mis ventas?" },
-  { paths: ["/shifts", "/turnos"], title: "Turnos", suggestion: "¿Qué debo revisar antes de cerrar mi turno?" },
+  { paths: ["/register", "/caja"], title: "Caja", localSuggestion: "¿Cómo registrar una venta?", suggestion: "¿Cómo preparo mi negocio para registrar una venta?" },
+  { paths: ["/catalog", "/catalogo"], title: "Catálogo", localSuggestion: "¿Cómo importar mi catálogo?", suggestion: "Ayúdame a organizar mis productos y categorías" },
+  { paths: ["/inventory", "/inventario"], title: "Inventario", localSuggestion: "¿Qué productos debo reponer?", suggestion: "¿Qué productos necesitan mi atención?" },
+  { paths: ["/reports", "/reportes"], title: "Análisis", localSuggestion: "Revisa mis ventas de este mes", suggestion: "Revisa mis ventas de este mes" },
+  { paths: ["/settings"], title: "Configuración", localSuggestion: "¿Dónde configuro el ticket?", suggestion: "Ayúdame a configurar el perfil y ticket de mi negocio" },
+  { paths: ["/orders", "/ventas", "/ordenes"], title: "Ventas", localSuggestion: "Revisa mis ventas de este mes", suggestion: "¿Cómo puedo revisar los resultados de mis ventas?" },
+  { paths: ["/shifts", "/turnos"], title: "Turnos", localSuggestion: "¿Cómo cerrar un turno?", suggestion: "¿Qué debo revisar antes de cerrar mi turno?" },
 ];
-const fallback = { title: "Tu negocio", suggestion: "Revisa mis ventas, productos más vendidos e inventario. ¿Qué debería atender?" };
+const fallback = { title: "Tu negocio", localSuggestion: "Revisa mis ventas de este mes", suggestion: "Revisa mis ventas, productos más vendidos e inventario. ¿Qué debería atender?" };
 
 export function AssistantCompanion({ enabled, suspended = false }: { enabled: boolean; suspended?: boolean }) {
   const { state } = useAuth();
@@ -164,7 +164,7 @@ function CompanionSession({ identity, tenantName, suspended }: { identity: Ident
         <Link to={fullPath} onClick={() => setOpen(false)} aria-label="Ampliar conversación" className="flex h-11 w-11 items-center justify-center rounded-kova-md text-kova-muted hover:bg-kova-mist focus-visible:outline-kova-blue"><ArrowUpRight size={18} /></Link>
         <Button size="icon" variant="ghost" aria-label="Cerrar asistente" onClick={close} className="text-kova-muted"><X /></Button>
       </header>
-      <AssistantConversation compact messages={messages} run={run} busy={busy} onCancel={() => void act(async () => { if (!run) return; const result = await api<Resource>(`/runs/${run.id}/cancel`, "POST"); if (alive.current) setRun(result); })} empty={caps?.enabled && prefs ? <AssistantWelcome compact disabled={busy || generating} suggestion={surface.suggestion} onSuggestion={text => { setQuestion(text); document.getElementById(`${panelId}-question`)?.focus(); }} /> : null}>
+      <AssistantConversation compact messages={messages} run={run} busy={busy} onCancel={() => void act(async () => { if (!run) return; const result = await api<Resource>(`/runs/${run.id}/cancel`, "POST"); if (alive.current) setRun(result); })} empty={caps?.enabled && prefs ? <AssistantWelcome compact disabled={busy || generating} suggestion={caps.inference_ready ? surface.suggestion : surface.localSuggestion} onSuggestion={text => { setQuestion(text); document.getElementById(`${panelId}-question`)?.focus(); }} /> : null}>
         {error ? <p role="alert" className="text-sm text-kova-danger">{error}</p> : null}
         {!caps || !prefs ? <p role="status" className="py-4 text-sm text-kova-muted">Cargando el asistente…</p> : !caps.enabled ? <p className="text-sm">El asistente aún no está habilitado para este negocio.</p> : <>
           {run?.data.proposal_id ? <p className="rounded-kova-md bg-kova-mist p-3 text-sm leading-6">Preparé una propuesta. Abre el asistente completo para revisar y confirmar cada cambio.</p> : null}

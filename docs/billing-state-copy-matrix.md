@@ -92,3 +92,11 @@ official support link.
   + backend response), then `bannerForAccess` in `BillingBanner.tsx`, then the i18n keys.
 - **Recovery path:** override on a per-state basis via `access.recovery_path` from the
   backend. Default is `/settings/billing`.
+
+## Existing subscription with a pending payment
+
+For Stripe `past_due` and `unpaid`, the billing page must not offer a new
+checkout: the backend considers both live subscriptions and rejects duplicates.
+Show the pending-payment recovery explanation and the official support link
+while retaining the actual subscription/access status. Recovery applies to the
+existing subscription; it does not assert that the subscription is active.

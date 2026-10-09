@@ -115,7 +115,15 @@ def create_session(
 
 
 def get_session_by_refresh_hash(db: Session, token_hash: str) -> UserSession | None:
-    return db.query(UserSession).filter(UserSession.refresh_token_hash == token_hash).first()
+    # Rotation consumes this hash once. Hold the row until the caller commits
+    # so a concurrent refresh cannot mint another pair from the same token.
+    # PostgreSQL rechecks the hash after waiting for the winning transaction.
+    return (
+        db.query(UserSession)
+        .filter(UserSession.refresh_token_hash == token_hash)
+        .with_for_update()
+        .first()
+    )
 
 
 def get_session_by_id(db: Session, session_id: UUID) -> UserSession | None:

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { copy } from "../i18n/messages";
 import { login, signup, verifyEmail, ApiError } from "./api";
+import { passwordExceedsByteLimit } from "./passwordRules";
 import { useAuth } from "./useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,7 +94,7 @@ function signupValidationFailures(error: ApiError): SignupValidationFailure[] {
           ? "required"
           : detail.type === "string_too_short"
             ? "too_short"
-            : detail.type === "string_too_long"
+            : detail.type === "string_too_long" || detail.type === "password_too_long"
               ? "too_long"
               : field === "email"
                 ? "invalid_format"
@@ -222,6 +223,14 @@ export default function AuthView({ mode }: { mode: AuthMode }) {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (mode === "signup" && passwordExceedsByteLimit(password)) {
+      setSignupFieldErrors({ password: copy.auth.signupPasswordTooLong });
+      setErrorMessage(copy.auth.signupValidationSummary);
+      setState("error");
+      void trackSignupValidationFailed("password", "too_long");
+      document.getElementById("password")?.focus();
+      return;
+    }
     setSignupFieldErrors({});
     setState("submitting");
     try {
