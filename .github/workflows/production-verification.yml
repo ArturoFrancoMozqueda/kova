@@ -1,0 +1,38 @@
+name: Production verification
+
+on:
+  push:
+    branches: [codex/production-verification]
+    paths: [.github/workflows/production-verification.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify published Kova release
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    environment:
+      name: production
+      url: https://kovasuite.com
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+      - name: Verify site, frontend/backend release, database and API proxy
+        run: >-
+          node frontend/scripts/verify-deployment.mjs
+          --frontend https://kovasuite.com
+          --backend https://api.kovasuite.com
+          --sha "$EXPECTED_RELEASE_SHA"
+        env:
+          EXPECTED_RELEASE_SHA: a18ba1e6b59752c73ed73b43bb3a1bb6b4ba2ef5
