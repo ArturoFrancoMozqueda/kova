@@ -328,6 +328,14 @@ test("mobile fiscal setup saves a pending request without claiming CFDI issuance
   page,
 }) => {
   await shell(page);
+  await page.route("**/api/v1/integrations/cfdi/setup", (route) =>
+    route.fulfill({ json: {
+      available: false, state: "not_started", issuer: null,
+      organization_created: false, test_connected: false, live_connected: false,
+      production_ready: false, certificate_expires_at: null,
+      last_error_code: null, manifest_url: null,
+    } }),
+  );
   await page.route("**/api/v1/integrations/cfdi/status", (route) =>
     route.fulfill({
       json: {
@@ -511,7 +519,7 @@ test("manager sees fiscal readiness but cannot create requests or expose recipie
   await noOverflow(page);
 });
 
-test("mobile CFDI Test connects, corrects receiver, previews and reconciles one pending document", async ({
+test("mobile CFDI Test activates in Kova, corrects receiver, previews and reconciles one pending document", async ({
   page,
 }) => {
   await shell(page);
@@ -625,14 +633,17 @@ test("mobile CFDI Test connects, corrects receiver, previews and reconciles one 
       },
     }),
   );
-  await page.route("**/api/v1/integrations/cfdi/connection", async (route) => {
-    expect(route.request().method()).toBe("PUT");
-    expect(route.request().postDataJSON()).toEqual({
-      environment: "test",
-      api_key: "mock-organization-test",
-    });
-    connected = true;
-    await route.fulfill({ json: connection });
+  await page.route("**/api/v1/integrations/cfdi/setup", async (route) => {
+    if (route.request().method() === "POST") {
+      expect(route.request().postDataJSON()).toEqual({ issuer });
+      connected = true;
+    }
+    await route.fulfill({ json: {
+      available: true, state: connected ? "configured" : "not_started", issuer,
+      organization_created: connected, test_connected: connected, live_connected: false,
+      production_ready: false, certificate_expires_at: null,
+      last_error_code: null, manifest_url: null,
+    } });
   });
   await page.route(
     `**/api/v1/integrations/cfdi/requests/${requestId}/context`,
@@ -712,18 +723,16 @@ test("mobile CFDI Test connects, corrects receiver, previews and reconciles one 
   await page.goto("/settings/integrations");
   await expect(page.getByLabel("Ambiente fiscal")).toHaveValue("test");
   await expect(
-    page.getByText("Pruebas · Sin validez fiscal", { exact: true }),
+    page.getByText("Los documentos Test no tienen validez fiscal.", { exact: true }),
   ).toBeVisible();
-  const secret = page.getByLabel("Llave de organización Test");
-  await expect(secret).toHaveAttribute("type", "password");
-  await secret.fill("mock-organization-test");
+  await expect(page.getByLabel("Llave de organización Test")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Guardar conexión", exact: true })
+    .getByRole("button", { name: "Activar facturación", exact: true })
     .click();
   await expect(
-    page.getByText("Organización conectada · RFC EKU9003173C9"),
+    page.getByText("Conexión Test disponible", { exact: true }),
   ).toBeVisible();
-  await expect(secret).toHaveValue("");
+  await expect(page.getByText("4. Emisión Live · Pendiente")).toBeVisible();
   await page
     .getByRole("button", { name: "Preparar emisión", exact: true })
     .click();
@@ -791,5 +800,80 @@ test("mobile CFDI Test connects, corrects receiver, previews and reconciles one 
       ),
     ),
   ).toBe(false);
+  await noOverflow(page);
+});
+
+test("mobile managed CFDI clears CSD inputs on failure and verifies authorization before Live readiness", async ({ page }) => {
+  await shell(page);
+  const issuer = { rfc: "EKU9003173C9", legal_name: "Panadería Aurora", postal_code: "06000", tax_regime: "601" };
+  let productionReady = false;
+  let certificateUploads = 0;
+  let manifestRequests = 0;
+  const setup = () => ({
+    available: true, state: "configured", issuer,
+    organization_created: true, test_connected: true, live_connected: true,
+    production_ready: productionReady,
+    certificate_expires_at: productionReady ? "2099-01-01T00:00:00Z" : null,
+    last_error_code: null, manifest_url: "https://www.facturapi.io/embedded/manifiesto",
+  });
+  await page.route("**/api/v1/integrations/readiness", (route) => route.fulfill({ json: {
+    cfdi_status: "live_not_ready", terminal_status: "not_connected",
+    can_issue_cfdi: false, can_charge_terminal: false, issuer, validation_scope: "format_only",
+  } }));
+  await page.route(/\/api\/v1\/orders\?/, (route) => route.fulfill({ json: { items: [], total: 0 } }));
+  await page.route("**/api/v1/integrations/invoice-requests", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/integrations/cfdi/documents", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/v1/integrations/cfdi/status", (route) => route.fulfill({ json: {
+    provider: "facturapi", storage_available: true,
+    connections: [{ environment: "live", organization_id: "synthetic-org", connected: true,
+      issuer_rfc: issuer.rfc, production_ready: productionReady,
+      certificate_expires_at: productionReady ? "2099-01-01T00:00:00Z" : null }],
+  } }));
+  await page.route("**/api/v1/integrations/cfdi/setup", (route) => route.fulfill({ json: setup() }));
+  await page.route("**/api/v1/integrations/cfdi/setup/refresh", (route) => {
+    expect(route.request().method()).toBe("POST");
+    productionReady = true;
+    return route.fulfill({ json: setup() });
+  });
+  await page.route("**/api/v1/integrations/cfdi/setup/certificate", (route) => {
+    const request = route.request();
+    expect(request.headers()["content-type"]).toMatch(/^multipart\/form-data; boundary=/);
+    const body = request.postDataBuffer()!.toString("utf-8");
+    expect(body).toContain('name="cer"; filename="csd.cer"');
+    expect(body).toContain('name="key"; filename="csd.key"');
+    expect(body).toContain('name="password"');
+    expect(body).toContain("synthetic-csd-password");
+    certificateUploads += 1;
+    return route.fulfill({ status: 503, json: { detail: "synthetic-csd-password upstream private payload" } });
+  });
+  await page.route("https://www.facturapi.io/embedded/manifiesto", (route) => {
+    manifestRequests += 1;
+    return route.fulfill({ contentType: "text/html", body: "<!doctype html><html lang='es'><title>Autorización</title><body>Manifiesto de prueba</body></html>" });
+  });
+  await page.goto("/settings/integrations");
+  await expect(page.getByLabel("Contraseña del CSD")).toBeVisible();
+  await expect(page.getByLabel("Llave de organización Test")).toHaveCount(0);
+  expect(manifestRequests).toBe(0);
+  await page.getByLabel("Certificado CSD (.cer)").setInputFiles({ name: "csd.cer", mimeType: "application/octet-stream", buffer: Buffer.from("synthetic certificate") });
+  await page.getByLabel("Llave privada CSD (.key)").setInputFiles({ name: "csd.key", mimeType: "application/octet-stream", buffer: Buffer.from("synthetic key") });
+  await page.getByLabel("Contraseña del CSD").fill("synthetic-csd-password");
+  await page.getByRole("button", { name: "Enviar CSD" }).click();
+  await expect(page.getByRole("alert")).toContainText("No pudimos confirmar");
+  await expect(page.getByLabel("Contraseña del CSD")).toHaveValue("");
+  expect(await page.getByLabel("Certificado CSD (.cer)").evaluate((input: HTMLInputElement) => input.files?.length)).toBe(0);
+  expect(await page.getByLabel("Llave privada CSD (.key)").evaluate((input: HTMLInputElement) => input.files?.length)).toBe(0);
+  await expect(page.getByText(/upstream private payload/)).toHaveCount(0);
+  await expect(page.getByText("4. Emisión Live · Pendiente")).toBeVisible();
+  expect(certificateUploads).toBe(1);
+  await page.getByRole("button", { name: "Revisar autorización fiscal" }).click();
+  await expect(page.getByTitle("Manifiesto de autorización fiscal")).toBeVisible();
+  expect(manifestRequests).toBe(1);
+  await page.getByRole("button", { name: "Cerrar autorización" }).click();
+  await expect(page.getByText("4. Emisión Live · Pendiente")).toBeVisible();
+  await page.getByRole("button", { name: "Consultar estado de activación" }).click();
+  await expect(page.getByText("4. Emisión Live · Lista")).toBeVisible();
+  await page.getByLabel("Ambiente fiscal").selectOption("live");
+  await expect(page.getByText("Emisión Live lista", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => [localStorage, sessionStorage].some((storage) => Object.values(storage).some((value) => value.includes("synthetic-csd-password"))))).toBe(false);
   await noOverflow(page);
 });

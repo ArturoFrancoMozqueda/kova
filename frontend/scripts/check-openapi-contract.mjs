@@ -69,6 +69,12 @@ expectStatus("/api/v1/internal/ops/mfa/status", "get", "200");
 expectStatus("/api/v1/internal/ops/mfa/setup", "post", "200");
 expectStatus("/api/v1/internal/ops/mfa/confirm", "post", "200");
 expectStatus("/api/v1/internal/ops/mfa/verify", "post", "200");
+expectProperties("SetupResponse", ["available", "state", "issuer", "organization_created",
+  "test_connected", "live_connected", "production_ready", "certificate_expires_at", "manifest_url"]);
+expectStatus("/api/v1/integrations/cfdi/setup", "get", "200");
+expectStatus("/api/v1/integrations/cfdi/setup", "post", "200");
+expectStatus("/api/v1/integrations/cfdi/setup/refresh", "post", "200");
+expectStatus("/api/v1/integrations/cfdi/setup/certificate", "post", "200");
 expectStatus("/api/v1/integrations/cfdi/status", "get", "200");
 expectStatus("/api/v1/integrations/cfdi/connection", "put", "200");
 expectStatus("/api/v1/integrations/cfdi/preview", "post", "200");

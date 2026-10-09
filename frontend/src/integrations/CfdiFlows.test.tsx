@@ -15,6 +15,7 @@ import {
   connectCfdi,
   downloadCfdi,
   getCfdiStatus,
+  getManagedCfdiSetup,
   getInvoiceContext,
   issueCfdi,
   listCfdiDocuments,
@@ -26,11 +27,13 @@ import {
   type InvoicePreview,
 } from "./cfdiApi";
 
-vi.mock("./cfdiApi", () => ({
+vi.mock("./cfdiApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./cfdiApi")>()),
   cancelCfdi: vi.fn(),
   connectCfdi: vi.fn(),
   downloadCfdi: vi.fn(),
   getCfdiStatus: vi.fn(),
+  getManagedCfdiSetup: vi.fn(),
   getInvoiceContext: vi.fn(),
   issueCfdi: vi.fn(),
   listCfdiDocuments: vi.fn(),
@@ -128,6 +131,12 @@ const document: CfdiDocument = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getCfdiStatus).mockResolvedValue(status);
+  vi.mocked(getManagedCfdiSetup).mockResolvedValue({
+    available: true, state: "configured", issuer: identity,
+    organization_created: true, test_connected: true, live_connected: false,
+    production_ready: false, certificate_expires_at: null,
+    last_error_code: null, manifest_url: null,
+  });
   vi.mocked(listCfdiDocuments).mockResolvedValue([]);
   vi.mocked(getInvoiceContext).mockResolvedValue(context);
   vi.mocked(previewCfdi).mockImplementation(async (body) => ({

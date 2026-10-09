@@ -76,6 +76,8 @@ class Settings(BaseSettings):
     # Dedicated encryption root for tenant-scoped provider organization keys.
     # Provision once in the host secret store; never derive from auth or put in DB.
     kova_cfdi_credentials_key: SecretStr | None = None
+    # Kova account credential: organization provisioning only; never sent to tenants.
+    kova_facturapi_user_key: SecretStr | None = None
     kova_cfdi_enabled: bool = True
     kova_cfdi_timeout_seconds: int = Field(default=20, ge=5, le=30)
     account_deletion_grace_days: int = 30

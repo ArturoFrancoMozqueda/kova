@@ -10035,6 +10035,114 @@
         "title": "SetProductModifierGroups",
         "type": "object"
       },
+      "SetupInput": {
+        "additionalProperties": false,
+        "properties": {
+          "issuer": {
+            "$ref": "#/components/schemas/FiscalIdentity"
+          }
+        },
+        "required": [
+          "issuer"
+        ],
+        "title": "SetupInput",
+        "type": "object"
+      },
+      "SetupResponse": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "certificate_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certificate Expires At"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FiscalIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Code"
+          },
+          "live_connected": {
+            "title": "Live Connected",
+            "type": "boolean"
+          },
+          "manifest_url": {
+            "anyOf": [
+              {
+                "const": "https://www.facturapi.io/embedded/manifiesto",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Url"
+          },
+          "organization_created": {
+            "title": "Organization Created",
+            "type": "boolean"
+          },
+          "production_ready": {
+            "title": "Production Ready",
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "creating",
+              "unknown",
+              "configured",
+              "error",
+              "legacy"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "test_connected": {
+            "title": "Test Connected",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available",
+          "state",
+          "issuer",
+          "organization_created",
+          "test_connected",
+          "live_connected",
+          "production_ready",
+          "certificate_expires_at",
+          "last_error_code",
+          "manifest_url"
+        ],
+        "title": "SetupResponse",
+        "type": "object"
+      },
       "ShareWrite": {
         "additionalProperties": false,
         "properties": {
@@ -17681,6 +17789,108 @@
           }
         },
         "summary": "Context",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/setup": {
+      "get": {
+        "operationId": "setup_status_api_v1_integrations_cfdi_setup_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Setup Status",
+        "tags": [
+          "cfdi"
+        ]
+      },
+      "post": {
+        "operationId": "setup_activate_api_v1_integrations_cfdi_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Setup Activate",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/setup/certificate": {
+      "post": {
+        "operationId": "setup_certificate_api_v1_integrations_cfdi_setup_certificate_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Setup Certificate",
+        "tags": [
+          "cfdi"
+        ]
+      }
+    },
+    "/api/v1/integrations/cfdi/setup/refresh": {
+      "post": {
+        "operationId": "setup_refresh_api_v1_integrations_cfdi_setup_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Setup Refresh",
         "tags": [
           "cfdi"
         ]

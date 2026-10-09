@@ -1,14 +1,15 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.auth.models import Membership, User, UserSession
 from app.billing.access import require_commercial_access
-from app.cfdi import service
+from app.cfdi import service, setup
 from app.cfdi.schemas import (
     CancellationInput,
     ConnectionInput,
@@ -19,9 +20,12 @@ from app.cfdi.schemas import (
     EnvironmentInput,
     InvoicePreparation,
     PreviewResponse,
+    SetupInput,
+    SetupResponse,
     StatusResponse,
 )
 from app.db import get_db
+from app.middleware.rate_limit import rate_limit
 from app.rbac.permissions import Permission
 from app.shared.exceptions import bad_request
 
@@ -150,3 +154,44 @@ def xml(document_id: UUID, db: Session = Depends(get_db), ctx: Context = Auth):
 def pdf(document_id: UUID, db: Session = Depends(get_db), ctx: Context = Auth):
     document, content = service.pdf(db, ctx[1].tenant_id, document_id)
     return _download(document, content, "pdf", "application/pdf")
+
+
+@router.get("/setup", response_model=SetupResponse)
+def setup_status(db: Session = Depends(get_db), ctx: Context = Auth):
+    return setup.status(db, ctx[1].tenant_id)
+
+
+@router.post(
+    "/setup", response_model=SetupResponse, dependencies=[Depends(rate_limit(5, key="cfdi-setup"))]
+)
+def setup_activate(body: SetupInput, db: Session = Depends(get_db), ctx: Context = Auth):
+    return setup.activate(db, ctx[1].tenant_id, ctx[0].id, body.issuer)
+
+
+@router.post(
+    "/setup/refresh",
+    response_model=SetupResponse,
+    dependencies=[Depends(rate_limit(10, key="cfdi-setup-refresh"))],
+)
+def setup_refresh(db: Session = Depends(get_db), ctx: Context = Auth):
+    return setup.refresh(db, ctx[1].tenant_id, ctx[0].id)
+
+
+@router.post(
+    "/setup/certificate",
+    response_model=SetupResponse,
+    dependencies=[Depends(rate_limit(5, key="cfdi-certificate"))],
+)
+async def setup_certificate(request: Request, db: Session = Depends(get_db), ctx: Context = Auth):
+    from app.cfdi.uploads import read_certificate
+
+    cer, key, password = await read_certificate(request)
+    return await run_in_threadpool(
+        setup.upload_certificate,
+        db,
+        ctx[1].tenant_id,
+        ctx[0].id,
+        cer,
+        key,
+        password,
+    )

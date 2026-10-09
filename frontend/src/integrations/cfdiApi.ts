@@ -15,6 +15,47 @@ export type CfdiStatus = {
   storage_available: boolean;
   connections: CfdiConnection[];
 };
+export type ManagedCfdiSetup = {
+  available: boolean;
+  state: "not_started" | "creating" | "unknown" | "configured" | "error" | "legacy";
+  issuer: FiscalIdentity | null;
+  organization_created: boolean;
+  test_connected: boolean;
+  live_connected: boolean;
+  production_ready: boolean;
+  certificate_expires_at: string | null;
+  last_error_code: string | null;
+  manifest_url: "https://www.facturapi.io/embedded/manifiesto" | null;
+};
+// These are fixed public validation messages from the managed setup backend.
+// Never forward arbitrary provider details, which can contain fiscal secrets.
+const managedPublicErrors = new Set([
+  "El archivo .cer debe pesar hasta 64 KB.",
+  "El archivo .key debe pesar hasta 64 KB.",
+  "La contraseña del CSD debe tener entre 1 y 256 caracteres.",
+  "Revisa la contraseña del CSD.",
+  "Configura primero el RFC del negocio.",
+  "No se pudo leer el certificado .cer.",
+  "El certificado CSD todavía no está vigente.",
+  "El certificado CSD está vencido. Carga uno vigente.",
+  "El RFC del certificado debe coincidir con el RFC del negocio.",
+  "Carga tu Certificado de Sello Digital (CSD), no tu e.firma.",
+  "No se pudo abrir el .key. Revisa el archivo y su contraseña.",
+  "El archivo .key debe corresponder al certificado CSD .cer.",
+  "La razón social debe tener como máximo 100 caracteres para facturación",
+  "La activación fiscal está en curso; espera y actualiza su estado",
+  "Activa primero la facturación de tu negocio",
+  "La conexión fiscal existente requiere una migración asistida",
+  "El RFC de una organización fiscal activada no puede reemplazarse",
+  "La activación cambió; actualiza su estado antes de continuar",
+  "La activación de facturación de Kova aún no está disponible",
+]);
+const fiscalError = "No pudimos completar la operación fiscal. Revisa el estado antes de reintentar.";
+export class ManagedCfdiError extends Error {
+  constructor(message: string) {
+    super(managedPublicErrors.has(message) ? message : fiscalError);
+  }
+}
 export type TaxKind = "iva16" | "iva8" | "iva0" | "exempt" | "not_subject";
 export type PaymentForm = "01" | "03" | "04" | "28";
 export type InvoiceContext = {
@@ -105,7 +146,9 @@ async function apiClient(path: string, init?: RequestInit): Promise<Response> {
     credentials: "same-origin",
     cache: "no-store",
     headers: {
-      "Content-Type": "application/json",
+      ...(init?.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       ...csrfHeaders(init?.method),
       ...init?.headers,
     },
@@ -114,10 +157,18 @@ async function apiClient(path: string, init?: RequestInit): Promise<Response> {
     const data: { detail?: unknown } | null = await response
       .json()
       .catch(() => null);
+    if (path === "setup" || path.startsWith("setup/")) {
+      if (
+        [400, 409].includes(response.status) &&
+        typeof data?.detail === "string" &&
+        managedPublicErrors.has(data.detail)
+      ) throw new ManagedCfdiError(data.detail);
+      throw new Error(fiscalError);
+    }
     throw new Error(
       typeof data?.detail === "string"
         ? data.detail
-        : "No pudimos completar la operación fiscal. Revisa el estado antes de reintentar.",
+        : fiscalError,
     );
   }
   return response;
@@ -133,6 +184,22 @@ function post<T>(path: string, body: unknown, key?: string): Promise<T> {
   });
 }
 export const getCfdiStatus = () => json<CfdiStatus>("status");
+export const getManagedCfdiSetup = () => json<ManagedCfdiSetup>("setup");
+export const startManagedCfdiSetup = (issuer: FiscalIdentity) =>
+  post<ManagedCfdiSetup>("setup", { issuer });
+export const refreshManagedCfdiSetup = () =>
+  json<ManagedCfdiSetup>("setup/refresh", { method: "POST" });
+export const uploadCfdiCertificate = (
+  cer: File,
+  key: File,
+  password: string,
+) => {
+  const body = new FormData();
+  body.append("cer", cer);
+  body.append("key", key);
+  body.append("password", password);
+  return json<ManagedCfdiSetup>("setup/certificate", { method: "POST", body });
+};
 export const connectCfdi = (environment: CfdiEnvironment, api_key: string) =>
   json<CfdiConnection>("connection", {
     method: "PUT",

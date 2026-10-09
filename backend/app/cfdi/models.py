@@ -134,3 +134,26 @@ class CfdiDocument(BranchScoped, Base):
             "email": customer["email"],
             "cfdi_use": self.payload["use"],
         }
+
+
+class CfdiEnrollment(Base):
+    """Durable tenant binding, including uncertain external organization creation."""
+
+    __tablename__ = "cfdi_enrollments"
+    __table_args__ = (
+        ForeignKeyConstraint(["tenant_id"], ["tenants.id"]),
+        UniqueConstraint("organization_id", name="uq_cfdi_enrollment_organization"),
+        CheckConstraint(
+            "state IN ('creating','unknown','configured','error')",
+            name="ck_cfdi_enrollment_state",
+        ),
+    )
+    tenant_id: Mapped[UUID] = mapped_column(primary_key=True)
+    organization_id: Mapped[str | None] = mapped_column(String(100))
+    issuer_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    operation_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    creation_rejected: Mapped[bool] = mapped_column(nullable=False, default=False)
+    last_error_code: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)

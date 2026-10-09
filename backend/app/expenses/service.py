@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit_service
 from app.expenses import repository as repo
 from app.expenses.models import Expense
-from app.expenses.schemas import ExpenseCreate, ExpenseUpdate
+from app.expenses.schemas import ExpenseCreate, ExpenseResponse, ExpenseUpdate
 from app.idempotency import service as idempotency_service
 from app.shared.exceptions import bad_request, not_found
 
@@ -53,18 +53,8 @@ def _store_response(
 
 
 def _body(expense: Expense) -> dict[str, Any]:
-    return {
-        "id": str(expense.id),
-        "category": expense.category,
-        "amount": str(expense.amount),
-        "expense_date": expense.expense_date.isoformat(),
-        "note": expense.note,
-        "created_by_user_id": (
-            str(expense.created_by_user_id) if expense.created_by_user_id else None
-        ),
-        "created_at": expense.created_at.isoformat(),
-        "updated_at": expense.updated_at.isoformat(),
-    }
+    # Use the same DTO as reads, including canonical timestamps after DB reload.
+    return ExpenseResponse.model_validate(expense).model_dump(mode="json")
 
 
 def list_expenses(

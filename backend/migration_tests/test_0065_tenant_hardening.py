@@ -109,12 +109,17 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "fiscal_issuer_profiles": {"SELECT", "INSERT"},
     "invoice_requests": {"SELECT", "INSERT"},
     "cfdi_connections": {"SELECT", "INSERT"},
+    "cfdi_enrollments": {"SELECT", "INSERT"},
     "cfdi_documents": {"SELECT", "INSERT"},
     "inventory_lots": {"SELECT", "INSERT"},
     "inventory_lot_allocations": {"SELECT", "INSERT"},
     "inventory_lot_reservations": {"SELECT", "INSERT", "DELETE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "cfdi_enrollments": {
+        "organization_id", "issuer_snapshot", "state", "operation_id", "creation_rejected",
+        "last_error_code", "updated_at",
+    },
     "inventory_lots": {"code", "manufactured_on", "rotation_on", "expires_on"},
     "cfdi_connections": {
         "organization_id", "encrypted_api_key", "issuer_rfc", "production_ready",
@@ -213,6 +218,7 @@ _SEMANTIC_INSERT_ORDER = (
     "inventory_transfers",
     "invoice_requests",
     "cfdi_connections",
+    "cfdi_enrollments",
     "cfdi_documents",
     "modifier_options",
     "cash_movements",
@@ -295,7 +301,8 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "role": "owner",
         "rotation_label": "consumo_preferente" if variant == 0 else "fecha_objetivo",
         "source_channel": "counter",
-        "state": "prepared" if table.name == "cfdi_documents" else "active",
+        "state": ({"cfdi_documents": "prepared", "cfdi_enrollments": "configured"}
+                  .get(table.name, "active")),
         "status": {
             "account_deletion_requests": "pending",
             "customer_orders": "new",
@@ -1263,6 +1270,7 @@ def test_runtime_executes_exact_table_verb_matrix_against_two_tenants() -> None:
                         "encrypted_api_key", "rotated-encrypted-fixture", "environment"
                     ),
                     "cfdi_documents": ("state", "pending", "payload"),
+                    "cfdi_enrollments": ("state", "creating", "created_at"),
                 }
                 if table_name in limited_updates:
                     column, value, immutable_column = limited_updates[table_name]

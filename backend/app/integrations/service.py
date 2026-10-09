@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.audit import service as audit
 from app.branches.scope import active_branch_id
 from app.cfdi.credentials import storage_available
-from app.cfdi.models import CfdiConnection
+from app.cfdi.models import CfdiConnection, CfdiEnrollment
 from app.fiscal.models import OrderFiscalSnapshot
 from app.idempotency import service as idempotency
 from app.integrations.models import FiscalIssuerProfile, InvoiceRequest
@@ -55,6 +55,17 @@ def save_issuer(
 ) -> ReadinessResponse:
     # Serialize first profile creation; PUT of identical fields is a safe no-op.
     db.query(Tenant).filter_by(id=tenant_id).with_for_update().one()
+    enrollment = db.query(CfdiEnrollment).filter_by(tenant_id=tenant_id).first()
+    if enrollment:
+        if enrollment.operation_id:
+            raise conflict("La activación fiscal está en curso; espera antes de editar los datos")
+        if enrollment.issuer_snapshot["rfc"] != body.rfc:
+            raise conflict("El RFC de una organización fiscal activada no puede reemplazarse")
+        if enrollment.issuer_snapshot != body.model_dump(mode="json"):
+            enrollment.issuer_snapshot = body.model_dump(mode="json")
+            for connection in db.query(CfdiConnection).filter_by(tenant_id=tenant_id).all():
+                connection.production_ready = False
+
     row = db.query(FiscalIssuerProfile).filter_by(tenant_id=tenant_id).first()
     if row is None:
         row = FiscalIssuerProfile(tenant_id=tenant_id)
