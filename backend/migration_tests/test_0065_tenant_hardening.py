@@ -114,6 +114,8 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "inventory_lots": {"SELECT", "INSERT"},
     "inventory_lot_allocations": {"SELECT", "INSERT"},
     "inventory_lot_reservations": {"SELECT", "INSERT", "DELETE"},
+    "drawer_devices": {"SELECT", "INSERT", "UPDATE"},
+    "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
     "cfdi_enrollments": {
@@ -211,6 +213,8 @@ _SEMANTIC_INSERT_ORDER = (
     "tenant_receipt_settings",
     "webhook_events",
     "orders",
+    "drawer_devices",
+    "drawer_commands",
     "products",
     "inventory_lots",
     "purchase_orders",
@@ -261,6 +265,8 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         return tenant
     if table.name == "assistant_records" and name == "kind":
         return "document"
+    if table.name == "drawer_commands" and name == "kind":
+        return "test"
     if name == "source_branch_id":
         return tenant
     if name == "destination_branch_id":
@@ -306,6 +312,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "status": {
             "account_deletion_requests": "pending",
             "customer_orders": "new",
+            "drawer_commands": "pending",
             "fiscal_global_draft_batches": "closed",
             "fiscal_individual_invoice_events": "reopened",
             "inventory_reservations": "active",

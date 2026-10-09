@@ -2,7 +2,7 @@ import { expect, test } from "./fixtures";
 import { markFirstUseToursSeen } from "./helpers";
 
 for (const width of [390, 1100, 1440]) {
-  test(`drawer configuration and explicit test remain usable at ${width}px`, async ({ page }) => {
+  test(`drawer configuration and explicit test remain usable at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     await markFirstUseToursSeen(page);
     await page.route("**/api/v1/auth/session", route => route.fulfill({ json: {
@@ -40,7 +40,7 @@ for (const width of [390, 1100, 1440]) {
     expect(commands[0]).toMatchObject({ kind: "test", reason: "Prueba de configuración" });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow).toBe(false);
-    await page.screenshot({ path: `/private/tmp/kova-drawer-settings-${width}.png`, fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath(`drawer-settings-${width}.png`), fullPage: true });
   });
 }
 
