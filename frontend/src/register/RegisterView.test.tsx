@@ -723,7 +723,7 @@ describe("RegisterView cash-without-shift guard", () => {
     vi.unstubAllGlobals();
   });
 
-  it("restores the cart and reports a definitive sync rejection instead of a queued sale", async () => {
+  it("preserves the original failed sale instead of restoring a cart that creates a second identity", async () => {
     getOpenShift.mockResolvedValue(openShift);
     queueOfflineSale.mockResolvedValue({ client_uuid: "failed-sale" });
     syncOfflineSales.mockResolvedValue([{
@@ -739,9 +739,16 @@ describe("RegisterView cash-without-shift guard", () => {
     fireEvent.click(screen.getByRole("button", { name: copy.register.exactCash }));
     fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
 
-    expect(await screen.findByText(copy.register.saleRejected)).toBeVisible();
-    expect(screen.getByRole("button", { name: copy.register.removeItem(product.name) })).toBeVisible();
-    expect(screen.queryByText(copy.register.offlineSaleSavedTitle)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText(copy.register.saleRejected).length).toBeGreaterThan(0));
+    expect(screen.getAllByText(copy.register.offlineSaleSavedTitle).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: copy.register.viewQueue }).every(link => link.getAttribute("href") === "/sync-queue")).toBe(true);
+
+    // Start the next sale, then attempt to charge: the rejected payment must
+    // not reappear as a fresh cart or acquire a second queue UUID.
+    fireEvent.click(screen.getAllByRole("button", { name: copy.register.newSale })[0]);
+    expect(screen.getByRole("button", { name: copy.register.completeSale })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: copy.register.completeSale }));
+    expect(queueOfflineSale).toHaveBeenCalledTimes(1);
   });
 });
 

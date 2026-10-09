@@ -212,6 +212,7 @@ function RegularRegisterView() {
   const [pendingReceipt, setPendingReceipt] = useState<{
     clientUuid: string;
     snapshot: OfflineReceiptSnapshot;
+    syncFailed?: boolean;
   } | null>(null);
   // The completed-sale response has no receipt number / business name / timestamp,
   // so a synced sale fetches the official receipt. A queued sale uses the local
@@ -1111,15 +1112,10 @@ function RegularRegisterView() {
           // the success card is left for a future polish pass.
           toast(copy.register.saleComplete, "success");
         } else if (result.status === "failed" && activeSaleClientUuidRef.current === queueItem.client_uuid) {
-          activeSaleClientUuidRef.current = null;
-          setPendingReceipt(null);
-          setCompletedOrder(null);
-          if (submittedCart && Object.values(submittedCart).some(item => item.product.track_lots)) {
-            toast("La venta cobrada conserva sus lotes en Sincronización. Concilia el conflicto y reintenta desde ahí.", "warning");
-          } else {
-            setCart(submittedCart);
-            adjustKnownStockForCart(submittedCart, 1);
-          }
+          // The payment already has a durable queue identity. Restoring this
+          // cart would let checkout create another UUID while the original
+          // failed row can still be retried, recording the same sale twice.
+          setPendingReceipt({ clientUuid: queueItem.client_uuid, snapshot: receiptSnapshot, syncFailed: true });
           setLotRefresh(value => value + 1);
           toast(copy.register.saleRejected, "error");
           void refreshStock();
@@ -1998,7 +1994,7 @@ function RegularRegisterView() {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {isPendingSync
-                        ? copy.register.offlineSaleSavedSubtitle
+                        ? pendingReceipt?.syncFailed ? copy.register.saleRejected : copy.register.offlineSaleSavedSubtitle
                         : copy.register.saleSuccessSubtitle}
                     </p>
                   </div>
@@ -2014,6 +2010,11 @@ function RegularRegisterView() {
                     <Link to={`/orders/${completedOrder.id}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                       <ExternalLink className="h-3.5 w-3.5" />
                       {copy.register.openOrder}
+                    </Link>
+                  )}
+                  {pendingReceipt?.syncFailed && (
+                    <Link to="/sync-queue" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                      {copy.register.viewQueue}
                     </Link>
                   )}
                   <Button size="sm" onClick={resetSale}>
@@ -2099,7 +2100,7 @@ function RegularRegisterView() {
               </h2>
               <p className="text-sm text-kova-muted">
                 {isPendingSync
-                  ? copy.register.offlineSaleSavedSubtitle
+                  ? pendingReceipt?.syncFailed ? copy.register.saleRejected : copy.register.offlineSaleSavedSubtitle
                   : copy.register.saleSuccessSubtitle}
               </p>
               <p className="pt-3 text-4xl font-bold tabular-nums tracking-tight text-kova-ink">
@@ -2117,6 +2118,11 @@ function RegularRegisterView() {
             )}
           </div>
           <div className="px-6 pb-6 space-y-2">
+            {pendingReceipt?.syncFailed && (
+              <Link to="/sync-queue" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}>
+                {copy.register.viewQueue}
+              </Link>
+            )}
             <Button
               ref={successPrimaryRef}
               size="xl"
