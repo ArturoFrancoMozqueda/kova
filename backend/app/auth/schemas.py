@@ -3,13 +3,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.shared.validation import StrictModel, reject_html
+from app.shared.validation import StrictModel, reject_html, validate_password_byte_length
 
 _PASSWORD_MIN_LENGTH = 8
 _PASSWORD_MAX_LENGTH = 128
 
 
 def _validate_password_strength(value: str) -> str:
+    validate_password_byte_length(value)
     if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
         raise ValueError("La contraseña debe incluir letras y números")
     return value
