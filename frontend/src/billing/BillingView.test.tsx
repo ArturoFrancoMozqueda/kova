@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/components/ui/toast";
@@ -40,6 +40,7 @@ vi.mock("@/telemetry/funnel", () => ({
   trackFunnelEventOnce: vi.fn(),
 }));
 
+import { ApiError } from "./api";
 import BillingView from "./BillingView";
 
 function billing(overrides: Partial<BillingSubscription["subscription"]> | null): BillingSubscription {
@@ -236,4 +237,37 @@ describe("BillingView plan and period trust", () => {
     expect(screen.queryByText("Próxima renovación")).not.toBeInTheDocument();
     expect(screen.queryByText(/1 jun 2026/i)).not.toBeInTheDocument();
   });
+});
+
+
+describe("BillingView existing subscription payment recovery", () => {
+  it.each(["past_due", "unpaid"])("offers recovery instead of duplicate checkout for %s", async (status) => {
+    const result = billing({ status });
+    result.access = { ...result.access, allowed: false, reason: status, trialing: false, trial_ends_at: null };
+    getBillingSubscription.mockResolvedValue(result);
+    renderBilling();
+    expect(await screen.findByText(/Tu suscripción tiene un pago pendiente/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Activar por/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Contactar soporte" })).toHaveAttribute("href", expect.stringMatching(/^mailto:/));
+    expect(screen.queryByText("Tu suscripción está activa")).not.toBeInTheDocument();
+    expect(startCheckout).not.toHaveBeenCalled();
+  });
+
+  it.each(["canceled", "incomplete"])("preserves checkout for %s subscriptions", async (status) => {
+    getBillingSubscription.mockResolvedValue(billing({ status }));
+    renderBilling();
+    expect(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" })).toBeEnabled();
+    expect(screen.queryByText(/Tu suscripción tiene un pago pendiente/)).not.toBeInTheDocument();
+  });
+});
+
+
+it("does not claim activation if checkout rejects an existing pending-payment subscription", async () => {
+  getBillingSubscription.mockResolvedValueOnce(billing(null)).mockResolvedValue(billing({ status: "past_due" }));
+  startCheckout.mockRejectedValue(new ApiError("Subscription already exists", 400));
+  renderBilling();
+  fireEvent.click(await screen.findByRole("button", { name: "Activar por $299 MXN/mes" }));
+  await waitFor(() => expect(invalidateBillingSubscription).toHaveBeenCalled());
+  expect(await screen.findAllByText(/Tu suscripción tiene un pago pendiente/)).toHaveLength(2);
+  expect(screen.queryByText("Tu suscripción ya está activa. Actualizamos su estado.")).not.toBeInTheDocument();
 });

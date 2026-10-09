@@ -2425,6 +2425,7 @@ export const copy = {
     periodVerifying: "Se renueva cada mes mientras la suscripción siga activa.",
     graceEnds: "Fin del periodo de gracia",
     notAvailable: "No disponible",
+    paymentRecoveryBody: "Tu suscripción tiene un pago pendiente. Contacta a soporte para recuperar el pago de la suscripción existente.",
     pastDueBanner: "Pago vencido. Recupera la suscripción para mantener acceso sin interrupciones.",
     subscriptionActiveTitle: "Tu suscripción está activa",
     subscriptionActiveBody: "El plan ya está aplicado a este negocio. No necesitas iniciar otro checkout.",

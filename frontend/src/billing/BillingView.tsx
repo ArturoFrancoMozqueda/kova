@@ -8,7 +8,7 @@ import { copy } from "../i18n/messages";
 import { ApiError, getBillingSubscription, invalidateBillingSubscription, reconcileCheckout, startCheckout, cancelSubscription } from "./api";
 import type { BillingSubscription } from "./types";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ViewHeader } from "@/components/ui/view-header";
@@ -136,6 +136,10 @@ function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean 
   return billing.subscription?.status === "active" || billing.subscription?.status === "trialing";
 }
 
+function needsPaymentRecovery(billing: BillingSubscription): boolean {
+  return billing.subscription?.status === "past_due" || billing.subscription?.status === "unpaid";
+}
+
 function checkoutTelemetryState(
   billing: BillingSubscription,
   returnState: "success" | "cancel" | null,
@@ -189,7 +193,9 @@ export default function BillingView() {
     if (!canViewBilling) { setLoadState({ status: "error" }); return; }
     setLoadState({ status: "loading" });
     try {
-      setLoadState({ status: "loaded", billing: await getBillingSubscription() });
+      const billing = await getBillingSubscription();
+      setLoadState({ status: "loaded", billing });
+      return billing;
     } catch {
       setLoadState({ status: "error" });
     }
@@ -247,6 +253,10 @@ export default function BillingView() {
       toast(copy.billingView.checkoutAlreadyActive, "info");
       return;
     }
+    if (loadState.status === "loaded" && needsPaymentRecovery(loadState.billing)) {
+      toast(copy.billingView.paymentRecoveryBody, "warning");
+      return;
+    }
     setActionState("checkout");
     void trackFunnelEvent("checkout_started");
     try {
@@ -255,8 +265,13 @@ export default function BillingView() {
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
         invalidateBillingSubscription();
-        await load();
-        toast(copy.billingView.checkoutAlreadyActive, "info");
+        const billing = await load();
+        toast(
+          billing && needsPaymentRecovery(billing)
+            ? copy.billingView.paymentRecoveryBody
+            : copy.billingView.checkoutAlreadyActive,
+          billing && needsPaymentRecovery(billing) ? "warning" : "info",
+        );
         setActionState("idle");
         return;
       }
@@ -514,7 +529,14 @@ export default function BillingView() {
               {canManageBilling ? (
                 <>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  {!hasCheckoutBlockingSubscription(loadState.billing) ? (
+                  {needsPaymentRecovery(loadState.billing) ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">{copy.billingView.paymentRecoveryBody}</p>
+                      <a className={buttonVariants({ variant: "outline" })} href={SUPPORT_MAILTO}>
+                        {copy.billingView.checkoutSupport}
+                      </a>
+                    </div>
+                  ) : !hasCheckoutBlockingSubscription(loadState.billing) ? (
                     <div className="flex flex-col gap-1.5">
                       <Button
                         onClick={() => void beginCheckout()}
