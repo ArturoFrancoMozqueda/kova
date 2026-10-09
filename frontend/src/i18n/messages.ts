@@ -973,7 +973,7 @@ export const copy = {
     signupBusinessTooLong: "El nombre del negocio debe tener 120 caracteres o menos.",
     signupPasswordRequired: "Crea una contraseña.",
     signupPasswordTooShort: "La contraseña debe tener al menos 8 caracteres.",
-    signupPasswordTooLong: "La contraseña debe tener 128 caracteres o menos.",
+    signupPasswordTooLong: "La contraseña es demasiado larga. Acórtala; los acentos y símbolos ocupan más espacio.",
     signupPasswordWeak: "Incluye al menos una letra y un número.",
     signupTermsRequired: "Acepta los avisos legales para crear tu cuenta.",
     signupFieldInvalid: "Revisa este campo para continuar.",

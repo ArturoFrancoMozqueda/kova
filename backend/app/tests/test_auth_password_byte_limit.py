@@ -29,6 +29,7 @@ def test_password_creation_rejects_oversized_utf8_before_processing(client, pass
 
     response = client.post(path, json=body)
     assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == "password_too_long"
     assert "72 bytes" in response.json()["detail"][0]["msg"]
 
 
