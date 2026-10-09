@@ -163,3 +163,14 @@ describe("real business evidence", () => {
     expect(screen.getByRole("link")).toHaveAttribute("href", "/reports");
   });
 });
+
+
+describe("assistant suggestions without external inference", () => {
+  it.each(["Revisa mis ventas de este mes", "¿Qué productos debo reponer?", "¿Dónde configuro el ticket?", "¿Cómo importar mi catálogo?"])("offers the supported local question %s", question => {
+    const onSuggestion = vi.fn();
+    render(<AssistantWelcome localOnly onSuggestion={onSuggestion} disabled={false} />);
+    fireEvent.click(screen.getByRole("button", { name: question }));
+    expect(onSuggestion).toHaveBeenCalledWith(question);
+    expect(screen.queryByRole("button", { name: "¿Qué pendientes tengo?" })).not.toBeInTheDocument();
+  });
+});

@@ -16,14 +16,22 @@ const suggestions = [
   { title: "Organizar mis pendientes", question: "¿Qué pendientes tengo?", icon: Check },
 ];
 
-export function AssistantWelcome({ onSuggestion, disabled, compact = false, suggestion }: { onSuggestion: (question: string) => void; disabled: boolean; compact?: boolean; suggestion?: string }) {
+const localSuggestions = [
+  suggestions[0],
+  { title: "Revisar mi inventario", question: "¿Qué productos debo reponer?", icon: Package },
+  { title: "Preparar mi ticket", question: "¿Dónde configuro el ticket?", icon: ShieldCheck },
+  { title: "Importar mi catálogo", question: "¿Cómo importar mi catálogo?", icon: Check },
+];
+
+export function AssistantWelcome({ onSuggestion, disabled, compact = false, suggestion, localOnly = false }: { onSuggestion: (question: string) => void; disabled: boolean; compact?: boolean; suggestion?: string; localOnly?: boolean }) {
+  const availableSuggestions = localOnly ? localSuggestions : suggestions;
   return <div className={cn("mx-auto flex w-full max-w-xl flex-col items-center text-center", compact ? "py-5" : "py-3 sm:py-12")}>
     <div className={cn("mb-5 items-center justify-center rounded-2xl border border-kova-blue/10 bg-kova-grad-sky text-kova-blue", compact ? "flex h-12 w-12" : "hidden h-16 w-16 sm:flex")}><LogoMark size={compact ? 32 : 42} /></div>
     <p className={cn("mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-kova-muted", !compact && "hidden sm:block")}>Un poco más de claridad</p>
     <h2 className={cn("font-semibold tracking-tight text-kova-ink", compact ? "text-xl" : "text-2xl sm:text-3xl")}>¿Qué quieres resolver hoy?</h2>
     <p className="mt-3 max-w-sm text-sm leading-6 text-kova-muted">Tus ventas, tus productos y tu siguiente paso. Con los datos de tu negocio.</p>
     {compact ? <button type="button" disabled={disabled} onClick={() => onSuggestion(suggestion ?? suggestions[0].question)} className="mt-5 flex min-h-11 w-full items-center justify-between gap-3 rounded-kova-lg border border-kova-border bg-white p-3 text-left text-sm text-kova-ink transition-colors hover:border-kova-blue/40 hover:bg-kova-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue disabled:opacity-50">{suggestion ?? suggestions[0].question}<ArrowUpRight size={16} className="shrink-0 text-kova-blue" /></button>
-      : <div className="mt-7 grid w-full gap-2 text-left sm:grid-cols-2">{suggestions.map(({ title, question, icon: Icon }) => <button type="button" key={title} aria-label={question} disabled={disabled} onClick={() => onSuggestion(question)} className="group flex min-h-11 items-start gap-3 rounded-kova-lg text-left border border-kova-border bg-white p-4 transition-colors hover:border-kova-blue/40 hover:bg-kova-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue disabled:opacity-50"><Icon size={18} className="mt-0.5 shrink-0 text-kova-blue" /><span className="min-w-0"><span className="block text-sm font-medium">{title}</span><span className="mt-1 block text-xs leading-5 text-kova-muted">{question}</span></span><ArrowUpRight size={14} className="ml-auto mt-1 shrink-0 text-kova-muted" /></button>)}</div>}
+      : <div className="mt-7 grid w-full gap-2 text-left sm:grid-cols-2">{availableSuggestions.map(({ title, question, icon: Icon }) => <button type="button" key={title} aria-label={question} disabled={disabled} onClick={() => onSuggestion(question)} className="group flex min-h-11 items-start gap-3 rounded-kova-lg text-left border border-kova-border bg-white p-4 transition-colors hover:border-kova-blue/40 hover:bg-kova-mist focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kova-blue disabled:opacity-50"><Icon size={18} className="mt-0.5 shrink-0 text-kova-blue" /><span className="min-w-0"><span className="block text-sm font-medium">{title}</span><span className="mt-1 block text-xs leading-5 text-kova-muted">{question}</span></span><ArrowUpRight size={14} className="ml-auto mt-1 shrink-0 text-kova-muted" /></button>)}</div>}
   </div>;
 }
 
