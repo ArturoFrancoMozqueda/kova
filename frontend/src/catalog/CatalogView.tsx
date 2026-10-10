@@ -47,7 +47,7 @@ import { ImagePositionEditor } from "./ImagePositionEditor";
 import { CatalogImportDialog } from "./CatalogImportDialog";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -410,10 +410,10 @@ export default function CatalogView() {
         {/* ---- Categories sidebar ---- */}
         <Card className="overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <FolderOpen className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.categories}
-            </CardTitle>
+            </h2>
             {canCreate && (
               <Button
                 variant="ghost"
@@ -522,10 +522,10 @@ export default function CatalogView() {
         {/* ---- Products grid ---- */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <Tag className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.products}
-            </CardTitle>
+            </h2>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {canUpdate && visibleProducts.length > 0 && (
                 <Button
@@ -736,10 +736,10 @@ export default function CatalogView() {
       {canCreate && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
               <Layers className="h-4 w-4 text-muted-foreground" />
               {copy.catalog.modifiers}
-            </CardTitle>
+            </h2>
             <Button
               variant="ghost"
               size="sm"

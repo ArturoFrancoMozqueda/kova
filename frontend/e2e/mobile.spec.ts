@@ -820,7 +820,7 @@ test("inventory low-stock workflow fits phone and tablet", async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/inventory");
 
-    await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /inventario/i, level: 1 })).toBeVisible();
     await expect(page.getByText(/stock bajo/i).first()).toBeVisible();
     await expect(page.getByText("2 disponible, umbral 6.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Ajustar stock: Concha" })).toBeVisible();

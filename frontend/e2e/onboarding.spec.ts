@@ -175,6 +175,8 @@ test("owner walks the onboarding path: dashboard → catalog → shift → sale 
   // Step 6: visit reports — backend marks first_report milestone via business-story call.
   await page.goto("/reports");
   await expect(page).toHaveURL(/\/reports/);
+  await expect(page.getByRole("heading", { name: "Análisis", exact: true })).toBeVisible();
+  await expect.poll(() => state.visitedReports).toBe(true);
 
   // Step 7: return to dashboard — checklist hidden because all steps complete.
   await page.goto("/dashboard");

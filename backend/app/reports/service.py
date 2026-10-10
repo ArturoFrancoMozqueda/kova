@@ -1250,7 +1250,8 @@ def _recommended_actions(
                 "type": "operational_improvement",
                 "title": "Reduce dependencia de efectivo",
                 "detail": (
-                    f"Cash representa {dominant_payment['sales_share_pct']}% "
+                    f"{_payment_label(dominant_payment['method'])} representa "
+                    f"{dominant_payment['sales_share_pct']}% "
                     "de los cobros. Incentiva tarjeta o transferencia para "
                     "facilitar conciliación."
                 ),
@@ -1311,7 +1312,7 @@ def _executive_summary(
         (
             f"Del {_format_day(start_date)} al {_format_day(end_date)}, "
             f"Kova generó {_format_money(net_sales)} en ventas netas a partir de "
-            f"{completed_orders} orden{'es' if completed_orders != 1 else ''}."
+            f"{completed_orders} {'órdenes' if completed_orders != 1 else 'orden'}."
         ),
         f"El ticket promedio fue {_format_money(average_ticket)}.",
     ]

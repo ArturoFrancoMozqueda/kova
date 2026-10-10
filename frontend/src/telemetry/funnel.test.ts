@@ -86,7 +86,7 @@ describe("anonymous funnel path", () => {
     const response = new Response('{"accepted":true}', {
       status: 202, headers: { "Cache-Control": "no-store" },
     });
-    const originalFetch = fetchMock.getMockImplementation()!;
+    const originalFetch = fetchMock.getMockImplementation() as (url: string) => Promise<Response>;
     fetchMock.mockImplementation((url: string) => url === "/api/v1/telemetry/events/anonymous"
       ? Promise.resolve(response) : originalFetch(url));
     await trackAnonymousEvent("landing_viewed");

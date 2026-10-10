@@ -96,7 +96,9 @@ export function BusinessHealthCard({
     });
   }
 
-  // 2) Refund rate (weight 0.25). 0% → 1.0, ≥10% → 0
+  // 2) Refund-event frequency (weight 0.25). Multiple partial refunds can
+  // belong to one order; this is events per order, never a share of orders.
+  // Zero events → 1.0, ≥0.1 events per order → 0.
   if (summary.order_count > 0) {
     const rate = summary.refund_count / summary.order_count;
     const score = Math.max(0, 1 - rate * 10);
@@ -287,7 +289,7 @@ export function BusinessHealthCard({
                   <Icon className="h-4 w-4 shrink-0 text-kova-tertiary" />
                   <span className="truncate">{f.label}</span>
                 </span>
-                <span className={`shrink-0 text-sm font-semibold tabular-nums ${tone}`}>
+                <span className={`max-w-[65%] shrink-0 text-right text-sm font-semibold tabular-nums ${tone}`}>
                   {f.detail}
                 </span>
               </div>

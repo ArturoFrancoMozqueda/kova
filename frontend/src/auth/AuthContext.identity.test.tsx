@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useEffect, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { queryClient } from "@/lib/queryClient";
 
 const coordination = vi.hoisted(() => ({
@@ -130,6 +130,7 @@ describe("AuthProvider identity continuity", () => {
       <StatefulProbe onMount={onMount} onUnmount={onUnmount} />
     </AuthProvider></MemoryRouter>);
     await screen.findByText("tenant-a:user-a:owner:online");
+    await waitFor(() => expect(onMount).toHaveBeenCalledTimes(2));
     const mounts = onMount.mock.calls.length;
     const unmounts = onUnmount.mock.calls.length;
     queryClient.setQueryData(["private-snapshot"], { tenantId: "tenant-a" });
@@ -174,6 +175,65 @@ describe("AuthProvider identity continuity", () => {
     expect(screen.getByTestId("draft")).toHaveTextContent("1");
     expect(onMount).toHaveBeenCalledTimes(mounts);
     expect(onUnmount).toHaveBeenCalledTimes(unmounts);
+  });
+
+  it("does not cache a superseded session or clear the newer identity's queries", async () => {
+    let resolveStale!: (value: ReturnType<typeof session>) => void;
+    vi.mocked(getSession)
+      .mockResolvedValueOnce(session("tenant-a", "user-a"))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve; }))
+      .mockResolvedValueOnce(session("tenant-b", "user-b"));
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider>
+      <StatefulProbe onMount={vi.fn()} onUnmount={vi.fn()} />
+    </AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:owner:online");
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    await screen.findByText("tenant-b:user-b:owner:online");
+    queryClient.setQueryData(["current-private-snapshot"], { tenantId: "tenant-b" });
+    await act(async () => { resolveStale(session("tenant-a", "user-a")); });
+    expect(offlineAccess.cache).toHaveBeenCalledTimes(2);
+    expect(offlineAccess.cache).toHaveBeenLastCalledWith(expect.objectContaining({ tenant_id: "tenant-b" }));
+    expect(queryClient.getQueryData(["current-private-snapshot"])).toEqual({ tenantId: "tenant-b" });
+    expect(screen.getByText("tenant-b:user-b:owner:online")).toBeVisible();
+  });
+
+  it("does not reopen a logged-out identity when an earlier session probe finishes", async () => {
+    let resolveStale!: (value: ReturnType<typeof session>) => void;
+    vi.mocked(getSession)
+      .mockResolvedValueOnce(session("tenant-a", "user-a"))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve; }));
+    render(<MemoryRouter initialEntries={["/register"]}><AuthProvider>
+      <StatefulProbe onMount={vi.fn()} onUnmount={vi.fn()} />
+    </AuthProvider></MemoryRouter>);
+    await screen.findByText("tenant-a:user-a:owner:online");
+    act(() => screen.getByRole("button", { name: "refresh-probe" }).click());
+    act(() => screen.getByRole("button", { name: "logout-probe" }).click());
+    await screen.findByText("unauthenticated");
+    await act(async () => { resolveStale(session("tenant-a", "user-a")); });
+    expect(screen.getByText("unauthenticated")).toBeVisible();
+    expect(offlineAccess.cache).toHaveBeenCalledOnce();
+    expect(reportIdentity).toHaveBeenLastCalledWith(null);
+    expect(billingIdentity).toHaveBeenLastCalledWith(null);
+  });
+
+  it("does not cache a session response after the provider unmounts", async () => {
+    let resolveStale!: (value: ReturnType<typeof session>) => void;
+    vi.mocked(getSession).mockImplementationOnce(() => new Promise((resolve) => { resolveStale = resolve; }));
+    const view = render(<MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter>);
+    view.unmount();
+    await act(async () => { resolveStale(session("tenant-a", "user-a")); });
+    expect(offlineAccess.cache).not.toHaveBeenCalled();
+    expect(reportIdentity).toHaveBeenLastCalledWith(null);
+    expect(billingIdentity).toHaveBeenLastCalledWith(null);
+  });
+
+  it("restarts the initial probe during StrictMode replay and caches only the current response", async () => {
+    vi.mocked(getSession).mockResolvedValue(session("tenant-a", "user-a"));
+    render(<StrictMode><MemoryRouter><AuthProvider><Probe /></AuthProvider></MemoryRouter></StrictMode>);
+    await screen.findByText("tenant-a:user-a:online");
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(offlineAccess.cache).toHaveBeenCalledOnce();
   });
 
   it("discards child snapshots on logout and does not restore them on the next login", async () => {

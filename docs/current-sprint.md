@@ -1,6 +1,42 @@
 # Current Sprint
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
+
+## Active production validation (2026-10-10): operaciones reales en Sweet Home
+
+El propietario autorizó escrituras reales de prueba en su tenant y tres agentes.
+Se ejecutaron siete ventas por UI (efectivo, transferencia, tarjeta manual, dividido,
+offline, descuento/impuesto y checkout con lotes), siete devoluciones y dos anulaciones.
+Los reintentos idempotentes no duplicaron ventas, devoluciones ni recepciones.
+El neto final de estas ventas es 0.00; POS vuelve a 30 unidades, lotes a seis sin
+reservas. Se conservan los movimientos y registros `QA-20261010`.
+Se cerró el turno antiguo y se probaron cortes cuadrado, sobrante y faltante con
+importes declarados de prueba; no se certifica conteo físico de efectivo.
+
+Correcciones en `codex/sweet-home-production-validation`: búsqueda fija en tres
+triggers de lotes, tabla de devoluciones accesible por teclado, encabezados de panel,
+catálogo e inventario, etiquetas de compras/traspasos/pagos y claridad sobre cobros
+brutos y eventos de devolución. La revisión de sesiones añade invalidación de
+respuestas pendientes tras logout, desmontaje o cambio de identidad; las regresiones
+demuestran que no reabren una sesión ni reemplazan el caché del negocio vigente.
+Vitest y el parser CSS se actualizan para eliminar los críticos de desarrollo,
+conservando las dependencias runtime; CI añade un gate de críticos para el árbol completo.
+WebKit también conserva el foco del producto y del botón de menú tras cerrar
+sus paneles; nuevas regresiones prueban activación sin foco automático del puntero.
+Quedan cinco avisos altos derivados de `braces` sin parche compatible, limitados a
+compilación con patrones estáticos: [revisión de dependencias](audits/KOVA-DEPENDENCY-REVIEW-2026-10-10.md).
+Se prepara también restauración lógica
+de backup R2 en runner aislado; su implementación no acredita una ejecución real.
+La publicación debe pasar CI y verificarse en frontend/API/proxy antes de considerarse
+lista. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
+[negocio](audits/KOVA-PRODUCTION-BUSINESS-2026-10-10.md) y
+[acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
+
+El usuario confirmó que Sweet Home no tiene identidad/CSD ni cuenta de Facturapi.
+La facturación Live queda sin emisión; Kova requiere una cuenta/llave de plataforma,
+y cada emisor debe aportar sus requisitos fiscales. Cargos externos, dispositivos
+físicos, Safari/iOS y recuperación regional siguen sin evidencia completa; no se
+declara disponibilidad productiva al 100%.
 
 ## Active implementation (2026-10-09): Cajón de dinero
 

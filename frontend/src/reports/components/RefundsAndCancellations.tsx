@@ -163,7 +163,9 @@ export function RefundsAndCancellations({ story }: { story: BusinessStoryReport 
       </div>
 
       {topReasons.length > 0 ? (
-        <div className="mt-4 overflow-x-auto rounded-kova-md border">
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scrolling table region needs keyboard focus to reach every column.
+        <div role="region" aria-label={copy.reportsView.refundsSectionTitle} tabIndex={0}
+          className="mt-4 overflow-x-auto rounded-kova-md border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
           <table className="min-w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>

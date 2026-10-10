@@ -318,7 +318,11 @@ function RegularRegisterView() {
     if (!cartSheetOpen || !isCartSheetModal) return;
     const sheet = paymentSectionRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const focusFrame = window.requestAnimationFrame(() => sheet?.focus());
+    const focusFrame = window.requestAnimationFrame(() => {
+      // An interaction can reach a field before this frame runs. Keep that
+      // focus instead of moving it back to the summary container.
+      if (sheet && !sheet.contains(document.activeElement)) sheet.focus();
+    });
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -1449,7 +1453,10 @@ function RegularRegisterView() {
           {/* Peek handle — mobile only */}
           <button
             type="button"
-            onClick={() => setCartSheetOpen((v) => !v)}
+            onClick={(event) => {
+              if (!cartSheetOpen) event.currentTarget.focus();
+              setCartSheetOpen((v) => !v);
+            }}
             aria-expanded={cartSheetOpen}
             aria-label={cartSheetOpen ? copy.register.collapseCart : copy.register.expandCart}
             className="xl:hidden relative flex items-center justify-between w-full h-20 px-4 border-b border-kova-border bg-card shrink-0"

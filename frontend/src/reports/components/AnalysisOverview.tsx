@@ -194,6 +194,18 @@ function PaymentMixCard({ story }: { story: BusinessStoryReport }) {
                 </li>
               ))}
             </ul>
+            <p className="mt-4 border-t border-kova-border pt-3 text-xs leading-5 text-kova-muted">
+              {copy.reportsView.grossVsNetNote}
+              {Number(story.summary.refund_total) > 0 ? (
+                <span className="mt-1 block tabular-nums">
+                  {copy.reportsView.paymentReconciliation(
+                    formatMoney(story.summary.gross_sales),
+                    formatMoney(story.summary.refund_total),
+                    formatMoney(story.summary.net_sales),
+                  )}
+                </span>
+              ) : null}
+            </p>
           </>
         )}
       </CardContent>

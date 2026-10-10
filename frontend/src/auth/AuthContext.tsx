@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [state, setState] = useState<AuthState>({ status: "loading" });
   const stateRef = useRef<AuthState>(state);
+  const mounted = useRef(true);
   const refreshEpoch = useRef(0);
   const initialProbeStarted = useRef(false);
   const identityChangePending = useRef(false);
@@ -106,9 +107,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
 
-  useEffect(() => () => {
-    setReportsCacheIdentity(null);
-    setBillingCacheIdentity(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      refreshEpoch.current += 1;
+      initialProbeStarted.current = false;
+      setReportsCacheIdentity(null);
+      setBillingCacheIdentity(null);
+    };
   }, []);
 
   useEffect(() => {
@@ -125,13 +132,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     preserveCurrentOnUnavailable = false,
   ): Promise<AuthState> => {
     const epoch = ++refreshEpoch.current;
+    const isCurrent = () => mounted.current && refreshEpoch.current === epoch;
     const commit = (next: AuthState) => {
-      if (refreshEpoch.current === epoch) {
+      if (isCurrent()) {
         identityChangePending.current = false;
         applyState(next);
       }
-      return next;
+      return stateRef.current;
     };
+    if (!isCurrent()) return stateRef.current;
     if (hasLogoutPending()) {
       let serverSessionCleared = false;
       try {
@@ -141,26 +150,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Keep local access closed. The marker retries revocation after the
         // next successful login/network opportunity.
       }
+      if (!isCurrent()) return stateRef.current;
       try {
         await clearLocalIdentityData();
       } catch {
         // The durable logout marker remains set. Do not read the cached
         // identity again until its stores can be erased successfully.
+        if (!isCurrent()) return stateRef.current;
         clearErrorReportingIdentity();
         return commit({ status: "unavailable", reason: "offline_logout_storage" });
       }
+      if (!isCurrent()) return stateRef.current;
       if (serverSessionCleared) clearLogoutPending();
       clearErrorReportingIdentity();
       return commit({ status: "unauthenticated" });
     }
     const unavailable = async (error: unknown): Promise<AuthState> => {
+      if (!isCurrent()) return stateRef.current;
       if (preserveCurrentOnUnavailable && stateRef.current.status === "authenticated") {
         return stateRef.current;
       }
       const networkUnavailable = !(error instanceof ApiError);
       if (allowOfflineFallback && networkUnavailable) {
         const { readPreparedOfflineAccess } = await import("@/offline/offlineAccess");
+        if (!isCurrent()) return stateRef.current;
         const cached = await readPreparedOfflineAccess().catch(() => ({ status: "missing" as const }));
+        if (!isCurrent()) return stateRef.current;
         if (cached.status === "ready") {
           const next: AuthState = {
             status: "authenticated",
@@ -193,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       return unavailable(error);
     }
+    if (!isCurrent()) return stateRef.current;
     // The access_token JWT has a short TTL (15 min). If it has expired
     // mid-session, /auth/session returns { authenticated: false } but the
     // refresh_token cookie is still valid. Try a single refresh before
@@ -205,19 +221,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         return unavailable(error);
       }
+      if (!isCurrent()) return stateRef.current;
       if (refreshed) {
         try {
           session = await getSession();
         } catch (error) {
           return unavailable(error);
         }
+        if (!isCurrent()) return stateRef.current;
       }
     }
 
     if (!session.authenticated) {
       await import("@/offline/offlineAccess")
-        .then(({ clearOfflineAccess }) => clearOfflineAccess())
+        .then(({ clearOfflineAccess }) => isCurrent() ? clearOfflineAccess() : undefined)
         .catch(() => undefined);
+      if (!isCurrent()) return stateRef.current;
       clearErrorReportingIdentity();
       const next: AuthState = { status: "unauthenticated" };
       return commit(next);
@@ -240,27 +259,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
     }
     await import("@/offline/offlineAccess")
-      .then(({ cacheVerifiedOfflineAccess }) => cacheVerifiedOfflineAccess({
+      .then(({ cacheVerifiedOfflineAccess }) => isCurrent() ? cacheVerifiedOfflineAccess({
         tenant_id: session.tenant_id,
         tenant_name: session.tenant_name,
         user: session.user,
         feature_flags: session.feature_flags,
-      }))
+      }) : undefined)
       .catch(() => undefined);
+    if (!isCurrent()) return stateRef.current;
     commit(next);
 
     // Branding should not delay the authenticated shell. Load it after the
     // session is ready and only apply it if this is still the active tenant.
     void getReceiptSettings()
       .then((settings) => {
-        setState((current) => {
-          const branded =
-            current.status === "authenticated" && current.tenantId === session.tenant_id
-              ? { ...current, tenantLogoUrl: settings.logo_url }
-              : current;
-          stateRef.current = branded;
-          return branded;
-        });
+        const current = stateRef.current;
+        if (!isCurrent() || current.status !== "authenticated"
+          || current.tenantId !== session.tenant_id || current.user.id !== session.user.id
+          || current.user.role !== session.user.role) return;
+        const branded = { ...current, tenantLogoUrl: settings.logo_url };
+        stateRef.current = branded;
+        setState(branded);
       })
       .catch(() => undefined);
     return next;
@@ -269,13 +288,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => refreshInternal(true), [refreshInternal]);
 
   const setTenantLogoUrl = useCallback((logoUrl: string | null) => {
-    setState((current) => {
-      const next = current.status === "authenticated"
-        ? { ...current, tenantLogoUrl: logoUrl }
-        : current;
-      stateRef.current = next;
-      return next;
-    });
+    const current = stateRef.current;
+    if (!mounted.current || current.status !== "authenticated") return;
+    const next = { ...current, tenantLogoUrl: logoUrl };
+    stateRef.current = next;
+    setState(next);
   }, []);
 
   useEffect(() => {
@@ -407,6 +424,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyState, refreshInternal]);
 
   const logout = useCallback(async () => {
+    refreshEpoch.current += 1;
     identityChangePending.current = true;
     markLogoutPending();
     try {

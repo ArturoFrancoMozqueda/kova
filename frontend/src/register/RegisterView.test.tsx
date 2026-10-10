@@ -628,6 +628,19 @@ describe("RegisterView cash-without-shift guard", () => {
     expect(addButton).toHaveFocus();
   });
 
+  it("returns focus to a product activated without native pointer focus", async () => {
+    getOpenShift.mockResolvedValue(openShift);
+    renderRegister();
+    const addButton = await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` });
+    expect(addButton).not.toHaveFocus();
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole("dialog", { name: copy.register.cartSheetTitle });
+    await waitFor(() => expect(dialog).toHaveFocus());
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: copy.register.cartSheetTitle })).not.toBeInTheDocument();
+    expect(addButton).toHaveFocus();
+  });
+
   it("gives the SKU clear action an accessible name", async () => {
     getOpenShift.mockResolvedValue(openShift);
     renderRegister();

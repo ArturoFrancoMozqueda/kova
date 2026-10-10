@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { axe } from "vitest-axe";
 import { ToastProvider } from "@/components/ui/toast";
 import { copy } from "@/i18n/messages";
 import InventoryView from "./InventoryView";
-import { adjustStock, listLowStock, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
+import { adjustStock, listLowStock, listMovements, listStock, listVelocity, recordStockTake, updateLowStockThreshold } from "./api";
 import type { StockItem } from "./types";
 
 const authIdentity = vi.hoisted(() => ({ tenantId: "tenant-1", user: { id: "user-1" } }));
@@ -188,6 +189,40 @@ describe("inventory write safety", () => {
 });
 
 describe("inventory stock visibility", () => {
+  it("preserves heading order with and without inventory warnings", async () => {
+    vi.mocked(listLowStock).mockResolvedValue([item]);
+    const view = renderView();
+    await screen.findByRole("heading", { name: item.product_name });
+    expect(screen.getByRole("heading", { name: copy.inventoryView.attentionTitle, level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: copy.inventoryView.stockSectionTitle, level: 2 })).toBeInTheDocument();
+    expect((await axe(view.container, { runOnly: ["heading-order"] })).violations).toEqual([]);
+    view.unmount();
+    vi.mocked(listLowStock).mockResolvedValue([]);
+    const withoutWarnings = renderView();
+    await screen.findByRole("heading", { name: item.product_name });
+    expect((await axe(withoutWarnings.container, { runOnly: ["heading-order"] })).violations).toEqual([]);
+  });
+
+  it.each([
+    ["purchase", "Compra", 2],
+    ["transfer_in", "Traspaso de entrada", 2],
+    ["transfer_out", "Traspaso de salida", -2],
+  ])("identifies the source of a %s movement in inventory history", async (movementType, label, delta) => {
+    vi.mocked(listMovements).mockResolvedValue({
+      items: [{ id: "movement-1", movement_type: movementType, quantity_delta: delta,
+        stock_on_hand_after: 10 + delta, reason: "Recepción o traspaso registrado",
+        created_by_user_id: "user-1", created_at: "2026-10-10T16:00:00Z" }],
+      total: 1, limit: 20, offset: 0,
+    });
+    renderView();
+    await screen.findByRole("heading", { name: item.product_name });
+    fireEvent.click(screen.getByRole("button", { name: copy.inventoryView.viewHistory }));
+    const history = await screen.findByRole("region", { name: `Movimientos de ${item.product_name}` });
+    expect(within(history).getByText(label)).toBeInTheDocument();
+    expect(within(history).queryByText("Movimiento", { exact: true })).not.toBeInTheDocument();
+    expect(listMovements).toHaveBeenCalledWith(item.product_id, 20, 0);
+  });
+
   it("includes depleted products without thresholds in low stock and excludes them from healthy stock", async () => {
     vi.mocked(listStock).mockResolvedValue([item, { ...item, product_id: "product-2", product_name: "Agua", stock_on_hand: 0, low_stock_threshold: null }]);
     renderView();
