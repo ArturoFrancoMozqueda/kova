@@ -125,13 +125,12 @@ Se invalidan esas respuestas mediante la época de la consulta y el ciclo de vid
 del proveedor. Las tres nuevas regresiones fallaron antes del cambio y pasan después;
 cookies, autorización del servidor y separación entre tenants se conservan.
 
-Verificación local: 1,477 pruebas backend antes del último copy, 967 frontend sobre
-las fuentes finales, 209 de navegador compilado (seis skips de integración que
+Verificación: CI del PR #187 aprobó 1,480 pruebas backend y 970 frontend;
+localmente aprobaron 209 pruebas de navegador compilado (seis skips de integración que
 requieren stack efímero), TypeScript, ESLint, build/SSR/prerender, contrato OpenAPI y
 100 archivos JS del bundle sin patrones de secretos. Scripts operativos: 60 pruebas;
-publicación: 24 aprobadas y un skip específico de Windows. El último copy tiene
-tres regresiones nuevas; CI valida de nuevo el backend y el stack real antes de
-integrar. Las pruebas de navegador actualizan
+publicación: 24 aprobadas y un skip específico de Windows. Las tres regresiones finales de copy y las de foco quedaron incluidas en CI,
+que también aprobó seis pruebas de navegador con FastAPI/Postgres/RLS reales. Las pruebas de navegador actualizan
 selectores de título a nivel uno y del listado de productos para reflejar los nuevos
 encabezados accesibles, conservando la comprobación de ordenación y los flujos.
 Logout normal de la sesión de prueba: HTTP 204, cookies eliminadas y `auth/me` 401;
@@ -145,8 +144,10 @@ validación documentados. El parser actualizado recupera once variantes CSS ya
 declaradas, conservando todas las reglas anteriores.
 
 Los backups reales recientes tienen dump, subida, checksum, retención y limpieza
-aprobados. Se añade un drill manual con destino PostgreSQL 17 aislado en GitHub Actions:
-su implementación y prueba sintética no acreditan aún restauración de un dump real.
+aprobados. El drill real [38073545892](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38073545892)
+restauró el snapshot del 10 de octubre en PostgreSQL 17 aislado: checksum, RLS,
+pagos/lotes, grants y limpieza verificados. El primer intento descubrió y permitió
+corregir el socket de bootstrap mediante PR #188. [Evidencia y alcance](KOVA-R2-REAL-RESTORE-2026-10-10.md).
 No sustituye recuperación regional de Supabase ni prueba de RTO/RPO completa.
 
 El usuario confirmó ausencia de cuenta Facturapi e identidad/CSD del tenant. No se
@@ -154,3 +155,37 @@ inventaron datos fiscales ni se emitieron CFDI reales. La cuenta de plataforma y
 los requisitos del emisor siguen necesarios. Terminales/cargos externos, Safari/iOS
 y periféricos físicos no se declaran certificados. La publicación de los fixes
 requiere CI y comprobación posterior de la versión realmente servida.
+
+
+## Publicación y revisión real posterior
+
+PR #187 se integró y su release [38072711403](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38072711403)
+aprobó CI y publicación. `verify-deployment.mjs` verificó frontend, API directa,
+proxy y base de datos con fuente `e915e3760e0ff479cdb1d2dbef76449fc8964b43`.
+La migración 0079 está aplicada; los tres triggers tienen búsqueda fija, siguen
+SECURITY INVOKER y desaparecen las advertencias correspondientes. RLS público y
+rol runtime sin superusuario/BYPASSRLS siguen intactos.
+
+La sesión original del propietario en el navegador de Codex siguió autenticada.
+Al navegar de nuevo al panel se cargó inicialmente el shell PWA anterior y luego
+la actualización segura cargó los cambios sin perder la sesión. Se comprobaron
+etiquetas de pagos en español, base de cobros brutos, frecuencia de eventos de
+devolución y encabezados h2; el menú entra al diálogo y Escape devuelve el foco.
+Lecturas independientes posteriores concilian nuevamente importes, stock y reservas.
+
+Esa última pasada descubrió contraste 2.37:1 del texto verde «44% no efectivo»
+en escritorio, salto h1→h3 en Análisis y selector de sucursal fuera de landmarks.
+Correcciones adicionales en `codex/published-accessibility-followups`: texto
+verde oscuro en salud y comparación positiva, h2 locales con estilos conservados
+en reportes y región nombrada de selección de sucursal. La gráfica de siete días
+que acompaña el KPI de un día añade sus fechas reales; el neto cero en todas las
+sucursales se explica sin nombrar una ganadora. Las comprobaciones originales de
+cambio de sucursal y conservación de ventas offline se mantienen; no cambian los
+contratos ni cálculos. La publicación y QA de estas correcciones siguen pendientes
+al preparar esta evidencia; no se confunden con la publicación ya aprobada del PR #187.
+
+Validación adicional: 30 pruebas unitarias focalizadas, 10 pruebas de navegador
+compilado Chromium/WebKit (390/1440, contraste saludable y con devoluciones),
+TypeScript, ESLint y build. Dos regresiones de claridad y la de landmark fallaron
+antes de la corrección y aprobaron después. Las pruebas de jerarquía y landmarks
+amplían axe sobre el documento y conservan la comprobación WCAG del contenido.

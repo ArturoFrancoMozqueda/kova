@@ -25,10 +25,13 @@ WebKit también conserva el foco del producto y del botón de menú tras cerrar
 sus paneles; nuevas regresiones prueban activación sin foco automático del puntero.
 Quedan cinco avisos altos derivados de `braces` sin parche compatible, limitados a
 compilación con patrones estáticos: [revisión de dependencias](audits/KOVA-DEPENDENCY-REVIEW-2026-10-10.md).
-Se prepara también restauración lógica
-de backup R2 en runner aislado; su implementación no acredita una ejecución real.
-La publicación debe pasar CI y verificarse en frontend/API/proxy antes de considerarse
-lista. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
+La restauración real R2 en runner aislado aprobó en [38073545892](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38073545892):
+checksum, PostgreSQL 17, RLS, pagos/lotes, grants y limpieza verificados.
+[Evidencia y límites](audits/KOVA-R2-REAL-RESTORE-2026-10-10.md). PR #187 ya pasó CI y publicación;
+frontend/API/proxy/base de datos verificados con fuente `e915e3760e0ff479cdb1d2dbef76449fc8964b43`.
+La pasada publicada añade tres correcciones de accesibilidad en
+`codex/published-accessibility-followups` (contraste, h2 de Análisis y landmark de
+sucursal), cuya publicación y QA deben completarse antes de acreditarlas. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
 [negocio](audits/KOVA-PRODUCTION-BUSINESS-2026-10-10.md) y
 [acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
 

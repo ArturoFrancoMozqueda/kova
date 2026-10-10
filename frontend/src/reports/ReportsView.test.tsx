@@ -175,6 +175,27 @@ describe("ReportsView", () => {
     });
   });
 
+  it("uses level-two headings for report sections below the page title", async () => {
+    (getBusinessStory as Mock).mockResolvedValue(makeStory());
+    renderView();
+    await screen.findByText(copy.reportsView.kpiNetSalesLabel);
+    expect(screen.getByRole("heading", { name: "Análisis", level: 1 })).toBeVisible();
+    for (const name of [
+      copy.reportsView.restockPlan.title,
+      copy.reportsView.paymentBreakdown,
+      copy.reportsView.refundsSectionTitle,
+      copy.reportsView.timingAnalysisTitle,
+    ]) {
+      expect(screen.getByRole("heading", { name, level: 2 })).toBeVisible();
+    }
+    let previousLevel = 0;
+    for (const heading of screen.getAllByRole("heading")) {
+      const level = Number(heading.tagName.slice(1));
+      expect(level, `Skipped heading level at ${heading.textContent}`).toBeLessThanOrEqual(previousLevel + 1);
+      previousLevel = level;
+    }
+  });
+
   it("tracks a completed recommendation and its usefulness feedback", async () => {
     (getBusinessStory as Mock).mockResolvedValue(makeStory());
     renderView();

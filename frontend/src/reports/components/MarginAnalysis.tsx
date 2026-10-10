@@ -2,7 +2,7 @@ import { CircleDollarSign, PackageCheck, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
 import type { BusinessStoryReport } from "../types";
@@ -29,10 +29,10 @@ export function MarginAnalysis({ story }: { story: BusinessStoryReport }) {
     <Card className="overflow-hidden border-kova-blue/20" data-testid="margin-analysis">
       <CardHeader className="gap-3 border-b border-kova-border bg-kova-blue/[0.03] sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
             <CircleDollarSign className="h-5 w-5 text-kova-blue" />
             {copy.reportsView.marginTitle}
-          </CardTitle>
+          </h2>
           <p className="mt-2 text-sm text-kova-muted">{copy.reportsView.marginBody}</p>
         </div>
         <Badge variant={complete ? "success" : "warning"}>

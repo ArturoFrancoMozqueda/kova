@@ -2,7 +2,7 @@ import { AlertTriangle, CreditCard, PackageSearch, TimerReset } from "lucide-rea
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { WeeklyKpiChart, type WeeklyKpiPoint } from "@/components/ui/weekly-kpi-chart";
 import { formatDayWithWeekday } from "@/i18n/date";
 import { copy } from "@/i18n/messages";
@@ -108,10 +108,10 @@ function RankListCard({
   return (
     <Card className="h-full overflow-hidden">
       <CardHeader className="border-b border-kova-border px-5 py-4">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <h2 className="font-semibold leading-none tracking-tight flex items-center gap-2 text-base">
           {icon}
           {title}
-        </CardTitle>
+        </h2>
       </CardHeader>
       <CardContent className="p-5">
         {failure ? (
@@ -161,10 +161,10 @@ function PaymentMixCard({ story }: { story: BusinessStoryReport }) {
   return (
     <Card className="h-full overflow-hidden">
       <CardHeader className="border-b border-kova-border px-5 py-4">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <h2 className="font-semibold leading-none tracking-tight flex items-center gap-2 text-base">
           <CreditCard className="h-4 w-4 text-kova-tertiary" aria-hidden />
           {copy.reportsView.paymentBreakdown}
-        </CardTitle>
+        </h2>
       </CardHeader>
       <CardContent className="p-5">
         {payments.length === 0 ? (
@@ -276,7 +276,7 @@ export function AnalysisOverview({
                 className={cn(
                   "inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold tabular-nums",
                   comparison.positive
-                    ? "bg-kova-growth/10 text-kova-growth"
+                    ? "bg-kova-growth/10 text-emerald-700"
                     : "bg-destructive/10 text-destructive",
                 )}
               >
@@ -285,8 +285,17 @@ export function AnalysisOverview({
             ) : null}
           </div>
           <p className="mt-2 text-sm tabular-nums text-kova-muted">{comparison.text}</p>
+          {rangeDays === 1 && trendStory ? (
+            <p className="mt-5 text-sm text-kova-muted">
+              {copy.reportsView.overviewDailyTrend(
+                formatDayWithWeekday(chartStory.summary.start_date),
+                formatDayWithWeekday(chartStory.summary.end_date),
+                daysBetweenInclusive(chartStory.summary.start_date, chartStory.summary.end_date),
+              )}
+            </p>
+          ) : null}
           <WeeklyKpiChart
-            className="mt-5"
+            className={rangeDays === 1 && trendStory ? "mt-2" : "mt-5"}
             data={points}
             referenceValue={previousAverage}
             referenceLabel={
@@ -328,10 +337,10 @@ export function AnalysisOverview({
         <PaymentMixCard story={story} />
         <Card className="h-full overflow-hidden">
           <CardHeader className="border-b border-kova-border px-5 py-4">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <h2 className="font-semibold leading-none tracking-tight flex items-center gap-2 text-base">
               <AlertTriangle className="h-4 w-4 text-warning-foreground" aria-hidden />
               {copy.reportsView.overviewPriorities}
-            </CardTitle>
+            </h2>
           </CardHeader>
           <CardContent className="p-5">
             <PriorityActionCard

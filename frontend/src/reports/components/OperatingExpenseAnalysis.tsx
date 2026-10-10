@@ -2,7 +2,7 @@ import { Calculator, TriangleAlert, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { copy } from "@/i18n/messages";
 import { formatMoney } from "@/orders/format";
 import type { BusinessStoryReport } from "../types";
@@ -14,7 +14,7 @@ export function OperatingExpenseAnalysis({ story }: { story: BusinessStoryReport
   return (
     <Card className="overflow-hidden border-kova-blue/20" data-testid="operating-expense-analysis">
       <CardHeader className="gap-3 border-b border-kova-border bg-kova-blue/[0.03] sm:flex-row sm:items-start sm:justify-between">
-        <div><CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5 text-kova-blue" />{copy.reportsView.operatingTitle}</CardTitle><p className="mt-2 text-sm text-kova-muted">{copy.reportsView.operatingBody}</p></div>
+        <div><h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2"><Calculator className="h-5 w-5 text-kova-blue" />{copy.reportsView.operatingTitle}</h2><p className="mt-2 text-sm text-kova-muted">{copy.reportsView.operatingBody}</p></div>
         <Badge variant={report.expense_count > 0 ? "secondary" : "warning"}>{copy.reportsView.operatingExpenseCount(report.expense_count)}</Badge>
       </CardHeader>
       <CardContent className="grid gap-5 pt-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">

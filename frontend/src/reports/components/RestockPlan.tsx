@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, PackageSearch } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { copy } from "@/i18n/messages";
 import {
@@ -36,10 +36,10 @@ export function RestockPlan({
     <Card data-testid="restock-plan" className="border-kova-blue/20">
       <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
             <PackageSearch className="h-5 w-5 shrink-0 text-kova-blue" aria-hidden />
             {text.title}
-          </CardTitle>
+          </h2>
           <p className="mt-2 text-sm text-kova-muted">{text.body}</p>
         </div>
         <div className="shrink-0 space-y-2">
