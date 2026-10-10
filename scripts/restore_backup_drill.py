@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ACKNOWLEDGEMENT = "KOVA-R2-RESTORE-RUNNER-ONLY"
 IMAGE = "pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d"
 LABEL = "org.kova.restore-drill"
+SOCKET_DIRECTORY = "/var/run/postgresql"
 KEY_PATTERN = re.compile(r"^supabase/postgres/kova-(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\dZ)\.dump$")
 
 
@@ -176,23 +177,29 @@ def restore(environ, run=run_command):
         aws("get-object", "--key", key, str(dump))
         dump.chmod(0o600)
         size, checksum = validate_dump(dump, metadata)
-        stage = "container"
+        stage = "container-image"
         run(["docker", "pull", IMAGE], timeout=180)
+        stage = "container-start"
         run([
             "docker", "run", "-d", "--name", container, "--label", f"{LABEL}={identity}",
             "--network", "none", "--user", "postgres", "--read-only", "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges", "--memory", "3g", "--cpus", "2",
-            "--tmpfs", "/tmp:rw,nosuid,size=2g", "--tmpfs", "/var/run/postgresql:rw,nosuid,mode=1777,size=16m",
+            "--tmpfs", "/tmp:rw,nosuid,mode=1777,size=2g", "--tmpfs", "/var/run/postgresql:rw,nosuid,mode=1777,size=16m",
             # Override the image's declared VOLUME as tmpfs too; changing PGDATA
             # alone would leave an anonymous persistent Docker volume behind.
             "--tmpfs", "/var/lib/postgresql/data:rw,nosuid,mode=1777,size=16m",
             "-e", "PGDATA=/tmp/pgdata", "-e", "POSTGRES_USER=restore_owner", "-e", "POSTGRES_DB=kova_restore",
             "-e", f"POSTGRES_PASSWORD={uuid4().hex}", IMAGE,
-            "postgres", "-c", "listen_addresses=", "-c", "unix_socket_directories=/tmp",
+            # The image entrypoint creates POSTGRES_DB using psql's default
+            # socket path. Its temporary bootstrap server receives these flags
+            # too, so changing this path would prevent database initialization.
+            "postgres", "-c", "listen_addresses=", "-c", f"unix_socket_directories={SOCKET_DIRECTORY}",
         ])
+        stage = "container-isolation"
         validate_container(json.loads(run(["docker", "inspect", container])), identity)
-        psql = ["docker", "exec", "-i", container, "psql", "-X", "-h", "/tmp", "-U", "restore_owner",
+        psql = ["docker", "exec", "-i", container, "psql", "-X", "-h", SOCKET_DIRECTORY, "-U", "restore_owner",
                 "-d", "kova_restore", "-v", "ON_ERROR_STOP=1", "-qAt"]
+        stage = "container-readiness"
         for attempt in range(30):
             try:
                 run(psql, input_data=b"SELECT 1;", timeout=5)
@@ -204,15 +211,17 @@ def restore(environ, run=run_command):
         version = int(run(psql, input_data=b"SHOW server_version_num;").strip())
         if not 170000 <= version < 180000:
             raise DrillError("Restore requires PostgreSQL 17")
+        stage = "bootstrap-schema"
         run(psql, input_data=b"CREATE SCHEMA extensions; CREATE SCHEMA assistant_control; "
                                 b"CREATE EXTENSION vector WITH SCHEMA extensions; "
                                 b"CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN;")
         # Never mount host files or pass source credentials to the restored database.
+        stage = "copy-backup"
         with dump.open("rb") as stream:
             run(["docker", "exec", "-i", container, "sh", "-c", "cat > /tmp/backup.dump"], input_data=stream.read())
         stage = "restore"
         restore_timer = time.monotonic()
-        run(["docker", "exec", container, "pg_restore", "-h", "/tmp", "-U", "restore_owner",
+        run(["docker", "exec", container, "pg_restore", "-h", SOCKET_DIRECTORY, "-U", "restore_owner",
              "--dbname", "kova_restore", "--schema=public", "--schema=assistant_control", "--no-owner",
              "--no-acl", "--clean", "--if-exists", "--exit-on-error", "--single-transaction", "/tmp/backup.dump"], timeout=600)
         restore_seconds = round(time.monotonic() - restore_timer, 3)

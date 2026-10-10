@@ -179,13 +179,21 @@ class RestoreSafetyTests(unittest.TestCase):
             self.assertEqual(len(list(Path(directory).iterdir())), 1)
         pg_restore = next(args for args in calls if "pg_restore" in args)
         self.assertEqual(pg_restore[:4], ["docker", "exec", "kova-r2-restore-123-1", "pg_restore"])
-        self.assertEqual(pg_restore[pg_restore.index("-h")+1], "/tmp")
+        self.assertEqual(pg_restore[pg_restore.index("-h")+1], "/var/run/postgresql")
         self.assertEqual(pg_restore[pg_restore.index("--dbname")+1], "kova_restore")
         self.assertIn("--exit-on-error", pg_restore)
         self.assertIn("--single-transaction", pg_restore)
         self.assertFalse(any("--create" in args or "--disable-triggers" in args for args in calls))
         docker_run = next(args for args in calls if args[:2] == ["docker", "run"])
         self.assertIn("/var/lib/postgresql/data:rw,nosuid,mode=1777,size=16m", docker_run)
+        # The image entrypoint uses psql's compiled default socket while creating
+        # POSTGRES_DB. The bootstrap server must retain that same default path.
+        self.assertIn("unix_socket_directories=/var/run/postgresql", docker_run)
+        self.assertIn("/var/run/postgresql:rw,nosuid,mode=1777,size=16m", docker_run)
+        self.assertIn("/tmp:rw,nosuid,mode=1777,size=2g", docker_run)
+        for command in calls:
+            if "psql" in command:
+                self.assertEqual(command[command.index("-h")+1], "/var/run/postgresql")
 
     def test_workflow_is_manual_and_never_receives_production_database_credentials(self):
         workflow = (DRILL.ROOT / ".github/workflows/db-restore-drill.yml").read_text()
