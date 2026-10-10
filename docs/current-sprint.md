@@ -51,6 +51,17 @@ sus seis métricas correctas tras recarga e historial en 1440/390, sin fallos de
 accesibilidad/desbordamiento/JavaScript detectados y sin nueva inferencia.
 Companion vacío/foco probado live; respuesta compacta poblada cubierta por test.
 Sesiones propias cerradas; pestaña original abierta en el panel.
+La última lectura detectó «Te quedan 1 de Alfajores». PR #193 corrige sólo el
+singular del helper y añade tres pruebas 1/2/0, todas correctas; lint/TypeScript
+aprobados. CI final: 996 frontend, 1,483 backend, 214 navegador compilado y
+seis con stack real. Release [38081235586](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38081235586)
+aprobado a las 20:04:33 UTC; frontend/API/proxy/base de datos verificados con
+`8f2f2ba9eabc050e54dc43aa4c22e6a85b601e2d`. Aceptación posterior 1440/390:
+singular correcto con stock uno/reservas cero; Dashboard y respuesta guardada
+sin fallos detectados de WCAG/heading/region, overflow o JavaScript. Seis cifras
+intactas y uso 3,126→3,126, sin nueva inferencia ni escrituras de negocio.
+La pestaña original aplicó «Actualizar ahora» con caja libre y conservó sesión
+y respuesta; volvió al panel. Contextos propios cerrados con logout/me 401.
 [Informe único de aceptación y límites](audits/KOVA-SWEET-HOME-PRODUCTION-ACCEPTANCE-2026-10-10.md). Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
 [negocio](audits/KOVA-PRODUCTION-BUSINESS-2026-10-10.md) y
 [acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
