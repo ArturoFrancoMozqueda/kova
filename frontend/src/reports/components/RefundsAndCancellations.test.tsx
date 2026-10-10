@@ -44,4 +44,16 @@ describe("RefundsAndCancellations", () => {
     expect(screen.getByText(/\$600/)).toBeInTheDocument();
     expect(screen.getByText(/\$300/)).toBeInTheDocument();
   });
+
+  it("lets keyboard users focus the scrollable refund breakdown", () => {
+    const story = makeStory({
+      summary: { ...makeStory().summary, refund_count: 8, refund_total: "900", gross_sales: "10000" },
+      refunds_by_reason: [{ reason: "damaged_item", refund_count: 8, refunded_amount: "900" }],
+    });
+    render(<RefundsAndCancellations story={story} />);
+    const region = screen.getByRole("region", { name: /devoluciones o cancelaciones/i });
+    region.focus();
+    expect(region).toHaveFocus();
+    expect(region).toContainElement(screen.getByRole("table"));
+  });
 });

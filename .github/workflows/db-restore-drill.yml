@@ -1,0 +1,52 @@
+name: R2 logical backup restore drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledgement:
+        description: Type KOVA-R2-RESTORE-RUNNER-ONLY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Restore latest verified R2 backup in an isolated runner container
+        id: restore
+        env:
+          RESTORE_ACKNOWLEDGEMENT: ${{ inputs.acknowledgement }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_EC2_METADATA_DISABLED: "true"
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+        run: python scripts/restore_backup_drill.py
+
+      - name: Verify disposable container and private backup files are gone
+        id: cleanup
+        if: always()
+        run: python scripts/restore_backup_drill.py --cleanup
+
+      - name: Save aggregate evidence only
+        if: steps.restore.outcome == 'success' && steps.cleanup.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kova-r2-restore-${{ github.sha }}
+          path: ${{ runner.temp }}/kova-r2-restore-evidence.json
+          if-no-files-found: error
+          retention-days: 7

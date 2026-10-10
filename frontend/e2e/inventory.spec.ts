@@ -177,7 +177,7 @@ test("inventory page supports adjustment, stock take, and threshold UI", async (
   });
 
   await page.goto("/inventory");
-  await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /inventario/i, level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Concha" })).toBeVisible();
 
   // The attention card now takes the owner directly into the corrective flow;
@@ -227,7 +227,7 @@ test("inventory supports search filter and sort at mobile width", async ({ page 
   });
 
   await page.goto("/inventory");
-  await expect(page.getByRole("heading", { name: /inventario/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /inventario/i, level: 1 })).toBeVisible();
 
   await page.getByLabel(/buscar inventario/i).fill("leche");
   await expect(page.getByRole("heading", { name: "Leche Entera" })).toBeVisible();
@@ -240,7 +240,6 @@ test("inventory supports search filter and sort at mobile width", async ({ page 
 
   await page.getByLabel(/filtrar inventario/i).selectOption("all");
   await page.getByLabel(/ordenar inventario/i).selectOption("stock_desc");
-  await expect(page.locator("h3").nth(1)).toHaveText("Vasos");
-  await expect(page.locator("h3").nth(2)).toHaveText("Cafe Grano");
-  await expect(page.locator("h3").nth(3)).toHaveText("Leche Entera");
+  const products = page.getByRole("region", { name: "Productos con inventario", exact: true });
+  await expect(products.getByRole("heading", { level: 3 })).toHaveText(["Vasos", "Cafe Grano", "Leche Entera"]);
 });

@@ -19,4 +19,27 @@ describe("AnalysisOverview full-period chart", () => {
     expect(container.querySelectorAll("button[aria-pressed]")).toHaveLength(45);
     expect(screen.getByRole("button", { name: `${formatDayWithWeekday("2026-07-15")}: $1,250.00` })).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("explains gross payment amounts and shows the backend net when all sales are refunded", () => {
+    const story = makeStory({
+      summary: {
+        ...makeStory().summary, gross_sales: "72.88", refund_total: "72.88", net_sales: "0.00",
+        completed_orders: 7, refund_count: 7, average_ticket: "0.00",
+      },
+      payment_mix: [
+        { method: "cash", amount: "40.88", refunded_amount: "40.88", net_amount: "0.00", payment_count: 5, sales_share_pct: 56 },
+        { method: "bank_transfer", amount: "22.00", refunded_amount: "22.00", net_amount: "0.00", payment_count: 2, sales_share_pct: 30 },
+        { method: "manual_card", amount: "10.00", refunded_amount: "10.00", net_amount: "0.00", payment_count: 1, sales_share_pct: 14 },
+      ],
+    });
+    render(<MemoryRouter><AnalysisOverview
+      story={story} previousStory={null} previousFailed={false} trendStory={null}
+      hourly={[]} hourlyFailed={false} priority={null} priorityDone={false}
+      onTogglePriority={vi.fn()} onPriorityFeedback={vi.fn()}
+    /></MemoryRouter>);
+    expect(screen.getByText(/los pagos muestran el bruto cobrado/)).toBeVisible();
+    expect(screen.getByText("Ventas brutas: $72.88 · Devoluciones: $72.88 · Ventas netas: $0.00.")).toBeVisible();
+    expect(screen.getByText("$40.88")).toBeVisible();
+    expect(screen.getByText("56%")).toBeVisible();
+  });
 });

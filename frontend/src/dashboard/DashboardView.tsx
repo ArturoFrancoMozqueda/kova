@@ -10,7 +10,7 @@ import {
   todayInTimezone,
   yesterdayInTimezone,
 } from "@/i18n/date";
-import { formatMoney } from "@/orders/format";
+import { formatMoney, reasonLabel } from "@/orders/format";
 import { getBusinessStory, getSalesByHour, getSalesSummary } from "@/reports/api";
 import { listProducts } from "@/catalog/api";
 import { listLowStock, listStock } from "@/inventory/api";
@@ -25,7 +25,7 @@ import type { StockItem } from "@/inventory/types";
 import { InsightStrip } from "./InsightStrip";
 import { BusinessHealthCard } from "./BusinessHealthCard";
 import { paymentsFromStory, summaryFromStory, topProductsFromStory } from "./storyAdapters";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeltaChip } from "@/components/ui/stat-tile";
@@ -274,7 +274,7 @@ function OnboardingChecklist({
     <Card className="border-kova-blue/20 bg-kova-blue/[0.04] animate-fade-in">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{copy.dashboard.onboardingTitle}</CardTitle>
+          <h2 className="text-base font-semibold leading-none tracking-tight">{copy.dashboard.onboardingTitle}</h2>
           <span className="text-xs text-muted-foreground">
             {doneCount}/{steps.length}
           </span>
@@ -672,7 +672,7 @@ export default function DashboardView() {
                 {/* Top hours: proportional bar plus period share; deep hourly analysis lives in Reportes */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-2">
+                    <h2 className="flex items-center justify-between gap-2 text-lg font-semibold leading-none tracking-tight">
                       <span className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         {copy.dashboard.topHoursTitle}
@@ -680,7 +680,7 @@ export default function DashboardView() {
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                         {copy.dashboard.topHoursBadge}
                       </span>
-                    </CardTitle>
+                    </h2>
                     <p className="text-sm text-muted-foreground">{copy.dashboard.topHoursSubtitle}</p>
                   </CardHeader>
                   <CardContent>
@@ -750,12 +750,13 @@ export default function DashboardView() {
                 {/* Payment Breakdown */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
                       <CreditCard className="h-4 w-4" />
                       {copy.dashboard.paymentBreakdown}
-                    </CardTitle>
+                    </h2>
                   </CardHeader>
                   <CardContent>
+                    <p className="mb-3 text-xs text-muted-foreground">{copy.dashboard.paymentBreakdownBasis}</p>
                     {loadState.payments.payments.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-6 text-center">
                         {copy.dashboard.noPaymentsToday}
@@ -793,9 +794,9 @@ export default function DashboardView() {
                                 const pct = total > 0 ? Math.round((Number(p.amount) / total) * 100) : 0;
                                 return (
                                   <div key={p.method} className="flex items-center justify-between gap-3 text-sm">
-                                    <span className="flex items-center gap-2 capitalize">
+                                    <span className="flex items-center gap-2">
                                       <span className={`h-2.5 w-2.5 rounded-sm ${segColors[i % segColors.length]}`} />
-                                      {p.method.replace("_", " ")}
+                                      {reasonLabel(p.method)}
                                     </span>
                                     <span className="flex items-baseline gap-2 tabular-nums">
                                       <span className="font-semibold text-kova-ink">{pct}%</span>
@@ -816,10 +817,10 @@ export default function DashboardView() {
               {/* Top Products — full width below the two-column row */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <h2 className="flex items-center gap-2 text-lg font-semibold leading-none tracking-tight">
                     <Package className="h-4 w-4" />
                     {copy.dashboard.topProducts}
-                  </CardTitle>
+                  </h2>
                 </CardHeader>
                 <CardContent>
                   {loadState.topProducts.products.length === 0 ? (
@@ -859,7 +860,7 @@ export default function DashboardView() {
           {loadState.summary.order_count > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>{copy.dashboard.quickActions}</CardTitle>
+                <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.dashboard.quickActions}</h2>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-3">

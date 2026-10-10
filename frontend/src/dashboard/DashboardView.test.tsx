@@ -37,6 +37,23 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("DashboardView period changes", () => {
+  it("labels every supported payment method in Spanish in the dashboard legend", async () => {
+    vi.mocked(getBusinessStory).mockResolvedValue(makeStory({ payment_mix: [
+      { method: "cash", amount: "10.00", refunded_amount: "0.00", net_amount: "10.00", payment_count: 1, sales_share_pct: 33 },
+      { method: "bank_transfer", amount: "10.00", refunded_amount: "0.00", net_amount: "10.00", payment_count: 1, sales_share_pct: 33 },
+      { method: "manual_card", amount: "10.00", refunded_amount: "0.00", net_amount: "10.00", payment_count: 1, sales_share_pct: 33 },
+    ] }));
+    render(<MemoryRouter><DashboardView /></MemoryRouter>);
+    await screen.findByTestId("net-sales");
+    for (const method of ["Efectivo", "Transferencia", "Tarjeta manual"]) {
+      expect(screen.getByText(method, { exact: true })).toBeInTheDocument();
+    }
+    expect(screen.getByText("Cobros antes de devoluciones")).toBeInTheDocument();
+    for (const raw of ["cash", "bank transfer", "manual card"]) {
+      expect(screen.queryByText(raw, { exact: true })).not.toBeInTheDocument();
+    }
+  });
+
   it("describes and compares trailing 30-day ranges with their real dates", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-08T18:00:00Z"));
