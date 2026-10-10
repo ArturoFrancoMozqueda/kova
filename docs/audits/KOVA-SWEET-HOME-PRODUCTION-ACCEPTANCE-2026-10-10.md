@@ -2,6 +2,10 @@
 
 ## Resultado y versión
 
+Última versión funcional publicada: `8f2f2ba9eabc050e54dc43aa4c22e6a85b601e2d`
+(PR #193, singular de stock). Las evidencias de #190/#191 se conservan abajo;
+la aceptación posterior del último ajuste se completó correctamente y se detalla abajo.
+
 El propietario autorizó operaciones reales de prueba en **Cafetería Sweet Home**,
 revisión con agentes, correcciones e integración/publicación. Se conservó su sesión
 existente en la pestaña de Codex; los equipos usaron contextos independientes.
@@ -21,7 +25,7 @@ y base de datos accesible. La aceptación autenticada de 19 rutas × dos navegad
 completó 38 comprobaciones de las vistas iniciales sin violaciones
 WCAG/heading/region, desbordamiento ni excepciones JavaScript. En `/assistant`
 ese barrido cubrió la bienvenida vacía; la respuesta completa se comprobó por
-separado. La única pregunta libre se completó en modo grounded
+separado. La pregunta libre posterior a #190 se completó en modo grounded
 con las cifras reales correctas y consentimiento OpenRouter/Mistral vigente.
 [PR 191](https://github.com/ArturoFrancoMozqueda/kova/pull/191) añade la presentación
 de conteos de devolución/cancelación y encabezados de respuestas completas;
@@ -51,7 +55,7 @@ No existe una certificación al 100% para los frentes sin ejecución descritos a
 | Turnos / efectivo | Cierre antiguo cuadrado y nuevos cortes con sobrante +1 y faltante −1. Turno nuevo abierto en cero. | Cantidades declaradas de prueba; no hubo conteo físico de billetes. |
 | Sesión / seguridad | Cookies Secure/HttpOnly/SameSite=Lax; ausencia de tokens en storage; logout de sesiones propias y me 401. CSRF 403, sucursal ajena 404 y endpoints protegidos anónimos 401. Regresiones de respuestas obsoletas tras logout/desmontaje/cambio de identidad. | La QA real autenticada fue owner. No se proporcionaron cuentas manager/cashier ni dos tenants reales para una matriz live completa. |
 | RLS / base de datos | Runtime sin superusuario/BYPASSRLS, tablas públicas con RLS, grants Data API 0. Migración 0079 fija búsqueda de tres triggers sin elevar permisos. Regresiones adversariales y roundtrip. | Una FK legacy NOT VALID conserva historia de un tenant eliminado; enforcement activo, cero violaciones de tenants existentes. No se borra historia para cambiar el indicador. |
-| Suscripción | Standard, MXN 299/mes, estado activo y acceso permitido en Sweet Home; gates y Stripe Live/Test cubiertos automáticamente. | No se acreditó un ciclo nuevo Stripe Live de compra, cobro, fallo, cancelación y webhook. |
+| Suscripción | Standard, MXN 299/mes, estado activo y acceso permitido en Sweet Home; gates y Stripe Live/Test cubiertos automáticamente. Existe evidencia histórica de Checkout/renovación/fallo/recuperación/cancelación en Stripe Test (7 de septiembre). | El drill histórico pertenece a otro commit y no acredita el runtime actual. No se acreditó un ciclo nuevo Stripe Live de compra, cobro, fallo, cancelación y webhook. |
 | Fiscal / CFDI | UI/API de alta administrada, estados y gates; setup sin emisor/conexión, Live bloqueado por requisitos. | El propietario confirmó que no tiene cuenta Facturapi ni requisitos del emisor configurados. Kova necesita su cuenta/llave de plataforma; cada emisor aporta datos fiscales/CSD/autorización. No hubo timbrado real. |
 | Cajón / impresora | UI, descarga real del conector, sintaxis y correspondencia de código. Conector por sucursal implementado. | Sin impresora/cajón vinculados, no hubo apertura ni impresión física. Terminal bancaria sin conectar, con cargo deshabilitado. |
 | Asistente | Consulta local y pregunta libre grounded reales, conciliadas con netas/brutas/devoluciones y conteos 5/7/2. Perfil aprobado y consentimiento OpenRouter/Mistral vigentes. Seis tarjetas completas conservadas tras recarga e historial en Chromium/WebKit. Companion vacío y Escape/foco probados live. | Respuesta compacta poblada de dos métricas con evidencia automatizada únicamente. Documentos/correo/configuración desactivados; una pregunta no acredita todas las consultas o carga sostenida. |
@@ -109,6 +113,36 @@ ambos navegadores. Su respuesta poblada de dos métricas queda acreditada por
 regresión automatizada, sin afirmar ejecución live de ese estado. Los contextos
 propios del agente hicieron logout, comprobaron me 401 y se cerraron. El root
 comprobó las mismas seis cifras en la pestaña original y la devolvió al panel.
+
+## Último ajuste de presentación: stock singular
+
+La lectura final de la pestaña original detectó «Te quedan 1 de Alfajores».
+[PR #193](https://github.com/ArturoFrancoMozqueda/kova/pull/193) corrige únicamente
+el helper del panel a «Te queda 1…» y conserva plural y stock agotado. Tres
+regresiones (1/2/0) aprobaron, incluido singular rojo→verde; ESLint y TypeScript
+correctos. Backend, métricas, inventario y perfil aprobado permanecen intactos.
+El release [38081235586](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38081235586)
+aprobó a las 20:04:33 UTC; verificador posterior correcto para frontend
+`8f2f2ba9eabc`, API/proxy `8f2f2ba9eabc050e54dc43aa4c22e6a85b601e2d`,
+HTML/sitio/base de datos accesibles. CI final: 1,483 backend, 996 frontend,
+214 browser compilado y seis con stack real, todos aprobados. A las 20:07:05 UTC
+el agente comprobó el singular real en Chromium 1440/WebKit 390 con stock uno y
+reservas cero, iguales al baseline. Dashboard y respuesta completa persistida:
+BODY WCAG/heading-order/region, desbordamiento y errores JavaScript sin fallos
+detectados. Seis tarjetas 0.00 / 5 / 72.88 / 72.88 / 7 / 2, uso 3,126→3,126,
+sin nuevas consultas ni escrituras de negocio. Sesiones propias cerradas con
+logout/me 401. La captura nueva conserva la evidencia de #191 por separado.
+
+La pestaña original recibió el aviso de actualización. El root pulsó
+«Actualizar ahora» con la caja libre, comprobó que mantuvo login y respuesta
+persistida, y volvió al panel con el singular correcto. Esto acredita ese
+recorrido manual y no garantiza actualización automática en todos los dispositivos.
+
+La evidencia de Stripe Test del
+[7 de septiembre](evidence/KOV-005-STRIPE-TEST-MODE-DRILL-2026-09-07.md)
+queda como histórica: Checkout, renovación, fallo/gracia, recuperación,
+cancelación, llegada en distinto orden, duplicados y limpieza correctos.
+No se presenta como una ejecución nueva en el commit actual ni como Stripe Live.
 
 ## Estado de los registros del tenant
 
