@@ -153,8 +153,9 @@ No sustituye recuperación regional de Supabase ni prueba de RTO/RPO completa.
 El usuario confirmó ausencia de cuenta Facturapi e identidad/CSD del tenant. No se
 inventaron datos fiscales ni se emitieron CFDI reales. La cuenta de plataforma y
 los requisitos del emisor siguen necesarios. Terminales/cargos externos, Safari/iOS
-y periféricos físicos no se declaran certificados. La publicación de los fixes
-requiere CI y comprobación posterior de la versión realmente servida.
+y periféricos físicos no se declaran certificados. La publicación de #187–#190
+aprobó CI y comprobación posterior de la versión realmente servida; los límites
+externos se conservan en el informe único de aceptación.
 
 
 ## Publicación y revisión real posterior
@@ -187,10 +188,32 @@ aprobó y el verificador público confirmó frontend/API/proxy/DB en
 `6d8fa1467edb5afdecc7277b13e61520232544e6`. CI: 974 pruebas frontend,
 1,480 backend, 211 de navegador compilado y seis de navegador con stack real.
 La comprobación autenticada final detectó además la regresión del perfil de IA
-descrita en la auditoría de acceso; su cierre sigue pendiente de corrección y QA.
+descrita en la auditoría de acceso; PR #190 publicó el motor aprobado y la
+pregunta libre posterior completó en modo grounded con importes y conteos
+conciliados. El cierre final de #191 se describe en la aceptación única.
 
 Validación adicional: 30 pruebas unitarias focalizadas, 10 pruebas de navegador
 compilado Chromium/WebKit (390/1440, contraste saludable y con devoluciones),
 TypeScript, ESLint y build. Dos regresiones de claridad y la de landmark fallaron
 antes de la corrección y aprobaron después. Las pruebas de jerarquía y landmarks
 amplían axe sobre el documento y conservan la comprobación WCAG del contenido.
+
+
+## Cierre final del runtime y conciliación
+
+PR #190 recuperó la inferencia sin modificar motor aprobado, gates o consentimiento.
+PR #191 publicó la presentación de los seis datos reales como
+`826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f`; su release
+[38079066759](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38079066759)
+y el verificador público exacto aprobaron. La consulta grounded ya persistida
+muestra netas 0.00, cinco órdenes, brutas/devoluciones 72.88 y eventos 7/2,
+coincidentes con las operaciones anteriores. Recarga e historial correctos en
+Chromium 1440 y WebKit 390, sin otra inferencia. La sesión original sigue abierta
+en el panel y el turno nuevo permanece abierto en cero.
+
+El respaldo actualizado a las 18:15:30 UTC incluye las siete órdenes QA:
+0079, 1,025 órdenes y 36 productos. Restore real
+[38075155881](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075155881)
+verificó integridad, RLS, pagos/lotes, grants y limpieza en runner aislado.
+No sustituye recuperación regional ni movimiento bancario/fiscal efectivo.
+[Informe único y alcance de aceptación](KOVA-SWEET-HOME-PRODUCTION-ACCEPTANCE-2026-10-10.md).

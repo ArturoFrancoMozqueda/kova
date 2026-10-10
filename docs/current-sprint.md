@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-10
 
-## Active production validation (2026-10-10): operaciones reales en Sweet Home
+## Completed production validation (2026-10-10): operaciones reales en Sweet Home
 
 El propietario autorizó escrituras reales de prueba en su tenant y tres agentes.
 Se ejecutaron siete ventas por UI (efectivo, transferencia, tarjeta manual, dividido,
@@ -34,23 +34,35 @@ PR #189 publicó las correcciones de contraste, h2 de Análisis, landmark de
 sucursal, fechas de la gráfica y explicación de neto cero. Su release
 [38075095270](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075095270)
 aprobó CI y comprobación pública de frontend/API/proxy/base de datos con fuente
-`6d8fa1467edb5afdecc7277b13e61520232544e6`. La pasada autenticada final continúa
-y encontró una regresión del perfil de IA que debe cerrarse antes de acreditar
-el asistente. El consentimiento OpenRouter/Mistral permanece vigente.
-La ampliación final recorrió 19 rutas Chromium/WebKit y corrigió h2 locales en
-Turnos/configuración, singular de un bloque y contraste de otros textos pequeños.
-Se incorporan al PR #190 junto con la preservación del motor aprobado; pendientes
-CI del head final, publicación y QA autenticada posterior. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
+`6d8fa1467edb5afdecc7277b13e61520232544e6`. La aceptación autenticada de #190 completó las vistas iniciales de 19 rutas en
+Chromium/WebKit con cero violaciones WCAG/heading/region, desbordamiento o
+excepciones. La respuesta completa del asistente se comprueba por separado. El motor
+aprobado se preservó byte por byte y la pregunta libre completó en modo grounded
+con netas 0.00, brutas/devoluciones 72.88 y conteos 5/7/2, sin propuestas.
+La ampliación corrigió h2 locales en Turnos/configuración, singular de un bloque
+y contraste de textos pequeños. PR #191, integrado como
+`826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f`, añade los conteos de devolución y
+cancelación a la tarjeta completa y h2 en respuestas; CI: 1,483 backend,
+993 frontend, 214 navegador compilado y seis con stack real, todos aprobados.
+El release final [38079066759](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38079066759)
+aprobó a las 19:31:21 UTC; frontend/API/proxy/base de datos verificados en
+`826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f`. La misma respuesta completa mostró
+sus seis métricas correctas tras recarga e historial en 1440/390, sin fallos de
+accesibilidad/desbordamiento/JavaScript detectados y sin nueva inferencia.
+Companion vacío/foco probado live; respuesta compacta poblada cubierta por test.
+Sesiones propias cerradas; pestaña original abierta en el panel.
+[Informe único de aceptación y límites](audits/KOVA-SWEET-HOME-PRODUCTION-ACCEPTANCE-2026-10-10.md). Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
 [negocio](audits/KOVA-PRODUCTION-BUSINESS-2026-10-10.md) y
 [acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
 
-El usuario confirmó que Sweet Home no tiene identidad/CSD ni cuenta de Facturapi.
+El usuario confirmó que no tiene cuenta Facturapi ni requisitos fiscales del emisor
+configurados para Sweet Home.
 La facturación Live queda sin emisión; Kova requiere una cuenta/llave de plataforma,
 y cada emisor debe aportar sus requisitos fiscales. Cargos externos, dispositivos
 físicos, Safari/iOS y recuperación regional siguen sin evidencia completa; no se
 declara disponibilidad productiva al 100%.
 
-## Active implementation (2026-10-09): Cajón de dinero
+## Published implementation (2026-10-09): Cajón de dinero
 
 El propietario pidió apertura de cajón desde cualquier equipo. Implementación local de un
 conector por sucursal, compatible con impresoras ESC/POS de red; Kova puede solicitar aperturas
@@ -58,7 +70,8 @@ desde navegador de computadora, Android o iPad. Contrato, limitaciones, segurida
 [`specs/shifts/cash_drawer.md`](../specs/shifts/cash_drawer.md).
 
 Verificación local: 73 pruebas de backend/RLS, 45 de frontend y 12 de navegador; build, lint,
-TypeScript y contrato OpenAPI pasan. Publicación y pruebas físicas pendientes; no se certifica hardware
+TypeScript y contrato OpenAPI pasan. La capacidad está publicada y la descarga real del conector verificada;
+las pruebas físicas siguen pendientes. No se certifica hardware
 USB/Bluetooth ni apertura remota offline. No modifica cobros, cortes ni sesiones por cookies.
 
 ## Source Of Truth
