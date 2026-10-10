@@ -73,7 +73,7 @@ function TrendChip({ trend }: { trend?: ProductTrendRow }) {
     <span
       className={cn(
         "text-xs font-medium tabular-nums",
-        chip.tone === "up" ? "text-kova-growth" : chip.tone === "down" ? "text-destructive" : "text-kova-muted",
+        chip.tone === "up" ? "text-emerald-700" : chip.tone === "down" ? "text-destructive" : "text-kova-muted",
       )}
     >
       {chip.label}

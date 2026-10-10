@@ -9,6 +9,7 @@ from app.branches.reports import BranchComparisonResponse, compare_branches
 from app.db import get_db
 from app.rbac.permissions import Permission
 from app.reports import service
+from app.reports.presentation import business_story_copy
 from app.reports.schemas import (
     BusinessStoryReportResponse,
     PaymentBreakdownResponse,
@@ -49,12 +50,13 @@ def business_story(
     ),
 ):
     _, membership, _ = ctx
-    return service.business_story(
+    report = service.business_story(
         db,
         tenant_id=membership.tenant_id,
         start_date=start_date or start,
         end_date=end_date or end,
     )
+    return business_story_copy(report)
 
 
 @router.get("/payment-breakdown", response_model=PaymentBreakdownResponse)

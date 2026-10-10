@@ -25,13 +25,22 @@ WebKit también conserva el foco del producto y del botón de menú tras cerrar
 sus paneles; nuevas regresiones prueban activación sin foco automático del puntero.
 Quedan cinco avisos altos derivados de `braces` sin parche compatible, limitados a
 compilación con patrones estáticos: [revisión de dependencias](audits/KOVA-DEPENDENCY-REVIEW-2026-10-10.md).
-La restauración real R2 en runner aislado aprobó en [38073545892](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38073545892):
+La restauración real R2 en runner aislado aprobó también para el snapshot actualizado
+0079/1,025 órdenes en [38075155881](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075155881):
 checksum, PostgreSQL 17, RLS, pagos/lotes, grants y limpieza verificados.
 [Evidencia y límites](audits/KOVA-R2-REAL-RESTORE-2026-10-10.md). PR #187 ya pasó CI y publicación;
 frontend/API/proxy/base de datos verificados con fuente `e915e3760e0ff479cdb1d2dbef76449fc8964b43`.
-La pasada publicada añade tres correcciones de accesibilidad en
-`codex/published-accessibility-followups` (contraste, h2 de Análisis y landmark de
-sucursal), cuya publicación y QA deben completarse antes de acreditarlas. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
+PR #189 publicó las correcciones de contraste, h2 de Análisis, landmark de
+sucursal, fechas de la gráfica y explicación de neto cero. Su release
+[38075095270](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075095270)
+aprobó CI y comprobación pública de frontend/API/proxy/base de datos con fuente
+`6d8fa1467edb5afdecc7277b13e61520232544e6`. La pasada autenticada final continúa
+y encontró una regresión del perfil de IA que debe cerrarse antes de acreditar
+el asistente. El consentimiento OpenRouter/Mistral permanece vigente.
+La ampliación final recorrió 19 rutas Chromium/WebKit y corrigió h2 locales en
+Turnos/configuración, singular de un bloque y contraste de otros textos pequeños.
+Se incorporan al PR #190 junto con la preservación del motor aprobado; pendientes
+CI del head final, publicación y QA autenticada posterior. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
 [negocio](audits/KOVA-PRODUCTION-BUSINESS-2026-10-10.md) y
 [acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,7 +66,7 @@ export function DrawerSettings() {
     } catch { setMessage("No se pudo copiar el código. Usa un navegador con acceso al portapapeles."); }
   }
   return <Card>
-    <CardHeader><CardTitle>Cajón de dinero</CardTitle><p className="text-sm text-muted-foreground">Abre el cajón desde tu computadora, celular o tablet con el conector de esta sucursal.</p></CardHeader>
+    <CardHeader><h2 className="text-lg font-semibold leading-none tracking-tight">Cajón de dinero</h2><p className="text-sm text-muted-foreground">Abre el cajón desde tu computadora, celular o tablet con el conector de esta sucursal.</p></CardHeader>
     <CardContent className="space-y-5">
       <div className="rounded-lg border border-kova-border bg-muted/40 p-4 text-sm leading-6">
         <p>Necesitas un cajón conectado a una impresora ESC/POS de red (Ethernet o Wi-Fi) y un equipo Windows, Mac o Linux con Python 3.12 o posterior que permanezca encendido junto a la caja y conectado a la misma red.</p>

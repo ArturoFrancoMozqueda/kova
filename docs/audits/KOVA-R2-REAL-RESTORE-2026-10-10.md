@@ -109,3 +109,59 @@ No procede validarla a ciegas: fallaría con ese registro histórico. No se borr
 el turno ni se crea un tenant ficticio para cambiar el indicador del auditor.
 Una eventual regularización del archivo histórico necesitaría una política
 explícita de conservación y una migración revisada.
+
+
+## Restauración real del snapshot actualizado con las operaciones de QA
+
+Fecha: 10 de octubre de 2026. El respaldo manual
+[38075027216](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075027216)
+completó dump, upload R2, contraste de metadata SHA-256, retención de siete días y
+limpieza local. Después se ejecutó una única restauración del snapshot nuevo:
+[38075155881](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075155881),
+fuente main `6d8fa1467edb5afdecc7277b13e61520232544e6`. Job `114280480406`:
+restore, limpieza verificada y artefacto agregado, todos correctos.
+
+El artefacto `11677834140`, nombre
+`kova-r2-restore-6d8fa1467edb5afdecc7277b13e61520232544e6`, ocupa 760 bytes
+comprimidos. Se descargó únicamente ese ZIP agregado; se verificó contra el
+digest GitHub `8a53c8b307a7107867d4c444e18568852afacfc6c388432a549a9f0287bfbf91`.
+Contiene sólo el JSON esperado, con identidad SHA/run coincidente, sin filas ni
+dump. El respaldo real permaneció en el runner temporal y fue eliminado junto
+con el contenedor aislado. No hubo DDL ni restauración en producción.
+
+| Resultado agregado | Snapshot anterior | Snapshot actualizado |
+| --- | --- | --- |
+| Respaldo UTC | 2026-10-10 15:04:09 | 2026-10-10 18:15:30 |
+| Ejecución restore | 38073545892 | 38075155881 |
+| Revisión | 0078_drawer_bridge | 0079_lot_trigger_search_path |
+| Órdenes totales | 1,018 | 1,025 |
+| Órdenes últimos siete días | 2 | 9 |
+| Última orden UTC | 2026-10-04 23:35:07 | 2026-10-10 16:33:57 |
+| Productos | 33 | 36 |
+| Tenants | 13 | 13 |
+| Tablas public / assistant_control | 72 / 5 | 72 / 5 |
+| Políticas public | 72 | 72 |
+| FKs validadas / legacy sin validar | 159 / 1 | 159 / 1 |
+
+El snapshot nuevo contiene siete órdenes adicionales y tres productos adicionales,
+coincidentes con los conteos de las operaciones de QA documentadas por el equipo.
+Además recupera directamente la migración 0079 ya incluida en el dump. La revisión
+de la FK legacy identificó un turno cerrado de un tenant eliminado, sin órdenes
+ni movimientos de caja asociados y sin incumplimientos en tenants existentes;
+la excepción está prevista por la migración 0068, con enforcement vigente.
+
+Datos del snapshot nuevo:
+
+- Key: `supabase/postgres/kova-2026-10-10T18-15-30Z.dump`.
+- SHA-256 del contenido verificado contra metadata R2:
+  `e3209792e7a531938cfd692fda30b627bc1ac10131cf35e77b820e757a8430c2`.
+- Tamaño: 3,107,703 bytes; edad al inicio: 103.446 segundos.
+- PostgreSQL 17.11; restore interno: 0.414 segundos; ejercicio con limpieza:
+  19.852 segundos.
+- RLS real bajo kova_app con scope vacío y tenant seleccionado: aprobado.
+- Conciliación de pagos, movimientos y reservas de lotes: aprobada.
+- Grants directos Data API: cero; limpieza: verificada.
+
+Los tiempos corresponden al ejercicio lógico aislado, no a recuperación regional
+ni al RTO completo del servicio. No se recuperaron Auth/Storage/Vault del proveedor,
+no se cambió el tráfico ni se aprovisionó un host Supabase.

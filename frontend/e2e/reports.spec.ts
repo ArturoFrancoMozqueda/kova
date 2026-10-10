@@ -294,6 +294,60 @@ for (const width of [390, 1440]) {
   });
 }
 
+test("positive comparisons and completed priorities retain accessible contrast", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(new Date("2026-05-19T18:00:00Z"));
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await markFirstUseToursSeen(page);
+  await mockAuthAs(page, "owner");
+  // Comparison has a verified $500 minimum base. Keep the original fixture
+  // unchanged and provide a larger, reconciling sales scenario for this test.
+  const base = storyPayload();
+  const current = storyPayload({
+    summary: { ...base.summary, gross_sales: "2510.00", refund_total: "200.00",
+      net_sales: "2310.00", average_ticket: "330.00", refund_count: 2 },
+    sales_by_day: base.sales_by_day.map((row) => ({ ...row,
+      net_sales: (Number(row.net_sales) * 10).toFixed(2),
+      average_ticket: (Number(row.average_ticket) * 10).toFixed(2),
+    })),
+    sales_by_daypart: base.sales_by_daypart.map((row) => ({ ...row,
+      net_sales: (Number(row.net_sales) * 10).toFixed(2),
+      average_ticket: (Number(row.average_ticket) * 10).toFixed(2),
+    })),
+    dominant_payment: { ...base.dominant_payment, amount: "1710.00" },
+    payment_mix: base.payment_mix.map((row) => ({ ...row, amount: (Number(row.amount) * 10).toFixed(2) })),
+    refunds_by_reason: [{ reason: "damaged_item", refund_count: 2, refunded_amount: "200.00" }],
+  });
+  await mockReports(page, current, {
+    previousPayload: storyPayload({
+      summary: { ...current.summary, start_date: "2026-05-06", end_date: "2026-05-12",
+        gross_sales: "1000.00", refund_total: "0.00", net_sales: "1000.00",
+        completed_orders: 9, average_ticket: "111.11", refund_count: 0 },
+      sales_by_daypart: current.sales_by_daypart.map((row) => ({ ...row,
+        net_sales: row.key === "madrugada" ? "0.00" : row.key === "noche" ? "800.00" : "100.00",
+        order_count: row.key === "madrugada" ? 0 : 3,
+        average_ticket: row.key === "madrugada" ? "0.00" : row.key === "noche" ? "266.67" : "33.33",
+        sales_share_pct: row.key === "madrugada" ? 0 : row.key === "noche" ? 80 : 10,
+      })),
+    }),
+  });
+  await page.goto("/reports");
+  await page.getByRole("group", { name: "Periodo de análisis" }).getByRole("button", { name: "7 días", exact: true }).click();
+  await expect(page.getByText(/13% del total · 1 orden ·/)).toBeVisible();
+  await expect(page.getByText("+100% vs. periodo anterior", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Marcar como hecha", exact: true }).click();
+  await page.getByRole("button", { name: "Sí, fue útil", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+  await page.addScriptTag({ content: axe.source });
+  const violations = await page.evaluate(async () => {
+    const engine = (window as unknown as { axe: { run: (context: string, options: object) => Promise<AxeResults> } }).axe;
+    const result = await engine.run("body", { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
+    const structure = await engine.run("body", { runOnly: { type: "rule", values: ["heading-order", "region"] } });
+    return [...result.violations, ...structure.violations].map(({ id, nodes }) => ({ id, targets: nodes.map(({ target }) => target) }));
+  });
+  expect(violations).toEqual([]);
+});
+
 test("mobile refund breakdown scrolls with the keyboard and remains accessible", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });

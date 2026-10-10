@@ -70,7 +70,7 @@ export function PriorityActionCard({
   return (
     <div
       data-testid="priority-recommendation"
-      className={cn("rounded-kova-md border-2 p-4", toneBorder(recommendation.tone), done && "opacity-70")}
+      className={cn("rounded-kova-md border-2 p-4", toneBorder(recommendation.tone))}
     >
       <div className="flex items-start justify-between gap-3">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-kova-muted">
@@ -79,7 +79,7 @@ export function PriorityActionCard({
         {recommendation.tone !== "good_signal" ? (
           <Button variant="ghost" size="sm" className="-mr-2 -mt-1.5 h-7 px-2 text-xs" onClick={onToggleDone}>
             {done ? (
-              <span className="flex items-center gap-1 text-kova-growth">
+              <span className="flex items-center gap-1 text-emerald-700">
                 <Check className="h-3.5 w-3.5" /> {copy.reportsView.planDone}
               </span>
             ) : (

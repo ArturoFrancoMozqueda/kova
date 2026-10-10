@@ -181,8 +181,13 @@ en reportes y región nombrada de selección de sucursal. La gráfica de siete d
 que acompaña el KPI de un día añade sus fechas reales; el neto cero en todas las
 sucursales se explica sin nombrar una ganadora. Las comprobaciones originales de
 cambio de sucursal y conservación de ventas offline se mantienen; no cambian los
-contratos ni cálculos. La publicación y QA de estas correcciones siguen pendientes
-al preparar esta evidencia; no se confunden con la publicación ya aprobada del PR #187.
+contratos ni cálculos. PR #189 publicó estas correcciones; el release
+[38075095270](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38075095270)
+aprobó y el verificador público confirmó frontend/API/proxy/DB en
+`6d8fa1467edb5afdecc7277b13e61520232544e6`. CI: 974 pruebas frontend,
+1,480 backend, 211 de navegador compilado y seis de navegador con stack real.
+La comprobación autenticada final detectó además la regresión del perfil de IA
+descrita en la auditoría de acceso; su cierre sigue pendiente de corrección y QA.
 
 Validación adicional: 30 pruebas unitarias focalizadas, 10 pruebas de navegador
 compilado Chromium/WebKit (390/1440, contraste saludable y con devoluciones),

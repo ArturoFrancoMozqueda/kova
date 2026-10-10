@@ -6,6 +6,17 @@ import { makeStory } from "../__fixtures__/story";
 import { DaypartsPanel, TopHoursPanel } from "./TimingAnalysis";
 
 describe("DaypartsPanel", () => {
+  it.each([[1, "1 orden"], [2, "2 órdenes"]] as const)(
+    "uses the correct order count for a block with %i orders",
+    (count, expected) => {
+      const row = makeStory().sales_by_daypart[1]!;
+      render(<DaypartsPanel story={makeStory({
+        sales_by_daypart: [{ ...row, order_count: count, net_sales: "128", sales_share_pct: 100 }],
+      })} previousStory={null} />);
+      expect(screen.getByText(`100% del total · ${expected} · $100.00`)).toBeInTheDocument();
+    },
+  );
+
   it("answers the strongest block with exact money and share", () => {
     render(<DaypartsPanel story={makeStory()} previousStory={null} />);
     // Fixture: tarde = $5,000 (50%).

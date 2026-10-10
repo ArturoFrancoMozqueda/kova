@@ -197,7 +197,7 @@ function ProductStoryContent({
       {/* Delta */}
       <div className="flex items-center gap-2 text-sm">
         {deltaState === "up" && (
-          <span className="flex items-center gap-1 font-medium text-kova-growth">
+          <span className="flex items-center gap-1 font-medium text-emerald-700">
             <TrendingUp className="h-4 w-4" />
             {deltaPct != null
               ? copy.productStory.deltaUp(pctRound(deltaPct))

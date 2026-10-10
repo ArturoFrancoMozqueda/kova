@@ -281,7 +281,7 @@ export default function ShiftView() {
           <CardHeader className="flex flex-row items-center justify-between border-b border-kova-border bg-kova-blue/[0.045] pb-4">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-primary" />
-              <CardTitle>{copy.shiftView.activeShift}</CardTitle>
+              <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.shiftView.activeShift}</h2>
             </div>
             <Badge variant="success">{copy.shiftView.badgeOpen}</Badge>
           </CardHeader>
@@ -344,7 +344,7 @@ export default function ShiftView() {
                       label={copy.shiftView.totalCashIn}
                       value={
                         <span className="tabular-nums">
-                          <span className="text-kova-growth">+{formatMoney(cashIn)}</span>
+                          <span className="text-emerald-700">+{formatMoney(cashIn)}</span>
                           {" / "}
                           <span className="text-destructive">−{formatMoney(cashOut)}</span>
                         </span>
