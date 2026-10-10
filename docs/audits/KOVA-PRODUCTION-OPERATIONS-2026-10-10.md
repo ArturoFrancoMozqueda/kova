@@ -91,6 +91,30 @@ parciales pueden pertenecer a una venta. No cambian los campos, el score ni los
 datos. Panel y análisis aclaran que el desglose de pagos es bruto; análisis presenta
 también bruto, devoluciones y neto cuando hay reembolsos.
 
+La pasada ampliada de WebKit reprodujo pérdida de foco al cerrar el resumen de
+venta: Safari no enfoca automáticamente el botón activado con el puntero. El
+producto y el control de apertura recuerdan ahora su foco antes de abrir el panel;
+el foco inicial diferido tampoco desplaza una interacción que ya alcanzó un campo.
+La nueva regresión falló antes y pasa después. Pasaron 38 pruebas relacionadas y
+los cuatro recorridos WebKit de resumen a 1272 px y recibo a 390/1100/1440 px.
+Los dos botones de apertura del menú guardan de la misma manera su foco antes
+de abrir el drawer. Dos regresiones nuevas fallaron antes y pasan después al
+cerrar con Escape. La prueba de onboarding espera el encabezado de Análisis y
+su milestone antes de volver al panel, conservando la verificación final.
+
+El primer harness WebKit con mocks permitía que el service worker eludiera
+`page.route()` y enviara solicitudes al proxy local. Aislar ese worker hizo pasar
+los seis casos de inventario, margen y merma con las mismas aserciones. Se conserva
+por separado la prueba offline real descrita arriba. El cuerpo multipart vacío en
+la captura WebKit es una limitación documentada del runner, también marcada en
+las [pruebas oficiales de Playwright](https://github.com/microsoft/playwright/blob/main/tests/page/page-request-intercept.spec.ts);
+no se cambió la carga de archivos del producto ni se eliminaron las aserciones
+de contenido que pasan en Chromium.
+El Tab inicial de WebKit en macOS sigue la preferencia nativa de Safari: con la
+configuración predeterminada, Option+Tab permite alcanzar enlaces. Se reprodujo
+en HTML mínimo sin Kova y no se debilitaron las expectativas de teclado del repo;
+la diferencia está descrita en la [guía oficial de Safari](https://support.apple.com/en-gb/guide/safari/cpsh003/27.0/mac/27).
+
 CI detectó una carrera en la observación del efecto inicial de una prueba de identidad.
 La prueba espera ahora ese efecto antes de medir el nuevo montaje; mantiene las
 expectativas de descartar exactamente una vez los snapshots al cambiar de identidad.

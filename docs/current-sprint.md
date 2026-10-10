@@ -21,6 +21,8 @@ respuestas pendientes tras logout, desmontaje o cambio de identidad; las regresi
 demuestran que no reabren una sesión ni reemplazan el caché del negocio vigente.
 Vitest y el parser CSS se actualizan para eliminar los críticos de desarrollo,
 conservando las dependencias runtime; CI añade un gate de críticos para el árbol completo.
+WebKit también conserva el foco del producto y del botón de menú tras cerrar
+sus paneles; nuevas regresiones prueban activación sin foco automático del puntero.
 Quedan cinco avisos altos derivados de `braces` sin parche compatible, limitados a
 compilación con patrones estáticos: [revisión de dependencias](audits/KOVA-DEPENDENCY-REVIEW-2026-10-10.md).
 Se prepara también restauración lógica

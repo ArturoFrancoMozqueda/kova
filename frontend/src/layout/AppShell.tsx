@@ -515,7 +515,10 @@ export default function AppShell() {
         <header className="flex items-center gap-2 border-b bg-background px-3 py-3 xl:hidden shrink-0">
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
+            onClick={(event) => {
+              event.currentTarget.focus();
+              setSidebarOpen(true);
+            }}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
             aria-controls="menu-de-navegacion"
@@ -605,7 +608,10 @@ export default function AppShell() {
           ))}
           <button
             type="button"
-            onClick={() => setSidebarOpen(true)}
+            onClick={(event) => {
+              event.currentTarget.focus();
+              setSidebarOpen(true);
+            }}
             aria-label={copy.app.openMenu}
             aria-expanded={sidebarOpen}
             aria-controls="menu-de-navegacion"

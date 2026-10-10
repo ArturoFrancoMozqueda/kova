@@ -34,7 +34,16 @@ export function RegisterProductCard({
       type="button"
       aria-label={ariaLabel}
       aria-disabled={disabled || undefined}
-      onClick={disabled ? onDisabledSelect : onAdd}
+      onClick={(event) => {
+        if (disabled) {
+          onDisabledSelect?.();
+          return;
+        }
+        // Safari does not focus buttons on pointer activation. Remember the
+        // actual tile before a modifier dialog or sale summary takes focus.
+        event.currentTarget.focus();
+        onAdd?.();
+      }}
       className={cn(
         // The most-tapped element in the product (~450 taps/day), so
         // duration-press: the tile must acknowledge instantly and get out of the
