@@ -107,7 +107,7 @@ for (const width of [1440, 768, 390, 320]) {
         : path === "/conversations/chat-a" ? { messages: chatMessages() }
         : path === "/conversations/chat-a/messages" ? { id: "run-a", status: "queued", data: {} }
         : path === "/runs/run-a" ? { id: "run-a", status: "completed", data: {
-          metrics: { net_sales: "1250.50", gross_sales: "1350.50", refund_total: "100.00", order_count: 12, start_date: "2026-10-01", end_date: "2026-10-07" },
+          metrics: { net_sales: "1250.50", gross_sales: "1350.50", refund_total: "100.00", order_count: 12, refund_count: 2, void_count: 1, start_date: "2026-10-01", end_date: "2026-10-07" },
           cards: [{ kind: "get_top_products", data: { products: [{ product_id: "p-a", product_name: "Café de especialidad", quantity_sold: 8, gross_sales: "480.00" }], start_date: "2026-10-01", end_date: "2026-10-07" } }],
           sources: [{ id: "s-a", title: "Guía de ventas", page: 1, path: "/help/sales" }],
         } } : [];
@@ -121,13 +121,20 @@ for (const width of [1440, 768, 390, 320]) {
     await expect(field).toHaveValue("Revisa mis ventas de este mes");
     expect(writes).toEqual([]);
     await field.press("Enter");
-    await expect(page.getByRole("heading", { name: "Lo que encontré" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Lo que encontré", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Siguiente paso", level: 2 })).toBeVisible();
     const logBox = await page.getByRole("log").boundingBox();
     const answerBox = await page.getByRole("heading", { name: "Lo que encontré" }).boundingBox();
     expect(answerBox!.y).toBeGreaterThanOrEqual(logBox!.y);
     expect(answerBox!.y).toBeLessThan(logBox!.y + logBox!.height);
     await expect(page.getByRole("region", { name: "Resultados de ventas" })).toContainText("$1,250.50");
     await expect(page.getByRole("region", { name: "Productos más vendidos" })).toContainText("Café de especialidad");
+    await expect(page.getByRole("heading", { name: "Productos más vendidos", level: 2 })).toBeVisible();
+    const sales = page.getByRole("region", { name: "Resultados de ventas" });
+    await expect(sales.locator("dt", { hasText: /^Devoluciones$/ }).locator("+ dd")).toHaveText("2");
+    await expect(sales.locator("dt", { hasText: /^Cancelaciones$/ }).locator("+ dd")).toHaveText("1");
+    await expect(sales).not.toContainText("$2.00");
+    await expect(sales).not.toContainText("$1.00");
     await page.screenshot({ path: `test-results/assistant-response-${width}.png`, fullPage: true });
     await page.getByText("Fuentes consultadas · 1").click();
     await expect(page.getByRole("link", { name: "Guía de ventas · Página 1" })).toHaveAttribute("href", "/help/sales");
@@ -137,9 +144,10 @@ for (const width of [1440, 768, 390, 320]) {
     await page.screenshot({ path: `test-results/assistant-answer-${width}.png`, fullPage: true });
     await page.addScriptTag({ content: axe.source });
     const violations = await page.evaluate(async () => {
-      const engine = (window as unknown as { axe: { run: (context: string) => Promise<{ violations: { id: string; impact: string; nodes: { target: string[] }[] }[] }> } }).axe;
+      const engine = (window as unknown as { axe: { run: (context: string, options?: object) => Promise<{ violations: { id: string; impact: string; nodes: { target: string[] }[] }[] }> } }).axe;
       const result = await engine.run("main");
-      return result.violations.filter(violation => ["serious", "critical"].includes(violation.impact));
+      const structure = await engine.run("body", { runOnly: ["heading-order", "region"] });
+      return [...result.violations.filter(violation => ["serious", "critical"].includes(violation.impact)), ...structure.violations];
     });
     expect(violations).toEqual([]);
   });

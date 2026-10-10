@@ -3,6 +3,12 @@ import type { Resource } from "./api";
 
 const moneyFormatter = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 const money = (value: unknown) => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) ? moneyFormatter.format(Number(value)) : "Sin dato";
+const countFormatter = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
+const count = (value: unknown) => {
+  if (typeof value !== "number" && (typeof value !== "string" || value.trim() === "")) return "Sin dato";
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? countFormatter.format(parsed) : "Sin dato";
+};
 const date = (value: string | number | undefined) => {
   if (typeof value !== "string") return "Sin fecha";
   // Date-only values belong to the reporting period, not the browser timezone.
@@ -14,10 +20,10 @@ function Period({ start, end }: { start?: string | number; end?: string | number
 }
 
 export function SalesEvidence({ metrics, compact = false }: { metrics: Record<string, string | number>; compact?: boolean }) {
-  const fields = [["net_sales", "Venta neta"], ["order_count", "Tickets"], ["gross_sales", "Venta bruta"], ["refund_total", "Reembolsos"]].filter(([key]) => key in metrics && (!compact || ["net_sales", "order_count"].includes(key)));
+  const fields = [["net_sales", "Venta neta"], ["order_count", "Tickets"], ["gross_sales", "Venta bruta"], ["refund_total", "Reembolsos"], ["refund_count", "Devoluciones"], ["void_count", "Cancelaciones"]].filter(([key]) => key in metrics && (!compact || ["net_sales", "order_count"].includes(key)));
   return <section aria-label="Resultados de ventas" className="rounded-xl border border-kova-blue/15 bg-kova-grad-sky p-4">
     <div className="mb-4 flex items-center gap-2 text-xs font-semibold text-kova-ink"><BarChart3 size={15} className="text-kova-blue" />Resultados de ventas<span className="ml-auto text-[10px] font-normal text-kova-muted">Datos registrados</span></div>
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-4">{fields.map(([key, label]) => <div key={key} className="min-w-0"><dt className="text-xs text-kova-muted">{label}</dt><dd className={`mt-1 break-words font-semibold tabular-nums tracking-tight ${key === "net_sales" ? "text-2xl" : "text-xl"}`}>{key === "order_count" ? Number.isFinite(Number(metrics[key])) ? Number(metrics[key]).toLocaleString("es-MX") : "Sin dato" : money(metrics[key])}</dd></div>)}</dl>
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-4">{fields.map(([key, label]) => <div key={key} className="min-w-0"><dt className="text-xs text-kova-muted">{label}</dt><dd className={`mt-1 break-words font-semibold tabular-nums tracking-tight ${key === "net_sales" ? "text-2xl" : "text-xl"}`}>{key.endsWith("_count") ? count(metrics[key]) : money(metrics[key])}</dd></div>)}</dl>
     <Period start={metrics.start_date} end={metrics.end_date} />
   </section>;
 }
@@ -33,7 +39,7 @@ export function EvidenceCards({ cards }: { cards: NonNullable<Resource["data"]["
     if (!definition) return null;
     const Icon = definition.icon;
     return <section key={index} aria-label={definition.title} className="min-w-0 break-words rounded-xl border border-kova-border bg-white p-4 text-sm">
-      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold"><Icon size={15} className="shrink-0 text-kova-blue" />{definition.title}</h3>
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold"><Icon size={15} className="shrink-0 text-kova-blue" />{definition.title}</h2>
       {card.kind === "compare_branches" ? <><p className="text-xs text-kova-muted">Venta neta del negocio</p><p className="mb-3 mt-1 text-2xl font-semibold tabular-nums tracking-tight">{money(card.data.total_net_sales)}</p><ul className="divide-y divide-kova-border">{card.data.branches?.map(branch => <li key={branch.branch_id} className="flex items-center justify-between gap-3 py-3"><span className="min-w-0 font-medium">{branch.branch_name}</span><span className="shrink-0 text-right"><span className="block font-semibold tabular-nums">{money(branch.net_sales)}</span><span className="block text-xs text-kova-muted">{branch.completed_orders.toLocaleString("es-MX")} tickets</span></span></li>)}</ul>{card.data.branch_count !== undefined && card.data.branch_count > (card.data.branches?.length ?? 0) ? <p className="mt-2 text-xs text-kova-muted">Mostrando {card.data.branches?.length ?? 0} de {card.data.branch_count} sucursales.</p> : null}</> : null}
       {card.kind === "get_top_products" ? card.data.products?.length ? <><p className="mb-1 text-[11px] text-kova-muted">Unidades netas · Venta neta</p><ol className="divide-y divide-kova-border">{card.data.products.map((product, rank) => <li key={product.product_id} className="flex items-center gap-3 py-3"><span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-kova-mist text-[11px] font-medium text-kova-muted">{rank + 1}</span><span className="min-w-0 flex-1 font-medium">{product.product_name}</span><span className="shrink-0 text-right"><span className="block font-semibold tabular-nums">{money(product.gross_sales)}</span><span className="block text-xs text-kova-muted">{product.quantity_sold.toLocaleString("es-MX")} unidades</span></span></li>)}</ol></> : <p className="py-2 text-kova-muted">No hay ventas completadas en el periodo.</p> : null}
       {card.kind === "get_inventory" ? <>
