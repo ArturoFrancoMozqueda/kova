@@ -5,7 +5,24 @@ El diseño completo y los escenarios de aceptación permanecen en
 [PLAN-ASISTENTE-TENANT](plans/PLAN-ASISTENTE-TENANT.md). Esta guía describe el código entregado,
 los requisitos de ejecución y la evidencia pendiente. No autoriza un despliegue.
 
-## Preparación vigente — 2026-10-08
+## Regresión detectada en QA real — 2026-10-10
+
+La revisión posterior a PR #187 encontró `inference_ready=false` con consentimiento
+OpenRouter/Mistral vigente. Dos cambios de texto en `reports/service.py` alteraron
+el perfil aprobado; no se perdió el consentimiento ni se verificó una pérdida de clave.
+El perfil incluye el código completo de reportes que consume el motor. La corrección
+preserva sus bytes evaluados y mueve la presentación española al borde HTTP de reportes.
+No cambia proveedor, precio, privacidad, límite mensual, flags, clave ni aprobación.
+
+Una corrección de interfaz que no cambia el motor debe permanecer fuera de
+`PROFILE_FILES`. Cualquier cambio real del motor exige evaluar y aprobar el perfil
+nuevo según el procedimiento existente; no actualizar el hash sólo para abrir el gate.
+La revisión del agente no sustituye revisión humana. La consulta local «Revisa mis
+ventas hoy» ya concilió las operaciones reales; la consulta libre debe repetirse
+tras publicar la corrección. Evidencia fechada en
+[la auditoría de acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
+
+## Preparación del 2026-10-08 (evidencia histórica)
 
 El operador autorizó desplegar el estado evaluado sin esperar la revisión detallada
 de las diez respuestas. Esa instrucción no se registra como revisión humana realizada.

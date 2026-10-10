@@ -141,3 +141,39 @@ No se confirmaron propuestas de configuración ni se enviaron correos.
 
 No se exportó estado de autenticación ni se guardaron traces de producción.
 Los artefactos del navegador local usan solamente los mocks de pruebas.
+
+
+## Asistente después de las operaciones y regresión de perfil
+
+La consulta local «Revisa mis ventas hoy» se completó y persistió en UI con
+run `0161645d-e7b3-4130-999d-141e2de0af5f`, conversación
+`3ae15cdf-3645-4927-8cb8-3b53c6324a43`. Para el 10 de octubre devolvió
+netas 0.00, brutas/devoluciones 72.88, cinco órdenes completadas, siete eventos
+de devolución y dos cancelaciones, conciliados con los reportes reales.
+El modo fue `direct`: no acredita inferencia pagada.
+
+La pregunta libre con los mismos datos fue rechazada con 503. La cuenta mantiene
+consentimiento vigente `chat_provider=openrouter` y `chat_recipients=mistral`,
+con documentos y correo desactivados; no se cambiaron esas preferencias.
+`capabilities` pasó de inferencia disponible antes de PR #187 a deshabilitada.
+El código incluye `reports/service.py` dentro del SHA-256 del motor aprobado;
+los dos ajustes de texto de PR #187 cambiaron ese archivo e invalidaron el perfil.
+El gate rechaza correctamente un motor distinto al evaluado; no corresponde
+relajarlo ni afirmar que el consentimiento es la causa.
+
+La corrección en curso preserva el motor evaluado y aplica las dos correcciones
+de español exclusivamente a la presentación de la API de reportes. El perfil
+anterior es `a3b9af8f46ead1e815339ba777dc112f389ff296200865a6dfc47fa10755f0cb`;
+el posterior a PR #187 es
+`cca3157c9cd234f383d10e26a30520175ac52d8a37c9643cd626e62860f6e274`.
+Esos hashes se calcularon del código, sin leer el secreto ni la configuración
+de aprobación de Fly. No se marca una nueva evaluación o revisión humana.
+Publicación y comprobación de la pregunta libre siguen pendientes en este punto.
+
+Regresiones locales de la corrección: seis pruebas de presentación conservan
+las tres expectativas originales de español en el handler que entrega el reporte,
+comprueban no mutar datos del motor y preservan singular/periodo vacío. Primero
+fallaron las expectativas de español al restaurar el motor sin el formatter y
+aprobaron al aplicar presentación en el borde HTTP. Las ocho pruebas existentes
+de disponibilidad mantienen todos los gates, incluido el rechazo de hash distinto.
+En conjunto: 14 aprobadas sin red ni base productiva; Ruff y diff-check aprobados.
