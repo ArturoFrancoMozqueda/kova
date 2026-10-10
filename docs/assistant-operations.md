@@ -17,10 +17,24 @@ No cambia proveedor, precio, privacidad, límite mensual, flags, clave ni aproba
 Una corrección de interfaz que no cambia el motor debe permanecer fuera de
 `PROFILE_FILES`. Cualquier cambio real del motor exige evaluar y aprobar el perfil
 nuevo según el procedimiento existente; no actualizar el hash sólo para abrir el gate.
-La revisión del agente no sustituye revisión humana. La consulta local «Revisa mis
-ventas hoy» ya concilió las operaciones reales; la consulta libre debe repetirse
-tras publicar la corrección. Evidencia fechada en
-[la auditoría de acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
+La revisión del agente no sustituye revisión humana. PR #190 publicó el motor
+preservado en `29dd9c4b1c4cc1c27384ea2655484d883a5750bf`, con aceptación pública
+correcta. La consulta libre posterior completó en modo grounded: netas 0.00,
+brutas/devoluciones 72.88, cinco órdenes, siete eventos de devolución y dos
+cancelaciones, conciliados con los reportes reales. Conversación
+`7719cfb9-0ad2-49e2-acac-d5f8fc414bc9`, run
+`5683e891-d1c6-4d34-a89f-366406720a18`. Consentimiento OpenRouter/Mistral vigente;
+uso agregado 1,566→3,126 tokens de 50,000 diarios, disponible. No acredita un
+importe mensual de facturación ni una nueva evaluación/revisión humana.
+PR #191 añade los conteos a la tarjeta completa y corrige encabezados de respuestas;
+la publicación `826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f` y aceptación pública
+aprobaron. La misma respuesta completa conservó sus seis métricas correctas
+tras recarga e historial en Chromium 1440/WebKit 390, sin fallos de WCAG/heading/
+region, desbordamiento ni errores de página. Uso 3,126→3,126, sin nueva inferencia.
+El companion vacío y su foco se verificaron live; el estado compacto poblado
+queda cubierto por prueba automatizada. Se preservó la sesión original.
+Evidencia fechada en
+[la aceptación de Sweet Home](audits/KOVA-SWEET-HOME-PRODUCTION-ACCEPTANCE-2026-10-10.md).
 
 ## Preparación del 2026-10-08 (evidencia histórica)
 

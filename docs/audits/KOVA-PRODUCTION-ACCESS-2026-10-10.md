@@ -5,7 +5,43 @@ autorizada por el usuario. Esta revisión complementa las operaciones reales de
 ventas, caja e inventario ejecutadas por los otros agentes. No afirma readiness
 total ni sustituye una prueba física o una transacción fiscal certificada.
 
-## Navegación y accesibilidad en producción
+## Cierre de la revisión y alcance actual
+
+PR #190 se publicó como `29dd9c4b1c4cc1c27384ea2655484d883a5750bf`.
+El release [38077638478](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38077638478)
+y el verificador público de frontend/API/proxy/base de datos aprobaron.
+La repetición autenticada cubrió las vistas iniciales de 19 rutas en Chromium
+1440 y WebKit 390: 38 comprobaciones sin violaciones WCAG 2.1 AA,
+`heading-order`/`region`, desbordamiento ni excepciones JavaScript. La vista
+inicial de `/assistant` fue la bienvenida vacía; los estados de respuesta
+completa se comprueban por separado.
+
+La consulta libre real posterior completó en modo `grounded`, sin propuestas:
+netas 0.00, brutas y devoluciones 72.88, cinco órdenes, siete devoluciones y dos
+cancelaciones. Conversación `7719cfb9-0ad2-49e2-acac-d5f8fc414bc9`, run
+`5683e891-d1c6-4d34-a89f-366406720a18`. Consentimiento OpenRouter/Mistral vigente;
+1,560 tokens utilizados, total diario 3,126 de 50,000, disponible. No implica
+un importe mensual de facturación ni una nueva evaluación o revisión humana.
+
+PR #191 conserva el motor aprobado y añade los dos conteos a la tarjeta
+completa, más encabezados h2 en respuestas. El release final
+[38079066759](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/38079066759)
+aprobó a las 19:31:21 UTC; el verificador posterior confirmó frontend/API/proxy/DB
+en `826b4cc3ce91ff26aa7ee9fe608bc02afea2b57f`. La lectura de esa misma respuesta
+persistida mostró seis tarjetas correctas, también tras recarga e historial en
+ambos navegadores: 0.00 / 5 / 72.88 / 72.88 / 7 / 2. BODY WCAG/heading-order/region,
+desbordamiento y errores JavaScript sin fallos detectados. Uso 3,126→3,126.
+El contrato compacto de dos
+métricas se comprueba automáticamente; el companion vacío se comprobó live,
+con Escape y devolución de foco. No se pobló con una segunda pregunta pagada.
+Ambas sesiones propias hicieron logout y me 401 antes de cerrar sus contextos;
+la sesión original del propietario permanece abierta en el panel.
+[Aceptación única y límites](KOVA-SWEET-HOME-PRODUCTION-ACCEPTANCE-2026-10-10.md).
+
+Las secciones siguientes conservan la secuencia histórica de hallazgos y
+regresiones; sus pendientes de publicación se sustituyen por este cierre.
+
+## Navegación y accesibilidad en producción (pasada inicial)
 
 - Login normal correcto en Chromium 147.0.7727.15 y WebKit 26.4.
 - Chromium de escritorio, 1440 × 1000: panel, configuración, suscripción,
@@ -47,7 +83,8 @@ Validación local:
   `no-noninteractive-tabindex` se limita al contenedor desplazable y explica
   por qué necesita recibir foco; no se cambia la configuración global.
 
-La corrección debe volver a revisarse en producción después de publicar.
+En esta fase inicial estaba pendiente la revisión publicada; quedó incluida
+en la repetición de #190 descrita en el cierre.
 
 ### Aclaración del bruto de pagos tras las operaciones reales
 
@@ -71,7 +108,8 @@ PaymentAnalysis aprobaron. La prueba browser de devoluciones también verifica
 la aclaración y la reconciliación parcial, sobre el bundle compilado en
 Chromium y WebKit móvil; ambas aprobaron. ESLint aprobado. La revisión de
 React no incorpora hooks, nuevas consultas, dependencias ni agregaciones de
-dinero; sólo formatea los campos existentes. Pendiente verificación publicada.
+dinero; sólo formatea los campos existentes. La repetición publicada de #190
+comprobó esta presentación.
 
 ## Configuración y seguridad reales
 
@@ -161,14 +199,15 @@ los dos ajustes de texto de PR #187 cambiaron ese archivo e invalidaron el perfi
 El gate rechaza correctamente un motor distinto al evaluado; no corresponde
 relajarlo ni afirmar que el consentimiento es la causa.
 
-La corrección en curso preserva el motor evaluado y aplica las dos correcciones
+La corrección de PR #190 preserva el motor evaluado y aplica las dos correcciones
 de español exclusivamente a la presentación de la API de reportes. El perfil
 anterior es `a3b9af8f46ead1e815339ba777dc112f389ff296200865a6dfc47fa10755f0cb`;
 el posterior a PR #187 es
 `cca3157c9cd234f383d10e26a30520175ac52d8a37c9643cd626e62860f6e274`.
 Esos hashes se calcularon del código, sin leer el secreto ni la configuración
 de aprobación de Fly. No se marca una nueva evaluación o revisión humana.
-Publicación y comprobación de la pregunta libre siguen pendientes en este punto.
+Este pendiente histórico quedó cerrado por la publicación y consulta grounded
+de #190 descritas al inicio.
 
 Regresiones locales de la corrección: seis pruebas de presentación conservan
 las tres expectativas originales de español en el handler que entrega el reporte,
@@ -218,8 +257,8 @@ TypeScript y build correctos. Seis comprobaciones browser Chromium/WebKit
 del bundle nuevo y tres de encabezados/configuración pasaron. WebKit verificó
 el contraste con CSS compilado: el texto anterior falla y el nuevo pasa.
 La comprobación del perfil sigue encontrando los 14 archivos idénticos a la
-fuente evaluada. La publicación conjunta de estas correcciones y la consulta
-libre del asistente se acreditarán después de verificar la versión servida.
+fuente evaluada. La publicación conjunta y consulta libre de #190 se acreditaron
+en el cierre; #191 añade presentación de conteos y encabezados de respuestas.
 
 La nueva regresión browser ejercita una comparación positiva con base real
 sobre el umbral de 500, una orden en el bloque y una prioridad marcada Hecha
