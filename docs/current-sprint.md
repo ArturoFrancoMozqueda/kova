@@ -16,7 +16,14 @@ importes declarados de prueba; no se certifica conteo físico de efectivo.
 Correcciones en `codex/sweet-home-production-validation`: búsqueda fija en tres
 triggers de lotes, tabla de devoluciones accesible por teclado, encabezados de panel,
 catálogo e inventario, etiquetas de compras/traspasos/pagos y claridad sobre cobros
-brutos y eventos de devolución. Se prepara también restauración lógica
+brutos y eventos de devolución. La revisión de sesiones añade invalidación de
+respuestas pendientes tras logout, desmontaje o cambio de identidad; las regresiones
+demuestran que no reabren una sesión ni reemplazan el caché del negocio vigente.
+Vitest y el parser CSS se actualizan para eliminar los críticos de desarrollo,
+conservando las dependencias runtime; CI añade un gate de críticos para el árbol completo.
+Quedan cinco avisos altos derivados de `braces` sin parche compatible, limitados a
+compilación con patrones estáticos: [revisión de dependencias](audits/KOVA-DEPENDENCY-REVIEW-2026-10-10.md).
+Se prepara también restauración lógica
 de backup R2 en runner aislado; su implementación no acredita una ejecución real.
 La publicación debe pasar CI y verificarse en frontend/API/proxy antes de considerarse
 lista. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),

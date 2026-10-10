@@ -300,6 +300,9 @@ jobs:
       - name: Audit npm runtime dependencies
         run: npm audit --omit=dev --audit-level=high --package-lock-only
         working-directory: frontend
+      - name: Reject critical vulnerabilities in build and test dependencies
+        run: npm audit --audit-level=critical --package-lock-only
+        working-directory: frontend
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -91,7 +91,17 @@ parciales pueden pertenecer a una venta. No cambian los campos, el score ni los
 datos. Panel y análisis aclaran que el desglose de pagos es bruto; análisis presenta
 también bruto, devoluciones y neto cuando hay reembolsos.
 
-Verificación local: 1,477 pruebas backend antes del último copy, 962 frontend sobre
+CI detectó una carrera en la observación del efecto inicial de una prueba de identidad.
+La prueba espera ahora ese efecto antes de medir el nuevo montaje; mantiene las
+expectativas de descartar exactamente una vez los snapshots al cambiar de identidad.
+La investigación reprodujo además tres defectos de implementación: una respuesta
+de sesión anterior podía sobrescribir el caché offline y borrar consultas del nuevo
+negocio, reabrir la sesión tras logout o guardar identidad después del desmontaje.
+Se invalidan esas respuestas mediante la época de la consulta y el ciclo de vida
+del proveedor. Las tres nuevas regresiones fallaron antes del cambio y pasan después;
+cookies, autorización del servidor y separación entre tenants se conservan.
+
+Verificación local: 1,477 pruebas backend antes del último copy, 967 frontend sobre
 las fuentes finales, 209 de navegador compilado (seis skips de integración que
 requieren stack efímero), TypeScript, ESLint, build/SSR/prerender, contrato OpenAPI y
 100 archivos JS del bundle sin patrones de secretos. Scripts operativos: 60 pruebas;
@@ -102,6 +112,13 @@ selectores de título a nivel uno y del listado de productos para reflejar los n
 encabezados accesibles, conservando la comprobación de ordenación y los flujos.
 Logout normal de la sesión de prueba: HTTP 204, cookies eliminadas y `auth/me` 401;
 la sesión del usuario en el navegador integrado se conservó.
+
+La [revisión de dependencias](KOVA-DEPENDENCY-REVIEW-2026-10-10.md) elimina los
+dos críticos de desarrollo sin cambiar versiones runtime. Los gates actuales
+dan cero hallazgos runtime y cero críticos completos; permanecen cinco avisos
+altos de una misma cadena de compilación sin parche compatible, con alcance y
+validación documentados. El parser actualizado recupera once variantes CSS ya
+declaradas, conservando todas las reglas anteriores.
 
 Los backups reales recientes tienen dump, subida, checksum, retención y limpieza
 aprobados. Se añade un drill manual con destino PostgreSQL 17 aislado en GitHub Actions:
