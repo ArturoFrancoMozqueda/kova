@@ -668,7 +668,7 @@ export const copy = {
     storyBannerRestockTail: (name: string, units: number) =>
       units <= 0
         ? `Ya se agotó ${name} — reabastece.`
-        : `Te quedan ${units} de ${name}: buen momento para reabastecer.`,
+        : `Te ${units === 1 ? "queda" : "quedan"} ${units} de ${name}: buen momento para reabastecer.`,
     healthTitle: "Lectura del periodo",
     healthScoreLabel: "Puntaje",
     healthHowSummary: "¿Cómo se calcula?",
