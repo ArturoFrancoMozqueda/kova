@@ -36,7 +36,11 @@ sucursal, fechas de la gráfica y explicación de neto cero. Su release
 aprobó CI y comprobación pública de frontend/API/proxy/base de datos con fuente
 `6d8fa1467edb5afdecc7277b13e61520232544e6`. La pasada autenticada final continúa
 y encontró una regresión del perfil de IA que debe cerrarse antes de acreditar
-el asistente. El consentimiento OpenRouter/Mistral permanece vigente. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
+el asistente. El consentimiento OpenRouter/Mistral permanece vigente.
+La ampliación final recorrió 19 rutas Chromium/WebKit y corrigió h2 locales en
+Turnos/configuración, singular de un bloque y contraste de otros textos pequeños.
+Se incorporan al PR #190 junto con la preservación del motor aprobado; pendientes
+CI del head final, publicación y QA autenticada posterior. Evidencias: [POS y caja](audits/KOVA-PRODUCTION-OPERATIONS-2026-10-10.md),
 [negocio](audits/KOVA-PRODUCTION-BUSINESS-2026-10-10.md) y
 [acceso](audits/KOVA-PRODUCTION-ACCESS-2026-10-10.md).
 

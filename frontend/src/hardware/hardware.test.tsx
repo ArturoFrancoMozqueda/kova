@@ -37,6 +37,7 @@ describe("cash drawer setup and failures", () => {
     api.saveDrawerSettings.mockResolvedValue({ configured: true, online: true, auto_open: false });
     render(<DrawerSettings />);
     expect(await screen.findByDisplayValue("Caja 1")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Cajón de dinero", level: 2 })).toBeVisible();
     fireEvent.click(screen.getByRole("checkbox", { name: /abrir al cobrar efectivo/i }));
     fireEvent.click(screen.getByRole("button", { name: "Guardar configuración del cajón" }));
     await waitFor(() => expect(api.saveDrawerSettings).toHaveBeenCalledWith({ name: "Caja 1", pin: 0, auto_open: false }));

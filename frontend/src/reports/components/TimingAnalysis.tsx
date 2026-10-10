@@ -35,7 +35,7 @@ function DaypartDelta({ current, previous }: { current: DaypartRow; previous: Da
     <span
       className={cn(
         "text-xs font-medium tabular-nums",
-        growth.value > 0 ? "text-kova-growth" : "text-destructive",
+        growth.value > 0 ? "text-emerald-700" : "text-destructive",
       )}
     >
       {formatSignedPercent(growth.value)} {copy.reportsView.deltaVsPrevious}
@@ -143,8 +143,7 @@ export function DaypartsPanel({
                       />
                     </div>
                     <p className="mt-1 text-xs tabular-nums text-kova-muted">
-                      {copy.reportsView.chartShare(row.sales_share_pct)} · {row.order_count}{" "}
-                      {copy.reportsView.orders.toLowerCase()} · {formatMoney(row.average_ticket)}
+                      {copy.reportsView.chartShare(row.sales_share_pct)} · {copy.dashboard.topHoursOrders(row.order_count)} · {formatMoney(row.average_ticket)}
                       {prevComparable ? (
                         <>
                           {" · "}

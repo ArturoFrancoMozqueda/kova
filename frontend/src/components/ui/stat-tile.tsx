@@ -105,7 +105,7 @@ export function DeltaChip({
     <span
       className={cn(
         "flex items-center gap-1 text-xs font-medium",
-        good ? "text-kova-growth" : "text-destructive",
+        good ? "text-emerald-700" : "text-destructive",
       )}
     >
       {tone === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

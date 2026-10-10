@@ -1,4 +1,5 @@
 import { type Page, expect, test } from "./fixtures";
+import axe, { type AxeResults } from "axe-core";
 
 const OWNER_SESSION = {
   authenticated: true,
@@ -92,6 +93,7 @@ test("owner opens a shift without opening cash", async ({ page }) => {
 });
 
 test("open shift expected cash uses backend total that includes cash sales", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await mockAuth(page);
 
   await page.route("**/api/v1/shifts/current", (route) =>
@@ -106,9 +108,18 @@ test("open shift expected cash uses backend total that includes cash sales", asy
   await page.route("**/api/v1/shifts", (route) => route.fulfill({ json: [] }));
 
   await page.goto("/shifts");
-  await expect(page.getByRole("heading", { name: /turno activo/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /turno activo/i, level: 2 })).toBeVisible();
   await expect(page.getByText("Efectivo esperado")).toBeVisible();
   await expect(page.getByText("$532.00")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  await page.addScriptTag({ content: axe.source });
+  const violations = await page.evaluate(async () => {
+    const engine = (window as unknown as { axe: { run: (context: string, options: object) => Promise<AxeResults> } }).axe;
+    const structure = await engine.run("body", { runOnly: ["heading-order", "region"] });
+    const contrast = await engine.run("body", { runOnly: ["color-contrast"] });
+    return [...structure.violations, ...contrast.violations];
+  });
+  expect(violations).toEqual([]);
 });
 
 test("owner closes a shift and sees reconciliation result", async ({ page }) => {

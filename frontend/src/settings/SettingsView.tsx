@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -456,7 +456,7 @@ export default function SettingsView() {
 
       {visibleActiveTab === "profile" && (
       <Card>
-        <CardHeader><CardTitle>{copy.settings.businessProfile}</CardTitle></CardHeader>
+        <CardHeader><h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.businessProfile}</h2></CardHeader>
         <CardContent>
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitBusiness}>
             <fieldset disabled={formBusy} className="contents">
@@ -474,7 +474,7 @@ export default function SettingsView() {
       {visibleActiveTab === "branches" && <BranchesSettings />}
       {visibleActiveTab === "receipt" && (
       <Card>
-        <CardHeader><CardTitle>{copy.settings.receiptSettings}</CardTitle></CardHeader>
+        <CardHeader><h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.receiptSettings}</h2></CardHeader>
         <CardContent>
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
             <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitReceipt}>
@@ -513,7 +513,7 @@ export default function SettingsView() {
       {visibleActiveTab === "employees" && (
       <Card>
         <CardHeader>
-          <CardTitle>{copy.settings.employees}</CardTitle>
+          <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.employees}</h2>
           <p className="text-sm text-muted-foreground">{copy.settings.inviteHelp}</p>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -663,7 +663,7 @@ export default function SettingsView() {
         <>
         <Card>
           <CardHeader>
-            <CardTitle>{copy.settings.advanced}</CardTitle>
+            <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.advanced}</h2>
           </CardHeader>
           <CardContent>
             <form className="grid gap-4 sm:grid-cols-2" onSubmit={submitBusiness}>
@@ -697,7 +697,7 @@ export default function SettingsView() {
         {isOwner && (
           <Card>
             <CardHeader>
-              <CardTitle>{copy.settings.accountDataTitle}</CardTitle>
+              <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.accountDataTitle}</h2>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex flex-col gap-3 rounded-kova-md border border-kova-border p-4 sm:flex-row sm:items-center sm:justify-between">

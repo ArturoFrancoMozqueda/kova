@@ -177,3 +177,52 @@ fallaron las expectativas de español al restaurar el motor sin el formatter y
 aprobaron al aplicar presentación en el borde HTTP. Las ocho pruebas existentes
 de disponibilidad mantienen todos los gates, incluido el rechazo de hash distinto.
 En conjunto: 14 aprobadas sin red ni base productiva; Ruff y diff-check aprobados.
+
+## Ampliación final de accesibilidad sobre la versión publicada #189
+
+Se revisaron 19 rutas reales en Chromium 1440 y WebKit 390, con WCAG 2.1 AA
+y las mismas reglas `heading-order`/`region` sobre BODY usadas por las regresiones
+del repo: panel, análisis, inventario, catálogo, caja, turnos, asistente, ventas,
+clientes, pedidos, compras y ocho pantallas de configuración (integraciones,
+suscripción, ticket, empleados, sucursales, avanzado, perfil y fiscal).
+No hubo desbordamiento de página ni excepciones JavaScript. La pasada descubrió
+saltos h1→h3 en Turnos y varias pantallas de configuración; se corrigen con h2
+locales manteniendo las clases de CardTitle, sin cambiar el componente compartido.
+Las regresiones recorren cinco tabs de configuración en dos tamaños y comprueban
+la jerarquía completa de Turnos; el cajón y panel fiscal incluyen aserción h2.
+Los falsos positivos `p-as-heading` de valores KPI procedían de activar reglas
+experimentales deshabilitadas en un harness inicial; se retiró esa activación,
+no los valores ni su semántica.
+
+La sesión original en Codex conservó el login y recibió la actualización segura
+de la PWA. En Hoy concilió netas 0.00/brutas 72.88/devoluciones 72.88 y conteos
+5/7/2; en siete días concilió netas 128.00/brutas 200.88/devoluciones 72.88,
+seis órdenes completadas y los mismos eventos 7/2. La jerarquía de Análisis
+y las fechas 4–10 de octubre fueron correctas, sin declarar una sucursal ganadora
+cuando todas las netas son cero. Ese recorrido detectó «1 órdenes» en un bloque;
+la presentación reutiliza el pluralizador existente y dos pruebas verifican
+singular y plural, con regresión roja→verde.
+
+Se revisaron también textos pequeños positivos: el verde de marca sobre blanco
+produce aproximadamente 2.37:1. Sólo los textos informativos usan emerald-700
+(aproximadamente 5.48:1), conservando barras e iconos decorativos. Se retira
+la opacidad del contenedor de una prioridad completada, porque habría vuelto
+a reducir el contraste de su texto; se mantienen las tachaduras y estado Hecha.
+Alcance: comparaciones de bloques/productos, feedback/estado de prioridades,
+DeltaChip, producto, cobro dividido/completado, caja, cierre y pedido.
+Los importes, umbrales, clasificación y cálculos no cambian.
+
+Validación focalizada adicional: 108 pruebas unitarias del agente de acceso,
+28 de configuración/hardware/sucursales y cinco de bloques del día; ESLint,
+TypeScript y build correctos. Seis comprobaciones browser Chromium/WebKit
+del bundle nuevo y tres de encabezados/configuración pasaron. WebKit verificó
+el contraste con CSS compilado: el texto anterior falla y el nuevo pasa.
+La comprobación del perfil sigue encontrando los 14 archivos idénticos a la
+fuente evaluada. La publicación conjunta de estas correcciones y la consulta
+libre del asistente se acreditarán después de verificar la versión servida.
+
+La nueva regresión browser ejercita una comparación positiva con base real
+sobre el umbral de 500, una orden en el bloque y una prioridad marcada Hecha
+con feedback «Sí, fue útil»; conserva el fixture original y usa un escenario
+propio conciliado. Axe comprueba contraste WCAG y jerarquía/landmarks completos.
+Aprobó en Chromium y WebKit (dos casos), sobre el bundle compilado.

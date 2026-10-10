@@ -1752,7 +1752,7 @@ function RegularRegisterView() {
                           {copy.register.splitCashShort}
                         </p>
                       ) : splitHasPayment ? (
-                        <p className="flex items-center gap-1.5 text-xs text-kova-growth">
+                        <p className="flex items-center gap-1.5 text-xs text-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                           {copy.register.splitBalanced}
                         </p>
@@ -2007,7 +2007,7 @@ function RegularRegisterView() {
                     <p
                       className={cn(
                         "font-semibold",
-                        isPendingSync ? "text-warning-foreground" : "text-kova-growth",
+                        isPendingSync ? "text-warning-foreground" : "text-emerald-700",
                       )}
                     >
                       {isPendingSync

@@ -105,6 +105,24 @@ describe("FiscalGlobalDraftsPanel", () => {
     );
   });
 
+  it("uses level-two headings for fiscal sections below the settings page title", async () => {
+    const ownerRole = "owner";
+    render(
+      <ToastProvider>
+        <h1>Configuración</h1>
+        <FiscalGlobalDraftsPanel role={ownerRole} tenantName="Café Kova" />
+      </ToastProvider>,
+    );
+    await screen.findByRole("checkbox", { name: /cerrar automáticamente/i });
+    for (const name of [
+      copy.settings.fiscalSettingsTitle,
+      copy.settings.fiscalPreviewTitle,
+      copy.settings.fiscalHistoryTitle,
+    ]) {
+      expect(screen.getByRole("heading", { name, level: 2 })).toBeVisible();
+    }
+  });
+
   it("lets an owner configure, preview and confirm a close with honest copy", async () => {
     renderPanel();
 

@@ -11,7 +11,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Input } from "@/components/ui/input";
@@ -342,7 +342,7 @@ export function FiscalGlobalDraftsPanel({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>{copy.settings.fiscalSettingsTitle}</CardTitle>
+              <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.fiscalSettingsTitle}</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {copy.settings.fiscalSettingsBody}
               </p>
@@ -442,7 +442,7 @@ export function FiscalGlobalDraftsPanel({
 
       <Card>
         <CardHeader>
-          <CardTitle>{copy.settings.fiscalPreviewTitle}</CardTitle>
+          <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.fiscalPreviewTitle}</h2>
           <p className="text-sm leading-6 text-muted-foreground">
             {copy.settings.fiscalPreviewBody}
           </p>
@@ -543,7 +543,7 @@ export function FiscalGlobalDraftsPanel({
 
       <Card>
         <CardHeader>
-          <CardTitle>{copy.settings.fiscalHistoryTitle}</CardTitle>
+          <h2 className="text-lg font-semibold leading-none tracking-tight">{copy.settings.fiscalHistoryTitle}</h2>
         </CardHeader>
         <CardContent>
           {batches.length === 0 ? (
