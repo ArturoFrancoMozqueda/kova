@@ -6,6 +6,25 @@ import { makeStory } from "../__fixtures__/story";
 import { AnalysisOverview } from "./AnalysisOverview";
 
 describe("AnalysisOverview full-period chart", () => {
+  it("labels the seven-day chart separately from a single-day KPI", () => {
+    const story = makeStory({
+      summary: { ...makeStory().summary, start_date: "2026-10-10", end_date: "2026-10-10", net_sales: "0.00" },
+      sales_by_day: [],
+    });
+    const trend = makeStory({
+      summary: { ...story.summary, start_date: "2026-10-04", net_sales: "128.00" },
+      sales_by_day: [{ date: "2026-10-04", net_sales: "128.00", order_count: 1, average_ticket: "128.00", sales_share_pct: 100 }],
+    });
+    render(<MemoryRouter><AnalysisOverview
+      story={story} previousStory={null} previousFailed={false} trendStory={trend}
+      hourly={[]} hourlyFailed={false} priority={null} priorityDone={false}
+      onTogglePriority={vi.fn()} onPriorityFeedback={vi.fn()}
+    /></MemoryRouter>);
+    expect(screen.getByText(`Ventas diarias · ${formatDayWithWeekday("2026-10-04")} – ${formatDayWithWeekday("2026-10-10")} (7 días).`)).toBeVisible();
+    expect(screen.getByText("$0.00", { selector: "p" })).toBeVisible();
+    expect(screen.getByRole("button", { name: `${formatDayWithWeekday("2026-10-04")}: $128.00` })).toBeVisible();
+  });
+
   it("includes all 45 days and the final day's sale instead of silently truncating at 31", () => {
     const story = makeStory({
       summary: { ...makeStory().summary, start_date: "2026-06-01", end_date: "2026-07-15", net_sales: "1250.00" },

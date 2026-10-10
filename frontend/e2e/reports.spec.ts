@@ -287,7 +287,8 @@ for (const width of [390, 1440]) {
     const violations = await page.evaluate(async () => {
       const engine = (window as unknown as { axe: { run: (context: string, options: object) => Promise<AxeResults> } }).axe;
       const result = await engine.run("main", { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } });
-      return result.violations.map(({ id, impact, nodes }) => ({ id, impact, nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })) }));
+      const structure = await engine.run("body", { runOnly: { type: "rule", values: ["heading-order", "region"] } });
+      return [...result.violations, ...structure.violations].map(({ id, impact, nodes }) => ({ id, impact, nodes: nodes.map(({ target, failureSummary }) => ({ target, failureSummary })) }));
     });
     expect(violations).toEqual([]);
   });

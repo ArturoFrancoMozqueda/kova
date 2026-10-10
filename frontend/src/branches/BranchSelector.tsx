@@ -53,7 +53,7 @@ export function BranchSelector() {
     }
   };
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b bg-background px-4 py-3">
+    <section aria-label="Selección de sucursal" className="flex flex-wrap items-center gap-3 border-b bg-background px-4 py-3">
       <label htmlFor={id} className="text-sm font-medium">
         Sucursal activa
       </label>
@@ -106,6 +106,6 @@ export function BranchSelector() {
         onConfirm={change}
         onCancel={() => setPending(null)}
       />
-    </div>
+    </section>
   );
 }

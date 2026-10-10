@@ -66,6 +66,21 @@ beforeEach(() => {
   identity.tenantId = "tenant-a";
 });
 
+it("explains completed sales with zero net across every branch without naming a winner", async () => {
+  const refunded = report();
+  refunded.total_net_sales = "0.00";
+  refunded.leader_branch_ids = refunded.branches.map((branch) => branch.branch_id);
+  refunded.branches = refunded.branches.map((branch) => ({
+    ...branch, refunded_amount: branch.gross_sales, net_sales: "0.00", average_ticket: "0.00", share_pct: "0.00",
+  }));
+  vi.mocked(compareBranches).mockResolvedValueOnce(refunded);
+  render(<BranchComparison startDate="2026-10-01" endDate="2026-10-04" />);
+  expect(await screen.findByText("Todas las sucursales tienen ventas netas en cero. Revisa los cobros y las devoluciones del periodo.")).toBeVisible();
+  expect(screen.queryByText(/tiene las mayores|Hay un empate/)).not.toBeInTheDocument();
+  expect(screen.getByText("Total del negocio: $0.00")).toBeVisible();
+  expect(screen.getByText("10")).toBeVisible();
+});
+
 it("answers which branch sells more and shows its net products for the selected dates", async () => {
   vi.mocked(compareBranches).mockResolvedValue(report());
   render(<BranchComparison startDate="2026-10-01" endDate="2026-10-04" />);
@@ -74,6 +89,9 @@ it("answers which branch sells more and shows its net products for the selected 
   ).toBeVisible();
   expect(screen.getByText("35 unidades netas")).toBeVisible();
   expect(screen.getByText("Pan dulce")).toBeVisible();
+  expect(screen.getByRole("heading", { name: "¿Qué sucursal vende más?", level: 2 })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Centro", level: 3 })).toBeVisible();
+  expect(screen.getAllByRole("heading", { name: "¿Qué productos se venden aquí?", level: 4 })).toHaveLength(2);
   expect(compareBranches).toHaveBeenCalledWith("2026-10-01", "2026-10-04");
 });
 

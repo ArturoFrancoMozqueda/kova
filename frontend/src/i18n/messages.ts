@@ -1737,6 +1737,8 @@ export const copy = {
       `${previous} vs. periodo anterior · ${difference >= 0 ? "+" : "−"}${differenceLabel} de diferencia`,
     overviewPreviousAverage: (amount: string) =>
       `La línea es el promedio diario del periodo anterior · ${amount}`,
+    overviewDailyTrend: (start: string, end: string, days: number) =>
+      `Ventas diarias · ${start} – ${end} (${days} ${days === 1 ? "día" : "días"}).`,
     deltaNoPrevious: "Sin datos suficientes para comparar",
     deltaEmptyPrevious: "Sin ventas en el periodo anterior",
     deltaVsPrevious: "vs. periodo anterior",
