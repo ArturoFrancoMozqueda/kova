@@ -133,7 +133,8 @@ function accessStatusLabel(billing: BillingSubscription): string {
 }
 
 function hasCheckoutBlockingSubscription(billing: BillingSubscription): boolean {
-  return billing.subscription?.status === "active" || billing.subscription?.status === "trialing";
+  return billing.subscription?.status === "active" ||
+    (billing.subscription?.status === "trialing" && billing.access.allowed);
 }
 
 function needsPaymentRecovery(billing: BillingSubscription): boolean {
