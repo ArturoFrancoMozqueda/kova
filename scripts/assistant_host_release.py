@@ -151,7 +151,9 @@ def update(sha, run=subprocess.run, *, sleep=time.sleep):
         return False
     image = serving_image(machines, sha)
     command(["machine", "update", ingest[0]["id"], "--image", image,
-             "--env", f"GIT_SHA={sha}", "--yes"], run=run)
+             "--env", f"GIT_SHA={sha}", "--restart", "on-fail",
+             "--env", f"ASSISTANT_INGEST_VERIFY_UNTIL={int(time.time()) + 1800}",
+             "--yes"], run=run)
     verify(ingest[0]["id"], sha, image, run=run, sleep=sleep)
     return True
 
@@ -167,11 +169,12 @@ def provision(sha, monthly_limit, *, run=subprocess.run, sleep=time.sleep):
     image = serving_image(machines, sha)
     if not ingest:
         config = {
-            "image": image, "env": {"GIT_SHA": sha},
+            "image": image, "env": {"GIT_SHA": sha,
+                "ASSISTANT_INGEST_VERIFY_UNTIL": str(int(time.time()) + 1800)},
             # Fly permits at most 2 GiB per shared CPU; 5 GiB needs the 4x preset.
             "guest": {"cpu_kind": "shared", "cpus": 4, "memory_mb": 5120},
             "metadata": {"fly_process_group": "ingest"}, "services": [],
-            "restart": {"policy": "always"},
+            "restart": {"policy": "on-failure", "max_retries": 3},
             "init": {"exec": ["/usr/local/bin/uv", "run", "python",
                                "scripts/run_assistant_ingest.py", "--workload", "ingest"]},
         }
@@ -226,6 +229,11 @@ def verify(identifier, sha, image, *, run=subprocess.run, sleep=time.sleep):
         started_host(identifier, sha, image, run)
         if worker_identity(identifier, run) != identity:
             raise RuntimeError("Isolated worker restarted during verification")
+        # End the bounded maintenance window; the new boot checks the durable
+        # queue before initializing Docker. Only this existing file host changes.
+        command(["machine", "update", identifier,
+                 "--env", "ASSISTANT_INGEST_VERIFY_UNTIL=0",
+                 "--restart", "on-fail", "--yes"], run=run)
     except Exception:
         command(["machine", "stop", identifier], run=run)
         raise

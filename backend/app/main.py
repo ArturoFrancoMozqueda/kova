@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import app.assistant.events  # noqa: F401
 from app.account_lifecycle.router import router as account_lifecycle_router
 from app.assistant.access import assert_private_policies
+from app.assistant.ingest_demand import lifespan as assistant_ingest_lifespan
 from app.assistant.router import router as assistant_router
 from app.auth.router import router as auth_router
 from app.billing import service as billing_service
@@ -154,6 +155,7 @@ def create_app() -> FastAPI:
     assert_private_policies()
     _hide_docs = settings.app_env == "production"
     app = FastAPI(
+        lifespan=assistant_ingest_lifespan,
         title="POS API",
         version="0.0.1",
         docs_url=None if _hide_docs else "/docs",

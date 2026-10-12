@@ -96,6 +96,64 @@ Una actualización fallida de firmas bloquea ingesta. Las citas numéricas se co
 del archivo; el modelo no redacta esas cifras. Las citas provenientes de OCR advierten que el
 operador debe cotejarlas con el original.
 
+### Ingesta bajo demanda (implementación del 2026-10-12; activación pendiente)
+
+`ASSISTANT_INGEST_ON_DEMAND` permanece falso hasta configurar y verificar el arranque.
+Con el modo activo, el API revisa cada 30 segundos **solo metadatos** de documentos bajo
+el rol runtime, tenant, propietario, cohorte, membresía y acceso comercial vigentes. Un hilo
+dedicado y un pool runtime independiente de una conexión por proceso API evitan ocupar
+el threadpool y pool de solicitudes (dos conexiones adicionales con las dos API actuales).
+Los trabajos `queued`, los `deferred`
+con vencimiento cumplido y las ejecuciones interrumpidas despiertan únicamente el host
+`ingest` existente. La cola en PostgreSQL es la fuente persistente; cada revisión recupera
+fallas de arranque y archivos encolados mientras la máquina está apagándose. No hay nuevo
+puerto público, migración, proveedor ni recurso de cómputo.
+
+El host inicializa Docker/scanner solamente cuando hay trabajo o verificación de release.
+Al concluir extracción e indexación, espera `ASSISTANT_INGEST_IDLE_SECONDS` (60 por defecto)
+sin trabajo elegible y sale con código cero. La política Fly `on-failure` lo deja detenido;
+los errores terminan con código no cero. El chat conserva su worker y leases independientes,
+y el servicio HTTP de `app` mantiene `auto_stop_machines='off'`. La retención continúa en chat.
+La preparación del antivirus en cada arranque en frío puede demorar varios minutos y también
+se factura; una actualización fallida sigue bloqueando el procesamiento.
+
+Activación en orden, dentro del release vigente y sin desplegar un checkout anterior al SHA live:
+
+1. Crear un token dedicado limitado a esta app y guardar su valor directamente como secreto
+   Fly `ASSISTANT_INGEST_FLY_TOKEN`, sin copiarlo a chat, logs, frontend ni repositorio.
+   No reutilizar el token de observabilidad ni un token personal de toda la cuenta.
+2. Configurar `ASSISTANT_INGEST_MACHINE_ID` con la identidad del host aprobado existente
+   (`83d166eb4e5518` al auditar el 2026-10-12). No crear otra máquina ni cambiar región/tamaño.
+3. Publicar el código conservando el flag de demanda falso. `assistant_host_release.py`
+   configura `on-fail`, una ventana de verificación de 30 minutos y los diez controles
+   originales de OCR/antivirus/parser. Al concluir elimina la ventana. Su vencimiento
+   limita el mantenimiento si el proceso de CI se interrumpe.
+4. Validar que el token puede consultar y arrancar **esa** máquina. Activar el flag de demanda
+   en API e ingesta; conservar los consentimientos y flags comerciales/IA existentes.
+5. QA real con archivo propio: cola vacía → host detenido; upload → arranque y `ready`;
+   segundo archivo durante OCR → ambos completos; cola nueva durante apagado → recuperada;
+   vencimiento de `deferred` → reanudación; POS y chat concurrentes sin regresión.
+   Comprobar nuevamente el estado detenido después de la gracia y la facturación posterior.
+
+Rollback: desactivar primero `ASSISTANT_INGEST_ON_DEMAND`, arrancar la máquina existente y
+verificar el drenado. El proceso vuelve al comportamiento continuo anterior; mantener
+`on-failure` es seguro porque el loop continuo no sale por inactividad en ese modo.
+No detener un parser activo ni cambiar permisos, cuotas, consentimientos o datos.
+
+No se aplicaron estos cambios a Fly en esta sesión. La validación local de cola, RLS,
+ciclo de vida y contratos de release no reemplaza la QA real de arranque/archivo/apagado.
+Validación con Python 3.12 y `uv.lock`: 120 pruebas backend de asistente, cola, ACL/RLS y
+ciclo de vida; 60 contratos de repositorio; lint backend completo, OpenAPI sin cambios y
+TOML con política de reinicio limitada a `ingest`. La prueba de cola vacía confirma que no
+se contacta R2 ni Fly; la de fallo de arranque recupera el trabajo persistente en la siguiente revisión.
+
+La capacidad nominal del host cuesta USD 32.78 por 720 horas: bajo demanda paga aproximadamente
+USD 0.0455 por hora encendida, más rootfs y transferencias. Con 10 horas mensuales serían
+USD 0.46 de CPU/RAM; no es una factura garantizada ni incluye embeddings o almacenamiento R2.
+Referencias: [política de reinicio](https://fly.io/docs/reference/configuration/#the-restart-section),
+[Machines API](https://machines-api-spec.fly.dev/),
+[tokens por app](https://fly.io/docs/security/tokens/).
+
 La tarifa nominal publicada para iad es USD 32.78 por treinta días (USD 33.873 por treinta y uno),
 antes de impuestos/transferencias; comprobar el total de la cuenta contra USD 35 antes de crear
 **una** instancia. DFW excede ese límite con este tamaño y no se autoriza. La publicación de
