@@ -86,6 +86,20 @@ print('DISPATCHER_OK')
         raise RuntimeError("Document wake permission did not pass")
 
 
+def prior_flags(identifier, *, run):
+    source = """import json
+from app.config import settings
+print(json.dumps({'ASSISTANT_INGEST_ON_DEMAND':settings.assistant_ingest_on_demand,
+    'ASSISTANT_DOCUMENTS_ENABLED':settings.assistant_documents_enabled}))
+"""
+    flags = json.loads(remote(identifier, "/app/.venv/bin/python -c " + shlex.quote(source),
+                              timeout=20, run=run, stage="public feature flags"))
+    if (set(flags) != {"ASSISTANT_INGEST_ON_DEMAND", "ASSISTANT_DOCUMENTS_ENABLED"}
+            or any(type(value) is not bool for value in flags.values())):
+        raise RuntimeError("Invalid public feature flags; no activation performed")
+    return flags
+
+
 def activate(sha, *, run=subprocess.run, sleep=time.sleep, health=public_health):
     health(sha)
     machines, ingest = hosts(run)
@@ -100,34 +114,32 @@ def activate(sha, *, run=subprocess.run, sleep=time.sleep, health=public_health)
     target = ingest[0]["id"]
     # Check control metadata only; no tenant content or credential values are read.
     idle(apps[0]["id"], run=run)
+    previous = prior_flags(apps[0]["id"], run=run)
     ensure_token(target, run)
     changed = []
     try:
+        # Persist non-sensitive settings in Fly's app vault so future normal
+        # releases preserve demand mode. Staging does not restart any Machine.
+        command(["secrets", "import", "--stage"], run=run, input=
+                "ASSISTANT_INGEST_ON_DEMAND=true\nASSISTANT_DOCUMENTS_ENABLED=true\n"
+                "ASSISTANT_INGEST_MACHINE_ID=" + target + "\n")
         for app in apps:
             changed.append(app["id"])
-            command(["machine", "update", app["id"], "--yes",
-                     "--env", "ASSISTANT_INGEST_ON_DEMAND=true",
-                     "--env", "ASSISTANT_DOCUMENTS_ENABLED=true",
-                     "--env", "ASSISTANT_INGEST_MACHINE_ID=" + target], run=run)
+            command(["machine", "update", app["id"], "--yes"], run=run)
             health(sha)
             dispatcher_probe(app["id"], target, run=run)
         idle(apps[0]["id"], run=run)
         command(["machine", "update", target, "--restart", "on-fail", "--yes",
-                 "--env", "ASSISTANT_INGEST_ON_DEMAND=true",
-                 "--env", "ASSISTANT_DOCUMENTS_ENABLED=true",
-                 "--env", "ASSISTANT_INGEST_VERIFY_UNTIL=0",
-                 "--env", "ASSISTANT_INGEST_MACHINE_ID=" + target], run=run)
+                 "--env", "ASSISTANT_INGEST_VERIFY_UNTIL=0"], run=run)
         health(sha)
     except Exception:
         # API/chat service configuration, images and capacity stay intact.
         # Restore only the feature overrides actually changed by this operation.
+        command(["secrets", "import", "--stage"], run=run,
+                input="".join(name + "=" + str(value).lower() + "\n"
+                              for name, value in previous.items()))
         for identifier in changed:
-            previous = next(m for m in apps if m["id"] == identifier)["config"].get("env", {})
-            command(["machine", "update", identifier, "--yes", "--env",
-                     "ASSISTANT_INGEST_ON_DEMAND=" + previous.get(
-                         "ASSISTANT_INGEST_ON_DEMAND", "false"), "--env",
-                     "ASSISTANT_DOCUMENTS_ENABLED=" + previous.get(
-                         "ASSISTANT_DOCUMENTS_ENABLED", "false")], run=run)
+            command(["machine", "update", identifier, "--yes"], run=run)
         # Do not interrupt any document that may have started in the new mode.
         raise
     print("Document demand activation configured; no API/chat capacity changed", flush=True)
@@ -148,6 +160,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     try:
         activate(args.sha)
+    except RuntimeError as exc:
+        # Helpers emit only fixed stage names, never provider/credential output.
+        raise SystemExit(str(exc)) from None
     except Exception:
         raise SystemExit(
             "Document activation did not complete; inspect its stage and state"

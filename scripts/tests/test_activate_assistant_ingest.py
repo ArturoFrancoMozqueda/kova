@@ -73,6 +73,8 @@ class ActivationTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=json.dumps(machines))
 
         with patch.object(module, "ensure_token"), patch.object(module, "idle"), \
+                patch.object(module, "prior_flags", return_value={
+                    "ASSISTANT_INGEST_ON_DEMAND": False, "ASSISTANT_DOCUMENTS_ENABLED": False}), \
                 patch.object(module, "dispatcher_probe") as probe:
             result = module.activate(SHA, run=run, sleep=lambda _: None, health=lambda _: None)
         self.assertEqual(result, TARGET)
@@ -90,11 +92,13 @@ class ActivationTests(unittest.TestCase):
             return SimpleNamespace(returncode=0, stdout=json.dumps(machines))
 
         with patch.object(module, "ensure_token"), patch.object(module, "idle"), \
+                patch.object(module, "prior_flags", return_value={
+                    "ASSISTANT_INGEST_ON_DEMAND": False, "ASSISTANT_DOCUMENTS_ENABLED": False}), \
                 patch.object(module, "dispatcher_probe", side_effect=RuntimeError), \
                 self.assertRaises(RuntimeError):
             module.activate(SHA, run=run, sleep=lambda _: None, health=lambda _: None)
         self.assertEqual(calls[-1][1:4], ["machine", "update", "app1"])
-        self.assertIn("ASSISTANT_INGEST_ON_DEMAND=false", calls[-1])
+        self.assertEqual(calls[-2][1:4], ["secrets", "import", "--stage"])
         self.assertFalse(any(args[1:4] == ["machine", "update", TARGET] for args in calls))
 
     def test_wrong_sha_is_rejected_before_configuration(self):
