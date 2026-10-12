@@ -14,6 +14,14 @@ from assistant_host_release import command, hosts, image_identity, remote, servi
 TOKEN_NAME = "ASSISTANT_INGEST_FLY_TOKEN"
 
 
+def runtime_probe(source):
+    # Machines exec does not guarantee the application's working directory.
+    # Resolve imports explicitly without inspecting any process environment.
+    return "/app/.venv/bin/python -c " + shlex.quote(
+        "import os, sys\nos.chdir('/app')\nsys.path.insert(0, '/app')\n" + source
+    )
+
+
 def ensure_token(target, run=subprocess.run):
     names = json.loads(command(["secrets", "list", "--json"], run=run))
     if not isinstance(names, list):
@@ -60,7 +68,7 @@ with SessionLocal() as db:
 assert count == 0
 print('IDLE')
 """
-    if remote(identifier, "/app/.venv/bin/python -c " + shlex.quote(source),
+    if remote(identifier, runtime_probe(source),
               timeout=20, run=run, stage="document drain") != "IDLE\n":
         raise RuntimeError("Document work must finish before activation")
 
@@ -81,7 +89,7 @@ async def check():
 asyncio.run(check())
 print('DISPATCHER_OK')
 """.replace("TARGET", repr(target))
-    if remote(identifier, "/app/.venv/bin/python -c " + shlex.quote(source),
+    if remote(identifier, runtime_probe(source),
               timeout=30, run=run, stage="wake permission") != "DISPATCHER_OK\n":
         raise RuntimeError("Document wake permission did not pass")
 
@@ -92,7 +100,7 @@ from app.config import settings
 print(json.dumps({'ASSISTANT_INGEST_ON_DEMAND':settings.assistant_ingest_on_demand,
     'ASSISTANT_DOCUMENTS_ENABLED':settings.assistant_documents_enabled}))
 """
-    flags = json.loads(remote(identifier, "/app/.venv/bin/python -c " + shlex.quote(source),
+    flags = json.loads(remote(identifier, runtime_probe(source),
                               timeout=20, run=run, stage="public feature flags"))
     if (set(flags) != {"ASSISTANT_INGEST_ON_DEMAND", "ASSISTANT_DOCUMENTS_ENABLED"}
             or any(type(value) is not bool for value in flags.values())):

@@ -47,7 +47,9 @@ def remote(identifier, script, *, timeout, run, stage="remote probe"):
         # Only fixed exception types from a trusted probe may enter diagnostics;
         # provider output, private content and traceback messages stay suppressed.
         stderr = body.get("stderr", "") if isinstance(body, dict) else ""
-        kinds = re.findall(r"(?m)^(AssertionError|SyntaxError|JSONDecodeError|"
+        kinds = re.findall(r"(?m)^(?:sqlalchemy\.exc\.)?(AssertionError|SyntaxError|"
+                           r"JSONDecodeError|ModuleNotFoundError|ImportError|"
+                           r"OperationalError|ProgrammingError|ValidationError|"
                            r"FileNotFoundError|PermissionError|RuntimeError)\b", stderr) \
             if isinstance(stderr, str) else []
         suffix = ": " + kinds[-1] if kinds else ""
