@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import shlex
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -25,6 +27,16 @@ def machine(identifier, group):
 
 
 class ActivationTests(unittest.TestCase):
+    def test_runtime_probe_resolves_app_imports_from_a_different_directory(self):
+        args = shlex.split(module.runtime_probe(
+            "assert os.getcwd() == '/app'\nassert sys.path[0] == '/app'\nprint('OK')"
+        ))
+        # Execute the actual generated probe with a harmless mapped directory.
+        source = args[2].replace("'/app'", repr(str(DIRECTORY)))
+        result = subprocess.run([sys.executable, "-c", source], cwd="/",
+                                capture_output=True, text=True, check=True)
+        self.assertEqual(result.stdout, "OK\n")
+
     def test_token_is_restricted_and_never_placed_in_command_arguments(self):
         calls = []
 

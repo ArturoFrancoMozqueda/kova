@@ -233,6 +233,15 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertNotIn("private-value", str(exc.exception))
         self.assertNotIn("secret-message", str(exc.exception))
 
+    def test_database_probe_failure_reports_class_without_sql_or_connection_details(self):
+        def run(*args, **kwargs):
+            return SimpleNamespace(returncode=0, stdout=json.dumps({
+                "exit_code": 1, "stdout": "",
+                "stderr": "sqlalchemy.exc.OperationalError: private-connection-and-query\n"}))
+        with self.assertRaisesRegex(RuntimeError, "document drain failed: OperationalError") as exc:
+            module.remote("app", "fixed-probe", timeout=20, run=run, stage="document drain")
+        self.assertNotIn("private-connection-and-query", str(exc.exception))
+
     def test_worker_probe_executes_and_accepts_only_the_two_deployed_script_paths(self):
         for script_path in ("scripts/run_assistant_ingest.py", "/app/scripts/run_assistant_ingest.py",
                             "/other/scripts/run_assistant_ingest.py"):
