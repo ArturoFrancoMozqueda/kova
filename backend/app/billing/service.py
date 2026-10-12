@@ -281,7 +281,12 @@ def create_checkout_session(
     idempotency_key: str,
 ) -> tuple[int, dict[str, Any]]:
     subscription = repository.get_subscription_by_tenant(db, tenant_id=tenant_id)
-    if subscription and subscription.status in LIVE_SUBSCRIPTION_STATUSES:
+    courtesy_trial = bool(
+        subscription
+        and subscription.status == "trialing"
+        and not subscription.stripe_subscription_id
+    )
+    if subscription and subscription.status in LIVE_SUBSCRIPTION_STATUSES and not courtesy_trial:
         raise bad_request("Tenant already has an active subscription")
 
     secret_key, price_id, success_url, cancel_url = _checkout_config()
