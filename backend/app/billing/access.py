@@ -44,6 +44,21 @@ def get_billing_access_status(db: Session, *, tenant_id: UUID) -> BillingAccessS
 
     if subscription:
         status = subscription.status
+        # Courtesy trials have no Stripe lifecycle webhook to expire them.
+        # Require a finite end date; Stripe-managed trials keep their existing policy.
+        if status == "trialing" and not subscription.stripe_subscription_id:
+            trial_end = (
+                _as_utc(subscription.trial_ends_at) if subscription.trial_ends_at else None
+            )
+            if trial_end is None or trial_end <= now:
+                return BillingAccessStatus(
+                    allowed=False,
+                    reason="trial_expired",
+                    trialing=False,
+                    trial_ends_at=trial_end,
+                    blocked_at=now,
+                    recovery_path=BILLING_RECOVERY_PATH,
+                )
         if status in {"active", "trialing"}:
             return BillingAccessStatus(
                 allowed=True,
