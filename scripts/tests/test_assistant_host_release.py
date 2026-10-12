@@ -64,6 +64,8 @@ class AssistantHostReleaseTests(unittest.TestCase):
         args = calls[1][0]
         self.assertEqual(args[:4], ["flyctl", "machine", "update", "ingest"])
         self.assertIn("GIT_SHA=" + SHA, args)
+        self.assertEqual(args[args.index("--restart") + 1], "on-fail")
+        self.assertTrue(any(arg.startswith("ASSISTANT_INGEST_VERIFY_UNTIL=") for arg in args))
         self.assertIn("registry.fly.io/pos-project-backend:test@" + DIGEST, args)
         self.assertFalse(any(a in args for a in ("deploy", "run", "--vm-memory", "--region")))
         self.assertEqual(module.PARSER_COMMAND,
@@ -73,6 +75,9 @@ class AssistantHostReleaseTests(unittest.TestCase):
         self.assertEqual(len(parser_calls), 10)
         self.assertEqual({shlex.split(call[4])[-1] for call in parser_calls}, module.PARSER_CHECKS)
         self.assertTrue(all(call[call.index("--timeout") + 1] == "60" for call in parser_calls))
+        final = calls[-1][0]
+        self.assertEqual(final[:4], ["flyctl", "machine", "update", "ingest"])
+        self.assertIn("ASSISTANT_INGEST_VERIFY_UNTIL=0", final)
 
     def test_tag_and_digest_qualified_configurations_share_the_same_verified_identity(self):
         app, ingest = machine("app"), machine("ingest")

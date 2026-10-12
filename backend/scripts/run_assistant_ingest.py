@@ -1,6 +1,7 @@
 """Dedicated Docker host: local socket only, clean daemon env, daily scanner refresh."""
 
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -8,6 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.assistant.ingest_demand import configured, has_work  # noqa: E402
+from app.config import settings  # noqa: E402
 from scripts.run_assistant_worker import main  # noqa: E402
 
 ENV = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"}
@@ -66,9 +69,37 @@ def start_daemon():
     raise RuntimeError("isolated Docker daemon did not become ready")
 
 
-if __name__ == "__main__":
-    docker = start_daemon()
+def run():
+    docker = None
+    scanner = Scanner()
+
+    def prepare():
+        nonlocal docker
+        if docker is None:
+            docker = start_daemon()
+        scanner.refresh()
+
+    maintenance = settings.assistant_ingest_verify_until > time.time()
+    on_demand = settings.assistant_ingest_on_demand
+    if on_demand and not configured():
+        raise SystemExit("On-demand ingestion requires a configured wake dispatcher")
+    if (on_demand and os.environ.get("FLY_MACHINE_ID")
+            and os.environ["FLY_MACHINE_ID"] != settings.assistant_ingest_machine_id):
+        raise SystemExit("On-demand ingestion must target its own isolated Machine")
     try:
-        main(default_workload="ingest", before_iteration=Scanner().refresh)
+        if maintenance or not on_demand:
+            prepare()
+        main(default_workload="ingest", before_iteration=prepare,
+             has_work=lambda: maintenance_active() or has_work(),
+             idle_seconds=settings.assistant_ingest_idle_seconds if on_demand else None)
     finally:
-        docker.terminate()
+        if docker is not None:
+            docker.terminate()
+
+
+def maintenance_active():
+    return settings.assistant_ingest_verify_until > time.time()
+
+
+if __name__ == "__main__":
+    run()

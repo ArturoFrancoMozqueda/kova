@@ -14,7 +14,7 @@ from app.config import settings
 from app.db import assert_rls_active
 
 
-def main(*, default_workload="all", before_iteration=None):
+def main(*, default_workload="all", before_iteration=None, has_work=None, idle_seconds=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--workload", choices=("all", "chat", "ingest"),
@@ -27,16 +27,29 @@ def main(*, default_workload="all", before_iteration=None):
             raise SystemExit("Worker requires a production signing key")
     assert_rls_active()
     assert_private_policies()
+    if idle_seconds is not None and (args.workload != "ingest" or has_work is None):
+        raise SystemExit("Idle shutdown requires the isolated ingestion workload")
+    idle_since = time.monotonic()
     while True:
         processed = 0
         try:
+            if idle_seconds is not None and not has_work():
+                if time.monotonic() - idle_since >= idle_seconds:
+                    logging.getLogger(__name__).info("Document queue idle; host exiting cleanly")
+                    return
+                if args.once:
+                    return
+                time.sleep(1)
+                continue
             if before_iteration:
                 before_iteration()
             processed = process_once(workload=args.workload)
+            # The idle clock starts after synchronous extraction/indexing completes.
+            idle_since = time.monotonic()
         except Exception:
             # Private queries, files and provider responses never enter logs.
             logging.getLogger(__name__).error("Assistant worker iteration failed")
-            if args.once:
+            if args.once or idle_seconds is not None:
                 raise SystemExit(1) from None
         if args.once:
             break

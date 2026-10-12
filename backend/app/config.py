@@ -126,6 +126,13 @@ class Settings(BaseSettings):
     assistant_global_concurrency: int = Field(default=3, ge=1, le=100)
     assistant_tenant_concurrency: int = Field(default=2, ge=1, le=10)
     assistant_ingest_global_concurrency: int = Field(default=1, ge=1, le=8)
+    # Enable only after the dispatcher can start the existing isolated Machine.
+    assistant_ingest_on_demand: bool = False
+    assistant_ingest_machine_id: str = Field(default="", pattern=r"^(?:[a-f0-9]{14})?$")
+    assistant_ingest_fly_token: SecretStr | None = None
+    assistant_ingest_idle_seconds: int = Field(default=60, ge=30, le=600)
+    # Host-specific release override; expires even if verification is interrupted.
+    assistant_ingest_verify_until: int = Field(default=0, ge=0)
     assistant_groq_api_key: SecretStr | None = None
     assistant_groq_model: str = "openai/gpt-oss-20b"
     assistant_groq_free_verified: bool = False

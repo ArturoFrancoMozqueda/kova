@@ -16,6 +16,11 @@ primary_region = 'dfw'
   assistant = "/usr/local/bin/uv run python scripts/run_assistant_worker.py --workload chat"
   ingest = "/usr/local/bin/uv run python scripts/run_assistant_ingest.py --workload ingest"
 
+[[restart]]
+  processes = ['ingest']
+  policy = 'on-failure'
+  retries = 3
+
 [http_service]
   internal_port = 8000
   force_https = true
