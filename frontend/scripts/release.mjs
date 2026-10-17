@@ -7,6 +7,7 @@ import {
   validateRollbackArtifact,
 } from "./release-recovery.mjs";
 import { verifyDeployment } from "./verify-deployment.mjs";
+import { cloudflareProvider } from "./cloudflare-provider.mjs";
 
 export function candidateUrl(value) {
   const url = new URL(value);
@@ -21,6 +22,9 @@ export function candidateUrl(value) {
 export async function release({ artifact: rawArtifact, sha, provider,
   verify = verifyDeployment, recover = recoverRelease }) {
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (provider.requiresCloudflare && !artifact.cloudflareVersion) {
+    throw new Error("Cloudflare release requires a captured rollback version");
+  }
   if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error("full release SHA is required");
   let phase;
   try {
@@ -47,11 +51,14 @@ export async function release({ artifact: rawArtifact, sha, provider,
 export function releaseProvider(globalConfig, { run = runProviderCommand, env = process.env } = {}) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const npx = resolveNpxCommand();
+  const cloudflare = cloudflareProvider({ run, env });
+  const buildEnv = cloudflare ? { ...env, VITE_HOSTING_PROVIDER: "cloudflare" } : env;
   const vercel = (args, capture = false) => run(npx.command,
     [...npx.prefixArgs, "--yes", "vercel@59.0.0", ...args,
-      "--global-config", globalConfig], { cwd: root, label: "Vercel", capture, env });
+      "--global-config", globalConfig], { cwd: root, label: "Vercel", capture, env: buildEnv });
   return {
     ...cliProvider({ globalConfig, run, env }),
+    requiresCloudflare: Boolean(cloudflare),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);
       await vercel(["build", "--prod"]);
@@ -77,6 +84,7 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
       const hostname = productionHostname(frontendUrl);
       await vercel(["promote", url, "--yes"]);
       await vercel(["alias", "set", url, hostname]);
+      if (cloudflare) await cloudflare.publish();
     },
   };
 }
