@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, URL } from "node:url";
 import { cloudflareProvider } from "./cloudflare-provider.mjs";
 import { release, releaseProvider } from "./release.mjs";
 import { recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
@@ -10,6 +12,16 @@ const env = { KOVA_CLOUDFLARE_FRONTEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cl
 const artifact = { releaseSha: "a".repeat(40), flyImage: "registry.fly.io/test@sha256:old",
   vercelDeployment: "https://old.vercel.app", frontendUrl: "https://kovasuite.com",
   backendUrl: "https://api.kovasuite.com", cloudflareVersion: version };
+
+test("the capture executable initializes its full ESM graph without a top-level await cycle", () => {
+  const executable = fileURLToPath(new URL("./capture-cloudflare.mjs", import.meta.url));
+  const result = spawnSync(process.execPath, [executable, "/unused-when-disabled.json"], {
+    env: { ...process.env, KOVA_CLOUDFLARE_FRONTEND: "0" }, encoding: "utf8", timeout: 5000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stderr, /unsettled top-level await/);
+});
 
 test("Cloudflare is opt-in and missing CI credentials fail before mutation", () => {
   assert.equal(cloudflareProvider({ env: {}, run: assert.fail }), undefined);

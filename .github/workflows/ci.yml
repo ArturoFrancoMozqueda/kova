@@ -418,7 +418,7 @@ jobs:
         run: npm ci --prefix deploy/cloudflare
       - name: Capture exact Cloudflare rollback version
         if: vars.KOVA_CLOUDFLARE_FRONTEND == '1'
-        run: node frontend/scripts/cloudflare-provider.mjs capture "$RUNNER_TEMP/release-rollback.json"
+        run: node frontend/scripts/capture-cloudflare.mjs "$RUNNER_TEMP/release-rollback.json"
         env:
           KOVA_CLOUDFLARE_FRONTEND: ${{ vars.KOVA_CLOUDFLARE_FRONTEND }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
