@@ -13,19 +13,24 @@ _ready = False
 def initialize(env):
     global _ready
     if not _ready:
+        from app.workers.context import environment
         from app.workers.bootstrap import configure
 
-        configure(env, privileged=False)
-        from app.assistant.access import assert_private_policies
-        from app.db import assert_rls_active
-        from app.observability.logging import configure_logging
-        from app.observability.sentry import init_sentry
+        token = environment.set(env)
+        try:
+            configure(env, privileged=False)
+            from app.assistant.access import assert_private_policies
+            from app.db import assert_rls_active
+            from app.observability.logging import configure_logging
+            from app.observability.sentry import init_sentry
 
-        configure_logging()
-        init_sentry()
-        assert_rls_active()
-        assert_private_policies()
-        _ready = True
+            configure_logging()
+            init_sentry()
+            assert_rls_active()
+            assert_private_policies()
+            _ready = True
+        finally:
+            environment.reset(token)
 
 
 class Default(WorkerEntrypoint):

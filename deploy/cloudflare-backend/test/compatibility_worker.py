@@ -8,6 +8,19 @@ from app.cfdi.certificates import validate_csd, CsdValidationError
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         fixtures = await request.json()
+        from app.workers.crypto import pbkdf2_hmac
+
+        assert (
+            pbkdf2_hmac("sha256", b"synthetic-password", b"synthetic-salt", 4096).hex()
+            == fixtures["pbkdf2"]
+        )
+        for count in (0, -1, 1_000_001, True, "4096"):
+            try:
+                pbkdf2_hmac("sha256", b"synthetic-password", b"synthetic-salt", count)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Unbounded key derivation accepted")
         from sentry_sdk.envelope import Envelope
         from app.observability.sentry import sanitize_sentry_event
         from app.workers.context import execution

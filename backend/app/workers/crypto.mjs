@@ -2,7 +2,7 @@
 // Python's WebAssembly catalog currently predates Kova's cryptography security floor.
 import {
   createCipheriv, createDecipheriv, createPrivateKey, createPublicKey,
-  X509Certificate,
+  X509Certificate, pbkdf2Sync,
 } from "node:crypto";
 
 function bytes(...parts) {
@@ -10,6 +10,10 @@ function bytes(...parts) {
   let offset = 0;
   for (const part of parts) { result.set(part, offset); offset += part.length; }
   return result;
+}
+
+export function deriveKey(password, salt, iterations, length, algorithm) {
+  return bytes(pbkdf2Sync(password, salt, iterations, length, algorithm));
 }
 
 export function encryptCbc(key, iv, data) {

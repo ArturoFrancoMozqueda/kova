@@ -23,6 +23,28 @@ def write_private(path, value):
         json.dump(value, output)
 
 
+def database_origin(connection):
+    url = urlsplit(connection)
+    if not url.hostname or not url.username or not url.password or not url.path:
+        raise ValueError("Invalid database configuration")
+    host, port, user = url.hostname, url.port or 5432, unquote(url.username)
+    if host.endswith(".pooler.supabase.com"):
+        # Hyperdrive performs pooling; chaining Supavisor's session pool causes
+        # avoidable connection waits. Keep the same database role/password.
+        role, separator, project = user.rpartition(".")
+        if not separator or not role or not re.fullmatch(r"[a-z0-9]{20}", project):
+            raise ValueError("Invalid Supabase connection metadata")
+        host, port, user = f"db.{project}.supabase.co", 5432, role
+    return {
+        "scheme": "postgresql",
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": unquote(url.password),
+        "database": unquote(url.path.lstrip("/")),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fly", default="flyctl")
@@ -111,21 +133,15 @@ def main():
         ("app", values["APP_DATABASE_URL"]),
         ("privileged", owner),
     ):
-        url = urlsplit(connection)
-        if not url.hostname or not url.username or not url.password or not url.path:
+        try:
+            origin = database_origin(connection)
+        except ValueError:
             raise SystemExit("Invalid database configuration; no values were displayed")
         write_private(
             destination / f"hyperdrive-{label}.json",
             {
                 "name": f"kova-{label}",
-                "origin": {
-                    "scheme": "postgresql",
-                    "host": url.hostname,
-                    "port": url.port or 5432,
-                    "user": unquote(url.username),
-                    "password": unquote(url.password),
-                    "database": unquote(url.path.lstrip("/")),
-                },
+                "origin": origin,
                 "caching": {"disabled": True},
                 "origin_connection_limit": 5,
             },

@@ -10,7 +10,8 @@ RLS, billing, transactions and offline/idempotent writes; no business tables mov
 to SQLite. A cookie hash chooses a coordinator and grants no permissions.
 
 `kova-backend` has separate Hyperdrive runtime/privileged bindings. Both disable SQL
-caching and use TLS to the existing Supabase database. `kova-backend-jobs` has only
+caching and use TLS to the direct Supabase endpoint (without chaining Supavisor).
+Each connection reads its binding inside the current invocation. `kova-backend-jobs` has only
 the runtime binding, no owner URL and no public route. Private per-tenant alarms
 process one chat job per invocation using the existing PostgreSQL leases and
 uncertain-call protection. A five-minute sweep recovers missed wakes and performs
@@ -24,7 +25,8 @@ is unavailable. MFA QR and accountant PDFs remain available without Pillow. The
 native deployment retains its existing dependencies and behavior.
 
 The WebAssembly lock is separate from `backend/uv.lock`: Python 3.14, pg8000 and
-compatible binary wheels are required. Existing encrypted Fernet/AES-GCM formats
+compatible binary wheels are required. Postgres SCRAM uses native PBKDF2 where Pyodide lacks hashlib support.
+Existing encrypted Fernet/AES-GCM formats
 and certificate checks use Workers' native crypto through a small adapter, keeping
 the native deployment's cryptography security floor. No obsolete crypto or Pillow
 wheel is introduced. Only S3 service schemas are packaged from botocore.
@@ -65,7 +67,10 @@ Local timings are not measurements of deployed Cloudflare CPU or memory limits.
 
 ## Deployment inputs and acceptance
 
-Use `cf` with the pinned CLI/config. Keep the Free subscription; do not provision
+Use the local `node_modules/.bin/cf` with the pinned CLI/config. `npm ci` applies
+a narrowly checked beta.18 fix: Python module paths must not start with `./`
+inside the metadata filesystem. The packaging regression preserves JavaScript
+module behavior. Keep the Free subscription; do not provision
 Containers or paid compute. The current documented limits include a 64 MiB bundle,
 100,000 Worker requests/day and separate Durable Objects request/duration/storage
 quotas. These are ceilings, not a promise of unlimited SaaS use. Supabase, Stripe,

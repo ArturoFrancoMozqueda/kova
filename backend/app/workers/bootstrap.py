@@ -23,22 +23,16 @@ def environment(env, *, privileged=True) -> dict[str, str]:
     # retained; no daemon, file job or Fly machine wake may be started here.
     values["ASSISTANT_DOCUMENTS_ENABLED"] = "false"
     values["ASSISTANT_INGEST_ON_DEMAND"] = "false"
-    from sqlalchemy.engine import URL
-
     databases = [("APP_DATABASE_URL", "DB_APP")]
     if privileged:
         databases.append(("MIGRATION_DATABASE_URL", "DB_PRIVILEGED"))
     for variable, binding in databases:
         database = getattr(env, binding, None)
         if database is not None:
-            values[variable] = URL.create(
-                "postgresql+pg8000",
-                username=database.user,
-                password=database.password,
-                host=database.host,
-                port=int(database.port),
-                database=database.database,
-            ).render_as_string(hide_password=False)
+            # Hyperdrive connection coordinates belong to the invocation.
+            # The shared Engine holds a dialect label only; its creator reads
+            # the actual binding from the current request for every connection.
+            values[variable] = f"postgresql+pg8000://hyperdrive/{binding.lower()}"
         elif values.get("APP_ENV", "production") != "local":
             raise RuntimeError("Workers requires separate runtime/privileged Hyperdrive bindings")
     if "MIGRATION_DATABASE_URL" in values:
@@ -52,7 +46,14 @@ def environment(env, *, privileged=True) -> dict[str, str]:
 
 
 def install_sync_adapter() -> None:
+    import hashlib
+
     import anyio.to_thread
+
+    if not hasattr(hashlib, "pbkdf2_hmac"):
+        from app.workers.crypto import pbkdf2_hmac
+
+        hashlib.pbkdf2_hmac = pbkdf2_hmac
 
     async def run_sync(func, *args, abandon_on_cancel=False, cancellable=None, limiter=None):
         # Python sockets use JSPI to suspend without an OS thread. Retain the

@@ -210,13 +210,15 @@ def set_tenant_context(db: Session, tenant_id: object) -> None:
 
 def _pool_options(*, privileged: bool = False) -> dict:
     if sys.platform == "emscripten":
+        from app.workers.postgres import connect_binding
+
         # Hyperdrive owns the upstream pool. A connection opened by one Workers
         # request must never be retained for a different request's I/O context.
         return {
             "poolclass": NullPool,
-            # TLS is verified by Hyperdrive on its upstream connection. This
-            # socket is the platform-local Hyperdrive proxy, not public Postgres.
-            "connect_args": {"timeout": settings.database_pool_timeout, "ssl_context": False},
+            # Read binding coordinates inside each invocation, never retain
+            # a Hyperdrive connection string from another request.
+            "creator": lambda: connect_binding(privileged=privileged),
         }
     return {
         "pool_size": 2 if privileged else settings.database_pool_size,

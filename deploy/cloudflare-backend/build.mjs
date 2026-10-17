@@ -32,7 +32,8 @@ async function copyTree(directory, prefix, { source = false } = {}) {
       await mkdir(resolve(bundle, posix.dirname(name)), { recursive: true });
       await cp(resolve(directory, file.name), resolve(bundle, name));
       modules[name] = { type: name.startsWith("python_modules/workers/")
-        && /\.(js|mjs)$/.test(file.name) ? "esm" : "data" };
+        && /\.(js|mjs)$/.test(file.name) ? "esm"
+        : file.name.endsWith(".py") ? "python" : "data" };
     }
   }
 }

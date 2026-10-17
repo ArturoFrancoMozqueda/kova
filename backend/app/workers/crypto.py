@@ -27,6 +27,29 @@ def js_bytes(value: bytes):
     return to_js(value)
 
 
+def pbkdf2_hmac(hash_name, password, salt, iterations, dklen=None):
+    """Native PBKDF2 for PostgreSQL SCRAM where Pyodide lacks OpenSSL hashlib."""
+    if (
+        not isinstance(iterations, int)
+        or isinstance(iterations, bool)
+        or not 1 <= iterations <= 1_000_000
+    ):
+        raise ValueError("Invalid key derivation resource bound")
+    if dklen is None:
+        dklen = hashlib.new(hash_name).digest_size
+    if not isinstance(dklen, int) or isinstance(dklen, bool) or not 1 <= dklen <= 1024:
+        raise ValueError("Invalid key derivation length")
+    return bytes(
+        primitives().deriveKey(
+            js_bytes(bytes(password)),
+            js_bytes(bytes(salt)),
+            int(iterations),
+            int(dklen),
+            hash_name,
+        )
+    )
+
+
 class InvalidToken(Exception):
     pass
 

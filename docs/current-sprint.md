@@ -11,7 +11,7 @@ sin conexión privilegiada. No hay cambio público de API todavía.
 
 Validación local: 1,516 pruebas completas con pg8000; registro/verificación/login,
 cookies seguras, CSRF, aislamiento de tenants, venta offline repetida sin duplicar,
-refresh/logout y límites compartidos en workerd. Trece casos CSD, Fernet/AES-GCM,
+refresh/logout y límites compartidos en workerd. Cuarenta casos CSD, Fernet/AES-GCM,
 QR y envío Sentry con datos sensibles eliminados verificados en el runtime.
 El PDF contable se renderizó idéntico al actual. Las nuevas opciones de lote del
 asistente aprobaron otras 91 pruebas enfocadas con el controlador de Workers.

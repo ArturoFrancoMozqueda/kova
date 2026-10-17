@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -211,6 +212,9 @@ Path(sys.argv[1]).write_text(
             nonce=b64(nonce),
             aad=b64(aad),
             gcm=b64(gcm),
+            pbkdf2=hashlib.pbkdf2_hmac(
+                "sha256", b"synthetic-password", b"synthetic-salt", 4096
+            ).hex(),
         )
     )
 )
