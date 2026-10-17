@@ -174,6 +174,9 @@ def message_create(
         dedupe=dedupe,
     )
     db.commit()
+    from app.workers.jobs import wake
+
+    wake(tenant)
     return repo.view(db, tenant, user, job)
 
 

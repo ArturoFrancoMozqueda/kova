@@ -1,3 +1,4 @@
+import sys
 from typing import Literal
 from uuid import UUID
 
@@ -6,6 +7,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def sqlalchemy_database_url(database_url: str) -> str:
+    if sys.platform == "emscripten":
+        for scheme in ("postgresql+psycopg://", "postgresql://", "postgres://"):
+            if database_url.startswith(scheme):
+                return "postgresql+pg8000://" + database_url[len(scheme):]
     if database_url.startswith("postgresql://"):
         return "postgresql+psycopg://" + database_url[len("postgresql://") :]
     if database_url.startswith("postgres://"):

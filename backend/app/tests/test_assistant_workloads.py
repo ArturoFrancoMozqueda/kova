@@ -50,6 +50,24 @@ def test_worker_rejects_unknown_workload_before_reading_tenants():
         process_once(workload="unknown")
 
 
+def test_worker_rejects_tenants_outside_cohort_before_opening_database(monkeypatch):
+    from app.assistant import worker
+
+    monkeypatch.setattr(worker, "cohort", lambda: (uuid4(),))
+    monkeypatch.setattr(worker, "SessionLocal", lambda: pytest.fail("must not open database"))
+    with pytest.raises(ValueError, match="outside the assistant cohort"):
+        worker.process_once(workload="chat", tenant_id=uuid4(), maximum_jobs=1)
+
+
+@pytest.mark.parametrize("maximum", [0, -1, True, "1"])
+def test_worker_rejects_invalid_batch_bounds(monkeypatch, maximum):
+    from app.assistant import worker
+
+    monkeypatch.setattr(worker, "SessionLocal", lambda: pytest.fail("must not open database"))
+    with pytest.raises(ValueError, match="positive integer"):
+        worker.process_once(workload="chat", maximum_jobs=maximum)
+
+
 def test_changed_openrouter_recipients_require_fresh_consent(monkeypatch):
     from app.assistant import provider
 

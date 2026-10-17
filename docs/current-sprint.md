@@ -2,6 +2,26 @@
 
 Last updated: 2026-10-17
 
+## Cloudflare Free backend migration (2026-10-17, in progress)
+
+El propietario autorizó migrar Fly y eligió mantener Free posponiendo documentos.
+Se prepara la API FastAPI existente en coordinadores Durable Objects y un gateway
+HTTP pequeño, con Postgres en Supabase, Hyperdrive sin caché y un Worker de tareas
+sin conexión privilegiada. No hay cambio público de API todavía.
+
+Validación local: 1,516 pruebas completas con pg8000; registro/verificación/login,
+cookies seguras, CSRF, aislamiento de tenants, venta offline repetida sin duplicar,
+refresh/logout y límites compartidos en workerd. Trece casos CSD, Fernet/AES-GCM,
+QR y envío Sentry con datos sensibles eliminados verificados en el runtime.
+El PDF contable se renderizó idéntico al actual. Las nuevas opciones de lote del
+asistente aprobaron otras 91 pruebas enfocadas con el controlador de Workers.
+CI añade la suite completa del nuevo controlador y las pruebas del runtime.
+
+Faltan aceptación desplegada (recursos reales de Free y sesión del propietario),
+integración de publicación/recuperación, corte de `api.kovasuite.com` y detención
+reversible de Fly. No declarar el backend migrado antes de completar esos pasos.
+[Arquitectura, pruebas y límites](../deploy/cloudflare-backend/README.md).
+
 ## Cloudflare Free frontend cutover (2026-10-17)
 
 El frontend de `kovasuite.com` ya se sirve mediante Cloudflare Workers Static Assets y un

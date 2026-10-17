@@ -86,7 +86,7 @@ def assert_private_policies() -> None:
         with engine.connect() as conn:
             rows = conn.execute(
                 text("""SELECT c.relname,p.polname,p.polpermissive,p.polcmd,
-                p.polroles,pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)
+                p.polroles::bigint[],pg_get_expr(p.polqual,p.polrelid),pg_get_expr(p.polwithcheck,p.polrelid)
                 FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid
                 JOIN pg_namespace n ON n.oid=c.relnamespace
                 WHERE n.nspname='public'

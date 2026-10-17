@@ -105,6 +105,68 @@ jobs:
             backend/reports/backend.xml
           retention-days: 7
 
+  backend-workers:
+    name: integration (Cloudflare Free + Postgres)
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    timeout-minutes: 12
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16-bookworm
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pos
+          POSTGRES_DB: pos
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pos" --health-interval 5s
+          --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+pg8000://pos:pos@127.0.0.1:5432/pos
+      KOVA_WORKERS_TEST_DATABASE_URL: postgresql://pos:pos@127.0.0.1:5432/pos
+      APP_ENV: ci
+      SECRET_KEY: ci-only-not-a-real-secret-key-do-not-use-in-production
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.13.1"
+      - run: uv sync --project backend --frozen
+      - run: uv pip install --python backend/.venv/bin/python pg8000==1.31.5
+      - name: Verify full backend suite with the Workers Postgres driver
+        working-directory: backend
+        run: uv run --no-sync pytest -q --junitxml=reports/workers-driver.xml
+      - name: Provision disposable runtime role
+        run: psql -h 127.0.0.1 -U pos -d pos -v kova_app_password=kova_app -f backend/scripts/provision_app_role.sql
+        env:
+          PGPASSWORD: pos
+      - name: Install locked WebAssembly dependencies
+        run: |
+          uv python install cpython-3.14.2-emscripten-wasm32-musl
+          uv venv /tmp/kova-pyodide --python cpython-3.14.2-emscripten-wasm32-musl
+          uv pip install --python /tmp/kova-pyodide/bin/python --only-binary :all: --preview-features pylock -r deploy/cloudflare-backend/pylock.toml
+      - run: npm ci
+        working-directory: deploy/cloudflare-backend
+      - name: Build Workers without deployment credentials
+        run: npm run build
+        working-directory: deploy/cloudflare-backend
+        env:
+          KOVA_WORKERS_PACKAGES: /tmp/kova-pyodide/lib/python3.14/site-packages
+      - name: Generate synthetic cross-runtime crypto fixtures
+        run: backend/.venv/bin/python deploy/cloudflare-backend/test/generate_fixtures.py deploy/cloudflare-backend/.cloudflare/test-fixtures.json
+        env:
+          PYTHONPATH: backend
+      - name: Verify API, crypto, telemetry and isolated jobs in workerd
+        run: npm test
+        working-directory: deploy/cloudflare-backend
+
   frontend-unit:
     name: frontend unit and contracts
     needs: [changes]
@@ -331,7 +393,7 @@ jobs:
   required:
     name: CI required
     if: always()
-    needs: [changes, repository, backend-integration, frontend-unit, frontend, integration, migrations, security, assistant-parser, supply-chain]
+    needs: [changes, repository, backend-integration, backend-workers, frontend-unit, frontend, integration, migrations, security, assistant-parser, supply-chain]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

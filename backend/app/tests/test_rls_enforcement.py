@@ -608,7 +608,9 @@ def test_business_profile_can_only_update_the_current_tenant_public_name(
 
     from sqlalchemy.exc import DBAPIError
 
-    with kova_app_engine.begin() as conn:
+    # The denied statement aborts this transaction. Close/rollback it explicitly;
+    # pg8000 reports an additional error if asked to commit an aborted block.
+    with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
         with pytest.raises(DBAPIError) as exc:
             conn.execute(
@@ -651,7 +653,8 @@ def test_product_delete_is_reserved_for_privileged_purge(
     kova_app_engine,
     rls_seed,  # noqa: ARG001
 ):
-    with kova_app_engine.begin() as conn:
+    # Preserve the permission assertion while rolling back the rejected write.
+    with kova_app_engine.connect() as conn:
         _set_tenant(conn, TENANT_A)
         with pytest.raises(DBAPIError) as exc:
             conn.execute(text("DELETE FROM products WHERE id = :pb"), {"pb": PRODUCT_B})
