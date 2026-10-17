@@ -8,8 +8,16 @@ Arquitectura vigente:
 - Auth: implementación propia de Kova en FastAPI/Postgres, con contraseñas hasheadas, sesiones
   persistidas y cookies HttpOnly. Supabase Auth no forma parte del runtime.
 - Billing: Stripe subscriptions.
-- Frontend hosting: Vercel.
+- Frontend hosting: Cloudflare Workers Static Assets (Workers Free).
+- Frontend API proxy: Worker de Cloudflare conserva `/api` en el mismo origen y reenvía a Fly,
+  sin caché de respuestas privadas ni credenciales de base de datos en el Worker.
+- Vercel permanece como candidato de publicación y respaldo durante la transición; el pipeline
+  publica sus mismos archivos estáticos validados en Cloudflare y captura la versión anterior
+  del Worker para revertir antes de recuperar Vercel/Fly.
 - Backend hosting: Fly.io.
+
+La migración de frontend del 2026-10-17 no traslada FastAPI, Postgres ni la ingesta aislada a
+Cloudflare. Configuración, límites y recuperación: [`../../deploy/cloudflare/README.md`](../../deploy/cloudflare/README.md).
 
 ## Safety boundaries
 

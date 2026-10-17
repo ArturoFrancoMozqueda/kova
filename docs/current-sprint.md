@@ -1,6 +1,36 @@
 # Current Sprint
 
-Last updated: 2026-10-10
+Last updated: 2026-10-17
+
+## Cloudflare Free frontend cutover (2026-10-17)
+
+El frontend de `kovasuite.com` ya se sirve mediante Cloudflare Workers Static Assets y un
+Worker para conservar el proxy `/api` hacia FastAPI en Fly. `www` redirige al dominio principal
+y HTTP a HTTPS. Se activó el proxy únicamente para los registros web de apex/www; los destinos
+originales de Vercel permanecen disponibles para revertir DNS. Workers sigue en Free; R2
+conserva su suscripción y franquicia de uso existentes. Fly, Supabase, Stripe, Resend y Sentry
+conservan sus funciones. Vercel sigue siendo candidato validado/respaldo del pipeline.
+
+PRs #198/#199 integradas. Publicación inicial aceptada en
+[`39066334257`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39066334257), fuente
+`089af764b8398944ddb16d84c8387463987c295f`. Captura y reversión incluyen la versión exacta
+del Worker, además del artefacto Vercel y la imagen Fly. La corrección de arranque del capturador
+dispone de regresión por subproceso. El simulacro desechable debe preparar también ese módulo.
+
+Aceptación: el propietario confirmó login, recarga del panel y logout en el candidato real de
+Cloudflare. En el dominio principal se verificaron respuesta del edge Cloudflare, versión,
+proxy/API/Postgres, 401 sin sesión, API/version sin caché, recursos versionados con caché
+inmutable, archivos faltantes 404 sin caché y redirecciones con parámetros preservados.
+Chromium cargó landing/login/privacidad e instaló el service worker sin excepciones JavaScript
+ni solicitudes a Vercel Analytics; Web Analytics de Cloudflare se inyecta correctamente.
+La aceptación inicial del edge se forzó con resolución de host porque algunos resolvedores
+conservaban el destino anterior durante la propagación DNS.
+
+Pruebas locales: build, ESLint, escaneo del bundle, contratos de publicación/recuperación,
+nueve pruebas de proxy, 16 unitarias enfocadas, 15 de navegador auth/rutas/PWA/offline y 68 de
+contratos de repositorio. CI completo y publicación aprobaron. No se hicieron ventas ni cobros
+reales en esta migración. FastAPI/bcrypt/parser Docker siguen sin validar en Workers Free;
+Fly no debe retirarse como parte de este corte. [Operación](../deploy/cloudflare/README.md).
 
 ## Completed production validation (2026-10-10): operaciones reales en Sweet Home
 
