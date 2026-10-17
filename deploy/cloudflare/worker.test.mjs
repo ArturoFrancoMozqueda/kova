@@ -113,6 +113,7 @@ test("missing JS, precache files and Vercel endpoints stay 404", async () => {
   for (const path of ["/assets/missing.js", "/sw.js", "/_vercel/insights/script.js"]) {
     const response = await handleRequest(new Request(`https://kovasuite.com${path}`), env);
     assert.equal(response.status, 404);
+    assert.match(response.headers.get("cache-control"), /no-store/);
   }
 });
 

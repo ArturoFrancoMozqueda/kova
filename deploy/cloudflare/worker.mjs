@@ -80,7 +80,7 @@ export async function handleRequest(request, env, fetcher = fetch) {
   if (asset.status !== 404) return secure(asset, { html: path.endsWith(".html") });
   // Missing assets must stay 404. Returning HTML would break module loading
   // and can poison a service worker precache during a release.
-  if (/\.[^/]+$/.test(path) || path.startsWith("/_vercel/")) return secure(asset);
+  if (/\.[^/]+$/.test(path) || path.startsWith("/_vercel/")) return secure(asset, { api: true });
   url.pathname = "/app-shell.html";
   const shell = secure(await env.ASSETS.fetch(new Request(url, request)), { html: true });
   shell.headers.set("X-Robots-Tag", "noindex, nofollow");
