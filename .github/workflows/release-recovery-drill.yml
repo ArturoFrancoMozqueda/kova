@@ -71,7 +71,7 @@ jobs:
           set -euo pipefail
           root="$RUNNER_TEMP/kov030"
           mkdir -p "$root/backend" "$root/frontend/scripts"
-          cp frontend/scripts/release-recovery.mjs frontend/scripts/verify-deployment.mjs "$root/frontend/scripts/"
+          cp frontend/scripts/release-recovery.mjs frontend/scripts/verify-deployment.mjs frontend/scripts/cloudflare-provider.mjs "$root/frontend/scripts/"
           cat >"$root/backend/server.py" <<'PY'
           import json
           import os

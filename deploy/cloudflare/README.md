@@ -59,6 +59,13 @@ Do not run a preview-only deployment of this same Worker after production cutove
 omitting `KOVA_CLOUDFLARE_FRONTEND=1` removes its production route declarations.
 Use the integrated production workflow for subsequent releases.
 
+The cutover also preserves canonical redirects with the zone's
+`http_request_dynamic_redirect` ruleset: `www.kovasuite.com` returns 308 to
+`https://kovasuite.com`, and HTTP apex navigation returns 308 to HTTPS. Both
+preserve the request path and query string. Those rules run before asset serving.
+Restoring the saved DNS proxy flags to `false` returns web traffic to the retained
+Vercel origin records; do not edit API, email or automation records for that rollback.
+
 ## Acceptance and remaining scope
 
 Before cutover, verify landing/legal HTML, login rendering, unauthenticated

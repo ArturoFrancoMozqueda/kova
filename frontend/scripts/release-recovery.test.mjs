@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import fs from "node:fs";
+import os from "node:os";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import { test } from "node:test";
 import {
   cliProvider,
@@ -15,6 +19,25 @@ const artifact = {
   frontendUrl: "https://kovasuite.example",
   backendUrl: "https://api.kovasuite.example",
 };
+
+test("the disposable recovery fixture imports with its staged scripts and no Cloudflare installation", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kova-recovery-fixture-"));
+  try {
+    const workflow = fs.readFileSync(fileURLToPath(new URL("../../.github/workflows/release-recovery-drill.yml", import.meta.url)), "utf8");
+    const staged = workflow.match(/cp (frontend\/scripts\/[^\n]+) "\$root\/frontend\/scripts\/"/)[1]
+      .trim().split(/\s+/).map(value => path.basename(value));
+    for (const file of staged) {
+      fs.copyFileSync(fileURLToPath(new URL(file, import.meta.url)), path.join(directory, file));
+    }
+    const target = pathToFileURL(path.join(directory, "release-recovery.mjs")).href;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `await import(${JSON.stringify(target)})`],
+      { encoding: "utf8", timeout: 5000 });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test("a previously serving Vercel artifact is rolled back without rebuilding or token argv", async () => {
   const calls = [];
