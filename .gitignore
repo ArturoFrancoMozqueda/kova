@@ -283,3 +283,6 @@ frontend/.ds-css/
 
 # Scratch output from scroll-film capture/build (frames, recordings, preview HTML)
 workspace/
+
+# Cloudflare build artifacts, generated types and local runtime state
+.cloudflare/

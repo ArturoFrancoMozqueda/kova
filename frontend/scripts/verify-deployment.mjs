@@ -54,7 +54,7 @@ export async function verifyDeployment({ frontendUrl, backendUrl, sha, frontendB
 
   if (frontend.body.hash !== expectedFrontendHash) {
     throw new Error(
-      `Vercel commit mismatch: expected ${expectedFrontendHash}, received ${frontend.body.hash ?? "missing"}`,
+      `Frontend commit mismatch: expected ${expectedFrontendHash}, received ${frontend.body.hash ?? "missing"}`,
     );
   }
   if (backend.body.release_sha !== sha) {

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import path from "node:path";
 import { verifyDeployment } from "./verify-deployment.mjs";
+import { cloudflareProvider, validateCloudflareVersion } from "./cloudflare-provider.mjs";
 
 const RECOVERY_PHASES = new Set(["candidate", "promotion", "acceptance"]);
 const FULL_SHA = /^[0-9a-f]{40}$/i;
@@ -47,6 +48,8 @@ export function validateRollbackArtifact(input) {
   if (!flyImage) throw new Error("rollback artifact has no Fly image");
   productionHostname(String(input.frontendUrl ?? ""));
   return {
+    ...(input.cloudflareVersion !== undefined
+      ? { cloudflareVersion: validateCloudflareVersion(input.cloudflareVersion) } : {}),
     releaseSha,
     flyImage,
     vercelDeployment: requireHttpsUrl(
@@ -69,6 +72,10 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
     if (phase === "promotion" || phase === "acceptance") {
       // Restore the old frontend first. The newly deployed backend must remain
       // backward compatible during this short interval.
+      if (artifact.cloudflareVersion) {
+        await provider.restoreCloudflare(artifact.cloudflareVersion);
+        restored.push("cloudflare");
+      }
       await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
       restored.push("vercel");
     }
@@ -131,7 +138,9 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
   const npx = resolveNpxCommand();
   const flyctl = process.platform === "win32" ? "flyctl.exe" : "flyctl";
   const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../backend");
+  const cloudflare = cloudflareProvider({ run, env });
   return {
+    ...(cloudflare ? { restoreCloudflare: cloudflare.restore } : {}),
     async restoreVercel(deployment, frontendUrl) {
       const hostname = productionHostname(frontendUrl);
       const authArgs = globalConfig ? ["--global-config", globalConfig]

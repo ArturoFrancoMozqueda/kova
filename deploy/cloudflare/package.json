@@ -1,0 +1,16 @@
+{
+  "name": "kova-cloudflare",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "test": "node --test worker.test.mjs",
+    "build": "node build.mjs",
+    "check": "npm run test && npm run build && cf deploy --prebuilt --dry-run",
+    "deploy": "npm run check && cf deploy --prebuilt"
+  },
+  "devDependencies": {
+    "@cloudflare/build-output-utils": "0.9.3",
+    "cf": "1.0.0-beta.18"
+  }
+}
