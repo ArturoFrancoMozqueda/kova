@@ -1,6 +1,5 @@
-import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = path.join(root, "deploy/cloudflare");
@@ -47,16 +46,3 @@ export function cloudflareProvider({ run, env }) {
   };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  if (process.argv[2] !== "capture" || !process.argv[3]) {
-    throw new Error("Usage: node cloudflare-provider.mjs capture <rollback-artifact>");
-  }
-  const { runProviderCommand } = await import("./release-recovery.mjs");
-  const provider = cloudflareProvider({ run: runProviderCommand, env: process.env });
-  if (provider) {
-    const artifact = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-    artifact.cloudflareVersion = await provider.capture();
-    fs.writeFileSync(process.argv[3], JSON.stringify(artifact, null, 2) + "\n");
-    console.log("Captured current Cloudflare version for exact rollback.");
-  }
-}
