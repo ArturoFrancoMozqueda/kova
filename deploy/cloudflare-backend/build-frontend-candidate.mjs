@@ -19,6 +19,15 @@ if (config.name !== "kova-frontend") throw new Error("Expected the validated fro
 config.name = "kova-backend-preview";
 config.domains = ["backend-preview.kovasuite.com"];
 config.triggers = [];
+// The isolated QA hostname needs complete invocation outcomes to diagnose
+// failures that never reach FastAPI. Query strings stay redacted; production
+// frontend sampling is unchanged.
+config.observability = {
+  ...config.observability,
+  redactQueryString: true,
+  logs: { enabled: true, invocationLogs: true },
+  traces: { enabled: true, headSamplingRate: 1 },
+};
 await writeFile(path, JSON.stringify(config));
 const source = await readFile(resolve(worker, "bundle/worker.mjs"), "utf8");
 const origin = 'const API_ORIGIN = "https://api.kovasuite.com";';
