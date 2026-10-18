@@ -8,6 +8,7 @@ import {
 } from "./release-recovery.mjs";
 import { verifyDeployment } from "./verify-deployment.mjs";
 import { cloudflareProvider } from "./cloudflare-provider.mjs";
+import { cloudflareBackendProvider } from "./cloudflare-backend-provider.mjs";
 
 export function candidateUrl(value) {
   const url = new URL(value);
@@ -24,6 +25,9 @@ export async function release({ artifact: rawArtifact, sha, provider,
   const artifact = validateRollbackArtifact(rawArtifact);
   if (provider.requiresCloudflare && !artifact.cloudflareVersion) {
     throw new Error("Cloudflare release requires a captured rollback version");
+  }
+  if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
+    throw new Error("Cloudflare backend release requires captured rollback versions");
   }
   if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error("full release SHA is required");
   let phase;
@@ -52,19 +56,24 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const npx = resolveNpxCommand();
   const cloudflare = cloudflareProvider({ run, env });
-  const buildEnv = cloudflare ? { ...env, VITE_HOSTING_PROVIDER: "cloudflare" } : env;
+  const backend = cloudflareBackendProvider({ run, env });
+  const buildEnv = { ...env, ...(cloudflare ? { VITE_HOSTING_PROVIDER: "cloudflare" } : {}) };
+  // The owner connection belongs only to the backend migration subprocess.
+  delete buildEnv.SUPABASE_DB_URL;
   const vercel = (args, capture = false) => run(npx.command,
     [...npx.prefixArgs, "--yes", "vercel@59.0.0", ...args,
       "--global-config", globalConfig], { cwd: root, label: "Vercel", capture, env: buildEnv });
   return {
     ...cliProvider({ globalConfig, run, env }),
     requiresCloudflare: Boolean(cloudflare),
+    requiresCloudflareBackend: Boolean(backend),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);
       await vercel(["build", "--prod"]);
       return vercel(["deploy", "--prebuilt", "--prod", "--skip-domain", "--yes"], true);
     },
     async deployFly(sha) {
+      if (backend) return backend.publish(sha);
       // Provisioning is idempotent and stays inside the recoverable phase.
       await runProviderCommand("python3", ["../scripts/ensure_cfdi_storage_key.py"],
         { cwd: path.join(root, "backend"), label: "Fiscal encryption preflight" });

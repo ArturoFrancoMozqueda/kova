@@ -2,10 +2,21 @@
 
 import asyncio
 import hashlib
+import importlib
+import logging
 import math
 import time
 
 from workers import DurableObject, WorkerEntrypoint, asgi
+
+# Cloudflare snapshots top-level imports at deployment. Load pure package code
+# here; application settings, database validation and request I/O remain inside
+# the invocation so no credentials or connections enter the shared snapshot.
+for _package in (
+    "fastapi", "sqlalchemy.orm", "pg8000.dbapi", "pydantic_settings",
+    "boto3", "openpyxl", "pypdf", "sentry_sdk", "httpx",
+):
+    importlib.import_module(_package)
 
 
 class Default(WorkerEntrypoint):
@@ -21,6 +32,7 @@ class KovaApi(DurableObject):
     def __init__(self, ctx, env):
         super().__init__(ctx, env)
         self._requests = asyncio.Lock()
+        self._observations = 0
 
     async def fetch(self, request):
         from app.workers.bootstrap import application
@@ -30,11 +42,21 @@ class KovaApi(DurableObject):
         # each shard, not all businesses, and let Postgres keep transactions,
         # tenant policies and cross-shard idempotency authoritative.
         async with self._requests:
+            self._observations += 1
+            started = time.perf_counter()
             env_token = environment.set(self.env)
             ctx_token = execution.set(self.ctx)
             try:
                 app = await application(self.env)
-                return await asgi.fetch(app, request, self.env, self.ctx)
+                ready = time.perf_counter()
+                response = await asgi.fetch(app, request, self.env, self.ctx)
+                if self._observations <= 3:
+                    logging.getLogger("app.workers").info(
+                        "workers_api_timing sequence=%d startup_ms=%.1f asgi_ms=%.1f",
+                        self._observations, (ready - started) * 1000,
+                        (time.perf_counter() - ready) * 1000,
+                    )
+                return response
             finally:
                 execution.reset(ctx_token)
                 environment.reset(env_token)

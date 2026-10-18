@@ -14,10 +14,12 @@ export default {
     const identity = headers.get("cookie") || "anonymous";
     const shard = createHash("sha256").update(identity).digest()[0] % 16;
     try {
+      const started = performance.now();
       const response = await env.API.getByName(`api-${shard}`).fetch(
         new Request(request, { headers }),
       );
       const result = new Response(response.body, response);
+      result.headers.set("Server-Timing", `api;dur=${(performance.now() - started).toFixed(1)}`);
       result.headers.set("Cache-Control", "private, no-store, max-age=0");
       result.headers.set("CDN-Cache-Control", "no-store");
       result.headers.set("Cloudflare-CDN-Cache-Control", "no-store");

@@ -95,6 +95,20 @@ acceptance on an isolated candidate frontend, release/recovery integration and
 public API cutover. Stop Fly machines only after these pass; preserve recoverable
 configuration. Existing CI/release safety gates remain required.
 
+The opt-in release provider captures all three serving backend versions before
+mutation, runs the existing Alembic migrations, publishes jobs/API/gateway in that
+order, and recovers those exact versions on failed acceptance. CI needs the two
+Hyperdrive ID variables and the existing `SUPABASE_DB_URL` migration secret; sealed
+Worker secrets stay on Cloudflare. The migration credential is excluded from
+frontend candidate subprocesses. Fiscal/account maintenance calls the canonical
+API domain, and document-host activation is blocked while the backend flag is on.
+
+Candidate login succeeded, but the owner's reload reported session verification
+failure. Public cutover remains blocked on reproducing and fixing that failure.
+Cold startup is also under measurement; package imports now run at module scope
+for Cloudflare's deployment snapshot, while credentials, RLS checks and all I/O
+remain invocation-local. Temporary transport probe endpoints are not release code.
+
 References: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/),
 [Durable Objects limits](https://developers.cloudflare.com/durable-objects/platform/limits/),
 [Hyperdrive TLS](https://developers.cloudflare.com/hyperdrive/configuration/tls-ssl-certificates-for-hyperdrive/),
