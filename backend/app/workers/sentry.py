@@ -11,6 +11,7 @@ from app.workers.context import execution
 
 class WorkersTransport(Transport):
     def capture_envelope(self, envelope):
+        from pyodide.ffi import create_proxy
         from workers import Request, fetch
 
         if self.parsed_dsn is None or execution.get() is None:
@@ -35,4 +36,10 @@ class WorkersTransport(Transport):
             except Exception:
                 logging.getLogger("app.workers").warning("Sentry delivery unavailable")
 
-        execution.get().waitUntil(asyncio.ensure_future(send()))
+        # A borrowed FFI proxy dies when waitUntil returns, before JavaScript
+        # necessarily reads its then() method. Retain it until delivery settles,
+        # matching the SDK's background ASGI/WebSocket lifetime pattern.
+        task = asyncio.ensure_future(send())
+        proxy = create_proxy(task)
+        task.add_done_callback(lambda _finished: proxy.destroy())
+        execution.get().waitUntil(proxy)

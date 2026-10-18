@@ -5,6 +5,9 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
     if (url.hostname === "sentry.test" && request.method === "POST") {
+      // Delivery completes after the API response, exercising waitUntil/FFI
+      // ownership rather than only an immediately fulfilled mock fetch.
+      await new Promise(resolve => setTimeout(resolve, 50));
       telemetry.push(await request.text());
       return new Response("", { status: 200 });
     }

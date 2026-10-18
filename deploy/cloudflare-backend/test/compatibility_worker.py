@@ -21,28 +21,6 @@ class Default(WorkerEntrypoint):
                 pass
             else:
                 raise AssertionError("Unbounded key derivation accepted")
-        from sentry_sdk.envelope import Envelope
-        from app.observability.sentry import sanitize_sentry_event
-        from app.workers.context import execution
-        from app.workers.sentry import WorkersTransport
-
-        context = execution.set(self.ctx)
-        try:
-            envelope = Envelope()
-            envelope.add_event(
-                sanitize_sentry_event(
-                    {
-                        "message": "workers-transport-qa",
-                        "email": "private-qa@example.com",
-                        "request": {"headers": {"cookie": "private-cookie-qa"}},
-                    }
-                )
-            )
-            WorkersTransport(
-                {"dsn": "https://synthetic-public@sentry.test/1"}
-            ).capture_envelope(envelope)
-        finally:
-            execution.reset(context)
         key = fixtures["fernet_key"].encode()
         assert (
             Fernet(key).decrypt(fixtures["fernet_token"].encode())
@@ -88,6 +66,30 @@ class Default(WorkerEntrypoint):
             output.append(
                 {"label": case["label"], "expected": case["expected"], "actual": code}
             )
+        # Schedule delivery immediately before returning, so the transport
+        # must retain its task across the HTTP invocation boundary.
+        from sentry_sdk.envelope import Envelope
+        from app.observability.sentry import sanitize_sentry_event
+        from app.workers.context import execution
+        from app.workers.sentry import WorkersTransport
+
+        context = execution.set(self.ctx)
+        try:
+            envelope = Envelope()
+            envelope.add_event(
+                sanitize_sentry_event(
+                    {
+                        "message": "workers-transport-qa",
+                        "email": "private-qa@example.com",
+                        "request": {"headers": {"cookie": "private-cookie-qa"}},
+                    }
+                )
+            )
+            WorkersTransport(
+                {"dsn": "https://synthetic-public@sentry.test/1"}
+            ).capture_envelope(envelope)
+        finally:
+            execution.reset(context)
         return Response.json(
             {
                 "qr": png,
