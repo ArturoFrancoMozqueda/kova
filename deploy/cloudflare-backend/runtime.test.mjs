@@ -86,7 +86,15 @@ describe("existing API inside Python Durable Objects", () => {
     const other = await browser(`other-${crypto.randomUUID()}@example.com`);
     const me = await owner("/api/v1/auth/me");
     expect(me.status).toBe(200);
-    expect((await me.json()).user.email_verified).toBe(true);
+    const identity = await me.json();
+    expect(identity.user.email_verified).toBe(true);
+    // Browser reload uses /session, including its RLS-backed membership and
+    // feature flags. Exercise separate invocations with unchanged cookies.
+    for (let reload = 0; reload < 3; reload++) {
+      const session = await owner("/api/v1/auth/session");
+      expect(session.status).toBe(200);
+      expect(await session.json()).toEqual({ authenticated: true, ...identity });
+    }
     const denied = await owner("/api/v1/catalog/products", { method: "POST", csrf: false,
       body: { name: "CSRF must reject", price_amount: "18.50" } });
     expect(denied.status).toBe(403);
@@ -113,7 +121,9 @@ describe("existing API inside Python Durable Objects", () => {
     expect((await replay.json()).results[0].order_id).toBe(sale.order_id);
     expect((await owner("/api/v1/auth/refresh", { method: "POST" })).status).toBe(200);
     expect((await owner("/api/v1/auth/me")).status).toBe(200);
+    expect((await (await owner("/api/v1/auth/session")).json()).authenticated).toBe(true);
     expect((await owner("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
     expect((await owner("/api/v1/auth/me")).status).toBe(401);
+    expect((await (await owner("/api/v1/auth/session")).json()).authenticated).toBe(false);
   });
 });
