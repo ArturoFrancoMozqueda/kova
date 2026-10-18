@@ -34,16 +34,15 @@ def initialize(env):
 
 
 class Default(WorkerEntrypoint):
-    async def scheduled(self, controller):
+    async def scheduled(self, controller, env, ctx):
         # Cohort IDs are deployment configuration; no tenant contents are read
         # globally. The job objects independently revalidate enabled membership.
-        from app.workers.bootstrap import environment
-
-        values = environment(self.env, privileged=False)
-        for value in values.get("ASSISTANT_TENANT_IDS", "").split(","):
+        # Keep the Free cron handler small: settings/schema imports and database
+        # checks run in the private job object's larger compute budget.
+        for value in (getattr(env, "ASSISTANT_TENANT_IDS", "") or "").split(","):
             if value.strip():
                 tenant = str(UUID(value.strip()))
-                await self.env.JOBS.getByName(tenant).wake(tenant)
+                await env.JOBS.getByName(tenant).wake(tenant)
 
 
 class KovaJobs(DurableObject):
