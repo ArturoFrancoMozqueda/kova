@@ -34,6 +34,14 @@ USER_A = uuid.UUID("a0000000-0000-0000-0000-000000000065")
 USER_B = uuid.UUID("b0000000-0000-0000-0000-000000000065")
 
 _RUNTIME_TABLE_PRIVILEGES = {
+    # New agenda/loyalty tables extend the exact private verb matrix. Their
+    # immutable snapshots and ledgers retain no table-level UPDATE or DELETE.
+    "appointment_resources": {"SELECT", "INSERT"},
+    "appointments": {"SELECT", "INSERT"},
+    "appointment_history": {"SELECT", "INSERT"},
+    "appointment_reminders": {"SELECT", "INSERT"},
+    "loyalty_policy_revisions": {"SELECT", "INSERT"},
+    "loyalty_entries": {"SELECT", "INSERT"},
     # New E2E domains remain private to FastAPI's runtime role. Snapshot and
     # ledger mutations are deliberately column-scoped below, not full UPDATE.
     "automation_rules": {"SELECT", "INSERT"},
@@ -139,6 +147,9 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "appointment_resources": {"name", "is_active", "version", "updated_at"},
+    "appointments": {"starts_at", "ends_at", "note", "status", "version", "updated_at"},
+    "appointment_reminders": {"status", "version", "resolved_at"},
     "crm_catalog_requests": {"status", "customer_id", "opportunity_id", "version", "resolved_at"},
     "crm_followup_policies": {
         "enabled", "review_delay_days", "rebuy_delay_days", "version",
@@ -321,6 +332,12 @@ _SEMANTIC_INSERT_ORDER = (
     "messaging_conversations",
     "messaging_messages",
     "messaging_channel_events",
+    "appointment_resources",
+    "appointments",
+    "appointment_history",
+    "appointment_reminders",
+    "loyalty_policy_revisions",
+    "loyalty_entries",
 )
 
 
@@ -334,6 +351,21 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     token = f"{tenant_token}-{variant}-{table.name}"
     if name in {"tenant_id", "branch_id"}:
         return tenant
+    if table.name in {"appointments", "appointment_history"}:
+        if name == "starts_at":
+            return datetime(2026, 10, 20, 10, tzinfo=UTC) + timedelta(days=variant)
+        if name == "ends_at":
+            return datetime(2026, 10, 20, 11, tzinfo=UTC) + timedelta(days=variant)
+        if name == "status":
+            return "scheduled"
+        if table.name == "appointment_history" and name == "action":
+            return "created"
+    if table.name == "appointment_reminders" and name == "status":
+        return "pending"
+    if table.name == "loyalty_entries" and name == "kind":
+        return "accrual"
+    if table.name == "loyalty_policy_revisions" and name == "version":
+        return variant + 1
     if table.name == "assistant_records" and name == "kind":
         return "document"
     if table.name == "drawer_commands" and name == "kind":
@@ -547,6 +579,14 @@ def _semantic_payloads(engine):
                         )
                 if "tenant_id" in table.c:
                     values["tenant_id"] = tenant
+                if table.name == "loyalty_entries":
+                    # Accruals require real immutable sale+policy evidence even
+                    # though those FK columns are nullable for redemptions.
+                    values["sale_order_id"] = ids[("orders", tenant, variant)]
+                    values["policy_revision_id"] = ids[
+                        ("loyalty_policy_revisions", tenant, variant)
+                    ]
+                    values["source_id"] = ids[("orders", tenant, variant)]
                 payloads[(table.name, tenant, variant)] = values
     return metadata, payloads
 

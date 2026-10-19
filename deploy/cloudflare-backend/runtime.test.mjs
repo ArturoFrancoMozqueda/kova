@@ -115,6 +115,45 @@ describe("existing API inside Python Durable Objects", () => {
     expect((await owner("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
   });
 
+  it("persists branch appointments and owner-configured loyalty without external providers", async () => {
+    const owner = await browser(`operations-${crypto.randomUUID()}@example.com`);
+    const other = await browser(`operations-other-${crypto.randomUUID()}@example.com`);
+    async function write(path, method, body) {
+      return owner(path, { method, body, headers: { "Idempotency-Key": crypto.randomUUID() } });
+    }
+    const customerResponse = await write("/api/v1/customers", "POST", { name: "Cliente agenda" });
+    expect(customerResponse.status).toBe(201);
+    const customer = await customerResponse.json();
+    const resourceResponse = await write("/api/v1/appointments/resources", "POST", {
+      name: "Servicio", timezone: "America/Mexico_City",
+    });
+    expect(resourceResponse.status).toBe(201);
+    const resource = await resourceResponse.json();
+    const startsAt = new Date(Date.now() + 86400000).toISOString();
+    const endsAt = new Date(Date.now() + 90000000).toISOString();
+    const booking = { resource_id: resource.id, customer_id: customer.id,
+      title: "Visita", starts_at: startsAt, ends_at: endsAt };
+    const booked = await write("/api/v1/appointments", "POST", booking);
+    expect(booked.status).toBe(201);
+    const appointment = await booked.json();
+    expect(appointment.status).toBe("scheduled");
+    expect((await write("/api/v1/appointments", "POST", booking)).status).toBe(409);
+    const isolated = await (await other("/api/v1/appointments")).json();
+    expect(isolated.items).toEqual([]);
+    expect((await (await owner("/api/v1/loyalty")).json()).policy).toMatchObject({
+      enabled: false, version: 0, spend_amount: null, points_per_step: null,
+    });
+    const policy = await write("/api/v1/loyalty/policy", "PUT", {
+      enabled: true, expected_version: 0, spend_amount: "100.00", points_per_step: 1,
+    });
+    expect(policy.status).toBe(200);
+    expect(await (await owner("/api/v1/loyalty/process", { method: "POST" })).json()).toEqual({ created: 0 });
+    expect((await (await owner(`/api/v1/loyalty/customers/${customer.id}`)).json()).balance).toBe(0);
+    expect((await other(`/api/v1/loyalty/customers/${customer.id}`)).status).toBe(404);
+    expect((await owner("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
+    expect((await other("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
+  });
+
   it("passes production startup checks and reaches Postgres", async () => {
     const health = await SELF.fetch("https://api.test/health");
     expect(health.status).toBe(200);
