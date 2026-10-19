@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateCloudflareVersion } from "./cloudflare-provider.mjs";
@@ -48,21 +46,12 @@ export function cloudflareBackendProvider({ run, env }) {
         },
       });
       await run(process.execPath, [path.join(directory, "build.mjs")],
-        { cwd: directory, env, label: "Cloudflare backend artifact" });
+        { cwd: directory, env: { ...env, KOVA_BUILD_SHA: sha }, label: "Cloudflare backend artifact" });
       for (const name of backendWorkers) await cf(["deploy", "--prebuilt", "--worker", name, "--dry-run"]);
-      const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "kova-backend-release-"));
-      fs.chmodSync(temporary, 0o700);
-      const metadata = path.join(temporary, "release.json");
-      fs.writeFileSync(metadata, JSON.stringify({ GIT_SHA: sha, KOVA_RELEASE_SHA: sha }), { mode: 0o600 });
-      try {
-        // Existing sealed secrets stay on the Worker; only public build identity
-        // is refreshed. No export of production credentials is needed in CI.
-        for (const name of backendWorkers) {
-          await cf(["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12),
-            ...(name === "kova-backend-gateway" ? [] : ["--secrets-file", metadata])]);
-        }
-      } finally {
-        fs.rmSync(temporary, { recursive: true, force: true });
+      // Build identity is a versioned text binding, not a rotated secret.
+      // Keep existing credential bindings sealed and preserve rollback checks.
+      for (const name of backendWorkers) {
+        await cf(["deploy", "--prebuilt", "--worker", name, "--tag", sha.slice(0, 12)]);
       }
     },
     async restore(input) {

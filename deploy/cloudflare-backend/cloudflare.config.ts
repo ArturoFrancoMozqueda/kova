@@ -2,6 +2,9 @@ import { bindings, defineConfig, exports, triggers } from "cf/config";
 
 const database = process.env.KOVA_HYPERDRIVE_APP_ID;
 const privileged = process.env.KOVA_HYPERDRIVE_PRIVILEGED_ID;
+const release = process.env.KOVA_BUILD_SHA;
+if (release && !/^[a-f0-9]{40}$/i.test(release)) throw new Error("Full Workers build SHA is required");
+const metadata = release ? { KOVA_BUILD_SHA: bindings.text(release) } : {};
 const databaseBindings = database ? { DB_APP: bindings.hyperdrive({ id: database }) } : {};
 export const observability = {
   enabled: true, redactQueryString: true,
@@ -15,6 +18,7 @@ export const jobs = defineConfig({ worker: {
   workersDev: false,
   exports: { KovaJobs: exports.durableObject({ storage: "sqlite" }) },
   env: {
+    ...metadata,
     ...databaseBindings,
     ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),
     JOBS: bindings.durableObject({ worker: "kova-backend-jobs", exportName: "KovaJobs" }),
@@ -46,6 +50,7 @@ export default defineConfig({
       KovaRateLimit: exports.durableObject({ storage: "sqlite" }),
     },
     env: {
+      ...metadata,
       ...databaseBindings,
       ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),
       ...(privileged ? { DB_PRIVILEGED: bindings.hyperdrive({ id: privileged }) } : {}),
