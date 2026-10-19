@@ -5,6 +5,9 @@ type GuardFixtures = {
 };
 
 const SHARED_BACKGROUND_ALLOWLIST = [
+  // Legacy-backend compatibility scenarios exercise the existing individual
+  // reads. The overview's normal path has its own explicit browser scenario.
+  { method: "GET", path: /^\/api\/v1\/reports\/dashboard$/, status: 404 },
   { method: "POST", path: /^\/api\/v1\/auth\/refresh$/, status: 401 },
   { method: "POST", path: /^\/api\/v1\/telemetry\/events\/anonymous\/session$/, status: 202 },
   { method: "POST", path: /^\/api\/v1\/telemetry\/events$/, status: 202 },

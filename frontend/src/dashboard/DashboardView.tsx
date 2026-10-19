@@ -38,6 +38,7 @@ import { copy } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { formatTenantName } from "@/lib/formatTenantName";
 import { CountUp } from "@/components/brand/RealTime";
+import { getDashboardOverview } from "./api";
 import {
   ArrowRight,
   Package,
@@ -426,6 +427,30 @@ export default function DashboardView() {
     const requestId = ++requestIdRef.current;
     setLoadState({ status: "loading" });
     try {
+      const overview = await getDashboardOverview(selected);
+      if (requestId !== requestIdRef.current) return;
+      if (overview !== null) {
+        const story = overview.story;
+        const subscriptionStatus = overview.billing?.subscription?.status;
+        setLoadState({
+          status: "ready", identity, story,
+          summary: summaryFromStory(story), yesterday: overview.previous_summary,
+          payments: paymentsFromStory(story), hourly: overview.hourly,
+          topProducts: topProductsFromStory(story),
+          hasProducts: overview.active_catalog_count > 0,
+          trackedInventoryCount: overview.tracked_inventory_count,
+          lowStockCount: overview.low_stock_items.length,
+          lowStockItems: overview.low_stock_items,
+          activeCatalogCount: overview.active_catalog_count,
+          activeEmployeeCount: overview.active_employee_count ?? 0,
+          closedShiftCount: overview.closed_shift_count,
+          hasActiveSubscription: subscriptionStatus === "active" || subscriptionStatus === "trialing",
+          billing: overview.billing, onboarding: overview.onboarding,
+          timezone: overview.timezone,
+          compareLabel: periodRanges(selected, overview.timezone).compareLabel,
+        });
+        return;
+      }
       // These reads do not depend on the tenant's timezone. Start them alongside
       // the profile so a cold coordinator does not add another serial round trip.
       const context = Promise.all([

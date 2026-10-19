@@ -7,6 +7,7 @@ def test_dependent_dashboard_reads_share_the_authenticated_bootstrap_coordinator
         for path in (
             "/api/v1/auth/refresh", "/api/v1/auth/logout",
             "/api/v1/settings/business-profile", "/api/v1/reports/business-story",
+            "/api/v1/reports/dashboard",
             "/api/v1/reports/sales-summary", "/api/v1/reports/sales-by-hour",
         ):
             assert coordinator_shard(cookie, path) == shard

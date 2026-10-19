@@ -3260,6 +3260,90 @@
         "title": "CustomerWrite",
         "type": "object"
       },
+      "DashboardOverviewResponse": {
+        "properties": {
+          "active_catalog_count": {
+            "minimum": 0.0,
+            "title": "Active Catalog Count",
+            "type": "integer"
+          },
+          "active_employee_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Employee Count"
+          },
+          "billing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BillingSubscriptionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "closed_shift_count": {
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Closed Shift Count",
+            "type": "integer"
+          },
+          "hourly": {
+            "items": {
+              "$ref": "#/components/schemas/SalesByHourRow"
+            },
+            "title": "Hourly",
+            "type": "array"
+          },
+          "low_stock_items": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryStockItem"
+            },
+            "title": "Low Stock Items",
+            "type": "array"
+          },
+          "onboarding": {
+            "$ref": "#/components/schemas/OnboardingStateResponse"
+          },
+          "previous_summary": {
+            "$ref": "#/components/schemas/SalesSummaryResponse"
+          },
+          "story": {
+            "$ref": "#/components/schemas/BusinessStoryReportResponse"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "tracked_inventory_count": {
+            "minimum": 0.0,
+            "title": "Tracked Inventory Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "story",
+          "hourly",
+          "previous_summary",
+          "timezone",
+          "active_catalog_count",
+          "tracked_inventory_count",
+          "low_stock_items",
+          "active_employee_count",
+          "closed_shift_count",
+          "billing",
+          "onboarding"
+        ],
+        "title": "DashboardOverviewResponse",
+        "type": "object"
+      },
       "DeepLink": {
         "properties": {
           "label": {
@@ -26431,6 +26515,54 @@
           }
         },
         "summary": "Business Story",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/dashboard": {
+      "get": {
+        "operationId": "dashboard_overview_api_v1_reports_dashboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "required": false,
+            "schema": {
+              "default": "day",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ],
+              "title": "Period",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardOverviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dashboard Overview",
         "tags": [
           "reports"
         ]

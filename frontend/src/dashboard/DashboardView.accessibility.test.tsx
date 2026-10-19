@@ -8,6 +8,7 @@ import DashboardView from "./DashboardView";
 vi.mock("@/auth/useAuth", () => ({ useAuth: () => ({ state: {
   status: "authenticated", tenantId: "tenant-1", tenantName: "Mi negocio", user: { id: "user-1" },
 } }) }));
+vi.mock("./api", () => ({ getDashboardOverview: vi.fn(async () => null) }));
 vi.mock("@/reports/api", () => ({
   getBusinessStory: vi.fn(async () => {
     const story = makeStory();
