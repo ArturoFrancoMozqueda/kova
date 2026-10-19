@@ -106,7 +106,11 @@ el SHA objetivo y el anterior explícitamente conocido. HTTP fallido, respuesta 
 desconocida siguen bloqueando de inmediato. Después se ejecuta la verificación completa de sitio,
 versión exacta, API, proxy y base sin relajar ninguna aserción. No se cambian credenciales ni DNS.
 La recuperación invierte las dos identidades y espera también el frontend restaurado.
-Validación: 69 pruebas de publicación/recuperación aprobadas y una exclusiva de Windows omitida;
+La integración posterior de [PR #209](https://github.com/ArturoFrancoMozqueda/kova/pull/209)
+aportó la corrección equivalente de API directa. Se conservó su contrato `failedSha` y se
+reconciliaron las comprobaciones adicionales de proxy público y frontend restaurado, con una
+sola implementación del helper y unión de pruebas. Validación final: 77 pruebas de publicación/
+recuperación aprobadas y una exclusiva de Windows omitida;
 lectura real del checker sobre API/proxy recuperados aprobada. La ventana es 120 s y cada lectura
 conserva el timeout de 20 s del verificador para arranques fríos; una lectura en curso puede
 extender esa ventana como máximo por su timeout. Las simulaciones nuevas prueban convergencia,

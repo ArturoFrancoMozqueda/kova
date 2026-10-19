@@ -64,19 +64,19 @@ export function validateRollbackArtifact(input) {
   };
 }
 
-export async function recoverRelease({ phase, artifact: rawArtifact, provider, verify = verifyDeployment, attemptedSha }) {
+export async function recoverRelease({ phase, artifact: rawArtifact, provider, verify = verifyDeployment, failedSha }) {
   if (!RECOVERY_PHASES.has(phase)) throw new Error(`unknown release phase: ${phase}`);
   // Validate every target before the first mutation. A partial/empty capture
   // must stop recovery and keep the incident visible rather than guessing.
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (failedSha !== undefined && !FULL_SHA.test(failedSha)) {
+    throw new Error("Cloudflare backend recovery requires a complete failed release SHA");
+  }
   if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
     throw new Error("Cloudflare backend recovery requires captured rollback versions");
   }
   if (artifact.cloudflareBackendVersions && typeof provider.restoreCloudflareBackend !== "function") {
     throw new Error("Cloudflare backend recovery requires its configured provider");
-  }
-  if (attemptedSha !== undefined && !FULL_SHA.test(attemptedSha)) {
-    throw new Error("Recovery attempted SHA must be complete");
   }
   if (artifact.cloudflareBackendVersions && typeof provider.waitForPublicBackend !== "function") {
     throw new Error("Cloudflare backend recovery requires readiness verification");
@@ -106,12 +106,12 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
     }
     if (restored.includes("cloudflare")) {
       await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl,
-        sha: artifact.releaseSha, previousSha: attemptedSha ?? artifact.releaseSha });
+        sha: artifact.releaseSha, previousSha: failedSha ?? artifact.releaseSha });
     }
     if (artifact.cloudflareBackendVersions) {
       await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
         backendUrl: artifact.backendUrl, sha: artifact.releaseSha,
-        previousSha: attemptedSha ?? artifact.releaseSha,
+        previousSha: failedSha ?? artifact.releaseSha,
         frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     }
     const verification = await verify({
@@ -239,7 +239,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       };
   const result = await recoverRelease({
     phase: requireArg("phase"),
-    attemptedSha: optionalArg("attempted-sha"),
+    failedSha: optionalArg("failed-sha"),
     artifact,
     provider: cliProvider(),
   });

@@ -21,16 +21,20 @@ export function validateBackendVersions(input) {
 export async function waitForBackendRelease({ backendUrl, frontendUrl, sha, previousSha,
   frontendBypassSecret, fetcher = globalThis.fetch,
   wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)), now = Date.now }) {
-  if (![sha, previousSha].every(value => /^[a-f0-9]{40}$/i.test(value ?? ""))) {
-    throw new Error("Backend propagation requires target and previous complete SHAs");
+  if (!/^[a-f0-9]{40}$/i.test(sha ?? "")
+      || (previousSha !== undefined && !/^[a-f0-9]{40}$/i.test(previousSha))) {
+    throw new Error("Backend propagation requires complete release SHAs");
   }
   const targets = [
     { url: new URL("/health", backendUrl), headers: {} },
-    { url: new URL("/api/health", frontendUrl), headers: frontendBypassSecret
-      ? { "x-vercel-protection-bypass": frontendBypassSecret } : {} },
+    ...(frontendUrl === undefined ? [] : [{ url: new URL("/api/health", frontendUrl),
+      headers: frontendBypassSecret ? { "x-vercel-protection-bypass": frontendBypassSecret } : {} }]),
   ];
-  const deadline = now() + 120_000;
-  for (let attempt = 0; attempt < 120 && now() < deadline; attempt++) {
+  // Preserve the published direct-only helper contract. Full release checks also
+  // inspect the frontend proxy and allow the documented DO propagation window.
+  const withProxy = frontendUrl !== undefined;
+  const deadline = now() + (withProxy ? 120_000 : 20_000);
+  for (let attempt = 0; attempt < (withProxy ? 120 : 20) && now() < deadline; attempt++) {
     const observations = await Promise.all(targets.map(async ({ url, headers }) => {
       const response = await fetcher(url, {
         signal: globalThis.AbortSignal.timeout(20_000),
@@ -38,13 +42,16 @@ export async function waitForBackendRelease({ backendUrl, frontendUrl, sha, prev
       });
       if (!response.ok) throw new Error(`Backend readiness failed: HTTP ${response.status}`);
       const body = await response.json();
-      if (body.status !== "ok" || ![sha, previousSha].includes(body.release_sha)) {
+      if (body.status !== "ok" || (body.release_sha !== sha
+          && (previousSha === undefined || body.release_sha !== previousSha))) {
         throw new Error("Unexpected backend version or status during publication");
       }
       return body.release_sha;
     }));
     if (observations.every(value => value === sha)) return;
-    await wait(1000);
+    const remaining = deadline - now();
+    if (remaining <= 0) break;
+    await wait(Math.min(withProxy ? 1000 : 500, remaining));
   }
   throw new Error("Backend publication did not finish propagating");
 }

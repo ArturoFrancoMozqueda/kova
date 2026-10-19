@@ -15,6 +15,77 @@ const artifact = { releaseSha: sha, cloudflareBackendVersions: versions,
   vercelDeployment: "https://old.vercel.app", frontendUrl: "https://kovasuite.com",
   backendUrl: "https://api.kovasuite.com" };
 
+test("backend readiness waits only for the known previous version before strict verification", async () => {
+  let calls = 0;
+  let waits = 0;
+  await waitForBackendRelease({ backendUrl: artifact.backendUrl, sha: "b".repeat(40),
+    previousSha: sha, wait: async ms => { assert.equal(ms, 500); waits++; },
+    fetcher: async (url, options) => {
+      assert.equal(url.href, `${artifact.backendUrl}/health`);
+      assert.equal(options.headers["cache-control"], "no-cache");
+      assert.ok(options.signal);
+      return globalThis.Response.json({ status: "ok", release_sha: ++calls === 1 ? sha : "b".repeat(40) });
+    } });
+  assert.equal(calls, 2);
+  assert.equal(waits, 1);
+});
+
+test("backend readiness rejects HTTP errors, malformed health and foreign commits immediately", async () => {
+  for (const response of [new globalThis.Response("unavailable", { status: 503 }),
+    globalThis.Response.json({}), globalThis.Response.json({ status: "ok" }),
+    globalThis.Response.json({ status: "failed", release_sha: sha }),
+    globalThis.Response.json({ status: "ok", release_sha: "c".repeat(40) }),
+    new globalThis.Response("not json")]) {
+    let calls = 0;
+    await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+      previousSha: "b".repeat(40), wait: assert.fail,
+      fetcher: async () => { calls++; return response; } }));
+    assert.equal(calls, 1);
+  }
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    previousSha: "b".repeat(40), wait: assert.fail,
+    fetcher: async () => { throw new Error("network unavailable"); } }), /network unavailable/);
+});
+
+test("backend readiness has a bounded retry count and requires complete SHAs", async () => {
+  let calls = 0;
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    previousSha: "b".repeat(40), wait: async () => {},
+    fetcher: async () => {
+      calls++;
+      return globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) });
+    } }), /did not finish propagating/);
+  assert.equal(calls, 20);
+  for (const identities of [{ sha: "short" }, { sha, previousSha: "short" }]) {
+    await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl,
+      ...identities, fetcher: assert.fail, wait: assert.fail }), /complete release SHAs/);
+  }
+});
+
+test("manual recovery without a known replaced SHA never tolerates another commit", async () => {
+  await waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    fetcher: async () => globalThis.Response.json({ status: "ok", release_sha: sha }), wait: assert.fail });
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    fetcher: async () => globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) }),
+    wait: assert.fail }), /Unexpected backend version/);
+});
+
+test("backend propagation also respects a wall-clock deadline", async () => {
+  let clock = 0;
+  let calls = 0;
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    previousSha: "b".repeat(40), now: () => clock,
+    fetcher: async () => {
+      calls++;
+      clock = 19_950;
+      return globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) });
+    },
+    wait: async ms => { assert.equal(ms, 50); clock += ms; },
+  }), /did not finish propagating/);
+  assert.equal(calls, 1);
+  assert.equal(clock, 20_000);
+});
+
 test("backend deployment is opt-in and credentials are required before any command", () => {
   assert.equal(cloudflareBackendProvider({ env: {}, run: assert.fail }), undefined);
   assert.throws(() => cloudflareBackendProvider({ env: { KOVA_CLOUDFLARE_BACKEND: "1" } }), /credentials/);
@@ -94,7 +165,7 @@ test("Cloudflare recovery needs no Fly image or token and verifies the restored 
   const configured = cliProvider({ env, run: assert.fail });
   assert.equal(configured.requiresCloudflareBackend, true);
   const calls = [];
-  const result = await recoverRelease({ phase: "acceptance", artifact, attemptedSha: "b".repeat(40), provider: {
+  const result = await recoverRelease({ phase: "acceptance", artifact, failedSha: "b".repeat(40), provider: {
     requiresCloudflareBackend: true,
     waitForPublicBackend: async input => {
       assert.equal(input.sha, sha); assert.equal(input.previousSha, "b".repeat(40));
@@ -102,6 +173,7 @@ test("Cloudflare recovery needs no Fly image or token and verifies the restored 
     },
     restoreVercel: async () => calls.push("frontend"), restoreFly: assert.fail,
     restoreCloudflareBackend: async captured => { assert.deepEqual(captured, versions); calls.push("backend"); },
+
   }, verify: async input => { assert.equal(input.sha, sha); calls.push("verified"); } });
   assert.deepEqual(calls, ["frontend", "backend", "backend-ready", "verified"]);
   assert.deepEqual(result.restored, ["vercel", "cloudflare-backend"]);
@@ -186,8 +258,8 @@ test("recovery readiness converges from attempted candidate back to captured rel
 });
 
 test("invalid backend propagation identities fail before requests", async () => {
-  for (const input of [{ sha: "short" }, { previousSha: undefined }]) {
-    await assert.rejects(waitForBackendRelease({ ...readinessInput, ...input, fetcher: assert.fail }), /complete SHAs/);
+  for (const input of [{ sha: "short" }, { previousSha: "short" }]) {
+    await assert.rejects(waitForBackendRelease({ ...readinessInput, ...input, fetcher: assert.fail }), /complete.*SHAs/);
   }
 });
 
@@ -240,7 +312,7 @@ test("backend readiness failure prevents candidate verification and promotion", 
 
 test("a recovery propagation failure remains blocked before full verification", async () => {
   const calls = [];
-  await assert.rejects(recoverRelease({ phase: "candidate", artifact, attemptedSha: nextSha,
+  await assert.rejects(recoverRelease({ phase: "candidate", artifact, failedSha: nextSha,
     provider: {
       restoreCloudflareBackend: async () => calls.push("restore"),
       waitForPublicBackend: async () => { throw new Error("Unexpected backend version"); },
@@ -278,7 +350,7 @@ test("recovery waits for restored frontend then API using only captured and atte
     assert.equal(input.sha, sha); assert.equal(input.previousSha, nextSha);
     assert.equal(input.frontendUrl, artifact.frontendUrl);
   };
-  await recoverRelease({ phase: "acceptance", artifact: target, attemptedSha: nextSha,
+  await recoverRelease({ phase: "acceptance", artifact: target, failedSha: nextSha,
     provider: {
       restoreCloudflare: async () => calls.push("restore-frontend"),
       restoreVercel: async () => calls.push("restore-alias"),
@@ -318,7 +390,7 @@ test("public proxy readiness failure blocks final acceptance and restores invers
 
 test("restored frontend readiness failure blocks API readiness and full verification", async () => {
   await assert.rejects(recoverRelease({ phase: "promotion", artifact: { ...artifact, cloudflareVersion: version },
-    attemptedSha: nextSha, provider: {
+    failedSha: nextSha, provider: {
       restoreCloudflare: async () => {}, restoreVercel: async () => {}, restoreCloudflareBackend: async () => {},
       waitForPublicFrontend: async () => { throw new Error("Unexpected frontend version"); },
       waitForPublicBackend: assert.fail,
@@ -328,7 +400,7 @@ test("restored frontend readiness failure blocks API readiness and full verifica
 
 test("missing restored frontend readiness fails before any recovery mutation", async () => {
   await assert.rejects(recoverRelease({ phase: "acceptance", artifact: { ...artifact, cloudflareVersion: version },
-    attemptedSha: nextSha, provider: { restoreCloudflare: assert.fail, restoreCloudflareBackend: assert.fail,
+    failedSha: nextSha, provider: { restoreCloudflare: assert.fail, restoreCloudflareBackend: assert.fail,
       waitForPublicBackend: assert.fail },
   }), /frontend recovery requires readiness/);
 });

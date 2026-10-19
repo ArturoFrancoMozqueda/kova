@@ -66,7 +66,7 @@ export async function release({ artifact: rawArtifact, sha, provider,
   } catch (error) {
     if (phase) {
       try {
-        await recover({ phase, artifact, provider, verify, attemptedSha: sha });
+        await recover({ phase, artifact, provider, verify, failedSha: sha });
       } catch (recoveryError) {
         throw new globalThis.AggregateError([error, recoveryError], recoveryError.message, { cause: error });
       }
