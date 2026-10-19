@@ -4,8 +4,6 @@ import re
 import sys
 from uuid import UUID
 
-import boto3
-from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import HTTPException
 
@@ -28,6 +26,10 @@ def client():
         from app.workers.storage import R2Client
 
         return R2Client()
+
+    import boto3
+    from botocore.config import Config
+
     return boto3.client(
         "s3",
         endpoint_url=f"https://{settings.assistant_cloudflare_account_id}.r2.cloudflarestorage.com",

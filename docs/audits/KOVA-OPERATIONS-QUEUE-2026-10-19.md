@@ -39,6 +39,7 @@ automática del registro individual. Acciones y versiones permanecen en los mód
 
 | Comprobación | Resultado y alcance |
 |---|---|
+| Backend completo antes del ajuste de imports opcionales | 1,755 pruebas, cero errores/fallos/omitidas; 135.8 s. |
 | API con psycopg | 8/8 aprobadas. |
 | API con pg8000 | 8/8 aprobadas. |
 | Runtime workerd | 8/8 aprobadas; incluye cola antes/después de resolver un caso y otro tenant vacío. |
@@ -76,6 +77,14 @@ publica los cortes previos de agenda/lealtad, pero todavía no incluye atención
 Ambos módulos se preparan juntos en PR #217; su publicación/aceptación sigue pendiente.
 
 ## Fuentes y pendientes
+
+La QA pública del release previo detectó coste de arranque frío: una sesión y su renovación
+secuencial podían superar 30 segundos; peticiones posteriores bajaron a unos 0.1 segundos.
+El corte final difiere `openpyxl` hasta procesar XLSX y `boto3`/Config hasta seleccionar S3 nativo.
+Conserva el guard ZIP, excepciones, R2, dependencias y autenticación. Veintiocho pruebas focales
+aprobaron; en workerd aprobaron API (8), compatibilidad (2) y tareas aisladas (1). La primera
+respuesta local observada pasó de 2.8 a 2.3 segundos; es una medición local, no un SLA ni evidencia
+de mejora productiva. La QA posterior a publicación registra el resultado público.
 
 Contrato y aceptación: [plan actualizado](../plans/PLAN-COLA-OPERATIVA-INTERNA.md) y
 [spec](../../specs/operations_queue/internal_queue.md). Implementación:
