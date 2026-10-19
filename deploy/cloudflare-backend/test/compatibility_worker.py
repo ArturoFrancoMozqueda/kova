@@ -11,6 +11,61 @@ class Default(WorkerEntrypoint):
     async def fetch(self, request):
         from urllib.parse import urlparse
 
+        if urlparse(request.url).path == "/instrumented-error":
+            import sentry_sdk
+            from fastapi import FastAPI
+
+            from app.config import Settings
+            from app.observability import sentry as monitoring
+            from app.workers.asgi import RequestCoordinator
+            from app.workers.bootstrap import install_sync_adapter
+            from app.workers.context import execution
+
+            install_sync_adapter()
+            # The crypto fixture imports modules before application bootstrap;
+            # supply its explicit synthetic telemetry configuration directly.
+            monitoring.settings = Settings(
+                _env_file=None, sentry_dsn=self.env.SENTRY_DSN, app_env="production",
+            )
+            monitoring.init_sentry()
+            integrations = sentry_sdk.get_client().integrations
+            assert {"fastapi", "starlette", "sqlalchemy", "httpx", "logging", "dedupe"} <= (
+                set(integrations)
+            )
+            assert "boto3" not in integrations
+            app = FastAPI()
+
+            @app.get("/instrumented-error")
+            async def fail():
+                raise RuntimeError("workers-instrumented-error private-error-canary@example.com")
+
+            async def application(env):
+                return app
+
+            token = execution.set(self.ctx)
+            try:
+                return await RequestCoordinator().fetch(application, request, self.env, self.ctx)
+            finally:
+                execution.reset(token)
+
+        if urlparse(request.url).path == "/accountant-pdf":
+            import io
+
+            from app.workers.pdf import Canvas
+
+            output = io.BytesIO()
+            document = Canvas(output)
+            document.setTitle("Resumen contable")
+            document.setAuthor("Kova")
+            document.setSubject("Periodo fiscal")
+            document.setFont("Helvetica-Bold", 12)
+            document.drawString(36, 750, "Negocio: Café <BT /Root>")
+            document.showPage()
+            document.setFont("Helvetica", 10)
+            document.drawString(36, 720, "Total $123.45")
+            document.save()
+            return Response(output.getvalue(), headers={"Content-Type": "application/pdf"})
+
         if urlparse(request.url).path == "/asgi-stream":
             from app.workers.asgi import RequestCoordinator
 

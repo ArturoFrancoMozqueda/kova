@@ -1,6 +1,18 @@
 import { expect, it } from "vitest";
 import { env } from "cloudflare:test";
-import { createDecipheriv, createHmac, timingSafeEqual } from "node:crypto";
+import { createDecipheriv, createHash, createHmac, timingSafeEqual } from "node:crypto";
+
+it("keeps the existing deterministic accountant PDF byte-for-byte after lazy loading", async () => {
+  const response = await env.TEST_CRYPTO.fetch("https://compatibility.test/accountant-pdf");
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Content-Type")).toBe("application/pdf");
+  const bytes = Buffer.from(await response.arrayBuffer());
+  expect(bytes.length).toBe(1249);
+  expect(createHash("sha256").update(bytes).digest("hex"))
+    .toBe("0ed9f30fd8229f6dae1c99a74f4299f3a1fc98a954d7b7ac2e3ee31f78d9ff8c");
+});
+
+
 
 it("streams multiple chunks and completes asynchronous dependency cleanup", async () => {
   await env.TEST_STORAGE.delete("asgi-test-cleanup");
@@ -52,3 +64,16 @@ it("streams multiple chunks and completes asynchronous dependency cleanup", asyn
     expect(sent.join("\n")).not.toContain("private-cookie-qa");
   });
 
+it("captures unhandled FastAPI errors with explicit integrations and private redaction", async () => {
+  const response = await env.TEST_CRYPTO.fetch("https://compatibility.test/instrumented-error");
+  expect(response.status).toBe(500);
+  await response.text();
+  let sent = [];
+  for (let attempt = 0; attempt < 20 && !sent.join("\n").includes("RuntimeError"); attempt++) {
+    const mailbox = await env.TEST_MAILBOX.fetch("https://mailbox.test/");
+    sent = (await mailbox.json()).telemetry;
+    if (!sent.join("\n").includes("RuntimeError")) await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  expect(sent.join("\n")).toContain("RuntimeError");
+  expect(sent.join("\n")).not.toContain("private-error-canary@example.com");
+});

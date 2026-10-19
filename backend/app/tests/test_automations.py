@@ -70,7 +70,7 @@ def test_defaults_disabled_and_capabilities_are_honest(client):
     _signup_login(client, prefix="automation-defaults")
     result = client.get(BASE)
     assert result.status_code == 200, result.text
-    assert len(result.json()["rules"]) == 3
+    assert len(result.json()["rules"]) == 4
     assert all(not rule["enabled"] and rule["version"] == 0 for rule in result.json()["rules"])
     assert result.json()["runs"] == []
     assert result.json()["capabilities"] == {

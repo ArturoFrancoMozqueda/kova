@@ -11,7 +11,7 @@ export type AutomationRun = {
   title: string;
   status: "pending" | "completed" | "dismissed" | "suppressed";
   entity_id: string;
-  entity_type: "customer_order" | "product";
+  entity_type: "customer_order" | "product" | "service_case";
   entity_version: number;
   version: number;
   created_at: string;

@@ -13682,7 +13682,8 @@
             "enum": [
               "order_ready",
               "order_fulfilled",
-              "restock_review"
+              "restock_review",
+              "service_case_overdue"
             ],
             "title": "Template Key",
             "type": "string"
@@ -13765,7 +13766,8 @@
           "entity_type": {
             "enum": [
               "customer_order",
-              "product"
+              "product",
+              "service_case"
             ],
             "title": "Entity Type",
             "type": "string"
@@ -13805,7 +13807,8 @@
             "enum": [
               "order_ready",
               "order_fulfilled",
-              "restock_review"
+              "restock_review",
+              "service_case_overdue"
             ],
             "title": "Template Key",
             "type": "string"
@@ -17079,6 +17082,49 @@
         ]
       }
     },
+    "/api/v1/appointments/reminders/{reminder_id}": {
+      "get": {
+        "operationId": "get_reminder_api_v1_appointments_reminders__reminder_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reminder_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Reminder Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppointmentReminderResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Reminder",
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
     "/api/v1/appointments/reminders/{reminder_id}/resolve": {
       "post": {
         "operationId": "resolve_reminder_api_v1_appointments_reminders__reminder_id__resolve_post",
@@ -19036,7 +19082,8 @@
               "enum": [
                 "order_ready",
                 "order_fulfilled",
-                "restock_review"
+                "restock_review",
+                "service_case_overdue"
               ],
               "title": "Template Key",
               "type": "string"
@@ -21168,6 +21215,47 @@
       }
     },
     "/api/v1/crm/followups/{task_id}": {
+      "get": {
+        "operationId": "get_followup_api_v1_crm_followups__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Followup",
+        "tags": [
+          "crm-engagement"
+        ]
+      },
       "patch": {
         "operationId": "update_api_v1_crm_followups__task_id__patch",
         "parameters": [
@@ -21296,6 +21384,47 @@
       }
     },
     "/api/v1/crm/opportunities/{opportunity_id}": {
+      "get": {
+        "operationId": "get_opportunity_api_v1_crm_opportunities__opportunity_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "opportunity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Opportunity Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpportunityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Opportunity",
+        "tags": [
+          "crm"
+        ]
+      },
       "patch": {
         "operationId": "update_opportunity_api_v1_crm_opportunities__opportunity_id__patch",
         "parameters": [

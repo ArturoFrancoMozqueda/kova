@@ -84,6 +84,9 @@ describe("existing API inside Python Durable Objects", () => {
     });
     expect(converted.status).toBe(200);
     const { opportunity_id: opportunityId } = await converted.json();
+    const opportunity = await owner(`/api/v1/crm/opportunities/${opportunityId}`);
+    expect(opportunity.status).toBe(200);
+    expect(await opportunity.json()).toMatchObject({ id: opportunityId, customer_id: customer.id });
     const quoteResponse = await write("/api/v1/quotes", "POST", {
       customer_id: customer.id, opportunity_id: opportunityId,
       expires_at: new Date(Date.now() + 86400000).toISOString(),
@@ -200,6 +203,48 @@ describe("existing API inside Python Durable Objects", () => {
     expect((await (await owner("/api/v1/reports/business-story")).json()).summary.net_sales).toBe("0.00");
     expect((await owner("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
     expect((await other("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
+  });
+
+  it("creates one opt-in case-deadline review and suppresses it after source resolution", async () => {
+    const owner = await browser(`deadline-${crypto.randomUUID()}@example.com`);
+    async function write(path, method, body) {
+      return owner(path, { method, body, headers: { "Idempotency-Key": crypto.randomUUID() } });
+    }
+    const overview = await (await owner("/api/v1/automations")).json();
+    expect(overview.rules.find(rule => rule.template_key === "service_case_overdue"))
+      .toMatchObject({ enabled: false, version: 0 });
+    const configured = await write("/api/v1/automations/rules/service_case_overdue", "PUT", {
+      enabled: true, expected_version: 0,
+    });
+    expect(configured.status).toBe(200);
+    const customer = await (await write("/api/v1/customers", "POST", { name: "Atención puntual" })).json();
+    const created = await write("/api/v1/service-cases", "POST", {
+      customer_id: customer.id, title: "Revisión interna", note: "Sin canal externo",
+      due_at: new Date(Date.now() + 500).toISOString(),
+    });
+    expect(created.status).toBe(201);
+    const serviceCase = await created.json();
+    await new Promise(resolve => setTimeout(resolve, 750));
+    const processed = await write("/api/v1/automations/process", "POST", {});
+    expect(processed.status).toBe(200);
+    expect(await processed.json()).toMatchObject({ created: 1 });
+    expect(await (await write("/api/v1/automations/process", "POST", {})).json())
+      .toMatchObject({ created: 0 });
+    const { runs } = await (await owner("/api/v1/automations")).json();
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ entity_id: serviceCase.id, entity_type: "service_case", status: "pending" });
+    const closed = await write(`/api/v1/service-cases/${serviceCase.id}`, "PATCH", {
+      expected_version: 1, status: "resolved",
+    });
+    expect(closed.status).toBe(200);
+    const stale = await write(`/api/v1/automations/runs/${runs[0].id}/resolve`, "POST", {
+      expected_version: 1, status: "completed",
+    });
+    expect(stale.status).toBe(409);
+    expect(await (await write("/api/v1/automations/process", "POST", {})).json())
+      .toMatchObject({ created: 0, suppressed: 1 });
+    expect((await (await owner(`/api/v1/service-cases/${serviceCase.id}`)).json()).version).toBe(2);
+    expect((await owner("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
   });
 
   it("passes production startup checks and reaches Postgres", async () => {

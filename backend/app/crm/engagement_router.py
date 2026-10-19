@@ -57,6 +57,11 @@ def followups(
     return service.followup_overview(db, ctx[1].tenant_id, limit, offset)
 
 
+@router.get("/followups/{task_id}", response_model=FollowupResponse)
+def get_followup(task_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+    return service.get_followup(db, ctx[1].tenant_id, task_id)
+
+
 @router.put("/followups/policy", response_model=PolicyResponse)
 def policy(
     body: PolicyWrite,

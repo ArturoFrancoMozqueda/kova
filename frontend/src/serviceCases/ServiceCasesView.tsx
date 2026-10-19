@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
+import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import { Link } from "react-router-dom";
 import {
   OperationsSession,
@@ -45,6 +47,11 @@ export default function ServiceCasesView() {
   );
 }
 function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const linked = useLinkedRecord<ServiceCase>(
+    identity,
+    "case_id",
+    "/api/v1/service-cases",
+  );
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
@@ -82,7 +89,9 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [formError, setFormError] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const opener = useRef<HTMLButtonElement | null>(null);
-  const selected = panel.data?.items.find((row) => row.id === selectedId);
+  const selected = linked.requested
+    ? linked.record
+    : panel.data?.items.find((row) => row.id === selectedId);
   const [deviceZone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
@@ -574,6 +583,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 variant="outline"
                 onClick={(event) => {
                   opener.current = event.currentTarget;
+                  if (linked.requested) linked.close();
                   setSelectedId(row.id);
                 }}
               >
@@ -583,6 +593,7 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           ))}
         </div>
       </section>
+      <LinkedRecordNotice linked={linked} />
       {selected && (
         <ServiceCaseDetail
           key={selected.id}
@@ -591,8 +602,13 @@ function ServiceCasesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           assignees={assignees}
           busy={panel.busy}
           online={panel.online}
-          mutate={panel.mutate}
+          mutate={async (...args) => {
+            const saved = await panel.mutate(...args);
+            if (linked.requested) linked.reload();
+            return saved;
+          }}
           onClose={() => {
+            if (linked.requested) linked.close();
             setSelectedId("");
             opener.current?.focus();
           }}

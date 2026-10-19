@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import AppointmentsView from "./AppointmentsView";
@@ -70,7 +71,11 @@ beforeEach(() => {
   fetchMock.mockImplementation(route);
 });
 it("creates a booking using the selected resource zone, never the device clock", async () => {
-  render(<AppointmentsView />);
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   fireEvent.click(await screen.findByRole("button", { name: "Nueva cita" }));
   await screen.findByRole("option", { name: customer.name });
   fireEvent.change(screen.getByLabelText("Recurso de la cita"), {
@@ -117,7 +122,11 @@ it("creates a booking using the selected resource zone, never the device clock",
   });
 });
 it("reprograms with expected version and keeps resource timezone visible", async () => {
-  render(<AppointmentsView />);
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   fireEvent.click(
     await screen.findByRole("button", {
       name: "Reprogramar Consulta de productos",
@@ -163,7 +172,11 @@ it("requires an explicit confirmation to record completion", async () => {
         })
       : route(url),
   );
-  render(<AppointmentsView />);
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   fireEvent.click(
     await screen.findByRole("button", { name: "Registrar atención" }),
   );
@@ -207,7 +220,11 @@ it("resolves internal reminders without claiming an external message", async () 
         )
       : route(url),
   );
-  render(<AppointmentsView />);
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   fireEvent.click(
     await screen.findByRole("button", {
       name: "Registrar revisión del recordatorio",
@@ -227,12 +244,20 @@ it("resolves internal reminders without claiming an external message", async () 
 });
 it("does not fetch agenda for cashiers or offline sessions", () => {
   session.role = "cashier";
-  const view = render(<AppointmentsView />);
+  const view = render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   expect(screen.getByText("Acceso de administración")).toBeVisible();
   view.unmount();
   session.role = "manager";
   session.mode = "offline";
-  render(<AppointmentsView />);
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   expect(screen.getByText(/Conéctate para consultar/)).toBeVisible();
   expect(fetchMock).not.toHaveBeenCalled();
 });
@@ -242,7 +267,11 @@ it("keeps an ambiguous clock out of the API", async () => {
       ? json({ items: [{ ...resource, timezone: "America/Tijuana" }] })
       : route(url),
   );
-  render(<AppointmentsView />);
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   fireEvent.click(await screen.findByRole("button", { name: "Nueva cita" }));
   await screen.findByRole("option", { name: customer.name });
   fireEvent.change(screen.getByLabelText("Recurso de la cita"), {
@@ -268,7 +297,11 @@ it("keeps an ambiguous clock out of the API", async () => {
 });
 
 it("keeps future attendance unavailable until the appointment begins", async () => {
-  render(<AppointmentsView />);
+  render(
+    <MemoryRouter>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
   expect(
     await screen.findByRole("button", { name: "Registrar atención" }),
   ).toBeDisabled();
@@ -276,4 +309,68 @@ it("keeps future attendance unavailable until the appointment begins", async () 
     screen.getByRole("button", { name: "Registrar inasistencia" }),
   ).toBeDisabled();
   expect(screen.getByRole("button", { name: "Cancelar cita" })).toBeEnabled();
+});
+
+it("refreshes an exact reminder after rescheduling its appointment and removes stale actions", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  let available = true;
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url) === `/api/v1/appointments/reminders/${id}`)
+      return available
+        ? json({
+            id,
+            appointment_id: appointment.id,
+            appointment_version: appointment.version,
+            title: "Recordatorio vinculado",
+            starts_at: appointment.starts_at,
+            timezone: resource.timezone,
+            status: "pending",
+            due_at: "2026-10-19T12:00:00Z",
+            version: 1,
+          })
+        : json({ detail: "Ya no disponible" }, 404);
+    if (String(url).endsWith("/reschedule") && init?.method === "POST") {
+      available = false;
+      return json({ ...appointment, version: 4 });
+    }
+    return route(url);
+  });
+  render(
+    <MemoryRouter initialEntries={[`/appointments?reminder_id=${id}`]}>
+      <AppointmentsView />
+    </MemoryRouter>,
+  );
+  expect(
+    await screen.findByRole("heading", { name: "Recordatorio vinculado" }),
+  ).toBeVisible();
+  fireEvent.click(
+    await screen.findByRole("button", {
+      name: "Reprogramar Consulta de productos",
+    }),
+  );
+  fireEvent.change(screen.getByLabelText("Inicio de la cita"), {
+    target: { value: "2099-10-21T10:00" },
+  });
+  fireEvent.change(screen.getByLabelText("Fin de la cita"), {
+    target: { value: "2099-10-21T11:00" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Confirmar nuevo horario" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "no está disponible",
+  );
+  expect(
+    screen.queryByRole("heading", { name: "Recordatorio vinculado" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", {
+      name: "Registrar revisión del recordatorio",
+    }),
+  ).not.toBeInTheDocument();
+  expect(
+    fetchMock.mock.calls.filter(
+      ([url]) => url === `/api/v1/appointments/reminders/${id}`,
+    ),
+  ).toHaveLength(2);
 });

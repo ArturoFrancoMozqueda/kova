@@ -110,6 +110,15 @@ def _commit(db, tenant_id, user_id, key, fingerprint, row, result, action, statu
     return status, result
 
 
+def get_opportunity(db: Session, tenant_id: UUID, opportunity_id: UUID):
+    row = db.query(Opportunity).filter_by(
+        tenant_id=tenant_id, branch_id=active_branch_id(db, tenant_id), id=opportunity_id
+    ).first()
+    if row is None:
+        raise not_found("Oportunidad no encontrada")
+    return _serialize_opportunity(db, row)
+
+
 def overview(db: Session, tenant_id: UUID, *, limit=100, offset=0, customer_id=None):
     branch_id = active_branch_id(db, tenant_id)
     if customer_id is not None:

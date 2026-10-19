@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-TemplateKey = Literal["order_ready", "order_fulfilled", "restock_review"]
+TemplateKey = Literal["order_ready", "order_fulfilled", "restock_review", "service_case_overdue"]
 
 
 class RuleWrite(BaseModel):
@@ -34,7 +34,7 @@ class RunResponse(BaseModel):
     title: str
     status: Literal["pending", "completed", "dismissed", "suppressed"]
     entity_id: UUID
-    entity_type: Literal["customer_order", "product"]
+    entity_type: Literal["customer_order", "product", "service_case"]
     entity_version: int
     version: int
     created_at: datetime

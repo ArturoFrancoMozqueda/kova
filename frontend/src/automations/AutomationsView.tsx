@@ -310,7 +310,9 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {new Date(run.created_at).toLocaleString("es-MX")} ·
-                        Versión del recurso {run.entity_version}
+                        {run.entity_type === "service_case"
+                          ? "Seguimiento del vencimiento de una atención"
+                          : `Versión del recurso ${run.entity_version}`}
                       </p>
                       {run.entity_type === "customer_order" && (
                         <Link
@@ -318,6 +320,14 @@ function AutomationsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                           to={`/pedidos/${run.entity_id}`}
                         >
                           Revisar pedido
+                        </Link>
+                      )}
+                      {run.entity_type === "service_case" && (
+                        <Link
+                          className="mt-2 inline-flex min-h-11 items-center text-sm text-kova-blue underline"
+                          to={`/service-cases?case_id=${encodeURIComponent(run.entity_id)}`}
+                        >
+                          Revisar atención postventa
                         </Link>
                       )}
                       {run.entity_type === "product" && (

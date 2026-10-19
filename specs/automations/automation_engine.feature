@@ -21,3 +21,17 @@ Feature: Tareas operativas internas por sucursal
     Given una tarea de otra sucursal o negocio
     When un usuario consulta o resuelve desde su sucursal
     Then la tarea no es visible y la resolución devuelve no encontrado
+
+  Scenario: Revisar vencimientos manuales sin duplicar por notas
+    Given la regla de revisión de atención se habilitó en la sucursal
+    And un caso activo tiene un vencimiento posterior a esa autorización
+    When vence la fecha y el motor procesa dos veces
+    Then existe una sola revisión interna de ese caso y fecha
+    And agregar una nota no crea otra revisión
+    And no se envía mensaje ni se modifica la atención
+
+  Scenario: Suprimir revisión de atención con fuente obsoleta
+    Given existe una revisión interna pendiente por vencimiento
+    When se resuelve el caso o se cambia su fecha o se revoca la autorización
+    Then no puede completarse la revisión obsoleta
+    And el siguiente procesamiento acotado la suprime

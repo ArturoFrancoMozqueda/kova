@@ -70,6 +70,11 @@ def reminders(
     return service.reminders(db, ctx[1].tenant_id, limit=limit, offset=offset)
 
 
+@router.get("/reminders/{reminder_id}", response_model=AppointmentReminderResponse)
+def get_reminder(reminder_id: UUID, db: Session = Depends(get_db), ctx=Depends(require_crm)):
+    return service.get_reminder(db, ctx[1].tenant_id, reminder_id)
+
+
 @router.post("/reminders/{reminder_id}/resolve", response_model=AppointmentReminderResponse)
 def resolve_reminder(
     reminder_id: UUID,
