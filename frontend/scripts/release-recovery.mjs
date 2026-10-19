@@ -64,16 +64,23 @@ export function validateRollbackArtifact(input) {
   };
 }
 
-export async function recoverRelease({ phase, artifact: rawArtifact, provider, verify = verifyDeployment }) {
+export async function recoverRelease({ phase, artifact: rawArtifact, provider,
+  verify = verifyDeployment, failedSha }) {
   if (!RECOVERY_PHASES.has(phase)) throw new Error(`unknown release phase: ${phase}`);
   // Validate every target before the first mutation. A partial/empty capture
   // must stop recovery and keep the incident visible rather than guessing.
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (failedSha !== undefined && !FULL_SHA.test(failedSha)) {
+    throw new Error("Cloudflare backend recovery requires a complete failed release SHA");
+  }
   if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
     throw new Error("Cloudflare backend recovery requires captured rollback versions");
   }
   if (artifact.cloudflareBackendVersions && typeof provider.restoreCloudflareBackend !== "function") {
     throw new Error("Cloudflare backend recovery requires its configured provider");
+  }
+  if (provider.requiresCloudflareBackend && typeof provider.waitForPublicBackend !== "function") {
+    throw new Error("Cloudflare backend recovery requires readiness verification");
   }
   const restored = [];
 
@@ -91,6 +98,10 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
     if (artifact.cloudflareBackendVersions) {
       await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions);
       restored.push("cloudflare-backend");
+      if (provider.requiresCloudflareBackend) {
+        await provider.waitForPublicBackend({ backendUrl: artifact.backendUrl,
+          sha: artifact.releaseSha, previousSha: failedSha });
+      }
     } else {
       await provider.restoreFly(artifact.flyImage);
       restored.push("fly");
@@ -156,7 +167,8 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
   const backend = cloudflareBackendProvider({ run, env });
   return {
     requiresCloudflareBackend: Boolean(backend),
-    ...(backend ? { restoreCloudflareBackend: backend.restore } : {}),
+    ...(backend ? { restoreCloudflareBackend: backend.restore,
+      waitForPublicBackend: backend.waitForPublicBackend } : {}),
     ...(cloudflare ? { restoreCloudflare: cloudflare.restore } : {}),
     async restoreVercel(deployment, frontendUrl) {
       const hostname = productionHostname(frontendUrl);

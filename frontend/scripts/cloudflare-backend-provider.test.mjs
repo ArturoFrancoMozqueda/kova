@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { backendWorkers, cloudflareBackendProvider, validateBackendVersions } from "./cloudflare-backend-provider.mjs";
+import { backendWorkers, cloudflareBackendProvider, validateBackendVersions,
+  waitForBackendRelease } from "./cloudflare-backend-provider.mjs";
 import { cliProvider, recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
 import { release, releaseProvider } from "./release.mjs";
 
@@ -14,6 +15,77 @@ const env = { KOVA_CLOUDFLARE_BACKEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cf"
 const artifact = { releaseSha: sha, cloudflareBackendVersions: versions,
   vercelDeployment: "https://old.vercel.app", frontendUrl: "https://kovasuite.com",
   backendUrl: "https://api.kovasuite.com" };
+
+test("backend readiness waits only for the known previous version before strict verification", async () => {
+  let calls = 0;
+  let waits = 0;
+  await waitForBackendRelease({ backendUrl: artifact.backendUrl, sha: "b".repeat(40),
+    previousSha: sha, wait: async ms => { assert.equal(ms, 500); waits++; },
+    fetcher: async (url, options) => {
+      assert.equal(url.href, `${artifact.backendUrl}/health`);
+      assert.equal(options.headers["cache-control"], "no-cache");
+      assert.ok(options.signal);
+      return globalThis.Response.json({ status: "ok", release_sha: ++calls === 1 ? sha : "b".repeat(40) });
+    } });
+  assert.equal(calls, 2);
+  assert.equal(waits, 1);
+});
+
+test("backend readiness rejects HTTP errors, malformed health and foreign commits immediately", async () => {
+  for (const response of [new globalThis.Response("unavailable", { status: 503 }),
+    globalThis.Response.json({}), globalThis.Response.json({ status: "ok" }),
+    globalThis.Response.json({ status: "failed", release_sha: sha }),
+    globalThis.Response.json({ status: "ok", release_sha: "c".repeat(40) }),
+    new globalThis.Response("not json")]) {
+    let calls = 0;
+    await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+      previousSha: "b".repeat(40), wait: assert.fail,
+      fetcher: async () => { calls++; return response; } }));
+    assert.equal(calls, 1);
+  }
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    previousSha: "b".repeat(40), wait: assert.fail,
+    fetcher: async () => { throw new Error("network unavailable"); } }), /network unavailable/);
+});
+
+test("backend readiness has a bounded retry count and requires complete SHAs", async () => {
+  let calls = 0;
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    previousSha: "b".repeat(40), wait: async () => {},
+    fetcher: async () => {
+      calls++;
+      return globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) });
+    } }), /did not finish propagating/);
+  assert.equal(calls, 20);
+  for (const identities of [{ sha: "short" }, { sha, previousSha: "short" }]) {
+    await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl,
+      ...identities, fetcher: assert.fail, wait: assert.fail }), /complete release SHAs/);
+  }
+});
+
+test("manual recovery without a known replaced SHA never tolerates another commit", async () => {
+  await waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    fetcher: async () => globalThis.Response.json({ status: "ok", release_sha: sha }), wait: assert.fail });
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    fetcher: async () => globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) }),
+    wait: assert.fail }), /Unexpected backend version/);
+});
+
+test("backend propagation also respects a wall-clock deadline", async () => {
+  let clock = 0;
+  let calls = 0;
+  await assert.rejects(waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    previousSha: "b".repeat(40), now: () => clock,
+    fetcher: async () => {
+      calls++;
+      clock = 19_950;
+      return globalThis.Response.json({ status: "ok", release_sha: "b".repeat(40) });
+    },
+    wait: async ms => { assert.equal(ms, 50); clock += ms; },
+  }), /did not finish propagating/);
+  assert.equal(calls, 1);
+  assert.equal(clock, 20_000);
+});
 
 test("backend deployment is opt-in and credentials are required before any command", () => {
   assert.equal(cloudflareBackendProvider({ env: {}, run: assert.fail }), undefined);
@@ -94,12 +166,16 @@ test("Cloudflare recovery needs no Fly image or token and verifies the restored 
   const configured = cliProvider({ env, run: assert.fail });
   assert.equal(configured.requiresCloudflareBackend, true);
   const calls = [];
-  const result = await recoverRelease({ phase: "acceptance", artifact, provider: {
+  const result = await recoverRelease({ phase: "acceptance", artifact, failedSha: "b".repeat(40), provider: {
     requiresCloudflareBackend: true,
     restoreVercel: async () => calls.push("frontend"), restoreFly: assert.fail,
     restoreCloudflareBackend: async captured => { assert.deepEqual(captured, versions); calls.push("backend"); },
+    waitForPublicBackend: async input => {
+      assert.deepEqual(input, { backendUrl: artifact.backendUrl, sha, previousSha: "b".repeat(40) });
+      calls.push("ready");
+    },
   }, verify: async input => { assert.equal(input.sha, sha); calls.push("verified"); } });
-  assert.deepEqual(calls, ["frontend", "backend", "verified"]);
+  assert.deepEqual(calls, ["frontend", "backend", "ready", "verified"]);
   assert.deepEqual(result.restored, ["vercel", "cloudflare-backend"]);
 });
 

@@ -32,12 +32,19 @@ export async function release({ artifact: rawArtifact, sha, provider,
   if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
     throw new Error("Cloudflare backend release requires captured rollback versions");
   }
+  if (provider.requiresCloudflareBackend && typeof provider.waitForPublicBackend !== "function") {
+    throw new Error("Cloudflare backend publication requires readiness verification");
+  }
   if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error("full release SHA is required");
   let phase;
   try {
     const url = candidateUrl(await provider.createCandidate());
     phase = "candidate";
     await provider.deployFly(sha);
+    if (provider.requiresCloudflareBackend) {
+      await provider.waitForPublicBackend({ backendUrl: artifact.backendUrl, sha,
+        previousSha: artifact.releaseSha });
+    }
     await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     phase = "promotion";
@@ -53,7 +60,7 @@ export async function release({ artifact: rawArtifact, sha, provider,
   } catch (error) {
     if (phase) {
       try {
-        await recover({ phase, artifact, provider, verify });
+        await recover({ phase, artifact, provider, verify, failedSha: sha });
       } catch (recoveryError) {
         throw new globalThis.AggregateError([error, recoveryError], recoveryError.message, { cause: error });
       }

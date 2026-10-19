@@ -1,10 +1,40 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import { validateCloudflareVersion } from "./cloudflare-provider.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = path.join(root, "deploy/cloudflare-backend");
 export const backendWorkers = ["kova-backend-jobs", "kova-backend", "kova-backend-gateway"];
+
+export async function waitForBackendRelease({ backendUrl, sha, previousSha,
+  fetcher = globalThis.fetch, wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)),
+  now = Date.now }) {
+  if (!/^[a-f0-9]{40}$/i.test(sha ?? "")
+      || (previousSha !== undefined && !/^[a-f0-9]{40}$/i.test(previousSha))) {
+    throw new Error("Backend propagation requires complete release SHAs");
+  }
+  const url = new URL("/health", backendUrl);
+  const deadline = now() + 20_000;
+  for (let attempt = 0; attempt < 20 && now() < deadline; attempt++) {
+    const response = await fetcher(url, {
+      signal: globalThis.AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - now()))),
+      headers: { "cache-control": "no-cache" },
+    });
+    if (!response.ok) throw new Error(`Backend readiness failed: HTTP ${response.status}`);
+    const health = await response.json();
+    if (health.status !== "ok") throw new Error("Backend readiness health contract failed");
+    if (health.release_sha === sha) return;
+    // Only a known version being replaced may still be propagating. HTTP
+    // failures, missing identities and unrelated commits remain blocking.
+    if (previousSha === undefined || health.release_sha !== previousSha) {
+      throw new Error("Unexpected backend version during publication");
+    }
+    const remaining = deadline - now();
+    if (remaining <= 0) break;
+    await wait(Math.min(500, remaining));
+  }
+  throw new Error("Backend publication did not finish propagating");
+}
 
 export function validateBackendVersions(input) {
   if (!input || typeof input !== "object" || Object.keys(input).length !== backendWorkers.length) {
@@ -22,6 +52,7 @@ export function cloudflareBackendProvider({ run, env }) {
     [path.join(directory, "node_modules/cf/bin/cf"), ...args],
     { cwd: directory, env, capture, label: "Cloudflare backend" });
   return {
+    waitForPublicBackend: waitForBackendRelease,
     async capture() {
       const captured = {};
       for (const name of backendWorkers) {
