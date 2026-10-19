@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-19
 
-## Revisiones de atención, enlaces y arranque frío (2026-10-19, validado localmente)
+## Revisiones de atención, enlaces y arranque frío (2026-10-19, publicadas; diagnóstico de latencia abierto)
 
 `service_case_overdue` incorpora revisiones internas opt-in/defaultoff para vencimientos manuales
 posteriores a la autorización, sin retroactividad automática. Reusa motor, worker/cohort/leases,
@@ -14,8 +14,11 @@ conservan scope/DTOs y no escriben. Reprogramar refresca también el recordatori
 sus acciones si deja de estar disponible. PDF/Resend cargan dependencias cuando se utilizan;
 Sentry WASM conserva integraciones web explícitas y transporte/sanitización.
 
-Perfil local: 2,171 → 1,213 ms de importación (~44% menos). Todavía falta medir en producción los
-aproximadamente 10 s del acceso frío; no se declara resuelto. Publicación pendiente. Validación:
+Perfil local: 2,171 → 1,213 ms de importación (~44% menos). La comprobación productiva sigue investigando los
+aproximadamente 10 s del acceso frío. PR #219 fue aceptada a las 18:00:50 UTC con SHA
+`1f12c4baf8a9` y migración 0091. La medición pública dio 32/32 contratos correctos, pero mediana
+de primeras peticiones directas 8.45 s frente a 0.35 s en repeticiones; no está resuelto. Se prepara
+instrumentación por fases sin cambiar validaciones. Validación:
 backend completo final 1,800; automatizaciones 25 por controlador y dos
 migraciones; GET 18 por controlador; frontend completo 1,124, focal 79, browser 16 y real uno;
 build/121 JS, Workers 9+4+1 y 27 migraciones completas aprobados. Suite backend final sin errores/fallos/omitidas (146 s).

@@ -1,7 +1,7 @@
 # Arranque frío, revisiones de atención y enlaces a pendientes
 
-Fecha: 2026-10-19. Estado: implementado y validado localmente; publicación y aceptación productiva
-pendientes. Este corte continúa la cola/casos ya publicados por PR #217. No acredita todavía una
+Fecha: 2026-10-19. Estado: PR #219 publicada y aceptada en producción; latencia fría pendiente de resolver.
+Aceptación 18:00:50 UTC, SHA `1f12c4baf8a974ce6fd49d3cc2356009640a4b65`, migración 0091 aplicada. Este corte continúa la cola/casos ya publicados por PR #217. No acredita todavía una
 reducción de los aproximadamente 10 s observados en producción ni completa el horizonte E2E.
 
 ## Alcance implementado
@@ -43,9 +43,12 @@ sus defaults principales se conservan. Resend carga su SDK al enviar con configu
 No se cambian contratos de auth, cookies, CSRF, sesiones, RLS, billing, cohort ni conexiones.
 
 El perfil local de importación pasó de 2,171 ms a 1,213 ms, aproximadamente 44% menos. Mide ese
-perfil local, no latencia de login/sesión en producción, tiempo de red ni base de datos. La fuente
-queda congelada para publicación; falta repetir la medición productiva del primer acceso frío,
-que había rondado 10 s, y contrastarla con accesos calientes. No se declara resuelto ese problema.
+perfil local, no latencia de login/sesión en producción, tiempo de red ni base de datos. La medición pública posterior a publicar confirmó 32/32 contratos privados correctos y el mismo
+SHA antes/después. En ocho primeras peticiones directas, la mediana fue 8,453.5 ms (411–17,574 ms);
+cinco superaron 8 s. En ocho repeticiones directas, 347.5 ms (219–1,120 ms). Las muestras proxy,
+posteriores a las directas, tuvieron medianas de 790 y 474 ms. Son primeras observaciones por
+contexto sintético y pueden estar calientes por tráfico previo; no prueban un SLA. La latencia fría
+no está resuelta. Sitio, proxy, API y conexión de base de datos aprobaron el verificador estricto.
 
 ## Evidencia local
 
@@ -85,3 +88,12 @@ CI del commit final, migración/publicación y medición productiva conservan ga
 
 WhatsApp/Meta, correo comercial, PSP y PAC mantienen sus dependencias de configuración/aceptación.
 Este corte no conecta proveedores ni habilita efectos externos.
+
+## Diagnóstico siguiente
+
+Se añaden mediciones monotónicas con etiquetas estáticas y duración para configuración, importación,
+Sentry/configuración, RLS, ACL privada y construcción de la aplicación. No cambian validaciones,
+orden, lock/cache, cookies, RLS ni contratos HTTP. No registran configuración, SQL o datos de
+clientes. La fase Workers temprana se emite después de instalar logging. Ocho regresiones nuevas
+comprueban orden, fallo cerrado, cache y ausencia de payload privado; 14 focales aprobadas.
+La publicación de esta instrumentación y su captura remota siguen pendientes.
