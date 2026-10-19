@@ -150,7 +150,9 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
-    "service_cases": {"status", "assigned_user_id", "due_at", "version", "updated_at", "resolved_at"},
+    "service_cases": {
+        "status", "assigned_user_id", "due_at", "version", "updated_at", "resolved_at",
+    },
     "appointment_resources": {"name", "is_active", "version", "updated_at"},
     "appointments": {"starts_at", "ends_at", "note", "status", "version", "updated_at"},
     "appointment_reminders": {"status", "version", "resolved_at"},
