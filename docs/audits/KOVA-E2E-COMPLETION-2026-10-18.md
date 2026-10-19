@@ -61,7 +61,9 @@ Las matrices de pruebas agregan entidades/columnas autorizadas sin relajar deneg
 - Frontend después de integrar main: 1,044 pruebas en 170 archivos; ESLint, TypeScript, build,
   SSR, prerender, 114 chunks e import guard aprobados. Ocho recorridos Chromium controlados
   cubren las vistas previas y nuevas más captación pública; la última copia de estados está en español.
-- Backend completo: primera pasada de continuación 1,687 aprobadas; pasada postmerge al concluir.
+- Backend completo después de integrar main: 1,693 pruebas aprobadas, tres advertencias, 152.36 s.
+  Las 55 de mensajería se repitieron después de ajustar exclusivamente nombres de schemas OpenAPI.
+  Los cinco casos de migración/grants modificados se repitieron también con fuente final, aprobados.
 - Los paths OpenAPI anteriores permanecen estructuralmente idénticos. Sólo QuoteCreate/QuoteResponse
   agregan el vínculo opcional de oportunidad. Los schemas de bandeja usan nombres propios para
   conservar intactas las referencias del asistente y autenticación.
