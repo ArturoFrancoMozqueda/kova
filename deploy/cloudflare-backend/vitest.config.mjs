@@ -38,6 +38,7 @@ export default defineConfig({
     miniflare: {
       compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
       serviceBindings: { TEST_MAILBOX: "test-outbound", TEST_CRYPTO: "backend-python" },
+      r2Buckets: { TEST_STORAGE: "assistant-test-storage" },
       bindings: profile === "compatibility" ? {
         TEST_FIXTURES: JSON.parse(readFileSync(`${root}/.cloudflare/test-fixtures.json`, "utf8")),
       } : {},
@@ -49,12 +50,16 @@ export default defineConfig({
         name: "backend-python", modules, modulesRoot: bundle,
         compatibilityDate: "2026-10-17", compatibilityFlags: ["python_workers", "nodejs_compat"],
         outboundService: "test-outbound", durableObjects,
+        r2Buckets: { ASSISTANT_STORAGE: "assistant-test-storage" },
         bindings: {
           APP_ENV: "production", SECRET_KEY: "synthetic-workers-test-key-32-bytes-minimum",
           RESEND_API_KEY: "re_synthetic_test_only", EMAIL_FROM: "Kova QA <qa@example.com>",
           FRONTEND_URL: "https://app.test", TRUSTED_CLIENT_IP_HEADER: "x-kova-client-ip",
           KOVA_RELEASE_SHA: "workers-integration-test", SENTRY_DSN: "https://synthetic-public@sentry.test/1",
           ASSISTANT_ENABLED: "true", ASSISTANT_TENANT_IDS: "00000000-0000-4000-8000-000000000001",
+          ASSISTANT_CLOUDFLARE_ACCOUNT_ID: "00000000000000000000000000000001",
+          ASSISTANT_R2_ACCESS_KEY: "synthetic-test-only",
+          ASSISTANT_R2_SECRET_KEY: "synthetic-test-only",
         },
         hyperdrives: { DB_APP: runtimeDatabase.href, ...(runtime ? { DB_PRIVILEGED: database.href } : {}) },
       }, {

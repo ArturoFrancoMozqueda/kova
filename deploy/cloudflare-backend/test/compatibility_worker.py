@@ -8,6 +8,44 @@ from app.cfdi.certificates import validate_csd, CsdValidationError
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         fixtures = await request.json()
+        from app.workers.context import environment
+        from app.workers.storage import R2Client
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        context = environment.set(self.env)
+        try:
+            storage = R2Client()
+            key = "synthetic-tenant/synthetic-document"
+            bucket = "kova-assistant"
+            storage.put_object(Bucket=bucket, Key=key, Body=b"synthetic-private-content")
+            storage.head_object(Bucket=bucket, Key=key)
+            with storage.get_object(Bucket=bucket, Key=key)["Body"] as body:
+                assert body.read() == b"synthetic-private-content"
+            try:
+                storage.head_object(Bucket="wrong-bucket", Key=key)
+            except BotoCoreError:
+                pass
+            else:
+                raise AssertionError("Unexpected bucket accepted")
+            storage.delete_object(Bucket=bucket, Key=key)
+            try:
+                storage.head_object(Bucket=bucket, Key=key)
+            except ClientError as exc:
+                assert exc.response["ResponseMetadata"]["HTTPStatusCode"] == 404
+            else:
+                raise AssertionError("Deleted object remained available")
+            missing = environment.set(None)
+            try:
+                try:
+                    storage.head_object(Bucket=bucket, Key=key)
+                except BotoCoreError:
+                    pass
+                else:
+                    raise AssertionError("Missing binding must fail closed")
+            finally:
+                environment.reset(missing)
+        finally:
+            environment.reset(context)
         from app.workers.crypto import pbkdf2_hmac
 
         assert (

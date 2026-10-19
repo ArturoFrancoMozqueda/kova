@@ -16,6 +16,7 @@ export const jobs = defineConfig({ worker: {
   exports: { KovaJobs: exports.durableObject({ storage: "sqlite" }) },
   env: {
     ...databaseBindings,
+    ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),
     JOBS: bindings.durableObject({ worker: "kova-backend-jobs", exportName: "KovaJobs" }),
   },
   triggers: [triggers.scheduled({ schedule: "*/5 * * * *" })],
@@ -46,6 +47,7 @@ export default defineConfig({
     },
     env: {
       ...databaseBindings,
+      ASSISTANT_STORAGE: bindings.r2({ name: "kova-assistant" }),
       ...(privileged ? { DB_PRIVILEGED: bindings.hyperdrive({ id: privileged }) } : {}),
       API: bindings.durableObject({ worker: "kova-backend", exportName: "KovaApi" }),
       RATE_LIMITS: bindings.durableObject({ worker: "kova-backend", exportName: "KovaRateLimit" }),

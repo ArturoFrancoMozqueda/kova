@@ -88,6 +88,25 @@ describe("existing API inside Python Durable Objects", () => {
     expect(me.status).toBe(200);
     const identity = await me.json();
     expect(identity.user.email_verified).toBe(true);
+    // A configured private bucket must work in Python Workers, including the
+    // fail-closed tombstone check that runs before assistant access.
+    expect((await owner("/api/v1/assistant/capabilities")).status).toBe(200);
+    const tombstone = `deleted-tenants/${identity.tenant_id}`;
+    await env.TEST_STORAGE.put(tombstone, "deleted");
+    try {
+      expect((await owner("/api/v1/assistant/capabilities")).status).toBe(410);
+    } finally {
+      await env.TEST_STORAGE.delete(tombstone);
+    }
+    const dashboard = await Promise.all([
+      owner("/api/v1/reports/sales-summary"),
+      owner("/api/v1/reports/sales-by-hour"),
+      owner("/api/v1/auth/session"),
+      other("/api/v1/auth/session"),
+    ]);
+    for (const response of dashboard) expect(response.status).toBe(200);
+    expect((await dashboard[2].json()).tenant_id).toBe(identity.tenant_id);
+    expect((await dashboard[3].json()).tenant_id).not.toBe(identity.tenant_id);
     // Browser reload uses /session, including its RLS-backed membership and
     // feature flags. Exercise separate invocations with unchanged cookies.
     for (let reload = 0; reload < 3; reload++) {

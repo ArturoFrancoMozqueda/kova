@@ -12,7 +12,9 @@ export default {
       headers.delete(name);
     }
     const identity = headers.get("cookie") || "anonymous";
-    const shard = createHash("sha256").update(identity).digest()[0] % 16;
+    // Parallel dashboard reads should not queue behind every other endpoint
+    // for the same cookie. This hint still grants no identity or permissions.
+    const shard = createHash("sha256").update(`${identity}\n${new URL(request.url).pathname}`).digest()[0] % 16;
     try {
       const started = performance.now();
       const response = await env.API.getByName(`api-${shard}`).fetch(

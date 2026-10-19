@@ -7,7 +7,8 @@ The existing FastAPI application runs in 16 SQLite Durable Object coordinators
 behind a small JavaScript HTTP gateway. This retains production bcrypt cost within
 the Durable Objects compute budget. PostgreSQL remains authoritative for sessions,
 RLS, billing, transactions and offline/idempotent writes; no business tables move
-to SQLite. A cookie hash chooses a coordinator and grants no permissions.
+to SQLite. A hash of the cookie and route chooses a coordinator and grants no
+permissions. Independent dashboard routes can run without sharing one serial queue.
 
 `kova-backend` has separate Hyperdrive runtime/privileged bindings. Both disable SQL
 caching and use TLS to the direct Supabase endpoint (without chaining Supavisor).
@@ -20,6 +21,9 @@ existing retention/outbox maintenance. No Docker daemon or polling process runs.
 The owner chose Workers Free and postponed document ingestion. Workers forcibly
 disable new document uploads/processing and Fly wake commands. Existing files and
 metadata are retained under the existing access/deletion/expiration policies.
+Private assistant object operations use a native binding to the existing
+`kova-assistant` bucket. The adapter retains the deleted-tenant tombstone check,
+bounded reads, object keys and fail-closed storage errors; native Fly keeps boto3.
 Product images use the existing original-file fallback; native thumbnail resizing
 is unavailable. MFA QR and accountant PDFs remain available without Pillow. The
 native deployment retains its existing dependencies and behavior.
@@ -103,8 +107,12 @@ Worker secrets stay on Cloudflare. The migration credential is excluded from
 frontend candidate subprocesses. Fiscal/account maintenance calls the canonical
 API domain, and document-host activation is blocked while the backend flag is on.
 
-Candidate login succeeded, but the owner's reload reported session verification
-failure. Public cutover remains blocked on reproducing and fixing that failure.
+The owner can now log into the candidate. Browser inspection found a dashboard
+error: the configured assistant storage client attempted unsupported Python TLS,
+and simultaneous dashboard requests queued behind one cookie's coordinator.
+The R2 binding and route-aware routing fixes pass local runtime tests, including
+deleted-tenant denial and parallel session isolation. Deployed dashboard, reload
+and logout acceptance remain required before public cutover.
 Cold startup is also under measurement; package imports now run at module scope
 for Cloudflare's deployment snapshot, while credentials, RLS checks and all I/O
 remain invocation-local. Temporary transport probe endpoints are not release code.

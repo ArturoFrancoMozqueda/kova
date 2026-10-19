@@ -8,7 +8,7 @@
   "scripts": {
     "postinstall": "node patch-cf.mjs",
     "build": "node build.mjs",
-    "test": "node --test test/packaging.test.mjs && node test/run.mjs"
+    "test": "node --test test/packaging.test.mjs test/gateway.test.mjs && node test/run.mjs"
   },
   "devDependencies": {
     "@cloudflare/build-output-utils": "0.9.3",
