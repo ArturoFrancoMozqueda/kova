@@ -17,7 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.branches.scope import BranchScoped
 from app.crm.models import now
-from app.db import Base
+from app.orm_metadata import Base
 
 
 class CatalogRequest(BranchScoped, Base):

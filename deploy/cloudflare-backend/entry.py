@@ -3,6 +3,7 @@
 import importlib
 import logging
 import math
+import sys
 import time
 from urllib.parse import urlparse
 
@@ -21,6 +22,98 @@ for _package in (
     "sentry_sdk", "httpx",
 ):
     importlib.import_module(_package)
+
+
+# Only pure ORM metadata and schema validators enter the shared snapshot. Settings,
+# engines, database posture checks and request state stay in invocation bootstrap.
+# Keep these explicit file inventories aligned with the boundary regression tests.
+# Router-bound declarations (such as branch transfers) remain invocation-loaded.
+_MODEL_MODULES = (
+    'app.account_lifecycle.models',
+    'app.appointments.models',
+    'app.assistant.models',
+    'app.audit.models',
+    'app.auth.models',
+    'app.automations.models',
+    'app.billing.models',
+    'app.branches.models',
+    'app.business_settings.models',
+    'app.catalog.models',
+    'app.cfdi.models',
+    'app.crm.engagement_models',
+    'app.crm.models',
+    'app.customer_orders.models',
+    'app.customers.models',
+    'app.employees.models',
+    'app.expenses.models',
+    'app.fiscal.models',
+    'app.hardware.models',
+    'app.idempotency.models',
+    'app.integrations.models',
+    'app.inventory.models',
+    'app.loyalty.models',
+    'app.messaging.models',
+    'app.modifiers.models',
+    'app.onboarding.models',
+    'app.ops.models',
+    'app.orders.models',
+    'app.purchasing.models',
+    'app.quotes.models',
+    'app.rbac.models',
+    'app.reconciliation.models',
+    'app.service_cases.models',
+    'app.shifts.models',
+    'app.storefront.models',
+    'app.telemetry.models',
+    'app.tenants.models',
+)
+for _model in _MODEL_MODULES:
+    importlib.import_module(_model)
+_SCHEMA_MODULES = (
+    'app.account_lifecycle.schemas',
+    'app.appointments.schemas',
+    'app.assistant.schemas',
+    'app.auth.schemas',
+    'app.automations.schemas',
+    'app.billing.schemas',
+    'app.branches.schemas',
+    'app.business_settings.schemas',
+    'app.catalog.schemas',
+    'app.cfdi.schemas',
+    'app.crm.engagement_schemas',
+    'app.crm.schemas',
+    'app.customer_orders.schemas',
+    'app.customers.schemas',
+    'app.employees.schemas',
+    'app.expenses.schemas',
+    'app.fiscal.schemas',
+    'app.hardware.schemas',
+    'app.imports.schemas',
+    'app.integrations.schemas',
+    'app.inventory.lot_schemas',
+    'app.inventory.schemas',
+    'app.loyalty.schemas',
+    'app.messaging.schemas',
+    'app.modifiers.schemas',
+    'app.onboarding.schemas',
+    'app.operations_queue.schemas',
+    'app.ops.schemas',
+    'app.orders.schemas',
+    'app.purchasing.schemas',
+    'app.quotes.schemas',
+    'app.reconciliation.schemas',
+    'app.reports.schemas',
+    'app.service_cases.schemas',
+    'app.shifts.schemas',
+    'app.storefront.schemas',
+    'app.sync.schemas',
+    'app.telemetry.schemas',
+    'app.tenants.schemas',
+)
+for _schema in _SCHEMA_MODULES:
+    importlib.import_module(_schema)
+if "app.config" in sys.modules or "app.db" in sys.modules:
+    raise RuntimeError("Pure snapshot imports must not load runtime configuration or engines")
 
 
 class Default(WorkerEntrypoint):

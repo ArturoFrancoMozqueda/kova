@@ -5,7 +5,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKeyConstraint, Integer, String,
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.branches.scope import BranchScoped
-from app.db import Base
+from app.orm_metadata import Base
 
 
 class PublicCatalog(BranchScoped, Base):

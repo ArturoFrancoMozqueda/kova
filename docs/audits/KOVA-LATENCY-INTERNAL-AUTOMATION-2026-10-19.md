@@ -96,4 +96,37 @@ Sentry/configuración, RLS, ACL privada y construcción de la aplicación. No ca
 orden, lock/cache, cookies, RLS ni contratos HTTP. No registran configuración, SQL o datos de
 clientes. La fase Workers temprana se emite después de instalar logging. Ocho regresiones nuevas
 comprueban orden, fallo cerrado, cache y ausencia de payload privado; 14 focales aprobadas.
-La publicación de esta instrumentación y su captura remota siguen pendientes.
+La instrumentación fue aceptada en producción por PR #220 a las 18:32:33 UTC, SHA
+`50c6749725b66ee9c908ade48cdf32cd6552fc51`, versión API
+`3368dde6-04dc-455d-8540-891d085e8c34`. Verificador estricto: sitio/proxy/API/base de datos
+alcanzables y SHA coherente. La suite backend completa final pasó 1,808 pruebas sin
+fallos/errores/omitidas. La prueba de comparación de rutas se aisló de las rutas temporales que
+las pruebas RBAC añaden a `main.app`; once regresiones combinadas y suite completa aprobaron.
+
+Nueva cohorte de 32 GET: todos los contratos aprobaron. Primeras directas: mediana 8,260 ms,
+rango 245–17,575 ms, seis de ocho >=8 s; repeticiones directas: mediana 218 ms (191–234 ms).
+Proxy posterior: medianas 262/221 ms. Telemetría por fases de esa versión: `workers.total`
+mediana 5,686.5 ms, `app.rls_posture` 5,410 ms y ACL privada 271 ms, con muestras distintas.
+Los relojes de Workers sólo avanzan tras I/O: los ceros no prueban CPU cero y el intervalo RLS
+puede incorporar CPU anterior al siguiente I/O. No se atribuye todo el tiempo a consultas.
+[Semántica del reloj](https://developers.cloudflare.com/workers/runtime-apis/performance/).
+
+## Siguiente optimización, aún sin aceptación productiva
+
+Se implementó una frontera explícita de metadata declarativa sin configuración ni conexiones:
+`app.db.Base` conserva su identidad por reexportación. Los modelos y schemas se pueden importar
+antes de la invocación sin `app.config`, `app.db`, engines o sockets. El experimento temporal
+mantuvo el inventario puro de 96 tablas/201 índices/DDL y OpenAPI idénticos, con nueve pruebas runtime por corrida.
+Dos mediciones equivalentes dieron ~28.7% menos trabajo local de inicialización; no se promete
+ese porcentaje remoto. El modelo `InventoryTransfer`, declarado fuera de los archivos `*models.py`,
+conserva su carga diferida y comparte la misma registry cuando se importa; el inventario puro no
+pretende abarcar todo módulo con una clase ORM. Tres preloads adicionales no dieron una mejora incremental estable y
+se descartaron. El segundo cambio reúne las lecturas del catálogo de arranque en un viaje,
+conservando el comprobador completo de RLS y ACL separada. Veintiséis pruebas diferenciales
+(psycopg/pg8000) comparan los mismos inputs con las cuatro lecturas originales, incluidos estados
+inseguros, propiedad, tablas ausentes y políticas de relaciones particionadas. Focal ampliado:
+78 aprobadas; frontera/listeners: 11 aprobadas; Workers: 9 API + 4 compatibilidad + 1 tareas;
+27 migraciones aprobadas sin cambios de schema. Metadata nativa completa: 97 tablas y 202
+índices idénticos, incluyendo el modelo de transferencias diferido. Las suites completas finales
+con ambos controladores están en ejecución. CI/publicación y medición remota pendientes;
+no se declara resuelta la demora fría.

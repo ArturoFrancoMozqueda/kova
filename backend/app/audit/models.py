@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import JSON, DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import Base
+from app.orm_metadata import Base
 
 
 class AuditLog(Base):
