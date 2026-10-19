@@ -1,7 +1,9 @@
 # Cola de pendientes internos
 
-Fecha: 2026-10-19. Estado: backend y UI implementados y validados localmente;
-publicación y aceptación de release pendientes. Complementa [atención postventa](../audits/KOVA-SERVICE-CASES-2026-10-19.md).
+Fecha: 2026-10-19. Estado: backend y UI publicados en `734f67fa` y aceptados a las 17:09:23 UTC;
+[evidencia pública y límites](../audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md). Complementa
+[atención postventa](../audits/KOVA-SERVICE-CASES-2026-10-19.md). Las specs conservan el contrato
+de implementación; el sprint y los informes de aceptación registran el estado de publicación.
 
 ## Problema y beneficio
 

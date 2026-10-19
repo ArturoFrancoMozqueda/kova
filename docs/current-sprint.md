@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-19
 
-## Cola operativa interna (2026-10-19, validada localmente)
+## Cola operativa interna (2026-10-19, publicada)
 
 La consulta privada `/api/v1/operations/queue` reúne casos activos, oportunidades con próxima acción,
 seguimientos pendientes y recordatorios vigentes disponibles de agenda. Dueño/gerente consultan
@@ -13,13 +13,19 @@ Validación focal: ocho pruebas con psycopg y ocho con pg8000; ocho pruebas de r
 incluyen lectura antes/después de resolver un caso. Frontend: 1,102 pruebas completas, 15 focales,
 cuatro recorridos responsivos con axe A/AA y un recorrido real de las cuatro fuentes con
 API/Postgres/RLS. TypeScript, ESLint, build SSR/prerender, escaneo de 119 JS y revisión independiente
-aprobados. Casos y cola se preparan juntos para PR #217; su publicación/aceptación sigue pendiente.
-El release de infraestructura `527c75d46f35891a56b5f0184196ced0be1b1263` aceptado a las 16:42:01 UTC
-publica agenda/lealtad anteriores, sin incluir aún casos/cola. No completa el horizonte E2E.
+aprobados. [PR #217](https://github.com/ArturoFrancoMozqueda/kova/pull/217) integrada y publicada
+en `734f67fa274f8b44c3883c87ba41c52ba85ecd4b`: el pipeline
+[39290153257](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39290153257) registró
+`accepted: true` a las 17:09:23 UTC y aplicó `0089 → 0090`. CI final: 1,766 pruebas backend y
+1,102 frontend aprobadas. El verificador público confirmó el SHA exacto en sitio/API/proxy y DB
+accesible; doce comprobaciones públicas Chromium a 1440/390 px aprobaron, sin errores JavaScript
+ni overflow y con APIs privadas 401/no-store. El primer acceso privado observado tardó 10 s;
+las siguientes vistas 0.4–1 s, y la API de cola tuvo respuestas de unos 10 s. No se acredita una
+sesión autenticada de negocio en producción ni el horizonte E2E completo.
 [Contrato](plans/PLAN-COLA-OPERATIVA-INTERNA.md) y
 [evidencia local](audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md).
 
-## Atención postventa interna (2026-10-19, validada localmente)
+## Atención postventa interna (2026-10-19, publicada)
 
 La continuación autorizada sin conectar cuentas incorpora `/service-cases`: casos por cliente y
 sucursal, venta/pedido con identidad verificable, responsables activos, notas append-only con autor,
@@ -29,8 +35,9 @@ las incidencias sencillas de `/crm/followups` permanecen disponibles sin migraci
 
 Fuente local final: 1,746 pruebas backend, 25 de migraciones y ocho de workerd aprobadas; frontend
 1,087 unitarias, QA Chromium responsiva y recorrido real navegador/API/Postgres con RLS. El artefacto
-compila y pasa el escaneo del bundle. Publicación/aceptación del release siguen pendientes; esta
-entrada no acredita funcionamiento autenticado en producción ni automatización E2E total.
+compila y pasa el escaneo del bundle. Publicada con la cola en `734f67fa` y migración `0090`,
+con la aceptación pública y límites descritos en la entrada anterior. Las operaciones de negocio
+autenticadas se probaron en entornos locales reales; esta entrada no acredita ese flujo en producción.
 [Entrega y límites](audits/KOVA-SERVICE-CASES-2026-10-19.md). La continuación de lectura está
 registrada en la entrada de cola operativa anterior.
 

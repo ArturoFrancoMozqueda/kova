@@ -1,8 +1,21 @@
-# Cola operativa interna: alcance y evidencia local
+# Cola operativa interna: alcance y aceptación
 
-Fecha: 2026-10-19. Estado: backend y UI implementados, congelados y validados localmente.
-CI, publicación y aceptación del release conservan sus gates propios. Este
-informe no acredita una sesión autenticada en producción ni completa la automatización E2E.
+Fecha: 2026-10-19. Estado: backend y UI publicados en `734f67fa274f8b44c3883c87ba41c52ba85ecd4b`.
+CI y publicación aprobaron en [39290153257](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39290153257),
+con `accepted: true` a las 17:09:23 UTC. Este informe no acredita una sesión autenticada en
+producción ni completa la automatización E2E.
+
+## Aceptación pública
+
+El log confirma la migración `0089 → 0090` y publicación de la API en 47.88 segundos.
+El verificador independiente confirmó el SHA exacto en sitio/API/proxy y base de datos accesible.
+Doce comprobaciones públicas Chromium a 1440/390 px aprobaron sin errores JavaScript ni overflow;
+casos y pendientes redirigen al login, y sus APIs devuelven 401 con no-store.
+El primer acceso privado observado tardó 9.97 segundos; las siguientes vistas tardaron 0.45–0.98 s.
+La API privada de cola aún mostró unos 10 segundos de respuesta. Son observaciones puntuales,
+no un SLA ni un benchmark; el arranque frío conserva coste de latencia.
+CI final aprobó 1,766 pruebas backend y 1,102 frontend. No se usaron credenciales de clientes
+ni se realizaron operaciones del negocio en producción.
 
 ## Entrega
 
@@ -70,11 +83,10 @@ los checks de CI, publicación y aceptación del release.
   cancelación y descarte de respuestas tardías, descarte offline/error, enlaces permitidos,
   zona empresarial validada y fallback UTC explícito, sin totales o vencimientos inferidos.
 
-No se realizaron pruebas ni escrituras en producción. Estos resultados locales no acreditan la
-publicación de casos ni cola. El release de infraestructura aceptado a las 16:42:01 UTC corresponde
-al commit `527c75d46f35891a56b5f0184196ced0be1b1263` (PR #216), con verificación pública de SHA;
-publica los cortes previos de agenda/lealtad, pero todavía no incluye atención postventa ni cola.
-Ambos módulos se preparan juntos en PR #217; su publicación/aceptación sigue pendiente.
+Estos resultados funcionales proceden de entornos locales aislados. La aceptación pública se
+registra al inicio de este informe y verifica disponibilidad y accesos privados sin operaciones
+autenticadas de negocio. El release previo `527c75d46f35891a56b5f0184196ced0be1b1263` (PR #216)
+publicó agenda/lealtad; casos y cola se incorporaron juntos en PR #217 y release `734f67fa`.
 
 ## Fuentes y pendientes
 
