@@ -33,6 +33,9 @@ def test_create_app_keeps_validation_order_and_records_only_static_phases(monkey
     for name in GUARDS:
         monkeypatch.setattr(main, name, lambda name=name: calls.append(name))
     original = main._construct_app
+    # Other RBAC tests deliberately append private probe routes to main.app.
+    # Compare fresh app instances so their shared global fixture cannot affect this check.
+    reference = original()
 
     def construct():
         calls.append("construction")
@@ -48,9 +51,9 @@ def test_create_app_keeps_validation_order_and_records_only_static_phases(monkey
         "app.private_acl",
         "app.construction",
     ]
-    assert {route.path for route in app.routes} == {route.path for route in main.app.routes}
+    assert {route.path for route in app.routes} == {route.path for route in reference.routes}
     assert [middleware.cls for middleware in app.user_middleware] == [
-        middleware.cls for middleware in main.app.user_middleware
+        middleware.cls for middleware in reference.user_middleware
     ]
 
 
