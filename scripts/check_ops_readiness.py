@@ -131,7 +131,7 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
         "-X POST",
         "X-Internal-Key: $INTERNAL_API_KEY",
         "--data '{\"tenant_limit\":100,\"periods_per_tenant\":31}'",
-        "https://pos-project-backend.fly.dev/api/v1/fiscal/internal/global-drafts/auto-close",
+        "https://api.kovasuite.com/api/v1/fiscal/internal/global-drafts/auto-close",
         'if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then',
         "'tenants_examined'",
         "'batches_created'",

@@ -26,4 +26,4 @@ jobs:
             --retry 3 --retry-all-errors \
             -X POST \
             -H "X-Internal-Key: $INTERNAL_API_KEY" \
-            https://pos-project-backend.fly.dev/api/v1/account/internal/deletions/purge
+            https://api.kovasuite.com/api/v1/account/internal/deletions/purge

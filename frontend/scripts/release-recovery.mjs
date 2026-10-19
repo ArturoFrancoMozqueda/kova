@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import path from "node:path";
 import { verifyDeployment } from "./verify-deployment.mjs";
 import { cloudflareProvider, validateCloudflareVersion } from "./cloudflare-provider.mjs";
+import { cloudflareBackendProvider, validateBackendVersions } from "./cloudflare-backend-provider.mjs";
 
 const RECOVERY_PHASES = new Set(["candidate", "promotion", "acceptance"]);
 const FULL_SHA = /^[0-9a-f]{40}$/i;
@@ -45,9 +46,11 @@ export function validateRollbackArtifact(input) {
   const releaseSha = String(input.releaseSha ?? "");
   const flyImage = String(input.flyImage ?? "").trim();
   if (!FULL_SHA.test(releaseSha)) throw new Error("rollback artifact has no valid release SHA");
-  if (!flyImage) throw new Error("rollback artifact has no Fly image");
+  if (!flyImage && input.cloudflareBackendVersions === undefined) throw new Error("rollback artifact has no Fly image");
   productionHostname(String(input.frontendUrl ?? ""));
   return {
+    ...(input.cloudflareBackendVersions !== undefined
+      ? { cloudflareBackendVersions: validateBackendVersions(input.cloudflareBackendVersions) } : {}),
     ...(input.cloudflareVersion !== undefined
       ? { cloudflareVersion: validateCloudflareVersion(input.cloudflareVersion) } : {}),
     releaseSha,
@@ -66,6 +69,12 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
   // Validate every target before the first mutation. A partial/empty capture
   // must stop recovery and keep the incident visible rather than guessing.
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
+    throw new Error("Cloudflare backend recovery requires captured rollback versions");
+  }
+  if (artifact.cloudflareBackendVersions && typeof provider.restoreCloudflareBackend !== "function") {
+    throw new Error("Cloudflare backend recovery requires its configured provider");
+  }
   const restored = [];
 
   try {
@@ -79,8 +88,13 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
       await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
       restored.push("vercel");
     }
-    await provider.restoreFly(artifact.flyImage);
-    restored.push("fly");
+    if (artifact.cloudflareBackendVersions) {
+      await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions);
+      restored.push("cloudflare-backend");
+    } else {
+      await provider.restoreFly(artifact.flyImage);
+      restored.push("fly");
+    }
     const verification = await verify({
       frontendUrl: artifact.frontendUrl,
       backendUrl: artifact.backendUrl,
@@ -134,12 +148,15 @@ export function runProviderCommand(command, args, options = {}) {
 
 export function cliProvider({ globalConfig, run = runProviderCommand, env = process.env } = {}) {
   if (!env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
-  if (!env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
+  if (env.KOVA_CLOUDFLARE_BACKEND !== "1" && !env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
   const npx = resolveNpxCommand();
   const flyctl = process.platform === "win32" ? "flyctl.exe" : "flyctl";
   const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../backend");
   const cloudflare = cloudflareProvider({ run, env });
+  const backend = cloudflareBackendProvider({ run, env });
   return {
+    requiresCloudflareBackend: Boolean(backend),
+    ...(backend ? { restoreCloudflareBackend: backend.restore } : {}),
     ...(cloudflare ? { restoreCloudflare: cloudflare.restore } : {}),
     async restoreVercel(deployment, frontendUrl) {
       const hostname = productionHostname(frontendUrl);

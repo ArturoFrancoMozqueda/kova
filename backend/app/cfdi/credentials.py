@@ -1,9 +1,13 @@
 """Encrypt organization keys with authenticated tenant/environment binding."""
 
 import json
+import sys
 from uuid import UUID
 
-from cryptography.fernet import Fernet, InvalidToken
+if sys.platform == "emscripten":
+    from app.workers.crypto import Fernet, InvalidToken
+else:
+    from cryptography.fernet import Fernet, InvalidToken
 
 from app.config import settings
 

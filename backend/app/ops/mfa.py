@@ -6,6 +6,7 @@ import hmac
 import io
 import re
 import secrets
+import sys
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -66,9 +67,17 @@ def _qr_data_url(uri: str) -> str:
     )
     qr.add_data(uri)
     qr.make(fit=True)
-    image = qr.make_image(fill_color="black", back_color="white")
+    if sys.platform == "emscripten":
+        from qrcode.image.pure import PyPNGImage
+
+        image = qr.make_image(image_factory=PyPNGImage)
+    else:
+        image = qr.make_image(fill_color="black", back_color="white")
     output = io.BytesIO()
-    image.save(output, format="PNG")
+    if sys.platform == "emscripten":
+        image.save(output)
+    else:
+        image.save(output, format="PNG")
     encoded = base64.b64encode(output.getvalue()).decode("ascii")
     return f"data:image/png;base64,{encoded}"
 

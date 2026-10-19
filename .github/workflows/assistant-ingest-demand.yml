@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   activate:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.KOVA_CLOUDFLARE_BACKEND != '1'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production

@@ -1,0 +1,29 @@
+[project]
+name="kova-cloudflare-backend"
+version="0.0.1"
+requires-python=">=3.14"
+dependencies = [
+    "fastapi==0.136.1",
+    "sqlalchemy==2.0.49",
+    "pg8000==1.31.5",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.14.2",
+    "bcrypt==5.0.0",
+    "pyjwt==2.15.1",
+    "email-validator==2.3.0",
+    "sentry-sdk[fastapi]==2.59.0",
+    "resend==2.30.0",
+    "upstash-redis==1.7.0",
+    "upstash-ratelimit==1.1.0",
+    "openpyxl==3.1.5",
+    "defusedxml==0.7.1",
+    "pyotp==2.10.0",
+    "qrcode==8.2",
+    "pypdf==6.10.0",
+    "pypng==0.20220715.0",
+    "httpx==0.28.1",
+    "boto3==1.43.108",
+    "asn1crypto==1.5.1",
+    "workers-runtime-sdk==1.9.4",
+    "tzdata==2026.5",
+]

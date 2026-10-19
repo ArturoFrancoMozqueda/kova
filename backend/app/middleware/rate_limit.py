@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import math
+import sys
 import time
 from collections import defaultdict
 from ipaddress import ip_address
@@ -205,6 +206,11 @@ def _get_backend() -> _RateLimiterBackend:
         return _backend
     with _backend_lock:
         if _backend is not None:
+            return _backend
+        if sys.platform == "emscripten":
+            from app.workers.rate_limit import WorkersRateLimiter
+
+            _backend = WorkersRateLimiter()
             return _backend
         url = settings.upstash_redis_rest_url
         token = settings.upstash_redis_rest_token

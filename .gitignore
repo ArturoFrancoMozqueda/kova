@@ -286,3 +286,4 @@ workspace/
 
 # Cloudflare build artifacts, generated types and local runtime state
 .cloudflare/
+.wrangler/

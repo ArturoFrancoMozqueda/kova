@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 from collections.abc import AsyncGenerator, Generator
 from weakref import WeakKeyDictionary
 
@@ -8,7 +9,9 @@ from fastapi import Depends
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
+import app.workers.postgres  # noqa: F401 — driver-specific error contract hook
 from app.config import settings, sqlalchemy_database_url
 
 logger = logging.getLogger(__name__)
@@ -205,16 +208,33 @@ def set_tenant_context(db: Session, tenant_id: object) -> None:
         )
 
 
+def _pool_options(*, privileged: bool = False) -> dict:
+    if sys.platform == "emscripten":
+        from app.workers.postgres import connect_binding
+
+        # Hyperdrive owns the upstream pool. A connection opened by one Workers
+        # request must never be retained for a different request's I/O context.
+        return {
+            "poolclass": NullPool,
+            # Read binding coordinates inside each invocation, never retain
+            # a Hyperdrive connection string from another request.
+            "creator": lambda: connect_binding(privileged=privileged),
+        }
+    return {
+        "pool_size": 2 if privileged else settings.database_pool_size,
+        "max_overflow": 2 if privileged else settings.database_max_overflow,
+        "pool_timeout": settings.database_pool_timeout,
+        "pool_recycle": settings.database_pool_recycle_seconds,
+    }
+
+
 # Runtime application engine. Connects as the least-privilege `kova_app` role
 # (when app_database_url is configured) so RLS tenant_isolation policies are
 # enforced for every ordinary request.
 engine = create_engine(
     sqlalchemy_database_url(settings.effective_app_database_url),
     pool_pre_ping=True,
-    pool_size=settings.database_pool_size,
-    max_overflow=settings.database_max_overflow,
-    pool_timeout=settings.database_pool_timeout,
-    pool_recycle=settings.database_pool_recycle_seconds,
+    **_pool_options(),
     hide_parameters=True,
     future=True,
 )
@@ -230,10 +250,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 privileged_engine = create_engine(
     sqlalchemy_database_url(settings.effective_migration_database_url),
     pool_pre_ping=True,
-    pool_size=2,
-    max_overflow=2,
-    pool_timeout=settings.database_pool_timeout,
-    pool_recycle=settings.database_pool_recycle_seconds,
+    **_pool_options(privileged=True),
     hide_parameters=True,
     future=True,
 )
@@ -467,7 +484,7 @@ def assert_rls_active() -> None:
             policy_rows = conn.execute(
                 text(
                     "SELECT c.relname, p.polname, p.polpermissive, p.polcmd, "
-                    "p.polroles, p.polqual IS NOT NULL, p.polwithcheck IS NOT NULL, "
+                    "p.polroles::bigint[], p.polqual IS NOT NULL, p.polwithcheck IS NOT NULL, "
                     "pg_get_expr(p.polqual, p.polrelid), "
                     "pg_get_expr(p.polwithcheck, p.polrelid) "
                     "FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid "

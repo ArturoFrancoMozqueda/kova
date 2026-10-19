@@ -30,7 +30,7 @@ class WorkflowContractTests(unittest.TestCase):
         scheduler_curl = (
             'curl -X POST -H "X-Internal-Key: $INTERNAL_API_KEY" '
             "--data '{\"tenant_limit\":100,\"periods_per_tenant\":31}' "
-            "https://pos-project-backend.fly.dev/api/v1/fiscal/internal/"
+            "https://api.kovasuite.com/api/v1/fiscal/internal/"
             "global-drafts/auto-close"
         )
         required = (

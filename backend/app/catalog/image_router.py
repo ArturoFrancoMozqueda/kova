@@ -1,13 +1,16 @@
 import io
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response
-from PIL import Image
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+if sys.platform != "emscripten":
+    from PIL import Image
 
 from app.audit import service as audit_service
 from app.auth.models import Membership, User, UserSession
@@ -29,6 +32,10 @@ ALLOWED_RESIZE_WIDTHS = {160, 320, 400, 800}
 def _resize_to_width(data: bytes, content_type: str, target_width: int) -> tuple[bytes, str]:
     """Resize image to target_width preserving aspect ratio, output as WebP.
     Returns original bytes if image is already smaller, or on any error."""
+    # Preserve the existing original-file fallback in Workers. Its WebAssembly
+    # image catalog predates the application's decoder security floor.
+    if sys.platform == "emscripten":
+        return data, content_type
     try:
         with Image.open(io.BytesIO(data)) as img:
             if img.width <= target_width:

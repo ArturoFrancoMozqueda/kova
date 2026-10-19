@@ -124,9 +124,16 @@ def cleanup(db, tenant, user):
     db.commit()
 
 
-def process_once(*, workload="all") -> int:
+def process_once(*, workload="all", tenant_id=None, maximum_jobs=None) -> int:
     if workload not in {"all", "chat", "ingest"}:
         raise ValueError("invalid assistant workload")
+    tenants = cohort()
+    if tenant_id is not None:
+        if tenant_id not in tenants:
+            raise ValueError("tenant is outside the assistant cohort")
+        tenants = (tenant_id,)
+    if maximum_jobs is not None and (type(maximum_jobs) is not int or maximum_jobs < 1):
+        raise ValueError("maximum_jobs must be a positive integer")
     kinds = (("run", "document") if workload == "all"
              else ("document",) if workload == "ingest" else ("run",))
     processed = 0
@@ -142,7 +149,7 @@ def process_once(*, workload="all") -> int:
         )
         control.execute(text("DELETE FROM assistant_control.slots WHERE expires_at<now()"))
         control.commit()
-    for tenant in cohort():
+    for tenant in tenants:
         if storage.tenant_deleted(tenant):
             continue
         with SessionLocal() as db:
@@ -196,6 +203,8 @@ def process_once(*, workload="all") -> int:
                     if not ready:
                         continue
                     processed += int(process_job(db, user, member, job))
+                    if maximum_jobs is not None and processed >= maximum_jobs:
+                        return processed
                 if workload == "ingest":
                     continue
                 pref = repo.records(db, tenant, user.id, "preferences").populate_existing().first()
