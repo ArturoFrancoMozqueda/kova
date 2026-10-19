@@ -89,6 +89,49 @@ test("missing Cloudflare readiness support fails before creating a candidate", a
   }), /readiness verification/);
 });
 
+const backendVersions = Object.fromEntries(["kova-backend-jobs", "kova-backend", "kova-backend-gateway"]
+  .map(name => [name, "dcad4869-ba1d-43d4-865b-66349697bd7c"]));
+
+test("Cloudflare waits for the new backend before verifying or promoting the candidate", async () => {
+  const fake = fixture();
+  fake.provider.requiresCloudflareBackend = true;
+  fake.provider.waitForPublicBackend = async input => {
+    assert.deepEqual(input, { backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha });
+    fake.calls.push("backend-ready");
+  };
+  await release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions }, sha, ...fake });
+  assert.deepEqual(fake.calls, ["candidate", "fly", "backend-ready", "verify", "promote", "acceptance"]);
+});
+
+test("missing backend readiness support blocks publication and recovery before mutations", async () => {
+  const captured = { ...artifact, cloudflareBackendVersions: backendVersions };
+  await assert.rejects(release({ artifact: captured, sha,
+    provider: { requiresCloudflareBackend: true, createCandidate: assert.fail } }), /readiness verification/);
+  await assert.rejects(recoverRelease({ phase: "candidate", artifact: captured,
+    provider: { requiresCloudflareBackend: true, restoreCloudflareBackend: assert.fail },
+    verify: assert.fail }), /readiness verification/);
+});
+
+test("failed backend readiness restores and waits for the exact old backend before verification", async () => {
+  const fake = fixture();
+  fake.provider.requiresCloudflareBackend = true;
+  fake.provider.restoreCloudflareBackend = async versions => {
+    assert.deepEqual(versions, backendVersions);
+    fake.calls.push("restore-backend");
+  };
+  fake.provider.waitForPublicBackend = async input => {
+    if (input.sha === sha) {
+      fake.calls.push("new-readiness-failed");
+      throw new Error("new backend did not propagate");
+    }
+    assert.deepEqual(input, { backendUrl: artifact.backendUrl, sha: artifact.releaseSha, previousSha: sha });
+    fake.calls.push("restored-ready");
+  };
+  await assert.rejects(release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions },
+    sha, ...fake }), /RELEASE_FAILED_RECOVERED/);
+  assert.deepEqual(fake.calls, ["candidate", "fly", "new-readiness-failed", "restore-backend", "restored-ready", "restored"]);
+});
+
 test("missing capture or SHA fails before creating a candidate", async () => {
   for (const input of [{ artifact: { ...artifact, flyImage: "" }, sha },
     { artifact, sha: "short" }]) {
