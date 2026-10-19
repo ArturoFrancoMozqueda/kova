@@ -1,17 +1,46 @@
 import base64
 from datetime import datetime
-from workers import WorkerEntrypoint, Response
-from app.workers.crypto import Fernet, AESGCM, InvalidToken
-from app.cfdi.certificates import validate_csd, CsdValidationError
+
+from workers import Response, WorkerEntrypoint
+
+from app.cfdi.certificates import CsdValidationError, validate_csd
+from app.workers.crypto import AESGCM, Fernet, InvalidToken
 
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
+        from urllib.parse import urlparse
+
+        if urlparse(request.url).path == "/asgi-stream":
+            from app.workers.asgi import RequestCoordinator
+
+            async def app(scope, receive, send):
+                if scope["type"] != "http":
+                    return
+                try:
+                    await send({"type": "http.response.start", "status": 200,
+                                "headers": [(b"content-type", b"text/plain")]})
+                    await send({"type": "http.response.body", "body": b"first",
+                                "more_body": True})
+                    await send({"type": "http.response.body", "body": b"second",
+                                "more_body": True})
+                    await send({"type": "http.response.body", "body": b"",
+                                "more_body": False})
+                finally:
+                    await self.env.ASSISTANT_STORAGE.put("asgi-test-cleanup", "done")
+
+            async def application(env):
+                return app
+
+            return await RequestCoordinator().fetch(application, request, self.env, self.ctx)
         fixtures = await request.json()
-        from app.billing.stripe_client import (
-            StripePriceClient, StripePriceError, StripeSubscriptionClient,
-        )
         from urllib.error import HTTPError
+
+        from app.billing.stripe_client import (
+            StripePriceClient,
+            StripePriceError,
+            StripeSubscriptionClient,
+        )
 
         # Exercise the real provider client through the WASM Fetch transport,
         # with all external traffic intercepted by the test-only boundary.
@@ -34,9 +63,10 @@ class Default(WorkerEntrypoint):
             idempotency_key="synthetic-idempotency-key",
         )
         assert subscription == {"id": "worker-subscription", "cancel_at_period_end": True}
+        from botocore.exceptions import BotoCoreError, ClientError
+
         from app.workers.context import environment
         from app.workers.storage import R2Client
-        from botocore.exceptions import BotoCoreError, ClientError
 
         context = environment.set(self.env)
         try:
@@ -133,6 +163,7 @@ class Default(WorkerEntrypoint):
         # Schedule delivery immediately before returning, so the transport
         # must retain its task across the HTTP invocation boundary.
         from sentry_sdk.envelope import Envelope
+
         from app.observability.sentry import sanitize_sentry_event
         from app.workers.context import execution
         from app.workers.sentry import WorkersTransport

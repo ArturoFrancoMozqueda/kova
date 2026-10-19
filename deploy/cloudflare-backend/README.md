@@ -8,7 +8,12 @@ behind a small JavaScript HTTP gateway. This retains production bcrypt cost with
 the Durable Objects compute budget. PostgreSQL remains authoritative for sessions,
 RLS, billing, transactions and offline/idempotent writes; no business tables move
 to SQLite. A hash of the cookie and route chooses a coordinator and grants no
-permissions. Independent dashboard routes can run without sharing one serial queue.
+permissions. Each coordinator serializes synchronous I/O through ASGI dependency
+cleanup. One-chunk JSON/bytes responses wrapped by HTTP middleware retain buffered
+SDK handling; genuine streams retain backpressure and release admission through a
+retained completion task. Locks remain local to each Durable Object's I/O context.
+Unknown paths outside the API/health/root routes return 404 at the JavaScript edge
+without starting Python or opening database connections.
 Cloudflare negotiates response compression; the native-only gzip middleware is
 omitted in Workers to avoid double-encoding large JSON through the ASGI adapter.
 

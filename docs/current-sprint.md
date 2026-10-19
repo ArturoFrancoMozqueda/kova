@@ -1,13 +1,18 @@
 # Current Sprint
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
-## Cloudflare Free backend migration (2026-10-17, in progress)
+## Cloudflare Free backend migration (2026-10-18, public cutover reverted)
 
 El propietario autorizó migrar Fly y eligió mantener Free posponiendo documentos.
-Se prepara la API FastAPI existente en coordinadores Durable Objects y un gateway
+La API FastAPI existente se sirve en coordinadores Durable Objects y un gateway
 HTTP pequeño, con Postgres en Supabase, Hyperdrive sin caché y un Worker de tareas
-sin conexión privilegiada. No hay cambio público de API todavía.
+sin conexión privilegiada. El intento de corte público se revirtió a Fly al fallar
+la aceptación real: sesión/panel y `/health/db` presentaron errores intermitentes
+de conexión de unos 15 segundos, pese a las comprobaciones iniciales satisfactorias.
+El frontend permanece en Cloudflare y la API pública vuelve a Fly; se canceló
+`39183665551` y `KOVA_CLOUDFLARE_BACKEND=0` evita promover el candidato automáticamente.
+Las capturas de DNS, versiones exactas y máquinas se conservan fuera del repositorio.
 
 Validación local: 1,516 pruebas completas con pg8000; registro/verificación/login,
 cookies seguras, CSRF, aislamiento de tenants, venta offline repetida sin duplicar,
@@ -17,9 +22,26 @@ El PDF contable se renderizó idéntico al actual. Las nuevas opciones de lote d
 asistente aprobaron otras 91 pruebas enfocadas con el controlador de Workers.
 CI añade la suite completa del nuevo controlador y las pruebas del runtime.
 
-Faltan aceptación desplegada (recursos reales de Free y sesión del propietario),
-integración de publicación/recuperación, corte de `api.kovasuite.com` y detención
-reversible de Fly. No declarar el backend migrado antes de completar esos pasos.
+PR #201 y #202 integradas: publicación/recuperación de los tres Workers, R2 nativo,
+distribución de lecturas del panel y compresión del edge. El propietario y Browser
+validaron login, panel, recarga con renovación de sesión y logout en el candidato.
+Se corrigió además HTTPS de Stripe/conectores: una prueba desplegada sin credenciales
+reales confirmó el transporte Fetch; 72 pruebas enfocadas y nueve comprobaciones de
+Workers aprobaron. No se crearon cobros ni cambios de suscripciones durante la validación.
+
+Browser confirmó acceso con la cuenta de prueba, panel/sucursales y recarga tras
+restaurar la versión pública `ec883ea`. Fly permanece encendido. El candidato continúa
+aislado en `backend-preview.kovasuite.com` / `api-preview.kovasuite.com`.
+
+Bloqueo actual: corregir y volver a validar el I/O síncrono concurrente en Python,
+incluyendo el cierre de transacciones después de iniciar una respuesta ASGI en streaming.
+La corrección candidata retiene la admisión por coordinador hasta terminar ASGI,
+conserva JSON de un solo bloque como respuesta completa y descargas como streams.
+El gateway rechaza rutas ajenas a la API antes de iniciar Python. Once pruebas
+nativas enfocadas y doce comprobaciones de Workers aprobaron, incluyendo tres
+ráfagas de seis sesiones entre dos negocios. Falta validar la corrección desplegada.
+Faltan pruebas repetidas autenticadas e inactivas del candidato, nueva aceptación pública,
+publicación automática completa y, solo después, detención reversible de Fly.
 [Arquitectura, pruebas y límites](../deploy/cloudflare-backend/README.md).
 
 ## Cloudflare Free frontend cutover (2026-10-17)

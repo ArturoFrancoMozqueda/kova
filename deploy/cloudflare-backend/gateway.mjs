@@ -4,6 +4,16 @@ import { createHash } from "node:crypto";
 
 export default {
   async fetch(request, env) {
+    const path = new URL(request.url).pathname;
+    if (path !== "/" && !path.startsWith("/api/v1/")
+        && path !== "/health" && path !== "/health/"
+        && path !== "/health/db" && path !== "/health/db/") {
+      // Unknown public paths must not initialize Python or open database
+      // connections. All application routes live under these prefixes.
+      return Response.json({ detail: "Not Found" }, {
+        status: 404, headers: { "Cache-Control": "private, no-store, max-age=0" },
+      });
+    }
     const headers = new Headers(request.headers);
     // This entrypoint is reached through Cloudflare's edge. Never trust a
     // caller-provided forwarding/IP header as a rate-limit identity.
@@ -14,7 +24,7 @@ export default {
     const identity = headers.get("cookie") || "anonymous";
     // Parallel dashboard reads should not queue behind every other endpoint
     // for the same cookie. This hint still grants no identity or permissions.
-    const shard = createHash("sha256").update(`${identity}\n${new URL(request.url).pathname}`).digest()[0] % 16;
+    const shard = createHash("sha256").update(`${identity}\n${path}`).digest()[0] % 16;
     try {
       const started = performance.now();
       const response = await env.API.getByName(`api-${shard}`).fetch(

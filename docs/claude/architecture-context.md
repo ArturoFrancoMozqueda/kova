@@ -9,15 +9,27 @@ Arquitectura vigente:
   persistidas y cookies HttpOnly. Supabase Auth no forma parte del runtime.
 - Billing: Stripe subscriptions.
 - Frontend hosting: Cloudflare Workers Static Assets (Workers Free).
-- Frontend API proxy: Worker de Cloudflare conserva `/api` en el mismo origen y reenvía a Fly,
+- Frontend API proxy: Worker de Cloudflare conserva `/api` en el mismo origen y reenvía a FastAPI en Fly,
   sin caché de respuestas privadas ni credenciales de base de datos en el Worker.
 - Vercel permanece como candidato de publicación y respaldo durante la transición; el pipeline
   publica sus mismos archivos estáticos validados en Cloudflare y captura la versión anterior
-  del Worker para revertir antes de recuperar Vercel/Fly.
-- Backend hosting: Fly.io.
+  del Worker para revertir antes de recuperar Vercel.
+- Backend hosting público: Fly. El candidato aislado en Cloudflare Workers Free distribuye por cookie y ruta entre
+  16 coordinadores Python/Durable Objects; las sesiones, permisos, RLS y escrituras se resuelven
+  siempre en PostgreSQL mediante Hyperdrive sin caché. SQLite no almacena tablas del negocio.
+- Tareas del asistente en el candidato: Worker privado con alarmas, rol runtime y leases de PostgreSQL; no recibe
+  conexión de propietario, claves Stripe ni raíces de MFA.
+- Almacenamiento privado: binding al bucket R2 existente, conservando claves de objetos,
+  comprobaciones de negocios eliminados, propiedad y retención. Nuevas cargas e ingesta de
+  documentos permanecen desactivadas por elección del propietario para mantener Workers Free.
+- HTTP externo en Workers: httpx usa Fetch para TLS; el adaptador conserva los contratos urllib
+  de Stripe y conectores. La compresión de respuestas la negocia el edge.
+- El corte público a Cloudflare se revirtió tras errores intermitentes de conexión/sesión.
+  Fly conserva el tráfico principal hasta corregir y aceptar el candidato.
 
-La migración de frontend del 2026-10-17 no traslada FastAPI, Postgres ni la ingesta aislada a
-Cloudflare. Configuración, límites y recuperación: [`../../deploy/cloudflare/README.md`](../../deploy/cloudflare/README.md).
+El traslado del backend del 2026-10-18 mantiene Supabase/Postgres, Stripe y los demás proveedores.
+El estado de aceptación y corte se registra en [`../current-sprint.md`](../current-sprint.md).
+Configuración y límites: [`../../deploy/cloudflare-backend/README.md`](../../deploy/cloudflare-backend/README.md).
 
 ## Safety boundaries
 
