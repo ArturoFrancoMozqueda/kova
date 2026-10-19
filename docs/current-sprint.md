@@ -25,6 +25,14 @@ de Windows omitida), 39 escenarios de backend, 41 contratos de scripts y 14
 comprobaciones completas en Workers. La aceptación remota se registra en la PR
 y el run de CI/publicación del commit de esta retirada.
 
+## Continuación operativa E2E (2026-10-19)
+
+El propietario autorizó continuar con agentes y verificar el despliegue en producción.
+Agenda interna por recurso/sucursal y lealtad opt-in del propietario incorporan UI, API,
+migraciones, RLS, permisos mínimos y exportación/purga. Recordatorios y beneficios permanecen
+internos/manuales; ningún canal externo se activa.
+[Alcance, validación y límites](audits/KOVA-E2E-OPERATIONS-2026-10-19.md).
+
 ## Active E2E implementation (2026-10-18)
 
 El propietario autorizó el merge y continuación sin conectar cuentas. Primera entrega integrada en
