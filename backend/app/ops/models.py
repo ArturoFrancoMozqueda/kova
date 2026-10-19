@@ -20,7 +20,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import Base
+from app.orm_metadata import Base
 
 NOTE_ENTITY_TYPES = ("incident", "tenant", "general")
 NOTE_STATUSES = ("open", "resolved", "archived")

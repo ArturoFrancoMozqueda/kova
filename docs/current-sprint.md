@@ -18,7 +18,12 @@ Perfil local: 2,171 → 1,213 ms de importación (~44% menos). La comprobación 
 aproximadamente 10 s del acceso frío. PR #219 fue aceptada a las 18:00:50 UTC con SHA
 `1f12c4baf8a9` y migración 0091. La medición pública dio 32/32 contratos correctos, pero mediana
 de primeras peticiones directas 8.45 s frente a 0.35 s en repeticiones; no está resuelto. Se prepara
-instrumentación por fases sin cambiar validaciones. Validación:
+instrumentación por fases sin cambiar validaciones. PR #220 fue aceptada (SHA `50c6749725b6`)
+a las 18:32:33 UTC: suite completa 1,808 aprobada, contratos públicos 32/32 y verificador estricto
+aprobados, pero primeras directas siguen con mediana 8.26 s frente a 0.22 s al repetir.
+Los tiempos de fases tienen el límite de reloj por I/O de Workers; no acreditan CPU nulo ni
+permiten atribuir todo el intervalo a consultas. Sigue una optimización de snapshot puro y viajes
+de catálogo RLS, todavía sin aceptación productiva. Validación de la entrega funcional #219:
 backend completo final 1,800; automatizaciones 25 por controlador y dos
 migraciones; GET 18 por controlador; frontend completo 1,124, focal 79, browser 16 y real uno;
 build/121 JS, Workers 9+4+1 y 27 migraciones completas aprobados. Suite backend final sin errores/fallos/omitidas (146 s).
