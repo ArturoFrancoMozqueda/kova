@@ -1,9 +1,20 @@
-# Atención postventa interna: entrega local
+# Atención postventa interna: entrega y aceptación
 
 Fecha: 2026-10-19, America/Mexico_City. El propietario autorizó continuar la automatización con
 agentes y avanzar sin conectar cuentas externas. Estado de este informe: implementación y QA
-locales finalizadas; CI, merge y aceptación del release se registran por separado. No acredita
-producción ni cierre del horizonte E2E completo.
+locales finalizadas y publicación aceptada con los límites siguientes. No declara cerrado el
+horizonte E2E completo.
+
+## Aceptación pública
+
+[PR #217](https://github.com/ArturoFrancoMozqueda/kova/pull/217) integrada; release
+`734f67fa274f8b44c3883c87ba41c52ba85ecd4b` aceptado a las 17:09:23 UTC del 2026-10-19 en
+[CI/publicación](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39290153257).
+El log confirma la migración `0089 → 0090`. Verificación independiente: sitio, API, proxy y DB
+accesibles con identidad exacta. Doce observaciones públicas de casos/cola a 1440/390 px aprobaron:
+rutas privadas al login, APIs 401/no-store, sin errores JavaScript ni overflow.
+CI final aprobó 1,766 pruebas backend y 1,102 frontend. No se usaron sesiones de clientes ni se
+escribieron datos del negocio en producción; los recorridos autenticados se verificaron localmente.
 
 ## Resultado para el negocio
 
