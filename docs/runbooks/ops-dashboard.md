@@ -13,13 +13,12 @@ un segundo cálculo que pueda divergir de Kova Ops.
 
 ## Access
 
-1. Generate two different MFA secrets and configure them together with the
-   single verified founder identity on `pos-project-backend`:
-   ```
-   python -c "import secrets; print(secrets.token_urlsafe(48))"
-   # Run the command twice. Never reuse SECRET_KEY or either generated value.
-   flyctl secrets set INTERNAL_ADMIN_EMAILS="ceo@kovasuite.com" INTERNAL_ADMIN_USER_ID="<user-uuid>" INTERNAL_OPS_MFA_ROOT_KEY="<root-value>" INTERNAL_OPS_MFA_ENROLLMENT_KEY="<second-value>" -a pos-project-backend
-   ```
+1. Configure the two existing, distinct MFA secrets and the single verified
+   founder identity as sealed secrets on the Cloudflare `kova-backend` Worker:
+   `INTERNAL_ADMIN_EMAILS`, `INTERNAL_ADMIN_USER_ID`, `INTERNAL_OPS_MFA_ROOT_KEY`
+   and `INTERNAL_OPS_MFA_ENROLLMENT_KEY`. Keep values outside chat, source,
+   command arguments and logs. Do not rotate the migrated keys during routine
+   deployment; changing the MFA root changes the founder's TOTP seed.
    Outside local development, startup fails closed unless both values are present
    and there is exactly one email; an enabled Ops module also requires an MFA root
    and enrollment key of at least 32 characters. An empty identity configuration
@@ -57,16 +56,17 @@ re-enrollment. Never send either server secret through chat, logs or source cont
 
 Every integration degrades gracefully: with no token it shows **Sin configurar**
 (`not_configured`); on an API error it shows **Degradado** (`degraded`). The
-dashboard is fully useful on Kova DB + Stripe data alone. Set these as Fly
-secrets to light up the technical panel and richer incidents.
+dashboard is fully useful on Kova DB + Stripe data alone. Configure optional
+credentials as sealed secrets on the Cloudflare API Worker. Fly was permanently
+retired on 2026-10-19; its historical response key always reports `not_configured`
+and cannot be reactivated with stale credentials.
 
 | Setting | Where to generate | Minimum scope |
 |---|---|---|
 | `SENTRY_API_TOKEN` + `SENTRY_ORG_SLUG` + `SENTRY_PROJECT_SLUG` (+ `SENTRY_FRONTEND_PROJECT_SLUG`) | Sentry → Settings → Auth Tokens (org token) | `org:read`, `project:read`, `event:read` |
-| `FLY_API_TOKEN` (+ `FLY_APP_NAME`, default `pos-project-backend`) | `flyctl tokens create org` or Fly dashboard | read access to the app |
 | `VERCEL_API_TOKEN` + `VERCEL_TEAM_ID` + `VERCEL_PROJECT_ID` | Vercel → Account → Tokens | read access to project deployments |
 | `UPTIMEROBOT_API_KEY` | UptimeRobot → My Settings → API | Main or Read-Only key |
-| `GIT_SHA` | set automatically by CI on Fly deploy (`--env GIT_SHA=<sha>`) | — |
+| `KOVA_BUILD_SHA` | versioned public text binding set by Cloudflare CI | — |
 
 IDs for the services above are recorded in `docs/service-audit.md`.
 
@@ -84,10 +84,8 @@ within ≤30s) so polling never hammers the external APIs.
 
 ## Known limitations (by design)
 
-- **Fly logs**: Fly exposes machine state and release metadata, but **no
-  historical log-query API** — live logs stream over NATS (`fly logs`). The
-  trace view therefore offers a deep link to the Fly monitoring dashboard, not
-  an in-app log search. A log shipper would be needed for queryable history.
+- **Retired provider**: `fly_logs` is retained as a historical trace key with
+  status `retired`. It does not issue provider requests or offer live links.
 - **Sentry search**: event-level (Discover) search is a paid feature. We use
   *issue* search by the `request_id` tag (available on all plans), which only
   finds requests that produced a captured error.
@@ -95,10 +93,9 @@ within ≤30s) so polling never hammers the external APIs.
   trace resolves only via Sentry + deep links. Local correlation is by
   tenant/user/stripe_event/time. `sources_queried` in the response states
   exactly what was and wasn't queried.
-- **In-memory cache**: valid while Fly runs a single machine
-  (`min_machines_running=1`, autoscale off — current config). If the backend
-  scales horizontally, move the cache to Upstash (credentials already optional
-  in settings).
+- **In-memory cache**: short-lived and local to each Cloudflare coordinator.
+  It is not shared across coordinators or used as authoritative business data.
+
 
 ## Scope / safety
 
