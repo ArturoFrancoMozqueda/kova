@@ -26,10 +26,18 @@ vi.mock("./BusinessHealthCard", () => ({ BusinessHealthCard: () => null }));
 vi.mock("./InsightStrip", () => ({ InsightStrip: () => null }));
 
 import { getBusinessStory, getSalesByHour, getSalesSummary } from "@/reports/api";
+import { listProducts } from "@/catalog/api";
+import { listLowStock, listStock } from "@/inventory/api";
+import { getBillingSubscription } from "@/billing/api";
+import { getOnboardingState } from "@/onboarding/api";
+import { getBusinessProfile, listEmployees, type BusinessProfile } from "@/settings/api";
+import { listClosedShifts } from "@/shifts/api";
 import DashboardView from "./DashboardView";
 import { summaryFromStory } from "./storyAdapters";
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(getBusinessProfile).mockResolvedValue({ timezone: "America/Mexico_City" } as BusinessProfile);
   vi.mocked(getBusinessStory).mockReset();
   vi.mocked(getSalesByHour).mockResolvedValue([]);
   vi.mocked(getSalesSummary).mockResolvedValue(null as never);
@@ -37,6 +45,39 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("DashboardView period changes", () => {
+  it("starts independent reads before the timezone resolves, while reports use the tenant's day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-08T06:30:00Z"));
+    let resolveProfile!: (profile: BusinessProfile) => void;
+    vi.mocked(getBusinessProfile).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveProfile = resolve;
+    }));
+    vi.mocked(getBusinessStory).mockResolvedValue(makeStory());
+    render(<MemoryRouter><DashboardView /></MemoryRouter>);
+    for (const read of [listProducts, listStock, listLowStock, getBillingSubscription,
+      getOnboardingState, listEmployees, listClosedShifts]) {
+      expect(read).toHaveBeenCalledOnce();
+    }
+    expect(getBusinessStory).not.toHaveBeenCalled();
+    expect(getSalesByHour).not.toHaveBeenCalled();
+    expect(getSalesSummary).not.toHaveBeenCalled();
+    await act(async () => resolveProfile({ timezone: "America/Tijuana" } as BusinessProfile));
+    await screen.findByTestId("net-sales");
+    expect(getBusinessStory).toHaveBeenCalledWith("2026-10-07", "2026-10-07");
+    expect(getSalesByHour).toHaveBeenCalledWith("2026-10-07", "2026-10-07");
+    expect(getSalesSummary).toHaveBeenCalledWith("2026-10-06", "2026-10-06");
+  });
+
+  it("retains the default timezone if the profile is unavailable", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-08T06:30:00Z"));
+    vi.mocked(getBusinessProfile).mockRejectedValueOnce(new Error("unavailable"));
+    vi.mocked(getBusinessStory).mockResolvedValue(makeStory());
+    render(<MemoryRouter><DashboardView /></MemoryRouter>);
+    await screen.findByTestId("net-sales");
+    expect(getBusinessStory).toHaveBeenCalledWith("2026-10-08", "2026-10-08");
+  });
+
   it("labels every supported payment method in Spanish in the dashboard legend", async () => {
     vi.mocked(getBusinessStory).mockResolvedValue(makeStory({ payment_mix: [
       { method: "cash", amount: "10.00", refunded_amount: "0.00", net_amount: "10.00", payment_count: 1, sales_share_pct: 33 },
