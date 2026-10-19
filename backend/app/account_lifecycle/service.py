@@ -127,6 +127,29 @@ _EXPORT_TABLES = (
     ExportTable("crm_catalog_requests", _columns(
         "id tenant_id branch_id catalog_id name contact message product_ids status "
         "customer_id opportunity_id version created_at resolved_at")),
+    ExportTable("appointment_resources", _columns(
+        "id tenant_id branch_id name timezone is_active version created_at updated_at")),
+
+    ExportTable("appointments", _columns(
+        "id tenant_id branch_id resource_id customer_id title starts_at ends_at note "
+        "status version created_by_user_id created_at updated_at")),
+
+    ExportTable("appointment_history", _columns(
+        "id tenant_id branch_id appointment_id appointment_version action status "
+        "starts_at ends_at note actor_user_id created_at")),
+
+    ExportTable("appointment_reminders", _columns(
+        "id tenant_id branch_id appointment_id appointment_version status due_at "
+        "version created_at resolved_at")),
+
+    ExportTable("loyalty_policy_revisions", _columns(
+        "id tenant_id branch_id version enabled spend_amount points_per_step "
+        "authorized_by_user_id effective_at")),
+
+    ExportTable("loyalty_entries", _columns(
+        "id tenant_id branch_id customer_id sale_order_id policy_revision_id kind "
+        "source_id points benefit recorded_by_user_id created_at")),
+
     ExportTable("crm_followup_policies", _columns(
         "id tenant_id branch_id enabled review_delay_days rebuy_delay_days version "
         "authorized_by_user_id enabled_since updated_at")),
@@ -457,6 +480,12 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "appointment_reminders",
+    "appointment_history",
+    "appointments",
+    "appointment_resources",
+    "loyalty_entries",
+    "loyalty_policy_revisions",
     "messaging_channel_events",
     "messaging_messages",
     "messaging_conversations",

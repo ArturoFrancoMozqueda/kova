@@ -1,6 +1,14 @@
 # Current Sprint
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
+
+## Continuación operativa E2E (2026-10-19)
+
+El propietario autorizó continuar con agentes y verificar el despliegue en producción.
+Agenda interna por recurso/sucursal y lealtad opt-in del propietario incorporan UI, API,
+migraciones, RLS, permisos mínimos y exportación/purga. Recordatorios y beneficios permanecen
+internos/manuales; ningún canal externo se activa.
+[Alcance, validación y límites](audits/KOVA-E2E-OPERATIONS-2026-10-19.md).
 
 ## Active E2E implementation (2026-10-18)
 

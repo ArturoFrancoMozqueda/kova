@@ -125,6 +125,12 @@ BEGIN
             ('business_events', 'SELECT, INSERT'),
             ('crm_opportunities', 'SELECT, INSERT, UPDATE'),
             ('crm_catalog_requests', 'SELECT, INSERT'),
+            ('appointment_resources', 'SELECT, INSERT'),
+            ('appointments', 'SELECT, INSERT'),
+            ('appointment_history', 'SELECT, INSERT'),
+            ('appointment_reminders', 'SELECT, INSERT'),
+            ('loyalty_policy_revisions', 'SELECT, INSERT'),
+            ('loyalty_entries', 'SELECT, INSERT'),
             ('crm_followup_policies', 'SELECT, INSERT'),
             ('crm_followup_tasks', 'SELECT, INSERT'),
             ('messaging_channel_bindings', 'SELECT'),
@@ -235,6 +241,15 @@ DO $$ BEGIN
             ON crm_followup_policies TO kova_app;
         GRANT UPDATE(status, note, due_at, assigned_user_id, version, resolved_at)
             ON crm_followup_tasks TO kova_app;
+    END IF;
+    IF to_regclass('public.appointment_resources') IS NOT NULL THEN
+        GRANT UPDATE(name, is_active, version, updated_at) ON appointment_resources TO kova_app;
+    END IF;
+    IF to_regclass('public.appointments') IS NOT NULL THEN
+        GRANT UPDATE(starts_at, ends_at, note, status, version, updated_at) ON appointments TO kova_app;
+    END IF;
+    IF to_regclass('public.appointment_reminders') IS NOT NULL THEN
+        GRANT UPDATE(status, version, resolved_at) ON appointment_reminders TO kova_app;
     END IF;
     IF to_regclass('public.messaging_conversations') IS NOT NULL THEN
         GRANT UPDATE(customer_id, status, automation_paused, assigned_user_id,

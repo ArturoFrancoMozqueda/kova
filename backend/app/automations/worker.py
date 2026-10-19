@@ -20,6 +20,8 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
     from app.automations.models import AutomationRule
     from app.crm.engagement import process_due_followups
     from app.crm.engagement_models import FollowupPolicy
+    from app.loyalty.models import LoyaltyPolicyRevision
+    from app.loyalty.service import process as process_loyalty
     from app.messaging.models import Message
     from app.messaging.service import recover_uncertain
 
@@ -34,6 +36,8 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
                     AutomationRule.tenant_id == tenant_id)),
                 Branch.id.in_(select(FollowupPolicy.branch_id).where(
                     FollowupPolicy.tenant_id == tenant_id)),
+                Branch.id.in_(select(LoyaltyPolicyRevision.branch_id).where(
+                    LoyaltyPolicyRevision.tenant_id == tenant_id)),
                 Branch.id.in_(select(Message.branch_id).where(
                     Message.tenant_id == tenant_id, Message.state == "sending")),
             ))
@@ -47,6 +51,7 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
             # Recovery is branch-scoped too, including branches with no rule or
             # post-sale policy. Never retry an external effect automatically.
             recover_uncertain(db, tenant_id=tenant_id, limit=limit)
+            loyalty = process_loyalty(db, tenant_id, limit=limit)
             db.commit()
-            processed += result["processed"] + followups
+            processed += result["processed"] + followups + loyalty
     return processed

@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 import app.assistant.events  # noqa: F401
 from app.account_lifecycle.router import router as account_lifecycle_router
+from app.appointments.router import router as appointments_router
 from app.assistant.access import assert_private_policies
 from app.assistant.ingest_demand import lifespan as assistant_ingest_lifespan
 from app.assistant.router import router as assistant_router
@@ -38,6 +39,7 @@ from app.imports.router import router as imports_router
 from app.integrations.router import router as integrations_router
 from app.inventory.lot_router import router as inventory_lot_router
 from app.inventory.router import router as inventory_router
+from app.loyalty.router import router as loyalty_router
 from app.messaging.router import router as messaging_router
 from app.middleware.body_size import BodySizeLimitMiddleware
 from app.middleware.csrf import csrf_middleware
@@ -242,6 +244,8 @@ def create_app() -> FastAPI:
     app.include_router(crm_router)
     app.include_router(crm_engagement_router)
     app.include_router(messaging_router)
+    app.include_router(appointments_router)
+    app.include_router(loyalty_router)
     app.include_router(storefront_router)
     app.include_router(assistant_router)
     app.include_router(billing_router)
