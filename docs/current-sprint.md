@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-18
 
-## Cloudflare Free backend migration (2026-10-18, corrected public cutover)
+## Cloudflare Free backend migration (2026-10-18, accepted)
 
 El propietario autorizó migrar Fly y eligió mantener Free posponiendo documentos.
 La API FastAPI existente se sirve en coordinadores Durable Objects y un gateway
@@ -62,7 +62,22 @@ solo si el frontend muestra la versión anterior capturada. Los errores HTTP y v
 inesperadas siguen bloqueando. Las fallas de aceptación y recuperación conservan ambas
 causas para diagnóstico. Validación local: 17 pruebas nativas enfocadas, 49 contratos
 de publicación aprobados (una comprobación exclusiva de Windows omitida) y 12 pruebas
-de Workers. Falta aceptar una publicación automática con esta corrección antes de detener Fly.
+de Workers. La prueba remota aislada revirtió exactamente una versión con identidad de texto
+sin omitir controles de secretos; el Worker temporal fue eliminado.
+
+Aceptación final: PR #204 integrada y publicación automática aprobada en
+[`39188579781`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39188579781),
+fuente `62aafb648cf70abf36336f89706a44cd4fbb25d9`. Una caída de Chromium por SIGSEGV
+al crear un contexto requirió repetir únicamente el trabajo de navegador y sus dependencias;
+las pruebas y criterios de aceptación se conservaron. El contrato público exacto de
+frontend/API/proxy/Postgres aprobó también desde DNS normal tras la publicación.
+
+Fly: las cinco máquinas de `pos-project-backend` quedaron detenidas y las dos máquinas
+de API tienen `autostart=false`. No se destruyeron máquinas ni direcciones; las capturas
+de imágenes/configuración, DNS y versiones de Cloudflare permanecen disponibles para
+recuperación fuera del repositorio. El contrato público volvió a aprobar después del apagado,
+y Browser conservó la sesión y el panel completo al actualizar los archivos definitivos.
+Con Fly detenido se verificaron también logout y redirección al acceso de una ruta privada.
 [Arquitectura, pruebas y límites](../deploy/cloudflare-backend/README.md).
 
 ## Cloudflare Free frontend cutover (2026-10-17)
