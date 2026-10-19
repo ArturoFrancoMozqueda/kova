@@ -4,6 +4,21 @@ const telemetry = [];
 export default {
   async fetch(request) {
     const url = new URL(request.url);
+    if (url.hostname === "api.stripe.com") {
+      if (request.headers.get("Authorization") !== "Bearer synthetic-test-only") {
+        return Response.json({ error: { code: "invalid_test_credential" } }, { status: 401 });
+      }
+      if (request.method === "GET" && url.pathname === "/v1/prices/worker-valid") {
+        return Response.json({ id: "worker-valid", active: true });
+      }
+      if (request.method === "POST" && url.pathname === "/v1/subscriptions/worker-subscription"
+          && request.headers.get("Idempotency-Key") === "synthetic-idempotency-key"
+          && request.headers.get("Content-Type") === "application/x-www-form-urlencoded"
+          && await request.text() === "cancel_at_period_end=true") {
+        return Response.json({ id: "worker-subscription", cancel_at_period_end: true });
+      }
+      return Response.json({ error: { code: "resource_missing" } }, { status: 404 });
+    }
     if (url.hostname === "sentry.test" && request.method === "POST") {
       // Delivery completes after the API response, exercising waitUntil/FFI
       // ownership rather than only an immediately fulfilled mock fetch.
