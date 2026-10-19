@@ -2,6 +2,23 @@
 
 Last updated: 2026-10-19
 
+## Cola operativa interna (2026-10-19, validada localmente)
+
+La consulta privada `/api/v1/operations/queue` reúne casos activos, oportunidades con próxima acción,
+seguimientos pendientes y recordatorios vigentes disponibles de agenda. Dueño/gerente consultan
+su sucursal con billing y RLS; cuatro SELECT acotados devuelven hasta 20 filas por sección y
+`has_more`, sin total inferido. No agrega escrituras, migraciones, procesamiento ni canales.
+
+Validación focal: ocho pruebas con psycopg y ocho con pg8000; ocho pruebas de runtime workerd
+incluyen lectura antes/después de resolver un caso. Frontend: 1,102 pruebas completas, 15 focales,
+cuatro recorridos responsivos con axe A/AA y un recorrido real de las cuatro fuentes con
+API/Postgres/RLS. TypeScript, ESLint, build SSR/prerender, escaneo de 119 JS y revisión independiente
+aprobados. Casos y cola se preparan juntos para PR #217; su publicación/aceptación sigue pendiente.
+El release de infraestructura `527c75d46f35891a56b5f0184196ced0be1b1263` aceptado a las 16:42:01 UTC
+publica agenda/lealtad anteriores, sin incluir aún casos/cola. No completa el horizonte E2E.
+[Contrato](plans/PLAN-COLA-OPERATIVA-INTERNA.md) y
+[evidencia local](audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md).
+
 ## Atención postventa interna (2026-10-19, validada localmente)
 
 La continuación autorizada sin conectar cuentas incorpora `/service-cases`: casos por cliente y
@@ -14,8 +31,8 @@ Fuente local final: 1,746 pruebas backend, 25 de migraciones y ocho de workerd a
 1,087 unitarias, QA Chromium responsiva y recorrido real navegador/API/Postgres con RLS. El artefacto
 compila y pasa el escaneo del bundle. Publicación/aceptación del release siguen pendientes; esta
 entrada no acredita funcionamiento autenticado en producción ni automatización E2E total.
-[Entrega y límites](audits/KOVA-SERVICE-CASES-2026-10-19.md). El siguiente corte pequeño propuesto,
-aún sin implementar, es la [cola de pendientes internos](plans/PLAN-COLA-OPERATIVA-INTERNA.md).
+[Entrega y límites](audits/KOVA-SERVICE-CASES-2026-10-19.md). La continuación de lectura está
+registrada en la entrada de cola operativa anterior.
 
 ## Permanent Fly retirement (2026-10-19)
 

@@ -25,8 +25,9 @@ vigente ni activa capacidades diferidas o proveedores.
 Actualización de ejecución, 2026-10-19: atención postventa interna está implementada y validada
 localmente con UI/API, migración aditiva, RLS y notas inmutables con autor. No acredita publicación
 ni cierra el horizonte E2E. [Entrega de atención](audits/KOVA-SERVICE-CASES-2026-10-19.md).
-La [cola de pendientes internos](plans/PLAN-COLA-OPERATIVA-INTERNA.md) es el siguiente contrato
-pequeño propuesto, todavía sin implementación; no reemplaza los gates activos del release.
+La [cola de pendientes internos](plans/PLAN-COLA-OPERATIVA-INTERNA.md) tiene backend y UI implementados
+y validados localmente. Su alcance de lectura y
+[evidencia](audits/KOVA-OPERATIONS-QUEUE-2026-10-19.md) no reemplazan los gates activos del release.
 
 Deferred scope lives in `docs/deferred-scope.md`.
 

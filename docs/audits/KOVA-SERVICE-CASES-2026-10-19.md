@@ -72,11 +72,11 @@ desde canales externos, respuestas/entrega de mensajes, avisos de vencimiento y 
 compensaciones de dominio y relación explícita entre conversación, tarea sencilla y caso. Tampoco
 se atribuye una recompra o satisfacción al cierre de un caso.
 
-Existe trabajo independiente de cuentas: concentrar pendientes que hoy se consultan en vistas
-separadas. Se propone una [cola operativa interna de sólo lectura](../plans/PLAN-COLA-OPERATIVA-INTERNA.md)
-con evidencia de casos, oportunidades, seguimiento y agenda. Todavía no tiene código, migración
-ni endpoint; necesita cerrar su contrato y aceptación antes de pasar a ejecución.
+La continuación independiente de cuentas ya incorpora el backend de la
+[cola operativa interna de sólo lectura](../plans/PLAN-COLA-OPERATIVA-INTERNA.md), con fuentes de
+casos, oportunidades, seguimiento y agenda. Endpoint y pruebas locales están implementados sin
+migraciones; la UI también está validada localmente. [Evidencia y límites](KOVA-OPERATIONS-QUEUE-2026-10-19.md).
 
 Crédito/cartera, recetas/KDS, voz, firma, cursos y franquicias siguen requiriendo dominios propios.
 WhatsApp/Meta, correo del dominio, PSP y PAC conservan sus dependencias de configuración y
-aceptación reales. No son requisitos para revisar los pendientes internos propuestos.
+aceptación reales. No son requisitos para consultar la cola interna implementada localmente.

@@ -171,6 +171,16 @@ describe("existing API inside Python Durable Objects", () => {
     const serviceCase = await created.json();
     expect(serviceCase.overdue).toBe(true);
     expect((await other(`/api/v1/service-cases/${serviceCase.id}`)).status).toBe(404);
+    const queueResponse = await owner("/api/v1/operations/queue");
+    expect(queueResponse.status).toBe(200);
+    const queue = await queueResponse.json();
+    expect(queue.sections).toHaveLength(4);
+    expect(queue.sections.find(section => section.source === "service_cases").items).toEqual([
+      expect.objectContaining({ source_id: serviceCase.id, state: "open", overdue: true,
+        route_key: "service_cases", version: 1 }),
+    ]);
+    const otherQueue = await (await other("/api/v1/operations/queue")).json();
+    expect(otherQueue.sections.every(section => section.items.length === 0)).toBe(true);
     const noted = await write(`/api/v1/service-cases/${serviceCase.id}/notes`, "POST", {
       expected_version: 1, note: "Se revisó con el responsable",
     });
@@ -181,6 +191,8 @@ describe("existing API inside Python Durable Objects", () => {
     });
     expect(resolved.status).toBe(200);
     expect(await resolved.json()).toMatchObject({ status: "resolved", version: 3, overdue: false });
+    const resolvedQueue = await (await owner("/api/v1/operations/queue")).json();
+    expect(resolvedQueue.sections.find(section => section.source === "service_cases").items).toEqual([]);
     const events = await (await owner(`/api/v1/service-cases/${serviceCase.id}/events`)).json();
     expect(events.items).toHaveLength(3);
     expect(events.items.map(event => event.case_version).sort()).toEqual([1, 2, 3]);

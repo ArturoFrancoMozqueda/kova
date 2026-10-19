@@ -9198,6 +9198,136 @@
         "title": "OperatingExpenseReport",
         "type": "object"
       },
+      "OperationsQueueItem": {
+        "properties": {
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "boolean"
+          },
+          "route_key": {
+            "enum": [
+              "service_cases",
+              "crm",
+              "followups",
+              "appointments"
+            ],
+            "title": "Route Key",
+            "type": "string"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "in_progress",
+              "reopened",
+              "new",
+              "contacted",
+              "proposal",
+              "pending"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source_id",
+          "title",
+          "customer_name",
+          "state",
+          "version",
+          "due_at",
+          "overdue",
+          "route_key"
+        ],
+        "title": "OperationsQueueItem",
+        "type": "object"
+      },
+      "OperationsQueueResponse": {
+        "properties": {
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsQueueSection"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generated_at",
+          "sections"
+        ],
+        "title": "OperationsQueueResponse",
+        "type": "object"
+      },
+      "OperationsQueueSection": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OperationsQueueItem"
+            },
+            "maxItems": 20,
+            "title": "Items",
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "service_cases",
+              "opportunities",
+              "followups",
+              "appointment_reminders"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "items",
+          "has_more"
+        ],
+        "title": "OperationsQueueSection",
+        "type": "object"
+      },
       "OperationsSummary": {
         "properties": {
           "orders_24h": {
@@ -27004,6 +27134,27 @@
         "summary": "Get State",
         "tags": [
           "onboarding"
+        ]
+      }
+    },
+    "/api/v1/operations/queue": {
+      "get": {
+        "operationId": "queue_api_v1_operations_queue_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsQueueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Queue",
+        "tags": [
+          "operations-queue"
         ]
       }
     },

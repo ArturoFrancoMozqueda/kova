@@ -48,6 +48,7 @@ from app.modifiers.router import router as modifiers_router
 from app.observability.logging import configure_logging, request_context_middleware
 from app.observability.sentry import init_sentry
 from app.onboarding.router import router as onboarding_router
+from app.operations_queue.router import router as operations_queue_router
 from app.ops.mfa_router import router as ops_mfa_router
 from app.ops.router import router as ops_router
 from app.orders.router import router as orders_router
@@ -248,6 +249,7 @@ def create_app() -> FastAPI:
     app.include_router(appointments_router)
     app.include_router(loyalty_router)
     app.include_router(service_cases_router)
+    app.include_router(operations_queue_router)
     app.include_router(storefront_router)
     app.include_router(assistant_router)
     app.include_router(billing_router)

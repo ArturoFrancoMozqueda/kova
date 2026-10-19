@@ -37,7 +37,8 @@ acotados ya tienen contratos y validación local; las antiguas listas de deferra
 El alcance especializado de citas/lealtad, promociones, campañas, compensaciones automáticas y
 operación completa por giro sigue diferido. [Atención implementada y gates del release](
 audits/KOVA-SERVICE-CASES-2026-10-19.md). La [cola de pendientes internos](
-plans/PLAN-COLA-OPERATIVA-INTERNA.md) es sólo la siguiente propuesta; no se presenta implementada.
+plans/PLAN-COLA-OPERATIVA-INTERNA.md) tiene backend y UI implementados y validados localmente; su
+publicación queda pendiente. Este corte no amplía los dominios especializados.
 
 The closed beta should focus on a reliable bakery / small food retail POS.
 
