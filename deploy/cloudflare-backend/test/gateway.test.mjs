@@ -5,7 +5,7 @@ import gateway, { coordinatorShard } from "../gateway.mjs";
 test("dependent dashboard reads reuse the session coordinator with at most four lanes per cookie", () => {
   const groups = new Set();
   const chain = ["/api/v1/auth/session", "/api/v1/auth/refresh", "/api/v1/auth/logout",
-    "/api/v1/settings/business-profile", "/api/v1/reports/business-story",
+    "/api/v1/settings/business-profile", "/api/v1/reports/business-story", "/api/v1/reports/dashboard",
     "/api/v1/reports/sales-summary", "/api/v1/reports/sales-by-hour"];
   const parallel = ["/api/v1/catalog/products", "/api/v1/inventory/stock",
     "/api/v1/inventory/low-stock", "/api/v1/onboarding/state", "/api/v1/employees",

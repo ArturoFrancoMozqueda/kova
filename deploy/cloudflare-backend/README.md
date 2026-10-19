@@ -21,6 +21,13 @@ without starting Python or opening database connections.
 Cloudflare negotiates response compression; the native-only gzip middleware is
 omitted in Workers to avoid double-encoding large JSON through the ASGI adapter.
 
+The dashboard uses `GET /api/v1/reports/dashboard?period=day|week|month` to compose
+its existing real reports and context in one request-scoped session. It retains
+the reports commercial/role gate, selected branch, tenant timezone and separate
+billing/employee permissions. Inventory is read once; catalog and closed shifts
+provide counts without modifier or drawer-finance hydration. Responses are never
+cached. An explicit 404 alone permits the old individual reads during rollback.
+
 `kova-backend` has separate Hyperdrive runtime/privileged bindings. Both disable SQL
 caching and use TLS to the direct Supabase endpoint (without chaining Supavisor).
 Each connection reads its binding inside the current invocation. `kova-backend-jobs` has only

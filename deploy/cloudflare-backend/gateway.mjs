@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 
 const dashboardChain = new Set([
   "/api/v1/settings/business-profile", "/api/v1/reports/business-story",
-  "/api/v1/reports/sales-summary", "/api/v1/reports/sales-by-hour",
+  "/api/v1/reports/sales-summary", "/api/v1/reports/sales-by-hour", "/api/v1/reports/dashboard",
 ]);
 const parallelLanes = new Map([
   ["/api/v1/catalog/products", 1], ["/api/v1/onboarding/state", 1],

@@ -231,6 +231,13 @@ describe("existing API inside Python Durable Objects", () => {
     const replay = await owner("/api/v1/sync/offline-sales", { method: "POST", body: payload });
     expect(replay.status).toBe(200);
     expect((await replay.json()).results[0].order_id).toBe(sale.order_id);
+    const overviewResponse = await owner("/api/v1/reports/dashboard?period=week");
+    expect(overviewResponse.status).toBe(200);
+    expect(overviewResponse.headers.get("Cache-Control")).toContain("no-store");
+    const overview = await overviewResponse.json();
+    expect(overview).toMatchObject({ active_catalog_count: 1, active_employee_count: 1,
+      onboarding: { tenant_id: identity.tenant_id }, story: { summary: { net_sales: "37.00" } } });
+    expect((await (await other("/api/v1/reports/dashboard")).json()).active_catalog_count).toBe(0);
     expect((await owner("/api/v1/auth/refresh", { method: "POST" })).status).toBe(200);
     expect((await owner("/api/v1/auth/me")).status).toBe(200);
     expect((await (await owner("/api/v1/auth/session")).json()).authenticated).toBe(true);

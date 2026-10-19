@@ -19,6 +19,10 @@ Arquitectura vigente:
   del panel reutilizan un coordinador; las otras lecturas mantienen tres vías paralelas.
   Las sesiones, permisos, RLS y escrituras se resuelven
   siempre en PostgreSQL mediante Hyperdrive sin caché. SQLite no almacena tablas del negocio.
+- El panel agrupa informes y contexto en `GET /api/v1/reports/dashboard` con una sesión
+  por petición. Reutiliza las definiciones existentes, zona horaria y sucursal; mantiene
+  la autorización comercial y los permisos separados de facturación y personal.
+  Un 404 permite las lecturas anteriores durante recuperación; otros errores no activan ese camino.
 - Tareas del asistente: Worker privado con alarmas, rol runtime y leases de PostgreSQL; no recibe
   conexión de propietario, claves Stripe ni raíces de MFA.
 - Almacenamiento privado: binding al bucket R2 existente, conservando claves de objetos,
