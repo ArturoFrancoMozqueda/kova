@@ -17,7 +17,9 @@ export async function waitForBackendRelease({ backendUrl, sha, previousSha,
   const deadline = now() + 20_000;
   for (let attempt = 0; attempt < 20 && now() < deadline; attempt++) {
     const response = await fetcher(url, {
-      signal: globalThis.AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - now()))),
+      // Python's first healthy invocation can exceed five seconds after idle.
+      // Share the overall deadline rather than timing out a cold start early.
+      signal: globalThis.AbortSignal.timeout(Math.max(1, deadline - now())),
       headers: { "cache-control": "no-cache" },
     });
     if (!response.ok) throw new Error(`Backend readiness failed: HTTP ${response.status}`);

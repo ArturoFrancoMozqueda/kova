@@ -87,6 +87,23 @@ test("backend propagation also respects a wall-clock deadline", async () => {
   assert.equal(clock, 20_000);
 });
 
+test("a cold Python health request receives the remaining overall deadline", async t => {
+  let clock = 0;
+  let calls = 0;
+  const timeouts = [];
+  t.mock.method(globalThis.AbortSignal, "timeout", ms => {
+    timeouts.push(ms);
+    return new globalThis.AbortController().signal;
+  });
+  await waitForBackendRelease({ backendUrl: artifact.backendUrl, sha,
+    previousSha: "b".repeat(40), now: () => clock,
+    wait: async ms => { clock += ms; },
+    fetcher: async () => globalThis.Response.json({ status: "ok",
+      release_sha: ++calls === 1 ? "b".repeat(40) : sha }),
+  });
+  assert.deepEqual(timeouts, [20_000, 19_500]);
+});
+
 test("backend deployment is opt-in and credentials are required before any command", () => {
   assert.equal(cloudflareBackendProvider({ env: {}, run: assert.fail }), undefined);
   assert.throws(() => cloudflareBackendProvider({ env: { KOVA_CLOUDFLARE_BACKEND: "1" } }), /credentials/);
