@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -184,7 +185,11 @@ def create_app() -> FastAPI:
     # 1 KB when the client negotiates it. Registered before the http
     # middlewares so it runs innermost: it compresses the route response while
     # body-size/csrf/security-headers keep their existing (outer) ordering.
-    app.add_middleware(GZipMiddleware, minimum_size=1024)
+    # Workers' ASGI response adapter uses automatic Fetch body encoding. Sending
+    # already-gzipped bytes through it compresses the payload twice. Let the
+    # Cloudflare edge negotiate compression; native HTTP servers retain gzip.
+    if sys.platform != "emscripten":
+        app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.middleware("http")(security_headers_middleware)
     app.middleware("http")(csrf_middleware)
     app.middleware("http")(request_context_middleware)

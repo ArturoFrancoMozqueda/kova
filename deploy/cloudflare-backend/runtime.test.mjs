@@ -88,6 +88,13 @@ describe("existing API inside Python Durable Objects", () => {
     expect(me.status).toBe(200);
     const identity = await me.json();
     expect(identity.user.email_verified).toBe(true);
+    // Real browsers negotiate gzip. Reports exceed the native middleware's
+    // threshold and must still arrive as readable JSON after Fetch encoding.
+    const story = await owner("/api/v1/reports/business-story", {
+      headers: { "Accept-Encoding": "gzip" },
+    });
+    expect(story.status).toBe(200);
+    expect((await story.json()).summary).toMatchObject({ net_sales: "0.00" });
     // A configured private bucket must work in Python Workers, including the
     // fail-closed tombstone check that runs before assistant access.
     expect((await owner("/api/v1/assistant/capabilities")).status).toBe(200);

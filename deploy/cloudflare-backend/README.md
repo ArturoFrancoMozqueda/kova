@@ -9,6 +9,8 @@ the Durable Objects compute budget. PostgreSQL remains authoritative for session
 RLS, billing, transactions and offline/idempotent writes; no business tables move
 to SQLite. A hash of the cookie and route chooses a coordinator and grants no
 permissions. Independent dashboard routes can run without sharing one serial queue.
+Cloudflare negotiates response compression; the native-only gzip middleware is
+omitted in Workers to avoid double-encoding large JSON through the ASGI adapter.
 
 `kova-backend` has separate Hyperdrive runtime/privileged bindings. Both disable SQL
 caching and use TLS to the direct Supabase endpoint (without chaining Supavisor).
