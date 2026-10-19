@@ -64,6 +64,8 @@ Las matrices de pruebas agregan entidades/columnas autorizadas sin relajar deneg
 - Backend completo después de integrar main: 1,693 pruebas aprobadas, tres advertencias, 152.36 s.
   Las 55 de mensajería se repitieron después de ajustar exclusivamente nombres de schemas OpenAPI.
   Los cinco casos de migración/grants modificados se repitieron también con fuente final, aprobados.
+- Cotizaciones: 19 pruebas finales aprobadas, incluida una respuesta idempotente persistida con el
+  contrato anterior al campo oportunidad. El campo opcional vacío no altera esa huella histórica.
 - Los paths OpenAPI anteriores permanecen estructuralmente idénticos. Sólo QuoteCreate/QuoteResponse
   agregan el vínculo opcional de oportunidad. Los schemas de bandeja usan nombres propios para
   conservar intactas las referencias del asistente y autenticación.

@@ -97,7 +97,10 @@ def _serialize(db, row):
 def _request(db, tenant_id, key, operation, body):
     if not key or not key.strip() or len(key) > 200:
         raise bad_request("Idempotency-Key debe contener entre 1 y 200 caracteres")
-    fingerprint = hashlib.sha256(f"quote:{operation}:{body.model_dump_json()}".encode()).hexdigest()
+    # An absent opportunity must preserve request identities created before
+    # attribution existed, including retries that cross a deployment boundary.
+    canonical = body.model_dump_json(exclude_none=True)
+    fingerprint = hashlib.sha256(f"quote:{operation}:{canonical}".encode()).hexdigest()
     replay = idempotency.claim(db, tenant_id=tenant_id, key=key, request_hash=fingerprint)
     return fingerprint, replay
 

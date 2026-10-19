@@ -1,14 +1,42 @@
 """Attribution uses explicit links and never treats a pipeline stage as payment."""
 
+import hashlib
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 
+from app.idempotency.models import IdempotencyKey
+from app.idempotency.service import _branch_request_hash
+from app.quotes.models import CustomerQuote
+from app.quotes.schemas import QuoteCreate
 from app.tests.test_crm import create as create_opportunity
 from app.tests.test_customer_orders import _confirm, _seed, _signup_login
 from app.tests.test_quotes import action, create, setup
 
 pytestmark = pytest.mark.usefixtures("fast_business_auth")
+
+
+def test_pre_attribution_quote_retry_keeps_the_original_response_across_upgrade(client, db):
+    tenant, customer, product = setup(client, db)
+    payload = {
+        "customer_id": customer["id"],
+        "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+        "items": [{"product_id": product["id"], "quantity": 1}],
+    }
+    key = str(uuid4())
+    first = client.post("/api/v1/quotes", json=payload, headers={"Idempotency-Key": key})
+    assert first.status_code == 201, first.text
+    # Reproduce the persisted request identity of the previous deployed contract.
+    old_body = QuoteCreate(**payload).model_dump_json(exclude={"opportunity_id"})
+    old_hash = hashlib.sha256(f"quote:create:{old_body}".encode()).hexdigest()
+    stored = db.query(IdempotencyKey).filter_by(tenant_id=tenant, key=key).one()
+    stored.request_hash = _branch_request_hash(db, tenant, old_hash)
+    db.commit()
+    replay = client.post("/api/v1/quotes", json=payload, headers={"Idempotency-Key": key})
+    assert replay.status_code == 201, replay.text
+    assert replay.json() == first.json()
+    assert db.query(CustomerQuote).filter_by(tenant_id=tenant).count() == 1
 
 
 def test_quote_journey_tracks_only_explicit_sale_and_recorded_payments(client, db):
