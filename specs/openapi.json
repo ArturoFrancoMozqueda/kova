@@ -93,6 +93,125 @@
         "title": "AnonymousTelemetrySessionResponse",
         "type": "object"
       },
+      "ApprovePurchase": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovedItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "supplier_id": {
+            "format": "uuid",
+            "title": "Supplier Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "supplier_id",
+          "items"
+        ],
+        "title": "ApprovePurchase",
+        "type": "object"
+      },
+      "ApprovedItem": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_version": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Evidence Version",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 2147483647.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit_cost": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Unit Cost"
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity",
+          "unit_cost",
+          "evidence_version"
+        ],
+        "title": "ApprovedItem",
+        "type": "object"
+      },
+      "AutomationOverview": {
+        "properties": {
+          "capabilities": {
+            "$ref": "#/components/schemas/app__automations__schemas__Capabilities"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleResponse"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/RunResponse"
+            },
+            "title": "Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rules",
+          "runs"
+        ],
+        "title": "AutomationOverview",
+        "type": "object"
+      },
+      "BatchResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "row_count",
+          "created_at"
+        ],
+        "title": "BatchResponse",
+        "type": "object"
+      },
       "BillingAccessResponse": {
         "properties": {
           "allowed": {
@@ -1164,6 +1283,139 @@
         "title": "CatalogImportRow",
         "type": "object"
       },
+      "CatalogSettings": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Product Ids",
+            "type": "array"
+          },
+          "share_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Path"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "whatsapp_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Phone"
+          }
+        },
+        "required": [
+          "enabled",
+          "title",
+          "description",
+          "whatsapp_phone",
+          "product_ids",
+          "version",
+          "share_path"
+        ],
+        "title": "CatalogSettings",
+        "type": "object"
+      },
+      "CatalogWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "product_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Product Ids",
+            "type": "array"
+          },
+          "rotate_link": {
+            "default": false,
+            "title": "Rotate Link",
+            "type": "boolean"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "whatsapp_phone": {
+            "anyOf": [
+              {
+                "pattern": "^[1-9][0-9]{9,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Phone"
+          }
+        },
+        "required": [
+          "expected_version",
+          "enabled",
+          "title"
+        ],
+        "title": "CatalogWrite",
+        "type": "object"
+      },
       "CategoryCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1299,6 +1551,44 @@
         "title": "CheckoutSessionResponse",
         "type": "object"
       },
+      "CommitRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content_sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "csv_content": {
+            "maxLength": 262144,
+            "minLength": 1,
+            "title": "Csv Content",
+            "type": "string"
+          },
+          "parser_version": {
+            "const": 1,
+            "title": "Parser Version",
+            "type": "integer"
+          },
+          "selected_rows": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Selected Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "csv_content",
+          "content_sha256",
+          "parser_version",
+          "selected_rows"
+        ],
+        "title": "CommitRequest",
+        "type": "object"
+      },
       "Confirm": {
         "additionalProperties": false,
         "properties": {
@@ -1396,6 +1686,120 @@
           "certificate_expires_at"
         ],
         "title": "ConnectionPublic",
+        "type": "object"
+      },
+      "ConsentResponse": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "whatsapp",
+              "email"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "contact_current": {
+            "title": "Contact Current",
+            "type": "boolean"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "transactional",
+              "marketing"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "source": {
+            "const": "owner_recorded",
+            "title": "Source",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "customer_name",
+          "channel",
+          "purpose",
+          "enabled",
+          "contact_current",
+          "source",
+          "version",
+          "updated_at"
+        ],
+        "title": "ConsentResponse",
+        "type": "object"
+      },
+      "ConsentWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "whatsapp",
+              "email"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "purpose": {
+            "enum": [
+              "transactional",
+              "marketing"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id",
+          "channel",
+          "purpose",
+          "enabled",
+          "expected_version"
+        ],
+        "title": "ConsentWrite",
         "type": "object"
       },
       "ContextLine": {
@@ -1529,6 +1933,43 @@
           }
         },
         "title": "ConversationCreate",
+        "type": "object"
+      },
+      "CrmOverview": {
+        "properties": {
+          "capabilities": {
+            "$ref": "#/components/schemas/app__crm__schemas__Capabilities"
+          },
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentResponse"
+            },
+            "title": "Consents",
+            "type": "array"
+          },
+          "consents_has_more": {
+            "default": false,
+            "title": "Consents Has More",
+            "type": "boolean"
+          },
+          "opportunities": {
+            "items": {
+              "$ref": "#/components/schemas/OpportunityResponse"
+            },
+            "title": "Opportunities",
+            "type": "array"
+          },
+          "opportunities_has_more": {
+            "default": false,
+            "title": "Opportunities Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "opportunities",
+          "consents"
+        ],
+        "title": "CrmOverview",
         "type": "object"
       },
       "CustomerHistory": {
@@ -3099,6 +3540,127 @@
           "role"
         ],
         "title": "EmployeeRoleUpdate",
+        "type": "object"
+      },
+      "EmptyAction": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "EmptyAction",
+        "type": "object"
+      },
+      "EntriesResponse": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/EntryResponse"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "entries",
+          "has_more"
+        ],
+        "title": "EntriesResponse",
+        "type": "object"
+      },
+      "EntryResponse": {
+        "properties": {
+          "batch_id": {
+            "format": "uuid",
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "currency": {
+            "const": "MXN",
+            "title": "Currency",
+            "type": "string"
+          },
+          "external_reference_masked": {
+            "title": "External Reference Masked",
+            "type": "string"
+          },
+          "fee_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Fee Amount",
+            "type": "string"
+          },
+          "gross_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gross Amount",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matched_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Matched Amount",
+            "type": "string"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/MatchResponse"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "net_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Amount",
+            "type": "string"
+          },
+          "payment_method": {
+            "enum": [
+              "bank_transfer",
+              "manual_card"
+            ],
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "remaining_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Remaining Amount",
+            "type": "string"
+          },
+          "settled_at": {
+            "format": "date-time",
+            "title": "Settled At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "unmatched",
+              "partially_matched",
+              "matched"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "batch_id",
+          "settled_at",
+          "gross_amount",
+          "fee_amount",
+          "net_amount",
+          "currency",
+          "payment_method",
+          "external_reference_masked",
+          "status",
+          "matched_amount",
+          "remaining_amount",
+          "matches"
+        ],
+        "title": "EntryResponse",
         "type": "object"
       },
       "EnvironmentInput": {
@@ -5797,6 +6359,90 @@
         "title": "MarginSummary",
         "type": "object"
       },
+      "MatchAction": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "MatchAction",
+        "type": "object"
+      },
+      "MatchResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matched_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Matched Amount",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "payment_id": {
+            "format": "uuid",
+            "title": "Payment Id",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "suggested",
+              "confirmed",
+              "rejected",
+              "reversed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "payment_id",
+          "order_id",
+          "matched_amount",
+          "status",
+          "version",
+          "reasons"
+        ],
+        "title": "MatchResponse",
+        "type": "object"
+      },
       "MeResponse": {
         "properties": {
           "feature_flags": {
@@ -5896,6 +6542,73 @@
           "message"
         ],
         "title": "MessageResponse",
+        "type": "object"
+      },
+      "MessagingReadiness": {
+        "properties": {
+          "account_mode": {
+            "const": "not_verified",
+            "default": "not_verified",
+            "title": "Account Mode",
+            "type": "string"
+          },
+          "business_app_implies_cloud_api": {
+            "default": false,
+            "title": "Business App Implies Cloud Api",
+            "type": "boolean"
+          },
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/SetupItem"
+            },
+            "title": "Checklist",
+            "type": "array"
+          },
+          "provider": {
+            "const": "whatsapp_cloud_api",
+            "default": "whatsapp_cloud_api",
+            "title": "Provider",
+            "type": "string"
+          },
+          "send_enabled": {
+            "default": false,
+            "title": "Send Enabled",
+            "type": "boolean"
+          },
+          "setup_status": {
+            "const": "setup_required",
+            "default": "setup_required",
+            "title": "Setup Status",
+            "type": "string"
+          },
+          "status": {
+            "const": "not_connected",
+            "default": "not_connected",
+            "title": "Status",
+            "type": "string"
+          },
+          "supported_message_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Supported Message Types",
+            "type": "array"
+          },
+          "tenant_mapping_verified": {
+            "default": false,
+            "title": "Tenant Mapping Verified",
+            "type": "boolean"
+          },
+          "webhook_enabled": {
+            "default": false,
+            "title": "Webhook Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checklist"
+        ],
+        "title": "MessagingReadiness",
         "type": "object"
       },
       "ModifierGroupCreate": {
@@ -6754,6 +7467,315 @@
           "tenants_active_7d"
         ],
         "title": "OperationsSummary",
+        "type": "object"
+      },
+      "OpportunityCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "estimated_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              }
+            ],
+            "default": "0.00",
+            "title": "Estimated Amount"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "title": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id",
+          "title"
+        ],
+        "title": "OpportunityCreate",
+        "type": "object"
+      },
+      "OpportunityResponse": {
+        "properties": {
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "estimated_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated Amount",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "stage": {
+            "enum": [
+              "new",
+              "contacted",
+              "proposal",
+              "won",
+              "lost"
+            ],
+            "title": "Stage",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "customer_name",
+          "title",
+          "stage",
+          "estimated_amount",
+          "assigned_user_id",
+          "next_action",
+          "due_at",
+          "note",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OpportunityResponse",
+        "type": "object"
+      },
+      "OpportunityUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "estimated_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Amount"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "new",
+                  "contacted",
+                  "proposal",
+                  "won",
+                  "lost"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "OpportunityUpdate",
         "type": "object"
       },
       "OpsMeResponse": {
@@ -8080,6 +9102,22 @@
         "title": "PreviewLine",
         "type": "object"
       },
+      "PreviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "csv_content": {
+            "maxLength": 262144,
+            "minLength": 1,
+            "title": "Csv Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "csv_content"
+        ],
+        "title": "PreviewRequest",
+        "type": "object"
+      },
       "PreviewResponse": {
         "properties": {
           "discount_amount": {
@@ -8145,6 +9183,91 @@
           "lines"
         ],
         "title": "PreviewResponse",
+        "type": "object"
+      },
+      "PreviewRow": {
+        "properties": {
+          "currency": {
+            "const": "MXN",
+            "title": "Currency",
+            "type": "string"
+          },
+          "external_reference_masked": {
+            "title": "External Reference Masked",
+            "type": "string"
+          },
+          "fee_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Fee Amount",
+            "type": "string"
+          },
+          "gross_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Gross Amount",
+            "type": "string"
+          },
+          "net_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Amount",
+            "type": "string"
+          },
+          "payment_method": {
+            "enum": [
+              "bank_transfer",
+              "manual_card"
+            ],
+            "title": "Payment Method",
+            "type": "string"
+          },
+          "row_fingerprint": {
+            "title": "Row Fingerprint",
+            "type": "string"
+          },
+          "row_number": {
+            "title": "Row Number",
+            "type": "integer"
+          },
+          "settled_at": {
+            "format": "date-time",
+            "title": "Settled At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_number",
+          "settled_at",
+          "gross_amount",
+          "fee_amount",
+          "net_amount",
+          "currency",
+          "payment_method",
+          "external_reference_masked",
+          "row_fingerprint"
+        ],
+        "title": "PreviewRow",
+        "type": "object"
+      },
+      "ProcessResponse": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "processed": {
+            "title": "Processed",
+            "type": "integer"
+          },
+          "suppressed": {
+            "title": "Suppressed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "processed",
+          "created",
+          "suppressed"
+        ],
+        "title": "ProcessResponse",
         "type": "object"
       },
       "ProductCreate": {
@@ -8817,6 +9940,98 @@
         "title": "ProposalCreate",
         "type": "object"
       },
+      "PublicCatalogResponse": {
+        "properties": {
+          "checkout_available": {
+            "default": false,
+            "title": "Checkout Available",
+            "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/PublicProduct"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "whatsapp_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Phone"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "whatsapp_phone",
+          "products"
+        ],
+        "title": "PublicCatalogResponse",
+        "type": "object"
+      },
+      "PublicProduct": {
+        "properties": {
+          "availability": {
+            "title": "Availability",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "price_amount",
+          "availability"
+        ],
+        "title": "PublicProduct",
+        "type": "object"
+      },
       "PurchaseCreate": {
         "additionalProperties": false,
         "properties": {
@@ -9034,6 +10249,271 @@
           "purged"
         ],
         "title": "PurgeResponse",
+        "type": "object"
+      },
+      "QuoteAccept": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_customer_acceptance": {
+            "const": true,
+            "title": "Confirmed Customer Acceptance",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version",
+          "confirmed_customer_acceptance"
+        ],
+        "title": "QuoteAccept",
+        "type": "object"
+      },
+      "QuoteAction": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "QuoteAction",
+        "type": "object"
+      },
+      "QuoteCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteItemCreate"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "customer_id",
+          "expires_at",
+          "items"
+        ],
+        "title": "QuoteCreate",
+        "type": "object"
+      },
+      "QuoteItemCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 100000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "quantity"
+        ],
+        "title": "QuoteItemCreate",
+        "type": "object"
+      },
+      "QuoteItemResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "line_total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Line Total Amount",
+            "type": "string"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit_price_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "product_name",
+          "quantity",
+          "unit_price_amount",
+          "line_total_amount"
+        ],
+        "title": "QuoteItemResponse",
+        "type": "object"
+      },
+      "QuoteList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "QuoteList",
+        "type": "object"
+      },
+      "QuoteResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "customer_order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Order Id"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "folio": {
+            "title": "Folio",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "sent",
+              "accepted",
+              "expired",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "folio",
+          "status",
+          "customer_id",
+          "customer_name",
+          "expires_at",
+          "items",
+          "total_amount",
+          "version",
+          "customer_order_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "QuoteResponse",
+        "type": "object"
+      },
+      "QuoteShared": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmed_shared": {
+            "const": true,
+            "title": "Confirmed Shared",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version",
+          "confirmed_shared"
+        ],
+        "title": "QuoteShared",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -9611,6 +11091,41 @@
         "title": "ReconcileCheckoutRequest",
         "type": "object"
       },
+      "ReconciliationPreviewResponse": {
+        "properties": {
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/RowError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "parser_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Parser Version",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "content_sha256",
+          "rows",
+          "errors"
+        ],
+        "title": "ReconciliationPreviewResponse",
+        "type": "object"
+      },
       "RefundCreate": {
         "properties": {
           "items": {
@@ -9923,6 +11438,190 @@
         "title": "RiskSummary",
         "type": "object"
       },
+      "RowError": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "row_number": {
+            "title": "Row Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row_number",
+          "message"
+        ],
+        "title": "RowError",
+        "type": "object"
+      },
+      "RuleResponse": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "template_key": {
+            "enum": [
+              "order_ready",
+              "order_fulfilled",
+              "restock_review"
+            ],
+            "title": "Template Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_key",
+          "title",
+          "description",
+          "enabled",
+          "version"
+        ],
+        "title": "RuleResponse",
+        "type": "object"
+      },
+      "RuleWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "expected_version"
+        ],
+        "title": "RuleWrite",
+        "type": "object"
+      },
+      "RunResolve": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "dismissed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_version",
+          "status"
+        ],
+        "title": "RunResolve",
+        "type": "object"
+      },
+      "RunResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "enum": [
+              "customer_order",
+              "product"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "entity_version": {
+            "title": "Entity Version",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "completed",
+              "dismissed",
+              "suppressed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "template_key": {
+            "enum": [
+              "order_ready",
+              "order_fulfilled",
+              "restock_review"
+            ],
+            "title": "Template Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "template_key",
+          "title",
+          "status",
+          "entity_id",
+          "entity_type",
+          "entity_version",
+          "version",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "RunResponse",
+        "type": "object"
+      },
       "SalesByEmployeeRow": {
         "properties": {
           "display_name": {
@@ -10153,6 +11852,38 @@
           "issuer"
         ],
         "title": "SetupInput",
+        "type": "object"
+      },
+      "SetupItem": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "required",
+              "review_required"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "description",
+          "status"
+        ],
+        "title": "SetupItem",
         "type": "object"
       },
       "SetupResponse": {
@@ -10732,6 +12463,68 @@
           "period_freshness"
         ],
         "title": "SubscriptionResponse",
+        "type": "object"
+      },
+      "Suggestion": {
+        "properties": {
+          "available_quantity": {
+            "title": "Available Quantity",
+            "type": "integer"
+          },
+          "evidence_version": {
+            "title": "Evidence Version",
+            "type": "string"
+          },
+          "incoming_quantity": {
+            "title": "Incoming Quantity",
+            "type": "integer"
+          },
+          "low_stock_threshold": {
+            "title": "Low Stock Threshold",
+            "type": "integer"
+          },
+          "product_id": {
+            "format": "uuid",
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "reserved_quantity": {
+            "title": "Reserved Quantity",
+            "type": "integer"
+          },
+          "suggested_quantity": {
+            "title": "Suggested Quantity",
+            "type": "integer"
+          },
+          "unit_cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Cost"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "available_quantity",
+          "reserved_quantity",
+          "incoming_quantity",
+          "low_stock_threshold",
+          "suggested_quantity",
+          "unit_cost",
+          "evidence_version"
+        ],
+        "title": "Suggestion",
         "type": "object"
       },
       "SupplierCreate": {
@@ -12102,6 +13895,48 @@
           "recent_failures"
         ],
         "title": "WebhookHealth",
+        "type": "object"
+      },
+      "app__automations__schemas__Capabilities": {
+        "properties": {
+          "external_messaging": {
+            "const": false,
+            "default": false,
+            "title": "External Messaging",
+            "type": "boolean"
+          },
+          "financial_actions": {
+            "const": false,
+            "default": false,
+            "title": "Financial Actions",
+            "type": "boolean"
+          },
+          "internal_tasks": {
+            "const": true,
+            "default": true,
+            "title": "Internal Tasks",
+            "type": "boolean"
+          }
+        },
+        "title": "Capabilities",
+        "type": "object"
+      },
+      "app__crm__schemas__Capabilities": {
+        "properties": {
+          "email": {
+            "const": "not_connected",
+            "default": "not_connected",
+            "title": "Email",
+            "type": "string"
+          },
+          "whatsapp": {
+            "const": "not_connected",
+            "default": "not_connected",
+            "title": "Whatsapp",
+            "type": "string"
+          }
+        },
+        "title": "Capabilities",
         "type": "object"
       }
     }
@@ -13742,6 +15577,182 @@
         "summary": "Resend Verification",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/automations": {
+      "get": {
+        "operationId": "overview_api_v1_automations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/process": {
+      "post": {
+        "operationId": "process_api_v1_automations_process_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Process",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/rules/{template_key}": {
+      "put": {
+        "operationId": "configure_api_v1_automations_rules__template_key__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_key",
+            "required": true,
+            "schema": {
+              "enum": [
+                "order_ready",
+                "order_fulfilled",
+                "restock_review"
+              ],
+              "title": "Template Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Configure",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/runs/{run_id}/resolve": {
+      "post": {
+        "operationId": "resolve_api_v1_automations_runs__run_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunResolve"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve",
+        "tags": [
+          "automations"
         ]
       }
     },
@@ -15450,6 +17461,266 @@
         "summary": "Set Product Modifier Groups",
         "tags": [
           "modifiers"
+        ]
+      }
+    },
+    "/api/v1/crm": {
+      "get": {
+        "operationId": "get_overview_api_v1_crm_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "customer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Overview",
+        "tags": [
+          "crm"
+        ]
+      }
+    },
+    "/api/v1/crm/consents": {
+      "put": {
+        "operationId": "save_consent_api_v1_crm_consents_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Consent",
+        "tags": [
+          "crm"
+        ]
+      }
+    },
+    "/api/v1/crm/opportunities": {
+      "post": {
+        "operationId": "create_opportunity_api_v1_crm_opportunities_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpportunityCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpportunityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Opportunity",
+        "tags": [
+          "crm"
+        ]
+      }
+    },
+    "/api/v1/crm/opportunities/{opportunity_id}": {
+      "patch": {
+        "operationId": "update_opportunity_api_v1_crm_opportunities__opportunity_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "opportunity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Opportunity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpportunityUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpportunityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Opportunity",
+        "tags": [
+          "crm"
         ]
       }
     },
@@ -20304,6 +22575,27 @@
         ]
       }
     },
+    "/api/v1/messaging/readiness": {
+      "get": {
+        "operationId": "messaging_readiness_api_v1_messaging_readiness_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagingReadiness"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Messaging Readiness",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
     "/api/v1/onboarding/apply-preset": {
       "post": {
         "operationId": "apply_preset_api_v1_onboarding_apply_preset_post",
@@ -20836,6 +23128,48 @@
         ]
       }
     },
+    "/api/v1/public/catalog/{token}": {
+      "get": {
+        "operationId": "read_public_catalog_api_v1_public_catalog__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCatalogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Public Catalog",
+        "tags": [
+          "storefront"
+        ]
+      }
+    },
     "/api/v1/purchasing/orders": {
       "get": {
         "operationId": "orders_api_v1_purchasing_orders_get",
@@ -21160,6 +23494,723 @@
         "summary": "Create Supplier",
         "tags": [
           "purchasing"
+        ]
+      }
+    },
+    "/api/v1/quotes": {
+      "get": {
+        "operationId": "list_quotes_api_v1_quotes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Quotes",
+        "tags": [
+          "quotes"
+        ]
+      },
+      "post": {
+        "operationId": "create_api_v1_quotes_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create",
+        "tags": [
+          "quotes"
+        ]
+      }
+    },
+    "/api/v1/quotes/{quote_id}/accept": {
+      "post": {
+        "operationId": "accept_api_v1_quotes__quote_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quote_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quote Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept",
+        "tags": [
+          "quotes"
+        ]
+      }
+    },
+    "/api/v1/quotes/{quote_id}/cancel": {
+      "post": {
+        "operationId": "cancel_api_v1_quotes__quote_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quote_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quote Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "quotes"
+        ]
+      }
+    },
+    "/api/v1/quotes/{quote_id}/mark-sent": {
+      "post": {
+        "operationId": "mark_sent_api_v1_quotes__quote_id__mark_sent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quote_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Quote Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteShared"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Sent",
+        "tags": [
+          "quotes"
+        ]
+      }
+    },
+    "/api/v1/reconciliation/entries": {
+      "get": {
+        "operationId": "entries_api_v1_reconciliation_entries_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntriesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entries",
+        "tags": [
+          "reconciliation"
+        ]
+      }
+    },
+    "/api/v1/reconciliation/entries/{entry_id}/matches/{match_id}/{action}": {
+      "post": {
+        "operationId": "match_action_api_v1_reconciliation_entries__entry_id__matches__match_id___action__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "match_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Match Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "title": "Action",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Match Action",
+        "tags": [
+          "reconciliation"
+        ]
+      }
+    },
+    "/api/v1/reconciliation/entries/{entry_id}/suggest": {
+      "post": {
+        "operationId": "suggest_api_v1_reconciliation_entries__entry_id__suggest_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyAction"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest",
+        "tags": [
+          "reconciliation"
+        ]
+      }
+    },
+    "/api/v1/reconciliation/imports/commit": {
+      "post": {
+        "operationId": "commit_import_api_v1_reconciliation_imports_commit_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commit Import",
+        "tags": [
+          "reconciliation"
+        ]
+      }
+    },
+    "/api/v1/reconciliation/imports/preview": {
+      "post": {
+        "operationId": "preview_import_api_v1_reconciliation_imports_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Import",
+        "tags": [
+          "reconciliation"
+        ]
+      }
+    },
+    "/api/v1/replenishment": {
+      "get": {
+        "operationId": "list_suggestions_api_v1_replenishment_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Suggestion"
+                  },
+                  "title": "Response List Suggestions Api V1 Replenishment Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Suggestions",
+        "tags": [
+          "replenishment"
+        ]
+      }
+    },
+    "/api/v1/replenishment/approve-purchase": {
+      "post": {
+        "operationId": "approve_api_v1_replenishment_approve_purchase_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovePurchase"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve",
+        "tags": [
+          "replenishment"
         ]
       }
     },
@@ -22357,6 +25408,103 @@
         "summary": "Close Shift",
         "tags": [
           "shifts"
+        ]
+      }
+    },
+    "/api/v1/storefront/qr": {
+      "get": {
+        "operationId": "catalog_qr_api_v1_storefront_qr_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Catalog Qr",
+        "tags": [
+          "storefront"
+        ]
+      }
+    },
+    "/api/v1/storefront/settings": {
+      "get": {
+        "operationId": "get_settings_api_v1_storefront_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "storefront"
+        ]
+      },
+      "put": {
+        "operationId": "save_settings_api_v1_storefront_settings_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Settings",
+        "tags": [
+          "storefront"
         ]
       }
     },

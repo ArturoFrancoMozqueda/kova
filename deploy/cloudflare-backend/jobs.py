@@ -10,6 +10,14 @@ from workers import DurableObject, WorkerEntrypoint
 _ready = False
 
 
+def automation_cohort(env):
+    return {
+        UUID(value.strip())
+        for value in (getattr(env, "AUTOMATION_TENANT_IDS", "") or "").split(",")
+        if value.strip()
+    }
+
+
 def initialize(env):
     global _ready
     if not _ready:
@@ -39,10 +47,14 @@ class Default(WorkerEntrypoint):
         # globally. The job objects independently revalidate enabled membership.
         # Keep the Free cron handler small: settings/schema imports and database
         # checks run in the private job object's larger compute budget.
-        for value in (getattr(env, "ASSISTANT_TENANT_IDS", "") or "").split(","):
-            if value.strip():
-                tenant = str(UUID(value.strip()))
-                await env.JOBS.getByName(tenant).wake(tenant)
+        tenants = automation_cohort(env) | {
+            UUID(value.strip())
+            for value in (getattr(env, "ASSISTANT_TENANT_IDS", "") or "").split(",")
+            if value.strip()
+        }
+        for tenant_id in sorted(tenants, key=str):
+            tenant = str(tenant_id)
+            await env.JOBS.getByName(tenant).wake(tenant)
 
 
 class KovaJobs(DurableObject):
@@ -59,7 +71,7 @@ class KovaJobs(DurableObject):
             initialize(self.env)
             from app.assistant.access import cohort
 
-            if UUID(tenant) not in cohort():
+            if UUID(tenant) not in set(cohort()) | automation_cohort(self.env):
                 return False
             stored = await self.ctx.storage.get("tenant")
             if stored is not None and stored != tenant:
@@ -81,14 +93,25 @@ class KovaJobs(DurableObject):
                 from app.assistant.worker import process_once
 
                 tenant = await self.ctx.storage.get("tenant")
-                if tenant is None or not enabled(UUID(tenant)):
+                if tenant is None:
+                    return
+                tenant_id = UUID(tenant)
+                assistant_allowed = enabled(tenant_id)
+                automation_allowed = tenant_id in automation_cohort(self.env)
+                if not assistant_allowed and not automation_allowed:
                     return
                 # Persist recovery before I/O. One job per invocation, with
                 # the existing leases, session checks and uncertain-call rules.
                 await self.ctx.storage.setAlarm(int(time.time() * 1000) + 60_000)
-                processed = process_once(
-                    workload="chat", tenant_id=UUID(tenant), maximum_jobs=1
-                )
+                processed = 0
+                if automation_allowed:
+                    from app.automations.worker import process_tenant
+
+                    processed += process_tenant(tenant_id, limit=50)
+                if assistant_allowed:
+                    processed += process_once(
+                        workload="chat", tenant_id=tenant_id, maximum_jobs=1
+                    )
                 if processed:
                     await self.ctx.storage.setAlarm(int(time.time() * 1000) + 1)
                 else:

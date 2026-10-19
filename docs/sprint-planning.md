@@ -16,6 +16,12 @@ Permanent rules live in `CLAUDE.md`.
 
 Active scope lives in `docs/current-sprint.md`.
 
+Dirección de producto solicitada el 2026-10-18: el
+[plan de automatización E2E](plans/PLAN-AUTOMATIZACION-E2E.md) compara Colega Studio con Kova y
+propone conectar captación, atención, pedidos, cobro, operación y recompra. Incluye brechas,
+dependencias, responsables y aceptación por corte. Es planeación futura; no reemplaza el estado
+vigente ni activa capacidades diferidas o proveedores.
+
 Deferred scope lives in `docs/deferred-scope.md`.
 
 Risks live in `docs/risk-register.md`.

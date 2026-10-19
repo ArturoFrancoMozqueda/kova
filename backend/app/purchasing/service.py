@@ -66,7 +66,9 @@ def orders(db: Session, tenant_id: UUID, limit: int = 100, offset: int = 0):
     return [serialize(db, order) for order in rows]
 
 
-def _finish(db, tenant_id, user_id, key, payload, body, action, resource_id, status=201):
+def _finish(
+    db, tenant_id, user_id, key, payload, body, action, resource_id, status=201, *, commit=True
+):
     audit.log(
         db,
         action=action,
@@ -84,7 +86,8 @@ def _finish(db, tenant_id, user_id, key, payload, body, action, resource_id, sta
         status_code=status,
         response_body=body,
     )
-    db.commit()
+    if commit:
+        db.commit()
     return status, body
 
 
@@ -122,7 +125,15 @@ def create_supplier(db: Session, *, tenant_id: UUID, user_id: UUID, body: Suppli
     return 201, result
 
 
-def create_order(db: Session, *, tenant_id: UUID, user_id: UUID, body: PurchaseCreate, key: str):
+def create_order(
+    db: Session,
+    *,
+    tenant_id: UUID,
+    user_id: UUID,
+    body: PurchaseCreate,
+    key: str,
+    commit: bool = True,
+):
     payload = {"operation": "purchasing.order.create", **body.model_dump(mode="json")}
     for part in payload.get("items", []):
         if part.get("lot_allocations") is None:
@@ -149,6 +160,8 @@ def create_order(db: Session, *, tenant_id: UUID, user_id: UUID, body: PurchaseC
             Product.id.in_([item.product_id for item in body.items]),
             Product.is_active.is_(True),
         )
+        .order_by(Product.id)
+        .with_for_update()
         .all()
     }
     if any(
@@ -177,7 +190,15 @@ def create_order(db: Session, *, tenant_id: UUID, user_id: UUID, body: PurchaseC
     db.flush()
     result = serialize(db, order)
     return _finish(
-        db, tenant_id, user_id, key, payload, result, "purchasing.order.create", order.id
+        db,
+        tenant_id,
+        user_id,
+        key,
+        payload,
+        result,
+        "purchasing.order.create",
+        order.id,
+        commit=commit,
     )
 
 

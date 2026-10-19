@@ -34,6 +34,20 @@ USER_A = uuid.UUID("a0000000-0000-0000-0000-000000000065")
 USER_B = uuid.UUID("b0000000-0000-0000-0000-000000000065")
 
 _RUNTIME_TABLE_PRIVILEGES = {
+    # New E2E domains remain private to FastAPI's runtime role. Snapshot and
+    # ledger mutations are deliberately column-scoped below, not full UPDATE.
+    "automation_rules": {"SELECT", "INSERT"},
+    "automation_runs": {"SELECT", "INSERT"},
+    "business_events": {"SELECT", "INSERT"},
+    "crm_opportunities": {"SELECT", "INSERT", "UPDATE"},
+    "customer_contact_consents": {"SELECT", "INSERT", "UPDATE"},
+    "public_catalogs": {"SELECT", "INSERT", "UPDATE"},
+    "public_catalog_items": {"SELECT", "INSERT", "DELETE"},
+    "reconciliation_import_batches": {"SELECT", "INSERT"},
+    "settlement_entries": {"SELECT", "INSERT"},
+    "reconciliation_matches": {"SELECT", "INSERT"},
+    "customer_quotes": {"SELECT", "INSERT"},
+    "customer_quote_items": {"SELECT", "INSERT"},
     **{
         table: {"SELECT", "INSERT", "UPDATE", "DELETE"}
         for table in (
@@ -118,6 +132,19 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "automation_rules": {
+        "enabled", "version", "authorized_by_user_id", "enabled_since", "updated_at",
+    },
+    "automation_runs": {"status", "version", "resolved_at"},
+    "business_events": {"processed_at"},
+    "reconciliation_matches": {
+        "matched_amount", "status", "version", "reasons", "confirmed_by_user_id",
+        "reversal_reason", "updated_at",
+    },
+    "customer_quotes": {
+        "status", "shared_at", "accepted_at", "customer_order_id",
+        "updated_by_user_id", "version", "updated_at",
+    },
     "cfdi_enrollments": {
         "organization_id", "issuer_snapshot", "state", "operation_id", "creation_rejected",
         "last_error_code", "updated_at",
@@ -250,6 +277,20 @@ _SEMANTIC_INSERT_ORDER = (
     "customer_order_item_modifiers",
     "assistant_records",
     "assistant_chunks",
+    # Every new protected table participates in the same real two-tenant verb
+    # tests. Parents precede children so FK failures cannot mask RLS behavior.
+    "business_events",
+    "automation_rules",
+    "automation_runs",
+    "crm_opportunities",
+    "customer_contact_consents",
+    "public_catalogs",
+    "public_catalog_items",
+    "reconciliation_import_batches",
+    "settlement_entries",
+    "reconciliation_matches",
+    "customer_quotes",
+    "customer_quote_items",
 )
 
 
@@ -279,6 +320,8 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         parent_column = foreign_key.column.name
         if parent == "users" and parent_column == "id":
             return USER_A if tenant == TENANT_A else USER_B
+        if parent == "memberships" and parent_column == "user_id":
+            return USER_A if tenant == TENANT_A else USER_B
         if parent == "tenants" and parent_column == "id":
             return tenant
         if parent_column == "id" and (parent, tenant, variant) in ids:
@@ -288,11 +331,14 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "action": "semantic_test",
         "adjustment_type": "late_inclusion",
         "category": "renta",
+        "channel": "whatsapp",
         "client_id": f"client-{token}",
         "currency": "MXN",
         "direction": "transfer",
         "document_kind": "operational_draft",
         "event_name": "landing_viewed",
+        "event_type": "customer_order.ready",
+        "entity_type": "customer_order",
         "environment": "test" if variant == 0 else "live",
         "factor_type": "rate",
         "fiscal_status": "not_issued",
@@ -302,9 +348,15 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "individual_fiscal_status": "none",
         "method": "cash",
         "movement_type": "adjustment",
+        "payment_method": "bank_transfer",
         "processing_status": "received",
         "refund_payment_method": "cash",
         "role": "owner",
+        "purpose": "transactional",
+        "source": "owner_recorded",
+        "source_type": "manual_csv",
+        "stage": "new",
+        "template_key": "order_ready",
         "rotation_label": "consumo_preferente" if variant == 0 else "fecha_objetivo",
         "source_channel": "counter",
         "state": ({"cfdi_documents": "prepared", "cfdi_enrollments": "configured"}
@@ -322,6 +374,9 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
             "subscriptions": "incomplete",
             "purchase_orders": "pending",
             "invoice_requests": "pending_provider",
+            "automation_runs": "pending",
+            "customer_quotes": "draft",
+            "reconciliation_matches": "suggested",
         }.get(table.name, "active"),
         "tax_code": "002",
         "tax_calculation_status": "not_calculated",
@@ -329,8 +384,19 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     }
     if name in named_values:
         return named_values[name]
-    if name in {"user_id", "created_by_user_id", "invited_by_user_id"}:
+    if name in {
+        "user_id", "created_by_user_id", "invited_by_user_id", "updated_by_user_id",
+        "recorded_by_user_id", "confirmed_by_user_id", "authorized_by_user_id",
+    }:
         return USER_A if tenant == TENANT_A else USER_B
+    if table.name in {"business_events", "automation_runs"} and name == "entity_id":
+        return ids[("customer_orders", tenant, variant)]
+    if table.name == "customer_quotes" and name == "expires_at":
+        return datetime.now(UTC) + timedelta(days=2)
+    if name in {"content_sha256", "row_fingerprint"}:
+        return _semantic_uuid(f"{table.name}.{name}", tenant, variant).hex * 2
+    if table.name == "settlement_entries" and name == "fee_amount":
+        return Decimal("0")
     if name in {"batch_id", "original_batch_id"}:
         return ids[("fiscal_global_draft_batches", tenant, variant)]
     if name == "order_id":
@@ -402,7 +468,7 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     if python_type is bytes or isinstance(column.type, LargeBinary):
         return b"x"
     if python_type in {dict, list} or isinstance(column.type, JSON):
-        return [] if name == "data_quality_warnings" else {}
+        return [] if name in {"data_quality_warnings", "reasons"} else {}
     if python_type is uuid.UUID:
         return _semantic_uuid(f"{table.name}.{name}", tenant, variant)
     raise AssertionError(f"no semantic fixture value for {table.name}.{name}: {column.type}")

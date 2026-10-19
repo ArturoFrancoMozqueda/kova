@@ -18,6 +18,14 @@ the owner confirms neither is currently contracted. The remaining roadmap capabi
 
 ## Deferred From Closed Beta
 
+Actualización de dirección 2026-10-18: el propietario solicitó analizar Colega Studio y encaminar
+Kova hacia automatización de negocio de punta a punta. El
+[plan E2E](plans/PLAN-AUTOMATIZACION-E2E.md) abre discovery por fases para comunicación/CRM,
+captación, operación y postventa, con extensiones por giro. Esta dirección amplía el horizonte del
+copiloto; no mueve automáticamente agendas, lealtad, marketing masivo, API pública ni otras
+capacidades diferidas al sprint. Para implementarlas siguen aplicando los criterios de entrada
+al final de este documento y sus gates técnicos/comerciales.
+
 The closed beta should focus on a reliable bakery / small food retail POS.
 
 Do not implement these for beta:

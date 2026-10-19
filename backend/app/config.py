@@ -102,6 +102,8 @@ class Settings(BaseSettings):
     assistant_documents_enabled: bool = False
     assistant_email_enabled: bool = False
     assistant_tenant_ids: str = ""
+    # Deterministic internal tasks have their own opt-in scheduler cohort.
+    automation_tenant_ids: str = ""
     assistant_cloudflare_account_id: str = ""
     assistant_cloudflare_token: SecretStr | None = None
     assistant_r2_access_key: SecretStr | None = None
@@ -150,7 +152,7 @@ class Settings(BaseSettings):
     assistant_groq_minute_tokens: int = Field(default=7200, ge=1, le=8000)
     assistant_groq_minute_requests: int = Field(default=27, ge=1, le=30)
 
-    @field_validator("assistant_tenant_ids")
+    @field_validator("assistant_tenant_ids", "automation_tenant_ids")
     @classmethod
     def validate_assistant_cohort(cls, value: str) -> str:
         return ",".join(

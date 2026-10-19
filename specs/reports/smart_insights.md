@@ -25,6 +25,8 @@ Clearer reports increase retention by making the subscription feel like operatio
   recommended actions.
 - Rank recommendations by operational urgency: restock risks first, then backend story actions,
   then secondary operational prompts.
+- Break equal restock priority ties by product name and ID, so capped evidence samples remain
+  stable across database query plans. This does not change stock, velocity or severity definitions.
 - Keep detailed KPIs and charts available but collapsed behind a single analysis disclosure so the
   first report view does not feel overwhelming.
 - Prefer decision-oriented analysis over metric cards: time patterns, product/inventory priority,

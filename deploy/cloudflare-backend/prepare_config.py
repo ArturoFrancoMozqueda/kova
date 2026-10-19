@@ -171,6 +171,7 @@ def main():
         or k
         in {
             "APP_ENV",
+            "AUTOMATION_TENANT_IDS",
             "SECRET_KEY",
             "RESEND_API_KEY",
             "EMAIL_FROM",
