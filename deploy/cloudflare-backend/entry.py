@@ -1,6 +1,5 @@
 """Thin gateway + bounded request coordination; all POS data stays in Postgres."""
 
-import asyncio
 import hashlib
 import importlib
 import logging
@@ -8,7 +7,9 @@ import math
 import time
 from urllib.parse import urlparse
 
-from workers import DurableObject, WorkerEntrypoint, asgi
+from workers import DurableObject, WorkerEntrypoint
+
+from app.workers.asgi import RequestCoordinator
 
 # Cloudflare snapshots top-level imports at deployment. Load pure package code
 # here; application settings, database validation and request I/O remain inside
@@ -33,35 +34,30 @@ class Default(WorkerEntrypoint):
 class KovaApi(DurableObject):
     def __init__(self, ctx, env):
         super().__init__(ctx, env)
-        self._requests = asyncio.Lock()
+        # Keep admission local to this object's I/O context. A global asyncio
+        # waiter can resume another object's work in the wrong I/O context.
+        self._requests = RequestCoordinator()
         self._observations = 0
 
     async def fetch(self, request):
         from app.workers.bootstrap import application
         from app.workers.context import environment, execution
 
-        # A synchronous SQLAlchemy session belongs to one request. Serialize
-        # each shard, not all businesses, and let Postgres keep transactions,
-        # tenant policies and cross-shard idempotency authoritative.
-        async with self._requests:
-            self._observations += 1
-            started = time.perf_counter()
-            env_token = environment.set(self.env)
-            ctx_token = execution.set(self.ctx)
-            try:
-                app = await application(self.env)
-                ready = time.perf_counter()
-                response = await asgi.fetch(app, request, self.env, self.ctx)
-                if self._observations <= 3:
-                    logging.getLogger("app.workers").info(
-                        "workers_api_timing sequence=%d startup_ms=%.1f asgi_ms=%.1f",
-                        self._observations, (ready - started) * 1000,
-                        (time.perf_counter() - ready) * 1000,
-                    )
-                return response
-            finally:
-                execution.reset(ctx_token)
-                environment.reset(env_token)
+        self._observations += 1
+        started = time.perf_counter()
+        env_token = environment.set(self.env)
+        ctx_token = execution.set(self.ctx)
+        try:
+            response = await self._requests.fetch(application, request, self.env, self.ctx)
+            if self._observations <= 3:
+                logging.getLogger("app.workers").info(
+                    "workers_api_timing sequence=%d response_headers_ms=%.1f",
+                    self._observations, (time.perf_counter() - started) * 1000,
+                )
+            return response
+        finally:
+            execution.reset(ctx_token)
+            environment.reset(env_token)
 
 
 class KovaRateLimit(DurableObject):

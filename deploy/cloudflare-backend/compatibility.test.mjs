@@ -2,6 +2,20 @@ import { expect, it } from "vitest";
 import { env } from "cloudflare:test";
 import { createDecipheriv, createHmac, timingSafeEqual } from "node:crypto";
 
+it("streams multiple chunks and completes asynchronous dependency cleanup", async () => {
+  await env.TEST_STORAGE.delete("asgi-test-cleanup");
+  const response = await env.TEST_CRYPTO.fetch("https://compatibility.test/asgi-stream");
+  expect(response.status).toBe(200);
+  expect(await response.text()).toBe("firstsecond");
+  let marker;
+  for (let attempt = 0; attempt < 10 && !marker; attempt++) {
+    marker = await env.TEST_STORAGE.get("asgi-test-cleanup");
+    if (!marker) await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  expect(await marker?.text()).toBe("done");
+  await env.TEST_STORAGE.delete("asgi-test-cleanup");
+});
+
   it("keeps existing encrypted credentials and certificate rejection rules compatible", async () => {
     const fixtures = env.TEST_FIXTURES;
     const response = await env.TEST_CRYPTO.fetch("https://compatibility.test", {

@@ -2,6 +2,26 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import gateway from "../gateway.mjs";
 
+test("unknown scanner paths stay outside Python and the database", async () => {
+  const env = { API: { getByName() { assert.fail("Unknown path entered Python"); } } };
+  for (const path of ["/.env", "//.env.sample", "/web/.env", "/api/v10/auth", "/docs"]) {
+    const response = await gateway.fetch(new Request(`https://api.test${path}`), env);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { detail: "Not Found" });
+    assert.match(response.headers.get("cache-control"), /no-store/);
+  }
+});
+
+test("health, root and application routes retain their API handler", async () => {
+  const env = { API: { getByName() { return { fetch: () => Response.json({ forwarded: true }) }; } } };
+  for (const path of ["/", "/health", "/health/", "/health/db", "/health/db/",
+    "/api/v1/auth/session", "/api/v1/billing/webhooks/stripe"]) {
+    const response = await gateway.fetch(new Request(`https://api.test${path}`), env);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { forwarded: true });
+  }
+});
+
 test("dashboard routes spread one cookie's reads while preserving private responses", async () => {
   const coordinators = new Set();
   const paths = ["/auth/session", "/settings/receipt", "/settings/business-profile",

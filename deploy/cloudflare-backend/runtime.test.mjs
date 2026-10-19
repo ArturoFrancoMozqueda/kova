@@ -114,6 +114,21 @@ describe("existing API inside Python Durable Objects", () => {
     for (const response of dashboard) expect(response.status).toBe(200);
     expect((await dashboard[2].json()).tenant_id).toBe(identity.tenant_id);
     expect((await dashboard[3].json()).tenant_id).not.toBe(identity.tenant_id);
+    // Repeated reload bursts reuse coordinators while prior ASGI responses
+    // unwind their request-scoped sessions. Every response must remain owned
+    // by the correct cookie, and bodies must remain readable JSON.
+    for (let burst = 0; burst < 3; burst++) {
+      const sessions = await Promise.all(Array.from({ length: 6 }, async (_, index) => {
+        const response = await (index % 2 ? other : owner)("/api/v1/auth/session");
+        expect(response.status).toBe(200);
+        return response.json();
+      }));
+      for (const [index, session] of sessions.entries()) {
+        expect(session.authenticated).toBe(true);
+        if (index % 2) expect(session.tenant_id).not.toBe(identity.tenant_id);
+        else expect(session.tenant_id).toBe(identity.tenant_id);
+      }
+    }
     // Browser reload uses /session, including its RLS-backed membership and
     // feature flags. Exercise separate invocations with unchanged cookies.
     for (let reload = 0; reload < 3; reload++) {
