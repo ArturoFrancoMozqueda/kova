@@ -344,3 +344,47 @@ it("prepares an order notice from a versioned task without requesting external d
     fetchMock.mock.calls.some(([url]) => String(url).includes("/transition")),
   ).toBe(false);
 });
+
+it("reuses the same draft command after an uncertain network outcome", async () => {
+  let attempts = 0;
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).includes("/customers?")) return json([customer]);
+    if (String(url).includes("/messages")) {
+      if (init?.method === "POST") {
+        attempts++;
+        if (attempts === 1) throw new TypeError("NetworkError");
+      }
+      return json({ items: [], has_more: false });
+    }
+    return json({
+      items: [conversation],
+      has_more: false,
+      channel_status: "not_connected",
+    });
+  });
+  mount(<InboxView />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Pedido de aniversario/ }),
+  );
+  fireEvent.change(screen.getByLabelText("Respuesta del equipo"), {
+    target: { value: "Respuesta pendiente" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Guardar borrador privado" }),
+  );
+  await screen.findByRole("alert");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Guardar borrador privado" }),
+  );
+  await screen.findByText("Borrador guardado. No se ha enviado al cliente.");
+  const commands = fetchMock.mock.calls.filter(
+    ([url, init]) =>
+      String(url).includes("/messages") && init?.method === "POST",
+  );
+  expect(commands).toHaveLength(2);
+  expect(commands[0][1]?.headers).toMatchObject({
+    "Idempotency-Key": (commands[1][1]?.headers as Record<string, string>)[
+      "Idempotency-Key"
+    ],
+  });
+});
