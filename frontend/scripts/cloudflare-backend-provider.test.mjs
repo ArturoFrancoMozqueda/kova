@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import { test } from "node:test";
 import { backendWorkers, cloudflareBackendProvider, validateBackendVersions } from "./cloudflare-backend-provider.mjs";
 import { cliProvider, recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
@@ -41,9 +40,8 @@ test("capture requires one complete serving version for every backend Worker", a
 });
 
 for (const failDeploy of [false, true]) {
-  test(`backend release migrates then deploys private jobs, API and gateway; cleans metadata (failure=${failDeploy})`, async () => {
+  test(`backend release versions public identity without rotating secrets (failure=${failDeploy})`, async () => {
     const calls = [];
-    let metadataPath;
     const provider = cloudflareBackendProvider({ env, run: async (command, args, options) => {
       calls.push({ command, args });
       assert.ok(options.cwd.endsWith(command === "uv" ? "/backend" : "/deploy/cloudflare-backend"));
@@ -51,11 +49,12 @@ for (const failDeploy of [false, true]) {
         assert.equal(args.join(" ").includes(secret), false);
       }
       if (command === "uv") assert.equal(options.env.MIGRATION_DATABASE_URL, env.SUPABASE_DB_URL);
-      if (args.includes("--secrets-file")) {
-        metadataPath = args[args.indexOf("--secrets-file") + 1];
-        assert.deepEqual(JSON.parse(fs.readFileSync(metadataPath)), { GIT_SHA: sha, KOVA_RELEASE_SHA: sha });
-        assert.equal(fs.statSync(metadataPath).mode & 0o777, 0o600);
-        if (failDeploy) throw new Error("deployment failed");
+      assert.equal(args.includes("--secrets-file"), false);
+      if (args.some(value => value.endsWith("/build.mjs"))) {
+        assert.equal(options.env.KOVA_BUILD_SHA, sha);
+      }
+      if (failDeploy && args.includes("deploy") && !args.includes("--dry-run")) {
+        throw new Error("deployment failed");
       }
     } });
     if (failDeploy) await assert.rejects(provider.publish(sha), /deployment failed/);
@@ -65,8 +64,6 @@ for (const failDeploy of [false, true]) {
     const deployed = calls.filter(call => call.args.includes("deploy") && !call.args.includes("--dry-run"));
     assert.deepEqual(deployed.map(call => call.args[call.args.indexOf("--worker") + 1]),
       failDeploy ? [backendWorkers[0]] : backendWorkers);
-    assert.ok(metadataPath);
-    assert.equal(fs.existsSync(metadataPath), false);
     assert.equal(calls.some(call => call.command.includes("flyctl")), false);
   });
 }

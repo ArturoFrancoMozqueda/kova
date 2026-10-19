@@ -2,16 +2,16 @@
 
 Last updated: 2026-10-18
 
-## Cloudflare Free backend migration (2026-10-18, public cutover reverted)
+## Cloudflare Free backend migration (2026-10-18, corrected public cutover)
 
 El propietario autorizó migrar Fly y eligió mantener Free posponiendo documentos.
 La API FastAPI existente se sirve en coordinadores Durable Objects y un gateway
 HTTP pequeño, con Postgres en Supabase, Hyperdrive sin caché y un Worker de tareas
-sin conexión privilegiada. El intento de corte público se revirtió a Fly al fallar
-la aceptación real: sesión/panel y `/health/db` presentaron errores intermitentes
-de conexión de unos 15 segundos, pese a las comprobaciones iniciales satisfactorias.
-El frontend permanece en Cloudflare y la API pública vuelve a Fly; se canceló
-`39183665551` y `KOVA_CLOUDFLARE_BACKEND=0` evita promover el candidato automáticamente.
+sin conexión privilegiada. Frontend y API públicos ya están en Cloudflare;
+`KOVA_CLOUDFLARE_BACKEND=1` selecciona el nuevo proveedor de publicación/recuperación.
+El primer corte se revirtió al detectar errores intermitentes de sesión/Postgres;
+se canceló `39183665551`, se recuperó Fly y se corrigió el ciclo de respuesta ASGI
+antes de repetir la aceptación pública.
 Las capturas de DNS, versiones exactas y máquinas se conservan fuera del repositorio.
 
 Validación local: 1,516 pruebas completas con pg8000; registro/verificación/login,
@@ -29,19 +29,40 @@ Se corrigió además HTTPS de Stripe/conectores: una prueba desplegada sin crede
 reales confirmó el transporte Fetch; 72 pruebas enfocadas y nueve comprobaciones de
 Workers aprobaron. No se crearon cobros ni cambios de suscripciones durante la validación.
 
-Browser confirmó acceso con la cuenta de prueba, panel/sucursales y recarga tras
-restaurar la versión pública `ec883ea`. Fly permanece encendido. El candidato continúa
-aislado en `backend-preview.kovasuite.com` / `api-preview.kovasuite.com`.
-
-Bloqueo actual: corregir y volver a validar el I/O síncrono concurrente en Python,
-incluyendo el cierre de transacciones después de iniciar una respuesta ASGI en streaming.
-La corrección candidata retiene la admisión por coordinador hasta terminar ASGI,
+PR #203 integrada: la corrección retiene la admisión por coordinador hasta terminar ASGI,
 conserva JSON de un solo bloque como respuesta completa y descargas como streams.
 El gateway rechaza rutas ajenas a la API antes de iniciar Python. Once pruebas
 nativas enfocadas y doce comprobaciones de Workers aprobaron, incluyendo tres
-ráfagas de seis sesiones entre dos negocios. Falta validar la corrección desplegada.
-Faltan pruebas repetidas autenticadas e inactivas del candidato, nueva aceptación pública,
-publicación automática completa y, solo después, detención reversible de Fly.
+ráfagas de seis sesiones entre dos negocios. CI completo de la corrección aprobado en
+[`39185158650`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39185158650).
+
+Browser verificó login nuevo, renovación de una sesión vencida, panel/sucursales,
+recargas, logout e informes reales de treinta días en el candidato. En el dominio
+principal confirmó login, actualización PWA, recarga completa, logout y redirección
+de una ruta privada después de salir. Aprobaron 52 lecturas de base en el candidato
+(incluidos todos los coordinadores tras inactividad), 36 públicas y el contrato
+frontend/API/proxy/Postgres con DNS normal. No se hicieron ventas ni cobros de prueba.
+
+El arranque de algunos coordinadores todavía puede tardar entre 7 y 13 segundos;
+las comprobaciones calientes de base de datos respondieron normalmente en menos de un segundo.
+El candidato permanece en `backend-preview.kovasuite.com` / `api-preview.kovasuite.com`.
+La primera publicación automática del nuevo proveedor se detuvo antes de mutaciones en
+[`39186012958`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39186012958),
+porque comprobaba el alias de respaldo Vercel contra la versión nueva de la API.
+La configuración `VERCEL_URL`, usada como origen público por el preflight,
+el artefacto de recuperación y los recordatorios, se corrigió a `https://kovasuite.com`.
+El segundo intento publicó la API, pero falló durante aceptación y su recuperación
+quedó bloqueada porque `GIT_SHA` / `KOVA_RELEASE_SHA` se habían rotado como secretos.
+Se activó manualmente la versión de frontend validada para recuperar coherencia
+con la API en `1e3e659`; el contrato público completo aprobó de nuevo.
+
+La corrección del publicador usa `KOVA_BUILD_SHA` como binding de texto versionado,
+conserva los secretos existentes y sus protecciones de reversión, y espera brevemente
+solo si el frontend muestra la versión anterior capturada. Los errores HTTP y versiones
+inesperadas siguen bloqueando. Las fallas de aceptación y recuperación conservan ambas
+causas para diagnóstico. Validación local: 17 pruebas nativas enfocadas, 49 contratos
+de publicación aprobados (una comprobación exclusiva de Windows omitida) y 12 pruebas
+de Workers. Falta aceptar una publicación automática con esta corrección antes de detener Fly.
 [Arquitectura, pruebas y límites](../deploy/cloudflare-backend/README.md).
 
 ## Cloudflare Free frontend cutover (2026-10-17)

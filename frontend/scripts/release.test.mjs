@@ -58,6 +58,37 @@ test("a failed restore remains a blocking incident", async () => {
   assert.equal(fake.calls.includes("restore-fly"), false);
 });
 
+test("a failed recovery preserves the original acceptance error for diagnosis", async () => {
+  const fake = fixture("acceptance");
+  fake.provider.restoreVercel = async () => { throw new Error("recovery transport failed"); };
+  await assert.rejects(release({ artifact, sha, ...fake }), error => {
+    assert.ok(error instanceof globalThis.AggregateError);
+    assert.match(error.message, /RECOVERY_BLOCKED/);
+    assert.equal(error.errors[0].message, "acceptance");
+    assert.match(error.errors[1].message, /recovery transport failed/);
+    return true;
+  });
+});
+
+test("Cloudflare waits for publication readiness before strict public acceptance", async () => {
+  const fake = fixture();
+  fake.provider.requiresCloudflare = true;
+  fake.provider.waitForPublicFrontend = async input => {
+    assert.equal(input.sha, sha);
+    assert.equal(input.previousSha, artifact.releaseSha);
+    fake.calls.push("ready");
+  };
+  await release({ artifact: { ...artifact, cloudflareVersion: "dcad4869-ba1d-43d4-865b-66349697bd7c" }, sha, ...fake });
+  assert.deepEqual(fake.calls.slice(-2), ["ready", "acceptance"]);
+});
+
+test("missing Cloudflare readiness support fails before creating a candidate", async () => {
+  await assert.rejects(release({ artifact: { ...artifact,
+    cloudflareVersion: "dcad4869-ba1d-43d4-865b-66349697bd7c" }, sha,
+    provider: { requiresCloudflare: true, createCandidate: assert.fail },
+  }), /readiness verification/);
+});
+
 test("missing capture or SHA fails before creating a candidate", async () => {
   for (const input of [{ artifact: { ...artifact, flyImage: "" }, sha },
     { artifact, sha: "short" }]) {

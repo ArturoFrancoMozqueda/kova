@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, URL } from "node:url";
-import { cloudflareProvider } from "./cloudflare-provider.mjs";
+import { cloudflareProvider, waitForFrontendRelease } from "./cloudflare-provider.mjs";
 import { release, releaseProvider } from "./release.mjs";
 import { recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
 
@@ -12,6 +12,39 @@ const env = { KOVA_CLOUDFLARE_FRONTEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cl
 const artifact = { releaseSha: "a".repeat(40), flyImage: "registry.fly.io/test@sha256:old",
   vercelDeployment: "https://old.vercel.app", frontendUrl: "https://kovasuite.com",
   backendUrl: "https://api.kovasuite.com", cloudflareVersion: version };
+
+test("readiness waits only for the captured previous frontend then still requires the new version", async () => {
+  let calls = 0;
+  let waits = 0;
+  await waitForFrontendRelease({ frontendUrl: artifact.frontendUrl, sha: "b".repeat(40),
+    previousSha: artifact.releaseSha, wait: async () => { waits++; },
+    fetcher: async (url, options) => {
+      assert.equal(url.pathname, "/version.json");
+      assert.equal(options.headers["cache-control"], "no-cache");
+      assert.ok(options.signal);
+      return globalThis.Response.json({ hash: (++calls === 1 ? "a" : "b").repeat(12) });
+    } });
+  assert.equal(calls, 2);
+  assert.equal(waits, 1);
+});
+
+test("readiness never retries HTTP failures, missing versions or foreign commits", async () => {
+  for (const response of [new globalThis.Response("unavailable", { status: 503 }),
+    globalThis.Response.json({}), globalThis.Response.json({ hash: "c".repeat(12) })]) {
+    await assert.rejects(waitForFrontendRelease({ frontendUrl: artifact.frontendUrl,
+      sha: "b".repeat(40), previousSha: artifact.releaseSha,
+      fetcher: async () => response, wait: assert.fail }));
+  }
+});
+
+test("a previous frontend that never propagates remains a failed publication", async () => {
+  let calls = 0;
+  await assert.rejects(waitForFrontendRelease({ frontendUrl: artifact.frontendUrl,
+    sha: "b".repeat(40), previousSha: artifact.releaseSha, wait: async () => {},
+    fetcher: async () => { calls++; return globalThis.Response.json({ hash: "a".repeat(12) }); },
+  }), /did not finish propagating/);
+  assert.equal(calls, 20);
+});
 
 test("the capture executable initializes its full ESM graph without a top-level await cycle", () => {
   const executable = fileURLToPath(new URL("./capture-cloudflare.mjs", import.meta.url));

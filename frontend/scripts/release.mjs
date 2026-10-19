@@ -26,6 +26,9 @@ export async function release({ artifact: rawArtifact, sha, provider,
   if (provider.requiresCloudflare && !artifact.cloudflareVersion) {
     throw new Error("Cloudflare release requires a captured rollback version");
   }
+  if (provider.requiresCloudflare && typeof provider.waitForPublicFrontend !== "function") {
+    throw new Error("Cloudflare publication requires frontend readiness verification");
+  }
   if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
     throw new Error("Cloudflare backend release requires captured rollback versions");
   }
@@ -40,12 +43,20 @@ export async function release({ artifact: rawArtifact, sha, provider,
     phase = "promotion";
     await provider.promote(url, artifact.frontendUrl);
     phase = "acceptance";
+    if (provider.requiresCloudflare) {
+      await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl, sha,
+        previousSha: artifact.releaseSha });
+    }
     await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     return { sha, url, phase, accepted: true };
   } catch (error) {
     if (phase) {
-      await recover({ phase, artifact, provider, verify });
+      try {
+        await recover({ phase, artifact, provider, verify });
+      } catch (recoveryError) {
+        throw new globalThis.AggregateError([error, recoveryError], recoveryError.message, { cause: error });
+      }
       throw new Error(`RELEASE_FAILED_RECOVERED (${phase}): ${error.message}`);
     }
     throw error;
@@ -66,6 +77,7 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
   return {
     ...cliProvider({ globalConfig, run, env }),
     requiresCloudflare: Boolean(cloudflare),
+    ...(cloudflare ? { waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
     requiresCloudflareBackend: Boolean(backend),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);

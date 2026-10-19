@@ -1,6 +1,7 @@
 """Initialize the existing API inside a request with explicit Workers bindings."""
 
 import asyncio
+import re
 
 _application = None
 _initialization = asyncio.Lock()
@@ -19,6 +20,14 @@ def environment(env, *, privileged=True) -> dict[str, str]:
             value = getattr(env, candidate, None)
             if isinstance(value, str):
                 values[candidate] = value
+    release = getattr(env, "KOVA_BUILD_SHA", None)
+    if release is not None:
+        if not isinstance(release, str) or not re.fullmatch(r"[a-fA-F0-9]{40}", release):
+            raise RuntimeError("Workers build identity must be a complete commit SHA")
+        # New deployments version this public value as text. Legacy sealed
+        # metadata stays untouched, so rollback never requires bypassing the
+        # platform's checks for genuinely rotated credentials.
+        values["kova_release_sha"] = release
     # Documents are deliberately postponed on Workers Free. Existing data is
     # retained; no daemon, file job or Fly machine wake may be started here.
     values["ASSISTANT_DOCUMENTS_ENABLED"] = "false"

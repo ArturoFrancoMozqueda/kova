@@ -1,7 +1,8 @@
 # Backend on Cloudflare Free
 
-Status: implementation/candidate validation in progress. Production API remains on
-Fly until candidate acceptance and the release pipeline switch are complete.
+The public frontend and API use Cloudflare Workers Free. Current acceptance,
+automatic publication and recovery status live in
+[`docs/current-sprint.md`](../../docs/current-sprint.md).
 
 The existing FastAPI application runs in 16 SQLite Durable Object coordinators
 behind a small JavaScript HTTP gateway. This retains production bcrypt cost within
@@ -24,6 +25,12 @@ the runtime binding, no owner URL and no public route. Private per-tenant alarms
 process one chat job per invocation using the existing PostgreSQL leases and
 uncertain-call protection. A five-minute sweep recovers missed wakes and performs
 existing retention/outbox maintenance. No Docker daemon or polling process runs.
+
+Release identity uses the versioned text binding `KOVA_BUILD_SHA`; legacy sealed
+metadata is left unchanged. Publication never rotates real secrets or bypasses
+Cloudflare rollback protections. Public frontend acceptance waits briefly only
+when the captured previous build is still propagating, then runs the full health
+and version contract. HTTP failures and unexpected builds remain blocking.
 
 The owner chose Workers Free and postponed document ingestion. Workers forcibly
 disable new document uploads/processing and Fly wake commands. Existing files and
