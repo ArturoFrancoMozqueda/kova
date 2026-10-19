@@ -114,14 +114,15 @@ def list_products(
     _, membership, _ = ctx
     can_view_cost = has_permission(membership.role, Permission.CATALOG_UPDATE)
     products = service.list_products(db, tenant_id=membership.tenant_id)
+    groups = modifier_service.get_products_modifier_groups(
+        db, tenant_id=membership.tenant_id, product_ids=[product.id for product in products]
+    )
     result = []
     for product in products:
         p = ProductResponse.model_validate(product)
         if not can_view_cost:
             p.cost_price = None
-        p.modifier_groups = modifier_service.get_product_modifier_groups(
-            db, tenant_id=membership.tenant_id, product_id=product.id
-        )
+        p.modifier_groups = groups.get(product.id, [])
         result.append(p)
     return result
 
