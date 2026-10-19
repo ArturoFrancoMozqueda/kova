@@ -125,6 +125,8 @@ BEGIN
             ('business_events', 'SELECT, INSERT'),
             ('crm_opportunities', 'SELECT, INSERT, UPDATE'),
             ('crm_catalog_requests', 'SELECT, INSERT'),
+            ('service_cases', 'SELECT, INSERT'),
+            ('service_case_events', 'SELECT, INSERT'),
             ('appointment_resources', 'SELECT, INSERT'),
             ('appointments', 'SELECT, INSERT'),
             ('appointment_history', 'SELECT, INSERT'),
@@ -241,6 +243,10 @@ DO $$ BEGIN
             ON crm_followup_policies TO kova_app;
         GRANT UPDATE(status, note, due_at, assigned_user_id, version, resolved_at)
             ON crm_followup_tasks TO kova_app;
+    END IF;
+    IF to_regclass('public.service_cases') IS NOT NULL THEN
+        GRANT UPDATE(status, assigned_user_id, due_at, version, updated_at, resolved_at)
+            ON service_cases TO kova_app;
     END IF;
     IF to_regclass('public.appointment_resources') IS NOT NULL THEN
         GRANT UPDATE(name, is_active, version, updated_at) ON appointment_resources TO kova_app;

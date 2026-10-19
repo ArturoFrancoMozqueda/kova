@@ -6,8 +6,6 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
 from uuid import UUID
 
-from openpyxl import load_workbook
-from openpyxl.utils.exceptions import InvalidFileException
 from sqlalchemy.orm import Session
 
 from app.audit import service as audit_service
@@ -165,6 +163,9 @@ def _validate_xlsx_package(content: bytes) -> None:
 
 def _parse_catalog_xlsx(content: bytes) -> list[tuple[int, dict[str, Any]]]:
     _validate_xlsx_package(content)
+    from openpyxl import load_workbook
+    from openpyxl.utils.exceptions import InvalidFileException
+
     try:
         workbook = load_workbook(
             io.BytesIO(content),

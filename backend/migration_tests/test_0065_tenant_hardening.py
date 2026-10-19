@@ -34,6 +34,9 @@ USER_A = uuid.UUID("a0000000-0000-0000-0000-000000000065")
 USER_B = uuid.UUID("b0000000-0000-0000-0000-000000000065")
 
 _RUNTIME_TABLE_PRIVILEGES = {
+    # Service cases add two private relations; only workflow columns are mutable.
+    "service_cases": {"SELECT", "INSERT"},
+    "service_case_events": {"SELECT", "INSERT"},
     # New agenda/loyalty tables extend the exact private verb matrix. Their
     # immutable snapshots and ledgers retain no table-level UPDATE or DELETE.
     "appointment_resources": {"SELECT", "INSERT"},
@@ -147,6 +150,9 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "service_cases": {
+        "status", "assigned_user_id", "due_at", "version", "updated_at", "resolved_at",
+    },
     "appointment_resources": {"name", "is_active", "version", "updated_at"},
     "appointments": {"starts_at", "ends_at", "note", "status", "version", "updated_at"},
     "appointment_reminders": {"status", "version", "resolved_at"},
@@ -338,6 +344,8 @@ _SEMANTIC_INSERT_ORDER = (
     "appointment_reminders",
     "loyalty_policy_revisions",
     "loyalty_entries",
+    "service_cases",
+    "service_case_events",
 )
 
 
@@ -351,6 +359,11 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
     token = f"{tenant_token}-{variant}-{table.name}"
     if name in {"tenant_id", "branch_id"}:
         return tenant
+    if table.name in {"service_cases", "service_case_events"}:
+        if name == "status":
+            return "open"
+        if table.name == "service_case_events" and name == "kind":
+            return "created"
     if table.name in {"appointments", "appointment_history"}:
         if name == "starts_at":
             return datetime(2026, 10, 20, 10, tzinfo=UTC) + timedelta(days=variant)
@@ -579,6 +592,10 @@ def _semantic_payloads(engine):
                         )
                 if "tenant_id" in table.c:
                     values["tenant_id"] = tenant
+                if table.name == "service_case_events":
+                    # Created events require the original immutable note even
+                    # though later workflow events legitimately have no note.
+                    values["note"] = "Semantic customer service note"
                 if table.name == "loyalty_entries":
                     # Accruals require real immutable sale+policy evidence even
                     # though those FK columns are nullable for redemptions.
