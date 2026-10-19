@@ -136,10 +136,13 @@ def _provision_kova_app() -> None:
                 "expenses product_image_files tenant_logo_files assistant_records assistant_chunks"
             ),
             "SELECT, INSERT, DELETE": (
+                "public_catalog_items "
                 "customer_order_item_modifiers customer_order_items "
                 "product_modifier_groups inventory_lot_reservations"
             ),
             "SELECT, INSERT, UPDATE": (
+                "crm_opportunities "
+                "customer_contact_consents public_catalogs "
                 "drawer_devices drawer_commands account_deletion_requests categories customer_orders customers idempotency_keys "
                 "inventory_reservations membership_invitations modifier_groups "
                 "modifier_options orders products shifts subscriptions "
@@ -149,6 +152,9 @@ def _provision_kova_app() -> None:
                 "memberships sessions"
             ),
             "SELECT, INSERT": (
+                "automation_rules automation_runs business_events "
+                "reconciliation_import_batches settlement_entries reconciliation_matches "
+                "customer_quotes customer_quote_items "
                 "inventory_lots inventory_lot_allocations cash_movements inventory_movements inventory_transfers suppliers purchase_orders "
                 "purchase_order_items fiscal_issuer_profiles invoice_requests "
                 "cfdi_connections cfdi_documents cfdi_enrollments "
@@ -173,6 +179,11 @@ def _provision_kova_app() -> None:
         )
         conn.execute(text("GRANT UPDATE (code, manufactured_on, rotation_on, expires_on) ON inventory_lots TO kova_app"))
         conn.execute(text("GRANT UPDATE (status) ON purchase_orders TO kova_app"))
+        conn.execute(text("GRANT UPDATE (enabled, version, authorized_by_user_id, enabled_since, updated_at) ON automation_rules TO kova_app"))
+        conn.execute(text("GRANT UPDATE (status, version, resolved_at) ON automation_runs TO kova_app"))
+        conn.execute(text("GRANT UPDATE (processed_at) ON business_events TO kova_app"))
+        conn.execute(text("GRANT UPDATE (status, shared_at, accepted_at, customer_order_id, updated_by_user_id, version, updated_at) ON customer_quotes TO kova_app"))
+        conn.execute(text("GRANT UPDATE (matched_amount, status, version, reasons, confirmed_by_user_id, reversal_reason, updated_at) ON reconciliation_matches TO kova_app"))
         conn.execute(text("GRANT UPDATE (received_quantity) ON purchase_order_items TO kova_app"))
         conn.execute(text("GRANT UPDATE (fiscal_data) ON fiscal_issuer_profiles TO kova_app"))
         conn.execute(text(

@@ -765,6 +765,8 @@ def _restock_alerts(
             row["severity"] != "critical",
             row["days_until_out"] is None,
             row["days_until_out"] if row["days_until_out"] is not None else Decimal("999"),
+            row["product_name"].casefold(),
+            str(row["product_id"]),
         )
     )
     return alerts[:10]

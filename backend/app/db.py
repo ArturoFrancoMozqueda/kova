@@ -19,6 +19,18 @@ logger = logging.getLogger(__name__)
 # Canonical inventory of tables whose rows belong to a tenant. Keep this list
 # aligned with tenant-scoped migrations; production startup rejects drift.
 TENANT_SCOPED_TABLES = (
+    "automation_rules",
+    "automation_runs",
+    "business_events",
+    "crm_opportunities",
+    "customer_contact_consents",
+    "customer_quotes",
+    "customer_quote_items",
+    "public_catalogs",
+    "public_catalog_items",
+    "reconciliation_import_batches",
+    "reconciliation_matches",
+    "settlement_entries",
     "account_deletion_requests",
     "audit_logs",
     "assistant_records",

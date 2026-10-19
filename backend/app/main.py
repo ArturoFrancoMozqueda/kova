@@ -14,6 +14,7 @@ from app.assistant.access import assert_private_policies
 from app.assistant.ingest_demand import lifespan as assistant_ingest_lifespan
 from app.assistant.router import router as assistant_router
 from app.auth.router import router as auth_router
+from app.automations.router import router as automations_router
 from app.billing import service as billing_service
 from app.billing.router import router as billing_router
 from app.branches.router import router as branches_router
@@ -23,6 +24,7 @@ from app.catalog.image_router import router as catalog_image_router
 from app.catalog.router import router as catalog_router
 from app.cfdi.router import router as cfdi_router
 from app.config import settings
+from app.crm.router import router as crm_router
 from app.customer_orders.router import router as customer_orders_router
 from app.customers.router import router as customers_router
 from app.db import assert_rls_active
@@ -35,6 +37,7 @@ from app.imports.router import router as imports_router
 from app.integrations.router import router as integrations_router
 from app.inventory.lot_router import router as inventory_lot_router
 from app.inventory.router import router as inventory_router
+from app.messaging.router import router as messaging_router
 from app.middleware.body_size import BodySizeLimitMiddleware
 from app.middleware.csrf import csrf_middleware
 from app.middleware.security_headers import security_headers_middleware
@@ -46,8 +49,12 @@ from app.ops.mfa_router import router as ops_mfa_router
 from app.ops.router import router as ops_router
 from app.orders.router import router as orders_router
 from app.purchasing.router import router as purchasing_router
+from app.quotes.router import router as quotes_router
+from app.reconciliation.router import router as reconciliation_router
+from app.replenishment.router import router as replenishment_router
 from app.reports.router import router as reports_router
 from app.shifts.router import router as shifts_router
+from app.storefront.router import router as storefront_router
 from app.sync.router import router as sync_router
 from app.telemetry.router import router as telemetry_router
 
@@ -230,6 +237,10 @@ def create_app() -> FastAPI:
     app.include_router(hardware_router)
     app.include_router(account_lifecycle_router)
     app.include_router(auth_router)
+    app.include_router(automations_router)
+    app.include_router(crm_router)
+    app.include_router(messaging_router)
+    app.include_router(storefront_router)
     app.include_router(assistant_router)
     app.include_router(billing_router)
     app.include_router(branches_router)
@@ -241,6 +252,9 @@ def create_app() -> FastAPI:
     app.include_router(integrations_router)
     app.include_router(cfdi_router)
     app.include_router(purchasing_router)
+    app.include_router(quotes_router)
+    app.include_router(replenishment_router)
+    app.include_router(reconciliation_router)
     app.include_router(catalog_image_router)
     app.include_router(employees_router)
     app.include_router(expenses_router)

@@ -120,6 +120,18 @@ DECLARE
 BEGIN
     FOR table_name, privilege_list IN
         SELECT * FROM (VALUES
+            ('automation_rules', 'SELECT, INSERT'),
+            ('automation_runs', 'SELECT, INSERT'),
+            ('business_events', 'SELECT, INSERT'),
+            ('crm_opportunities', 'SELECT, INSERT, UPDATE'),
+            ('customer_quotes', 'SELECT, INSERT'),
+            ('customer_quote_items', 'SELECT, INSERT'),
+            ('customer_contact_consents', 'SELECT, INSERT, UPDATE'),
+            ('public_catalogs', 'SELECT, INSERT, UPDATE'),
+            ('public_catalog_items', 'SELECT, INSERT, DELETE'),
+            ('reconciliation_import_batches', 'SELECT, INSERT'),
+            ('settlement_entries', 'SELECT, INSERT'),
+            ('reconciliation_matches', 'SELECT, INSERT'),
             ('account_deletion_requests', 'SELECT, INSERT, UPDATE'),
             ('categories', 'SELECT, INSERT, UPDATE'),
             ('branches', 'SELECT, INSERT'),
@@ -192,6 +204,23 @@ $$;
 -- Business profile updates mirror public_name onto the owning tenant. Keep the
 -- grant column-scoped so runtime cannot alter slug, lifecycle or feature flags.
 GRANT UPDATE (name, updated_at) ON TABLE tenants TO kova_app;
+
+DO $$ BEGIN
+    IF to_regclass('public.automation_rules') IS NOT NULL THEN
+        GRANT UPDATE (enabled, version, authorized_by_user_id, enabled_since, updated_at)
+            ON automation_rules TO kova_app;
+        GRANT UPDATE (status, version, resolved_at) ON automation_runs TO kova_app;
+        GRANT UPDATE (processed_at) ON business_events TO kova_app;
+    END IF;
+    IF to_regclass('public.reconciliation_matches') IS NOT NULL THEN
+        GRANT UPDATE (matched_amount, status, version, reasons, confirmed_by_user_id,
+                      reversal_reason, updated_at) ON reconciliation_matches TO kova_app;
+    END IF;
+    IF to_regclass('public.customer_quotes') IS NOT NULL THEN
+        GRANT UPDATE (status, shared_at, accepted_at, customer_order_id,
+                      updated_by_user_id, version, updated_at) ON customer_quotes TO kova_app;
+    END IF;
+END $$;
 
 -- PostgreSQL requires UPDATE privilege for SELECT ... FOR UPDATE. Limiting it
 -- to immutable id columns permits row locks while triggers reject mutation.

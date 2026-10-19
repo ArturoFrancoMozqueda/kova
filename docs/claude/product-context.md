@@ -20,6 +20,15 @@ Kova is more than a POS. It combines:
 - Business reports.
 - Operational clarity.
 
+## Product direction requested on 2026-10-18
+
+Evolve toward end-to-end business automation: acquisition, customer conversations, confirmed
+orders, verified payments, fulfillment, replenishment and repeat purchases. Connect these steps
+to real sales, inventory and costs, with explicit permissions and measurable outcomes. The
+[E2E evolution plan](../plans/PLAN-AUTOMATIZACION-E2E.md) defines competitive evidence, gaps and
+phased acceptance. This is future direction, not a claim of current availability or a replacement
+for the active sprint and production gates.
+
 ## Target user
 
 The main user is a small or medium business owner in Mexico. They may not be technical. They need clear flows, trustworthy data, and a product that feels professional.

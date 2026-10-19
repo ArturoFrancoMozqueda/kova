@@ -2,6 +2,24 @@
 
 Last updated: 2026-10-18
 
+## Active E2E implementation (2026-10-18)
+
+El propietario solicitó implementar el plan con equipos de agentes. Se autoriza implementación
+local incremental de automatizaciones, CRM/consentimientos y captación mediante catálogo público,
+preservando los contratos financieros y operativos actuales. Diseño y fases:
+[plan E2E](plans/PLAN-AUTOMATIZACION-E2E.md). Las reglas comienzan desactivadas; los canales externos
+sin proveedor verificado deben mostrarse desconectados. Ninguna tarea interna representa un envío,
+cobro, entrega ni emisión fiscal. La petición no activa proveedores ni publica en producción.
+
+Código local: motor de tareas internas, CRM y consentimientos, cotizaciones a pedido, catálogo
+público/QR, reposición aprobada, conciliación CSV manual y preparación de WhatsApp. Cinco
+migraciones aditivas, permisos runtime/RLS y exportación/purga acompañan los módulos. La conexión
+de canales y los efectos externos permanecen desactivados. El propietario confirmó sólo app de
+WhatsApp Business, Meta y dominio; no hay aceptación Cloud API.
+
+[Alcance exacto, evidencia y gates de release](audits/KOVA-E2E-IMPLEMENTATION-2026-10-18.md).
+La validación local no habilita producción ni cierra la totalidad del horizonte E2E.
+
 ## Cloudflare Free backend migration (2026-10-18, accepted)
 
 El propietario autorizó migrar Fly y eligió mantener Free posponiendo documentos.

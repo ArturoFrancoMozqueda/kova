@@ -100,6 +100,39 @@ _EXPORT_TABLES = (
         _columns("id tenant_id name email phone is_active created_at updated_at"),
     ),
     ExportTable(
+        "crm_opportunities",
+        _columns("id tenant_id branch_id customer_id title stage estimated_amount "
+                 "assigned_user_id next_action due_at note version created_by_user_id "
+                 "updated_by_user_id created_at updated_at"),
+    ),
+    ExportTable(
+        "customer_contact_consents",
+        _columns("id tenant_id branch_id customer_id channel purpose enabled source version "
+                 "updated_at"),
+    ),
+    ExportTable(
+        "public_catalogs",
+        _columns("id tenant_id branch_id title description whatsapp_phone enabled version "
+                 "link_version updated_at"),
+    ),
+    ExportTable("public_catalog_items", _columns("id tenant_id catalog_id product_id")),
+    ExportTable("customer_quotes", _columns(
+        "id tenant_id branch_id customer_id folio customer_name customer_phone status total_amount "
+        "expires_at shared_at accepted_at customer_order_id created_by_user_id updated_by_user_id "
+        "version created_at updated_at")),
+    ExportTable("customer_quote_items", _columns(
+        "id tenant_id branch_id quote_id product_id product_name quantity unit_price_amount "
+        "line_total_amount")),
+    ExportTable("reconciliation_import_batches", _columns(
+        "id tenant_id branch_id content_sha256 parser_version source_type row_count "
+        "created_by_user_id created_at")),
+    ExportTable("settlement_entries", _columns(
+        "id tenant_id branch_id batch_id settled_at gross_amount fee_amount net_amount "
+        "currency payment_method external_reference_masked row_fingerprint")),
+    ExportTable("reconciliation_matches", _columns(
+        "id tenant_id branch_id settlement_entry_id payment_id order_id matched_amount status "
+        "version reasons confirmed_by_user_id reversal_reason created_at updated_at")),
+    ExportTable(
         "suppliers",
         _columns("id tenant_id name contact is_active created_at"),
     ),
@@ -389,6 +422,9 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
         "account_deletion_requests",
         "assistant_records",
         "assistant_chunks",
+        "automation_rules",
+        "automation_runs",
+        "business_events",
         "audit_logs",
         "idempotency_keys",
         "ops_notes",
@@ -402,6 +438,18 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "customer_quote_items",
+    "customer_quotes",
+    "reconciliation_matches",
+    "settlement_entries",
+    "reconciliation_import_batches",
+    "automation_runs",
+    "business_events",
+    "automation_rules",
+    "crm_opportunities",
+    "customer_contact_consents",
+    "public_catalog_items",
+    "public_catalogs",
     "drawer_commands",
     "drawer_devices",
     "assistant_chunks",

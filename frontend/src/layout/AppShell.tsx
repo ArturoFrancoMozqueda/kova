@@ -36,6 +36,11 @@ import {
   ChevronsRight,
   CircleHelp,
   Sparkles,
+  Workflow,
+  Handshake,
+  Store,
+  FileText,
+  MessagesSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -77,6 +82,13 @@ const adminNavItems: NavItem[] = [
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
   { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
+  { to: "/crm", label: "Seguimiento comercial", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/quotes", label: "Cotizaciones", icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/automations", label: "Automatizaciones", icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/public-catalog", label: "Catálogo público", icon: <Store className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/settings/channels", label: "Canales", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/reconciliation", label: "Conciliación", icon: <WalletCards className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/replenishment", label: "Reposición", icon: <Package className="h-4.5 w-4.5" />, group: "business", permission: INVENTORY_ADJUST_PERMISSION },
   { to: "/settings", label: copy.app.settings, icon: <Settings className="h-4.5 w-4.5" />, group: "business" },
   { to: "/settings/billing", label: copy.billingView.title, icon: <CreditCard className="h-4.5 w-4.5" />, group: "business", permission: "billing.view" },
 ];
@@ -162,6 +174,13 @@ export default function AppShell() {
   const loadingViewName = (() => {
     const path = location.pathname;
     if (path.startsWith("/customers")) return "Clientes";
+    if (path.startsWith("/crm")) return "Seguimiento comercial";
+    if (path.startsWith("/quotes")) return "Cotizaciones";
+    if (path.startsWith("/automations")) return "Automatizaciones";
+    if (path.startsWith("/reconciliation")) return "Conciliación";
+    if (path.startsWith("/replenishment")) return "Reposición";
+    if (path.startsWith("/settings/public-catalog")) return "Catálogo público";
+    if (path.startsWith("/settings/channels")) return "Canales";
     if (path.startsWith("/purchasing")) return "Compras y proveedores";
     if (path.startsWith("/settings/integrations")) return "Facturación e integraciones";
     if (path.startsWith("/register") || path === "/caja") return copy.register.title;
