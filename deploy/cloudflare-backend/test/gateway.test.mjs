@@ -1,6 +1,34 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import gateway from "../gateway.mjs";
+import gateway, { coordinatorShard } from "../gateway.mjs";
+
+test("dependent dashboard reads reuse the session coordinator with at most four lanes per cookie", () => {
+  const groups = new Set();
+  const chain = ["/api/v1/auth/session", "/api/v1/auth/refresh", "/api/v1/auth/logout",
+    "/api/v1/settings/business-profile", "/api/v1/reports/business-story",
+    "/api/v1/reports/sales-summary", "/api/v1/reports/sales-by-hour"];
+  const parallel = ["/api/v1/catalog/products", "/api/v1/inventory/stock",
+    "/api/v1/inventory/low-stock", "/api/v1/onboarding/state", "/api/v1/employees",
+    "/api/v1/shifts", "/api/v1/billing/subscription", "/api/v1/branches", "/api/v1/settings/receipt"];
+  for (let index = 0; index < 128; index++) {
+    const cookie = `synthetic-routing-cookie-${index}`;
+    const critical = coordinatorShard(cookie, chain[0]);
+    groups.add(critical);
+    for (const path of chain) {
+      assert.equal(coordinatorShard(cookie, path), critical);
+      assert.equal(coordinatorShard(cookie, `${path}/`), critical);
+    }
+    const lanes = new Set([critical]);
+    for (const path of parallel) {
+      const shard = coordinatorShard(cookie, path);
+      assert.ok(shard > critical && shard < critical + 4);
+      assert.ok(shard >= 0 && shard < 16);
+      lanes.add(shard);
+    }
+    assert.ok(lanes.size >= 3 && lanes.size <= 4);
+  }
+  assert.deepEqual([...groups].sort((a, b) => a - b), [0, 4, 8, 12]);
+});
 
 test("unknown scanner paths stay outside Python and the database", async () => {
   const env = { API: { getByName() { assert.fail("Unknown path entered Python"); } } };

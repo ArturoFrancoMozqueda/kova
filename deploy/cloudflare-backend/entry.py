@@ -1,6 +1,5 @@
 """Thin gateway + bounded request coordination; all POS data stays in Postgres."""
 
-import hashlib
 import importlib
 import logging
 import math
@@ -10,6 +9,7 @@ from urllib.parse import urlparse
 from workers import DurableObject, WorkerEntrypoint
 
 from app.workers.asgi import RequestCoordinator
+from app.workers.routing import coordinator_shard
 
 # Cloudflare snapshots top-level imports at deployment. Load pure package code
 # here; application settings, database validation and request I/O remain inside
@@ -25,9 +25,7 @@ class Default(WorkerEntrypoint):
     async def fetch(self, request):
         # A routing hint only: permissions and session validity are checked by
         # the unchanged API. Names contain neither tokens nor customer values.
-        identity = ((request.headers.get("cookie") or "anonymous")
-                    + "\n" + urlparse(request.url).path).encode()
-        shard = hashlib.sha256(identity).digest()[0] % 16
+        shard = coordinator_shard(request.headers.get("cookie"), urlparse(request.url).path)
         return await self.env.API.getByName(f"api-{shard}").fetch(request)
 
 

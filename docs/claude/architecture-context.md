@@ -15,7 +15,9 @@ Arquitectura vigente:
   publica sus mismos archivos estáticos validados en Cloudflare y captura la versión anterior
   del Worker para revertir antes de recuperar Vercel.
 - Backend hosting público: Cloudflare Workers Free. Un gateway distribuye por cookie y ruta entre
-  16 coordinadores Python/Durable Objects; las sesiones, permisos, RLS y escrituras se resuelven
+  16 coordinadores Python/Durable Objects, con cuatro por cookie. Sesión, zona horaria e informes
+  del panel reutilizan un coordinador; las otras lecturas mantienen tres vías paralelas.
+  Las sesiones, permisos, RLS y escrituras se resuelven
   siempre en PostgreSQL mediante Hyperdrive sin caché. SQLite no almacena tablas del negocio.
 - Tareas del asistente: Worker privado con alarmas, rol runtime y leases de PostgreSQL; no recibe
   conexión de propietario, claves Stripe ni raíces de MFA.
