@@ -96,11 +96,15 @@ test("Cloudflare waits for the new backend before verifying or promoting the can
   const fake = fixture();
   fake.provider.requiresCloudflareBackend = true;
   fake.provider.waitForPublicBackend = async input => {
-    assert.deepEqual(input, { backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha });
+    const frontendUrl = fake.calls.includes("promote")
+      ? artifact.frontendUrl : "https://candidate.vercel.app";
+    assert.deepEqual(input, { backendUrl: artifact.backendUrl, frontendUrl, sha,
+      previousSha: artifact.releaseSha,
+      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     fake.calls.push("backend-ready");
   };
   await release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions }, sha, ...fake });
-  assert.deepEqual(fake.calls, ["candidate", "fly", "backend-ready", "verify", "promote", "acceptance"]);
+  assert.deepEqual(fake.calls, ["candidate", "fly", "backend-ready", "verify", "promote", "backend-ready", "acceptance"]);
 });
 
 test("missing backend readiness support blocks publication and recovery before mutations", async () => {
@@ -124,7 +128,9 @@ test("failed backend readiness restores and waits for the exact old backend befo
       fake.calls.push("new-readiness-failed");
       throw new Error("new backend did not propagate");
     }
-    assert.deepEqual(input, { backendUrl: artifact.backendUrl, sha: artifact.releaseSha, previousSha: sha });
+    assert.deepEqual(input, { frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl,
+      sha: artifact.releaseSha, previousSha: sha,
+      frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     fake.calls.push("restored-ready");
   };
   await assert.rejects(release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions },

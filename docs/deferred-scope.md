@@ -26,6 +26,11 @@ copiloto; no mueve automáticamente agendas, lealtad, marketing masivo, API púb
 capacidades diferidas al sprint. Para implementarlas siguen aplicando los criterios de entrada
 al final de este documento y sus gates técnicos/comerciales.
 
+Actualización de ejecución autorizada: captación revisable, bandeja/borradores y postventa interna
+se implementaron en la continuación del circuito general. Su alcance, pruebas y canales aún sin
+conectar se registran en el [informe de continuación](audits/KOVA-E2E-COMPLETION-2026-10-18.md).
+Las extensiones por giro de este documento conservan sus contratos y aceptación propios.
+
 The closed beta should focus on a reliable bakery / small food retail POS.
 
 Do not implement these for beta:

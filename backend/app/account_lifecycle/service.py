@@ -117,12 +117,29 @@ _EXPORT_TABLES = (
     ),
     ExportTable("public_catalog_items", _columns("id tenant_id catalog_id product_id")),
     ExportTable("customer_quotes", _columns(
-        "id tenant_id branch_id customer_id folio customer_name customer_phone status total_amount "
+        "id tenant_id branch_id customer_id opportunity_id folio customer_name customer_phone "
+        "status total_amount "
         "expires_at shared_at accepted_at customer_order_id created_by_user_id updated_by_user_id "
         "version created_at updated_at")),
     ExportTable("customer_quote_items", _columns(
         "id tenant_id branch_id quote_id product_id product_name quantity unit_price_amount "
         "line_total_amount")),
+    ExportTable("crm_catalog_requests", _columns(
+        "id tenant_id branch_id catalog_id name contact message product_ids status "
+        "customer_id opportunity_id version created_at resolved_at")),
+    ExportTable("crm_followup_policies", _columns(
+        "id tenant_id branch_id enabled review_delay_days rebuy_delay_days version "
+        "authorized_by_user_id enabled_since updated_at")),
+    ExportTable("crm_followup_tasks", _columns(
+        "id tenant_id branch_id customer_id sale_order_id kind status title note due_at "
+        "assigned_user_id version created_at resolved_at")),
+    ExportTable("messaging_conversations", _columns(
+        "id tenant_id branch_id customer_id subject origin status automation_paused "
+        "assigned_user_id last_inbound_at version created_at updated_at")),
+    ExportTable("messaging_messages", _columns(
+        "id tenant_id branch_id conversation_id source_run_id direction body message_type "
+        "state purpose "
+        "requested_by_user_id version error_code created_at updated_at")),
     ExportTable("reconciliation_import_batches", _columns(
         "id tenant_id branch_id content_sha256 parser_version source_type row_count "
         "created_by_user_id created_at")),
@@ -425,6 +442,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
         "automation_rules",
         "automation_runs",
         "business_events",
+        "messaging_channel_bindings",
+        "messaging_channel_events",
         "audit_logs",
         "idempotency_keys",
         "ops_notes",
@@ -438,6 +457,13 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "messaging_channel_events",
+    "messaging_messages",
+    "messaging_conversations",
+    "messaging_channel_bindings",
+    "crm_followup_tasks",
+    "crm_followup_policies",
+    "crm_catalog_requests",
     "customer_quote_items",
     "customer_quotes",
     "reconciliation_matches",

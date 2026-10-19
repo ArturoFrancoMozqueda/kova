@@ -24,6 +24,7 @@ from app.catalog.image_router import router as catalog_image_router
 from app.catalog.router import router as catalog_router
 from app.cfdi.router import router as cfdi_router
 from app.config import settings
+from app.crm.engagement_router import router as crm_engagement_router
 from app.crm.router import router as crm_router
 from app.customer_orders.router import router as customer_orders_router
 from app.customers.router import router as customers_router
@@ -239,6 +240,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(automations_router)
     app.include_router(crm_router)
+    app.include_router(crm_engagement_router)
     app.include_router(messaging_router)
     app.include_router(storefront_router)
     app.include_router(assistant_router)

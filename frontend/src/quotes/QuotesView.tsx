@@ -16,6 +16,8 @@ import {
 } from "@/automations/workspace";
 import type { Product } from "@/catalog/types";
 import type { Customer } from "@/customers/api";
+import { statusLabels as orderStatusLabels } from "@/customerOrders/labels";
+import type { CustomerOrderStatus } from "@/customerOrders/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +25,7 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewEmpty, ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import type { CrmData, Opportunity } from "@/crm/types";
 import type { Quote, QuotesPage } from "./types";
 
 const money = (amount: string) =>
@@ -58,6 +61,9 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunityId, setOpportunityId] = useState("");
+  const [opportunitiesError, setOpportunitiesError] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [items, setItems] = useState<
     { product_id: string; quantity: number }[]
@@ -136,6 +142,27 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       window.clearTimeout(timeout);
     };
   }, [request, search]);
+  useEffect(() => {
+    let active = true;
+    setOpportunities([]);
+    setOpportunitiesError("");
+    if (customerId)
+      void request<CrmData>(
+        `/crm?customer_id=${encodeURIComponent(customerId)}&limit=100&offset=0`,
+      )
+        .then((result) => {
+          if (active) setOpportunities(result.opportunities ?? []);
+        })
+        .catch(() => {
+          if (active)
+            setOpportunitiesError(
+              "No pudimos consultar oportunidades. Puedes continuar sin vincular una.",
+            );
+        });
+    return () => {
+      active = false;
+    };
+  }, [customerId, request]);
   const mutate = async (
     action: () => Promise<unknown>,
     success: string,
@@ -205,6 +232,7 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
     }
     const body = {
       customer_id: customerId,
+      ...(opportunityId ? { opportunity_id: opportunityId } : {}),
       expires_at: expiration.toISOString(),
       items,
     };
@@ -318,7 +346,10 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 required
                 className={selectClass}
                 value={customerId}
-                onChange={(event) => setCustomerId(event.target.value)}
+                onChange={(event) => {
+                  setCustomerId(event.target.value);
+                  setOpportunityId("");
+                }}
               >
                 <option value="">Elige un cliente</option>
                 {customerId &&
@@ -331,6 +362,30 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <Label htmlFor="quote-opportunity">
+                Oportunidad de origen (opcional)
+              </Label>
+              <select
+                id="quote-opportunity"
+                className={selectClass}
+                value={opportunityId}
+                disabled={!customerId}
+                onChange={(event) => setOpportunityId(event.target.value)}
+              >
+                <option value="">Sin oportunidad vinculada</option>
+                {opportunities.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.title}
+                  </option>
+                ))}
+              </select>
+              {opportunitiesError && (
+                <p className="mt-2 text-sm" role="status">
+                  {opportunitiesError}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="quote-expires">
@@ -453,6 +508,11 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
                 key={quote.id}
                 className="space-y-4 rounded-2xl border bg-card p-5"
               >
+                <QuoteJourney
+                  key={`${quote.id}:${quote.version}`}
+                  identity={identity}
+                  quoteId={quote.id}
+                />
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <h3 className="break-words font-semibold">
@@ -624,5 +684,128 @@ function QuotesWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </nav>
       )}
     </ViewLayout>
+  );
+}
+
+type Journey = {
+  quote_id: string;
+  catalog_request_id?: string | null;
+  opportunity_id: string | null;
+  opportunity_stage: string | null;
+  customer_order_id: string | null;
+  customer_order_status: CustomerOrderStatus | null;
+  sale_order_id: string | null;
+  sale_status: "completed" | "voided" | null;
+  sale_total_amount: string | null;
+  recorded_payments_amount: string | null;
+  external_collection_verified: false;
+};
+function QuoteJourney({
+  identity,
+  quoteId,
+}: {
+  identity: WorkspaceIdentity;
+  quoteId: string;
+}) {
+  const request = useOperationsRequest("/api/v1/quotes", identity);
+  const [data, setData] = useState<Journey | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  const load = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await request<Journey>(`/${quoteId}/journey`);
+      if (active.current) setData(result);
+    } catch (e) {
+      if (active.current)
+        setError(
+          e instanceof Error ? e.message : "No pudimos consultar el recorrido.",
+        );
+    } finally {
+      if (active.current) setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-3">
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={busy}
+        onClick={() => void load()}
+      >
+        {busy ? "Consultando recorrido…" : "Ver recorrido comercial"}
+      </Button>
+      {error && (
+        <p role="alert" className="text-sm">
+          {error}
+        </p>
+      )}
+      {data && (
+        <div className="space-y-2 rounded-xl bg-kova-mist p-4 text-sm">
+          <p className="font-medium">Origen y resultado registrado</p>
+          {data.catalog_request_id && (
+            <p>
+              Solicitud de catálogo vinculada.{" "}
+              <Link to="/commercial-requests" className="underline">
+                Consultar solicitudes
+              </Link>
+            </p>
+          )}
+          <p>
+            {data.opportunity_id
+              ? "Oportunidad comercial vinculada"
+              : "Sin oportunidad de origen"}
+            .{" "}
+            <Link to="/crm" className="underline">
+              Ver seguimiento
+            </Link>
+          </p>
+          <p>
+            {data.customer_order_id
+              ? `Pedido vinculado: ${(data.customer_order_status ? orderStatusLabels[data.customer_order_status] : "estado no disponible")}`
+              : "Todavía no se convierte en pedido"}
+            .{" "}
+            {data.customer_order_id && (
+              <Link
+                to={`/pedidos/${data.customer_order_id}`}
+                className="underline"
+              >
+                Consultar pedido
+              </Link>
+            )}
+          </p>
+          {data.sale_order_id ? (
+            <p>
+              Venta {data.sale_status === "voided" ? "anulada" : "registrada"}:{" "}
+              {data.sale_total_amount
+                ? money(data.sale_total_amount)
+                : "importe no disponible"}
+              . Pagos registrados:{" "}
+              {data.recorded_payments_amount
+                ? money(data.recorded_payments_amount)
+                : "sin información"}
+              .{" "}
+              <Link to={`/orders/${data.sale_order_id}`} className="underline">
+                Consultar venta
+              </Link>
+            </p>
+          ) : (
+            <p>Sin venta vinculada.</p>
+          )}
+          <p className="text-xs text-kova-muted">
+            Los pagos registrados en POS no acreditan un cobro electrónico
+            verificado por un proveedor.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

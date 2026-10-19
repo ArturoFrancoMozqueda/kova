@@ -10,6 +10,7 @@ from app.quotes.schemas import (
     QuoteAccept,
     QuoteAction,
     QuoteCreate,
+    QuoteJourney,
     QuoteList,
     QuoteResponse,
     QuoteShared,
@@ -53,6 +54,15 @@ def create(
         key=key,
     )
     return result
+
+
+@router.get("/{quote_id}/journey", response_model=QuoteJourney)
+def get_journey(
+    quote_id: UUID,
+    db: Session = Depends(get_db),
+    ctx=Depends(_access),
+):
+    return service.journey(db, tenant_id=ctx[1].tenant_id, quote_id=quote_id)
 
 
 @router.post("/{quote_id}/mark-sent", response_model=QuoteResponse)

@@ -87,6 +87,7 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
         product: { id: product.id, name: product.name },
         supplier: { id: supplier.id, name: supplier.name },
         customer: { id: customer.id, name: customer.name },
+        service: { id: service.id, name: service.name },
         sale_id: sale.id,
       };
     }, signup.dev_verification_token);
@@ -137,49 +138,6 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
       .click();
     await expect(page.getByText(/Permiso registrado/)).toBeVisible();
 
-    await page.goto("/quotes");
-    await page
-      .getByRole("button", { name: "Nueva cotización", exact: true })
-      .click();
-    await page
-      .getByLabel("Cliente registrado", { exact: true })
-      .selectOption(prepared.customer.id);
-    await page
-      .getByLabel("Vigencia (hora de este dispositivo)")
-      .fill("2099-01-01T12:00");
-    await page
-      .getByLabel("Producto", { exact: true })
-      .selectOption(prepared.product.id);
-    await page.getByLabel("Cantidad", { exact: true }).fill("2");
-    await page.getByRole("button", { name: "Agregar producto" }).click();
-    await page
-      .getByRole("button", { name: "Crear cotización", exact: true })
-      .click();
-    await expect(
-      page.getByRole("button", { name: "Registrar propuesta compartida" }),
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Registrar propuesta compartida" })
-      .click();
-    await page
-      .getByRole("checkbox", { name: /Confirmo que el equipo ya compartió/ })
-      .check();
-    await page
-      .getByRole("button", { name: "Registrar que fue compartida" })
-      .click();
-    await page
-      .getByRole("button", { name: "Registrar aceptación", exact: true })
-      .click();
-    await page
-      .getByRole("checkbox", { name: /Confirmo que el cliente aceptó/ })
-      .check();
-    await page
-      .getByRole("button", { name: "Registrar aceptación y crear pedido" })
-      .click();
-    await expect(
-      page.getByRole("link", { name: "Revisar pedido creado" }),
-    ).toBeVisible();
-
     await page.goto("/settings/public-catalog");
     await page
       .getByLabel("Nombre del catálogo")
@@ -206,9 +164,106 @@ test.describe("automatización comercial con API, Postgres y RLS reales", () => 
           exact: true,
         }),
       ).toBeVisible();
+      await publicPage.getByLabel("Tu nombre").fill("Consulta pública E2E");
+      await publicPage.getByLabel("Teléfono o correo para responder").fill("cliente-e2e@example.com");
+      await publicPage.getByLabel("¿Qué te gustaría consultar?").fill("Quiero cotizar el servicio para mi evento");
+      await publicPage.getByRole("button", { name: "Enviar solicitud al negocio" }).click();
+      await expect(publicPage.getByRole("status").filter({ hasText: "Solicitud recibida" })).toBeVisible();
     } finally {
       await publicContext.close();
     }
+
+    await page.goto("/commercial-requests");
+    await page.getByRole("button", { name: "Revisar solicitud de Consulta pública E2E" }).click();
+    await page.getByLabel("Vincular con cliente registrado").selectOption(prepared.customer.id);
+    const conversionResponse = page.waitForResponse(response => response.url().includes("/crm/requests/") && response.url().endsWith("/resolve") && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Crear oportunidad con este cliente" }).click();
+    const conversion = await (await conversionResponse).json();
+    expect(conversion.status).toBe("converted");
+    expect(conversion.customer_id).toBe(prepared.customer.id);
+    await expect(page.getByRole("status").filter({ hasText: "Oportunidad creada con el cliente que elegiste" })).toBeVisible();
+
+    await page.goto("/followups");
+    await page.getByRole("button", { name: "Revisar regla" }).click();
+    await page.getByRole("checkbox", { name: "Crear pendientes a partir de ventas reales" }).check();
+    await page.getByRole("button", { name: "Confirmar regla", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Regla de seguimiento actualizada" })).toBeVisible();
+
+    await page.goto("/quotes");
+    await page
+      .getByRole("button", { name: "Nueva cotización", exact: true })
+      .click();
+    await page
+      .getByLabel("Cliente registrado", { exact: true })
+      .selectOption(prepared.customer.id);
+    await page.getByLabel("Oportunidad de origen (opcional)").selectOption(conversion.opportunity_id);
+    await page
+      .getByLabel("Vigencia (hora de este dispositivo)")
+      .fill("2099-01-01T12:00");
+    await page
+      .getByLabel("Producto", { exact: true })
+      .selectOption(prepared.service.id);
+    await page.getByLabel("Cantidad", { exact: true }).fill("1");
+    await page.getByRole("button", { name: "Agregar producto" }).click();
+    const quoteResponse = page.waitForResponse(response => response.url().endsWith("/api/v1/quotes") && response.request().method() === "POST");
+    await page
+      .getByRole("button", { name: "Crear cotización", exact: true })
+      .click();
+    const quote = await (await quoteResponse).json();
+    expect(quote.opportunity_id).toBe(conversion.opportunity_id);
+    await expect(
+      page.getByRole("button", { name: "Registrar propuesta compartida" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Registrar propuesta compartida" })
+      .click();
+    await page
+      .getByRole("checkbox", { name: /Confirmo que el equipo ya compartió/ })
+      .check();
+    await page
+      .getByRole("button", { name: "Registrar que fue compartida" })
+      .click();
+    await page
+      .getByRole("button", { name: "Registrar aceptación", exact: true })
+      .click();
+    await page
+      .getByRole("checkbox", { name: /Confirmo que el cliente aceptó/ })
+      .check();
+    await page
+      .getByRole("button", { name: "Registrar aceptación y crear pedido" })
+      .click();
+    await expect(
+      page.getByRole("link", { name: "Revisar pedido creado" }),
+    ).toBeVisible();
+
+    const journeyBefore = await (await page.request.get(`/api/v1/quotes/${quote.id}/journey`)).json();
+    expect(journeyBefore.catalog_request_id).toBe(conversion.id);
+    expect(journeyBefore.sale_order_id).toBeNull();
+    const checkout = await page.evaluate(async (orderId: string) => {
+      const csrf = decodeURIComponent(document.cookie.split("; ").find(part => part.startsWith("csrf_token="))!.slice("csrf_token=".length));
+      const post = async (suffix: string, body: unknown) => {
+        const response = await fetch(`/api/v1/customer-orders/${orderId}/${suffix}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify(body) });
+        if (!response.ok) throw new Error(`Recorrido local ${suffix}: ${response.status}`);
+        return response.json();
+      };
+      const current = await (await fetch(`/api/v1/customer-orders/${orderId}`, { credentials: "include" })).json();
+      const confirmed = await post("confirm", { version: current.version });
+      const paid = await post("checkout", { version: confirmed.version, payments: [{ method: "bank_transfer", amount: "100.00", reference: "E2E-COTIZACION" }] });
+      return { saleId: paid.sale_order.id, customerId: paid.sale_order.customer_id };
+    }, journeyBefore.customer_order_id);
+    expect(checkout.customerId).toBe(prepared.customer.id);
+    const journeyAfter = await (await page.request.get(`/api/v1/quotes/${quote.id}/journey`)).json();
+    expect(journeyAfter.sale_order_id).toBe(checkout.saleId);
+    expect(journeyAfter.sale_total_amount).toBe("100.00");
+    expect(journeyAfter.recorded_payments_amount).toBe("100.00");
+    expect(journeyAfter.external_collection_verified).toBe(false);
+    await page.goto("/followups");
+    await page.getByRole("button", { name: "Generar pendientes" }).click();
+    await expect(page.getByRole("heading", { name: "Solicitar una reseña honesta sobre la compra" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Revisar si corresponde seguimiento de recompra" })).toBeVisible();
+    const followups = await (await page.request.get("/api/v1/crm/followups")).json();
+    expect(followups.tasks).toHaveLength(2);
+    expect(followups.tasks.every((task: { sale_order_id: string }) => task.sale_order_id === checkout.saleId)).toBe(true);
 
     await page.goto("/replenishment");
     await page

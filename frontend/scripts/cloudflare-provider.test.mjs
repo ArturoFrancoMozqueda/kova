@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, URL } from "node:url";
 import { cloudflareProvider, waitForFrontendRelease } from "./cloudflare-provider.mjs";
 import { release, releaseProvider } from "./release.mjs";
-import { recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
+import { cliProvider, recoverRelease, validateRollbackArtifact } from "./release-recovery.mjs";
 
 const version = "dcad4869-ba1d-43d4-865b-66349697bd7c";
 const env = { KOVA_CLOUDFLARE_FRONTEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cloudflare",
@@ -104,14 +104,18 @@ test("promotion publishes the same candidate assets to Cloudflare before public 
 test("failed public acceptance restores Cloudflare, Vercel and Fly in that order", async () => {
   const calls = [];
   await recoverRelease({ phase: "acceptance", artifact, provider: {
+    waitForPublicFrontend: async input => {
+      assert.equal(input.sha, artifact.releaseSha); calls.push("frontend-ready");
+    },
     restoreCloudflare: async captured => { assert.equal(captured, version); calls.push("cloudflare"); },
     restoreVercel: async () => calls.push("vercel"), restoreFly: async () => calls.push("fly"),
   }, verify: async () => calls.push("verified") });
-  assert.deepEqual(calls, ["cloudflare", "vercel", "fly", "verified"]);
+  assert.deepEqual(calls, ["cloudflare", "vercel", "fly", "frontend-ready", "verified"]);
 });
 
 test("failed Cloudflare restore stops recovery and keeps the incident blocking", async () => {
   await assert.rejects(recoverRelease({ phase: "promotion", artifact, provider: {
+    waitForPublicFrontend: assert.fail,
     restoreCloudflare: async () => { throw new Error("restore failed"); },
     restoreVercel: assert.fail, restoreFly: assert.fail,
   }, verify: assert.fail }), /RECOVERY_BLOCKED/);
@@ -125,4 +129,16 @@ test("Cloudflare rollback deploys the captured version without rebuilding or byp
   assert.deepEqual(JSON.parse(calls[0].at(-1)), [{ version_id: version, percentage: 100 }]);
   assert.equal(calls[0].includes("--bypass-deployment-checks"), false);
   assert.equal(calls[0].join(" ").includes(env.CLOUDFLARE_API_TOKEN), false);
+});
+
+
+test("frontend recovery accepts only attempted candidate until captured identity returns", async () => {
+  let calls = 0, waits = 0;
+  await waitForFrontendRelease({ frontendUrl: artifact.frontendUrl, sha: artifact.releaseSha,
+    previousSha: "b".repeat(40), wait: async () => { waits++; },
+    fetcher: async () => globalThis.Response.json({ hash: (++calls === 1 ? "b" : "a").repeat(12) }),
+  });
+  assert.equal(calls, 2); assert.equal(waits, 1);
+  const configured = cliProvider({ env, run: assert.fail });
+  assert.equal(typeof configured.waitForPublicFrontend, "function");
 });

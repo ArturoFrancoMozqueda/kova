@@ -40,6 +40,13 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "automation_runs": {"SELECT", "INSERT"},
     "business_events": {"SELECT", "INSERT"},
     "crm_opportunities": {"SELECT", "INSERT", "UPDATE"},
+    "crm_catalog_requests": {"SELECT", "INSERT"},
+    "crm_followup_policies": {"SELECT", "INSERT"},
+    "crm_followup_tasks": {"SELECT", "INSERT"},
+    "messaging_channel_bindings": {"SELECT"},
+    "messaging_conversations": {"SELECT", "INSERT"},
+    "messaging_messages": {"SELECT", "INSERT"},
+    "messaging_channel_events": {"SELECT", "INSERT"},
     "customer_contact_consents": {"SELECT", "INSERT", "UPDATE"},
     "public_catalogs": {"SELECT", "INSERT", "UPDATE"},
     "public_catalog_items": {"SELECT", "INSERT", "DELETE"},
@@ -132,6 +139,22 @@ _RUNTIME_TABLE_PRIVILEGES = {
     "drawer_commands": {"SELECT", "INSERT", "UPDATE"},
 }
 _RUNTIME_UPDATE_COLUMNS = {
+    "crm_catalog_requests": {"status", "customer_id", "opportunity_id", "version", "resolved_at"},
+    "crm_followup_policies": {
+        "enabled", "review_delay_days", "rebuy_delay_days", "version",
+        "authorized_by_user_id", "enabled_since", "updated_at",
+    },
+    "crm_followup_tasks": {
+        "status", "note", "due_at", "assigned_user_id", "version", "resolved_at",
+    },
+    "messaging_conversations": {
+        "customer_id", "status", "automation_paused", "assigned_user_id", "last_inbound_at",
+        "version", "updated_at",
+    },
+    "messaging_messages": {
+        "state", "binding_id", "provider_message_id", "contact_fingerprint", "version",
+        "error_code", "updated_at",
+    },
     "automation_rules": {
         "enabled", "version", "authorized_by_user_id", "enabled_since", "updated_at",
     },
@@ -291,6 +314,13 @@ _SEMANTIC_INSERT_ORDER = (
     "reconciliation_matches",
     "customer_quotes",
     "customer_quote_items",
+    "crm_catalog_requests",
+    "crm_followup_policies",
+    "crm_followup_tasks",
+    "messaging_channel_bindings",
+    "messaging_conversations",
+    "messaging_messages",
+    "messaging_channel_events",
 )
 
 
@@ -314,6 +344,16 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         return _semantic_uuid("destination_branch", tenant)
     if name == "id":
         return ids[(table.name, tenant, variant)]
+    if table.name == "messaging_conversations" and name == "origin":
+        return "manual"
+    if table.name == "messaging_messages" and name == "direction":
+        return "outbound"
+    if table.name == "messaging_channel_events" and name == "kind":
+        return "status"
+    if table.name == "crm_followup_tasks" and name == "kind":
+        return "incident"
+    if table.name == "crm_followup_policies" and name == "rebuy_delay_days":
+        return 30
 
     for foreign_key in column.foreign_keys:
         parent = foreign_key.column.table.name
@@ -359,7 +399,8 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
         "template_key": "order_ready",
         "rotation_label": "consumo_preferente" if variant == 0 else "fecha_objetivo",
         "source_channel": "counter",
-        "state": ({"cfdi_documents": "prepared", "cfdi_enrollments": "configured"}
+        "state": ({"cfdi_documents": "prepared", "cfdi_enrollments": "configured",
+                   "messaging_messages": "draft"}
                   .get(table.name, "active")),
         "status": {
             "account_deletion_requests": "pending",
@@ -376,6 +417,9 @@ def _semantic_value(table, column, tenant: uuid.UUID, variant: int, ids):
             "invoice_requests": "pending_provider",
             "automation_runs": "pending",
             "customer_quotes": "draft",
+            "crm_catalog_requests": "new",
+            "crm_followup_tasks": "pending",
+            "messaging_conversations": "open",
             "reconciliation_matches": "suggested",
         }.get(table.name, "active"),
         "tax_code": "002",

@@ -6,41 +6,54 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const directory = path.join(root, "deploy/cloudflare-backend");
 export const backendWorkers = ["kova-backend-jobs", "kova-backend", "kova-backend-gateway"];
 
-export async function waitForBackendRelease({ backendUrl, sha, previousSha,
-  fetcher = globalThis.fetch, wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)),
-  now = Date.now }) {
-  if (!/^[a-f0-9]{40}$/i.test(sha ?? "")
-      || (previousSha !== undefined && !/^[a-f0-9]{40}$/i.test(previousSha))) {
-    throw new Error("Backend propagation requires complete release SHAs");
-  }
-  const url = new URL("/health", backendUrl);
-  const deadline = now() + 20_000;
-  for (let attempt = 0; attempt < 20 && now() < deadline; attempt++) {
-    const response = await fetcher(url, {
-      signal: globalThis.AbortSignal.timeout(Math.min(5000, Math.max(1, deadline - now()))),
-      headers: { "cache-control": "no-cache" },
-    });
-    if (!response.ok) throw new Error(`Backend readiness failed: HTTP ${response.status}`);
-    const health = await response.json();
-    if (health.status !== "ok") throw new Error("Backend readiness health contract failed");
-    if (health.release_sha === sha) return;
-    // Only a known version being replaced may still be propagating. HTTP
-    // failures, missing identities and unrelated commits remain blocking.
-    if (previousSha === undefined || health.release_sha !== previousSha) {
-      throw new Error("Unexpected backend version during publication");
-    }
-    const remaining = deadline - now();
-    if (remaining <= 0) break;
-    await wait(Math.min(500, remaining));
-  }
-  throw new Error("Backend publication did not finish propagating");
-}
-
 export function validateBackendVersions(input) {
   if (!input || typeof input !== "object" || Object.keys(input).length !== backendWorkers.length) {
     throw new Error("Rollback requires all three Cloudflare backend versions");
   }
   return Object.fromEntries(backendWorkers.map(name => [name, validateCloudflareVersion(input[name])]));
+}
+
+/** A successful deployment can precede global Worker/DO convergence.
+ * Wait only for the captured previous identity; foreign/error responses still fail closed.
+ * This readiness check never replaces the full site/API/database verification.
+ * The deadline may overrun by the one in-flight read (at most 20 seconds).
+ */
+export async function waitForBackendRelease({ backendUrl, frontendUrl, sha, previousSha,
+  frontendBypassSecret, fetcher = globalThis.fetch,
+  wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)), now = Date.now }) {
+  if (!/^[a-f0-9]{40}$/i.test(sha ?? "")
+      || (previousSha !== undefined && !/^[a-f0-9]{40}$/i.test(previousSha))) {
+    throw new Error("Backend propagation requires complete release SHAs");
+  }
+  const targets = [
+    { url: new URL("/health", backendUrl), headers: {} },
+    ...(frontendUrl === undefined ? [] : [{ url: new URL("/api/health", frontendUrl),
+      headers: frontendBypassSecret ? { "x-vercel-protection-bypass": frontendBypassSecret } : {} }]),
+  ];
+  // Preserve the published direct-only helper contract. Full release checks also
+  // inspect the frontend proxy and allow the documented DO propagation window.
+  const withProxy = frontendUrl !== undefined;
+  const deadline = now() + (withProxy ? 120_000 : 20_000);
+  for (let attempt = 0; attempt < (withProxy ? 120 : 20) && now() < deadline; attempt++) {
+    const observations = await Promise.all(targets.map(async ({ url, headers }) => {
+      const response = await fetcher(url, {
+        signal: globalThis.AbortSignal.timeout(20_000),
+        headers: { "cache-control": "no-cache", ...headers }, redirect: "error",
+      });
+      if (!response.ok) throw new Error(`Backend readiness failed: HTTP ${response.status}`);
+      const body = await response.json();
+      if (body.status !== "ok" || (body.release_sha !== sha
+          && (previousSha === undefined || body.release_sha !== previousSha))) {
+        throw new Error("Unexpected backend version or status during publication");
+      }
+      return body.release_sha;
+    }));
+    if (observations.every(value => value === sha)) return;
+    const remaining = deadline - now();
+    if (remaining <= 0) break;
+    await wait(Math.min(withProxy ? 1000 : 500, remaining));
+  }
+  throw new Error("Backend publication did not finish propagating");
 }
 
 export function cloudflareBackendProvider({ run, env }) {

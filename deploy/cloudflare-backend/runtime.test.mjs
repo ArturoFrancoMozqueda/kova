@@ -44,6 +44,77 @@ async function browser(email) {
 }
 
 describe("existing API inside Python Durable Objects", () => {
+  it("persists commercial intake, inbox drafts and opt-in retention without an external account", async () => {
+    const owner = await browser(`commercial-${crypto.randomUUID()}@example.com`);
+    async function write(path, method, body) {
+      return owner(path, { method, body, headers: { "Idempotency-Key": crypto.randomUUID() } });
+    }
+    const productResponse = await write("/api/v1/catalog/products", "POST", {
+      name: "Producto comercial Workers", price_amount: "42.50", track_inventory: false,
+    });
+    expect(productResponse.status).toBe(201);
+    const product = await productResponse.json();
+    const customerResponse = await write("/api/v1/customers", "POST", {
+      name: "Cliente comercial Workers", phone: "525550000000",
+    });
+    expect(customerResponse.status).toBe(201);
+    const customer = await customerResponse.json();
+    const published = await write("/api/v1/storefront/settings", "PUT", {
+      enabled: true, expected_version: 0, title: "Catálogo comercial",
+      product_ids: [product.id],
+    });
+    expect(published.status).toBe(200);
+    const { share_path: sharePath } = await published.json();
+    const token = sharePath.split("/").at(-1);
+    const payload = { submission_id: crypto.randomUUID(), name: "Consulta pública",
+      contact: "contacto de prueba", message: "Quisiera una cotización", product_ids: [product.id] };
+    const submit = () => SELF.fetch(`https://api.test/api/v1/public/catalog/${token}/requests`, {
+      method: "POST", headers: { Origin: "https://app.test", "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const captured = await submit();
+    expect(captured.status).toBe(201);
+    const receipt = await captured.json();
+    expect(Object.keys(receipt).sort()).toEqual(["receipt_id", "status"]);
+    expect(await (await submit()).json()).toEqual(receipt);
+    const requests = await (await owner("/api/v1/crm/requests")).json();
+    expect(requests.requests).toHaveLength(1);
+    const converted = await write(`/api/v1/crm/requests/${receipt.receipt_id}/resolve`, "POST", {
+      expected_version: 1, status: "converted", customer_id: customer.id,
+    });
+    expect(converted.status).toBe(200);
+    const { opportunity_id: opportunityId } = await converted.json();
+    const quoteResponse = await write("/api/v1/quotes", "POST", {
+      customer_id: customer.id, opportunity_id: opportunityId,
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+      items: [{ product_id: product.id, quantity: 1 }],
+    });
+    expect(quoteResponse.status).toBe(201);
+    const quote = await quoteResponse.json();
+    const journey = await (await owner(`/api/v1/quotes/${quote.id}/journey`)).json();
+    expect(journey.catalog_request_id).toBe(receipt.receipt_id);
+    expect(journey.sale_order_id).toBeNull();
+    expect(journey.external_collection_verified).toBe(false);
+    const conversationResponse = await write("/api/v1/messaging/conversations", "POST", {
+      customer_id: customer.id, subject: "Preparar atención",
+    });
+    expect(conversationResponse.status).toBe(201);
+    const conversation = await conversationResponse.json();
+    expect(conversation.automation_paused).toBe(true);
+    const draft = await write(`/api/v1/messaging/conversations/${conversation.id}/messages`, "POST", {
+      body: "Borrador sin proveedor conectado", purpose: "transactional",
+    });
+    expect(draft.status).toBe(201);
+    expect((await draft.json()).state).toBe("draft");
+    const policy = await write("/api/v1/crm/followups/policy", "PUT", {
+      enabled: true, expected_version: 0, review_delay_days: 2, rebuy_delay_days: 30,
+    });
+    expect(policy.status).toBe(200);
+    expect(await (await write("/api/v1/crm/followups/process", "POST", {})).json()).toEqual({ created: 0 });
+    expect((await (await owner("/api/v1/messaging/readiness")).json()).status).toBe("not_connected");
+    expect((await owner("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
+  });
+
   it("passes production startup checks and reaches Postgres", async () => {
     const health = await SELF.fetch("https://api.test/health");
     expect(health.status).toBe(200);

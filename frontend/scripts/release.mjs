@@ -42,8 +42,9 @@ export async function release({ artifact: rawArtifact, sha, provider,
     phase = "candidate";
     await provider.deployFly(sha);
     if (provider.requiresCloudflareBackend) {
-      await provider.waitForPublicBackend({ backendUrl: artifact.backendUrl, sha,
-        previousSha: artifact.releaseSha });
+      await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
+        sha, previousSha: artifact.releaseSha,
+        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     }
     await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
@@ -53,6 +54,11 @@ export async function release({ artifact: rawArtifact, sha, provider,
     if (provider.requiresCloudflare) {
       await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl, sha,
         previousSha: artifact.releaseSha });
+    }
+    if (provider.requiresCloudflareBackend) {
+      await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
+        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha,
+        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     }
     await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
@@ -86,6 +92,7 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
     requiresCloudflare: Boolean(cloudflare),
     ...(cloudflare ? { waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
     requiresCloudflareBackend: Boolean(backend),
+    ...(backend ? { waitForPublicBackend: backend.waitForPublicBackend } : {}),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);
       await vercel(["build", "--prod"]);

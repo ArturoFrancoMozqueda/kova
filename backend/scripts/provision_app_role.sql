@@ -124,6 +124,13 @@ BEGIN
             ('automation_runs', 'SELECT, INSERT'),
             ('business_events', 'SELECT, INSERT'),
             ('crm_opportunities', 'SELECT, INSERT, UPDATE'),
+            ('crm_catalog_requests', 'SELECT, INSERT'),
+            ('crm_followup_policies', 'SELECT, INSERT'),
+            ('crm_followup_tasks', 'SELECT, INSERT'),
+            ('messaging_channel_bindings', 'SELECT'),
+            ('messaging_conversations', 'SELECT, INSERT'),
+            ('messaging_messages', 'SELECT, INSERT'),
+            ('messaging_channel_events', 'SELECT, INSERT'),
             ('customer_quotes', 'SELECT, INSERT'),
             ('customer_quote_items', 'SELECT, INSERT'),
             ('customer_contact_consents', 'SELECT, INSERT, UPDATE'),
@@ -219,6 +226,23 @@ DO $$ BEGIN
     IF to_regclass('public.customer_quotes') IS NOT NULL THEN
         GRANT UPDATE (status, shared_at, accepted_at, customer_order_id,
                       updated_by_user_id, version, updated_at) ON customer_quotes TO kova_app;
+    END IF;
+    IF to_regclass('public.crm_catalog_requests') IS NOT NULL THEN
+        GRANT UPDATE(status, customer_id, opportunity_id, version, resolved_at)
+            ON crm_catalog_requests TO kova_app;
+        GRANT UPDATE(enabled, review_delay_days, rebuy_delay_days, version,
+                     authorized_by_user_id, enabled_since, updated_at)
+            ON crm_followup_policies TO kova_app;
+        GRANT UPDATE(status, note, due_at, assigned_user_id, version, resolved_at)
+            ON crm_followup_tasks TO kova_app;
+    END IF;
+    IF to_regclass('public.messaging_conversations') IS NOT NULL THEN
+        GRANT UPDATE(customer_id, status, automation_paused, assigned_user_id,
+                     last_inbound_at, version, updated_at)
+            ON messaging_conversations TO kova_app;
+        GRANT UPDATE(state, binding_id, provider_message_id, contact_fingerprint,
+                     version, error_code, updated_at)
+            ON messaging_messages TO kova_app;
     END IF;
 END $$;
 
