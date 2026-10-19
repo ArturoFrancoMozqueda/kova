@@ -32,7 +32,8 @@ class AutomationRule(BranchScoped, Base):
         ),
         CheckConstraint("version >= 1", name="ck_automation_rule_version"),
         CheckConstraint(
-            "template_key IN ('order_ready', 'order_fulfilled', 'restock_review')",
+            "template_key IN ('order_ready', 'order_fulfilled', 'restock_review', "
+            "'service_case_overdue')",
             name="ck_automation_rule_template",
         ),
     )
@@ -63,7 +64,7 @@ class BusinessEvent(BranchScoped, Base):
         CheckConstraint("entity_version >= 1", name="ck_business_event_version"),
         CheckConstraint(
             "event_type IN ('customer_order.ready', 'customer_order.fulfilled', "
-            "'customer_order.cancelled', 'inventory.restock_review')",
+            "'customer_order.cancelled', 'inventory.restock_review', 'service_case.review_due')",
             name="ck_business_event_type",
         ),
     )

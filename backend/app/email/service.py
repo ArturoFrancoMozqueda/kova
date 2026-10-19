@@ -1,7 +1,5 @@
 import logging
 
-import resend
-
 from app.config import settings
 from app.email.templates import escape, kv_table, link, muted, p, render_email
 
@@ -16,6 +14,8 @@ def _send(*, to: str, subject: str, html: str, kind: str) -> bool:
     if not _enabled():
         logger.info("email.skip reason=no_api_key type=%s", kind)
         return False
+    import resend
+
     resend.api_key = settings.resend_api_key
     try:
         resend.Emails.send({

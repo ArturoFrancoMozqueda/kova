@@ -423,3 +423,30 @@ it.each(["failure", "invalid"])(
     ).toBeVisible();
   },
 );
+
+it("links exact UUID records to the allowlisted source parameter", async () => {
+  const data = dataset();
+  const ids = [
+    "11111111-1111-4111-8111-111111111111",
+    "22222222-2222-4222-8222-222222222222",
+    "33333333-3333-4333-8333-333333333333",
+    "44444444-4444-4444-8444-444444444444",
+  ];
+  data.sections.forEach((section, index) => {
+    section.items[0].source_id = ids[index];
+    section.items[0].route_key = "https://outside.invalid" as never;
+  });
+  mockData(data);
+  mount();
+  await screen.findByText("Revisar entrega");
+  expect(
+    screen
+      .getAllByRole("link", { name: /Abrir registro:/ })
+      .map((link) => link.getAttribute("href")),
+  ).toEqual([
+    `/service-cases?case_id=${ids[0]}`,
+    `/crm?opportunity_id=${ids[1]}`,
+    `/followups?task_id=${ids[2]}`,
+    `/appointments?reminder_id=${ids[3]}`,
+  ]);
+});

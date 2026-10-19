@@ -6,13 +6,6 @@ those same PDF primitives without an image decoder or a native extension.
 
 from types import SimpleNamespace
 
-from pypdf import PdfWriter
-from pypdf.generic import (
-    DecodedStreamObject,
-    DictionaryObject,
-    NameObject,
-)
-
 LETTER = (612, 792)
 
 
@@ -20,6 +13,11 @@ class Canvas:
     def __init__(self, output, *, pagesize=LETTER, invariant=1):
         if invariant != 1:
             raise ValueError("Only deterministic accountant summaries are supported")
+        # Health, session and POS requests never render a PDF. Import the
+        # document library only when the existing fiscal export needs it.
+        from pypdf import PdfWriter
+        from pypdf.generic import DictionaryObject, NameObject
+
         self.output = output
         self.pagesize = pagesize
         self.writer = PdfWriter()
@@ -53,6 +51,8 @@ class Canvas:
         )
 
     def showPage(self):
+        from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
         page = self.writer.add_blank_page(width=self.pagesize[0], height=self.pagesize[1])
         page[NameObject("/Resources")] = DictionaryObject({NameObject("/Font"): self.fonts})
         content = DecodedStreamObject()

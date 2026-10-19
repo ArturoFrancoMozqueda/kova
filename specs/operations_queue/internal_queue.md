@@ -1,5 +1,21 @@
 # Cola operativa interna de lectura
 
+## Enlaces a registros de origen
+
+Cada fila abre una ruta local conocida con el identificador de origen, sin buscar en la muestra
+de 20 filas ni ampliar permisos: `/service-cases?case_id=UUID`, `/crm?opportunity_id=UUID`,
+`/followups?task_id=UUID` y `/appointments?reminder_id=UUID`. Recargar conserva el enlace;
+cerrar la selección retira sólo ese parámetro. Un ID inválido o una entidad no disponible produce
+un estado seguro, sin modificar registros ni interpretar una URL del payload.
+
+Los GET individuales nuevos `/api/v1/crm/opportunities/{id}` y
+`/api/v1/crm/followups/{id}` reutilizan los DTO de sus listas y requieren el mismo acceso comercial
+dueño/gerente, tenant y sucursal. Conservan el estado real, incluso cerrado, sin escritura.
+`GET /api/v1/appointments/reminders/{id}` sólo devuelve recordatorios pendientes disponibles,
+de una cita programada cuya versión coincide; futuros, resueltos y obsoletos reciben 404.
+La ausencia y la pertenencia a otro negocio/sucursal comparten 404; las operaciones originales
+siguen verificando permisos, versión y estado al actuar. Todas las respuestas privadas son no-store.
+
 Fecha: 2026-10-19. Estado: backend y UI implementados y validados localmente; release pendiente.
 Origen: [contrato implementado](../../docs/plans/PLAN-COLA-OPERATIVA-INTERNA.md). Este corte reúne
 pendientes existentes; no crea otra lista de tareas ni completa el horizonte de automatización E2E.

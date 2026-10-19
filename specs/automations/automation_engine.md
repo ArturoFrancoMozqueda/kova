@@ -45,3 +45,39 @@ de bind de tenant/sucursal y commit. No se comparte el registro agregado de camb
 Probar replay y rollback de evento, regla apagada, cambio de versión, pausa/revocación, estados de
 pedido obsoletos, reposición con reservas, aislamiento de tenant/sucursal, permisos y billing.
 Validación con PostgreSQL real; mocks no acreditan entrega de mensajes ni cobros.
+
+
+## Revisión de vencimientos de atención (corte 2026-10-19)
+
+`service_case_overdue` es opt-in y comienza desactivada. Genera sólo una revisión interna por caso
+activo y fecha de vencimiento. No escala personas, define SLA, envía mensajes ni compensa ventas.
+Sólo son elegibles vencimientos manuales desde `enabled_since`, anteriores al reloj del servidor;
+no hay retroactividad automática para casos vencidos antes de autorizar la regla.
+
+La identidad del evento `service_case.review_due` usa caso y fecha UTC en microsegundos, igual al
+patrón BIGINT de reposición. Notas/asignación no generan otra revisión. Cambiar la fecha invalida
+el pendiente anterior; la nueva fecha puede generar otra revisión al vencer. Volver a una fecha ya
+procesada no repite el evento. Una revisión completada/descartada no vuelve por la misma fecha.
+
+El scanner proyecta candidatos con NOT EXISTS antes del límite, para que casos ya procesados no
+bloqueen otros. El barrido acotado de supresión prioriza revisiones de casos con fuente obsoleta,
+para que un lote lleno de revisiones válidas no las bloquee. Reusa el bloqueo transaccional por sucursal y las restricciones únicas. El worker
+existente conserva cohort/lease/runtime RLS y billing. Usuario activo/verificado, membresía activa,
+`settings.manage` y alcance de sucursal se revalidan; no requiere feature de pedidos.
+
+Resolver/cancelar el caso, quitar/cambiar fecha o perder autorización suprime tareas pendientes en
+el siguiente procesamiento acotado; no se promete supresión inmediata fuera de ese ciclo. Completar
+la revisión exige fuente vigente. La validación de la fuente toma FOR SHARE sobre el caso hasta el commit: un cierre o
+reprogramación concurrente no puede confirmar entre validar y completar la revisión. La revisión
+no cambia estado ni historia del caso. La auditoría
+y eventos del motor contienen identificadores/estado, sin título, cliente o notas privadas.
+
+Validación local de este corte: 25 pruebas API aprobadas con psycopg y 25 con pg8000 (diez de
+vencimientos y 15 del motor previo), más dos pruebas de migración 0091. Incluye creación y
+resolución con dos conexiones runtime simultáneas, un solo evento/revisión y una sola auditoría de
+resolución; carrera de cierre confirmada antes del arreglo y bloqueo de fuente hasta commit;
+dos negocios reales y sucursales; roles y billing; vencimiento sin retroactividad;
+notas sin duplicar; fechas futuras/null; reprogramación/resolución/pausa/revocación; y lotes de una
+fila sin bloquear nuevos casos ni suprimir tarde los obsoletos. Downgrade vacío es reversible y
+rechaza retirar la plantilla cuando existe historial, aun con regla desactivada. Ruff y diff-check
+aprobados. No acredita ejecución productiva ni efectos externos.

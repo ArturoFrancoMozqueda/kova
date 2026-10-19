@@ -141,17 +141,109 @@ test.describe("cola operativa con API, Postgres y RLS reales", () => {
       expect(section.items[0].source_id).toBe(ids[section.source]);
       expect(section.has_more).toBe(false);
     }
+    const links = [
+      {
+        path: "/service-cases",
+        parameter: "case_id",
+        id: prepared.case_id,
+        endpoint: "/api/v1/service-cases",
+        title: "Revisar acuerdo de entrega desde la cola",
+        detail: "Detalle de atención",
+      },
+      {
+        path: "/crm",
+        parameter: "opportunity_id",
+        id: prepared.opportunity_id,
+        endpoint: "/api/v1/crm/opportunities",
+        title: "Revisar propuesta del próximo evento",
+        detail: "Registro del enlace",
+      },
+      {
+        path: "/followups",
+        parameter: "task_id",
+        id: prepared.followup_id,
+        endpoint: "/api/v1/crm/followups",
+        title: "Seguimiento interno de la compra",
+        detail: "Registro del enlace",
+      },
+      {
+        path: "/appointments",
+        parameter: "reminder_id",
+        id: prepared.reminder_id,
+        endpoint: "/api/v1/appointments/reminders",
+        title: "Revisar una cita vigente de la cola",
+        detail: "Registro del enlace",
+      },
+    ];
+    const navigationRequests: string[] = [];
+    const captureNavigation = (request: {
+      url: () => string;
+      method: () => string;
+    }) => {
+      if (new URL(request.url()).pathname.startsWith("/api/v1/"))
+        navigationRequests.push(request.method());
+    };
+    page.on("request", captureNavigation);
+    for (const linked of links) {
+      await page
+        .getByRole("link", {
+          name: `Abrir registro: ${linked.title}`,
+          exact: true,
+        })
+        .click();
+      expect(new URL(page.url()).pathname).toBe(linked.path);
+      expect(new URL(page.url()).searchParams.get(linked.parameter)).toBe(
+        linked.id,
+      );
+      await expect(
+        page
+          .getByRole("region", { name: linked.detail })
+          .getByRole("heading", { name: linked.title, exact: true }),
+      ).toBeVisible();
+      await page.reload();
+      await expect(
+        page
+          .getByRole("region", { name: linked.detail })
+          .getByRole("heading", { name: linked.title, exact: true }),
+      ).toBeVisible();
+      const current = await page.request.get(`${linked.endpoint}/${linked.id}`);
+      expect(current.status()).toBe(200);
+      expect((await current.json()).version).toBe(1);
+      await page.goto("/operations-queue");
+      await expect(
+        page.getByRole("link", {
+          name: `Abrir registro: ${linked.title}`,
+          exact: true,
+        }),
+      ).toBeVisible();
+    }
+    await page.goto(`/appointments?reminder_id=${crypto.randomUUID()}`);
+    await expect(
+      page
+        .getByRole("region", { name: "Registro del enlace" })
+        .getByRole("alert"),
+    ).toHaveText(/no está disponible/);
+    await expect(
+      page
+        .getByRole("region", { name: "Registro del enlace" })
+        .getByRole("button", { name: "Registrar revisión del recordatorio" }),
+    ).toHaveCount(0);
+    await page.goto("/operations-queue");
+    expect(navigationRequests.every((method) => method === "GET")).toBe(true);
+    page.off("request", captureNavigation);
     await page.getByRole("button", { name: "Actualizar pendientes" }).click();
     await expect(
       page.getByRole("button", { name: "Actualizar pendientes" }),
     ).toBeVisible();
-    await page.getByRole("link", { name: "Abrir Atención postventa" }).click();
-    expect(new URL(page.url()).pathname).toBe("/service-cases");
     await page
-      .getByRole("button", {
-        name: "Abrir atención: Revisar acuerdo de entrega desde la cola",
+      .getByRole("link", {
+        name: "Abrir registro: Revisar acuerdo de entrega desde la cola",
       })
       .click();
+    expect(new URL(page.url()).pathname).toBe("/service-cases");
+    await expect(
+      page.getByRole("region", { name: "Detalle de atención" }),
+    ).toBeVisible();
     const before = await (
       await page.request.get(`/api/v1/service-cases/${prepared.case_id}/events`)
     ).json();
@@ -210,6 +302,56 @@ test.describe("cola operativa con API, Postgres y RLS reales", () => {
       expect(section.items[0].source_id).toBe(ids[source]);
       expect(section.items[0].version).toBe(1);
     }
+    await page.goto(`/appointments?reminder_id=${prepared.reminder_id}`);
+    await expect(
+      page
+        .getByRole("region", { name: "Registro del enlace" })
+        .getByRole("heading", { name: "Revisar una cita vigente de la cola" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: "Reprogramar Revisar una cita vigente de la cola",
+        exact: true,
+      })
+      .click();
+    const nextDate = new Date(Date.now() + 3 * 86400000).toLocaleDateString(
+      "en-CA",
+      { timeZone: "America/Mexico_City" },
+    );
+    await page.getByLabel("Inicio de la cita").fill(`${nextDate}T10:00`);
+    await page.getByLabel("Fin de la cita").fill(`${nextDate}T11:00`);
+    const rescheduled = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/reschedule") &&
+        response.request().method() === "POST",
+    );
+    await page
+      .getByRole("button", { name: "Confirmar nuevo horario", exact: true })
+      .click();
+    expect((await rescheduled).status()).toBe(200);
+    await expect(
+      page
+        .getByRole("region", { name: "Registro del enlace" })
+        .getByRole("alert"),
+    ).toHaveText(/no está disponible/);
+    await expect(
+      page
+        .getByRole("region", { name: "Registro del enlace" })
+        .getByRole("button", { name: "Registrar revisión del recordatorio" }),
+    ).toHaveCount(0);
+    const staleReminder = await page.request.get(
+      `/api/v1/appointments/reminders/${prepared.reminder_id}`,
+    );
+    expect(staleReminder.status()).toBe(404);
+    const afterReschedule = await (
+      await page.request.get("/api/v1/operations/queue")
+    ).json();
+    expect(
+      afterReschedule.sections.find(
+        (section: { source: string }) =>
+          section.source === "appointment_reminders",
+      ).items,
+    ).toEqual([]);
     expect(queueRequests.length).toBeGreaterThan(0);
     expect(queueRequests.every((method) => method === "GET")).toBe(true);
     await logoutThroughUi(page);

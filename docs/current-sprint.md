@@ -2,6 +2,25 @@
 
 Last updated: 2026-10-19
 
+## Revisiones de atención, enlaces y arranque frío (2026-10-19, validado localmente)
+
+`service_case_overdue` incorpora revisiones internas opt-in/defaultoff para vencimientos manuales
+posteriores a la autorización, sin retroactividad automática. Reusa motor, worker/cohort/leases,
+RLS y billing; `0091` amplía dos CHECK sin tablas nuevas. Identidad por caso/fecha evita duplicados,
+la fuente obsoleta se suprime al procesar y FOR SHARE protege la validación hasta commit.
+
+Enlaces de la cola abren el registro exacto de sus cuatro fuentes; tres GET privados nuevos
+conservan scope/DTOs y no escriben. Reprogramar refresca también el recordatorio enlazado y retira
+sus acciones si deja de estar disponible. PDF/Resend cargan dependencias cuando se utilizan;
+Sentry WASM conserva integraciones web explícitas y transporte/sanitización.
+
+Perfil local: 2,171 → 1,213 ms de importación (~44% menos). Todavía falta medir en producción los
+aproximadamente 10 s del acceso frío; no se declara resuelto. Publicación pendiente. Validación:
+backend completo final 1,800; automatizaciones 25 por controlador y dos
+migraciones; GET 18 por controlador; frontend completo 1,124, focal 79, browser 16 y real uno;
+build/121 JS, Workers 9+4+1 y 27 migraciones completas aprobados. Suite backend final sin errores/fallos/omitidas (146 s).
+[Entrega, archivos y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
+
 ## Cola operativa interna (2026-10-19, publicada)
 
 La consulta privada `/api/v1/operations/queue` reúne casos activos, oportunidades con próxima acción,

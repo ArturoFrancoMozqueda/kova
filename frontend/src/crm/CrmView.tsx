@@ -1,3 +1,5 @@
+import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
+import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import {
   useCallback,
   useEffect,
@@ -53,6 +55,11 @@ export default function CrmView() {
 }
 
 function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const linked = useLinkedRecord<Opportunity>(
+    identity,
+    "opportunity_id",
+    "/api/v1/crm/opportunities",
+  );
   const request = useOperationsRequest("/api/v1", identity);
   const online = useOnline();
   const [data, setData] = useState<CrmData | null>(null);
@@ -69,6 +76,10 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Opportunity | null>(null);
+  useEffect(() => {
+    setEditing(null);
+    setCreateOpen(false);
+  }, [linked.id]);
   const [dueAt, setDueAt] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [search, setSearch] = useState("");
@@ -182,12 +193,18 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       setConsentRevision((value) => value + 1);
       setNotice(success);
       await load();
+      if (linked.requested) linked.reload();
     } catch (e) {
       if (!mounted.current) return;
       if (e instanceof OperationsError && e.status === 409) {
         setConfirmedConsent(false);
         setConsentRevision((value) => value + 1);
         await load();
+        if (linked.requested) {
+          setEditing(null);
+          setCreateOpen(false);
+          linked.reload();
+        }
       }
       if (mounted.current)
         setError(
@@ -324,7 +341,7 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         meta="Cada oportunidad con su siguiente paso. Cada contacto con un permiso claro."
         actions={
           <Button
-            disabled={busy || !online || !data}
+            disabled={busy || !online || (!data && !createOpen)}
             onClick={() => {
               setEditing(null);
               setTitle("");
@@ -340,6 +357,93 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </Button>
         }
       />
+      <LinkedRecordNotice linked={linked}>
+        {linked.record && (
+          <OpportunityCard
+            row={linked.record}
+            busy={busy}
+            online={online}
+            onStage={changeStage}
+            onEdit={edit}
+          />
+        )}
+      </LinkedRecordNotice>
+      {createOpen && (
+        <form
+          onSubmit={create}
+          className="space-y-4 rounded-2xl border bg-card p-5"
+          aria-label={editing ? "Editar oportunidad" : "Nueva oportunidad"}
+        >
+          <h2 className="text-lg font-semibold">
+            {editing ? "Editar seguimiento" : "Nueva oportunidad"}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Selecciona un cliente registrado arriba. No se enviarán mensajes.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="opportunity-title">
+                ¿Qué necesita el cliente?
+              </Label>
+              <Input
+                id="opportunity-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                maxLength={160}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="opportunity-amount">Valor estimado en MXN</Label>
+              <Input
+                id="opportunity-amount"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                type="number"
+                min="0"
+                max="9999999999.99"
+                step="0.01"
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="opportunity-next">Siguiente acción</Label>
+              <Input
+                id="opportunity-next"
+                value={nextAction}
+                onChange={(event) => setNextAction(event.target.value)}
+                maxLength={300}
+              />
+            </div>
+            <div>
+              <Label htmlFor="opportunity-due">
+                Fecha límite (hora de este dispositivo)
+              </Label>
+              <Input
+                id="opportunity-due"
+                type="datetime-local"
+                value={dueAt}
+                onChange={(event) => setDueAt(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="opportunity-note">Nota interna</Label>
+              <Input
+                id="opportunity-note"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <Button
+            type="submit"
+            disabled={busy || !online || !customerId || !title.trim()}
+          >
+            {editing ? "Guardar seguimiento" : "Guardar oportunidad"}
+          </Button>
+        </form>
+      )}
       {!online && (
         <p role="status" className="rounded-xl border p-4 text-sm">
           Sin conexión. Conéctate para actualizar oportunidades y permisos.
@@ -444,85 +548,6 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               </div>
             </div>
           </section>
-          {createOpen && (
-            <form
-              onSubmit={create}
-              className="space-y-4 rounded-2xl border bg-card p-5"
-              aria-label={editing ? "Editar oportunidad" : "Nueva oportunidad"}
-            >
-              <h2 className="text-lg font-semibold">
-                {editing ? "Editar seguimiento" : "Nueva oportunidad"}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Selecciona un cliente registrado arriba. No se enviarán
-                mensajes.
-              </p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="opportunity-title">
-                    ¿Qué necesita el cliente?
-                  </Label>
-                  <Input
-                    id="opportunity-title"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    maxLength={160}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="opportunity-amount">
-                    Valor estimado en MXN
-                  </Label>
-                  <Input
-                    id="opportunity-amount"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                    type="number"
-                    min="0"
-                    max="9999999999.99"
-                    step="0.01"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="opportunity-next">Siguiente acción</Label>
-                  <Input
-                    id="opportunity-next"
-                    value={nextAction}
-                    onChange={(event) => setNextAction(event.target.value)}
-                    maxLength={300}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="opportunity-due">
-                    Fecha límite (hora de este dispositivo)
-                  </Label>
-                  <Input
-                    id="opportunity-due"
-                    type="datetime-local"
-                    value={dueAt}
-                    onChange={(event) => setDueAt(event.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="opportunity-note">Nota interna</Label>
-                  <Input
-                    id="opportunity-note"
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    maxLength={500}
-                  />
-                </div>
-              </div>
-              <Button
-                type="submit"
-                disabled={busy || !online || !customerId || !title.trim()}
-              >
-                {editing ? "Guardar seguimiento" : "Guardar oportunidad"}
-              </Button>
-            </form>
-          )}
           <section aria-labelledby="crm-opportunities" className="space-y-4">
             <h2 id="crm-opportunities" className="text-lg font-semibold">
               Oportunidades del negocio
@@ -535,72 +560,18 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
               />
             ) : (
               <div className="grid gap-4 lg:grid-cols-2">
-                {data.opportunities.map((row) => (
-                  <article
-                    key={row.id}
-                    className="min-w-0 rounded-2xl border bg-card p-5"
-                  >
-                    <p className="text-xs text-muted-foreground break-words">
-                      {row.customer_name}
-                    </p>
-                    <h3 className="mt-1 font-semibold break-words">
-                      {row.title}
-                    </h3>
-                    <p className="mt-3 text-lg font-semibold">
-                      {money(row.estimated_amount)}{" "}
-                      <span className="text-xs font-normal text-muted-foreground">
-                        estimados
-                      </span>
-                    </p>
-                    {row.next_action && (
-                      <p className="mt-3 text-sm break-words">
-                        <span className="font-medium">Siguiente paso:</span>{" "}
-                        {row.next_action}
-                      </p>
-                    )}
-                    {row.due_at && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Fecha límite:{" "}
-                        {new Date(row.due_at).toLocaleString("es-MX")}
-                      </p>
-                    )}
-                    {row.note && (
-                      <p className="mt-2 text-sm text-muted-foreground break-words">
-                        Nota interna: {row.note}
-                      </p>
-                    )}
-                    <label className="mt-4 block text-sm">
-                      Etapa de {row.title}
-                      <select
-                        className={selectClass}
-                        disabled={busy || !online}
-                        value={row.stage}
-                        onChange={(event) =>
-                          changeStage(
-                            row,
-                            event.target.value as OpportunityStage,
-                          )
-                        }
-                      >
-                        {Object.entries(stages).map(([key, label]) => (
-                          <option key={key} value={key}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <Button
-                      className="mt-3"
-                      size="sm"
-                      variant="outline"
-                      disabled={busy || !online}
-                      onClick={() => edit(row)}
-                      aria-label={`Editar seguimiento de ${row.title}`}
-                    >
-                      Editar seguimiento
-                    </Button>
-                  </article>
-                ))}
+                {data.opportunities
+                  .filter((row) => row.id !== linked.record?.id)
+                  .map((row) => (
+                    <OpportunityCard
+                      key={row.id}
+                      row={row}
+                      busy={busy}
+                      online={online}
+                      onStage={changeStage}
+                      onEdit={edit}
+                    />
+                  ))}
               </div>
             )}
           </section>
@@ -809,5 +780,76 @@ function CrmWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </>
       )}
     </ViewLayout>
+  );
+}
+
+function OpportunityCard({
+  row,
+  busy,
+  online,
+  onStage,
+  onEdit,
+}: {
+  row: Opportunity;
+  busy: boolean;
+  online: boolean;
+  onStage: (row: Opportunity, stage: OpportunityStage) => void;
+  onEdit: (row: Opportunity) => void;
+}) {
+  return (
+    <article className="min-w-0 rounded-2xl border bg-card p-5">
+      <p className="text-xs text-muted-foreground break-words">
+        {row.customer_name}
+      </p>
+      <h3 className="mt-1 font-semibold break-words">{row.title}</h3>
+      <p className="mt-3 text-lg font-semibold">
+        {money(row.estimated_amount)}{" "}
+        <span className="text-xs font-normal text-muted-foreground">
+          estimados
+        </span>
+      </p>
+      {row.next_action && (
+        <p className="mt-3 text-sm break-words">
+          <span className="font-medium">Siguiente paso:</span> {row.next_action}
+        </p>
+      )}
+      {row.due_at && (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Fecha límite: {new Date(row.due_at).toLocaleString("es-MX")}
+        </p>
+      )}
+      {row.note && (
+        <p className="mt-2 text-sm text-muted-foreground break-words">
+          Nota interna: {row.note}
+        </p>
+      )}
+      <label className="mt-4 block text-sm">
+        Etapa de {row.title}
+        <select
+          className={selectClass}
+          disabled={busy || !online}
+          value={row.stage}
+          onChange={(event) =>
+            onStage(row, event.target.value as OpportunityStage)
+          }
+        >
+          {Object.entries(stages).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Button
+        className="mt-3"
+        size="sm"
+        variant="outline"
+        disabled={busy || !online}
+        onClick={() => onEdit(row)}
+        aria-label={`Editar seguimiento de ${row.title}`}
+      >
+        Editar seguimiento
+      </Button>
+    </article>
   );
 }

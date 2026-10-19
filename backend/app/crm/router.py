@@ -39,6 +39,15 @@ def get_overview(
     )
 
 
+@router.get("/opportunities/{opportunity_id}", response_model=OpportunityResponse)
+def get_opportunity(
+    opportunity_id: UUID,
+    db: Session = Depends(get_db),
+    ctx=Depends(require_crm),
+):
+    return service.get_opportunity(db, ctx[1].tenant_id, opportunity_id)
+
+
 @router.post("/opportunities", response_model=OpportunityResponse, status_code=201)
 def create_opportunity(
     body: OpportunityCreate,

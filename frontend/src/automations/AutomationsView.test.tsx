@@ -238,3 +238,43 @@ it("discards pending private responses after changing the business", async () =>
   const firstSignal = fetchMock.mock.calls[0][1]?.signal;
   expect(firstSignal?.aborted).toBe(true);
 });
+
+it("keeps overdue service-case rules opt-in and links the actual case without treating the due fingerprint as a case version", async () => {
+  const data = overview();
+  data.rules = [
+    {
+      ...rule,
+      template_key: "service_case_overdue",
+      title: "Revisión de atención vencida",
+    },
+  ];
+  data.runs = [
+    {
+      id: "run-1",
+      template_key: "service_case_overdue",
+      title: "Revisar atención",
+      status: "pending",
+      entity_type: "service_case",
+      entity_id: "11111111-1111-4111-8111-111111111111",
+      entity_version: 1792400000000000,
+      version: 1,
+      created_at: "2026-10-19T12:00:00Z",
+      resolved_at: null,
+    },
+  ];
+  fetchMock.mockImplementation(async () => json(data));
+  mount();
+  expect(
+    await screen.findByRole("link", { name: "Revisar atención postventa" }),
+  ).toHaveAttribute(
+    "href",
+    "/service-cases?case_id=11111111-1111-4111-8111-111111111111",
+  );
+  expect(screen.getByRole("button", { name: /Activar/ })).toBeVisible();
+  expect(
+    screen.queryByText(/Versión del recurso 179240/),
+  ).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.every(([, init]) => init?.method === "GET")).toBe(
+    true,
+  );
+});

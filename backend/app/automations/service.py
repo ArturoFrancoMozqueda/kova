@@ -7,7 +7,7 @@ All functions use the caller's transaction; HTTP/worker callers own commit/rollb
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, text
+from sqlalchemy import BigInteger, cast, exists, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -23,11 +23,21 @@ from app.inventory.repository import stock_on_hand
 from app.inventory.service import list_low_stock
 from app.orders.models import InventoryMovement
 from app.rbac.permissions import Permission, has_permission
+from app.service_cases.models import ServiceCase
 from app.shared.exceptions import bad_request, conflict, not_found
 from app.tenants.feature_flags import CUSTOMER_ORDERS, resolve_feature_flags
 from app.tenants.models import Tenant
 
 TEMPLATES = {
+    "service_case_overdue": {
+        "title": "Revisión de atención vencida",
+        "description": (
+            "Crea una revisión interna para vencimientos posteriores a la activación. "
+            "No envía avisos ni modifica el caso."
+        ),
+        "event_type": "service_case.review_due",
+        "task": "Revisa el seguimiento de la atención vencida",
+    },
     "order_ready": {
         "title": "Pedido listo para entregar",
         "description": "Crea una tarea interna para revisar la entrega de un pedido listo.",
@@ -201,9 +211,13 @@ def _authorized(db: Session, rule: AutomationRule) -> bool:
         .first()
     )
     domain_permission = (
-        Permission.INVENTORY_ADJUST
-        if rule.template_key == "restock_review"
-        else Permission.CUSTOMER_ORDERS_VIEW
+        Permission.SETTINGS_MANAGE
+        if rule.template_key == "service_case_overdue"
+        else (
+            Permission.INVENTORY_ADJUST
+            if rule.template_key == "restock_review"
+            else Permission.CUSTOMER_ORDERS_VIEW
+        )
     )
     return bool(
         member
@@ -223,6 +237,22 @@ def _source_valid(
     entity_id: UUID,
     entity_version: int,
 ) -> bool:
+    if template_key == "service_case_overdue":
+        return (
+            db.query(ServiceCase.id)
+            .filter(
+                ServiceCase.tenant_id == tenant_id,
+                ServiceCase.branch_id == branch_id,
+                ServiceCase.id == entity_id,
+                ServiceCase.status.in_(("open", "in_progress", "reopened")),
+                ServiceCase.due_at < now(),
+                _case_due_revision() == entity_version,
+            )
+            # Serialize only case reviews with closure/rescheduling until caller commits.
+            .with_for_update(read=True)
+            .first()
+            is not None
+        )
     if template_key == "restock_review":
         product = (
             db.query(Product)
@@ -353,6 +383,49 @@ def scan_stock(db: Session, *, tenant_id: UUID, branch_id: UUID, limit: int = 10
     return inserted
 
 
+def _case_due_revision():
+    # PostgreSQL numeric arithmetic preserves all stored microseconds without floats.
+    return cast(func.extract("epoch", ServiceCase.due_at) * 1_000_000, BigInteger)
+
+
+def scan_case_deadlines(db: Session, *, rule: AutomationRule, limit: int = 100) -> int:
+    """Skip existing identities in SQL before LIMIT to avoid starving later cases."""
+    revision = _case_due_revision()
+    already_recorded = exists(
+        select(BusinessEvent.id).where(
+            BusinessEvent.tenant_id == rule.tenant_id,
+            BusinessEvent.branch_id == rule.branch_id,
+            BusinessEvent.event_type == "service_case.review_due",
+            BusinessEvent.entity_id == ServiceCase.id,
+            BusinessEvent.entity_version == revision,
+        )
+    )
+    candidates = (
+        db.query(ServiceCase.id, revision)
+        .filter(
+            ServiceCase.tenant_id == rule.tenant_id,
+            ServiceCase.branch_id == rule.branch_id,
+            ServiceCase.status.in_(("open", "in_progress", "reopened")),
+            ServiceCase.due_at >= rule.enabled_since,
+            ServiceCase.due_at < now(),
+            ~already_recorded,
+        )
+        .order_by(ServiceCase.due_at, ServiceCase.id)
+        .limit(limit)
+        .all()
+    )
+    for identifier, due_revision in candidates:
+        record_event(
+            db,
+            tenant_id=rule.tenant_id,
+            branch_id=rule.branch_id,
+            entity_id=identifier,
+            entity_version=due_revision,
+            event_type="service_case.review_due",
+        )
+    return len(candidates)
+
+
 def process_pending(
     db: Session,
     *,
@@ -379,8 +452,29 @@ def process_pending(
     permitted = {key: rule.enabled and _authorized(db, rule) for key, rule in rules.items()}
     if permitted.get("restock_review"):
         scan_stock(db, tenant_id=tenant_id, branch_id=branch_id, limit=limit)
+    if permitted.get("service_case_overdue") and rules["service_case_overdue"].enabled_since:
+        scan_case_deadlines(db, rule=rules["service_case_overdue"], limit=limit)
     stamp = now()
-    for run in _run_query(db, tenant_id, branch_id).filter_by(status="pending").limit(limit).all():
+    case_source_current = exists(
+        select(ServiceCase.id).where(
+            ServiceCase.tenant_id == tenant_id,
+            ServiceCase.branch_id == branch_id,
+            ServiceCase.id == AutomationRun.entity_id,
+            ServiceCase.status.in_(("open", "in_progress", "reopened")),
+            ServiceCase.due_at < stamp,
+            _case_due_revision() == AutomationRun.entity_version,
+        )
+    )
+    # A full batch of still-valid reviews must not starve obsolete case reviews.
+    obsolete_case = (AutomationRun.template_key == "service_case_overdue") & ~case_source_current
+    pending = (
+        _run_query(db, tenant_id, branch_id)
+        .filter_by(status="pending")
+        .order_by(obsolete_case.desc(), AutomationRun.created_at, AutomationRun.id)
+        .limit(limit)
+        .all()
+    )
+    for run in pending:
         rule = rules.get(run.template_key)
         if not (
             rule
@@ -446,7 +540,13 @@ def process_pending(
                         template_key=key,
                         title=template["task"],
                         entity_id=event.entity_id,
-                        entity_type="product" if key == "restock_review" else "customer_order",
+                        entity_type=(
+                            "product"
+                            if key == "restock_review"
+                            else "service_case"
+                            if key == "service_case_overdue"
+                            else "customer_order"
+                        ),
                         entity_version=event.entity_version,
                         status="pending",
                         version=1,

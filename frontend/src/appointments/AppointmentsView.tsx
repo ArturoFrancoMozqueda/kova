@@ -1,3 +1,5 @@
+import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
+import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   OperationsSession,
@@ -857,6 +859,11 @@ function AppointmentReminders({
   identity: WorkspaceIdentity;
   revision: number;
 }) {
+  const linked = useLinkedRecord<Reminder>(
+    identity,
+    "reminder_id",
+    "/api/v1/appointments/reminders",
+  );
   const [offset, setOffset] = useState(0);
   const panel = useOperationsPanel<{ items: Reminder[]; has_more: boolean }>(
     "/api/v1/appointments",
@@ -864,13 +871,26 @@ function AppointmentReminders({
     `/reminders?limit=50&offset=${offset}`,
   );
   const { load } = panel;
+  const { reload: reloadLinked, requested: linkedRequested } = linked;
   const lastRevision = useRef(revision);
   useEffect(() => {
     if (lastRevision.current !== revision) {
       lastRevision.current = revision;
       void load();
+      if (linkedRequested) reloadLinked();
     }
-  }, [revision, load]);
+  }, [revision, load, linkedRequested, reloadLinked]);
+  const resolve = async (row: Reminder, status: "completed" | "dismissed") => {
+    await panel.mutate(
+      `/reminders/${row.id}/resolve`,
+      "POST",
+      { expected_version: row.version, status },
+      status === "completed"
+        ? "Recordatorio revisado por el equipo. No se ha enviado un mensaje."
+        : "Recordatorio descartado.",
+    );
+    if (linked.requested) linked.reload();
+  };
   return (
     <section
       className="space-y-4 rounded-2xl border border-kova-border bg-white p-6"
@@ -881,6 +901,16 @@ function AppointmentReminders({
         Son pendientes internos de citas vigentes. Marcarlos como revisados no
         envía un mensaje ni confirma que el cliente haya recibido un aviso.
       </p>
+      <LinkedRecordNotice linked={linked}>
+        {linked.record && (
+          <ReminderCard
+            row={linked.record}
+            busy={panel.busy}
+            online={panel.online}
+            onResolve={resolve}
+          />
+        )}
+      </LinkedRecordNotice>
       {panel.error && (
         <ViewError
           message={panel.error}
@@ -896,52 +926,18 @@ function AppointmentReminders({
         </p>
       )}
       <ul className="space-y-3">
-        {panel.data?.items.map((row) => (
-          <li
-            key={row.id}
-            className="min-w-0 space-y-3 rounded-xl bg-kova-mist p-4"
-          >
-            <h3 className="break-words font-medium">{row.title}</h3>
-            <p className="text-sm">
-              {formatAppointmentTime(row.starts_at, row.timezone)} ·{" "}
-              {zoneLabel(row.timezone)}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                className={buttonClass}
-                size="sm"
-                variant="outline"
-                disabled={panel.busy || !panel.online}
-                onClick={() =>
-                  void panel.mutate(
-                    `/reminders/${row.id}/resolve`,
-                    "POST",
-                    { expected_version: row.version, status: "completed" },
-                    "Recordatorio revisado por el equipo. No se ha enviado un mensaje.",
-                  )
-                }
-              >
-                Registrar revisión del recordatorio
-              </Button>
-              <Button
-                className={buttonClass}
-                size="sm"
-                variant="ghost"
-                disabled={panel.busy || !panel.online}
-                onClick={() =>
-                  void panel.mutate(
-                    `/reminders/${row.id}/resolve`,
-                    "POST",
-                    { expected_version: row.version, status: "dismissed" },
-                    "Recordatorio descartado.",
-                  )
-                }
-              >
-                Descartar recordatorio
-              </Button>
-            </div>
-          </li>
-        ))}
+        {panel.data?.items
+          .filter((row) => row.id !== linked.record?.id)
+          .map((row) => (
+            <li key={row.id}>
+              <ReminderCard
+                row={row}
+                busy={panel.busy}
+                online={panel.online}
+                onResolve={resolve}
+              />
+            </li>
+          ))}
       </ul>
       <div className="flex flex-wrap gap-3">
         <Button
@@ -964,5 +960,47 @@ function AppointmentReminders({
         </Button>
       </div>
     </section>
+  );
+}
+
+function ReminderCard({
+  row,
+  busy,
+  online,
+  onResolve,
+}: {
+  row: Reminder;
+  busy: boolean;
+  online: boolean;
+  onResolve: (row: Reminder, status: "completed" | "dismissed") => void;
+}) {
+  return (
+    <article className="min-w-0 space-y-3 rounded-xl bg-kova-mist p-4">
+      <h3 className="break-words font-medium">{row.title}</h3>
+      <p className="text-sm">
+        {formatAppointmentTime(row.starts_at, row.timezone)} ·{" "}
+        {zoneLabel(row.timezone)}
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <Button
+          className={buttonClass}
+          size="sm"
+          variant="outline"
+          disabled={busy || !online || row.status !== "pending"}
+          onClick={() => onResolve(row, "completed")}
+        >
+          Registrar revisión del recordatorio
+        </Button>
+        <Button
+          className={buttonClass}
+          size="sm"
+          variant="ghost"
+          disabled={busy || !online || row.status !== "pending"}
+          onClick={() => onResolve(row, "dismissed")}
+        >
+          Descartar recordatorio
+        </Button>
+      </div>
+    </article>
   );
 }

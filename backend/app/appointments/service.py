@@ -417,6 +417,16 @@ def history(db, tenant, appointment_id):
     return {"items": result}
 
 
+def get_reminder(db, tenant, reminder_id):
+    row = _scope(db, tenant, AppointmentReminder).filter_by(id=reminder_id).first()
+    if row is None or row.status != "pending" or _utc(row.due_at) > now():
+        raise not_found("Recordatorio no disponible")
+    appointment = _appointment(db, tenant, row.appointment_id)
+    if appointment.status != "scheduled" or appointment.version != row.appointment_version:
+        raise not_found("Recordatorio no disponible")
+    return _reminder_response(db, row, appointment)
+
+
 def reminders(db, tenant, *, limit=100, offset=0):
     rows = (
         _scope(db, tenant, AppointmentReminder)

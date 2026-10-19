@@ -191,6 +191,15 @@ def task_response(db, row):
     ).model_dump(mode="json")
 
 
+def get_followup(db, tenant_id, task_id):
+    row = db.query(FollowupTask).filter_by(
+        tenant_id=tenant_id, branch_id=active_branch_id(db, tenant_id), id=task_id
+    ).first()
+    if row is None:
+        raise not_found("Seguimiento no encontrado")
+    return task_response(db, row)
+
+
 def followup_overview(db, tenant_id, limit=100, offset=0):
     rows = (
         db.query(FollowupTask)

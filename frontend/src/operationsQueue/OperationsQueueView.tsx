@@ -17,6 +17,7 @@ import { ViewHeader } from "@/components/ui/view-header";
 import { ViewLayout } from "@/components/ui/view-layout";
 import { ViewError } from "@/components/ui/view-states";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { isRecordId } from "./useLinkedRecord";
 import type {
   OperationsQueueData,
   OperationsQueueSection,
@@ -26,6 +27,7 @@ import type {
 const sources = [
   {
     source: "service_cases",
+    parameter: "case_id",
     title: "Atención postventa",
     description: "Atenciones abiertas que requieren seguimiento del equipo.",
     empty: "No hay atenciones activas en esta consulta.",
@@ -34,6 +36,7 @@ const sources = [
   },
   {
     source: "opportunities",
+    parameter: "opportunity_id",
     title: "Oportunidades comerciales",
     description: "Oportunidades abiertas con una próxima acción registrada.",
     empty: "No hay oportunidades abiertas con una próxima acción registrada.",
@@ -42,6 +45,7 @@ const sources = [
   },
   {
     source: "followups",
+    parameter: "task_id",
     title: "Seguimiento de clientes",
     description: "Tareas internas de postventa, recompra e incidencias.",
     empty: "No hay tareas de seguimiento pendientes en esta consulta.",
@@ -50,6 +54,7 @@ const sources = [
   },
   {
     source: "appointment_reminders",
+    parameter: "reminder_id",
     title: "Recordatorios de agenda",
     description: "Recordatorios disponibles de citas programadas y vigentes.",
     empty:
@@ -281,6 +286,14 @@ function QueueSection({
           {section.items.map((item) => (
             <li key={item.source_id} className="min-w-0 space-y-2 py-4">
               <h3 className="break-words font-semibold">{item.title}</h3>
+              {isRecordId(item.source_id) && (
+                <Link
+                  className="inline-flex min-h-11 items-center break-words text-sm font-medium underline underline-offset-4"
+                  to={`${config.path}?${config.parameter}=${item.source_id}`}
+                >
+                  Abrir registro: {item.title}
+                </Link>
+              )}
               <p className="break-words text-sm">{item.customer_name}</p>
               <p className="text-xs font-medium text-kova-muted">
                 {stateLabels[config.source][item.state] ??

@@ -1,3 +1,5 @@
+import { LinkedRecordNotice } from "@/operationsQueue/LinkedRecordNotice";
+import { useLinkedRecord } from "@/operationsQueue/useLinkedRecord";
 import { useEffect, useState, type FormEvent } from "react";
 import {
   OperationsSession,
@@ -51,6 +53,11 @@ export default function FollowupsView() {
   );
 }
 function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
+  const linked = useLinkedRecord<Task>(
+    identity,
+    "task_id",
+    "/api/v1/crm/followups",
+  );
   const [offset, setOffset] = useState(0);
   const panel = useOperationsPanel<Followups>(
     "/api/v1",
@@ -69,6 +76,10 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [selected, setSelected] = useState<Task | null>(null);
   const [resolutionNote, setResolutionNote] = useState("");
+  useEffect(() => {
+    setSelected(null);
+    setResolutionNote("");
+  }, [linked.id]);
   useEffect(() => {
     let active = true;
     const timer = window.setTimeout(() => {
@@ -113,6 +124,10 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
       setDueAt("");
     }
   };
+  const review = (row: Task) => {
+    setSelected(row);
+    setResolutionNote(row.note ?? "");
+  };
   const resolve = async (status: "completed" | "dismissed") => {
     if (!selected) return;
     if (
@@ -128,8 +143,13 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           ? "Tarea completada por el equipo. Esto no acredita un envío ni una recompra."
           : "Tarea descartada.",
       )
-    )
+    ) {
       setSelected(null);
+    }
+    if (linked.requested) {
+      setSelected(null);
+      linked.reload();
+    }
   };
   return (
     <ViewLayout className="space-y-6">
@@ -143,6 +163,16 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         antes de contactar; completar una tarea no confirma entrega de mensajes
         ni ingresos.
       </p>
+      <LinkedRecordNotice linked={linked}>
+        {linked.record && (
+          <FollowupCard
+            row={linked.record}
+            busy={panel.busy}
+            online={panel.online}
+            onReview={review}
+          />
+        )}
+      </LinkedRecordNotice>
       {panel.error && (
         <ViewError
           message={panel.error}
@@ -387,44 +417,17 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
           </p>
         )}
         <div className="grid gap-4 lg:grid-cols-2">
-          {panel.data?.tasks.map((row) => (
-            <article
-              key={row.id}
-              className="min-w-0 space-y-3 rounded-2xl border border-kova-border bg-white p-5"
-            >
-              <p className="text-xs text-kova-muted">
-                {kinds[row.kind]} · {statuses[row.status]}
-              </p>
-              <h3 className="break-words font-semibold">{row.title}</h3>
-              <p className="break-words text-sm">{row.customer_name}</p>
-              {row.note && (
-                <p className="whitespace-pre-wrap break-words text-sm text-kova-muted">
-                  {row.note}
-                </p>
-              )}
-              <p className="text-sm">
-                Seguimiento: {new Date(row.due_at).toLocaleString("es-MX")}
-              </p>
-              {row.sale_order_id && (
-                <p className="break-all text-xs text-kova-muted">
-                  Venta de origen: {row.sale_order_id}
-                </p>
-              )}
-              {row.status === "pending" && (
-                <Button
-                  className="h-auto min-h-11 whitespace-normal text-left"
-                  variant="outline"
-                  disabled={panel.busy}
-                  onClick={() => {
-                    setSelected(row);
-                    setResolutionNote(row.note ?? "");
-                  }}
-                >
-                  Revisar {row.title}
-                </Button>
-              )}
-            </article>
-          ))}
+          {panel.data?.tasks
+            .filter((row) => row.id !== linked.record?.id)
+            .map((row) => (
+              <FollowupCard
+                key={row.id}
+                row={row}
+                busy={panel.busy}
+                online={panel.online}
+                onReview={review}
+              />
+            ))}
         </div>
       </section>
       {selected && (
@@ -488,5 +491,50 @@ function FollowupsWorkspace({ identity }: { identity: WorkspaceIdentity }) {
         </Button>
       </nav>
     </ViewLayout>
+  );
+}
+
+function FollowupCard({
+  row,
+  busy,
+  online,
+  onReview,
+}: {
+  row: Task;
+  busy: boolean;
+  online: boolean;
+  onReview: (row: Task) => void;
+}) {
+  return (
+    <article className="min-w-0 space-y-3 rounded-2xl border border-kova-border bg-white p-5">
+      <p className="text-xs text-kova-muted">
+        {kinds[row.kind]} · {statuses[row.status]}
+      </p>
+      <h3 className="break-words font-semibold">{row.title}</h3>
+      <p className="break-words text-sm">{row.customer_name}</p>
+      {row.note && (
+        <p className="whitespace-pre-wrap break-words text-sm text-kova-muted">
+          {row.note}
+        </p>
+      )}
+      <p className="text-sm">
+        Seguimiento: {new Date(row.due_at).toLocaleString("es-MX")}
+      </p>
+      {row.sale_order_id && (
+        <p className="break-all text-xs text-kova-muted">
+          Venta de origen: {row.sale_order_id}
+        </p>
+      )}
+      {row.status === "pending" && (
+        <Button
+          className="h-auto min-h-11 whitespace-normal text-left"
+          variant="outline"
+          disabled={busy || !online}
+          onClick={() => onReview(row)}
+        >
+          Revisar {row.title}
+        </Button>
+      )}
+    </article>
   );
 }
