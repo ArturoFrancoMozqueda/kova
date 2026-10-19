@@ -14,7 +14,7 @@ from app.branches.scope import active_branch_id
 from app.crm.service import _assignee, _contact_fingerprint, _customer, contact_allowed
 from app.idempotency import service as idempotency
 from app.messaging.models import ChannelBinding, ChannelEventRecord, Conversation, Message, now
-from app.messaging.schemas import ConversationResponse, MessageResponse
+from app.messaging.schemas import InboxConversationResponse, InboxMessageResponse
 from app.messaging.webhooks import parse_verified_webhook
 from app.messaging.whatsapp import ChannelError
 from app.shared.exceptions import bad_request, conflict, not_found
@@ -52,17 +52,17 @@ def _message(db, tenant, identifier):
 def _conversation_response(db, row):
     values = {
         key: getattr(row, key)
-        for key in ConversationResponse.model_fields
+        for key in InboxConversationResponse.model_fields
         if key != "customer_name"
     }
     customer = _customer(db, row.tenant_id, row.customer_id) if row.customer_id else None
-    return ConversationResponse(
+    return InboxConversationResponse(
         **values, customer_name=customer.name if customer else None
     ).model_dump(mode="json")
 
 
 def _message_response(row):
-    return MessageResponse.model_validate(row).model_dump(mode="json")
+    return InboxMessageResponse.model_validate(row).model_dump(mode="json")
 
 
 def _claim(db, tenant, key, scope, body):

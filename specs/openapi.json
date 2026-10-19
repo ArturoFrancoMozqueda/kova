@@ -160,33 +160,6 @@
         "title": "ApprovedItem",
         "type": "object"
       },
-      "AutomationDraftCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "automation_run_id": {
-            "format": "uuid",
-            "title": "Automation Run Id",
-            "type": "string"
-          },
-          "conversation_id": {
-            "format": "uuid",
-            "title": "Conversation Id",
-            "type": "string"
-          },
-          "expected_run_version": {
-            "minimum": 1.0,
-            "title": "Expected Run Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "automation_run_id",
-          "expected_run_version",
-          "conversation_id"
-        ],
-        "title": "AutomationDraftCreate",
-        "type": "object"
-      },
       "AutomationOverview": {
         "properties": {
           "capabilities": {
@@ -2054,193 +2027,18 @@
         "title": "ContextResponse",
         "type": "object"
       },
-      "ConversationList": {
-        "properties": {
-          "channel_status": {
-            "const": "not_connected",
-            "default": "not_connected",
-            "title": "Channel Status",
-            "type": "string"
-          },
-          "has_more": {
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ConversationResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "required": [
-          "items",
-          "has_more"
-        ],
-        "title": "ConversationList",
-        "type": "object"
-      },
-      "ConversationResponse": {
-        "properties": {
-          "assigned_user_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned User Id"
-          },
-          "automation_paused": {
-            "title": "Automation Paused",
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "customer_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Id"
-          },
-          "customer_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Name"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "origin": {
-            "enum": [
-              "manual",
-              "whatsapp"
-            ],
-            "title": "Origin",
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "open",
-              "closed"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "subject": {
-            "title": "Subject",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "customer_id",
-          "customer_name",
-          "subject",
-          "origin",
-          "status",
-          "automation_paused",
-          "assigned_user_id",
-          "version",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "ConversationResponse",
-        "type": "object"
-      },
-      "ConversationUpdate": {
+      "ConversationCreate": {
         "additionalProperties": false,
         "properties": {
-          "assigned_user_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assigned User Id"
-          },
-          "automation_paused": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Automation Paused"
-          },
-          "customer_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customer Id"
-          },
-          "expected_version": {
-            "minimum": 1.0,
-            "title": "Expected Version",
-            "type": "integer"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "enum": [
-                  "open",
-                  "closed"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status"
+          "title": {
+            "default": "Conversaci\u00f3n privada",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
           }
         },
-        "required": [
-          "expected_version"
-        ],
-        "title": "ConversationUpdate",
+        "title": "ConversationCreate",
         "type": "object"
       },
       "CrmOverview": {
@@ -5195,6 +4993,437 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "InboxAutomationDraftCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "automation_run_id": {
+            "format": "uuid",
+            "title": "Automation Run Id",
+            "type": "string"
+          },
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "expected_run_version": {
+            "minimum": 1.0,
+            "title": "Expected Run Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "automation_run_id",
+          "expected_run_version",
+          "conversation_id"
+        ],
+        "title": "InboxAutomationDraftCreate",
+        "type": "object"
+      },
+      "InboxConversationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "customer_id": {
+            "format": "uuid",
+            "title": "Customer Id",
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "customer_id",
+          "subject"
+        ],
+        "title": "InboxConversationCreate",
+        "type": "object"
+      },
+      "InboxConversationList": {
+        "properties": {
+          "channel_status": {
+            "const": "not_connected",
+            "default": "not_connected",
+            "title": "Channel Status",
+            "type": "string"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxConversationResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "InboxConversationList",
+        "type": "object"
+      },
+      "InboxConversationResponse": {
+        "properties": {
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "automation_paused": {
+            "title": "Automation Paused",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Name"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "manual",
+              "whatsapp"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "closed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "customer_id",
+          "customer_name",
+          "subject",
+          "origin",
+          "status",
+          "automation_paused",
+          "assigned_user_id",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "InboxConversationResponse",
+        "type": "object"
+      },
+      "InboxConversationUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "automation_paused": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Automation Paused"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "title": "InboxConversationUpdate",
+        "type": "object"
+      },
+      "InboxMessageCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "purpose": {
+            "default": "transactional",
+            "enum": [
+              "transactional",
+              "marketing"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "InboxMessageCreate",
+        "type": "object"
+      },
+      "InboxMessageList": {
+        "properties": {
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxMessageResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "has_more"
+        ],
+        "title": "InboxMessageList",
+        "type": "object"
+      },
+      "InboxMessageResponse": {
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "inbound",
+              "outbound"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "message_type": {
+            "title": "Message Type",
+            "type": "string"
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "enum": [
+                  "transactional",
+                  "marketing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          },
+          "state": {
+            "enum": [
+              "received",
+              "draft",
+              "queued",
+              "sending",
+              "accepted",
+              "sent",
+              "delivered",
+              "read",
+              "failed",
+              "uncertain",
+              "cancelled",
+              "suppressed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "conversation_id",
+          "source_run_id",
+          "direction",
+          "body",
+          "message_type",
+          "state",
+          "purpose",
+          "version",
+          "error_code",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "InboxMessageResponse",
+        "type": "object"
+      },
+      "InboxMessageTransition": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "queue",
+              "cancel"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_version",
+          "action"
+        ],
+        "title": "InboxMessageTransition",
+        "type": "object"
+      },
       "IncidentCorrelation": {
         "properties": {
           "request_id": {
@@ -7079,49 +7308,44 @@
         "title": "MemoryWrite",
         "type": "object"
       },
-      "MessageList": {
-        "properties": {
-          "has_more": {
-            "title": "Has More",
-            "type": "boolean"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/app__messaging__schemas__MessageResponse"
-            },
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "required": [
-          "items",
-          "has_more"
-        ],
-        "title": "MessageList",
-        "type": "object"
-      },
-      "MessageTransition": {
+      "MessageCreate": {
         "additionalProperties": false,
         "properties": {
-          "action": {
-            "enum": [
-              "queue",
-              "cancel"
-            ],
-            "title": "Action",
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content",
             "type": "string"
-          },
-          "expected_version": {
-            "minimum": 1.0,
-            "title": "Expected Version",
-            "type": "integer"
           }
         },
         "required": [
-          "expected_version",
-          "action"
+          "content"
         ],
-        "title": "MessageTransition",
+        "title": "MessageCreate",
+        "type": "object"
+      },
+      "MessageResponse": {
+        "properties": {
+          "dev_reset_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dev Reset Token"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "MessageResponse",
         "type": "object"
       },
       "MessagingReadiness": {
@@ -14802,60 +15026,6 @@
         "title": "WebhookHealth",
         "type": "object"
       },
-      "app__assistant__schemas__ConversationCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "title": {
-            "default": "Conversaci\u00f3n privada",
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "title": "ConversationCreate",
-        "type": "object"
-      },
-      "app__assistant__schemas__MessageCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "content": {
-            "maxLength": 4000,
-            "minLength": 1,
-            "title": "Content",
-            "type": "string"
-          }
-        },
-        "required": [
-          "content"
-        ],
-        "title": "MessageCreate",
-        "type": "object"
-      },
-      "app__auth__schemas__MessageResponse": {
-        "properties": {
-          "dev_reset_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dev Reset Token"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "MessageResponse",
-        "type": "object"
-      },
       "app__automations__schemas__Capabilities": {
         "properties": {
           "external_messaging": {
@@ -14896,176 +15066,6 @@
           }
         },
         "title": "Capabilities",
-        "type": "object"
-      },
-      "app__messaging__schemas__ConversationCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "customer_id": {
-            "format": "uuid",
-            "title": "Customer Id",
-            "type": "string"
-          },
-          "subject": {
-            "maxLength": 160,
-            "minLength": 1,
-            "title": "Subject",
-            "type": "string"
-          }
-        },
-        "required": [
-          "customer_id",
-          "subject"
-        ],
-        "title": "ConversationCreate",
-        "type": "object"
-      },
-      "app__messaging__schemas__MessageCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "body": {
-            "maxLength": 4096,
-            "minLength": 1,
-            "title": "Body",
-            "type": "string"
-          },
-          "purpose": {
-            "default": "transactional",
-            "enum": [
-              "transactional",
-              "marketing"
-            ],
-            "title": "Purpose",
-            "type": "string"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "title": "MessageCreate",
-        "type": "object"
-      },
-      "app__messaging__schemas__MessageResponse": {
-        "properties": {
-          "body": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Body"
-          },
-          "conversation_id": {
-            "format": "uuid",
-            "title": "Conversation Id",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "direction": {
-            "enum": [
-              "inbound",
-              "outbound"
-            ],
-            "title": "Direction",
-            "type": "string"
-          },
-          "error_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error Code"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "message_type": {
-            "title": "Message Type",
-            "type": "string"
-          },
-          "purpose": {
-            "anyOf": [
-              {
-                "enum": [
-                  "transactional",
-                  "marketing"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Purpose"
-          },
-          "source_run_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Run Id"
-          },
-          "state": {
-            "enum": [
-              "received",
-              "draft",
-              "queued",
-              "sending",
-              "accepted",
-              "sent",
-              "delivered",
-              "read",
-              "failed",
-              "uncertain",
-              "cancelled",
-              "suppressed"
-            ],
-            "title": "State",
-            "type": "string"
-          },
-          "updated_at": {
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "conversation_id",
-          "source_run_id",
-          "direction",
-          "body",
-          "message_type",
-          "state",
-          "purpose",
-          "version",
-          "error_code",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "MessageResponse",
         "type": "object"
       }
     }
@@ -15270,7 +15270,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__assistant__schemas__ConversationCreate"
+                "$ref": "#/components/schemas/ConversationCreate"
               }
             }
           },
@@ -15405,7 +15405,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__assistant__schemas__MessageCreate"
+                "$ref": "#/components/schemas/MessageCreate"
               }
             }
           },
@@ -16483,7 +16483,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__auth__schemas__MessageResponse"
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             },
@@ -16524,7 +16524,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__auth__schemas__MessageResponse"
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             },
@@ -16664,7 +16664,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__auth__schemas__MessageResponse"
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             },
@@ -16696,7 +16696,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__auth__schemas__MessageResponse"
+                  "$ref": "#/components/schemas/MessageResponse"
                 }
               }
             },
@@ -24124,7 +24124,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConversationList"
+                  "$ref": "#/components/schemas/InboxConversationList"
                 }
               }
             },
@@ -24170,7 +24170,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__messaging__schemas__ConversationCreate"
+                "$ref": "#/components/schemas/InboxConversationCreate"
               }
             }
           },
@@ -24181,7 +24181,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConversationResponse"
+                  "$ref": "#/components/schemas/InboxConversationResponse"
                 }
               }
             },
@@ -24239,7 +24239,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ConversationUpdate"
+                "$ref": "#/components/schemas/InboxConversationUpdate"
               }
             }
           },
@@ -24250,7 +24250,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConversationResponse"
+                  "$ref": "#/components/schemas/InboxConversationResponse"
                 }
               }
             },
@@ -24316,7 +24316,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageList"
+                  "$ref": "#/components/schemas/InboxMessageList"
                 }
               }
             },
@@ -24372,7 +24372,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/app__messaging__schemas__MessageCreate"
+                "$ref": "#/components/schemas/InboxMessageCreate"
               }
             }
           },
@@ -24383,7 +24383,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__messaging__schemas__MessageResponse"
+                  "$ref": "#/components/schemas/InboxMessageResponse"
                 }
               }
             },
@@ -24431,7 +24431,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AutomationDraftCreate"
+                "$ref": "#/components/schemas/InboxAutomationDraftCreate"
               }
             }
           },
@@ -24442,7 +24442,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__messaging__schemas__MessageResponse"
+                  "$ref": "#/components/schemas/InboxMessageResponse"
                 }
               }
             },
@@ -24500,7 +24500,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MessageTransition"
+                "$ref": "#/components/schemas/InboxMessageTransition"
               }
             }
           },
@@ -24511,7 +24511,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/app__messaging__schemas__MessageResponse"
+                  "$ref": "#/components/schemas/InboxMessageResponse"
                 }
               }
             },

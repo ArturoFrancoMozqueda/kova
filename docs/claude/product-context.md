@@ -29,6 +29,11 @@ to real sales, inventory and costs, with explicit permissions and measurable out
 phased acceptance. This is future direction, not a claim of current availability or a replacement
 for the active sprint and production gates.
 
+The owner subsequently authorized implementation and merge. The internal commercial circuit now
+has reviewable catalog intake, explicit opportunity/quote/order/sale attribution, opt-in post-sale
+tasks and an inbox/draft/outbox domain. Connected channels remain inactive. Exact validation and
+release status: [implementation continuation](../audits/KOVA-E2E-COMPLETION-2026-10-18.md).
+
 ## Target user
 
 The main user is a small or medium business owner in Mexico. They may not be technical. They need clear flows, trustworthy data, and a product that feels professional.

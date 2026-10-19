@@ -50,7 +50,7 @@ Las matrices de pruebas agregan entidades/columnas autorizadas sin relajar deneg
 - Migraciones: 19 pruebas aprobadas; upgrade poblado, reversibilidad vacía, protección de
   historial y matriz SQL real de verbos/columnas con dos tenants.
 - CRM/captación/postventa más contratos existentes: 37 pruebas focales aprobadas.
-- Mensajería: 54 focales aprobadas; proveedor simulado explícito, RLS, replay, recibos fuera
+- Mensajería: 55 focales aprobadas; proveedor simulado explícito, RLS, replay, recibos fuera
   de orden, revocación y recuperación en sucursal secundaria.
 - E2E real ampliado: `business-automation-real.spec.ts`, 1/1 aprobado en 7.1 s, sin mocks.
   Navegador → API con rol `kova_app` sin bypass RLS → Postgres local aislado. Verifica origen,
@@ -58,7 +58,13 @@ Las matrices de pruebas agregan entidades/columnas autorizadas sin relajar deneg
   representa un apunte POS, no certifica liquidación PSP.
 - Chromium controlado: bandeja, solicitudes y postventa en 1440/768/390/320 px sin overflow,
   excepciones ni infracciones axe A/AA detectadas.
-- Suites completas y checks finales: resultados al concluir.
+- Frontend después de integrar main: 1,044 pruebas en 170 archivos; ESLint, TypeScript, build,
+  SSR, prerender, 114 chunks e import guard aprobados. Ocho recorridos Chromium controlados
+  cubren las vistas previas y nuevas más captación pública; la última copia de estados está en español.
+- Backend completo: primera pasada de continuación 1,687 aprobadas; pasada postmerge al concluir.
+- Los paths OpenAPI anteriores permanecen estructuralmente idénticos. Sólo QuoteCreate/QuoteResponse
+  agregan el vínculo opcional de oportunidad. Los schemas de bandeja usan nombres propios para
+  conservar intactas las referencias del asistente y autenticación.
 
 Se corrigieron dos defectos detectados: timestamps de automatizaciones se normalizan a UTC
 para replay estable con Postgres en CDMX; recuperación de envíos interrumpidos cubre también

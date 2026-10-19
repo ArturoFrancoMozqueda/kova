@@ -8,15 +8,15 @@ from app.db import get_db
 from app.messaging import service
 from app.messaging.readiness import MessagingReadiness, readiness
 from app.messaging.schemas import (
-    AutomationDraftCreate,
-    ConversationCreate,
-    ConversationList,
-    ConversationResponse,
-    ConversationUpdate,
-    MessageCreate,
-    MessageList,
-    MessageResponse,
-    MessageTransition,
+    InboxAutomationDraftCreate,
+    InboxConversationCreate,
+    InboxConversationList,
+    InboxConversationResponse,
+    InboxConversationUpdate,
+    InboxMessageCreate,
+    InboxMessageList,
+    InboxMessageResponse,
+    InboxMessageTransition,
 )
 
 router = APIRouter(prefix="/api/v1/messaging", tags=["messaging"])
@@ -27,7 +27,7 @@ def messaging_readiness(_ctx=Depends(require_crm)):
     return readiness()
 
 
-@router.get("/conversations", response_model=ConversationList)
+@router.get("/conversations", response_model=InboxConversationList)
 def list_conversations(
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -37,9 +37,9 @@ def list_conversations(
     return service.conversations(db, ctx[1].tenant_id, limit=limit, offset=offset)
 
 
-@router.post("/conversations", response_model=ConversationResponse, status_code=201)
+@router.post("/conversations", response_model=InboxConversationResponse, status_code=201)
 def create_conversation(
-    body: ConversationCreate,
+    body: InboxConversationCreate,
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
@@ -50,10 +50,10 @@ def create_conversation(
     return result
 
 
-@router.patch("/conversations/{conversation_id}", response_model=ConversationResponse)
+@router.patch("/conversations/{conversation_id}", response_model=InboxConversationResponse)
 def update_conversation(
     conversation_id: UUID,
-    body: ConversationUpdate,
+    body: InboxConversationUpdate,
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
@@ -66,7 +66,7 @@ def update_conversation(
     return result
 
 
-@router.get("/conversations/{conversation_id}/messages", response_model=MessageList)
+@router.get("/conversations/{conversation_id}/messages", response_model=InboxMessageList)
 def list_messages(
     conversation_id: UUID,
     limit: int = Query(100, ge=1, le=200),
@@ -78,11 +78,13 @@ def list_messages(
 
 
 @router.post(
-    "/conversations/{conversation_id}/messages", response_model=MessageResponse, status_code=201
+    "/conversations/{conversation_id}/messages",
+    response_model=InboxMessageResponse,
+    status_code=201,
 )
 def create_message(
     conversation_id: UUID,
-    body: MessageCreate,
+    body: InboxMessageCreate,
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
@@ -95,10 +97,10 @@ def create_message(
     return result
 
 
-@router.post("/messages/{message_id}/transition", response_model=MessageResponse)
+@router.post("/messages/{message_id}/transition", response_model=InboxMessageResponse)
 def transition_message(
     message_id: UUID,
-    body: MessageTransition,
+    body: InboxMessageTransition,
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
@@ -111,9 +113,9 @@ def transition_message(
     return result
 
 
-@router.post("/drafts/from-automation", response_model=MessageResponse, status_code=201)
+@router.post("/drafts/from-automation", response_model=InboxMessageResponse, status_code=201)
 def draft_from_automation(
-    body: AutomationDraftCreate,
+    body: InboxAutomationDraftCreate,
     response: Response,
     key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),

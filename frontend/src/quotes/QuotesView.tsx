@@ -16,6 +16,8 @@ import {
 } from "@/automations/workspace";
 import type { Product } from "@/catalog/types";
 import type { Customer } from "@/customers/api";
+import { statusLabels as orderStatusLabels } from "@/customerOrders/labels";
+import type { CustomerOrderStatus } from "@/customerOrders/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -691,7 +693,7 @@ type Journey = {
   opportunity_id: string | null;
   opportunity_stage: string | null;
   customer_order_id: string | null;
-  customer_order_status: string | null;
+  customer_order_status: CustomerOrderStatus | null;
   sale_order_id: string | null;
   sale_status: "completed" | "voided" | null;
   sale_total_amount: string | null;
@@ -768,7 +770,7 @@ function QuoteJourney({
           </p>
           <p>
             {data.customer_order_id
-              ? `Pedido vinculado: ${data.customer_order_status ?? "estado no disponible"}`
+              ? `Pedido vinculado: ${(data.customer_order_status ? orderStatusLabels[data.customer_order_status] : "estado no disponible")}`
               : "Todavía no se convierte en pedido"}
             .{" "}
             {data.customer_order_id && (
