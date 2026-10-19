@@ -8,6 +8,32 @@ from app.cfdi.certificates import validate_csd, CsdValidationError
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         fixtures = await request.json()
+        from app.billing.stripe_client import (
+            StripePriceClient, StripePriceError, StripeSubscriptionClient,
+        )
+        from urllib.error import HTTPError
+
+        # Exercise the real provider client through the WASM Fetch transport,
+        # with all external traffic intercepted by the test-only boundary.
+        price = StripePriceClient().retrieve_price(
+            secret_key="synthetic-test-only", price_id="worker-valid"
+        )
+        assert price == {"id": "worker-valid", "active": True}
+        try:
+            StripePriceClient().retrieve_price(
+                secret_key="synthetic-test-only", price_id="worker-missing"
+            )
+        except StripePriceError as exc:
+            assert isinstance(exc.__cause__, HTTPError)
+            assert exc.__cause__.code == 404
+            assert "resource_missing" in str(exc)
+        else:
+            raise AssertionError("Provider HTTP errors lost their category")
+        subscription = StripeSubscriptionClient().update_cancel_at_period_end(
+            secret_key="synthetic-test-only", stripe_subscription_id="worker-subscription",
+            idempotency_key="synthetic-idempotency-key",
+        )
+        assert subscription == {"id": "worker-subscription", "cancel_at_period_end": True}
         from app.workers.context import environment
         from app.workers.storage import R2Client
         from botocore.exceptions import BotoCoreError, ClientError

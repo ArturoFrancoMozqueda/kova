@@ -6,6 +6,7 @@ service layer: missing token → not_configured, any network/parse failure →
 degraded with a short, secret-free summary.
 """
 import json
+import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -14,6 +15,9 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from app.ops.schemas import OpsStatus
+
+if sys.platform == "emscripten":
+    from app.workers.http import urlopen
 
 
 class ConnectorError(Exception):
