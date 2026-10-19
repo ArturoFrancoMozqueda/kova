@@ -14,9 +14,11 @@ from app.workers.routing import coordinator_shard
 # Cloudflare snapshots top-level imports at deployment. Load pure package code
 # here; application settings, database validation and request I/O remain inside
 # the invocation so no credentials or connections enter the shared snapshot.
+# Optional storage/document libraries load inside the request coordinator. Keeping
+# them out of the shared deployment snapshot avoids compiling unused heavy code.
 for _package in (
     "fastapi", "sqlalchemy.orm", "pg8000.dbapi", "pydantic_settings",
-    "boto3", "openpyxl", "pypdf", "sentry_sdk", "httpx",
+    "sentry_sdk", "httpx",
 ):
     importlib.import_module(_package)
 
