@@ -64,7 +64,7 @@ export function validateRollbackArtifact(input) {
   };
 }
 
-export async function recoverRelease({ phase, artifact: rawArtifact, provider, verify = verifyDeployment }) {
+export async function recoverRelease({ phase, artifact: rawArtifact, provider, verify = verifyDeployment, attemptedSha }) {
   if (!RECOVERY_PHASES.has(phase)) throw new Error(`unknown release phase: ${phase}`);
   // Validate every target before the first mutation. A partial/empty capture
   // must stop recovery and keep the incident visible rather than guessing.
@@ -74,6 +74,15 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
   }
   if (artifact.cloudflareBackendVersions && typeof provider.restoreCloudflareBackend !== "function") {
     throw new Error("Cloudflare backend recovery requires its configured provider");
+  }
+  if (attemptedSha !== undefined && !FULL_SHA.test(attemptedSha)) {
+    throw new Error("Recovery attempted SHA must be complete");
+  }
+  if (artifact.cloudflareBackendVersions && typeof provider.waitForPublicBackend !== "function") {
+    throw new Error("Cloudflare backend recovery requires readiness verification");
+  }
+  if (artifact.cloudflareVersion && typeof provider.waitForPublicFrontend !== "function") {
+    throw new Error("Cloudflare frontend recovery requires readiness verification");
   }
   const restored = [];
 
@@ -94,6 +103,16 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
     } else {
       await provider.restoreFly(artifact.flyImage);
       restored.push("fly");
+    }
+    if (restored.includes("cloudflare")) {
+      await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl,
+        sha: artifact.releaseSha, previousSha: attemptedSha ?? artifact.releaseSha });
+    }
+    if (artifact.cloudflareBackendVersions) {
+      await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
+        backendUrl: artifact.backendUrl, sha: artifact.releaseSha,
+        previousSha: attemptedSha ?? artifact.releaseSha,
+        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     }
     const verification = await verify({
       frontendUrl: artifact.frontendUrl,
@@ -156,8 +175,10 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
   const backend = cloudflareBackendProvider({ run, env });
   return {
     requiresCloudflareBackend: Boolean(backend),
-    ...(backend ? { restoreCloudflareBackend: backend.restore } : {}),
-    ...(cloudflare ? { restoreCloudflare: cloudflare.restore } : {}),
+    ...(backend ? { restoreCloudflareBackend: backend.restore,
+      waitForPublicBackend: backend.waitForPublicBackend } : {}),
+    ...(cloudflare ? { restoreCloudflare: cloudflare.restore,
+      waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
     async restoreVercel(deployment, frontendUrl) {
       const hostname = productionHostname(frontendUrl);
       const authArgs = globalConfig ? ["--global-config", globalConfig]
@@ -218,6 +239,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       };
   const result = await recoverRelease({
     phase: requireArg("phase"),
+    attemptedSha: optionalArg("attempted-sha"),
     artifact,
     provider: cliProvider(),
   });

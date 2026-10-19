@@ -32,12 +32,20 @@ export async function release({ artifact: rawArtifact, sha, provider,
   if (provider.requiresCloudflareBackend && !artifact.cloudflareBackendVersions) {
     throw new Error("Cloudflare backend release requires captured rollback versions");
   }
+  if (provider.requiresCloudflareBackend && typeof provider.waitForPublicBackend !== "function") {
+    throw new Error("Cloudflare backend publication requires readiness verification");
+  }
   if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error("full release SHA is required");
   let phase;
   try {
     const url = candidateUrl(await provider.createCandidate());
     phase = "candidate";
     await provider.deployFly(sha);
+    if (provider.requiresCloudflareBackend) {
+      await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
+        sha, previousSha: artifact.releaseSha,
+        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+    }
     await verify({ frontendUrl: url, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     phase = "promotion";
@@ -47,13 +55,18 @@ export async function release({ artifact: rawArtifact, sha, provider,
       await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl, sha,
         previousSha: artifact.releaseSha });
     }
+    if (provider.requiresCloudflareBackend) {
+      await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
+        backendUrl: artifact.backendUrl, sha, previousSha: artifact.releaseSha,
+        frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
+    }
     await verify({ frontendUrl: artifact.frontendUrl, backendUrl: artifact.backendUrl, sha,
       frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     return { sha, url, phase, accepted: true };
   } catch (error) {
     if (phase) {
       try {
-        await recover({ phase, artifact, provider, verify });
+        await recover({ phase, artifact, provider, verify, attemptedSha: sha });
       } catch (recoveryError) {
         throw new globalThis.AggregateError([error, recoveryError], recoveryError.message, { cause: error });
       }
@@ -79,6 +92,7 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
     requiresCloudflare: Boolean(cloudflare),
     ...(cloudflare ? { waitForPublicFrontend: cloudflare.waitForPublicFrontend } : {}),
     requiresCloudflareBackend: Boolean(backend),
+    ...(backend ? { waitForPublicBackend: backend.waitForPublicBackend } : {}),
     async createCandidate() {
       await vercel(["pull", "--yes", "--environment=production"]);
       await vercel(["build", "--prod"]);

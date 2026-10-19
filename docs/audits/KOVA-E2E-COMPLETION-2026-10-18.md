@@ -90,3 +90,23 @@ sin presentar ese horizonte como disponible.
 Release: CI completo incluido nuevo caso workerd, revisión de diff, respaldo, migraciones,
 provisioning y aceptación del candidato. Mantener reglas/cohorte/canales desactivados hasta
 configuración expresa. Sin aceptación real de WhatsApp, hardware, QR impreso ni Safari/iOS.
+
+## Corrección del control de publicación detectada durante el merge
+
+El release previo de otro cambio, [39195580940](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39195580940),
+falló al verificar inmediatamente después de publicar y restaurar Cloudflare: primero observó el
+SHA anterior y luego el candidato durante la recuperación. Una consulta pública posterior confirmó
+API, proxy y frontend coherentes de nuevo en `62aafb648cf70abf36336f89706a44cd4fbb25d9`.
+No se hicieron mutaciones manuales para ese diagnóstico.
+
+Los scripts de release/recuperación añaden una espera acotada para propagación, permitiendo sólo
+el SHA objetivo y el anterior explícitamente conocido. HTTP fallido, respuesta inválida o identidad
+desconocida siguen bloqueando de inmediato. Después se ejecuta la verificación completa de sitio,
+versión exacta, API, proxy y base sin relajar ninguna aserción. No se cambian credenciales ni DNS.
+La recuperación invierte las dos identidades y espera también el frontend restaurado.
+Validación: 69 pruebas de publicación/recuperación aprobadas y una exclusiva de Windows omitida;
+lectura real del checker sobre API/proxy recuperados aprobada. La ventana es 120 s y cada lectura
+conserva el timeout de 20 s del verificador para arranques fríos; una lectura en curso puede
+extender esa ventana como máximo por su timeout. Las simulaciones nuevas prueban convergencia,
+agotamiento, versiones ajenas, errores HTTP y orden de recuperación; los mocks previos sólo
+incorporan el método de readiness que ahora exige el contrato, conservando sus denegaciones.

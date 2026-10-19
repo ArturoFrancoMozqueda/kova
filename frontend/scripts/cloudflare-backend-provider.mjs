@@ -1,5 +1,5 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, URL } from "node:url";
 import { validateCloudflareVersion } from "./cloudflare-provider.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -13,6 +13,42 @@ export function validateBackendVersions(input) {
   return Object.fromEntries(backendWorkers.map(name => [name, validateCloudflareVersion(input[name])]));
 }
 
+/** A successful deployment can precede global Worker/DO convergence.
+ * Wait only for the captured previous identity; foreign/error responses still fail closed.
+ * This readiness check never replaces the full site/API/database verification.
+ * The deadline may overrun by the one in-flight read (at most 20 seconds).
+ */
+export async function waitForBackendRelease({ backendUrl, frontendUrl, sha, previousSha,
+  frontendBypassSecret, fetcher = globalThis.fetch,
+  wait = ms => new Promise(resolve => globalThis.setTimeout(resolve, ms)), now = Date.now }) {
+  if (![sha, previousSha].every(value => /^[a-f0-9]{40}$/i.test(value ?? ""))) {
+    throw new Error("Backend propagation requires target and previous complete SHAs");
+  }
+  const targets = [
+    { url: new URL("/health", backendUrl), headers: {} },
+    { url: new URL("/api/health", frontendUrl), headers: frontendBypassSecret
+      ? { "x-vercel-protection-bypass": frontendBypassSecret } : {} },
+  ];
+  const deadline = now() + 120_000;
+  for (let attempt = 0; attempt < 120 && now() < deadline; attempt++) {
+    const observations = await Promise.all(targets.map(async ({ url, headers }) => {
+      const response = await fetcher(url, {
+        signal: globalThis.AbortSignal.timeout(20_000),
+        headers: { "cache-control": "no-cache", ...headers }, redirect: "error",
+      });
+      if (!response.ok) throw new Error(`Backend readiness failed: HTTP ${response.status}`);
+      const body = await response.json();
+      if (body.status !== "ok" || ![sha, previousSha].includes(body.release_sha)) {
+        throw new Error("Unexpected backend version or status during publication");
+      }
+      return body.release_sha;
+    }));
+    if (observations.every(value => value === sha)) return;
+    await wait(1000);
+  }
+  throw new Error("Backend publication did not finish propagating");
+}
+
 export function cloudflareBackendProvider({ run, env }) {
   if (env.KOVA_CLOUDFLARE_BACKEND !== "1") return undefined;
   if (!env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID) {
@@ -22,6 +58,7 @@ export function cloudflareBackendProvider({ run, env }) {
     [path.join(directory, "node_modules/cf/bin/cf"), ...args],
     { cwd: directory, env, capture, label: "Cloudflare backend" });
   return {
+    waitForPublicBackend: waitForBackendRelease,
     async capture() {
       const captured = {};
       for (const name of backendWorkers) {
