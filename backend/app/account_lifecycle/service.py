@@ -127,6 +127,12 @@ _EXPORT_TABLES = (
     ExportTable("crm_catalog_requests", _columns(
         "id tenant_id branch_id catalog_id name contact message product_ids status "
         "customer_id opportunity_id version created_at resolved_at")),
+    ExportTable("service_cases", _columns(
+        "id tenant_id branch_id customer_id sale_order_id customer_order_id title status "
+        "assigned_user_id due_at version created_by_user_id created_at updated_at resolved_at")),
+    ExportTable("service_case_events", _columns(
+        "id tenant_id branch_id case_id case_version kind actor_user_id status "
+        "assigned_user_id due_at note created_at")),
     ExportTable("appointment_resources", _columns(
         "id tenant_id branch_id name timezone is_active version created_at updated_at")),
 
@@ -480,6 +486,8 @@ _NON_EXPORTABLE_TENANT_TABLES = frozenset(
 # approved account-ownership graph; unknown tenant tables stop a purge instead
 # of silently leaving data behind.
 _TENANT_DELETE_ORDER = (
+    "service_case_events",
+    "service_cases",
     "appointment_reminders",
     "appointment_history",
     "appointments",

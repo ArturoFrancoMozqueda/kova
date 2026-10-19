@@ -56,6 +56,7 @@ from app.quotes.router import router as quotes_router
 from app.reconciliation.router import router as reconciliation_router
 from app.replenishment.router import router as replenishment_router
 from app.reports.router import router as reports_router
+from app.service_cases.router import router as service_cases_router
 from app.shifts.router import router as shifts_router
 from app.storefront.router import router as storefront_router
 from app.sync.router import router as sync_router
@@ -246,6 +247,7 @@ def create_app() -> FastAPI:
     app.include_router(messaging_router)
     app.include_router(appointments_router)
     app.include_router(loyalty_router)
+    app.include_router(service_cases_router)
     app.include_router(storefront_router)
     app.include_router(assistant_router)
     app.include_router(billing_router)

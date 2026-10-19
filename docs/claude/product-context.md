@@ -34,6 +34,13 @@ has reviewable catalog intake, explicit opportunity/quote/order/sale attribution
 tasks and an inbox/draft/outbox domain. Connected channels remain inactive. Exact validation and
 release status: [implementation continuation](../audits/KOVA-E2E-COMPLETION-2026-10-18.md).
 
+Internal agenda/loyalty have their own bounded contracts. The latest locally validated slice adds
+customer service cases: explicit customer/source, branch-scoped assignment, author-attributed
+append-only notes and manual deadlines. Closing a case does not compensate a customer, send a
+message or change POS data. Source and local validation are recorded in the
+[customer service delivery](../audits/KOVA-SERVICE-CASES-2026-10-19.md); release acceptance remains
+separate from implementation, and the full E2E roadmap is not declared complete.
+
 ## Target user
 
 The main user is a small or medium business owner in Mexico. They may not be technical. They need clear flows, trustworthy data, and a product that feels professional.

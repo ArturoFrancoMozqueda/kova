@@ -47,6 +47,7 @@ const SettingsView = lazy(() => import("./settings/SettingsView"));
 const ShiftView = lazy(() => import("./shifts/ShiftView"));
 const AppointmentsView = lazy(() => import("./appointments/AppointmentsView"));
 const LoyaltyView = lazy(() => import("./loyalty/LoyaltyView"));
+const ServiceCasesView = lazy(() => import("./serviceCases/ServiceCasesView"));
 const AppShell = lazy(() => import("./layout/AppShell"));
 // Prerendered routes use lazyWithPreload: after preload() their first render
 // never suspends, which hydrateRoot (main.tsx) and renderToString
@@ -134,6 +135,7 @@ export function AppRoutes() {
               <Route path="/inbox" element={<InboxView />} />
               <Route path="/commercial-requests" element={<CommercialRequestsView />} />
               <Route path="/followups" element={<FollowupsView />} />
+              <Route path="/service-cases" element={<ServiceCasesView />} />
               <Route path="/appointments" element={<AppointmentsView />} />
               <Route path="/loyalty" element={<LoyaltyView />} />
               <Route path="/quotes" element={<QuotesView />} />

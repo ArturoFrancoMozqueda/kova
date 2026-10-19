@@ -154,6 +154,42 @@ describe("existing API inside Python Durable Objects", () => {
     expect((await other("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
   });
 
+  it("keeps customer service cases and immutable notes private without changing sales", async () => {
+    const owner = await browser(`cases-${crypto.randomUUID()}@example.com`);
+    const other = await browser(`cases-other-${crypto.randomUUID()}@example.com`);
+    async function write(path, method, body) {
+      return owner(path, { method, body, headers: { "Idempotency-Key": crypto.randomUUID() } });
+    }
+    const customerResponse = await write("/api/v1/customers", "POST", { name: "Cliente atención" });
+    expect(customerResponse.status).toBe(201);
+    const customer = await customerResponse.json();
+    const created = await write("/api/v1/service-cases", "POST", {
+      customer_id: customer.id, title: "Revisar consulta", note: "Nota inicial privada",
+      due_at: new Date(Date.now() - 60000).toISOString(),
+    });
+    expect(created.status).toBe(201);
+    const serviceCase = await created.json();
+    expect(serviceCase.overdue).toBe(true);
+    expect((await other(`/api/v1/service-cases/${serviceCase.id}`)).status).toBe(404);
+    const noted = await write(`/api/v1/service-cases/${serviceCase.id}/notes`, "POST", {
+      expected_version: 1, note: "Se revisó con el responsable",
+    });
+    expect(noted.status).toBe(200);
+    expect((await noted.json()).version).toBe(2);
+    const resolved = await write(`/api/v1/service-cases/${serviceCase.id}`, "PATCH", {
+      expected_version: 2, status: "resolved",
+    });
+    expect(resolved.status).toBe(200);
+    expect(await resolved.json()).toMatchObject({ status: "resolved", version: 3, overdue: false });
+    const events = await (await owner(`/api/v1/service-cases/${serviceCase.id}/events`)).json();
+    expect(events.items).toHaveLength(3);
+    expect(events.items.map(event => event.case_version).sort()).toEqual([1, 2, 3]);
+    expect(events.items.filter(event => event.kind === "note_added")[0].note).toBe("Se revisó con el responsable");
+    expect((await (await owner("/api/v1/reports/business-story")).json()).summary.net_sales).toBe("0.00");
+    expect((await owner("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
+    expect((await other("/api/v1/auth/logout", { method: "POST" })).status).toBe(204);
+  });
+
   it("passes production startup checks and reaches Postgres", async () => {
     const health = await SELF.fetch("https://api.test/health");
     expect(health.status).toBe(200);

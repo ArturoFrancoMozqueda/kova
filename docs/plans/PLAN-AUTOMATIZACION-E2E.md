@@ -8,6 +8,14 @@ Actualización de ejecución: el propietario solicitó implementar con agentes. 
 capacidades desarrolladas, sus pruebas y los pendientes de canales/proveedores. La propuesta
 completa de abajo sigue siendo horizonte de producto; no representa disponibilidad general.
 
+Actualización 2026-10-19: los cortes internos de agenda/lealtad y
+[atención postventa](../audits/KOVA-SERVICE-CASES-2026-10-19.md) ya tienen implementación local
+acotada. Atención incorpora responsables, historia con autor, reapertura y vencimientos manuales;
+no completa campañas, entrega externa, compensaciones ni atribución causal. Las brechas de abajo
+son el diagnóstico original del 2026-10-18: para disponibilidad y validación vigentes consultar
+los informes y `current-sprint.md`. La [cola operativa interna](PLAN-COLA-OPERATIVA-INTERNA.md)
+sigue como propuesta pequeña sin implementar.
+
 Kova debe conectar captación, atención, venta, operación y recompra sobre los datos reales del negocio.
 La propuesta amplía el [copiloto del dueño](PLAN-KOVA-COPILOT.md): detectar, explicar, recomendar,
 ejecutar y medir. El resultado buscado es reducir trabajo manual y cerrar pendientes con trazabilidad.

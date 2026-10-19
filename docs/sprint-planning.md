@@ -22,6 +22,12 @@ propone conectar captación, atención, pedidos, cobro, operación y recompra. I
 dependencias, responsables y aceptación por corte. Es planeación futura; no reemplaza el estado
 vigente ni activa capacidades diferidas o proveedores.
 
+Actualización de ejecución, 2026-10-19: atención postventa interna está implementada y validada
+localmente con UI/API, migración aditiva, RLS y notas inmutables con autor. No acredita publicación
+ni cierra el horizonte E2E. [Entrega de atención](audits/KOVA-SERVICE-CASES-2026-10-19.md).
+La [cola de pendientes internos](plans/PLAN-COLA-OPERATIVA-INTERNA.md) es el siguiente contrato
+pequeño propuesto, todavía sin implementación; no reemplaza los gates activos del release.
+
 Deferred scope lives in `docs/deferred-scope.md`.
 
 Risks live in `docs/risk-register.md`.

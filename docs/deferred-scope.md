@@ -31,6 +31,14 @@ se implementaron en la continuación del circuito general. Su alcance, pruebas y
 conectar se registran en el [informe de continuación](audits/KOVA-E2E-COMPLETION-2026-10-18.md).
 Las extensiones por giro de este documento conservan sus contratos y aceptación propios.
 
+Actualización 2026-10-19: la autorización explícita del propietario incorporó agenda interna por
+recurso, puntos de lealtad internos y atención postventa con casos/notas/responsables. Esos cortes
+acotados ya tienen contratos y validación local; las antiguas listas de deferrals no los bloquean.
+El alcance especializado de citas/lealtad, promociones, campañas, compensaciones automáticas y
+operación completa por giro sigue diferido. [Atención implementada y gates del release](
+audits/KOVA-SERVICE-CASES-2026-10-19.md). La [cola de pendientes internos](
+plans/PLAN-COLA-OPERATIVA-INTERNA.md) es sólo la siguiente propuesta; no se presenta implementada.
+
 The closed beta should focus on a reliable bakery / small food retail POS.
 
 Do not implement these for beta:

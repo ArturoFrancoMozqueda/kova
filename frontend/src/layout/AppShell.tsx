@@ -43,6 +43,7 @@ import {
   MessagesSquare,
   CalendarDays,
   Gift,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/lib/usePresence";
@@ -84,6 +85,7 @@ const adminNavItems: NavItem[] = [
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
   { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
+  { to: "/service-cases", label: "Atención postventa", icon: <LifeBuoy className="h-4.5 w-4.5" />, group: "business" },
   { to: "/appointments", label: "Agenda", icon: <CalendarDays className="h-4.5 w-4.5" />, group: "business" },
   { to: "/loyalty", label: "Lealtad de clientes", icon: <Gift className="h-4.5 w-4.5" />, group: "business" },
   { to: "/inbox", label: "Bandeja de atención", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
@@ -181,6 +183,7 @@ export default function AppShell() {
   const loadingViewName = (() => {
     const path = location.pathname;
     if (path.startsWith("/customers")) return "Clientes";
+    if (path.startsWith("/service-cases")) return "Atención postventa";
     if (path.startsWith("/appointments")) return "Agenda del negocio";
     if (path.startsWith("/loyalty")) return "Lealtad de clientes";
     if (path.startsWith("/inbox")) return "Bandeja de atención";

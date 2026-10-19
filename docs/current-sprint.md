@@ -2,6 +2,21 @@
 
 Last updated: 2026-10-19
 
+## Atención postventa interna (2026-10-19, validada localmente)
+
+La continuación autorizada sin conectar cuentas incorpora `/service-cases`: casos por cliente y
+sucursal, venta/pedido con identidad verificable, responsables activos, notas append-only con autor,
+estados/versiones y vencimiento manual calculado con el reloj del servidor. Dueño/gerente conservan
+el historial al resolver o reabrir. Los casos no modifican ventas, devoluciones, caja ni inventario;
+las incidencias sencillas de `/crm/followups` permanecen disponibles sin migración automática.
+
+Fuente local final: 1,746 pruebas backend, 25 de migraciones y ocho de workerd aprobadas; frontend
+1,087 unitarias, QA Chromium responsiva y recorrido real navegador/API/Postgres con RLS. El artefacto
+compila y pasa el escaneo del bundle. Publicación/aceptación del release siguen pendientes; esta
+entrada no acredita funcionamiento autenticado en producción ni automatización E2E total.
+[Entrega y límites](audits/KOVA-SERVICE-CASES-2026-10-19.md). El siguiente corte pequeño propuesto,
+aún sin implementar, es la [cola de pendientes internos](plans/PLAN-COLA-OPERATIVA-INTERNA.md).
+
 ## Permanent Fly retirement (2026-10-19)
 
 El propietario pidió dejar de usar y generar consumo en Fly. Se eliminó
