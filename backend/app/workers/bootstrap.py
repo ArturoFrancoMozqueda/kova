@@ -1,10 +1,23 @@
 """Initialize the existing API inside a request with explicit Workers bindings."""
 
 import asyncio
+import logging
 import re
+from contextlib import contextmanager
+from time import perf_counter
 
 _application = None
 _initialization = asyncio.Lock()
+_startup_logger = logging.getLogger("app.startup")
+
+
+@contextmanager
+def _startup_phase(phase, observations):
+    started = perf_counter()
+    try:
+        yield
+    finally:
+        observations.append((phase, (perf_counter() - started) * 1000))
 
 
 def environment(env, *, privileged=True) -> dict[str, str]:
@@ -98,8 +111,20 @@ async def application(env):
         return _application
     async with _initialization:
         if _application is None:
-            configure(env)
-            from app.main import app
+            observations = []
+            try:
+                with _startup_phase("workers.total", observations):
+                    with _startup_phase("workers.configure", observations):
+                        configure(env)
+                    with _startup_phase("workers.app_main_import", observations):
+                        from app.main import app
 
-            _application = app
+                    _application = app
+            finally:
+                # The app installs logging during import. Buffer early durations locally
+                # so the first configuration timing is not lost before that handler exists.
+                for phase, duration in observations:
+                    _startup_logger.info(
+                        "startup_phase phase=%s duration_ms=%.3f", phase, duration
+                    )
     return _application

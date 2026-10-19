@@ -1,5 +1,7 @@
 import logging
 import sys
+from contextlib import contextmanager
+from time import perf_counter
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -160,12 +162,31 @@ def _validate_config() -> None:
     _validate_internal_ops_config()
 
 
+@contextmanager
+def _startup_phase(phase):
+    started = perf_counter()
+    try:
+        yield
+    finally:
+        logging.getLogger("app.startup").info(
+            "startup_phase phase=%s duration_ms=%.3f", phase, (perf_counter() - started) * 1000
+        )
+
+
 def create_app() -> FastAPI:
-    configure_logging()
-    init_sentry()
-    _validate_config()
-    assert_rls_active()
-    assert_private_policies()
+    with _startup_phase("app.sentry_config"):
+        configure_logging()
+        init_sentry()
+        _validate_config()
+    with _startup_phase("app.rls_posture"):
+        assert_rls_active()
+    with _startup_phase("app.private_acl"):
+        assert_private_policies()
+    with _startup_phase("app.construction"):
+        return _construct_app()
+
+
+def _construct_app() -> FastAPI:
     _hide_docs = settings.app_env == "production"
     app = FastAPI(
         lifespan=assistant_ingest_lifespan,
