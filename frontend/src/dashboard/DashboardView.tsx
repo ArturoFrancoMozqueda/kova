@@ -426,6 +426,17 @@ export default function DashboardView() {
     const requestId = ++requestIdRef.current;
     setLoadState({ status: "loading" });
     try {
+      // These reads do not depend on the tenant's timezone. Start them alongside
+      // the profile so a cold coordinator does not add another serial round trip.
+      const context = Promise.all([
+        listProducts().catch(() => [] as Awaited<ReturnType<typeof listProducts>>),
+        listStock().catch(() => [] as Awaited<ReturnType<typeof listStock>>),
+        listLowStock().catch(() => [] as Awaited<ReturnType<typeof listLowStock>>),
+        getBillingSubscription().catch(() => null),
+        getOnboardingState().catch(() => null),
+        listEmployees().catch(() => [] as Awaited<ReturnType<typeof listEmployees>>),
+        listClosedShifts().catch(() => [] as Awaited<ReturnType<typeof listClosedShifts>>),
+      ]);
       // Fetch the tenant timezone first so date ranges are computed against the
       // operator's local day, not UTC. Falls back to America/Mexico_City.
       const profileEarly = await getBusinessProfile().catch(() => null);
@@ -437,29 +448,13 @@ export default function DashboardView() {
       // fetched; adapters below reshape the story into their exact shapes.
       // The story becomes the one hard-required fetch (it shares the same
       // billing/permission gate as the endpoints it replaces).
-      const [
-        hourly,
-        productsResult,
-        stock,
-        lowStock,
-        billing,
-        onboarding,
-        previousSummary,
-        employees,
-        closedShifts,
-        story,
-      ] = await Promise.all([
+      const [details, hourly, previousSummary, story] = await Promise.all([
+        context,
         getSalesByHour(current.start, current.end).catch(() => [] as SalesByHourRow[]),
-        listProducts().catch(() => [] as Awaited<ReturnType<typeof listProducts>>),
-        listStock().catch(() => [] as Awaited<ReturnType<typeof listStock>>),
-        listLowStock().catch(() => [] as Awaited<ReturnType<typeof listLowStock>>),
-        getBillingSubscription().catch(() => null),
-        getOnboardingState().catch(() => null),
         getSalesSummary(previous.start, previous.end).catch(() => null),
-        listEmployees().catch(() => [] as Awaited<ReturnType<typeof listEmployees>>),
-        listClosedShifts().catch(() => [] as Awaited<ReturnType<typeof listClosedShifts>>),
         getBusinessStory(current.start, current.end),
       ]);
+      const [productsResult, stock, lowStock, billing, onboarding, employees, closedShifts] = details;
       const profile = profileEarly;
       const summary = summaryFromStory(story);
       const payments = paymentsFromStory(story);

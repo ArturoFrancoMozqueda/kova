@@ -270,6 +270,51 @@ def get_product_modifier_groups(
     return groups
 
 
+def get_products_modifier_groups(
+    db: Session, *, tenant_id: UUID, product_ids: list[UUID]
+) -> dict[UUID, list[ModifierGroupResponse]]:
+    """Load a catalog's active groups/options in at most two tenant-scoped reads."""
+    if not product_ids:
+        return {}
+    assignments = (
+        db.query(ProductModifierGroup, ModifierGroup)
+        .join(ModifierGroup, ModifierGroup.id == ProductModifierGroup.modifier_group_id)
+        .join(Product, Product.id == ProductModifierGroup.product_id)
+        .filter(
+            ProductModifierGroup.tenant_id == tenant_id,
+            Product.tenant_id == tenant_id,
+            ProductModifierGroup.product_id.in_(product_ids),
+            ModifierGroup.tenant_id == tenant_id,
+            ModifierGroup.is_active.is_(True),
+        )
+        .order_by(ProductModifierGroup.sort_order)
+        .all()
+    )
+    if not assignments:
+        return {}
+    options = (
+        db.query(ModifierOption)
+        .filter(
+            ModifierOption.tenant_id == tenant_id,
+            ModifierOption.group_id.in_({group.id for _, group in assignments}),
+            ModifierOption.is_active.is_(True),
+        )
+        .order_by(ModifierOption.sort_order, ModifierOption.name)
+        .all()
+    )
+    options_by_group: dict[UUID, list[ModifierOptionResponse]] = {}
+    for option in options:
+        options_by_group.setdefault(option.group_id, []).append(
+            ModifierOptionResponse.model_validate(option)
+        )
+    result: dict[UUID, list[ModifierGroupResponse]] = {}
+    for assignment, group in assignments:
+        response = ModifierGroupResponse.model_validate(group)
+        response.options = options_by_group.get(group.id, [])
+        result.setdefault(assignment.product_id, []).append(response)
+    return result
+
+
 # ─── Order validation helper ──────────────────────────────────────────────────
 
 def validate_and_price_modifiers(
