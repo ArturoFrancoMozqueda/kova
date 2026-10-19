@@ -15,7 +15,13 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
     never enumerates tenants or accesses a privileged connection. Work is grouped
     by branches with current rules; unconfigured branches cannot produce effects.
     """
+    from sqlalchemy import or_, select
+
     from app.automations.models import AutomationRule
+    from app.crm.engagement import process_due_followups
+    from app.crm.engagement_models import FollowupPolicy
+    from app.messaging.models import Message
+    from app.messaging.service import recover_uncertain
 
     tenant_id = UUID(str(tenant_id))
     processed = 0
@@ -23,19 +29,24 @@ def process_tenant(tenant_id: UUID, *, limit: int = 100) -> int:
         set_tenant_context(db, tenant_id)
         branches = (
             db.query(Branch.id)
-            .join(
-                AutomationRule,
-                (AutomationRule.tenant_id == Branch.tenant_id)
-                & (AutomationRule.branch_id == Branch.id),
-            )
-            .filter(Branch.tenant_id == tenant_id)
-            .distinct()
+            .filter(Branch.tenant_id == tenant_id, or_(
+                Branch.id.in_(select(AutomationRule.branch_id).where(
+                    AutomationRule.tenant_id == tenant_id)),
+                Branch.id.in_(select(FollowupPolicy.branch_id).where(
+                    FollowupPolicy.tenant_id == tenant_id)),
+                Branch.id.in_(select(Message.branch_id).where(
+                    Message.tenant_id == tenant_id, Message.state == "sending")),
+            ))
             .order_by(Branch.id)
             .all()
         )
         for (branch_id,) in branches:
             bind_branch(db, tenant_id=tenant_id, branch_id=branch_id)
             result = process_pending(db, tenant_id=tenant_id, branch_id=branch_id, limit=limit)
+            followups = process_due_followups(db, tenant_id, limit=limit)
+            # Recovery is branch-scoped too, including branches with no rule or
+            # post-sale policy. Never retry an external effect automatically.
+            recover_uncertain(db, tenant_id=tenant_id, limit=limit)
             db.commit()
-            processed += result["processed"]
+            processed += result["processed"] + followups
     return processed

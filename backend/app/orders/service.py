@@ -203,10 +203,20 @@ def persist_completed_order(
     link_to_open_shift: bool = True,
     shift_id: UUID | None = None,
     occurred_at: datetime | None = None,
+    customer_id: UUID | None = None,
 ) -> Order:
     """Persist one trusted, fully paid sale without audit, idempotency or commit."""
     total = calculator.order_total([line.line_total for line in priced_items])
     validated_payments = _validate_payments(payments, total)
+    if customer_id is not None:
+        from app.customers.models import Customer
+
+        customer = db.query(Customer).filter(
+            Customer.tenant_id == tenant_id, Customer.id == customer_id,
+            Customer.is_active.is_(True),
+        ).first()
+        if customer is None:
+            raise not_found("Cliente activo no encontrado")
 
     if link_to_open_shift:
         has_cash_payment = any(payment.method == "cash" for payment in payments)
@@ -228,6 +238,7 @@ def persist_completed_order(
         client_uuid=client_uuid,
         shift_id=shift_id,
         occurred_at=_clamp_occurred_at(occurred_at),
+        customer_id=customer_id,
     )
     for line in priced_items:
         order_item = repo.create_order_item(

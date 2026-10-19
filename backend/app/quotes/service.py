@@ -9,14 +9,18 @@ from sqlalchemy.orm import Session
 from app.audit.service import log
 from app.branches.scope import active_branch_id
 from app.catalog.models import Product
+from app.crm.engagement_models import CatalogRequest
+from app.crm.models import Opportunity
+from app.customer_orders.models import CustomerOrder
 from app.customer_orders.schemas import CustomerOrderCreate, CustomerOrderItemCreate
 from app.customer_orders.service import create_customer_order
 from app.customers.models import Customer
 from app.idempotency import service as idempotency
 from app.modifiers.models import ProductModifierGroup
+from app.orders.models import Order, Payment
 from app.pricing.calculator import line_total, order_total
 from app.quotes.models import CustomerQuote, CustomerQuoteItem, now
-from app.quotes.schemas import QuoteCreate, QuoteList, QuoteResponse
+from app.quotes.schemas import QuoteCreate, QuoteJourney, QuoteList, QuoteResponse
 from app.shared.exceptions import bad_request, conflict, forbidden, not_found
 from app.tenants.feature_flags import CUSTOMER_ORDERS, resolve_feature_flags
 from app.tenants.models import Tenant
@@ -78,6 +82,7 @@ def _serialize(db, row):
         folio=row.folio,
         status=_effective_status(row),
         customer_id=row.customer_id,
+        opportunity_id=row.opportunity_id,
         customer_name=row.customer_name,
         expires_at=row.expires_at,
         items=_items(db, row),
@@ -136,6 +141,52 @@ def list_quotes(db: Session, *, tenant_id: UUID, limit=50, offset=0) -> QuoteLis
     return QuoteList(items=[_serialize(db, row) for row in rows], total=total)
 
 
+def journey(db: Session, *, tenant_id: UUID, quote_id: UUID) -> QuoteJourney:
+    """Read explicit immutable links only; never attribute by phone/name or amount."""
+    row = _query(db, tenant_id).filter(CustomerQuote.id == quote_id).first()
+    if row is None:
+        raise not_found("Cotización no encontrada")
+    opportunity = None
+    request = None
+    if row.opportunity_id is not None:
+        opportunity = db.query(Opportunity).filter(
+            Opportunity.tenant_id == tenant_id, Opportunity.branch_id == row.branch_id,
+            Opportunity.id == row.opportunity_id,
+        ).first()
+        request = db.query(CatalogRequest).filter(
+            CatalogRequest.tenant_id == tenant_id, CatalogRequest.branch_id == row.branch_id,
+            CatalogRequest.opportunity_id == row.opportunity_id,
+        ).order_by(CatalogRequest.created_at, CatalogRequest.id).first()
+    order = None
+    if row.customer_order_id is not None:
+        order = db.query(CustomerOrder).filter(
+            CustomerOrder.tenant_id == tenant_id, CustomerOrder.branch_id == row.branch_id,
+            CustomerOrder.id == row.customer_order_id,
+        ).first()
+    sale = None
+    if order is not None and order.sale_order_id is not None:
+        sale = db.query(Order).filter(
+            Order.tenant_id == tenant_id, Order.branch_id == row.branch_id,
+            Order.id == order.sale_order_id,
+        ).first()
+    payments = None
+    if sale is not None:
+        payments = sum((payment.amount_amount for payment in db.query(Payment).filter(
+            Payment.tenant_id == tenant_id, Payment.order_id == sale.id,
+        )), Decimal("0.00"))
+    return QuoteJourney(
+        quote_id=row.id, catalog_request_id=request.id if request else None,
+        opportunity_id=row.opportunity_id,
+        opportunity_stage=opportunity.stage if opportunity else None,
+        customer_order_id=row.customer_order_id,
+        customer_order_status=order.status if order else None,
+        sale_order_id=sale.id if sale else None,
+        sale_status=sale.status if sale else None,
+        sale_total_amount=sale.total_amount if sale else None,
+        recorded_payments_amount=payments,
+    )
+
+
 def _products(db, tenant_id, ids, *, stale=False):
     rows = (
         db.query(Product)
@@ -180,6 +231,15 @@ def create(
     if body.expires_at <= now():
         raise bad_request("La vigencia de la cotización debe ser futura")
     customer = _customer(db, tenant_id, body.customer_id)
+    if body.opportunity_id is not None:
+        opportunity = db.query(Opportunity).filter(
+            Opportunity.tenant_id == tenant_id,
+            Opportunity.branch_id == active_branch_id(db, tenant_id),
+            Opportunity.id == body.opportunity_id,
+            Opportunity.customer_id == customer.id,
+        ).with_for_update().first()
+        if opportunity is None:
+            raise not_found("Oportunidad no encontrada para este cliente y sucursal")
     if customer.phone and not 7 <= len("".join(ch for ch in customer.phone if ch.isdigit())) <= 15:
         raise bad_request(
             "Actualiza el teléfono del cliente antes de cotizar; requiere 7 a 15 dígitos"
@@ -197,6 +257,7 @@ def create(
         tenant_id=tenant_id,
         branch_id=active_branch_id(db, tenant_id),
         customer_id=customer.id,
+        opportunity_id=body.opportunity_id,
         folio=f"COT-{identifier.hex[-8:].upper()}",
         customer_name=customer.name,
         customer_phone=customer.phone,

@@ -7,6 +7,7 @@ export type Quote = {
   expires_at: string;
   total_amount: string;
   version: number;
+  opportunity_id?: string | null;
   customer_order_id: string | null;
   created_at: string;
   updated_at: string;

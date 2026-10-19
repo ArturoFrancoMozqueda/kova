@@ -30,6 +30,11 @@ class CustomerQuote(BranchScoped, Base):
         ForeignKeyConstraint(["tenant_id", "branch_id"], ["branches.tenant_id", "branches.id"]),
         ForeignKeyConstraint(["tenant_id", "customer_id"], ["customers.tenant_id", "customers.id"]),
         ForeignKeyConstraint(
+            ["tenant_id", "branch_id", "opportunity_id"],
+            ["crm_opportunities.tenant_id", "crm_opportunities.branch_id", "crm_opportunities.id"],
+            name="fk_customer_quote_opportunity",
+        ),
+        ForeignKeyConstraint(
             ["tenant_id", "branch_id", "customer_order_id"],
             ["customer_orders.tenant_id", "customer_orders.branch_id", "customer_orders.id"],
         ),
@@ -52,6 +57,7 @@ class CustomerQuote(BranchScoped, Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     tenant_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
     customer_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    opportunity_id: Mapped[UUID | None] = mapped_column(nullable=True)
     folio: Mapped[str] = mapped_column(String(12), nullable=False)
     customer_name: Mapped[str] = mapped_column(String(160), nullable=False)
     customer_phone: Mapped[str | None] = mapped_column(String(30))

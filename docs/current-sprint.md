@@ -4,6 +4,12 @@ Last updated: 2026-10-18
 
 ## Active E2E implementation (2026-10-18)
 
+El propietario autorizó el merge y continuación sin conectar cuentas. Primera entrega integrada en
+[PR #207](https://github.com/ArturoFrancoMozqueda/kova/pull/207) con CI completo aprobado.
+La continuación conecta captación, oportunidad, cotización, pedido, venta con cliente explícito y
+postventa interna; incorpora bandeja/outbox y borradores desde tareas sin activar canales.
+[Alcance y evidencia de continuación](audits/KOVA-E2E-COMPLETION-2026-10-18.md).
+
 El propietario solicitó implementar el plan con equipos de agentes. Se autoriza implementación
 local incremental de automatizaciones, CRM/consentimientos y captación mediante catálogo público,
 preservando los contratos financieros y operativos actuales. Diseño y fases:

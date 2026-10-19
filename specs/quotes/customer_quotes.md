@@ -12,6 +12,9 @@ una revisión de condiciones se representa con una nueva cotización y cancelaci
 
 - `GET /api/v1/quotes`: `{items, total}`, paginación `limit` hasta 100 y `offset`.
 - `POST /api/v1/quotes`: cliente, `expires_at` e items producto/cantidad; crea `draft`.
+- Acepta `opportunity_id` opcional: misma sucursal/tenant/cliente; atribución inmutable.
+- `GET /api/v1/quotes/{id}/journey`: vínculos explícitos a solicitud/oportunidad/pedido/venta,
+  estado y pagos registrados. Campos desconocidos son null; nunca certifica liquidación PSP.
 - `POST /{id}/mark-sent`: versión y `confirmed_shared: true`; el usuario registra que ya compartió
   la cotización. Estado `sent` no significa entrega verificada por Kova ni envío por proveedor.
 - `POST /{id}/accept`: versión y `confirmed_customer_acceptance: true`; el negocio registra la
@@ -35,6 +38,9 @@ cotizados. El vínculo tenant/sucursal al pedido y el estado `accepted` se confi
 respuestas idempotentes. Fallar antes del commit revierte todo; dos aceptaciones no generan pedidos
 duplicados. El contacto identifica al cliente existente desde la cotización; no se infiere una
 identidad por coincidencia de teléfono ni se copian notas privadas del CRM.
+
+Al cobrar ese pedido, la venta conserva el cliente de la cotización aceptada y valida que siga
+activo. Un pedido sin cotización no infiere cliente desde texto; los contratos financieros no cambian.
 
 ## Seguridad y QA
 

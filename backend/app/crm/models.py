@@ -27,6 +27,7 @@ class Opportunity(BranchScoped, Base):
     __tablename__ = "crm_opportunities"
     __table_args__ = (
         UniqueConstraint("tenant_id", "id", name="uq_crm_opportunities_tenant_id_id"),
+        UniqueConstraint("tenant_id", "branch_id", "id", name="uq_crm_opportunity_branch_owner"),
         ForeignKeyConstraint(
             ["tenant_id", "branch_id"],
             ["branches.tenant_id", "branches.id"],

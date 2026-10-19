@@ -995,12 +995,21 @@ def checkout_customer_order(
                 requested=quantity,
             )
 
+    # A quote carries a reviewed customer identity. Counter/phone orders without
+    # this explicit link stay unattributed; never merge customers by contact text.
+    from app.quotes.models import CustomerQuote
+
+    quote = db.query(CustomerQuote).filter(
+        CustomerQuote.tenant_id == tenant_id, CustomerQuote.branch_id == order.branch_id,
+        CustomerQuote.customer_order_id == order.id, CustomerQuote.status == "accepted",
+    ).first()
     sale = order_service.persist_completed_order(
         db,
         tenant_id=tenant_id,
         user_id=user_id,
         priced_items=priced_lines,
         payments=body.payments,
+        customer_id=quote.customer_id if quote else None,
     )
     order.sale_order_id = sale.id
     order.updated_by_user_id = user_id

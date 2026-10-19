@@ -15,6 +15,7 @@ class QuoteItemCreate(StrictModel):
 
 class QuoteCreate(StrictModel):
     customer_id: UUID
+    opportunity_id: UUID | None = None
     expires_at: datetime
     items: list[QuoteItemCreate] = Field(min_length=1, max_length=100)
 
@@ -60,6 +61,7 @@ class QuoteResponse(BaseModel):
     folio: str
     status: Literal["draft", "sent", "accepted", "expired", "cancelled"]
     customer_id: UUID
+    opportunity_id: UUID | None = None
     customer_name: str
     expires_at: datetime
     items: list[QuoteItemResponse]
@@ -73,3 +75,18 @@ class QuoteResponse(BaseModel):
 class QuoteList(BaseModel):
     items: list[QuoteResponse]
     total: int
+
+
+class QuoteJourney(BaseModel):
+    quote_id: UUID
+    catalog_request_id: UUID | None
+    opportunity_id: UUID | None
+    opportunity_stage: str | None
+    customer_order_id: UUID | None
+    customer_order_status: str | None
+    sale_order_id: UUID | None
+    sale_status: Literal["completed", "voided"] | None
+    sale_total_amount: Decimal | None
+    recorded_payments_amount: Decimal | None
+    # Payment records describe POS entries; they do not certify a PSP settlement.
+    external_collection_verified: Literal[False] = False

@@ -80,6 +80,7 @@ class AutomationRun(BranchScoped, Base):
     __tablename__ = "automation_runs"
     __table_args__ = (
         UniqueConstraint("event_id", "rule_id", name="uq_automation_run_effect"),
+        UniqueConstraint("tenant_id", "branch_id", "id", name="uq_automation_run_owner"),
         ForeignKeyConstraint(
             ["tenant_id", "branch_id", "event_id"],
             ["business_events.tenant_id", "business_events.branch_id", "business_events.id"],

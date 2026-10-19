@@ -82,6 +82,9 @@ const adminNavItems: NavItem[] = [
   { to: "/reports", label: copy.reportsView.title, icon: <BarChart3 className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
   { to: "/expenses", label: copy.expenses.title, icon: <WalletCards className="h-4.5 w-4.5" />, group: "business", permission: "expenses.manage", feature: "margin_reports" },
   { to: "/assistant", label: "Asistente", icon: <Sparkles className="h-4.5 w-4.5" />, group: "business", permission: "reports.view_all" },
+  { to: "/inbox", label: "Bandeja de atención", icon: <MessagesSquare className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/commercial-requests", label: "Solicitudes del catálogo", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
+  { to: "/followups", label: "Postventa y seguimiento", icon: <ClipboardCheck className="h-4.5 w-4.5" />, group: "business" },
   { to: "/crm", label: "Seguimiento comercial", icon: <Handshake className="h-4.5 w-4.5" />, group: "business" },
   { to: "/quotes", label: "Cotizaciones", icon: <FileText className="h-4.5 w-4.5" />, group: "business" },
   { to: "/automations", label: "Automatizaciones", icon: <Workflow className="h-4.5 w-4.5" />, group: "business" },
@@ -174,6 +177,9 @@ export default function AppShell() {
   const loadingViewName = (() => {
     const path = location.pathname;
     if (path.startsWith("/customers")) return "Clientes";
+    if (path.startsWith("/inbox")) return "Bandeja de atención";
+    if (path.startsWith("/commercial-requests")) return "Solicitudes del catálogo";
+    if (path.startsWith("/followups")) return "Postventa y seguimiento";
     if (path.startsWith("/crm")) return "Seguimiento comercial";
     if (path.startsWith("/quotes")) return "Cotizaciones";
     if (path.startsWith("/automations")) return "Automatizaciones";

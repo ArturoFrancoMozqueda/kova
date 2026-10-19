@@ -3,6 +3,10 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
 import StorefrontView from "./StorefrontView";
 
+const authSession = vi.hoisted(() => ({ status: "unauthenticated" }));
+vi.mock("@/auth/useAuth", () => ({
+  useOptionalAuth: () => ({ state: { status: authSession.status } }),
+}));
 const fetchMock = vi.fn<typeof fetch>();
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -41,6 +45,7 @@ function NavigateCatalog() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  authSession.status = "unauthenticated";
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockResolvedValue(json(catalog));
 });
@@ -124,4 +129,101 @@ it("does not build a WhatsApp link from an invalid public phone", async () => {
   expect(
     screen.queryByRole("link", { name: "Consultar por WhatsApp" }),
   ).not.toBeInTheDocument();
+});
+
+it("captures a public request without cookies, orders or inferred campaign consent", async () => {
+  fetchMock.mockImplementation(async (_url, init) =>
+    init?.method === "POST"
+      ? json({ receipt_id: "receipt-1", status: "received" })
+      : json(catalog),
+  );
+  render(
+    <MemoryRouter initialEntries={["/catalogo/first"]}>
+      <NavigateCatalog />
+    </MemoryRouter>,
+  );
+  await screen.findByRole("heading", { name: "Pan de nuez" });
+  fireEvent.change(screen.getByLabelText("Tu nombre"), {
+    target: { value: "Ana" },
+  });
+  fireEvent.change(screen.getByLabelText("Teléfono o correo para responder"), {
+    target: { value: "ana@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText("¿Qué te gustaría consultar?"), {
+    target: { value: "¿Tienen diez piezas para mañana?" },
+  });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Pan de nuez" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Enviar solicitud al negocio" }),
+  );
+  expect(await screen.findByText(/Solicitud recibida/)).toBeVisible();
+  const [url, init] = fetchMock.mock.calls.find(
+    ([, request]) => request?.method === "POST",
+  )!;
+  expect(url).toBe("/api/v1/public/catalog/first/requests");
+  expect(init?.credentials).toBe("omit");
+  expect(JSON.parse(String(init?.body))).toEqual({
+    name: "Ana",
+    contact: "ana@example.com",
+    message: "¿Tienen diez piezas para mañana?",
+    product_ids: ["product-1"],
+    submission_id: expect.any(String),
+  });
+  expect(screen.getByText(/ni te suscribe a campañas/)).toBeVisible();
+});
+
+it("reuses a public request key after an uncertain network outcome", async () => {
+  let submissions = 0;
+  fetchMock.mockImplementation(async (_url, init) => {
+    if (init?.method !== "POST") return json(catalog);
+    submissions++;
+    if (submissions === 1) throw new TypeError("NetworkError");
+    return json({ receipt_id: "receipt-1", status: "received" });
+  });
+  render(
+    <MemoryRouter initialEntries={["/catalogo/first"]}>
+      <NavigateCatalog />
+    </MemoryRouter>,
+  );
+  await screen.findByRole("heading", { name: "Pan de nuez" });
+  fireEvent.change(screen.getByLabelText("Tu nombre"), {
+    target: { value: "Ana" },
+  });
+  fireEvent.change(screen.getByLabelText("Teléfono o correo para responder"), {
+    target: { value: "ana@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText("¿Qué te gustaría consultar?"), {
+    target: { value: "Consulta" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Enviar solicitud al negocio" }),
+  );
+  await screen.findByRole("alert");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Enviar solicitud al negocio" }),
+  );
+  await screen.findByText(/Solicitud recibida/);
+  const posts = fetchMock.mock.calls.filter(
+    ([, init]) => init?.method === "POST",
+  );
+  expect(posts[0][1]?.body).toBe(posts[1][1]?.body);
+});
+
+it("waits for the initial identity check before accepting public form input", async () => {
+  authSession.status = "loading";
+  const view = render(
+    <MemoryRouter initialEntries={["/catalogo/first"]}>
+      <NavigateCatalog />
+    </MemoryRouter>,
+  );
+  expect(screen.getByText("Preparando catálogo…")).toBeVisible();
+  expect(screen.queryByLabelText("Tu nombre")).not.toBeInTheDocument();
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  authSession.status = "authenticated";
+  view.rerender(
+    <MemoryRouter initialEntries={["/catalogo/first"]}>
+      <NavigateCatalog />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByLabelText("Tu nombre")).toBeVisible();
 });

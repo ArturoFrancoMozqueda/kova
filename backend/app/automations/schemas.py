@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 TemplateKey = Literal["order_ready", "order_fulfilled", "restock_review"]
 
@@ -39,6 +39,11 @@ class RunResponse(BaseModel):
     version: int
     created_at: datetime
     resolved_at: datetime | None
+
+    @field_validator("created_at", "resolved_at")
+    @classmethod
+    def canonical_timestamp(cls, value):
+        return value.astimezone(UTC) if value is not None else None
 
 
 class Capabilities(BaseModel):

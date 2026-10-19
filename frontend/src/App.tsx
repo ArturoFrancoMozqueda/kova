@@ -24,6 +24,9 @@ const ReconciliationView = lazy(() => import("./reconciliation/ReconciliationVie
 const ReplenishmentView = lazy(() => import("./replenishment/ReplenishmentView"));
 const StorefrontView = lazy(() => import("./storefront/StorefrontView"));
 const CatalogPublishView = lazy(() => import("./storefront/CatalogPublishView"));
+const InboxView = lazy(() => import("./messaging/InboxView"));
+const CommercialRequestsView = lazy(() => import("./crm/CommercialRequestsView"));
+const FollowupsView = lazy(() => import("./crm/FollowupsView"));
 const ChannelsView = lazy(() => import("./messaging/ChannelsView"));
 const PurchasingView = lazy(() => import("./purchasing/PurchasingView"));
 const IntegrationsView = lazy(() => import("./integrations/IntegrationsPage").then(module => ({ default: module.IntegrationsPage })));
@@ -126,6 +129,9 @@ export function AppRoutes() {
               <Route path="/customers" element={<CustomersView />} />
               <Route path="/automations" element={<AutomationsView />} />
               <Route path="/crm" element={<CrmView />} />
+              <Route path="/inbox" element={<InboxView />} />
+              <Route path="/commercial-requests" element={<CommercialRequestsView />} />
+              <Route path="/followups" element={<FollowupsView />} />
               <Route path="/quotes" element={<QuotesView />} />
               <Route path="/reconciliation" element={<ReconciliationView />} />
               <Route path="/replenishment" element={<ReplenishmentView />} />

@@ -255,3 +255,82 @@ it("preserves the server explanation when catalog changes invalidate acceptance"
     fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
   ).toHaveLength(1);
 });
+
+it("shows the real commercial journey without treating POS payments as provider collection", async () => {
+  fetchMock.mockImplementation(async (url) =>
+    String(url).endsWith("/journey")
+      ? json({
+          quote_id: quote.id,
+          catalog_request_id: "request-1",
+          opportunity_id: "opportunity-1",
+          opportunity_stage: "won",
+          customer_order_id: "customer-order-1",
+          customer_order_status: "fulfilled",
+          sale_order_id: "sale-1",
+          sale_status: "completed",
+          sale_total_amount: "90.00",
+          recorded_payments_amount: "90.00",
+          external_collection_verified: false,
+        })
+      : String(url).includes("/customers?")
+        ? json([customer])
+        : String(url).endsWith("/catalog/products")
+          ? json([product])
+          : json({ items: [quote], total: 1 }),
+  );
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Ver recorrido comercial" }),
+  );
+  expect(
+    await screen.findByText(/Solicitud de catálogo vinculada/),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("link", { name: "Consultar pedido" }),
+  ).toHaveAttribute("href", "/pedidos/customer-order-1");
+  expect(screen.getByRole("link", { name: "Consultar venta" })).toHaveAttribute(
+    "href",
+    "/orders/sale-1",
+  );
+  expect(
+    screen.getByText(/no acreditan un cobro electrónico verificado/),
+  ).toBeVisible();
+});
+
+it("loads opportunities only for the selected quote customer", async () => {
+  fetchMock.mockImplementation(async (url) =>
+    String(url).includes("/crm?")
+      ? json({
+          opportunities: [{ id: "opportunity-1", title: "Pedido de evento" }],
+        })
+      : String(url).includes("/customers?")
+        ? json([customer])
+        : String(url).endsWith("/catalog/products")
+          ? json([product])
+          : json({ items: [quote], total: 1 }),
+  );
+  mount();
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Nueva cotización" }),
+  );
+  await screen.findByRole("option", { name: customer.name });
+  fireEvent.change(screen.getByLabelText("Cliente registrado"), {
+    target: { value: customer.id },
+  });
+  await screen.findByRole("option", { name: "Pedido de evento" });
+  expect(
+    fetchMock.mock.calls.some(
+      ([url]) =>
+        url === `/api/v1/crm?customer_id=${customer.id}&limit=100&offset=0`,
+    ),
+  ).toBe(true);
+  fireEvent.change(screen.getByLabelText("Oportunidad de origen (opcional)"), {
+    target: { value: "opportunity-1" },
+  });
+  fireEvent.change(screen.getByLabelText("Cliente registrado"), {
+    target: { value: "" },
+  });
+  expect(screen.getByLabelText("Oportunidad de origen (opcional)")).toHaveValue(
+    "",
+  );
+});

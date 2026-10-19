@@ -174,45 +174,8 @@ def save_settings(
     dependencies=[Depends(rate_limit(60, window_seconds=60, key="public-catalog"))],
 )
 def read_public_catalog(token: str, db: Session = Depends(get_db)):
-    try:
-        if len(token) > 1500:
-            raise ValueError
-        payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=["HS256"],
-            audience="kova-public-catalog",
-            options={"require": ["tenant", "branch", "catalog", "version", "aud"]},
-        )
-        tenant_id, branch_id, catalog_id = (
-            UUID(payload[field]) for field in ("tenant", "branch", "catalog")
-        )
-    except (jwt.InvalidTokenError, ValueError, TypeError, KeyError):
-        raise not_found("Catálogo no disponible") from None
-    # A signed, narrowly scoped publication capability authorizes ONLY this projection.
-    # No owner connection and no session or generic tenant-resource access is granted.
-    set_tenant_context(db, tenant_id)
-    row = (
-        db.query(PublicCatalog)
-        .filter_by(
-            tenant_id=tenant_id,
-            branch_id=branch_id,
-            id=catalog_id,
-            enabled=True,
-            link_version=payload["version"],
-        )
-        .first()
-    )
-    from app.tenants.models import Tenant
-
-    active_tenant = db.query(Tenant.id).filter_by(id=tenant_id, is_active=True).first()
-    if (
-        row is None
-        or active_tenant is None
-        or not get_billing_access_status(db, tenant_id=tenant_id).allowed
-    ):
-        raise not_found("Catálogo no disponible")
-    bind_branch(db, tenant_id=tenant_id, branch_id=branch_id)
+    row = resolve_public_catalog(db, token)
+    tenant_id = row.tenant_id
     products = (
         db.query(Product)
         .join(
@@ -291,3 +254,71 @@ def catalog_qr(
         media_type="image/png",
         headers={"Cache-Control": "private, no-store"},
     )
+
+
+def resolve_public_catalog(db, token):
+    try:
+        if len(token) > 1500:
+            raise ValueError
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=["HS256"],
+            audience="kova-public-catalog",
+            options={"require": ["tenant", "branch", "catalog", "version", "aud"]},
+        )
+        tenant_id, branch_id, catalog_id = (
+            UUID(payload[field]) for field in ("tenant", "branch", "catalog")
+        )
+    except (jwt.InvalidTokenError, ValueError, TypeError, KeyError):
+        raise not_found("Catálogo no disponible") from None
+    # A signed, narrowly scoped publication capability authorizes ONLY this projection.
+    # No owner connection and no session or generic tenant-resource access is granted.
+    set_tenant_context(db, tenant_id)
+    row = (
+        db.query(PublicCatalog)
+        .filter_by(
+            tenant_id=tenant_id,
+            branch_id=branch_id,
+            id=catalog_id,
+            enabled=True,
+            link_version=payload["version"],
+        )
+        .first()
+    )
+    from app.tenants.models import Tenant
+
+    active_tenant = db.query(Tenant.id).filter_by(id=tenant_id, is_active=True).first()
+    if (
+        row is None
+        or active_tenant is None
+        or not get_billing_access_status(db, tenant_id=tenant_id).allowed
+    ):
+        raise not_found("Catálogo no disponible")
+    bind_branch(db, tenant_id=tenant_id, branch_id=branch_id)
+    return row
+
+
+from fastapi import Request  # noqa: E402
+
+from app.crm import engagement  # noqa: E402
+from app.crm.engagement_schemas import PublicRequestReceipt, PublicRequestWrite  # noqa: E402
+from app.shared.exceptions import forbidden  # noqa: E402
+from app.shared.origin import request_origin, trusted_origins  # noqa: E402
+
+
+@router.post(
+    "/api/v1/public/catalog/{token}/requests",
+    response_model=PublicRequestReceipt,
+    status_code=201,
+    dependencies=[Depends(rate_limit(10, window_seconds=60, key="public-catalog-request"))],
+)
+def submit_catalog_request(
+    token: str, body: PublicRequestWrite, request: Request, db: Session = Depends(get_db)
+):
+    # Public writes fail closed on missing/misconfigured origin. Session cookies grant nothing.
+    allowed = trusted_origins()
+    if not allowed or request_origin(request) not in allowed:
+        raise forbidden("Request origin is not allowed")
+    row = resolve_public_catalog(db, token)
+    return engagement.capture_request(db, row, body)
