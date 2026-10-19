@@ -9,6 +9,15 @@ from sqlalchemy.pool import NullPool
 from app import db as database
 
 
+@pytest.fixture
+def driver(owner_engine):
+    # CI runs the entire suite once with psycopg and once with pg8000. Use
+    # that job's actual transport instead of requiring its optional sibling.
+    actual = owner_engine.dialect.driver
+    assert actual in {"psycopg", "pg8000"}
+    return actual
+
+
 def _legacy(conn):
     params = {"tables": list(database.RLS_PROTECTED_TABLES)}
     role = conn.execute(text(
@@ -89,7 +98,6 @@ def _compare(conn, monkeypatch):
     return actual, errors
 
 
-@pytest.mark.parametrize("driver", ["psycopg", "pg8000"])
 @pytest.mark.parametrize("as_runtime", [False, True])
 def test_real_role_catalog_inputs_match_legacy(
     owner_engine, kova_app_engine, monkeypatch, driver, as_runtime,
@@ -109,7 +117,6 @@ def test_real_role_catalog_inputs_match_legacy(
         engine.dispose()
 
 
-@pytest.mark.parametrize("driver", ["psycopg", "pg8000"])
 @pytest.mark.parametrize(("mutation", "expected"), [
     ("ALTER TABLE products DISABLE ROW LEVEL SECURITY", "products: missing RLS"),
     ("ALTER TABLE products NO FORCE ROW LEVEL SECURITY", "FORCE RLS"),
@@ -141,7 +148,6 @@ def test_invalid_catalogs_keep_identical_inputs_and_errors(
         engine.dispose()
 
 
-@pytest.mark.parametrize("driver", ["psycopg", "pg8000"])
 def test_partition_policies_remain_in_inventory_but_not_ordinary_table_posture(
     owner_engine, kova_app_engine, monkeypatch, driver,
 ):
