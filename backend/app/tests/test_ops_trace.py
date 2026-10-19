@@ -54,7 +54,8 @@ def test_trace_by_tenant_merges_and_orders(client, db, monkeypatch):
     ts = [e["ts"] for e in body["timeline"]]
     assert ts == sorted(ts)  # ascending
     assert body["sources_queried"]["local_db"] == "ok"
-    assert body["sources_queried"]["fly_logs"] == "deep_link_only"
+    assert body["sources_queried"]["fly_logs"] == "retired"
+    assert "fly_live_logs" not in body["deep_links"]
 
 
 def test_trace_by_stripe_event_is_sanitized(client, db, monkeypatch):

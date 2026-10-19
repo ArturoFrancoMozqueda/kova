@@ -14,7 +14,7 @@ import {
 
 const artifact = {
   releaseSha: "0123456789abcdef0123456789abcdef01234567",
-  flyImage: "registry.fly.io/kova@sha256:old",
+  cloudflareBackendVersions: Object.fromEntries(["kova-backend-jobs", "kova-backend", "kova-backend-gateway"].map(name => [name, "dcad4869-ba1d-43d4-865b-66349697bd7c"])),
   vercelDeployment: "https://kova-old.vercel.app",
   frontendUrl: "https://kovasuite.example",
   backendUrl: "https://api.kovasuite.example",
@@ -23,9 +23,7 @@ const artifact = {
 test("the disposable recovery fixture imports with its staged scripts and no Cloudflare installation", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kova-recovery-fixture-"));
   try {
-    const workflow = fs.readFileSync(fileURLToPath(new URL("../../.github/workflows/release-recovery-drill.yml", import.meta.url)), "utf8");
-    const staged = workflow.match(/cp (frontend\/scripts\/[^\n]+) "\$root\/frontend\/scripts\/"/)[1]
-      .trim().split(/\s+/).map(value => path.basename(value));
+    const staged = ["release-recovery.mjs", "verify-deployment.mjs", "cloudflare-provider.mjs", "cloudflare-backend-provider.mjs"];
     for (const file of staged) {
       fs.copyFileSync(fileURLToPath(new URL(file, import.meta.url)), path.join(directory, file));
     }
@@ -43,7 +41,7 @@ test("a previously serving Vercel artifact is rolled back without rebuilding or 
   const calls = [];
   const provider = cliProvider({
     globalConfig: "/test/private-auth",
-    env: { VERCEL_TOKEN: "test-only-token", FLY_API_TOKEN: "test-only-fly" },
+    env: { VERCEL_TOKEN: "test-only-token", KOVA_CLOUDFLARE_BACKEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cf", CLOUDFLARE_ACCOUNT_ID: "test-account" },
     run: async (_command, args) => { calls.push(args); },
   });
   await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
@@ -58,17 +56,12 @@ test("a previously serving Vercel artifact is rolled back without rebuilding or 
   assert.equal(calls.flat().includes("test-only-token"), false);
 });
 
-test("Fly recovery pauses paid features and cannot create an isolated host", async () => {
-  const calls = [];
-  const provider = cliProvider({
-    env: { VERCEL_TOKEN: "test-only-token", FLY_API_TOKEN: "test-only-fly" },
-    run: async (command, args) => { calls.push({ command, args }); },
-  });
-  await provider.restoreFly(artifact.flyImage);
-  assert.deepEqual(calls[0].args, ["../scripts/assistant_host_release.py", "pause"]);
-  assert.equal(calls[1].args[calls[1].args.indexOf("--process-groups") + 1], "app,assistant");
-  assert.ok(calls[1].args.includes("--ha=false"));
-  assert.ok(calls[1].args.includes("--skip-release-command"));
+test("retired provider cannot be selected even with stale credentials", () => {
+  for (const KOVA_CLOUDFLARE_BACKEND of [undefined, "0"]) {
+    assert.throws(() => cliProvider({ env: { VERCEL_TOKEN: "test-only-token",
+      FLY_API_TOKEN: "obsolete-test-only-token", KOVA_CLOUDFLARE_BACKEND }, run: assert.fail }),
+    /Cloudflare backend is required/);
+  }
 });
 
 function fakes({ failVercel = false } = {}) {
@@ -76,13 +69,14 @@ function fakes({ failVercel = false } = {}) {
   return {
     calls,
     provider: {
+      async waitForPublicBackend() {},
       async restoreVercel(value, frontendUrl) {
         assert.equal(frontendUrl, artifact.frontendUrl);
         calls.push(["vercel", value]);
         if (failVercel) throw new Error("fake Vercel failure");
       },
-      async restoreFly(value) {
-        calls.push(["fly", value]);
+      async restoreCloudflareBackend(value) {
+        calls.push(["cloudflare-backend", value]);
       },
     },
     async verify(input) {
@@ -92,7 +86,7 @@ function fakes({ failVercel = false } = {}) {
   };
 }
 
-test("candidate recovery restores Fly and verifies the previous public release", async () => {
+test("candidate recovery restores Cloudflare and verifies the previous public release", async () => {
   const fake = fakes();
   const result = await recoverRelease({
     phase: "candidate",
@@ -101,14 +95,14 @@ test("candidate recovery restores Fly and verifies the previous public release",
     verify: fake.verify,
   });
   assert.deepEqual(fake.calls, [
-    ["fly", artifact.flyImage],
+    ["cloudflare-backend", artifact.cloudflareBackendVersions],
     ["verify", artifact.releaseSha],
   ]);
-  assert.deepEqual(result.restored, ["fly"]);
+  assert.deepEqual(result.restored, ["cloudflare-backend"]);
 });
 
 for (const phase of ["promotion", "acceptance"]) {
-  test(`${phase} recovery restores Vercel before Fly and verifies both`, async () => {
+  test(`${phase} recovery restores Vercel before Cloudflare and verifies both`, async () => {
     const fake = fakes();
     const result = await recoverRelease({
       phase,
@@ -118,10 +112,10 @@ for (const phase of ["promotion", "acceptance"]) {
     });
     assert.deepEqual(fake.calls, [
       ["vercel", artifact.vercelDeployment],
-      ["fly", artifact.flyImage],
+      ["cloudflare-backend", artifact.cloudflareBackendVersions],
       ["verify", artifact.releaseSha],
     ]);
-    assert.deepEqual(result.restored, ["vercel", "fly"]);
+    assert.deepEqual(result.restored, ["vercel", "cloudflare-backend"]);
   });
 }
 
@@ -130,16 +124,16 @@ test("missing rollback metadata fails before a provider is called", async () => 
   await assert.rejects(
     recoverRelease({
       phase: "acceptance",
-      artifact: { ...artifact, flyImage: "" },
+      artifact: { ...artifact, cloudflareBackendVersions: undefined },
       provider: fake.provider,
       verify: fake.verify,
     }),
-    /no Fly image/,
+    /requires Cloudflare backend versions/,
   );
   assert.deepEqual(fake.calls, []);
 });
 
-test("a Vercel recovery failure stops before changing Fly and opens a blocking incident", async () => {
+test("a Vercel recovery failure stops before changing Cloudflare and opens a blocking incident", async () => {
   const fake = fakes({ failVercel: true });
   await assert.rejects(
     recoverRelease({

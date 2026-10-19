@@ -6,6 +6,8 @@ Connectors must: no-op (no network) when a token is missing, degrade (never
 import io
 from urllib.error import URLError
 
+import pytest
+
 from app.config import settings
 from app.ops import service
 from app.ops.cache import TTLCache
@@ -112,6 +114,16 @@ def test_technical_endpoint_all_not_configured(client, monkeypatch):
     assert body["db"]["status"] == "ok"
     for name in ("sentry", "fly", "vercel", "uptimerobot"):
         assert body[name]["status"] == "not_configured"
+
+
+def test_retired_fly_connector_never_uses_stale_credentials(monkeypatch):
+    from app.ops.connectors import fly
+
+    monkeypatch.setattr(settings, "fly_api_token", "obsolete-test-only-token")
+    monkeypatch.setattr("app.ops.connectors.base.urlopen", lambda *a, **k: pytest.fail(
+        "retired provider must not receive requests"
+    ))
+    assert fly.fetch_status(timeout=1).status == "not_configured"
 
 
 def test_fetch_all_connectors_isolates_failures(monkeypatch):

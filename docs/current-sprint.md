@@ -1,6 +1,29 @@
 # Current Sprint
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
+
+## Permanent Fly retirement (2026-10-19)
+
+El propietario pidió dejar de usar y generar consumo en Fly. Se eliminó
+`pos-project-backend` con sus cinco máquinas detenidas; no tenía volúmenes ni datos
+del negocio montados. La organización quedó sin aplicaciones, Managed Postgres,
+Redis, Tigris ni Sprites, y no tiene paquete de soporte activo. Se revocaron las dos
+credenciales de despliegue/ingesta y se eliminó el secreto de GitHub. Los tres
+workflows exclusivos de Fly se desactivaron y su código se conserva como texto
+histórico en [el archivo de retirada](archive/fly-retired-2026-10-19/README.md).
+
+Publicación y recuperación requieren Cloudflare y rechazan artefactos antiguos sin
+versiones de sus tres Workers. El dispatcher de documentos y conector operativo
+retirados no realizan peticiones aunque reciban configuración antigua. Se conservan
+los contratos de datos, auth, facturación, RLS y recuperación del proveedor actual.
+Los cargos acumulados anteriores a la retirada siguen sujetos a la factura final;
+el inventario vacío no cancela consumo ya realizado. La evidencia privada de
+inventario y facturación queda fuera del repositorio.
+
+Validación local: 77 contratos de publicación/recuperación (una prueba exclusiva
+de Windows omitida), 39 escenarios de backend, 41 contratos de scripts y 14
+comprobaciones completas en Workers. La aceptación remota se registra en la PR
+y el run de CI/publicación del commit de esta retirada.
 
 ## Active E2E implementation (2026-10-18)
 

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
-import { fileURLToPath, pathToFileURL, URL } from "node:url";
+import { pathToFileURL, URL } from "node:url";
 import path from "node:path";
 import { verifyDeployment } from "./verify-deployment.mjs";
 import { cloudflareProvider, validateCloudflareVersion } from "./cloudflare-provider.mjs";
@@ -44,9 +44,10 @@ export function productionHostname(value) {
 export function validateRollbackArtifact(input) {
   if (!input || typeof input !== "object") throw new Error("rollback artifact is required");
   const releaseSha = String(input.releaseSha ?? "");
-  const flyImage = String(input.flyImage ?? "").trim();
   if (!FULL_SHA.test(releaseSha)) throw new Error("rollback artifact has no valid release SHA");
-  if (!flyImage && input.cloudflareBackendVersions === undefined) throw new Error("rollback artifact has no Fly image");
+  if (input.cloudflareBackendVersions === undefined) {
+    throw new Error("rollback artifact requires Cloudflare backend versions; legacy provider retired");
+  }
   productionHostname(String(input.frontendUrl ?? ""));
   return {
     ...(input.cloudflareBackendVersions !== undefined
@@ -54,7 +55,6 @@ export function validateRollbackArtifact(input) {
     ...(input.cloudflareVersion !== undefined
       ? { cloudflareVersion: validateCloudflareVersion(input.cloudflareVersion) } : {}),
     releaseSha,
-    flyImage,
     vercelDeployment: requireHttpsUrl(
       String(input.vercelDeployment ?? ""),
       "rollback Vercel deployment",
@@ -97,13 +97,8 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
       await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
       restored.push("vercel");
     }
-    if (artifact.cloudflareBackendVersions) {
-      await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions);
-      restored.push("cloudflare-backend");
-    } else {
-      await provider.restoreFly(artifact.flyImage);
-      restored.push("fly");
-    }
+    await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions);
+    restored.push("cloudflare-backend");
     if (restored.includes("cloudflare")) {
       await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl,
         sha: artifact.releaseSha, previousSha: failedSha ?? artifact.releaseSha });
@@ -167,12 +162,10 @@ export function runProviderCommand(command, args, options = {}) {
 
 export function cliProvider({ globalConfig, run = runProviderCommand, env = process.env } = {}) {
   if (!env.VERCEL_TOKEN) throw new Error("VERCEL_TOKEN is required for recovery");
-  if (env.KOVA_CLOUDFLARE_BACKEND !== "1" && !env.FLY_API_TOKEN) throw new Error("FLY_API_TOKEN is required for recovery");
   const npx = resolveNpxCommand();
-  const flyctl = process.platform === "win32" ? "flyctl.exe" : "flyctl";
-  const backendDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../backend");
   const cloudflare = cloudflareProvider({ run, env });
   const backend = cloudflareBackendProvider({ run, env });
+  if (!backend) throw new Error("Cloudflare backend is required; the retired provider cannot be used");
   return {
     requiresCloudflareBackend: Boolean(backend),
     ...(backend ? { restoreCloudflareBackend: backend.restore,
@@ -202,41 +195,11 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
         "alias", "set", deployment, hostname, ...authArgs],
       { label: "Vercel production domain restore", env });
     },
-    async restoreFly(image) {
-      await run("python3", ["../scripts/assistant_host_release.py", "pause"],
-        { cwd: backendDirectory, label: "Assistant recovery pause", env });
-      return run(
-        flyctl,
-        [
-          "deploy",
-          "--image",
-          image,
-          "--skip-release-command",
-          "--strategy",
-          "rolling",
-          "--wait-timeout",
-          "5m",
-          "--process-groups",
-          "app,assistant",
-          "--ha=false",
-        ],
-        { cwd: backendDirectory, label: "Fly restore", env },
-      );
-    },
   };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const artifactPath = optionalArg("artifact");
-  const artifact = artifactPath
-    ? JSON.parse(fs.readFileSync(artifactPath, "utf8"))
-    : {
-        releaseSha: requireArg("previous-sha"),
-        flyImage: requireArg("fly-image"),
-        vercelDeployment: requireArg("vercel-deployment"),
-        frontendUrl: requireArg("frontend"),
-        backendUrl: requireArg("backend"),
-      };
+  const artifact = JSON.parse(fs.readFileSync(requireArg("artifact"), "utf8"));
   const result = await recoverRelease({
     phase: requireArg("phase"),
     failedSha: optionalArg("failed-sha"),

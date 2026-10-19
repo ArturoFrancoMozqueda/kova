@@ -40,7 +40,7 @@ export async function release({ artifact: rawArtifact, sha, provider,
   try {
     const url = candidateUrl(await provider.createCandidate());
     phase = "candidate";
-    await provider.deployFly(sha);
+    await provider.deployBackend(sha);
     if (provider.requiresCloudflareBackend) {
       await provider.waitForPublicBackend({ frontendUrl: url, backendUrl: artifact.backendUrl,
         sha, previousSha: artifact.releaseSha,
@@ -81,6 +81,7 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
   const npx = resolveNpxCommand();
   const cloudflare = cloudflareProvider({ run, env });
   const backend = cloudflareBackendProvider({ run, env });
+  if (!backend) throw new Error("Cloudflare backend is required; the retired provider cannot be used");
   const buildEnv = { ...env, ...(cloudflare ? { VITE_HOSTING_PROVIDER: "cloudflare" } : {}) };
   // The owner connection belongs only to the backend migration subprocess.
   delete buildEnv.SUPABASE_DB_URL;
@@ -98,22 +99,8 @@ export function releaseProvider(globalConfig, { run = runProviderCommand, env = 
       await vercel(["build", "--prod"]);
       return vercel(["deploy", "--prebuilt", "--prod", "--skip-domain", "--yes"], true);
     },
-    async deployFly(sha) {
-      if (backend) return backend.publish(sha);
-      // Provisioning is idempotent and stays inside the recoverable phase.
-      await runProviderCommand("python3", ["../scripts/ensure_cfdi_storage_key.py"],
-        { cwd: path.join(root, "backend"), label: "Fiscal encryption preflight" });
-      await runProviderCommand(process.platform === "win32" ? "flyctl.exe" : "flyctl",
-        ["deploy", "--remote-only", "--build-arg", `KOVA_RELEASE_SHA=${sha}`,
-          "--env", `GIT_SHA=${sha}`, "--strategy", "rolling", "--wait-timeout", "5m",
-          "--process-groups", "app,assistant", "--ha=false"],
-        { cwd: path.join(root, "backend"), label: "Fly deploy" });
-      await runProviderCommand("python3", ["../scripts/assistant_host_release.py",
-        "update", "--sha", sha],
-        { cwd: path.join(root, "backend"), label: "Existing assistant file host" });
-      await runProviderCommand(npx.command,
-        [...npx.prefixArgs, "--yes", "wait-on@9.0.1", "https://api.kovasuite.com/health/db",
-          "--timeout", "180000"], { label: "Fly health wait" });
+    async deployBackend(sha) {
+      return backend.publish(sha);
     },
     async promote(url, frontendUrl) {
       const hostname = productionHostname(frontendUrl);

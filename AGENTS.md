@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Kova is a production SaaS POS + business analytics platform for Mexican SMBs: React/Vite frontend, FastAPI backend, Supabase/Postgres, Stripe subscriptions, Vercel frontend, Fly backend.
+Kova is a production SaaS POS + business analytics platform for Mexican SMBs: React/Vite frontend, FastAPI backend on Cloudflare Workers, Supabase/Postgres and Stripe subscriptions. Vercel remains a frontend release candidate/backup; Fly is permanently retired.
 
 Before editing, inspect the relevant files, current planning docs, API contracts, migrations, existing patterns, and related tests; make the smallest safe change, do not rewrite broad areas unless explicitly requested, and report changed files, tests, and manual QA.
 

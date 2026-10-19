@@ -421,18 +421,13 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
-        if: vars.KOVA_CLOUDFLARE_BACKEND != '1'
       - run: npm ci
         working-directory: frontend
       - name: Capture and verify current production before creating a candidate
         shell: bash
         run: |
           set -euo pipefail
-          fly_image=""
-          if [[ "$KOVA_CLOUDFLARE_BACKEND" != "1" ]]; then
-            fly_image="$(cd backend && flyctl status --json | jq -er '.Machines[0].config.image // .machines[0].config.image')"
-          fi
+          test "$KOVA_CLOUDFLARE_BACKEND" = "1"
           previous_sha="$(curl --fail --silent --show-error https://api.kovasuite.com/health | jq -er '.release_sha')"
           [[ "$previous_sha" =~ ^[0-9a-fA-F]{40}$ ]] || {
             echo "Current backend did not expose a complete release SHA." >&2
@@ -466,14 +461,12 @@ jobs:
 
           jq -n \
             --arg releaseSha "$previous_sha" \
-            --arg flyImage "$fly_image" \
             --arg vercelDeployment "$vercel_deployment" \
             --arg frontendUrl "$VERCEL_PRODUCTION_URL" \
             --arg backendUrl "https://api.kovasuite.com" \
-            '{releaseSha:$releaseSha,flyImage:$flyImage,vercelDeployment:$vercelDeployment,frontendUrl:$frontendUrl,backendUrl:$backendUrl}' \
+            '{releaseSha:$releaseSha,vercelDeployment:$vercelDeployment,frontendUrl:$frontendUrl,backendUrl:$backendUrl}' \
             > "$RUNNER_TEMP/release-rollback.json"
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           KOVA_CLOUDFLARE_BACKEND: ${{ vars.KOVA_CLOUDFLARE_BACKEND }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -527,7 +520,6 @@ jobs:
           SUPABASE_DB_URL: ${{ vars.KOVA_CLOUDFLARE_BACKEND == '1' && secrets.SUPABASE_DB_URL || '' }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
