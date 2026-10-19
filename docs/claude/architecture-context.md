@@ -33,8 +33,9 @@ Arquitectura vigente:
 - Cada coordinador retiene la admisión hasta terminar la limpieza ASGI. JSON/bytes de un
   bloque conservan respuestas completas; las descargas mantienen streaming y backpressure.
   No se comparten bloqueos pendientes entre contextos de I/O de distintos Durable Objects.
-- Fly conserva cinco máquinas detenidas para recuperación, fuera del tráfico principal.
-  El arranque automático del proxy está desactivado en las dos máquinas de API.
+- Fly fue retirado por solicitud del propietario el 2026-10-19: aplicación y cinco máquinas
+  eliminadas, sin volúmenes; credenciales de despliegue e ingesta revocadas. Publicación y
+  recuperación requieren versiones exactas de Cloudflare y no tienen proveedor Fly alternativo.
 - La identidad pública usa el binding de texto versionado `KOVA_BUILD_SHA`; las publicaciones
   mantienen intactos los secretos y sus protecciones de reversión.
 

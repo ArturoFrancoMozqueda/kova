@@ -8,8 +8,8 @@ import { cliProvider, recoverRelease, validateRollbackArtifact } from "./release
 
 const version = "dcad4869-ba1d-43d4-865b-66349697bd7c";
 const env = { KOVA_CLOUDFLARE_FRONTEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cloudflare",
-  CLOUDFLARE_ACCOUNT_ID: "test-account", VERCEL_TOKEN: "test-only-vercel", FLY_API_TOKEN: "test-only-fly" };
-const artifact = { releaseSha: "a".repeat(40), flyImage: "registry.fly.io/test@sha256:old",
+  CLOUDFLARE_ACCOUNT_ID: "test-account", VERCEL_TOKEN: "test-only-vercel", KOVA_CLOUDFLARE_BACKEND: "1" };
+const artifact = { releaseSha: "a".repeat(40), cloudflareBackendVersions: Object.fromEntries(["kova-backend-jobs", "kova-backend", "kova-backend-gateway"].map(name => [name, "dcad4869-ba1d-43d4-865b-66349697bd7c"])),
   vercelDeployment: "https://old.vercel.app", frontendUrl: "https://kovasuite.com",
   backendUrl: "https://api.kovasuite.com", cloudflareVersion: version };
 
@@ -101,23 +101,25 @@ test("promotion publishes the same candidate assets to Cloudflare before public 
   assert.equal(calls[cfDeploy - 1].includes("--dry-run"), true);
 });
 
-test("failed public acceptance restores Cloudflare, Vercel and Fly in that order", async () => {
+test("failed public acceptance restores Cloudflare, Vercel and the Cloudflare backend in that order", async () => {
   const calls = [];
   await recoverRelease({ phase: "acceptance", artifact, provider: {
     waitForPublicFrontend: async input => {
       assert.equal(input.sha, artifact.releaseSha); calls.push("frontend-ready");
     },
     restoreCloudflare: async captured => { assert.equal(captured, version); calls.push("cloudflare"); },
-    restoreVercel: async () => calls.push("vercel"), restoreFly: async () => calls.push("fly"),
+    waitForPublicBackend: async () => {},
+    restoreVercel: async () => calls.push("vercel"), restoreCloudflareBackend: async () => calls.push("backend"),
   }, verify: async () => calls.push("verified") });
-  assert.deepEqual(calls, ["cloudflare", "vercel", "fly", "frontend-ready", "verified"]);
+  assert.deepEqual(calls, ["cloudflare", "vercel", "backend", "frontend-ready", "verified"]);
 });
 
 test("failed Cloudflare restore stops recovery and keeps the incident blocking", async () => {
   await assert.rejects(recoverRelease({ phase: "promotion", artifact, provider: {
     waitForPublicFrontend: assert.fail,
     restoreCloudflare: async () => { throw new Error("restore failed"); },
-    restoreVercel: assert.fail, restoreFly: assert.fail,
+    waitForPublicBackend: assert.fail,
+    restoreVercel: assert.fail, restoreCloudflareBackend: assert.fail,
   }, verify: assert.fail }), /RECOVERY_BLOCKED/);
 });
 

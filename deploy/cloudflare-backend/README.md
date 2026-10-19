@@ -104,24 +104,21 @@ Containers or paid compute. The current documented limits include a 64 MiB bundl
 quotas. These are ceilings, not a promise of unlimited SaaS use. Supabase, Stripe,
 email, inference and existing R2 costs remain separate.
 
-`prepare_config.py` transfers recognized existing deployment bindings via Fly SSH
-directly into private local deployment files, without displaying values. Do not
-inspect, commit, upload or log those files. Pass the generated inputs directly to
-`cf --body @file` / `cf deploy --secrets-file file`, then delete them after use.
-Do not rotate signing/encryption keys during the migration. The job secret set
-excludes database owner URLs, Stripe credentials and Ops MFA roots.
+The one-time provider credential transfer is retired. `prepare_config.py` retains
+only its tested pure connection parser and refuses CLI execution. Manage existing
+sealed bindings directly in Cloudflare; never print or export their values. The
+job secret set excludes database owner URLs, Stripe credentials and Ops MFA roots.
 
 Set `KOVA_HYPERDRIVE_APP_ID` and `KOVA_HYPERDRIVE_PRIVILEGED_ID` for builds. Deploy
 jobs first, API second, gateway last, selecting the corresponding prebuilt Worker.
 The prebuilt Worker names are `kova-backend-jobs`, `kova-backend` and
 `kova-backend-gateway`. Candidate routing is only `api-preview.kovasuite.com`. Production routing requires
-`KOVA_CLOUDFLARE_BACKEND=1`; never set it before deployed acceptance. Keep Fly and
-its DNS/version recovery information until release and real-session acceptance.
+`KOVA_CLOUDFLARE_BACKEND=1`; releases fail closed if it is absent. Fly and its
+machines were permanently removed on 2026-10-19 at the owner's request.
 
-Still required: deployed CPU/memory/startup checks, genuine production-session
-acceptance on an isolated candidate frontend, release/recovery integration and
-public API cutover. Stop Fly machines only after these pass; preserve recoverable
-configuration. Existing CI/release safety gates remain required.
+Public API/session acceptance and shutdown were completed before removal. Recovery
+uses captured Cloudflare versions; legacy provider-only artifacts are rejected.
+Existing CI/release safety gates remain required.
 
 The opt-in release provider captures all three serving backend versions before
 mutation, runs the existing Alembic migrations, publishes jobs/API/gateway in that

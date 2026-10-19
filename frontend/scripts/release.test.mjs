@@ -4,7 +4,7 @@ import { candidateUrl, release, releaseProvider } from "./release.mjs";
 import { recoverRelease } from "./release-recovery.mjs";
 
 const artifact = {
-  releaseSha: "a".repeat(40), flyImage: "registry.fly.io/kova@sha256:old",
+  releaseSha: "a".repeat(40), cloudflareBackendVersions: Object.fromEntries(["kova-backend-jobs", "kova-backend", "kova-backend-gateway"].map(name => [name, "dcad4869-ba1d-43d4-865b-66349697bd7c"])),
   vercelDeployment: "https://old.vercel.app", frontendUrl: "https://kova.example",
   backendUrl: "https://api.kova.example",
 };
@@ -19,8 +19,9 @@ function fixture(fail) {
   };
   return { calls, provider: {
     createCandidate: () => call("candidate", "https://candidate.vercel.app"),
-    deployFly: () => call("fly"), promote: () => call("promote"),
-    restoreVercel: () => call("restore-vercel"), restoreFly: () => call("restore-fly"),
+    deployBackend: () => call("backend"), promote: () => call("promote"),
+    waitForPublicBackend: async () => {},
+    restoreVercel: () => call("restore-vercel"), restoreCloudflareBackend: () => call("restore-backend"),
   }, verify: (input) => call(input.sha === artifact.releaseSha ? "restored"
     : input.frontendUrl === artifact.frontendUrl ? "acceptance" : "verify") };
 }
@@ -28,7 +29,7 @@ function fixture(fail) {
 test("successful release verifies candidate before promotion and public site after", async () => {
   const fake = fixture();
   assert.equal((await release({ artifact, sha, ...fake })).accepted, true);
-  assert.deepEqual(fake.calls, ["candidate", "fly", "verify", "promote", "acceptance"]);
+  assert.deepEqual(fake.calls, ["candidate", "backend", "verify", "promote", "acceptance"]);
 });
 
 test("candidate failure leaves production alone", async () => {
@@ -38,10 +39,10 @@ test("candidate failure leaves production alone", async () => {
 });
 
 for (const [fail, restores] of [
-  ["fly", ["restore-fly", "restored"]],
-  ["verify", ["restore-fly", "restored"]],
-  ["promote", ["restore-vercel", "restore-fly", "restored"]],
-  ["acceptance", ["restore-vercel", "restore-fly", "restored"]],
+  ["backend", ["restore-backend", "restored"]],
+  ["verify", ["restore-backend", "restored"]],
+  ["promote", ["restore-vercel", "restore-backend", "restored"]],
+  ["acceptance", ["restore-vercel", "restore-backend", "restored"]],
 ]) {
   test(`${fail} failure restores exact previous artifacts and still fails CI`, async () => {
     const fake = fixture(fail);
@@ -55,7 +56,7 @@ test("a failed restore remains a blocking incident", async () => {
   fake.provider.restoreVercel = async () => { throw new Error("restore failed"); };
   await assert.rejects(release({ artifact, sha, ...fake, recover: recoverRelease }),
     /RECOVERY_BLOCKED/);
-  assert.equal(fake.calls.includes("restore-fly"), false);
+  assert.equal(fake.calls.includes("restore-backend"), false);
 });
 
 test("a failed recovery preserves the original acceptance error for diagnosis", async () => {
@@ -104,7 +105,7 @@ test("Cloudflare waits for the new backend before verifying or promoting the can
     fake.calls.push("backend-ready");
   };
   await release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions }, sha, ...fake });
-  assert.deepEqual(fake.calls, ["candidate", "fly", "backend-ready", "verify", "promote", "backend-ready", "acceptance"]);
+  assert.deepEqual(fake.calls, ["candidate", "backend", "backend-ready", "verify", "promote", "backend-ready", "acceptance"]);
 });
 
 test("missing backend readiness support blocks publication and recovery before mutations", async () => {
@@ -135,11 +136,11 @@ test("failed backend readiness restores and waits for the exact old backend befo
   };
   await assert.rejects(release({ artifact: { ...artifact, cloudflareBackendVersions: backendVersions },
     sha, ...fake }), /RELEASE_FAILED_RECOVERED/);
-  assert.deepEqual(fake.calls, ["candidate", "fly", "new-readiness-failed", "restore-backend", "restored-ready", "restored"]);
+  assert.deepEqual(fake.calls, ["candidate", "backend", "new-readiness-failed", "restore-backend", "restored-ready", "restored"]);
 });
 
 test("missing capture or SHA fails before creating a candidate", async () => {
-  for (const input of [{ artifact: { ...artifact, flyImage: "" }, sha },
+  for (const input of [{ artifact: { ...artifact, cloudflareBackendVersions: undefined }, sha },
     { artifact, sha: "short" }]) {
     const fake = fixture();
     await assert.rejects(release({ ...input, ...fake }));
@@ -150,7 +151,7 @@ test("missing capture or SHA fails before creating a candidate", async () => {
 test("promotion explicitly assigns the public domain before public acceptance", async () => {
   const commands = [];
   const realProvider = releaseProvider("/test/private-auth", {
-    env: { VERCEL_TOKEN: "test-only-token", FLY_API_TOKEN: "test-only-fly" },
+    env: { VERCEL_TOKEN: "test-only-token", KOVA_CLOUDFLARE_BACKEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cf", CLOUDFLARE_ACCOUNT_ID: "test-account" },
     run: async (_command, args) => { commands.push(args); },
   });
   const fake = fixture();
@@ -170,14 +171,14 @@ test("promotion explicitly assigns the public domain before public acceptance", 
 test("a failed public domain assignment recovers before acceptance", async () => {
   const fake = fixture();
   fake.provider.promote = releaseProvider("/test/private-auth", {
-    env: { VERCEL_TOKEN: "test-only-token", FLY_API_TOKEN: "test-only-fly" },
+    env: { VERCEL_TOKEN: "test-only-token", KOVA_CLOUDFLARE_BACKEND: "1", CLOUDFLARE_API_TOKEN: "test-only-cf", CLOUDFLARE_ACCOUNT_ID: "test-account" },
     run: async (_command, args) => {
       if (args.includes("alias")) throw new Error("domain assignment failed");
     },
   }).promote;
   await assert.rejects(release({ artifact, sha, ...fake }), /RELEASE_FAILED_RECOVERED/);
   assert.equal(fake.calls.includes("acceptance"), false);
-  assert.deepEqual(fake.calls.slice(-3), ["restore-vercel", "restore-fly", "restored"]);
+  assert.deepEqual(fake.calls.slice(-3), ["restore-vercel", "restore-backend", "restored"]);
 });
 
 test("ambiguous public domain targets fail before any release mutation", async () => {

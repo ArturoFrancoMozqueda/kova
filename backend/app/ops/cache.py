@@ -1,9 +1,8 @@
 """Tiny in-memory TTL cache for external-connector results.
 
-Fly runs a single always-on machine (min_machines_running=1, autoscale off), so
-a process-local cache is enough to keep the CEO's 1-5 min polling from hammering
-external APIs. If the deployment ever scales horizontally this should move to
-Upstash (credentials already optional in settings).
+Each Cloudflare coordinator keeps its own short-lived connector cache. It avoids
+repeating external status calls within that process; it is neither authoritative
+business state nor a cache shared across coordinators.
 """
 import time
 from collections.abc import Callable

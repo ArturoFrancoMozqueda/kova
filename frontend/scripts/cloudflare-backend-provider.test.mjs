@@ -161,7 +161,7 @@ test("rollback restores all captured versions without rebuilding or invoking Fly
 });
 
 test("Cloudflare recovery needs no Fly image or token and verifies the restored release", async () => {
-  assert.equal(validateRollbackArtifact(artifact).flyImage, "");
+  assert.equal(Object.hasOwn(validateRollbackArtifact(artifact), "flyImage"), false);
   const configured = cliProvider({ env, run: assert.fail });
   assert.equal(configured.requiresCloudflareBackend, true);
   const calls = [];
@@ -182,9 +182,9 @@ test("Cloudflare recovery needs no Fly image or token and verifies the restored 
 test("incomplete recovery capture fails before creating a candidate or restoring the frontend", async () => {
   const incomplete = { ...artifact, cloudflareBackendVersions: undefined, flyImage: "old-fly-image" };
   await assert.rejects(release({ artifact: incomplete, sha,
-    provider: { requiresCloudflareBackend: true, createCandidate: assert.fail } }), /captured rollback/);
+    provider: { requiresCloudflareBackend: true, createCandidate: assert.fail } }), /requires Cloudflare backend versions/);
   await assert.rejects(recoverRelease({ phase: "acceptance", artifact: incomplete,
-    provider: { requiresCloudflareBackend: true, restoreVercel: assert.fail } }), /captured rollback/);
+    provider: { requiresCloudflareBackend: true, restoreVercel: assert.fail } }), /requires Cloudflare backend versions/);
   await assert.rejects(recoverRelease({ phase: "acceptance", artifact,
     provider: { restoreVercel: assert.fail } }), /configured provider/);
 });
@@ -192,7 +192,7 @@ test("incomplete recovery capture fails before creating a candidate or restoring
 test("the normal release delegates backend publication to Cloudflare when selected", async () => {
   const commands = [];
   const provider = releaseProvider("/private-auth", { env, run: async (command, args) => commands.push({ command, args }) });
-  await provider.deployFly(sha);
+  await provider.deployBackend(sha);
   assert.equal(provider.requiresCloudflareBackend, true);
   assert.equal(commands[0].command, "uv");
   assert.equal(commands.some(call => call.command.includes("flyctl")), false);
@@ -268,7 +268,7 @@ test("Cloudflare candidate waits before verification and recovery uses the attem
   const provider = {
     requiresCloudflareBackend: true,
     createCandidate: async () => "https://candidate.vercel.app",
-    deployFly: async () => calls.push("deploy"),
+    deployBackend: async () => calls.push("deploy"),
     waitForPublicBackend: async input => {
       calls.push(input.sha === nextSha ? "candidate-ready" : "recovery-ready");
       assert.equal(input.previousSha, input.sha === nextSha ? sha : nextSha);
@@ -297,7 +297,7 @@ test("backend readiness failure prevents candidate verification and promotion", 
   const calls = [];
   const provider = {
     requiresCloudflareBackend: true,
-    createCandidate: async () => "https://candidate.vercel.app", deployFly: async () => {},
+    createCandidate: async () => "https://candidate.vercel.app", deployBackend: async () => {},
     waitForPublicBackend: async input => {
       calls.push(input.sha === nextSha ? "candidate-wait" : "recovery-wait");
       if (input.sha === nextSha) throw new Error("Unexpected backend version during publication");
@@ -327,7 +327,7 @@ test("publication verifies candidate and public proxy readiness before each stri
   const provider = {
     requiresCloudflareBackend: true, requiresCloudflare: true,
     createCandidate: async () => "https://candidate.vercel.app",
-    deployFly: async () => calls.push("deploy"), promote: async () => calls.push("promote"),
+    deployBackend: async () => calls.push("deploy"), promote: async () => calls.push("promote"),
     waitForPublicFrontend: async input => {
       assert.equal(input.sha, nextSha); assert.equal(input.previousSha, sha); calls.push("public-frontend-ready");
     },
@@ -367,7 +367,7 @@ test("public proxy readiness failure blocks final acceptance and restores invers
   const target = { ...artifact, cloudflareVersion: version };
   const provider = {
     requiresCloudflareBackend: true, requiresCloudflare: true,
-    createCandidate: async () => "https://candidate.vercel.app", deployFly: async () => {},
+    createCandidate: async () => "https://candidate.vercel.app", deployBackend: async () => {},
     promote: async () => calls.push("promote"),
     waitForPublicFrontend: async input => calls.push(input.sha === nextSha ? "frontend-published" : "frontend-restored"),
     waitForPublicBackend: async input => {

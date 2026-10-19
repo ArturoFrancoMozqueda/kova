@@ -1,11 +1,9 @@
 """Lifecycle regressions without credentials, provider calls or Fly allocations."""
 
-import asyncio
 import sys
 import unittest
 from unittest.mock import Mock, patch
 
-import httpx
 from pydantic import SecretStr
 
 from app.assistant import ingest_demand as demand
@@ -25,86 +23,26 @@ def machine(state="stopped", group="ingest"):
 
 
 class DemandTests(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
-        self.patches = [patch.object(settings, "assistant_ingest_machine_id", MACHINE),
-                        patch.object(settings, "assistant_ingest_fly_token",
-                                     SecretStr("test-only-token"))]
-        for item in self.patches:
-            item.start()
-            self.addCleanup(item.stop)
+    async def test_stale_provider_configuration_cannot_reactivate_a_host(self):
+        with patch.object(settings, "assistant_ingest_machine_id", MACHINE), \
+                patch.object(settings, "assistant_ingest_fly_token", SecretStr("test-only-token")), \
+                patch.object(settings, "assistant_ingest_on_demand", True), \
+                patch.object(demand, "supervise") as supervise:
+            self.assertFalse(demand.configured())
+            async with demand.lifespan(None):
+                pass
+            supervise.assert_not_called()
 
-    async def test_wake_only_stopped_or_suspended_ingest(self):
-        for state in ("stopped", "suspended", "starting", "started", "stopping"):
-            calls = []
+    async def test_retired_wake_never_contacts_a_provider(self):
+        client = Mock()
+        with self.assertRaisesRegex(RuntimeError, "provider retired"):
+            await demand.wake(client)
+        client.get.assert_not_called()
+        client.post.assert_not_called()
 
-            def handle(request, calls=calls, state=state):
-                calls.append((request.method, request.url.path))
-                return httpx.Response(200, json=machine(state))
-
-            async with httpx.AsyncClient(base_url="https://api.machines.dev",
-                                         transport=httpx.MockTransport(handle)) as client:
-                await demand.wake(client)
-            self.assertEqual(len(calls), 2 if state in {"stopped", "suspended"} else 1)
-            self.assertTrue(all(MACHINE in path for _, path in calls))
-            if len(calls) == 2:
-                self.assertEqual(calls[1], ("POST", calls[0][1] + "/start"))
-
-    async def test_wrong_group_shape_and_restart_policy_never_start(self):
-        bodies = [machine(group="app"), machine(group="assistant"), machine()]
-        bodies[-1]["config"]["restart"]["policy"] = "always"
-        wrong_size = machine()
-        wrong_size["config"]["guest"]["memory_mb"] = 1024
-        bodies.append(wrong_size)
-        for body in bodies:
-            calls = []
-
-            def handle(request, calls=calls, body=body):
-                calls.append(request.method)
-                return httpx.Response(200, json=body)
-
-            async with httpx.AsyncClient(base_url="https://api.machines.dev",
-                                         transport=httpx.MockTransport(handle)) as client:
-                with self.assertRaisesRegex(RuntimeError, "configuration is unsafe"):
-                    await demand.wake(client)
-            self.assertEqual(calls, ["GET"])
-
-    async def test_persisted_queue_retries_failed_wake_and_shutdown_race(self):
-        calls, sweeps = [], [0]
-
-        def handle(request):
-            calls.append(request.method)
-            if len(calls) == 1:
-                return httpx.Response(503)
-            return httpx.Response(200, json=machine("stopping" if sweeps[0] == 1 else "stopped"))
-
-        original = httpx.AsyncClient
-
-        def client(**kwargs):
-            return original(**kwargs, transport=httpx.MockTransport(handle))
-
-        async def advance(seconds):
-            self.assertEqual(seconds, 30)
-            sweeps[0] += 1
-            if sweeps[0] == 3:
-                raise asyncio.CancelledError
-
-        with patch.object(demand.httpx, "AsyncClient", client), \
-                patch.object(demand, "has_work", return_value=True), \
-                patch.object(demand.asyncio, "sleep", advance), \
-                self.assertRaises(asyncio.CancelledError):
+    async def test_retired_supervisor_cannot_open_connections_or_start_timers(self):
+        with self.assertRaisesRegex(RuntimeError, "provider retired"):
             await demand.supervise()
-        self.assertEqual(calls, ["GET", "GET", "GET", "POST"])
-
-    async def test_empty_queue_does_not_contact_fly(self):
-        async def end(_):
-            raise asyncio.CancelledError
-
-        with patch.object(demand, "has_work", return_value=False), \
-                patch.object(demand, "wake") as wake, \
-                patch.object(demand.asyncio, "sleep", end), \
-                self.assertRaises(asyncio.CancelledError):
-            await demand.supervise()
-        wake.assert_not_called()
 
 
 class HostTests(unittest.TestCase):
