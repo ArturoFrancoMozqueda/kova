@@ -8,8 +8,11 @@ The existing FastAPI application runs in 16 SQLite Durable Object coordinators
 behind a small JavaScript HTTP gateway. This retains production bcrypt cost within
 the Durable Objects compute budget. PostgreSQL remains authoritative for sessions,
 RLS, billing, transactions and offline/idempotent writes; no business tables move
-to SQLite. A hash of the cookie and route chooses a coordinator and grants no
-permissions. Each coordinator serializes synchronous I/O through ASGI dependency
+to SQLite. A cookie hash selects a group of four within the existing pool.
+Session, business timezone and dashboard reports share the first coordinator;
+catalog and other independent reads use three parallel lanes. This reuses the
+authenticated bootstrap after idle and grants no permissions. Each coordinator
+serializes synchronous I/O through ASGI dependency
 cleanup. One-chunk JSON/bytes responses wrapped by HTTP middleware retain buffered
 SDK handling; genuine streams retain backpressure and release admission through a
 retained completion task. Locks remain local to each Durable Object's I/O context.

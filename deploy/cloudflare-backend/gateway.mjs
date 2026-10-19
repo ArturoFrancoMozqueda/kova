@@ -2,6 +2,30 @@
 // inside the API coordinators, within the Durable Objects Free compute budget.
 import { createHash } from "node:crypto";
 
+const dashboardChain = new Set([
+  "/api/v1/settings/business-profile", "/api/v1/reports/business-story",
+  "/api/v1/reports/sales-summary", "/api/v1/reports/sales-by-hour",
+]);
+const parallelLanes = new Map([
+  ["/api/v1/catalog/products", 1], ["/api/v1/onboarding/state", 1],
+  ["/api/v1/branches", 1], ["/api/v1/assistant/capabilities", 1],
+  ["/api/v1/inventory/stock", 2], ["/api/v1/billing/subscription", 2], ["/api/v1/shifts", 2],
+  ["/api/v1/employees", 3], ["/api/v1/inventory/low-stock", 3], ["/api/v1/settings/receipt", 3],
+]);
+
+export function coordinatorShard(cookie, path) {
+  const identity = cookie || "anonymous";
+  const base = (createHash("sha256").update(identity).digest()[0] % 4) * 4;
+  const normalized = path.replace(/\/+$/, "") || "/";
+  // The dashboard's dependent reads reuse the coordinator warmed by /session.
+  // Other reads retain three parallel lanes; cookies distribute groups across
+  // the existing sixteen objects. This hint grants no identity or permissions.
+  const lane = normalized.startsWith("/api/v1/auth/") || dashboardChain.has(normalized)
+    ? 0 : parallelLanes.get(normalized)
+      ?? (1 + createHash("sha256").update(`${identity}\n${normalized}`).digest()[0] % 3);
+  return base + lane;
+}
+
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
@@ -21,10 +45,7 @@ export default {
     for (const name of ["fly-client-ip", "x-forwarded-for", "x-real-ip", "forwarded"]) {
       headers.delete(name);
     }
-    const identity = headers.get("cookie") || "anonymous";
-    // Parallel dashboard reads should not queue behind every other endpoint
-    // for the same cookie. This hint still grants no identity or permissions.
-    const shard = createHash("sha256").update(`${identity}\n${path}`).digest()[0] % 16;
+    const shard = coordinatorShard(headers.get("cookie"), path);
     try {
       const started = performance.now();
       const response = await env.API.getByName(`api-${shard}`).fetch(
