@@ -29,6 +29,9 @@ export const jobs = defineConfig({ worker: {
 
 export const gateway = defineConfig({ worker: {
   name: "kova-backend-gateway", entrypoint: "./gateway.mjs",
+  // Preserve the existing remote ceiling so strict uploads do not erase it.
+  // This metadata does not activate or change an account subscription.
+  limits: { cpuMs: 100 },
   compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
   workersDev: false,
   domains: process.env.KOVA_CLOUDFLARE_BACKEND === "1"

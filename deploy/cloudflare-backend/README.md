@@ -104,6 +104,13 @@ Containers or paid compute. The current documented limits include a 64 MiB bundl
 quotas. These are ceilings, not a promise of unlimited SaaS use. Supabase, Stripe,
 email, inference and existing R2 costs remain separate.
 
+The gateway declares its existing remote CPU ceiling (`limits.cpuMs: 100`) so
+strict uploads preserve it. This setting does not change an account subscription.
+A scoped control-plane check on 2026-10-19 found an existing Workers Paid subscription;
+no subscription was changed by this release. The Free policy above remains the historical
+cost target, not proof of the account's current billing state. Do not activate or change plans
+as a deployment workaround.
+
 The one-time provider credential transfer is retired. `prepare_config.py` retains
 only its tested pure connection parser and refuses CLI execution. Manage existing
 sealed bindings directly in Cloudflare; never print or export their values. The

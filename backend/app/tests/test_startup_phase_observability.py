@@ -31,7 +31,7 @@ def _messages(caplog):
 def test_create_app_keeps_validation_order_and_records_only_static_phases(monkeypatch, caplog):
     calls = []
     for name in GUARDS:
-        monkeypatch.setattr(main, name, lambda name=name: calls.append(name))
+        monkeypatch.setattr(main, name, lambda name=name, **_kwargs: calls.append(name))
     original = main._construct_app
     # Other RBAC tests deliberately append private probe routes to main.app.
     # Compare fresh app instances so their shared global fixture cannot affect this check.
@@ -70,7 +70,7 @@ def test_failed_startup_guard_still_aborts_and_never_logs_exception_payload(
             raise error
 
     for name in GUARDS:
-        monkeypatch.setattr(main, name, lambda name=name: guard(name))
+        monkeypatch.setattr(main, name, lambda name=name, **_kwargs: guard(name))
     monkeypatch.setattr(
         main, "_construct_app", lambda: pytest.fail("Startup continued after guard")
     )
