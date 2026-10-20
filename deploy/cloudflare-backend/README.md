@@ -174,12 +174,17 @@ and simultaneous dashboard requests queued behind one cookie's coordinator.
 The R2 binding and route-aware routing fixes pass local runtime tests, including
 deleted-tenant denial and parallel session isolation. Deployed dashboard, reload
 and logout acceptance remain required before public cutover.
-Cold startup remains under measurement. Pure ORM metadata and schema validators
-run at module scope for Cloudflare's deployment snapshot. Transport SDKs load
-during invocation bootstrap: preloading them together with the metadata graph
-failed remote snapshot compilation in isolation tests, while the metadata-only
-snapshot uploaded successfully. Credentials, RLS checks and all I/O remain
-invocation-local. Temporary transport probe endpoints are not release code.
+Cold startup remains under measurement. Production Workers initialize a core app
+with the unchanged configuration, RLS, private-policy, middleware and exception
+checks, then include original routers for the requested path. Native servers and
+development OpenAPI keep the full application. A static registry preserves router
+order and is checked against every original route and the full OpenAPI contract.
+The coordinator serializes inclusion through dependency cleanup; permissions and
+billing remain on the original route definitions. All ORM models initialize in
+invocation memory before any flush so cross-domain foreign keys still resolve.
+The deployment snapshot contains libraries, without the full domain validator
+and model graph. Credentials, engines and all I/O remain invocation-local.
+Temporary transport probe endpoints are not release code.
 
 References: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/),
 [Durable Objects limits](https://developers.cloudflare.com/durable-objects/platform/limits/),
