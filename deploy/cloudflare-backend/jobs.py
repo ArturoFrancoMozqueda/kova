@@ -10,6 +10,11 @@ from workers import DurableObject, WorkerEntrypoint
 _ready = False
 
 
+def budget_paused(env):
+    # Operator-only deployment binding; never derived from a request or tenant.
+    return str(getattr(env, "KOVA_BUDGET_PAUSED", "") or "").strip() == "1"
+
+
 def automation_cohort(env):
     return {
         UUID(value.strip())
@@ -43,6 +48,8 @@ def initialize(env):
 
 class Default(WorkerEntrypoint):
     async def scheduled(self, controller, env, ctx):
+        if budget_paused(env):
+            return
         # Cohort IDs are deployment configuration; no tenant contents are read
         # globally. The job objects independently revalidate enabled membership.
         # Keep the Free cron handler small: settings/schema imports and database
@@ -63,6 +70,8 @@ class KovaJobs(DurableObject):
         self._lock = asyncio.Lock()
 
     async def wake(self, tenant):
+        if budget_paused(self.env):
+            return False
         try:
             tenant = str(UUID(tenant))
         except (ValueError, TypeError, AttributeError):
@@ -82,6 +91,10 @@ class KovaJobs(DurableObject):
         return True
 
     async def alarm(self):
+        if budget_paused(self.env):
+            # Preserve queued work in Postgres; stop the durable retry loop.
+            await self.ctx.storage.deleteAlarm()
+            return
         from app.workers.context import environment, execution
 
         async with self._lock:

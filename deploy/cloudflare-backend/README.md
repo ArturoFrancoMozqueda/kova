@@ -98,11 +98,31 @@ Local timings are not measurements of deployed Cloudflare CPU or memory limits.
 Use the local `node_modules/.bin/cf` with the pinned CLI/config. `npm ci` applies
 a narrowly checked beta.18 fix: Python module paths must not start with `./`
 inside the metadata filesystem. The packaging regression preserves JavaScript
-module behavior. Keep the Free subscription; do not provision
-Containers or paid compute. The current documented limits include a 64 MiB bundle,
-100,000 Worker requests/day and separate Durable Objects request/duration/storage
-quotas. These are ceilings, not a promise of unlimited SaaS use. Supabase, Stripe,
-email, inference and existing R2 costs remain separate.
+module behavior. The owner activated Workers Paid on 2026-10-19, with a target of
+USD 10 total per billing cycle including the USD 5 base subscription. Do not
+activate Containers or document ingestion as part of this upgrade. Supabase,
+Stripe, email, inference and existing R2 costs remain separate.
+
+### Spend controls
+
+The frontend and gateway explicitly allow at most 100 ms CPU per invocation;
+API/job Durable Objects retain their existing 30,000 ms allowance. These limits
+survive subsequent releases. CPU time excludes network waiting and does not cap
+request, Durable Object duration, storage or total dollar charges.
+
+An operator can set `KOVA_BUDGET_PAUSED=1` on `kova-backend-jobs` to stop scheduled
+sweeps and new wakes before imports/database work. Alarm handlers delete their
+alarm and return without processing or rearming. Pending work stays in Postgres;
+already-running handlers can finish. The default remains normal operation.
+Restoring this binding and public traffic requires explicit owner authorization.
+
+The account has usage alerts at USD 1 and USD 5, plus its pre-existing USD 10
+alert. These exclude the fixed subscription. A separate chat heartbeat can inspect
+billing and enable the prepared Kova-only WAF block before the budget is reached.
+It depends on local execution/access and delayed provider billing data. Neither
+alerts nor this preventive pause guarantee a USD 10 invoice cap; retained storage,
+in-flight work and the subscription can still incur charges. Never delete data or
+weaken auth/RLS to reduce costs. See [Cloudflare budget alerts](https://developers.cloudflare.com/billing/manage/budget-alerts/).
 
 The one-time provider credential transfer is retired. `prepare_config.py` retains
 only its tested pure connection parser and refuses CLI execution. Manage existing
