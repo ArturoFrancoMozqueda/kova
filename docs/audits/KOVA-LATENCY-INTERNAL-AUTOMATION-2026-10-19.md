@@ -251,3 +251,35 @@ El experimento JSON del catálogo se descartó: tres pares autenticados no diero
 (fase RLS 26 ms ambas; TCP 8 lecturas ambas). Reutilizar rutas FastAPI mediante copias también se
 descartó por alterar dependencia/overrides entre apps. No se incorporan esos experimentos.
 Aceptación y medición pública del siguiente corte siguen pendientes.
+
+## #226: carga superada; conflicto de orden en las rutas del frontend
+
+#226 fusionó `059ceb097cd7c285346130214308e64e9ede1199` con CI requerido verde.
+Los dos primeros intentos fallaron con HTTP 500/10013 al cargar Python. La cuenta ya
+mostraba Workers Paid a las 00:26 UTC del 20 de octubre, antes de esos errores;
+no hay evidencia para atribuirlos únicamente al plan gratuito anterior.
+
+El tercer intento de 39351546553 sí publicó API, tareas y gateway a las 01:43 UTC,
+pero el frontend se detuvo con strict activo: el diff movía el descriptor idéntico
+de `preview.kovasuite.com` entre los extremos de la lista de rutas. No se eliminó
+la protección para forzar la publicación. La recuperación restauró las versiones
+anteriores; el verificador estricto independiente confirmó sitio, proxy, API y DB
+en `2df276612e661b2b6652f65ee9edaaec4b869a8c`. La espera de propagación del propio
+job agotó su plazo durante esa recuperación; la comprobación posterior sí aprobó.
+
+Una carga local sin activar también fue aceptada, pero contenía 49 módulos OTel
+adicionales fuera del lock. No se promueve ese artefacto ni se usa como prueba de
+paridad con CI. La pareja offline posterior conserva los 2,919 módulos del código
+activo y cambia únicamente los cuatro archivos de aplicación de #226. Aceptación
+y nueva cohorte de latencia productiva continúan pendientes.
+
+La corrección del frontend normaliza sólo el orden de rutas dentro de las copias
+del comparador real, usando descriptores completos y orden lexicográfico exacto.
+No modifica los archivos enviados ni elimina duplicados o campos. Diferencias
+de patrón, dominio, zona, flags, límites y variables siguen siendo visibles;
+se conserva la política upstream sobre adiciones no destructivas. El parche
+exige beta.18 y un único marcador conocido, y falla cerrado ante deriva.
+Instalación limpia y once pruebas frontend/CLI aprobaron, incluyendo Unicode
+compuesto/descompuesto, idempotencia y rechazo de versiones o marcadores distintos.
+Contratos de publicación/recuperación: 40 aprobados y una prueba exclusiva de
+Windows omitida en macOS. La aceptación productiva de esta corrección está pendiente.

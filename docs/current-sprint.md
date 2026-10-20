@@ -2,9 +2,9 @@
 
 Last updated: 2026-10-19
 
-## Latencia: optimizaciones fusionadas; publicación recuperada por falso conflicto del CLI
+## Latencia: optimizaciones fusionadas; comparación de rutas bloquea la publicación
 
-Producción conserva `2df276612e66` (#221), verificada tras las dos recuperaciones. #222 y #224
+Producción conserva `2df276612e66` (#221), verificada tras las recuperaciones. #222 y #224
 pasaron CI y se fusionaron; `69109d30d2ed` incluye además los controles de coste #223, preservados.
 Su CI completo aprobó, pero el gateway abortó por una propiedad `environment: undefined` que el
 comparador cf beta.18 añadía sólo al lado remoto. Ambos descriptores apuntan a la misma clase y
@@ -21,6 +21,13 @@ duplicada por la fusión concurrente sin cambiar su valor.
 La última cohorte aceptada sigue mostrando 6.27 s de mediana y 14.50 s máximo en primera cola
 directa, frente a 208 ms al repetir. CI/publicación y medición conjunta siguen pendientes;
 no se declara eliminada la espera. [Evidencia y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
+
+#226 está fusionada en `059ceb097cd7` con CI requerido verde. Tras dos fallos de carga
+500/10013, el tercer intento publicó los tres Workers backend; el frontend abortó por
+el orden de descriptores idénticos de rutas en cf beta.18. Se restauraron las versiones
+anteriores y la verificación independiente de sitio/proxy/API/DB aprobó. Workers Paid ya
+estaba observado antes de los fallos: no se atribuyen sólo al plan anterior. La corrección
+de comparación mantiene strict y los bloqueos de diferencias reales; aceptación pendiente.
 
 ## Revisiones de atención, enlaces y arranque frío (2026-10-19, publicadas; diagnóstico de latencia abierto)
 
