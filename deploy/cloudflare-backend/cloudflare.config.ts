@@ -36,8 +36,6 @@ export const gateway = defineConfig({ worker: {
   limits: { cpuMs: 100 },
   compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
   workersDev: false,
-  // This Worker only forwards requests; Python runs in the API coordinators.
-  limits: { cpuMs: 100 },
   domains: process.env.KOVA_CLOUDFLARE_BACKEND === "1"
     ? ["api-preview.kovasuite.com", "api.kovasuite.com"] : ["api-preview.kovasuite.com"],
   env: { API: bindings.durableObject({ worker: "kova-backend", exportName: "KovaApi" }) },

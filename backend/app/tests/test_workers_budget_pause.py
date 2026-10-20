@@ -17,7 +17,7 @@ def jobs_module(monkeypatch):
         "workers",
         SimpleNamespace(DurableObject=object, WorkerEntrypoint=object),
     )
-    path = Path(__file__).resolve().parents[2] / "deploy/cloudflare-backend/jobs.py"
+    path = Path(__file__).resolve().parents[3] / "deploy/cloudflare-backend/jobs.py"
     spec = importlib.util.spec_from_file_location("budget_pause_jobs", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
