@@ -34,8 +34,8 @@ def initialize(env):
 
             configure_logging()
             init_sentry()
-            assert_rls_active()
-            assert_private_policies()
+            policy_catalog = assert_rls_active()
+            assert_private_policies(policy_catalog=policy_catalog)
             _ready = True
         finally:
             environment.reset(token)

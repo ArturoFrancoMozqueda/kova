@@ -482,7 +482,7 @@ def _rls_posture_errors(
     return errors
 
 
-def assert_rls_active() -> None:
+def assert_rls_active() -> dict[str, list[tuple]] | None:
     """Verify the complete runtime RLS posture and fail closed in production."""
     try:
         with engine.connect() as conn:
@@ -552,3 +552,6 @@ def assert_rls_active() -> None:
         logger.warning(message)
         return
     logger.info("RLS posture verified for %d runtime tables", len(RLS_PROTECTED_TABLES))
+    # Return this invocation's live catalog only after complete RLS validation.
+    # The ACL guard still evaluates every restrictive policy independently.
+    return policy_catalog

@@ -168,3 +168,46 @@ petición autenticada. También se descartó precargar SDK ASGI: sólo ahorró 3
 Validación del nuevo corte: 30 focales por controlador, OpenAPI sin cambios, Ruff/diff-check y
 Workers 9 API + 4 compatibilidad + 1 tareas aprobados. Suites completas finales en ejecución;
 publicación y medición productiva pendientes. No se declara eliminada la espera de diez segundos.
+
+## PR #222: CI aprobado, publicación recuperada por conflicto de gateway
+
+PR #222 fusionó `289cc4656148a153100987e28ff9caf38b73a70f` a las 18:12 CDMX.
+CI completo y 1,833 pruebas por controlador aprobaron. La primera petición autenticada local
+fue 1,129 ms baseline frente a 1,099 ms nueva; caliente 15 ms ambas. Es orientación local,
+no prueba de mejora remota.
+
+El pipeline 39346232676 detuvo la fase candidate: el gateway remoto tenía
+`limits.cpu_ms=100`, creado a las 18:06 CDMX, mientras la configuración local omitía limits.
+Se conservó strict y la recuperación restauró API `c96a1fb3-6aaa-4860-973b-9fa653656306`
+y jobs `f4da2eb1-32d7-4cd1-a112-ad13db3c6c8c`. No hubo accepted:true para #222 ni se
+midió su latencia como versión aceptada. El gateway previo capturado conservó su límite remoto.
+
+Se declara explícitamente ese mismo techo en la configuración tipada (`cpuMs: 100`), sin
+normalizar diferencias arbitrarias ni omitir strict. Una lectura acotada de suscripciones
+confirmó Workers Paid ya existente; no se activó, canceló ni cambió ningún plan. La referencia
+histórica a Free es intención previa, no evidencia del estado actual de la cuenta. El valor
+de configuración no es una medición de CPU ni de latencia, y no permite inferir nuevos costes.
+[Campo tipado](https://developers.cloudflare.com/cf/projects/cloudflare-config/),
+[límites oficiales](https://developers.cloudflare.com/workers/platform/limits/).
+
+## Catálogo de arranque compartido, ambas validaciones completas
+
+RLS devuelve su catálogo vivo sólo después de validar toda la postura. La guarda ACL recibe
+opcionalmente esa misma lectura local y evalúa las políticas restrictivas originales; al
+llamarse por separado conserva su SELECT. Un catálogo vacío falla cerrado, no activa fallback.
+create_app y jobs terminan ambas evaluaciones antes de construir app o marcar listo. No se
+retiene catálogo, conexión ni estado de verificación global.
+
+La proyección coincide con la lectura independiente. Nueve catálogos prueban el válido y ocho
+alteraciones de tabla, política, rol, expresión, permisividad o comando; ambas entradas producen
+los mismos rechazos. La nueva prueba de create_app confirma una conexión física y un SELECT
+de guardas en vez de dos. Doce regresiones nuevas; focal 36 por controlador. Suites completas
+1,845/1,845 psycopg y 1,845/1,845 pg8000, sin fallos/errores/omitidas; Workers 9 API + 4
+compatibilidad + 1 tareas y build 33.24 MiB aprobados. El ajuste de arnés de observabilidad
+acepta el nuevo argumento del catálogo sin cambiar orden, excepciones ni expectativas.
+
+El próximo corte medirá conjuntamente #222 y reutilización ACL, sin atribuir causalidad a una
+entrega aislada. El perfil local identifica el registro de rutas como coste relevante, pero no
+hay preload puro adicional grande y seguro. Se descartó responder sesión anónima en gateway:
+trasladaría la espera a refresh y no resolvería la primera interacción autenticada. Publicación
+y medición productiva siguen pendientes; no se declara eliminada la espera de diez segundos.

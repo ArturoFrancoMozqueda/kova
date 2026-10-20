@@ -179,9 +179,9 @@ def create_app() -> FastAPI:
         init_sentry()
         _validate_config()
     with _startup_phase("app.rls_posture"):
-        assert_rls_active()
+        policy_catalog = assert_rls_active()
     with _startup_phase("app.private_acl"):
-        assert_private_policies()
+        assert_private_policies(policy_catalog=policy_catalog)
     with _startup_phase("app.construction"):
         return _construct_app()
 

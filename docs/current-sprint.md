@@ -2,18 +2,24 @@
 
 Last updated: 2026-10-19
 
-## Latencia: PR #221 aceptada y siguiente optimización en validación
+## Latencia: PR #222 fusionada, publicación recuperada y corrección siguiente
 
-Producción aceptó `2df276612e66` el 19 de octubre a las 14:32 CDMX. CI completo, verificador de
-identidad/sitio/proxy/DB y QA pública de 32 navegaciones/12 GET protegidos aprobaron. La espera
-sigue abierta: primeras consultas de cola 6.27 s de mediana y 14.50 s máximo, frente a 208 ms
-al repetir. Las primeras sesiones ya calientes no deben mezclarse para afirmar una mejora fría.
+Producción conserva `2df276612e66` (#221): la publicación de #222 (`289cc4656148`) se
+recuperó antes de aceptación por conflicto estricto del gateway. El remoto tenía un límite CPU
+100 ms desde las 18:06 CDMX; el local lo omitía. Se declara ese mismo valor, sin quitar strict
+ni cambiar suscripciones. La lectura de control confirmó Workers Paid ya existente; la intención
+histórica de mantener Free no describe el estado actual de esa cuenta. Este trabajo no activó
+ni modificó planes.
 
-Se implementa descubrimiento de capacidades PostgreSQL en un viaje para ambos motores Workers,
-con valores vivos y lógica upstream de SQLAlchemy; sin cambios en guards RLS/ACL, transacciones,
-sesiones o bindings. El catálogo directo se descartó porque difería coste al usuario autenticado.
-30 focales por controlador y Workers 9+4+1 aprobaron; suites completas/CI/publicación y medición
-remota del nuevo corte siguen pendientes. [Evidencia y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
+#222 pasó CI completo y 1,833 pruebas por controlador. Agrupa los cuatro sondeos iniciales de
+PostgreSQL en uno sin diferirlos al usuario. El siguiente corte reutiliza el catálogo vivo ya
+validado por RLS para evaluar también ACL: una conexión/consulta de guardas, sin caché global,
+sin saltar evaluaciones ni cambiar la lectura independiente. Suites completas: 1,845 por
+controlador, cero fallos/errores/omitidas; Workers 9+4+1 aprobados.
+
+La última cohorte aceptada sigue mostrando 6.27 s de mediana y 14.50 s máximo en primera cola
+directa, frente a 208 ms al repetir. CI/publicación y medición conjunta del nuevo corte siguen
+pendientes. [Evidencia y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
 
 ## Revisiones de atención, enlaces y arranque frío (2026-10-19, publicadas; diagnóstico de latencia abierto)
 
