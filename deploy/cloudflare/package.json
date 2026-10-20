@@ -4,7 +4,8 @@
   "type": "module",
   "engines": { "node": ">=24.0.0" },
   "scripts": {
-    "test": "node --test worker.test.mjs",
+    "postinstall": "node patch-cf.mjs",
+    "test": "node --test worker.test.mjs patch-cf.test.mjs",
     "build": "node build.mjs",
     "check": "npm run test && npm run build && cf deploy --prebuilt --dry-run",
     "deploy": "npm run check && cf deploy --prebuilt"
