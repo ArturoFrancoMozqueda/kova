@@ -283,3 +283,37 @@ Instalación limpia y once pruebas frontend/CLI aprobaron, incluyendo Unicode
 compuesto/descompuesto, idempotencia y rechazo de versiones o marcadores distintos.
 Contratos de publicación/recuperación: 40 aprobados y una prueba exclusiva de
 Windows omitida en macOS. La aceptación productiva de esta corrección está pendiente.
+
+## #227 aceptada; medición productiva posterior
+
+#227 fusionó `7002418f63389e5220f2136cd4a1489d3201d9e0` tras CI completo verde.
+El primer intento de 39356494758 recibió 504 Gateway Timeout en el PUT de Python;
+recuperación y verificador independiente aprobaron. El segundo intento del mismo
+job terminó con `accepted:true` a las 02:16:37 UTC del 20 de octubre (20:16:37 CDMX
+del 19). API `c01bff06-5f7c-4b07-a781-1c0bc4e24d67`, gateway
+`009dea74-1ee5-4f41-9b6e-ffa600625d04`, tareas
+`73afbffa-f9e7-4561-bd51-b93c8e09e60b` y frontend
+`4c51850d-8790-47a3-b450-cde87a19b77e`. Sitio/proxy/API/DB y SHA exacto aprobados
+en una verificación independiente. No se desactivó strict ni se promovió el bundle local.
+
+Cohorte posterior: 32 GET con cookies sintéticas no autenticadas, cuatro grupos,
+directo/proxy y primera/repetición. Identidad exacta antes y después; 32/32 contratos.
+Primeras sesiones directas: 6,051/250/4,364/192 ms; primera cola directa:
+5,872/229/10,598/199 ms. Medianas de repetición directa: sesión 218 ms y cola
+197.5 ms. El proxy, observado después del directo, tuvo todas sus muestras por debajo
+de 400 ms; no es un contraste frío independiente. Los contextos ya calientes impiden
+atribuir la mediana menor a la entrega. El máximo de 10.6 s mantiene abierto el problema.
+
+Telemetría de la versión API: seis arranques, fase total instrumentada 2,183–6,442 ms,
+mediana 3,409 ms. Reloj condicionado por I/O y sin CPU/wall en estos logs: no permite
+atribuir todo el intervalo a PostgreSQL ni interpretar ceros como CPU nula.
+
+QA de navegador: 40 navegaciones y doce GET privados a 1440/768/390/320 px, sin errores
+JavaScript ni overflow. Login/redirecciones y 401/no-store aprobados. Refresh sin token
+devolvió 401 sin cookies de autenticación; las demás escrituras y telemetría se bloquearon.
+No se ejerció una sesión autenticada de negocio en producción.
+
+El prototipo de pg8000 de un ciclo se descartó por bloqueo reproducido con NOTICE y
+Bind grandes. Dos ciclos pasó 1,852 pruebas y Workers 9+4+1, pero no mejoró wall local
+(mediana primera sesión 1,040→1,100 ms) y la revisión encontró adaptación anticipada
+de tzinfo personalizado. Permanece aislado fuera del repositorio y no se publicó.
