@@ -7,6 +7,7 @@ import sys
 from types import ModuleType
 
 import pytest
+from fastapi.routing import iter_route_contexts
 
 from app import main
 from app.workers import bootstrap
@@ -51,7 +52,9 @@ def test_create_app_keeps_validation_order_and_records_only_static_phases(monkey
         "app.private_acl",
         "app.construction",
     ]
-    assert {route.path for route in app.routes} == {route.path for route in reference.routes}
+    assert {route.path for route in iter_route_contexts(app.routes)} == {
+        route.path for route in iter_route_contexts(reference.routes)
+    }
     assert [middleware.cls for middleware in app.user_middleware] == [
         middleware.cls for middleware in reference.user_middleware
     ]

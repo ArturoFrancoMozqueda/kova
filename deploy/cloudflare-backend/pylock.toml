@@ -74,11 +74,8 @@ wheels = [{ url = "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee4898
 
 [[packages]]
 name = "fastapi"
-version = "0.136.1"
-wheels = [
-    { url = "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/fastapi-0.136.1-py3-none-any.whl", hashes = { sha256 = "365df896a8691060b511a0a586d957edc1e90dbc96219c208e79824744cf0b59" } },
-    { url = "https://files.pythonhosted.org/packages/5a/ff/2e4eca3ade2c22fe1dea7043b8ee9dabe47753349eb1b56a202de8af6349/fastapi-0.136.1-py3-none-any.whl", hashes = { sha256 = "a6e9d7eeada96c93a4d69cb03836b44fa34e2854accb7244a1ece36cd4781c3f" } },
-]
+version = "0.141.1"
+wheels = [{ url = "https://files.pythonhosted.org/packages/cb/03/10388a42375ee7e4ac9b94eb2c5c569c8b5795e377e701c9ac3ad63de890/fastapi-0.141.1-py3-none-any.whl", size = 131954, hashes = { sha256 = "bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3" } }]
 
 [[packages]]
 name = "httpx"

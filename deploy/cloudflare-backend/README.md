@@ -1,8 +1,16 @@
-# Backend on Cloudflare Free
+# Backend on Cloudflare Workers
 
-The public frontend and API use Cloudflare Workers Free. Current acceptance,
+The public frontend and API use Cloudflare Workers Paid. Current acceptance,
 automatic publication and recovery status live in
 [`docs/current-sprint.md`](../../docs/current-sprint.md).
+
+Native and WASM builds pin FastAPI 0.141.1 to use upstream router reuse instead
+of reconstructing every included route. Both locks preserve the other package
+versions; the WASM lock uses the matching PyPI wheel with its verified hash.
+This version predates FastAPI's additional OpenTelemetry dependency. Keep the
+existing explicit Sentry configuration. Route inspection uses the supported
+`iter_route_contexts()` traversal, with the same security assertions and OpenAPI
+contract. See the [upstream routing change](https://fastapi.tiangolo.com/release-notes/#01370).
 
 The existing FastAPI application runs in 16 SQLite Durable Object coordinators
 behind a small JavaScript HTTP gateway. This retains production bcrypt cost within

@@ -317,3 +317,30 @@ El prototipo de pg8000 de un ciclo se descartó por bloqueo reproducido con NOTI
 Bind grandes. Dos ciclos pasó 1,852 pruebas y Workers 9+4+1, pero no mejoró wall local
 (mediana primera sesión 1,040→1,100 ms) y la revisión encontró adaptación anticipada
 de tzinfo personalizado. Permanece aislado fuera del repositorio y no se publicó.
+
+## Candidato: reutilización de rutas soportada por FastAPI
+
+El perfil detectó 595 construcciones de APIRoute para 297 operaciones: la versión
+0.136.1 reconstruye cada ruta al incluir el router en la aplicación. Se fija 0.141.1
+en ambos perfiles para utilizar la reutilización upstream de rutas, sin parchear
+FastAPI ni modificar conexiones o guardas. Se conserva el resto del grafo de
+dependencias, sin la dependencia adicional OpenTelemetry de versiones posteriores.
+Referencia: [cambio upstream](https://fastapi.tiangolo.com/release-notes/#01370).
+
+El árbol de rutas dejó de ser plano: las dos inspecciones de tests se adaptan a
+`iter_route_contexts()`; mantienen inventario y assertions de guards privilegiados.
+No se modifica el contrato OpenAPI versionado, que sigue idéntico. Una nueva
+regresión comprueba identidad de la ruta y aislamiento de overrides entre dos
+aplicaciones, incluyendo rechazo 401 después de retirar la autorización.
+
+Perfil CPU local, mismo código y base sintética: importación 791.6→415.9 ms;
+segunda construcción 306.3→4.4 ms. Tres pares en workerd recién iniciado con sesión
+sintética válida: baseline 1,159/1,102/1,085 ms; candidato 872/889/899 ms hasta
+cabeceras. Mediana 1,102→889 ms (~19%). Sólo FastAPI difiere entre los bundles del
+experimento; el segundo par invierte el orden de ejecución. No prueba latencia remota.
+
+Backend 1,853/1,853 con cada controlador, sin fallos/errores/omitidas; Workers 9 API, 4 compatibilidad
+y 1 tareas aprobados. El primer lanzamiento nativo se detuvo por ejecutarse desde
+el directorio equivocado para Alembic; la corrida completa desde backend aprobó sin
+cambios de implementación motivados por ese error. CI y aceptación productiva
+del candidato siguen pendientes.
