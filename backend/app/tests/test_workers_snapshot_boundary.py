@@ -20,6 +20,50 @@ def _inventory():
     }
 
 
+def test_entry_preloads_metadata_without_transport_sdks_or_runtime_state():
+    # Execute the real entry, rather than just its inventory, in a fresh process.
+    # Transport SDKs must load in invocation bootstrap, after the shared snapshot.
+    script = """
+import importlib.abc
+import runpy
+import socket
+import sys
+import types
+
+class SnapshotImportDenied(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in {'pg8000', 'sentry_sdk', 'httpx'} or fullname in {'app.config', 'app.db'}:
+            raise AssertionError('Entry crossed snapshot boundary: ' + fullname)
+
+def refuse(*args, **kwargs):
+    raise AssertionError('Entry attempted network I/O')
+
+workers = types.ModuleType('workers')
+workers.DurableObject = type('DurableObject', (), {})
+workers.WorkerEntrypoint = type('WorkerEntrypoint', (), {})
+sys.modules['workers'] = workers
+sys.meta_path.insert(0, SnapshotImportDenied())
+socket.socket.connect = refuse
+socket.create_connection = refuse
+entry = runpy.run_path(ENTRY)
+from app.orm_metadata import Base
+assert Base.metadata.tables
+for name in (*entry['_MODEL_MODULES'], *entry['_SCHEMA_MODULES']):
+    assert name in sys.modules
+assert 'app.config' not in sys.modules and 'app.db' not in sys.modules
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", "ENTRY = " + repr(str(ENTRY)) + "\n" + textwrap.dedent(script)],
+        cwd=BACKEND,
+        env={"PATH": str(Path(sys.executable).parent)},
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_snapshot_inventory_covers_model_schema_files_without_runtime_modules():
     # DTOs declared in runtime modules such as branches.reports/messaging.readiness
     # intentionally stay outside this filename inventory and may import settings.

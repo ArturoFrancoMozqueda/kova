@@ -12,18 +12,10 @@ from workers import DurableObject, WorkerEntrypoint
 from app.workers.asgi import RequestCoordinator
 from app.workers.routing import coordinator_shard
 
-# Cloudflare snapshots top-level imports at deployment. Load pure package code
-# here; application settings, database validation and request I/O remain inside
-# the invocation so no credentials or connections enter the shared snapshot.
-# Optional storage/document libraries load inside the request coordinator. Keeping
-# them out of the shared deployment snapshot avoids compiling unused heavy code.
-for _package in (
-    "fastapi", "sqlalchemy.orm", "pg8000.dbapi", "pydantic_settings",
-    "sentry_sdk", "httpx",
-):
-    importlib.import_module(_package)
-
-
+# Cloudflare snapshots top-level imports at deployment. Preload the pure model
+# and validator graph below; unrelated transport/SDK imports remain inside request
+# bootstrap. Loading both graphs eagerly failed remote snapshot compilation
+# in isolation tests. No settings, credentials, connections or request state enter it.
 # Only pure ORM metadata and schema validators enter the shared snapshot. Settings,
 # engines, database posture checks and request state stay in invocation bootstrap.
 # Keep these explicit file inventories aligned with the boundary regression tests.

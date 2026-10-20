@@ -2,6 +2,19 @@
 
 Last updated: 2026-10-19
 
+## Snapshot acotado para desbloquear la publicación de arranque frío
+
+#229 está fusionada en `8543ff9c25ce` y pasó CI; tres intentos de publicación
+fallaron al compilar Python (504), con recuperación verificada de #227.
+Las cargas de versiones sin tráfico aislaron el problema: el mismo paquete
+completo se carga con sólo modelos/validadores o sólo librerías, mientras la
+precarga combinada falla con 500/10013. Se retira únicamente la precarga explícita
+de transportes/SDKs; permanecen todas las tablas y validadores puros, los guards
+de snapshot y las validaciones de auth/RLS durante la invocación.
+Una regresión ejecuta el entry real en un proceso limpio, niega importación de
+transportes/configuración y red y comprueba que toda la metadata está cargada.
+CI/publicación y medición productiva pendientes; no se declara resuelta la latencia.
+
 ## Siguiente corte de latencia: reutilización de rutas de FastAPI, aún sin publicar
 
 FastAPI 0.141.1 evita clonar las rutas incluidas; se fija la misma versión en el
