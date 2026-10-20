@@ -130,3 +130,41 @@ inseguros, propiedad, tablas ausentes y políticas de relaciones particionadas. 
 índices idénticos, incluyendo el modelo de transferencias diferido. Las suites completas finales
 con ambos controladores están en ejecución. CI/publicación y medición remota pendientes;
 no se declara resuelta la demora fría.
+
+## Aceptación de PR #221 y latencia todavía abierta
+
+PR #221 fue aceptada el 19 de octubre a las 14:32 CDMX (20:32 UTC), SHA
+`2df276612e661b2b6652f65ee9edaaec4b869a8c`, versión API
+`c96a1fb3-6aaa-4860-973b-9fa653656306`. CI y publicación completos aprobaron. El arnés
+RLS final utiliza el controlador real de cada perfil: once escenarios de catálogo y cuatro de
+fallo cerrado por perfil, sin exigir el proveedor opcional del otro job ni omitir escenarios.
+El perfil nativo también aprobó bloqueando explícitamente la importación de pg8000.
+
+Verificador estricto: frontend/proxy/API/base de datos alcanzables con ese mismo SHA.
+QA pública: 32 navegaciones en cuatro tamaños, 12 GET protegidos con 401/no-store, cero errores
+JavaScript/desbordamientos. No se usaron sesiones de clientes ni escrituras del negocio. El
+intento de refresh sin credencial se permitió únicamente para exigir 401 sin cookies de auth.
+
+La cohorte posterior (17:49 CDMX) aprobó 32/32 contratos y verificó identidad antes/después, pero
+no resolvió la demora. Primeras consultas directas de cola: 6,828/14,499/5,707/238 ms; mediana
+6,267.5 ms. Repeticiones directas: mediana 208 ms (184–240). Las sesiones iniciales ya estaban
+calientes: mezclar sus tiempos con cola daría una mediana engañosa de 232 ms. Estos son primeros
+accesos observados, no arranques fríos forzados ni un SLA.
+
+## Siguiente corte: descubrimiento del dialecto, sin saltar guards
+
+La primera conexión SQLAlchemy ejecuta cuatro sondeos de versión, schema, aislamiento y strings.
+Se agrupan en una consulta de valores vivos de la misma conexión para el dialecto Workers;
+`super.initialize` conserva el parser y las capacidades originales. Las lecturas GUC se califican
+con `pg_catalog` para conservar la semántica de SHOW sin depender de search_path. Los proxies
+sólo viven en el stack de inicialización y las consultas desconocidas se delegan a la conexión.
+Lecturas de aislamiento posteriores vuelven al comportamiento upstream.
+
+El alias se aplica únicamente a los motores Workers runtime y privilegiado. El creador/binding,
+NullPool, sesiones, transacciones, normalización de errores y comprobadores RLS/ACL permanecen
+intactos. Se descartó el adaptador de catálogo directo: habría trasladado los sondeos a la primera
+petición autenticada. También se descartó precargar SDK ASGI: sólo ahorró 3 ms en el experimento.
+
+Validación del nuevo corte: 30 focales por controlador, OpenAPI sin cambios, Ruff/diff-check y
+Workers 9 API + 4 compatibilidad + 1 tareas aprobados. Suites completas finales en ejecución;
+publicación y medición productiva pendientes. No se declara eliminada la espera de diez segundos.

@@ -253,11 +253,19 @@ def _pool_options(*, privileged: bool = False) -> dict:
     }
 
 
+def _engine_database_url(value: str) -> str:
+    normalized = sqlalchemy_database_url(value)
+    prefix = "postgresql+pg8000://"
+    if sys.platform == "emscripten" and normalized.startswith(prefix):
+        return "postgresql+kova_pg8000://" + normalized[len(prefix):]
+    return normalized
+
+
 # Runtime application engine. Connects as the least-privilege `kova_app` role
 # (when app_database_url is configured) so RLS tenant_isolation policies are
 # enforced for every ordinary request.
 engine = create_engine(
-    sqlalchemy_database_url(settings.effective_app_database_url),
+    _engine_database_url(settings.effective_app_database_url),
     pool_pre_ping=True,
     **_pool_options(),
     hide_parameters=True,
@@ -273,7 +281,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 # isolation on these paths is enforced at the application layer, as it is today.
 # Kept small — it is not a general-purpose connection.
 privileged_engine = create_engine(
-    sqlalchemy_database_url(settings.effective_migration_database_url),
+    _engine_database_url(settings.effective_migration_database_url),
     pool_pre_ping=True,
     **_pool_options(privileged=True),
     hide_parameters=True,
