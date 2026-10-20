@@ -2,6 +2,19 @@
 
 Last updated: 2026-10-19
 
+## Latencia: PR #221 aceptada y siguiente optimización en validación
+
+Producción aceptó `2df276612e66` el 19 de octubre a las 14:32 CDMX. CI completo, verificador de
+identidad/sitio/proxy/DB y QA pública de 32 navegaciones/12 GET protegidos aprobaron. La espera
+sigue abierta: primeras consultas de cola 6.27 s de mediana y 14.50 s máximo, frente a 208 ms
+al repetir. Las primeras sesiones ya calientes no deben mezclarse para afirmar una mejora fría.
+
+Se implementa descubrimiento de capacidades PostgreSQL en un viaje para ambos motores Workers,
+con valores vivos y lógica upstream de SQLAlchemy; sin cambios en guards RLS/ACL, transacciones,
+sesiones o bindings. El catálogo directo se descartó porque difería coste al usuario autenticado.
+30 focales por controlador y Workers 9+4+1 aprobaron; suites completas/CI/publicación y medición
+remota del nuevo corte siguen pendientes. [Evidencia y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
+
 ## Revisiones de atención, enlaces y arranque frío (2026-10-19, publicadas; diagnóstico de latencia abierto)
 
 `service_case_overdue` incorpora revisiones internas opt-in/defaultoff para vencimientos manuales
