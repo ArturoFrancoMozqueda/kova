@@ -96,9 +96,14 @@ Local timings are not measurements of deployed Cloudflare CPU or memory limits.
 ## Deployment inputs and acceptance
 
 Use the local `node_modules/.bin/cf` with the pinned CLI/config. `npm ci` applies
-a narrowly checked beta.18 fix: Python module paths must not start with `./`
-inside the metadata filesystem. The packaging regression preserves JavaScript
-module behavior. The owner activated Workers Paid on 2026-10-19, with a target of
+narrowly checked beta.18 fixes: Python module paths must not start with `./`
+inside the metadata filesystem, and the remote Durable Object descriptor must
+omit an unset `environment` rather than synthesize an own `undefined` property.
+The latter otherwise causes a false destructive `[{}]` diff for an identical
+Dashboard binding. Strict comparison remains active for explicit environment,
+class, script, binding, limit and variable changes. Tests exercise the real CLI
+converter/comparator, reject unexpected pins/markers before writing either fix,
+and preserve JavaScript module behavior. The owner activated Workers Paid on 2026-10-19, with a target of
 USD 10 total per billing cycle including the USD 5 base subscription. Do not
 activate Containers or document ingestion as part of this upgrade. Supabase,
 Stripe, email, inference and existing R2 costs remain separate.

@@ -6,7 +6,8 @@ from weakref import WeakKeyDictionary
 
 from anyio import CapacityLimiter
 from fastapi import Depends
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import String, bindparam, create_engine, event, text
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -486,7 +487,7 @@ def assert_rls_active() -> dict[str, list[tuple]] | None:
     """Verify the complete runtime RLS posture and fail closed in production."""
     try:
         with engine.connect() as conn:
-            # Read one consistent catalog snapshot without four network trips.
+            # Read one catalog snapshot in one SELECT; transaction setup is separate.
             # Preserve all relation kinds for the policy inventory; ownership
             # and table posture intentionally cover ordinary tables only.
             rows = conn.execute(
@@ -503,8 +504,16 @@ def assert_rls_active() -> dict[str, list[tuple]] | None:
                     "AND c.relname = ANY(:tables) "
                     "LEFT JOIN pg_policy p ON p.polrelid = c.oid "
                     "WHERE r.rolname = current_user"
+                ).bindparams(
+                    # Only the source-defined table inventory is rendered by
+                    # SQLAlchemy's typed literal escaping, never request input.
+                    # No DBAPI parameters means pg8000 uses simple protocol.
+                    bindparam(
+                        "tables", list(RLS_PROTECTED_TABLES),
+                        type_=ARRAY(String()), literal_execute=True,
+                    )
                 ),
-                {"tables": list(RLS_PROTECTED_TABLES)},
+                {},
             ).all()
         if not rows:
             raise RuntimeError("Runtime role was not found in the PostgreSQL catalog")

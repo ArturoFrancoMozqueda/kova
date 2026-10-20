@@ -2,24 +2,25 @@
 
 Last updated: 2026-10-19
 
-## Latencia: PR #222 fusionada, publicación recuperada y corrección siguiente
+## Latencia: optimizaciones fusionadas; publicación recuperada por falso conflicto del CLI
 
-Producción conserva `2df276612e66` (#221): la publicación de #222 (`289cc4656148`) se
-recuperó antes de aceptación por conflicto estricto del gateway. El remoto tenía un límite CPU
-100 ms desde las 18:06 CDMX; el local lo omitía. Se declara ese mismo valor, sin quitar strict
-ni cambiar suscripciones. La lectura de control confirmó Workers Paid ya existente; la intención
-histórica de mantener Free no describe el estado actual de esa cuenta. Este trabajo no activó
-ni modificó planes.
+Producción conserva `2df276612e66` (#221), verificada tras las dos recuperaciones. #222 y #224
+pasaron CI y se fusionaron; `69109d30d2ed` incluye además los controles de coste #223, preservados.
+Su CI completo aprobó, pero el gateway abortó por una propiedad `environment: undefined` que el
+comparador cf beta.18 añadía sólo al lado remoto. Ambos descriptores apuntan a la misma clase y
+script; el diff visible era `[{}]`. Se corrige sólo la ausencia equivalente de ese campo,
+con strict activo y rechazo de diferencias reales. El conflicto de CPU anterior ya fue resuelto
+conservando el techo remoto de 100 ms, sin modificar suscripciones.
 
-#222 pasó CI completo y 1,833 pruebas por controlador. Agrupa los cuatro sondeos iniciales de
-PostgreSQL en uno sin diferirlos al usuario. El siguiente corte reutiliza el catálogo vivo ya
-validado por RLS para evaluar también ACL: una conexión/consulta de guardas, sin caché global,
-sin saltar evaluaciones ni cambiar la lectura independiente. Suites completas: 1,845 por
-controlador, cero fallos/errores/omitidas; Workers 9+4+1 aprobados.
+El siguiente corte conserva las dos validaciones de seguridad sobre el catálogo vivo y elimina
+dos ciclos adicionales de protocolo para la lista estática de tablas, escapada por SQLAlchemy.
+BEGIN, rol y guards permanecen intactos. Suites completas 1,848 por controlador, cero fallos,
+errores u omitidas; Workers 9+4+1 y pausa de presupuesto 4/4 aprobados. Se retira una clave CPU
+duplicada por la fusión concurrente sin cambiar su valor.
 
 La última cohorte aceptada sigue mostrando 6.27 s de mediana y 14.50 s máximo en primera cola
-directa, frente a 208 ms al repetir. CI/publicación y medición conjunta del nuevo corte siguen
-pendientes. [Evidencia y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
+directa, frente a 208 ms al repetir. CI/publicación y medición conjunta siguen pendientes;
+no se declara eliminada la espera. [Evidencia y límites](audits/KOVA-LATENCY-INTERNAL-AUTOMATION-2026-10-19.md).
 
 ## Revisiones de atención, enlaces y arranque frío (2026-10-19, publicadas; diagnóstico de latencia abierto)
 
