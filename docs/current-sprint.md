@@ -2,7 +2,21 @@
 
 Last updated: 2026-10-19
 
-## Latencia: optimizaciones fusionadas; comparación de rutas bloquea la publicación
+## Publicación #227 aceptada; latencia de primera petición aún abierta
+
+`7002418f63389e5220f2136cd4a1489d3201d9e0` quedó aceptado en producción a las
+20:16:37 CDMX del 19 de octubre (39356494758, segundo intento). CI completo verde;
+sitio/proxy/API/DB verificados con SHA exacto. La corrección conserva strict y compara
+rutas idénticas sin depender del orden. El primer intento recibió 504 al cargar Python
+y recuperó la versión anterior; el segundo completó publicación y aceptación.
+
+QA pública: 32/32 contratos GET y 52 comprobaciones de navegador a 1440/768/390/320 px,
+sin errores JavaScript ni overflow. Sin operaciones de negocio autenticadas en producción.
+La latencia sigue abierta: primera cola directa 5,872/229/10,598/199 ms por grupo;
+mediana de repeticiones 197.5 ms. Algunas primeras peticiones ya estaban calientes;
+no se declara mejora causal ni eliminada la espera de diez segundos.
+
+### Historial previo a la aceptación
 
 Producción conserva `2df276612e66` (#221), verificada tras las recuperaciones. #222 y #224
 pasaron CI y se fusionaron; `69109d30d2ed` incluye además los controles de coste #223, preservados.
