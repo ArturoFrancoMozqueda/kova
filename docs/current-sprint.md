@@ -2,6 +2,17 @@
 
 Last updated: 2026-10-19
 
+## Siguiente corte de latencia: reutilización de rutas de FastAPI, aún sin publicar
+
+FastAPI 0.141.1 evita clonar las rutas incluidas; se fija la misma versión en el
+backend nativo y en WASM, sin cambiar las demás dependencias ni el contrato OpenAPI.
+Dos inspecciones de rutas usan `iter_route_contexts()` conservando sus assertions;
+una regresión verifica reutilización e independencia de permisos entre aplicaciones.
+Perfil local: importación de Kova 792→416 ms de CPU y construcción 306→4 ms.
+Tres pares de primeras peticiones autenticadas en workerd: mediana 1,102→889 ms.
+Workers 9+4+1 y backend 1,853/1,853 con cada controlador aprobaron; CI/publicación y
+medición productiva pendientes. No se declara eliminada la espera de diez segundos.
+
 ## Publicación #227 aceptada; latencia de primera petición aún abierta
 
 `7002418f63389e5220f2136cd4a1489d3201d9e0` quedó aceptado en producción a las
