@@ -2,29 +2,20 @@
 
 Last updated: 2026-10-19
 
-## Snapshot acotado para desbloquear la publicación de arranque frío
+## Arranque por módulo solicitado, candidato sin publicar
 
-#229 está fusionada en `8543ff9c25ce` y pasó CI; tres intentos de publicación
-fallaron al compilar Python (504), con recuperación verificada de #227.
-Las cargas de versiones sin tráfico aislaron el problema: el mismo paquete
-completo se carga con sólo modelos/validadores o sólo librerías, mientras la
-precarga combinada falla con 500/10013. Se retira únicamente la precarga explícita
-de transportes/SDKs; permanecen todas las tablas y validadores puros, los guards
-de snapshot y las validaciones de auth/RLS durante la invocación.
-Una regresión ejecuta el entry real en un proceso limpio, niega importación de
-transportes/configuración y red y comprueba que toda la metadata está cargada.
-CI/publicación y medición productiva pendientes; no se declara resuelta la latencia.
+#230 publicó `1d0bfc7cab06` con CI completo verde y aceptación productiva
+(39364788528, 03:45:14 UTC del 20 de octubre). Sitio/proxy/API/DB y SHA exacto
+verificados; 64/64 contratos GET aprobaron. La latencia sigue abierta: primeras
+peticiones directas, mediana 6,516.5 ms y máximo 11,244 ms, tres de 16 sobre diez
+segundos; repeticiones mediana 212 ms. Desbloquear la compilación no bastó.
 
-## Siguiente corte de latencia: reutilización de rutas de FastAPI, aún sin publicar
-
-FastAPI 0.141.1 evita clonar las rutas incluidas; se fija la misma versión en el
-backend nativo y en WASM, sin cambiar las demás dependencias ni el contrato OpenAPI.
-Dos inspecciones de rutas usan `iter_route_contexts()` conservando sus assertions;
-una regresión verifica reutilización e independencia de permisos entre aplicaciones.
-Perfil local: importación de Kova 792→416 ms de CPU y construcción 306→4 ms.
-Tres pares de primeras peticiones autenticadas en workerd: mediana 1,102→889 ms.
-Workers 9+4+1 y backend 1,853/1,853 con cada controlador aprobaron; CI/publicación y
-medición productiva pendientes. No se declara eliminada la espera de diez segundos.
+El siguiente corte conserva las validaciones completas y carga los routers originales
+por prefijo, bajo la admisión del coordinador. El snapshot conserva librerías; toda
+la metadata ORM se inicializa antes de escribir y los validadores de rutas ajenas
+se difieren. El backend nativo conserva aplicación/OpenAPI completos. Se verifican
+cobertura de prefijos, mismo contrato y definiciones originales de permisos, orden de
+guards y denegación anónima. CI/publicación y mejora productiva todavía pendientes.
 
 ## Publicación #227 aceptada; latencia de primera petición aún abierta
 

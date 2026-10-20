@@ -11,59 +11,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 import app.assistant.events  # noqa: F401
-from app.account_lifecycle.router import router as account_lifecycle_router
-from app.appointments.router import router as appointments_router
 from app.assistant.access import assert_private_policies
 from app.assistant.ingest_demand import lifespan as assistant_ingest_lifespan
-from app.assistant.router import router as assistant_router
-from app.auth.router import router as auth_router
-from app.automations.router import router as automations_router
 from app.billing import service as billing_service
-from app.billing.router import router as billing_router
-from app.branches.router import router as branches_router
-from app.business_settings.logo_router import router as business_settings_logo_router
-from app.business_settings.router import router as business_settings_router
-from app.catalog.image_router import router as catalog_image_router
-from app.catalog.router import router as catalog_router
-from app.cfdi.router import router as cfdi_router
 from app.config import settings
-from app.crm.engagement_router import router as crm_engagement_router
-from app.crm.router import router as crm_router
-from app.customer_orders.router import router as customer_orders_router
-from app.customers.router import router as customers_router
 from app.db import assert_rls_active
-from app.employees.router import router as employees_router
-from app.expenses.router import router as expenses_router
-from app.fiscal.router import router as fiscal_router
-from app.hardware.router import router as hardware_router
-from app.health.router import router as health_router
-from app.imports.router import router as imports_router
-from app.integrations.router import router as integrations_router
-from app.inventory.lot_router import router as inventory_lot_router
-from app.inventory.router import router as inventory_router
-from app.loyalty.router import router as loyalty_router
-from app.messaging.router import router as messaging_router
 from app.middleware.body_size import BodySizeLimitMiddleware
 from app.middleware.csrf import csrf_middleware
 from app.middleware.security_headers import security_headers_middleware
-from app.modifiers.router import router as modifiers_router
 from app.observability.logging import configure_logging, request_context_middleware
 from app.observability.sentry import init_sentry
-from app.onboarding.router import router as onboarding_router
-from app.operations_queue.router import router as operations_queue_router
-from app.ops.mfa_router import router as ops_mfa_router
-from app.ops.router import router as ops_router
-from app.orders.router import router as orders_router
-from app.purchasing.router import router as purchasing_router
-from app.quotes.router import router as quotes_router
-from app.reconciliation.router import router as reconciliation_router
-from app.replenishment.router import router as replenishment_router
-from app.reports.router import router as reports_router
-from app.service_cases.router import router as service_cases_router
-from app.shifts.router import router as shifts_router
-from app.storefront.router import router as storefront_router
-from app.sync.router import router as sync_router
-from app.telemetry.router import router as telemetry_router
 
 _DEFAULT_SECRET_KEY = "change-me-in-production-use-a-long-random-string"
 _DEFAULT_EMAIL_FROM = "onboarding@resend.dev"
@@ -173,7 +130,7 @@ def _startup_phase(phase):
         )
 
 
-def create_app() -> FastAPI:
+def create_app(*, lazy_routes: bool = False) -> FastAPI:
     with _startup_phase("app.sentry_config"):
         configure_logging()
         init_sentry()
@@ -183,10 +140,10 @@ def create_app() -> FastAPI:
     with _startup_phase("app.private_acl"):
         assert_private_policies(policy_catalog=policy_catalog)
     with _startup_phase("app.construction"):
-        return _construct_app()
+        return _construct_app(lazy_routes=True) if lazy_routes else _construct_app()
 
 
-def _construct_app() -> FastAPI:
+def _construct_app(*, lazy_routes: bool = False) -> FastAPI:
     _hide_docs = settings.app_env == "production"
     app = FastAPI(
         lifespan=assistant_ingest_lifespan,
@@ -259,49 +216,10 @@ def _construct_app() -> FastAPI:
         )
         return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
-    app.include_router(health_router)
-    app.include_router(hardware_router)
-    app.include_router(account_lifecycle_router)
-    app.include_router(auth_router)
-    app.include_router(automations_router)
-    app.include_router(crm_router)
-    app.include_router(crm_engagement_router)
-    app.include_router(messaging_router)
-    app.include_router(appointments_router)
-    app.include_router(loyalty_router)
-    app.include_router(service_cases_router)
-    app.include_router(operations_queue_router)
-    app.include_router(storefront_router)
-    app.include_router(assistant_router)
-    app.include_router(billing_router)
-    app.include_router(branches_router)
-    app.include_router(business_settings_router)
-    app.include_router(business_settings_logo_router)
-    app.include_router(catalog_router)
-    app.include_router(customer_orders_router)
-    app.include_router(customers_router)
-    app.include_router(integrations_router)
-    app.include_router(cfdi_router)
-    app.include_router(purchasing_router)
-    app.include_router(quotes_router)
-    app.include_router(replenishment_router)
-    app.include_router(reconciliation_router)
-    app.include_router(catalog_image_router)
-    app.include_router(employees_router)
-    app.include_router(expenses_router)
-    app.include_router(fiscal_router)
-    app.include_router(modifiers_router)
-    app.include_router(inventory_router)
-    app.include_router(inventory_lot_router)
-    app.include_router(imports_router)
-    app.include_router(onboarding_router)
-    app.include_router(ops_router)
-    app.include_router(ops_mfa_router)
-    app.include_router(orders_router)
-    app.include_router(reports_router)
-    app.include_router(shifts_router)
-    app.include_router(sync_router)
-    app.include_router(telemetry_router)
+    if not lazy_routes:
+        from app.route_registry import include_routes
+
+        include_routes(app)
 
     @app.get("/")
     def root() -> dict[str, str]:
@@ -310,4 +228,14 @@ def _construct_app() -> FastAPI:
     return app
 
 
-app = create_app()
+# Workers bootstrap builds its application after invocation-bound configuration.
+# Native servers retain the complete application and OpenAPI contract.
+app = None if sys.platform == "emscripten" else create_app()
+
+
+def create_worker_app():
+    if settings.app_env != "production":
+        return create_app()
+    from app.route_registry import LazyRoutes
+
+    return LazyRoutes(create_app(lazy_routes=True))

@@ -117,7 +117,14 @@ async def application(env):
                     with _startup_phase("workers.configure", observations):
                         configure(env)
                     with _startup_phase("workers.app_main_import", observations):
-                        from app.main import app
+                        import sys
+
+                        if sys.platform == "emscripten":
+                            from app.main import create_worker_app
+
+                            app = create_worker_app()
+                        else:
+                            from app.main import app
 
                     _application = app
             finally:

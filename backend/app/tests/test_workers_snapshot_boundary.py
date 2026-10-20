@@ -20,9 +20,9 @@ def _inventory():
     }
 
 
-def test_entry_preloads_metadata_without_transport_sdks_or_runtime_state():
+def test_entry_preloads_libraries_without_application_runtime_state():
     # Execute the real entry, rather than just its inventory, in a fresh process.
-    # Transport SDKs must load in invocation bootstrap, after the shared snapshot.
+    # The smaller library snapshot defers domain metadata to the selected router.
     script = """
 import importlib.abc
 import runpy
@@ -32,7 +32,7 @@ import types
 
 class SnapshotImportDenied(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'pg8000', 'sentry_sdk', 'httpx'} or fullname in {'app.config', 'app.db'}:
+        if fullname.startswith('app.') and fullname not in {'app.workers', 'app.workers.asgi', 'app.workers.routing'}:
             raise AssertionError('Entry crossed snapshot boundary: ' + fullname)
 
 def refuse(*args, **kwargs):
@@ -46,10 +46,10 @@ sys.meta_path.insert(0, SnapshotImportDenied())
 socket.socket.connect = refuse
 socket.create_connection = refuse
 entry = runpy.run_path(ENTRY)
-from app.orm_metadata import Base
-assert Base.metadata.tables
-for name in (*entry['_MODEL_MODULES'], *entry['_SCHEMA_MODULES']):
+for name in entry['_SNAPSHOT_PACKAGES']:
     assert name in sys.modules
+for name in (*entry['_MODEL_MODULES'], *entry['_SCHEMA_MODULES']):
+    assert name not in sys.modules
 assert 'app.config' not in sys.modules and 'app.db' not in sys.modules
 """
     result = subprocess.run(

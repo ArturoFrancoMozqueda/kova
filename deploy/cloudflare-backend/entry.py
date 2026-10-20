@@ -12,14 +12,19 @@ from workers import DurableObject, WorkerEntrypoint
 from app.workers.asgi import RequestCoordinator
 from app.workers.routing import coordinator_shard
 
-# Cloudflare snapshots top-level imports at deployment. Preload the pure model
-# and validator graph below; unrelated transport/SDK imports remain inside request
-# bootstrap. Loading both graphs eagerly failed remote snapshot compilation
-# in isolation tests. No settings, credentials, connections or request state enter it.
-# Only pure ORM metadata and schema validators enter the shared snapshot. Settings,
-# engines, database posture checks and request state stay in invocation bootstrap.
-# Keep these explicit file inventories aligned with the boundary regression tests.
-# Router-bound declarations (such as branch transfers) remain invocation-loaded.
+# Snapshot library code only. Routers and their model/validator graphs load for
+# the requested domain inside the coordinator. Security checks still precede
+# every served request.
+# Never load settings, engines, credentials or request state into the snapshot.
+_SNAPSHOT_PACKAGES = (
+    "fastapi", "sqlalchemy.orm", "pg8000.dbapi", "pydantic_settings",
+    "sentry_sdk", "httpx",
+)
+for _package in _SNAPSHOT_PACKAGES:
+    importlib.import_module(_package)
+
+# Audited pure-file inventories, retained for boundary and registry regression
+# checks. These declarations are no longer eagerly imported into the snapshot.
 _MODEL_MODULES = (
     'app.account_lifecycle.models',
     'app.appointments.models',
@@ -59,8 +64,6 @@ _MODEL_MODULES = (
     'app.telemetry.models',
     'app.tenants.models',
 )
-for _model in _MODEL_MODULES:
-    importlib.import_module(_model)
 _SCHEMA_MODULES = (
     'app.account_lifecycle.schemas',
     'app.appointments.schemas',
@@ -102,8 +105,6 @@ _SCHEMA_MODULES = (
     'app.telemetry.schemas',
     'app.tenants.schemas',
 )
-for _schema in _SCHEMA_MODULES:
-    importlib.import_module(_schema)
 if "app.config" in sys.modules or "app.db" in sys.modules:
     raise RuntimeError("Pure snapshot imports must not load runtime configuration or engines")
 
@@ -123,6 +124,7 @@ class KovaApi(DurableObject):
         # waiter can resume another object's work in the wrong I/O context.
         self._requests = RequestCoordinator()
         self._observations = 0
+        self._models_ready = False
 
     async def fetch(self, request):
         from app.workers.bootstrap import application
@@ -133,7 +135,19 @@ class KovaApi(DurableObject):
         env_token = environment.set(self.env)
         ctx_token = execution.set(self.ctx)
         try:
-            response = await self._requests.fetch(application, request, self.env, self.ctx)
+            async def initialized_application(env):
+                if not self._models_ready:
+                    # Resolve every ORM foreign key before any flush. This graph
+                    # is pure, but belongs to invocation memory rather than the
+                    # shared deployment snapshot. Admission serializes loading.
+                    for module in _MODEL_MODULES:
+                        importlib.import_module(module)
+                    self._models_ready = True
+                return await application(env)
+
+            response = await self._requests.fetch(
+                initialized_application, request, self.env, self.ctx,
+            )
             if self._observations <= 3:
                 logging.getLogger("app.workers").info(
                     "workers_api_timing sequence=%d response_headers_ms=%.1f",
