@@ -1,9 +1,10 @@
-# Cloudflare Free frontend deployment
+# Cloudflare frontend deployment
 
 Kova serves its existing React/Vite build through Workers Static Assets. A small
-Worker preserves the same-origin `/api` proxy to FastAPI on Fly. Supabase, Stripe,
-cookie authentication, billing gates and document ingestion remain on their
-existing services. This does not migrate the FastAPI runtime off Fly.
+Worker preserves the same-origin `/api` proxy to FastAPI on Cloudflare Workers.
+Supabase, Stripe, cookie authentication and billing gates retain their contracts.
+The account uses Workers Paid; the frontend has a 100 ms CPU limit per invocation.
+Document ingestion remains disabled. Fly is permanently retired.
 
 ## Build and verify
 
@@ -45,13 +46,13 @@ variable `KOVA_CLOUDFLARE_FRONTEND=1` only once the updated release workflow is
 available on main. OAuth CLI credentials are local and are never copied to CI.
 
 The existing release workflow captures the exact serving Cloudflare version
-alongside the Fly image, Vercel deployment and release SHA. It checks the immutable
+alongside the three backend Worker versions, Vercel deployment and release SHA. It checks the immutable
 Vercel candidate against the updated API, publishes the same candidate static
 artifact to Cloudflare, and verifies the public site/API/database SHA contracts.
 Vercel stays as a release candidate and fallback during this transition.
 
 If promotion or public acceptance fails, recovery restores the captured Cloudflare
-version before Vercel and Fly. Missing capture, mixed serving versions, invalid
+version before Vercel. Missing capture, mixed serving versions, invalid
 version IDs and failed restores block release. Version rollback does not change
 DNS or database state and never bypasses deployment safety checks.
 
@@ -74,10 +75,10 @@ caching, no-store API, service-worker installation and missing-file 404s.
 Authenticated browser QA must check login/refresh/logout, the billing gate and
 offline retry behavior. Local mocked tests do not certify real sales or payments.
 
-Free Workers have a finite dynamic-request quota. Static asset delivery does not
-consume that quota. The proxy does; inspect real usage before relying on its
-capacity. R2 retains its existing usage-based subscription/free allowance; this
-change does not create storage, upgrade Workers, or promise an entirely free SaaS.
+Static asset delivery is free; proxy invocations consume the Workers Paid
+allowance. Inspect real usage and the separate Durable Objects/R2 quotas. The
+CPU limit and usage alerts do not cap the invoice or eliminate storage charges.
+The backend README documents the preventive budget pause and its limitations.
 
 FastAPI/psycopg/SQLAlchemy support in Python Workers makes a later API experiment
 possible. Existing bcrypt CPU requirements, threaded helpers, binary packages and
