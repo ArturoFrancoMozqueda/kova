@@ -16,6 +16,8 @@ export const jobs = defineConfig({ worker: {
   name: "kova-backend-jobs", entrypoint: "./jobs.py",
   compatibilityDate: "2026-10-17", compatibilityFlags: ["python_workers", "nodejs_compat"],
   workersDev: false,
+  // Keep the existing Durable Object CPU allowance after upgrading the account.
+  limits: { cpuMs: 30_000 },
   exports: { KovaJobs: exports.durableObject({ storage: "sqlite" }) },
   env: {
     ...metadata,
@@ -31,6 +33,8 @@ export const gateway = defineConfig({ worker: {
   name: "kova-backend-gateway", entrypoint: "./gateway.mjs",
   compatibilityDate: "2026-10-17", compatibilityFlags: ["nodejs_compat"],
   workersDev: false,
+  // This Worker only forwards requests; Python runs in the API coordinators.
+  limits: { cpuMs: 100 },
   domains: process.env.KOVA_CLOUDFLARE_BACKEND === "1"
     ? ["api-preview.kovasuite.com", "api.kovasuite.com"] : ["api-preview.kovasuite.com"],
   env: { API: bindings.durableObject({ worker: "kova-backend", exportName: "KovaApi" }) },
@@ -44,6 +48,8 @@ export default defineConfig({
     compatibilityDate: "2026-10-17",
     compatibilityFlags: ["python_workers", "nodejs_compat"],
     workersDev: false,
+    // Preserve the API's existing 30-second CPU allowance, including cold starts.
+    limits: { cpuMs: 30_000 },
     // Public production routing is added only after full acceptance.
     exports: {
       KovaApi: exports.durableObject({ storage: "sqlite" }),

@@ -8,6 +8,8 @@ export default defineConfig({
     compatibilityDate: "2026-10-17",
     entrypoint: "./worker.mjs",
     workersDev: false,
+    // CPU only; network wait does not consume this allowance. Not a billing cap.
+    limits: { cpuMs: 100 },
     domains: ["preview.kovasuite.com"],
     triggers: process.env.KOVA_CLOUDFLARE_FRONTEND === "1" ? [
       triggers.fetch({ pattern: "kovasuite.com/*", zone: "kovasuite.com" }),
