@@ -211,3 +211,43 @@ entrega aislada. El perfil local identifica el registro de rutas como coste rele
 hay preload puro adicional grande y seguro. Se descartó responder sesión anónima en gateway:
 trasladaría la espera a refresh y no resolvería la primera interacción autenticada. Publicación
 y medición productiva siguen pendientes; no se declara eliminada la espera de diez segundos.
+
+## PR #224 y último main: segundo intento recuperado por falso conflicto del CLI
+
+#224 fusionó `4638322832500e46718460b28e37c47bacc8f1d3` tras todos sus checks verdes.
+Dos segundos después, #223 agregó controles de coste sobre ese mismo árbol: último main
+`69109d30d2ed5c8f74cdc2f39476c02207ee8467`. La ejecución intermedia quedó con jobs cancelados;
+se canceló antes de publicar para validar el último main. CI completo de `69109d30` aprobó en
+39348627738; su publicación falló y recuperó candidate a las 18:52 CDMX. Ninguno de esos dos
+SHAs recibió accepted:true. El verificador estricto volvió a confirmar sitio/proxy/API/DB en
+`2df276612e66` después de recuperar.
+
+La diferencia CPU ya estaba resuelta. El nuevo diff era `durable_objects.bindings: [{}]`:
+cf beta.18 construye el descriptor remoto con una propiedad propia `environment: undefined`,
+aunque la respuesta API no incluya environment; el conversor local omite la propiedad. El
+comparador distingue ambas formas y luego el formato JSON oculta undefined, creando el falso
+conflicto. La reproducción offline usa el comparador real del CLI y el descriptor DO filtrado
+(nombre/clase/script; ningún binding sellado). La corrección omite únicamente environment
+cuando es undefined en esa conversión; null, cadenas y diferencias reales siguen presentes.
+Strict y sus bloqueos permanecen activos. Se añade a la corrección beta.18 existente de nombres
+de módulos Python, con pin, verificación de coincidencia e idempotencia.
+
+## Catálogo estático mediante protocolo simple
+
+pg8000 usa tres ciclos para una consulta parametrizada: parsear, describir y ejecutar. La lista
+RLS es inventario del código, sin entradas de solicitudes. `bindparam(literal_execute=True,
+type_=ARRAY(String()))` hace que SQLAlchemy escape esa lista y envíe cero parámetros DBAPI,
+activando el protocolo simple. Se conservan BEGIN, la misma consulta y todos los validadores.
+La primera petición autenticada local confirmó 4→2 ciclos incluyendo BEGIN; no es evidencia de
+latencia remota. Comparaciones locales dieron variación de ruido, sin ahorro de wall demostrado.
+
+Suites completas: 1,848 por controlador, sin fallos/errores/omitidas; Workers 9+4+1; pruebas de
+pausa de presupuesto 4/4. Las nuevas regresiones comprueban parámetros vacíos y escapado de
+comillas, barras y Unicode con standard_conforming_strings vivo ON/OFF antes de inicializar el
+dialecto. Las matrices existentes mantienen equivalencia y rechazo de deriva. Se conserva CPU y
+pausa de tareas de #223; sólo se elimina la clave idéntica duplicada del gateway.
+
+El experimento JSON del catálogo se descartó: tres pares autenticados no dieron un ahorro claro
+(fase RLS 26 ms ambas; TCP 8 lecturas ambas). Reutilizar rutas FastAPI mediante copias también se
+descartó por alterar dependencia/overrides entre apps. No se incorporan esos experimentos.
+Aceptación y medición pública del siguiente corte siguen pendientes.
