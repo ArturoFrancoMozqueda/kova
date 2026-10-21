@@ -1,6 +1,7 @@
 """Host-side CI-only synthetic photos; never imports the application in the API container."""
 
 import argparse
+import base64
 import hashlib
 import io
 import json
@@ -14,7 +15,7 @@ from uuid import uuid4
 
 import httpx
 from PIL import Image, ImageDraw
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 
@@ -121,7 +122,29 @@ def load_manifest(manifest_path):
         raise VerificationError("Invalid local photo acceptance manifest") from None
 
 
-def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=time.monotonic):
+def load_baseline(baseline_path, photos):
+    try:
+        baseline = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
+        assert set(baseline) == {"version", "processId", "digests"}
+        assert baseline["version"] == 1
+        assert re.fullmatch(r"[0-9a-f]{32}", baseline["processId"])
+        expected = {f"{photo['kind']}:{width}" for photo in photos for width in (400, 160)}
+        assert set(baseline["digests"]) == expected
+        assert all(re.fullmatch(r"[0-9a-f]{64}", value)
+                   for value in baseline["digests"].values())
+        return baseline
+    except Exception:
+        raise VerificationError("Invalid local photo acceptance baseline") from None
+
+
+def zero_resize_timing(value):
+    matches = [part.strip() for part in value.split(",")
+               if part.strip().split(";", 1)[0] == "image-resize"]
+    return len(matches) == 1 and bool(re.fullmatch(r"image-resize;dur=0(?:\.0+)?", matches[0]))
+
+
+def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=time.monotonic,
+           require_persisted=False, baseline_path=None):
     require_local_ci()
     parsed = urlsplit(base)
     if (
@@ -131,11 +154,16 @@ def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=ti
     ):
         raise VerificationError("Photo acceptance HTTP target must be local loopback")
     photos = load_manifest(manifest_path)
+    if require_persisted and baseline_path is None:
+        raise VerificationError("Persisted photo acceptance requires the initial baseline")
+    baseline = load_baseline(baseline_path, photos) if require_persisted else None
     if client is None:
         with httpx.Client(timeout=3, trust_env=False, follow_redirects=False) as local:
-            return verify(manifest_path, base=base, client=local, clock=clock)
+            return verify(manifest_path, base=base, client=local, clock=clock,
+                          require_persisted=require_persisted, baseline_path=baseline_path)
     process_id = None
     observed = []
+    digests = {}
     for photo in photos:
         for width in (400, 160):
             digest = None
@@ -160,6 +188,13 @@ def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=ti
                     raise VerificationError(
                         "Photo response failed resident/MIME/status/3000ms contract",
                     )
+                if require_persisted and (
+                    process == baseline["processId"]
+                    or not zero_resize_timing(response.headers.get("server-timing", ""))
+                ):
+                    raise VerificationError(
+                        "Persisted photo requires a new process and zero resize",
+                    )
                 process_id = process
                 try:
                     with Image.open(io.BytesIO(response.content)) as img:
@@ -176,25 +211,109 @@ def verify(manifest_path, *, base="http://127.0.0.1:8000", client=None, clock=ti
                         "Photo dimensions/orientation/transparency failed",
                     ) from None
                 current = hashlib.sha256(response.content).hexdigest()
+                variant_key = f"{photo['kind']}:{width}"
+                if require_persisted and current != baseline["digests"][variant_key]:
+                    raise VerificationError("Persisted photo bytes differ from initial baseline")
                 if digest is not None and current != digest:
                     raise VerificationError("Repeated photo response changed bytes")
                 digest = current
+                digests[variant_key] = current
                 observed.append({"kind": photo["kind"], "width": width,
                                  "repeat": bool(attempt), "ms": round(elapsed, 1),
                                  "bytes": len(response.content)})
-    return {"requests": observed, "sameProcess": True, "budgetMs": 3000}
+    if baseline_path is not None and not require_persisted:
+        Path(baseline_path).write_text(json.dumps({
+            "version": 1, "processId": process_id, "digests": digests,
+        }), encoding="utf-8")
+    result = {"requests": observed, "sameProcess": True, "budgetMs": 3000}
+    if require_persisted:
+        result.update({"newProcess": True, "persistedVariants": 4, "zeroResize": True})
+    return result
+
+
+def persisted_rows_match(rows, photos, baseline):
+    try:
+        by_product = {str(row["product_id"]): row for row in rows}
+        for photo in photos:
+            product_id = photo["path"].split("/")[-2]
+            row = by_product[product_id]
+            fingerprint = bytes(row["source_digest"])
+            assert len(fingerprint) == 32
+            mime = "image/jpeg" if photo["kind"] == "jpeg-exif" else "image/png"
+            assert row["source_mime"] == mime
+            for width in (400, 160):
+                entry = row[f"w{width}"]
+                assert set(entry) == {
+                    "source_sha256", "source_content_type", "content_type", "body_base64",
+                }
+                assert entry["source_sha256"] == fingerprint.hex()
+                assert entry["source_content_type"] == mime
+                assert entry["content_type"] == "image/webp"
+                assert isinstance(entry["body_base64"], str)
+                assert len(entry["body_base64"]) <= 4 * ((128 * 1024 + 2) // 3)
+                body = base64.b64decode(entry["body_base64"], validate=True)
+                assert 0 < len(body) <= 128 * 1024
+                expected_digest = baseline["digests"][f"{photo['kind']}:{width}"]
+                assert hashlib.sha256(body).hexdigest() == expected_digest
+        return True
+    except Exception:
+        return False
+
+
+def wait_persisted(manifest_path, baseline_path, *, clock=time.monotonic, sleep=time.sleep):
+    database_url = os.environ.get("DATABASE_URL", "")
+    require_local_ci(database_url)
+    photos = load_manifest(manifest_path)
+    baseline = load_baseline(baseline_path, photos)
+    engine = create_engine(database_url, hide_parameters=True, connect_args={"connect_timeout": 2})
+    deadline = clock() + 15
+    try:
+        while True:
+            with engine.connect() as connection:
+                connection.execute(text("SET TRANSACTION READ ONLY"))
+                connection.execute(text("SET LOCAL statement_timeout = '1000ms'"))
+                rows = connection.execute(text(
+                    "SELECT i.product_id, pg_catalog.sha256(i.bytes_data) AS source_digest, "
+                    "i.content_type AS source_mime, i.thumbnail_variants->'400' AS w400, "
+                    "i.thumbnail_variants->'160' AS w160 FROM product_image_files i "
+                    "JOIN products p ON p.id=i.product_id AND p.tenant_id=i.tenant_id "
+                    "WHERE p.is_active IS TRUE AND i.product_id IN "
+                    "(CAST(:first AS uuid),CAST(:second AS uuid))",
+                ), {"first": photos[0]["path"].split("/")[-2],
+                    "second": photos[1]["path"].split("/")[-2]}).mappings().all()
+            if clock() >= deadline:
+                raise VerificationError("Persisted photo variants were not ready within 15000ms")
+            if persisted_rows_match(rows, photos, baseline):
+                return {"persistedVariants": 4, "budgetMs": 15000}
+            sleep(0.1)
+    except VerificationError:
+        raise
+    except Exception:
+        raise VerificationError("Local persisted photo verification failed") from None
+    finally:
+        engine.dispose()
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("seed", "verify"))
+    parser.add_argument("command", choices=("seed", "verify", "wait-persisted"))
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--base", default="http://127.0.0.1:8000")
+    parser.add_argument("--baseline")
+    parser.add_argument("--require-persisted", action="store_true")
     args = parser.parse_args()
+    if args.require_persisted and args.command != "verify":
+        parser.error("--require-persisted is only valid for verify")
+    if args.command == "wait-persisted" and args.baseline is None:
+        parser.error("wait-persisted requires --baseline")
     try:
-        result = seed(args.manifest) if args.command == "seed" else verify(
-            args.manifest, base=args.base,
-        )
+        if args.command == "seed":
+            result = seed(args.manifest)
+        elif args.command == "wait-persisted":
+            result = wait_persisted(args.manifest, args.baseline)
+        else:
+            result = verify(args.manifest, base=args.base, baseline_path=args.baseline,
+                            require_persisted=args.require_persisted)
     except VerificationError as exc:
         raise SystemExit(str(exc)) from None
     print(json.dumps(result))  # noqa: T201

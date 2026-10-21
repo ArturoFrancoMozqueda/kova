@@ -1,22 +1,26 @@
 """Pure host tests: no application import, database, container or external network."""
 
+import base64
+import hashlib
 import io
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import httpx
 from check_native_photo_resources import (
     VerificationError,
     load_manifest,
+    persisted_rows_match,
     require_local_ci,
     seed,
     synthetic_photos,
     verify,
+    wait_persisted,
 )
 from PIL import Image, ImageDraw
 
@@ -38,7 +42,7 @@ class PhotoResourcesTests(unittest.TestCase):
         self.path.write_text(json.dumps({"version": 1, "photos": self.photos}))
         self.calls = 0
 
-    def response(self, request, *, process="a" * 32, mime="image/webp", alpha=True):
+    def response(self, request, *, process="a" * 32, mime="image/webp", alpha=True, timing=None):
         self.calls += 1
         photo = next(p for p in self.photos if request.url.path in p["path"])
         width = int(request.url.params["w"])
@@ -49,10 +53,13 @@ class PhotoResourcesTests(unittest.TestCase):
             ImageDraw.Draw(img).rectangle((0, 0, width // 2, size[1]), fill=(20, 100, 200, 0))
         data = io.BytesIO()
         img.save(data, "WEBP")
-        return httpx.Response(200, content=data.getvalue(), headers={
+        headers = {
             "content-type": mime, "x-kova-runtime": "native-resident",
             "x-kova-process-id": process,
-        })
+        }
+        if timing is not None:
+            headers["server-timing"] = timing
+        return httpx.Response(200, content=data.getvalue(), headers=headers)
 
     def run_verify(self, handler=None, **kwargs):
         with httpx.Client(transport=httpx.MockTransport(handler or self.response)) as client:
@@ -138,6 +145,147 @@ class PhotoResourcesTests(unittest.TestCase):
             return response
         with self.assertRaisesRegex(VerificationError, "changed bytes"):
             self.run_verify(changed)
+
+    def baseline(self):
+        path = Path(self.directory.name) / "baseline.json"
+        self.run_verify(baseline_path=path)
+        return path
+
+    def persisted_response(self, request):
+        return self.response(request, process="b" * 32,
+                             timing="image-db;dur=1.050, image-resize;dur=0.000")
+
+    def test_restart_requires_persisted_bytes_zero_resize_and_changed_process(self):
+        baseline = self.baseline()
+        result = self.run_verify(self.persisted_response, require_persisted=True,
+                                 baseline_path=baseline)
+        self.assertEqual(self.calls, 16)
+        self.assertTrue(result["newProcess"])
+        self.assertTrue(result["zeroResize"])
+        self.assertEqual(result["persistedVariants"], 4)
+        self.assertEqual(result["budgetMs"], 3000)
+        data = json.loads(baseline.read_text())
+        self.assertEqual(set(data), {"version", "processId", "digests"})
+        self.assertEqual(len(data["digests"]), 4)
+
+    def test_persisted_rejects_same_process_missing_nonzero_or_duplicate_resize(self):
+        baseline = self.baseline()
+        for process, timing in [
+            ("a" * 32, "image-resize;dur=0.000"), ("b" * 32, None),
+            ("b" * 32, "image-resize;dur=0.001"),
+            ("b" * 32, "image-resize;dur=0, image-resize;dur=0"),
+        ]:
+            with self.subTest(process=process, timing=timing), self.assertRaisesRegex(
+                VerificationError, "new process and zero resize",
+            ):
+                self.run_verify(
+                    lambda req, p=process, t=timing: self.response(req, process=p, timing=t),
+                    require_persisted=True, baseline_path=baseline,
+                )
+
+    def test_persisted_rejects_changed_derived_bytes_after_restart(self):
+        baseline = self.baseline()
+        data = json.loads(baseline.read_text())
+        data["digests"]["jpeg-exif:400"] = "0" * 64
+        baseline.write_text(json.dumps(data))
+        with self.assertRaisesRegex(VerificationError, "initial baseline"):
+            self.run_verify(self.persisted_response, require_persisted=True, baseline_path=baseline)
+
+    def test_persisted_rejects_absent_or_invalid_baseline_before_any_http(self):
+        for path in [None, Path(self.directory.name) / "absent.json", self.path]:
+            with self.subTest(path=path), self.assertRaises(VerificationError):
+                self.run_verify(require_persisted=True, baseline_path=path)
+        self.assertEqual(self.calls, 0)
+
+    def test_persisted_keeps_three_second_budget(self):
+        baseline = self.baseline()
+        ticks = iter([0, 3.001])
+        with self.assertRaisesRegex(VerificationError, "3000ms"):
+            self.run_verify(self.persisted_response, require_persisted=True,
+                            baseline_path=baseline, clock=lambda: next(ticks))
+
+    def persisted_rows(self):
+        baseline_path = self.baseline()
+        baseline = json.loads(baseline_path.read_text())
+        rows = []
+        for photo in self.photos:
+            row = {"product_id": photo["path"].split("/")[-2], "source_digest": b"a" * 32,
+                   "source_mime": "image/jpeg" if photo["kind"] == "jpeg-exif" else "image/png"}
+            for width in (400, 160):
+                request = httpx.Request("GET", "http://localhost" + photo["path"] + f"&w={width}")
+                body = self.response(request).content
+                row[f"w{width}"] = {
+                    "source_sha256": (b"a" * 32).hex(), "source_content_type": row["source_mime"],
+                    "content_type": "image/webp", "body_base64": base64.b64encode(body).decode(),
+                }
+                self.assertEqual(hashlib.sha256(body).hexdigest(),
+                                 baseline["digests"][f"{photo['kind']}:{width}"])
+            rows.append(row)
+        return rows, baseline_path, baseline
+
+    def test_persisted_rows_require_source_sha_mime_body_width_and_all_four_slots(self):
+        rows, _path, baseline = self.persisted_rows()
+        self.assertTrue(persisted_rows_match(rows, self.photos, baseline))
+        for field, value in [
+            ("source_sha256", "0" * 64), ("source_content_type", "image/webp"),
+            ("content_type", "image/png"), ("body_base64", "!invalid!"),
+            ("body_base64", base64.b64encode(b"a" * (128 * 1024 + 1)).decode()),
+        ]:
+            original = rows[0]["w400"][field]
+            rows[0]["w400"][field] = value
+            self.assertFalse(persisted_rows_match(rows, self.photos, baseline))
+            rows[0]["w400"][field] = original
+        rows[0]["w160"] = rows[0]["w400"]
+        self.assertFalse(persisted_rows_match(rows, self.photos, baseline))
+        self.assertFalse(persisted_rows_match(rows[:1], self.photos, baseline))
+
+    def test_wait_persisted_is_read_only_bounded_and_disposes_engine(self):
+        rows, baseline_path, _baseline = self.persisted_rows()
+        engine = MagicMock()
+        connection = engine.connect.return_value.__enter__.return_value
+        result = MagicMock()
+        result.mappings.return_value.all.side_effect = [[], rows]
+        connection.execute.return_value = result
+        with patch.dict(os.environ, {"DATABASE_URL": "postgresql+psycopg://pos@localhost/pos"}), \
+                patch("check_native_photo_resources.create_engine", return_value=engine), \
+                patch("check_native_photo_resources.time.sleep") as sleep:
+            value = wait_persisted(self.path, baseline_path, clock=lambda: 0, sleep=sleep)
+        self.assertEqual(value["persistedVariants"], 4)
+        self.assertEqual(value["budgetMs"], 15000)
+        statements = [str(call.args[0]) for call in connection.execute.call_args_list]
+        self.assertEqual(statements[:2], [
+            "SET TRANSACTION READ ONLY", "SET LOCAL statement_timeout = '1000ms'",
+        ])
+        self.assertTrue(statements[2].startswith("SELECT "))
+        self.assertIn("pg_catalog.sha256(i.bytes_data)", statements[2])
+        self.assertNotIn("SELECT i.bytes_data", statements[2])
+        sleep.assert_called_once_with(0.1)
+        engine.dispose.assert_called_once()
+
+    def test_wait_persisted_timeout_cannot_pass_or_expose_database_errors(self):
+        baseline = self.baseline()
+        engine = MagicMock()
+        connection = engine.connect.return_value.__enter__.return_value
+        connection.execute.return_value.mappings.return_value.all.return_value = []
+        with patch.dict(os.environ, {"DATABASE_URL": "postgresql+psycopg://pos@localhost/pos"}), \
+                patch("check_native_photo_resources.create_engine", return_value=engine):
+            ticks = iter([0, 15])
+            with self.assertRaisesRegex(VerificationError, "15000ms"):
+                wait_persisted(self.path, baseline, clock=lambda: next(ticks))
+            connection.execute.side_effect = RuntimeError("sensitive database diagnostic")
+            with self.assertRaisesRegex(
+                VerificationError, "^Local persisted photo verification failed$",
+            ):
+                wait_persisted(self.path, baseline)
+        self.assertEqual(engine.dispose.call_count, 2)
+
+    def test_wait_persisted_blocks_remote_database_before_engine_creation(self):
+        remote = {"DATABASE_URL": "postgresql+psycopg://pos@remote.invalid/pos"}
+        with patch.dict(os.environ, remote), \
+                patch("check_native_photo_resources.create_engine") as engine:
+            with self.assertRaises(VerificationError):
+                wait_persisted(self.path, None)
+            engine.assert_not_called()
 
 
 if __name__ == "__main__":

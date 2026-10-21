@@ -44,6 +44,36 @@ cuatro escenarios de navegador móvil, incluidos DPR3, fallo503 simulado local,
 recuperación sin cachebuster y filtro de categoría fuera del primer tramo.
 CI completo y comparación posterior al despliegue son los gates de publicación.
 
+Aceptación posterior de #240 (`a468d868df10cbef67f56c43bb0ca99ed4203fd6`):
+CI y publicación aprobaron, pero cuatro fotografías reales simultáneas de 320px
+todavía tardaron 5.2–8.8s en su primer MISS. Tras 330s sin consultas del
+verificador, el mismo proceso devolvió los mismos archivos en 1.8–2.0s; resize
+fue cero en esa segunda muestra. Los tiempos alrededor de `db.execute` incluyen
+pool/conexión, transporte y ejecución; no son medidas puras del servidor SQL.
+Por ello #240 es una mejora parcial y no acredita resuelta la demora reportada.
+
+Seguimiento implementado, pendiente de aceptación productiva: miniaturas persistidas en la fila original,
+acotadas a cuatro anchos y validadas contra el SHA real antes de servirlas.
+Escritura técnica opcional con sesión propia sujeta a RLS, condición atómica y
+sin cambiar la versión de la foto; el reemplazo elimina las variantes anteriores.
+Las nuevas subidas preparan los cuatro tamaños fuera del event loop y sin
+conexión retenida. Antes de guardar original y variantes en una sola transacción,
+se vuelven a comprobar sesión, pertenencia, permiso y producto. Ese trabajo puede
+añadir segundos a la subida en el servidor limitado; no se presenta como gratis.
+Las fotos antiguas adquieren variantes de forma oportunista al consultarse; su
+primera transformación sigue teniendo coste.
+
+Las lecturas públicas frescas usan AUTOCOMMIT exclusivamente en psycopg nativo
+y en el pool privilegiado existente: se eliminan BEGIN/ROLLBACK sin alterar auth,
+webhooks, transacciones activas ni sesiones con contexto. Una prueba real verifica
+que el aislamiento se restaura y una escritura posterior sin commit se revierte.
+La proyección residente amplía recycle a 1800s, conservando pre-ping y capacidad.
+
+La aceptación de CI ahora exige persistencia antes de reiniciar realmente el
+contenedor y, después, proceso nuevo, mismos bytes y cero resize en las ocho
+peticiones, con el presupuesto original de 3000ms y 256MiB/1⁄16CPU. No se amplía
+el TTL público de 300s ni se conectan cuentas o recursos externos nuevos.
+
 Hallazgo separado: la consola del SDK reportó un DSN de observabilidad inválido.
 No se inspeccionaron valores secretos ni se modificó esa configuración; no se
 considera una explicación demostrada de la demora de las imágenes.

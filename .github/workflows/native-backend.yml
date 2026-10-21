@@ -87,7 +87,25 @@ jobs:
               raise SystemExit('Native process failed readiness within 120 seconds')
           PY
           python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000
-          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py wait-persisted --manifest /tmp/kova-native-photos.json --baseline /tmp/kova-native-photo-baseline.json
+          docker exec kova-native-acceptance cat /sys/fs/cgroup/memory.peak
+          test "$(docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance)" = false
+          docker restart kova-native-acceptance
+          python - <<'PY'
+          import time, urllib.request
+          for _ in range(120):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=1) as response:
+                      if response.status == 200:
+                          break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit('Restarted native process failed readiness within 120 seconds')
+          PY
+          python scripts/check_native_resident.py --base http://127.0.0.1:8000 --sha "$KOVA_BUILD_SHA" --max-ms 3000
+          uv run --project backend --frozen python backend/scripts/check_native_photo_resources.py verify --manifest /tmp/kova-native-photos.json --base http://127.0.0.1:8000 --baseline /tmp/kova-native-photo-baseline.json --require-persisted
           docker exec kova-native-acceptance cat /sys/fs/cgroup/memory.peak
           test "$(docker inspect --format '{{.State.OOMKilled}}' kova-native-acceptance)" = false
       - name: Stop synthetic API

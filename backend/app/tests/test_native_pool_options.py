@@ -4,7 +4,26 @@ import pytest
 from sqlalchemy.pool import NullPool
 
 from app import db
-from app.config import settings
+from app.config import Settings, settings
+
+
+@pytest.mark.parametrize("privileged", [False, True])
+def test_native_projected_recycle_setting_preserves_connection_caps_and_ping(monkeypatch, privileged):
+    monkeypatch.setenv("DATABASE_POOL_RECYCLE_SECONDS", "1800")
+    monkeypatch.setenv("DATABASE_POOL_SIZE", "3")
+    monkeypatch.setenv("DATABASE_MAX_OVERFLOW", "0")
+    projected = Settings(_env_file=None)
+    monkeypatch.setattr(db, "settings", projected)
+    monkeypatch.setattr(db.sys, "platform", "linux")
+
+    options = db._pool_options(privileged=privileged)
+    assert projected.database_pool_recycle_seconds == 1800
+    assert options["pool_recycle"] == 1800
+    assert options["pool_size"] == (2 if privileged else 3)
+    assert options["max_overflow"] == (2 if privileged else 0)
+    assert db.engine.pool._pre_ping is True
+    assert db.privileged_engine.pool._pre_ping is True
+    assert Settings.model_fields["database_pool_recycle_seconds"].default == 300
 
 
 @pytest.mark.parametrize("privileged", [False, True])
@@ -52,3 +71,19 @@ def test_workers_hyperdrive_pool_options_are_unchanged(monkeypatch):
     assert callable(options["creator"])
     assert "connect_args" not in options
     assert "pool_size" not in options
+    assert "pool_recycle" not in options
+    assert "skip_autocommit_rollback" not in options
+
+
+@pytest.mark.parametrize("driver,privileged,expected", [
+    ("psycopg", True, True),
+    ("psycopg", False, False),
+    ("pg8000", True, False),
+])
+def test_skip_autocommit_rollback_is_scoped_to_native_privileged_psycopg(
+    monkeypatch, driver, privileged, expected,
+):
+    monkeypatch.setattr(db.sys, "platform", "linux")
+    monkeypatch.setattr(settings, "app_database_url", f"postgresql+{driver}://synthetic@127.0.0.1/test")
+    monkeypatch.setattr(settings, "migration_database_url", f"postgresql+{driver}://synthetic@127.0.0.1/test")
+    assert db._pool_options(privileged=privileged).get("skip_autocommit_rollback", False) is expected
