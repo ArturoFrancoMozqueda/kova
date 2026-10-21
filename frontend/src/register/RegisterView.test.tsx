@@ -141,7 +141,7 @@ describe("RegisterView cash-without-shift guard", () => {
     getOpenShift.mockResolvedValue(openShift);
     renderRegister();
     const card = await screen.findByRole("button", { name: `${copy.register.add} ${product.name}` });
-    const image = within(card).getByAltText("");
+    const image = await within(card).findByAltText("");
     expect(image).toHaveAttribute("loading", "lazy");
     expect(image.getAttribute("sizes")).toMatch(/^auto, .*48px/);
     expect(image).toHaveAttribute("width", "400");

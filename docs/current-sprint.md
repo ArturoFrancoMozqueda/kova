@@ -205,9 +205,11 @@ mismo proceso, mediana 146ms y máximo 854ms. La comprobación independiente
 posterior devolvió frontend/API 909919950261… con 200, API residente en 303ms.
 Los cambios de #243/#244 continúan pendientes de publicación.
 
-La telemetría acotada registra apagado a 15:30:56, startup a 15:31:40 y listener
-listo a 15:32:22 UTC. Las tres invocaciones muestreadas del Worker anterior son
-previas al listener; no demuestran la causa del timeout posterior a readiness.
+Los eventos de Containers consultados registran apagado a 15:30:56, startup
+a 15:31:40 y listener listo a 15:32:22 UTC, pero son de alcance cuenta y no se
+retuvo identidad de aplicación: no se atribuyen a Kova ni prueban su reinicio.
+Las tres invocaciones muestreadas sí corresponden a kova-backend y son previas
+a 15:31:11; no demuestran la causa del timeout posterior a readiness.
 Backend y controlador son idénticos entre 90991995 y 278d0ad6, salvo la identidad
 horneada; no hay evidencia para cambiar auth, SDK, RLS o ampliar presupuestos.
 
@@ -219,6 +221,28 @@ cabeceras arbitrarias o causa original. Se conservan 15s de timeout, 3000ms de
 aceptación, las mismas consultas, SHA/PID estrictos y cero reintentos. Esta
 instrumentación identifica el atasco del siguiente candidato; no se presenta
 como una corrección causal del runtime ni como publicación exitosa.
+
+#245 pasó CI `39628260705`, se fusionó como
+`63cad8fe28792ce1263d0009650310a2c8850ff6` y su push creó `39629745330`.
+Todos los gates aprobaron; el release falló antes de readiness, tras subir el
+Worker y antes de login/push de la imagen. El CLI beta.18 devolvió únicamente
+`Generic Error`. La fuente acota esa operación a generar la credencial del
+registro gestionado; el mensaje no conserva el estado HTTP ni el código V4.
+También puede representar HTTP200 con success:false. No se atribuye a permisos,
+capacidad o caída del proveedor sin esa información.
+
+La recuperación pasó 25 contratos, mismo proceso, mediana 195ms y máximo 776ms.
+La comprobación independiente de los seis contratos públicos confirmó frontend,
+API, DB y proxy sobre90991995. La única verificación local de generación de
+credencial funcionó con perfil local, que no es el token de CI; se descartó en
+memoria sin login/push. Los eventos de aplicación encontrados son posteriores
+al error y pertenecen a recuperación. No hubo coincidencias del nuevo marcador:
+el verificador no llegó a ejecutarse, no se considera prueba de ausencia de tráfico.
+
+El siguiente cambio conserva en el CLI fijado el estado y código numérico de
+esa operación exacta, procesando sólo la respuesta que ya recibe el cliente.
+Se mantienen autenticación, permisos, validaciones, tiempos, cero reintentos y
+los demás mensajes. La publicación y la QA del código nuevo siguen pendientes.
 
 ## Backend residente en Cloudflare — publicado y verificado
 
