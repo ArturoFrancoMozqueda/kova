@@ -27,7 +27,7 @@ function host() {
 
 function TaskLocation() {
   const location = useLocation();
-  return <output aria-label="Ruta de tarea">{location.pathname}{location.search}</output>;
+  return <output aria-label="Ruta de tarea">{location.pathname}{location.search}{location.hash}</output>;
 }
 function taskHost(path: string) {
   render(<MemoryRouter initialEntries={[path]}><ToastProvider>
@@ -42,6 +42,17 @@ beforeEach(() => {
 });
 
 describe("catalog publication discovery", () => {
+
+  it("preserves the existing anchor while consuming a creation command", async () => {
+    taskHost("/catalog?search=concha&new=product#productos");
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo producto" });
+    await waitFor(() => expect(dialog).toHaveFocus());
+    expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nuevo producto" })).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos");
+  });
+
 
   it.each(["new=product", "inventory=activate", "new=product&inventory=activate"])("consumes %s once and preserves the catalog filter", async intent => {
     taskHost(`/catalog?${intent}&search=concha`);

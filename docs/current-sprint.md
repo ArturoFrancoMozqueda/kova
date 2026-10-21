@@ -17,10 +17,10 @@ Implementación local del 21 de octubre, pendiente de CI y aceptación productiv
   La continuación vincula publicación → solicitudes, y reposición →
   compras → existencias. Conserva dos enlaces como máximo y filtros de acceso.
 - Las intenciones de creación de producto se consumen una vez preservando el
-  filtro; cancelar y volver a elegir la tarea abre nuevamente el formulario.
+  filtro, ancla y estado de navegación; cancelar y volver a elegir la tarea abre nuevamente el formulario.
   No se guardan productos por navegar ni se cambia la prioridad de inventario.
 
-Validación: 62 pruebas de layout, 45 de dashboard y 19 de catálogo aprobadas;
+Validación: 62 pruebas de layout, 45 de dashboard, 20 de catálogo y cuatro de guía inicial aprobadas;
 regresiones rojas antes de corregir continuidad y repetición del formulario.
 Revisión independiente sin bloqueos. Build completo y ESLint aprobaron. Ocho
 pruebas de navegador sobre el build final aprobaron: tareas con reportes
