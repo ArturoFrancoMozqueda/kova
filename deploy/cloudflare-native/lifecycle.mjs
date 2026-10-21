@@ -1,5 +1,16 @@
 import { NATIVE_INSTANCE, nativeEnvironment, privateResponse, publicPath, unavailable } from "./policy.mjs";
 
+// Only the read-only acceptance contracts can opt in to fixed stage telemetry.
+// Query strings and arbitrary paths/headers never become diagnostics.
+const diagnosticPhases = new Set(["ensure_ready", "start_fetch", "response", "failed"]);
+const diagnosticRoutes = new Map([
+  ["GET /health", "health"], ["GET /health/db", "database_health"],
+  ["GET /api/v1/auth/session", "session"], ["GET /api/v1/catalog/products", "catalog"],
+  ["GET /api/v1/reports/dashboard", "dashboard"],
+  ["GET /api/v1/purchasing/orders", "purchasing"],
+  ["POST /api/v1/auth/login", "login_validation"],
+]);
+
 async function sdkTransportFailure(response) {
   if (response.status !== 500 || response.headers.has("x-kova-runtime")
       || response.headers.has("x-kova-process-id")
@@ -36,6 +47,7 @@ export function residentContainerClass(Container) {
     requiredPorts = [8000];
     sleepAfter = "5m";
     portProbeRequired = false;
+    diagnosticEvents = 0;
 
     constructor(ctx, env) {
       super(ctx, env);
@@ -44,6 +56,26 @@ export function residentContainerClass(Container) {
 
     isResident() {
       return this.ctx.id.toString() === this.env.API.idFromName(NATIVE_INSTANCE).toString();
+    }
+
+    acceptanceDiagnostic(request) {
+      if (request.headers.get("x-kova-resident-diagnostic") !== "1") return () => {};
+      const url = new URL(request.url);
+      const route = !url.search && diagnosticRoutes.get(`${request.method} ${url.pathname}`);
+      if (!route) return () => {};
+      const started = performance.now();
+      return (phase, status) => {
+        if (!diagnosticPhases.has(phase) || this.diagnosticEvents >= 256) return;
+        this.diagnosticEvents++;
+        const elapsed = performance.now() - started;
+        const event = { event: "resident_acceptance_stage", route, phase,
+          elapsed_ms: Number.isFinite(elapsed) ? Math.min(300000, Math.max(0, Math.round(elapsed))) : 0 };
+        if (phase === "response" && Number.isInteger(status) && status >= 100 && status <= 599) {
+          event.status = status;
+        }
+        try { console.info(JSON.stringify(event)); }
+        catch { /* Diagnostics must never alter the original request outcome. */ }
+      };
     }
 
     async ensureReady() {
@@ -64,10 +96,13 @@ export function residentContainerClass(Container) {
       if (!publicPath(new URL(request.url).pathname)) {
         return privateResponse(Response.json({ detail: "Not Found" }, { status: 404 }));
       }
+      let diagnostic;
       try {
         if (!this.isResident()) {
           return await this.env.API.getByName(NATIVE_INSTANCE).fetch(request);
         }
+        diagnostic = this.acceptanceDiagnostic(request);
+        diagnostic("ensure_ready");
         // Only the gateway reaches this DO binding. It already sets the
         // authoritative client IP. Replace caller-controlled proxy metadata so
         // native redirects preserve the original HTTPS scheme safely.
@@ -79,7 +114,9 @@ export function residentContainerClass(Container) {
           headers.delete(name);
         }
         await this.ensureReady();
+        diagnostic("start_fetch");
         const response = await super.fetch(new Request(request, { headers }));
+        diagnostic("response", response.status);
         if (await sdkTransportFailure(response)) {
           // A rollout can disconnect after ensureReady. Reprobe on the next
           // request without replaying this request or mutating SDK state.
@@ -90,6 +127,7 @@ export function residentContainerClass(Container) {
         }
         return privateResponse(response, request);
       } catch {
+        diagnostic?.("failed");
         console.error(JSON.stringify({ event: "native_backend_unavailable" }));
         return unavailable();
       }
