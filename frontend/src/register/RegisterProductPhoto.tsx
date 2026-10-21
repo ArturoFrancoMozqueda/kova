@@ -45,7 +45,8 @@ function ViewportPhoto({ product }: { product: PhotoProduct }) {
     {admitted && product.image_url && !failed && <img
       src={productImageSrc(product.image_url, 400)}
       srcSet={productImageSrcSet(product.image_url)}
-      sizes="auto, (max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px"
+      // Auto sizing can select the intrinsic 400px width when this lazy image detaches.
+      sizes="(max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px"
       width={400}
       height={400}
       alt=""

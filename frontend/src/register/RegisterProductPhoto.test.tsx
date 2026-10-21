@@ -34,7 +34,7 @@ it("does not mount a source before entering the viewport and admits each photo i
   expect(image).toHaveAttribute("src", `${product.image_url}&w=400`);
   expect(image).toHaveAttribute("srcset", expect.stringContaining("w=160 160w"));
   expect(image).toHaveAttribute("fetchpriority", "low");
-  expect(image).toHaveAttribute("sizes", "auto, (max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px");
+  expect(image).toHaveAttribute("sizes", "(max-width: 639px) 48px, (max-width: 1024px) 33vw, 200px");
   expect(image).toHaveStyle({ objectPosition: "25% 70%", transform: "scale(1.5)" });
   expect(image.closest('[aria-hidden="true"]')).not.toBeNull();
   fireEvent.load(image);
