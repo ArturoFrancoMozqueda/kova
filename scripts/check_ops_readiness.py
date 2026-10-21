@@ -37,7 +37,7 @@ def workflow_contract_errors(workflows: Path = WORKFLOWS) -> list[str]:
             errors.append(f"workflow sin permisos explícitos mínimos: {path.name}")
         for line_number, line in enumerate(content.splitlines(), start=1):
             if ("uses:" in line and not PINNED_ACTION.fullmatch(line)
-                    and not re.fullmatch(r"\s*uses: \./\.github/workflows/ci-maintenance\.yml", line)):
+                    and not re.fullmatch(r"\s*uses: \./\.github/workflows/(?:ci-maintenance|native-backend)\.yml", line)):
                 errors.append(
                     f"action sin SHA inmutable: {path.name}:{line_number}"
                 )

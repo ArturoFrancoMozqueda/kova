@@ -50,6 +50,28 @@ test("health, root and application routes retain their API handler", async () =>
   }
 });
 
+test("resident hosting routes all cookies and paths directly to one process", async () => {
+  const objects = new Set();
+  const env = { KOVA_NATIVE_BACKEND: "1", API: { getByName(name) {
+    objects.add(name);
+    return { async fetch(request) {
+      assert.equal(request.headers.get("x-kova-client-ip"), "192.0.2.1");
+      assert.equal(request.headers.has("x-forwarded-for"), false);
+      return Response.json({ status: "ok" });
+    } };
+  } } };
+  for (const cookie of ["", "access_token=synthetic-a", "access_token=synthetic-b"]) {
+    for (const path of ["/health", "/api/v1/auth/session", "/api/v1/inventory/stock"]) {
+      const response = await gateway.fetch(new Request(`https://api.test${path}`, {
+        headers: { Cookie: cookie, "CF-Connecting-IP": "192.0.2.1", "X-Forwarded-For": "spoofed" },
+      }), env);
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("cache-control"), /no-store/);
+    }
+  }
+  assert.deepEqual([...objects], ["api-0"]);
+});
+
 test("dashboard routes spread one cookie's reads while preserving private responses", async () => {
   const coordinators = new Set();
   const paths = ["/auth/session", "/settings/receipt", "/settings/business-profile",

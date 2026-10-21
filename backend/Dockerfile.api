@@ -1,0 +1,39 @@
+# Minimal native API image. The isolated parser image and ingestion daemon are
+# deliberately separate; this runtime has no Docker binary or socket.
+FROM python:3.12-slim@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.4@sha256:9f130421e930bfbdc563c00740466603f8723158e90297d07957c2294640262b /uv /usr/local/bin/uv
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    UV_NO_SYNC=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    APP_ENV=production \
+    CLOUDFLARE_CONTAINER_MODE=true \
+    ASSISTANT_DOCUMENTS_ENABLED=false \
+    ASSISTANT_INGEST_ON_DEMAND=false
+
+ARG KOVA_RELEASE_SHA=unknown
+ENV KOVA_RELEASE_SHA=$KOVA_RELEASE_SHA \
+    KOVA_IMAGE_SHA=$KOVA_RELEASE_SHA
+
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-cache --no-dev --no-install-project \
+    && groupadd --gid 10001 kova \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin kova
+
+# Explicit runtime copies exclude .env, local credentials, tests, migrations,
+# and scripts even if a build client neglects the project .dockerignore.
+COPY app ./app
+COPY presets ./presets
+RUN find /app/app -type d -name tests -prune -exec rm -rf {} +
+
+USER 10001:10001
+EXPOSE 8000
+# The container port has no public ingress. Its controller overwrites
+# X-Forwarded-Proto/Host and removes Forwarded/X-Forwarded-For before forwarding;
+# only that private hop may supply proxy metadata. Preserve HTTPS slash redirects
+# even though the container SDK's final transport uses HTTP internally.
+CMD ["uvicorn", "app.native:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]

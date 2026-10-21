@@ -7,6 +7,10 @@ window algorithm. The sliding window is shared across instances and survives
 deploys, which is what makes the limit production-safe under horizontal
 scaling.
 
+Cloudflare Workers and native Containers use the same durable SQLite limiter
+instead. Container mode is an explicit operator setting and never falls back to
+an in-memory allowance counter when the private binding is unavailable.
+
 See ``docs/security/rate-limiting.md`` for the threat model and thresholds.
 """
 
@@ -211,6 +215,12 @@ def _get_backend() -> _RateLimiterBackend:
             from app.workers.rate_limit import WorkersRateLimiter
 
             _backend = WorkersRateLimiter()
+            return _backend
+        if settings.cloudflare_container_mode:
+            from app.middleware.cloudflare_rate_limit import CloudflareContainerRateLimiter
+
+            _backend = CloudflareContainerRateLimiter()
+            logger.info("rate_limit_backend_selected", extra={"backend": "cloudflare-container"})
             return _backend
         url = settings.upstash_redis_rest_url
         token = settings.upstash_redis_rest_token

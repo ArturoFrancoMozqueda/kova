@@ -45,7 +45,9 @@ export default {
     for (const name of ["fly-client-ip", "x-forwarded-for", "x-real-ip", "forwarded"]) {
       headers.delete(name);
     }
-    const shard = coordinatorShard(headers.get("cookie"), path);
+    // Resident native traffic shares one process. Avoid keeping compatibility
+    // proxy objects awake (and billed) for every former Python shard.
+    const shard = env.KOVA_NATIVE_BACKEND === "1" ? 0 : coordinatorShard(headers.get("cookie"), path);
     try {
       const started = performance.now();
       const response = await env.API.getByName(`api-${shard}`).fetch(

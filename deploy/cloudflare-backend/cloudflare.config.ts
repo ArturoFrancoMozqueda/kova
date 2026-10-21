@@ -38,7 +38,10 @@ export const gateway = defineConfig({ worker: {
   workersDev: false,
   domains: process.env.KOVA_CLOUDFLARE_BACKEND === "1"
     ? ["api-preview.kovasuite.com", "api.kovasuite.com"] : ["api-preview.kovasuite.com"],
-  env: { API: bindings.durableObject({ worker: "kova-backend", exportName: "KovaApi" }) },
+  env: {
+    API: bindings.durableObject({ worker: "kova-backend", exportName: "KovaApi" }),
+    ...(process.env.KOVA_NATIVE_BACKEND === "1" ? { KOVA_NATIVE_BACKEND: bindings.text("1") } : {}),
+  },
   observability,
 } });
 

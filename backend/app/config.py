@@ -87,11 +87,16 @@ class Settings(BaseSettings):
     kova_cfdi_timeout_seconds: int = Field(default=20, ge=5, le=30)
     account_deletion_grace_days: int = 30
     resend_api_key: str | None = None
-    # Rate limiting — when both are set, the limiter uses Upstash Redis; otherwise
-    # it falls back to a single-process in-memory limiter (tolerable for local dev
-    # and single-instance deploys but unsafe across replicas).
+    # Rate limiting outside Cloudflare — when both are set, use Upstash Redis;
+    # otherwise use a single-process in-memory limiter (tolerable for local dev
+    # and single-instance deploys but unsafe across replicas). Workers and
+    # explicitly enabled Container mode always use durable Cloudflare buckets.
     upstash_redis_rest_url: str | None = None
     upstash_redis_rest_token: str | None = None
+    # Set only by the native Cloudflare Container controller. Its private
+    # outbound handler keeps the existing durable rate-limit buckets shared
+    # across deployments; an outage must never select an in-memory fallback.
+    cloudflare_container_mode: bool = False
     trusted_client_ip_header: str = "fly-client-ip"
     email_from: str = "onboarding@resend.dev"
 

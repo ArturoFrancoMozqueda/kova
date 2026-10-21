@@ -8,7 +8,7 @@ from anyio import CapacityLimiter
 from fastapi import Depends
 from sqlalchemy import String, bindparam, create_engine, event, text
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -246,12 +246,28 @@ def _pool_options(*, privileged: bool = False) -> dict:
             # a Hyperdrive connection string from another request.
             "creator": lambda: connect_binding(privileged=privileged),
         }
-    return {
+    options = {
         "pool_size": 2 if privileged else settings.database_pool_size,
         "max_overflow": 2 if privileged else settings.database_max_overflow,
         "pool_timeout": settings.database_pool_timeout,
         "pool_recycle": settings.database_pool_recycle_seconds,
     }
+    connection_url = (
+        settings.effective_migration_database_url
+        if privileged else settings.effective_app_database_url
+    )
+    database_url = make_url(sqlalchemy_database_url(connection_url))
+    if (
+        database_url.drivername == "postgresql+psycopg"
+        and (database_url.host or "").lower().endswith(".pooler.supabase.com")
+        and database_url.port == 6543
+    ):
+        # Supavisor transaction pooling cannot retain prepared statements on
+        # one server session. Native psycopg otherwise prepares after repeated
+        # execution and can fail only after production traffic warms the pool.
+        # Leave session/direct connections and other drivers unchanged.
+        options["connect_args"] = {"prepare_threshold": None}
+    return options
 
 
 def _engine_database_url(value: str) -> str:

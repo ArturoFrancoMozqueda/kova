@@ -5,6 +5,7 @@ import path from "node:path";
 import { verifyDeployment } from "./verify-deployment.mjs";
 import { cloudflareProvider, validateCloudflareVersion } from "./cloudflare-provider.mjs";
 import { cloudflareBackendProvider, validateBackendVersions } from "./cloudflare-backend-provider.mjs";
+import { validateNativeContainerSnapshot } from "./cloudflare-container-provider.mjs";
 
 const RECOVERY_PHASES = new Set(["candidate", "promotion", "acceptance"]);
 const FULL_SHA = /^[0-9a-f]{40}$/i;
@@ -50,6 +51,8 @@ export function validateRollbackArtifact(input) {
   }
   productionHostname(String(input.frontendUrl ?? ""));
   return {
+    ...(input.cloudflareNativeContainer !== undefined
+      ? { cloudflareNativeContainer: validateNativeContainerSnapshot(input.cloudflareNativeContainer) } : {}),
     ...(input.cloudflareBackendVersions !== undefined
       ? { cloudflareBackendVersions: validateBackendVersions(input.cloudflareBackendVersions) } : {}),
     ...(input.cloudflareVersion !== undefined
@@ -69,6 +72,9 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
   // Validate every target before the first mutation. A partial/empty capture
   // must stop recovery and keep the incident visible rather than guessing.
   const artifact = validateRollbackArtifact(rawArtifact);
+  if (provider.requiresNativeContainer && !artifact.cloudflareNativeContainer) {
+    throw new Error("Resident recovery requires the captured Container image or explicit absence");
+  }
   if (failedSha !== undefined && !FULL_SHA.test(failedSha)) {
     throw new Error("Cloudflare backend recovery requires a complete failed release SHA");
   }
@@ -97,7 +103,7 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
       await provider.restoreVercel(artifact.vercelDeployment, artifact.frontendUrl);
       restored.push("vercel");
     }
-    await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions);
+    await provider.restoreCloudflareBackend(artifact.cloudflareBackendVersions, artifact.cloudflareNativeContainer);
     restored.push("cloudflare-backend");
     if (restored.includes("cloudflare")) {
       await provider.waitForPublicFrontend({ frontendUrl: artifact.frontendUrl,
@@ -107,6 +113,9 @@ export async function recoverRelease({ phase, artifact: rawArtifact, provider, v
       await provider.waitForPublicBackend({ frontendUrl: artifact.frontendUrl,
         backendUrl: artifact.backendUrl, sha: artifact.releaseSha,
         previousSha: failedSha ?? artifact.releaseSha,
+        ...(artifact.cloudflareNativeContainer ? {
+          nativeRuntime: artifact.cloudflareNativeContainer.applicationId !== null,
+        } : {}),
         frontendBypassSecret: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
     }
     const verification = await verify({
@@ -168,6 +177,7 @@ export function cliProvider({ globalConfig, run = runProviderCommand, env = proc
   if (!backend) throw new Error("Cloudflare backend is required; the retired provider cannot be used");
   return {
     requiresCloudflareBackend: Boolean(backend),
+    requiresNativeContainer: Boolean(backend?.requiresNativeContainer),
     ...(backend ? { restoreCloudflareBackend: backend.restore,
       waitForPublicBackend: backend.waitForPublicBackend } : {}),
     ...(cloudflare ? { restoreCloudflare: cloudflare.restore,
