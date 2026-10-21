@@ -19,6 +19,13 @@ and privileged database URLs must be separately provisioned before activation.
 The runtime role must pass the application's existing RLS/ownership guards.
 Retired Fly configuration and document ingestion remain disabled.
 
+`KOVA_RELEASE_SHA` and `KOVA_IMAGE_SHA` are baked together into the API image.
+The Worker never projects either field, including from future Settings entries:
+Worker and image rollouts can overlap different versions. The native boot guard
+still requires their exact match; readiness separately compares the running
+image's release SHA with the controller's `KOVA_BUILD_SHA` and the public verifier
+requires the requested release and resident process identity before acceptance.
+
 Production is active with `KOVA_NATIVE_BACKEND=1` after release
 [`39531362675`](https://github.com/ArturoFrancoMozqueda/kova/actions/runs/39531362675)
 for `6bd525e42c22c2b6d8798638ef4de6f3498d47af`. The one-time database provisioning

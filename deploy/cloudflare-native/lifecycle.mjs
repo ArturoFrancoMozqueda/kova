@@ -122,7 +122,7 @@ export function residentContainerClass(Container) {
       const response = await this.containerFetch("http://container/health");
       if (!response.ok) throw new Error("Native container failed readiness");
       const body = await response.json();
-      if (body.release_sha !== this.envVars.KOVA_RELEASE_SHA) {
+      if (body.release_sha !== this.env.KOVA_BUILD_SHA) {
         throw new Error("Native container release identity mismatch");
       }
       const database = await this.containerFetch("http://container/health/db");
