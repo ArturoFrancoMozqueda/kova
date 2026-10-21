@@ -49,7 +49,7 @@ describe("first-use tour continuation", () => {
     await waitFor(() => expect(dialog).toHaveFocus());
     expect(screen.getByLabelText("Nombre del producto")).toBeInTheDocument();
     // Creation is consumed once; the existing filter and anchor remain.
-    expect(screen.getByLabelText("Ruta actual")).toHaveTextContent("/catalog?category=bebidas#productos");
+    await waitFor(() => expect(screen.getByLabelText("Ruta actual")).toHaveTextContent("/catalog?category=bebidas#productos"));
     expect(window.localStorage.getItem("kova:tour:tenant-tour:catalog")).toBe("1");
     await waitFor(() => expect(screen.queryByRole("button", { name: "Crear productos" })).not.toBeInTheDocument());
     fireEvent.keyDown(dialog, { key: "Escape" });

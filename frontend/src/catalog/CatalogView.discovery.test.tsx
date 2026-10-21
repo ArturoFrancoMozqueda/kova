@@ -47,10 +47,10 @@ describe("catalog publication discovery", () => {
     taskHost("/catalog?search=concha&new=product#productos");
     const dialog = await screen.findByRole("dialog", { name: "Nuevo producto" });
     await waitFor(() => expect(dialog).toHaveFocus());
-    expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos");
+    await waitFor(() => expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos"));
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nuevo producto" })).not.toBeInTheDocument());
-    expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos");
+    await waitFor(() => expect(screen.getByLabelText("Ruta de tarea")).toHaveTextContent("/catalog?search=concha#productos"));
   });
 
 
